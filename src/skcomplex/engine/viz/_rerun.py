@@ -13,14 +13,14 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
 
-from ...core.base import ValidationError
-from ...core.problems import BaseProblem, RenewalRecord
-from ...core.space import NetworkSpace
+from ...core.errors import ValidationError
+from ...core.spaces import NetworkSpace
+from ..problems import BaseProblem, RenewalRecord
 from ..runtime import BaseObserver, Frame
 from ._blueprints import default_blueprint, save_blueprint
-from ._traits import agents_visual_of
+from ._kinds import agents_visual_of, resolve_visual
 from ._utils import log_scalars
-from ._visuals import BaseVisual, resolve_visual
+from ._visuals import BaseVisual
 
 RENEWAL_MEMBERS = 20
 EXTRA = 'extra'
@@ -109,7 +109,7 @@ class RerunObserver(BaseObserver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.viz import RerunObserver
         >>> system = System(
-        ...     components=[PopulationElement('a', n=1)],
+        ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'

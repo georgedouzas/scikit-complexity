@@ -2,16 +2,16 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, parameter, role, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, RateLaw
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.experiments import Experiment
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.kinetics import DestructionLaw, EncounterLaw, KineticSolver, ProliferationLaw
+from skcomplex.engine.solvers import KineticSolver
+from skcomplex.experiments import Experiment
 
 CLASSES = 9
 HORIZON = 2.0
@@ -76,7 +76,7 @@ def _profile():
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
     return System(
-        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -128,7 +128,7 @@ def test_particles_keep_the_density_of_conservative_encounters():
 def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
     system = System(
-        components=[
+        elements=[
             GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()}),
             GroupElement('field', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
         ],

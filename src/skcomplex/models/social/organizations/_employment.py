@@ -8,17 +8,17 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
 TAKEOVER = 3
 KEEP = 2
-NEIGHBORS = Neighborhood(((0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)))
+NEIGHBORS = LatticeNeighborhood(((0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)))
 
 
 def _follow_employer(*values: Array) -> Array:
@@ -111,5 +111,10 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
     for kind in (1.0, 0.0):
         cells = np.flatnonzero(employers.ravel() == kind)
         colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
-    cells = WorkplaceElement.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
-    return System(components=[cells])
+    cells = LatticeElement(
+        'cells',
+        element=WorkplaceElement,
+        space=LatticeSpace((size, size)),
+        values={'colour': colours, 'employer': employers},
+    )
+    return System(elements=[cells])

@@ -11,10 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -94,7 +96,7 @@ class PartElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.innovation import PartElement
-        >>> PartElement.group('components', 5, cost=0.5).size
+        >>> GroupElement('components', element=PartElement, size=5, values={'cost': 0.5}).size
         5
     """
 
@@ -200,7 +202,9 @@ class TechnologyElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.innovation import TechnologyElement
-        >>> TechnologyElement.group('technologies', 3, arity=[2, 0, 0], table=[7, 0, 1]).size
+        >>> GroupElement(
+        ...     'technologies', element=TechnologyElement, size=3, values={'arity': [2, 0, 0], 'table': [7, 0, 1]}
+        ... ).size
         3
     """
 
@@ -302,7 +306,7 @@ class InventionInteraction(BaseInteraction):
     tags=('innovation', 'technology', 'learning curve', 'agents'),
     references=('Thurner et al. 2018', 'McNerney et al. 2011'),
     defaults={'until': 200},
-    observables=lambda system: [Observable('total_cost', group='components', reduce='sum', variable='cost')],
+    observables=lambda system: [ObservableSpec('total_cost', group='components', reduce='sum', variable='cost')],
 )
 def nk_technology(
     n_components: int = 10,
@@ -337,9 +341,14 @@ def nk_technology(
     """
     rng = np.random.default_rng(random_state)
     dependencies = _design_structure(n_components, d, rng)
-    components = PartElement.group('components', n_components, cost=rng.random(n_components))
+    components = GroupElement(
+        'components',
+        element=PartElement,
+        size=n_components,
+        values={'cost': rng.random(n_components)},
+    )
     return System(
-        components=[components],
+        elements=[components],
         interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
     )
 
@@ -375,13 +384,16 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         3
     """
     primitives = (NAND, FALSE, TRUE)
-    technologies = TechnologyElement.group(
+    technologies = GroupElement(
         'technologies',
-        len(primitives),
+        element=TechnologyElement,
+        size=len(primitives),
+        values={
+            'arity': [float(arity) for arity, _ in primitives],
+            'table': [float(table) for _, table in primitives],
+            'cost': [1.0, 0.0, 0.0],
+        },
         variable=True,
-        arity=[float(arity) for arity, _ in primitives],
-        table=[float(table) for _, table in primitives],
-        cost=[1.0, 0.0, 0.0],
     )
     invention = InventionInteraction(
         'invention',
@@ -389,4 +401,4 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         max_components=float(max_components),
         max_inputs=float(max_inputs),
     )
-    return System(components=[technologies], interactions=[invention])
+    return System(elements=[technologies], interactions=[invention])

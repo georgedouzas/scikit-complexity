@@ -16,6 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -40,7 +41,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 simulation = Simulation(
     system,
     dt=1.0,
-    backend='numba',
+    backend=NumbaBackend(),
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
@@ -62,7 +63,7 @@ def headings(coupling):
     run = Simulation(
         model_system,
         dt=1.0,
-        backend='numba',
+        backend=NumbaBackend(),
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     ).run(until=300)

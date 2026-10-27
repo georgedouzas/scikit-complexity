@@ -251,7 +251,7 @@ def sutera_fraedrich_tipping(tipping: str = 'noise', *, rho: float = 0.18, nu: f
         a_ini=values['a_ini'],
         nu=values['nu'] if nu is None else nu,
     )
-    return System(components=[earth])
+    return System(elements=[earth])
 
 
 @register_model(
@@ -315,4 +315,4 @@ def ramped_stochastic_fold(
         phi1=phi1,
         rate=rate,
     )
-    return System(components=[fold])
+    return System(elements=[fold])

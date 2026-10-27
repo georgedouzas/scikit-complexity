@@ -13,13 +13,14 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
+from ....core.elements import FieldElement, ParticleElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols
-from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.laws.utils import advection, divergence, gradient, laplacian
+from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....formalisms.fields import FieldElement, advection, divergence, gradient, laplacian
-from ....formalisms.particles import ParticleElement
+from ...core.elements import GroupElement
 from ._particles import ActiveParticleElement
 
 type Array = npt.NDArray[np.float64]
@@ -343,16 +344,13 @@ def _active_disks(
 ) -> System:
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
-    group = ActiveParticleElement.group(
+    group = GroupElement(
         'swimmers',
-        n_particles,
-        x=positions,
-        theta=angles,
-        speed=speed,
-        D_t=0.0,
-        D_r=D_r,
+        element=ActiveParticleElement,
+        size=n_particles,
+        values={'x': positions, 'theta': angles, 'speed': speed, 'D_t': 0.0, 'D_r': D_r},
     )
-    return System(components=[group], space=ContinuousSpace(size, size, boundary='periodic'))
+    return System(elements=[group], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
 
 
 @register_model(
@@ -407,7 +405,7 @@ def motility_induced_phase_separation(
     size = math.sqrt(n_particles * math.pi / 4 / packing_fraction)
     system = _active_disks(n_particles, size, speed, D_r, random_state)
     repulsion = SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
-    return System(components=system.elements, interactions=[*system.interactions, repulsion], space=system.space)
+    return System(elements=system.elements, interactions=[*system.interactions, repulsion], space=system.space)
 
 
 @register_model(
@@ -478,7 +476,7 @@ def living_crystals(
         R=1.0,
     )
     interactions = [*system.interactions, repulsion, attraction]
-    return System(components=system.elements, interactions=interactions, space=system.space)
+    return System(elements=system.elements, interactions=interactions, space=system.space)
 
 
 @register_model(
@@ -525,11 +523,11 @@ def cucker_smale_flocking(
         5
     """
     rng = np.random.default_rng(random_state)
-    birds = ParticleElement.group(
+    birds = GroupElement(
         'birds',
-        n_agents,
-        x=rng.uniform(0.0, size, (n_agents, 2)),
-        v=rng.normal(0.0, 1.0, (n_agents, 2)),
+        element=ParticleElement,
+        size=n_agents,
+        values={'x': rng.uniform(0.0, size, (n_agents, 2)), 'v': rng.normal(0.0, 1.0, (n_agents, 2))},
         visual=VisualSpec('points', {'position': 'x', 'color_by': 'v', 'states': ()}),
     )
     alignment = CuckerSmaleAlignmentInteraction(
@@ -541,7 +539,7 @@ def cucker_smale_flocking(
         beta=beta,
         n_agents=n_agents,
     )
-    return System(components=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
+    return System(elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -617,4 +615,4 @@ def toner_tu(
     }
     parameters = {'a': a, 'rho_c': rho_c, 'beta': beta, 'lam': lam, 'sigma': sigma, 'D': D}
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[FieldElement('flock', PolarFluidElement, space, values={**values, **parameters})])
+    return System(elements=[FieldElement('flock', PolarFluidElement, space, values={**values, **parameters})])

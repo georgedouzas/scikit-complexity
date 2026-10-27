@@ -14,7 +14,7 @@ whichever opinion starts in the majority.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import interface_density
+from skcomplex.analysis import interface_density
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

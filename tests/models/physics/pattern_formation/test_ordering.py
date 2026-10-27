@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.analysis import fields_of, structure_factor
+from skcomplex.analysis import fields_of, structure_factor
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.formalisms.fields import ETDRK4Solver
+from skcomplex.engine.solvers import ETDRK4Solver, EulerMaruyamaSolver
 from skcomplex.models.physics.pattern_formation import (
     allen_cahn,
     cahn_hilliard,

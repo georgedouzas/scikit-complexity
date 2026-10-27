@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -49,7 +50,7 @@ class DwellerElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.segregation import DwellerElement
-        >>> group = DwellerElement.group('dwellers', 10, beta=3.0)
+        >>> group = GroupElement('dwellers', element=DwellerElement, size=10, values={'beta': 3.0})
         >>> group.label, group.element.__name__, group.size
         ('dwellers', 'DwellerElement', 10)
     """
@@ -222,19 +223,22 @@ def stochastic_schelling(
     cells = rng.permutation(width * height)[:size]
     locations = [(int(cell % width), int(cell // width)) for cell in cells]
     blocks = [_block_of(location, side, width // side) for location in locations]
-    dwellers = DwellerElement.group(
+    dwellers = GroupElement(
         'dwellers',
-        size,
+        element=DwellerElement,
+        size=size,
+        values={
+            'block': np.array(blocks, dtype=float),
+            'beta': beta,
+            'altruism': altruism,
+            'slope': slope,
+            'intercept': intercept,
+        },
         location=locations,
-        block=np.array(blocks, dtype=float),
-        beta=beta,
-        altruism=altruism,
-        slope=slope,
-        intercept=intercept,
     )
     moves = BlockMovesInteraction('moves', target='dwellers', width=width, height=height, side=side)
     return System(
-        components=[dwellers],
+        elements=[dwellers],
         interactions=[moves],
         space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

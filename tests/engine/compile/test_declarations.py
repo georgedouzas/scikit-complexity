@@ -5,34 +5,31 @@ from importlib.resources import files
 from pathlib import Path
 
 import pytest
+import skcomplex.formalisms.fractional  # noqa: F401  # registers the fractional solvers whose orders the tests read
 
 import skcomplex.engine.compile._validation as validation
-import skcomplex.formalisms.fractional  # noqa: F401  # registers the fractional solvers whose orders the tests read
 from skcomplex.core.base import (
+    Binding,
     DomainKind,
+    ElementKind,
     Form,
     LawClass,
     LawKind,
     OrderKind,
     Registry,
-    Requires,
+    RequirementSpec,
     SpaceKind,
-    Supports,
+    SupportSpec,
     TimeKind,
     law_classes,
-    vocabulary,
 )
-from skcomplex.core.laws import RateLaw, UpdateLaw
-from skcomplex.core.problems import BACKENDS
-from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.specs import SamplerSpec
+from skcomplex.engine.backends import BACKENDS
 from skcomplex.engine.compile import SOLVERS, missing_declarations
 from skcomplex.engine.solvers import Solver
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.fields import FieldElement, MeshSpace
-from skcomplex.formalisms.lattices import SamplerLaw
-from skcomplex.formalisms.quantum import GeneratorLaw
-
-from ...formalisms import outside
 
 TEST_TERMS = {str(outside.DECAY), str(outside.DECAYING)}
 INVENTORY = Path(str(files('tests'))).parent / 'docs' / 'overview' / 'inventory.toml'
@@ -41,8 +38,16 @@ INVENTORY = Path(str(files('tests'))).parent / 'docs' / 'overview' / 'inventory.
 def test_vocabulary_matches_inventory():
     """Test that the core vocabulary and the inventory vocabulary define the same terms in every category."""
     inventory = tomllib.loads(INVENTORY.read_text())['vocabulary']
-    assert set(inventory) == set(vocabulary())
-    for category, terms in vocabulary().items():
+    vocabulary = {
+        'time': tuple(TimeKind),
+        'space': tuple(SpaceKind),
+        'components': tuple(ElementKind),
+        'bindings': tuple(Binding),
+        'laws': tuple(LawKind),
+        'domains': tuple(DomainKind),
+    }
+    assert set(inventory) == set(vocabulary)
+    for category, terms in vocabulary.items():
         assert set(inventory[category]) == {str(term) for term in terms} - TEST_TERMS, category
 
 
@@ -80,7 +85,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
         (RateLaw, LawKind.RATE, LawClass.CONTINUOUS),
         (UpdateLaw, LawKind.UPDATE, LawClass.DISCRETE),
         (RuleLaw, LawKind.RULE, LawClass.DISCRETE),
-        (SamplerLaw, LawKind.SAMPLE, LawClass.DISCRETE),
+        (SamplerSpec, LawKind.SAMPLE, LawClass.DISCRETE),
         (GeneratorLaw, LawKind.GENERATOR, LawClass.CONTINUOUS),
     ],
 )
@@ -95,8 +100,8 @@ def test_law_requirements():
     assert RateLaw.requires.accepts('time', TimeKind.CONTINUOUS)
     assert not RateLaw.requires.accepts('time', TimeKind.DISCRETE)
     assert not RateLaw.requires.accepts('domains', DomainKind.CATEGORICAL)
-    assert SamplerLaw.requires.space == {SpaceKind.LATTICE, SpaceKind.NETWORK}
-    assert Requires().accepts('space', SpaceKind.MESH)
+    assert SamplerSpec.requires.space == {SpaceKind.LATTICE, SpaceKind.NETWORK}
+    assert RequirementSpec().accepts('space', SpaceKind.MESH)
 
 
 @pytest.mark.parametrize(
@@ -122,7 +127,7 @@ def test_solver_support_names_missing_terms():
     """Test that the declared support of the default ODE solver lacks noise, and the support lists what is missing."""
     support = SOLVERS.resolve((Form.ODE, 'auto')).supports
     assert support.missing('laws', {LawKind.RATE, LawKind.NOISE}) == ['noise']
-    assert Supports().missing('time', {TimeKind.STATIC}) == ['static']
+    assert SupportSpec().missing('time', {TimeKind.STATIC}) == ['static']
     assert len(law_classes()) == len(set(law_classes()))
 
 

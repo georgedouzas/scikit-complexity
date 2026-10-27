@@ -7,8 +7,8 @@ from typing import cast
 
 import numpy as np
 
-from ....core.base import ValidationError
-from ....core.problems._problem import _MarkovMatrix
+from ....core.errors import ValidationError
+from ...problems._problem import _MarkovMatrix
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import BasePass

@@ -8,27 +8,35 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import state
+
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ...core.base import BaseLaw
+from ...core.elements import GroupElement
+from ...core.laws import Symbols
 
-ColoredNoiseParticleElement = Element.define(
-    'ColoredNoiseParticleElement',
-    states={'v': 0.0, 'xi': 0.0},
-    parameters={
-        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.v, -s.gamma * s.v + s.xi),
-        RateLaw(s.xi, -s.xi / s.tau),
-        NoiseLaw(s.xi, sqrt(2 * s.D) / s.tau),
-    ],
-)
+
+class ColoredNoiseParticleElement(Element):
+    """Colored noise particle element."""
+
+    v = state(0.0)
+    xi = state(0.0)
+    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the colored noise particle element."""
+        return [
+            RateLaw(s.v, -s.gamma * s.v + s.xi),
+            RateLaw(s.xi, -s.xi / s.tau),
+            NoiseLaw(s.xi, sqrt(2 * s.D) / s.tau),
+        ]
 
 
 @register_model(
@@ -78,5 +86,10 @@ def colored_noise_langevin(
         0.5
     """
     noise = np.random.default_rng(random_state).normal(0.0, math.sqrt(D / tau), n_particles)
-    particles = ColoredNoiseParticleElement.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
-    return System(components=[particles])
+    particles = GroupElement(
+        'particles',
+        element=ColoredNoiseParticleElement,
+        size=n_particles,
+        values={'xi': noise, 'gamma': gamma, 'D': D, 'tau': tau},
+    )
+    return System(elements=[particles])

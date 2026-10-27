@@ -5,8 +5,9 @@ from typing import Any
 
 import numpy as np
 
-from skcomplex.core.problems import BaseProblem
-from skcomplex.core.system import Observable, System
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
+from skcomplex.engine.problems import BaseProblem
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
 from skcomplex.engine.solvers import Solver
 from skcomplex.models import create, describe
@@ -32,7 +33,7 @@ def _trajectory(
     )
 
 
-def _observables(system: System, model: str | None) -> list[Observable]:
+def _observables(system: System, model: str | None) -> list[ObservableSpec]:
     """Return the standard observables of a system of a model, or none without a model."""
     return [] if model is None else describe(model).observables_of(system)
 

@@ -13,7 +13,7 @@ its predators.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import stability
+from skcomplex.analysis import stability
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

@@ -10,11 +10,12 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import FluxLaw, RateLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, FluxLaw, SSPRKSolver
+from ....engine.solvers import SSPRKSolver
 
 
 class WaveNumberElement(Element):
@@ -150,7 +151,7 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
     values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldElement('train', WaveNumberElement, space, values=values, discretization='finite-volume')],
+        elements=[FieldElement('train', WaveNumberElement, space, values=values, discretization='finite-volume')],
     )
 
 
@@ -200,5 +201,5 @@ def discrete_velocity_boltzmann(
     values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldElement('gas', CarlemanGasElement, space, values=values, discretization='finite-volume')],
+        elements=[FieldElement('gas', CarlemanGasElement, space, values=values, discretization='finite-volume')],
     )

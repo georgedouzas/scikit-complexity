@@ -12,8 +12,10 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 def _overlap(member: Symbols) -> Expression:
@@ -97,7 +99,7 @@ class DilutedNeuronElement(Element):
     tags=('neural network', 'associative memory', 'spin glass', 'discrete map'),
     references=('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021'),
     defaults={'until': 20, 'dt': 1},
-    observables=lambda system: [Observable('overlap', _overlap, group='neurons')],
+    observables=lambda system: [ObservableSpec('overlap', _overlap, group='neurons')],
 )
 def diluted_hopfield(
     n_neurons: int = 4000,
@@ -148,12 +150,15 @@ def diluted_hopfield(
     n_patterns = max(1, round(load * connectivity))
     patterns = rng.choice([-1.0, 1.0], size=(n_patterns, n_neurons))
     spins = np.where(rng.random(n_neurons) < (1 + overlap) / 2, patterns[0], -patterns[0])
-    neurons = DilutedNeuronElement.group(
+    neurons = GroupElement(
         'neurons',
-        n_neurons,
-        spin=spins,
-        pattern=patterns[0],
-        beta=temperature_scale / connectivity,
-        couplings=_couplings(patterns, connectivity, rng),
+        element=DilutedNeuronElement,
+        size=n_neurons,
+        values={
+            'spin': spins,
+            'pattern': patterns[0],
+            'beta': temperature_scale / connectivity,
+            'couplings': _couplings(patterns, connectivity, rng),
+        },
     )
-    return System(components=[neurons])
+    return System(elements=[neurons])

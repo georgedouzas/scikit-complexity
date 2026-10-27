@@ -12,7 +12,7 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import lyapunov_spectrum
+from skcomplex.analysis import lyapunov_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

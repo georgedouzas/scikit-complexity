@@ -10,11 +10,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, NetworkSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
@@ -82,7 +83,7 @@ class PersonElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import PersonElement
-        >>> PersonElement.group('people', 100).size
+        >>> GroupElement('people', element=PersonElement, size=100).size
         100
     """
 
@@ -183,7 +184,7 @@ class WalkerElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import WalkerElement
-        >>> WalkerElement.group('walkers', 10).size
+        >>> GroupElement('walkers', element=WalkerElement, size=10).size
         10
     """
 
@@ -259,7 +260,7 @@ class TravellerElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import TravellerElement
-        >>> TravellerElement.group('travellers', 10).size
+        >>> GroupElement('travellers', element=TravellerElement, size=10).size
         10
     """
 
@@ -388,22 +389,25 @@ def agent_based_sir(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers(0, [width, height], size=(people, 2))
-    group = PersonElement.group(
+    group = GroupElement(
         'people',
-        people,
+        element=PersonElement,
+        size=people,
+        values={
+            'health': _initial_health(people, infected, rng, INFECTED),
+            'd': d,
+            'beta': beta,
+            'gamma': gamma,
+            'mu': mu,
+            'alpha': alpha,
+            'incubation': incubation,
+            'lockdown_start': lockdown_start,
+            'lockdown_length': lockdown_length,
+            'lockdown_d': lockdown_d,
+        },
         location=[tuple(int(item) for item in cell) for cell in cells],
-        health=_initial_health(people, infected, rng, INFECTED),
-        d=d,
-        beta=beta,
-        gamma=gamma,
-        mu=mu,
-        alpha=alpha,
-        incubation=incubation,
-        lockdown_start=lockdown_start,
-        lockdown_length=lockdown_length,
-        lockdown_d=lockdown_d,
     )
-    return System(components=[group], space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'))
+    return System(elements=[group], space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'))
 
 
 @register_model(
@@ -473,17 +477,20 @@ def random_walker_epidemics(
         locations = [nodes[int(pick)] for pick in rng.integers(0, len(nodes), size=walkers)]
         space = NetworkSpace(graph)
     health = _initial_health(walkers, 1, rng, SICK)
-    group = WalkerElement.group(
+    group = GroupElement(
         'walkers',
-        walkers,
+        element=WalkerElement,
+        size=walkers,
+        values={
+            'health': health,
+            'remaining': health * lifetime,
+            'lifetime': lifetime,
+            'infection': infection,
+            'travel': travel,
+        },
         location=locations,
-        health=health,
-        remaining=health * lifetime,
-        lifetime=lifetime,
-        infection=infection,
-        travel=travel,
     )
-    return System(components=[group], space=space)
+    return System(elements=[group], space=space)
 
 
 @register_model(
@@ -538,13 +545,11 @@ def network_sir(
     graph = nx.barabasi_albert_graph(20, 2, seed=0) if graph is None else graph
     nodes = list(nx.nodes(graph))
     size = residents * len(nodes)
-    group = TravellerElement.group(
+    group = GroupElement(
         'travellers',
-        size,
+        element=TravellerElement,
+        size=size,
+        values={'health': _initial_health(size, 1, rng, INFECTED), 'tau': tau, 'days': days, 'm': m},
         location=[node for node in nodes for _ in range(residents)],
-        health=_initial_health(size, 1, rng, INFECTED),
-        tau=tau,
-        days=days,
-        m=m,
     )
-    return System(components=[group], space=NetworkSpace(graph))
+    return System(elements=[group], space=NetworkSpace(graph))

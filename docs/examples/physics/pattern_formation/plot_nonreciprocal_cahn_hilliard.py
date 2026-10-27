@@ -17,7 +17,7 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import dispersion_relation, fields_of
+from skcomplex.analysis import dispersion_relation, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

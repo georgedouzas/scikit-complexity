@@ -5,6 +5,7 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import (
     BaseInteraction,
@@ -16,17 +17,15 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw, UpdateLaw
-from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
+from skcomplex.core.elements import LatticeElement, ParticleElement, WordElement
+from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.laws import GeneratorLaw, ProductionLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import HilbertDomain, QuantumView, compile_system, is_quantum, validate
+from skcomplex.engine.compile.passes import structure_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
-from skcomplex.formalisms.quantum import GeneratorLaw, HilbertDomain, QuantumView, is_quantum
-from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, StructureDomain, WordElement, structure_of
 from skcomplex.models.biology.ecology import PopulationElement
 
 
@@ -61,7 +60,7 @@ def test_four_part_system_runs():
     """Test that a system of components, interactions, no space, and continuous time runs and lists its parameters."""
     system = System(
         'ecology',
-        components=[StockElement('rabbits'), StockElement('foxes')],
+        elements=[StockElement('rabbits'), StockElement('foxes')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
         space=None,
         time=ContinuousTime(),
@@ -74,7 +73,7 @@ def test_four_part_system_runs():
 def test_systems_nest_as_components():
     """Test that nested systems are components and an interaction couples their elements by path."""
     system = System(
-        components=[System('meadow', components=[StockElement('rabbits', n=2.0)])],
+        systems=[System('meadow', elements=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
     assert system.systems[0].label == 'meadow'
@@ -85,7 +84,7 @@ def test_systems_nest_as_components():
 
 def test_duplicate_labels_are_reported():
     """Test that two direct children with one label give one issue at the system that names the label."""
-    report = validate(System('farm', components=[StockElement('a'), StockElement('a')]))
+    report = validate(System('farm', elements=[StockElement('a'), StockElement('a')]))
     (issue,) = report.errors
     assert issue.path == 'farm'
     assert "'a'" in issue.message
@@ -94,7 +93,7 @@ def test_duplicate_labels_are_reported():
 def test_rate_under_discrete_time_is_reported():
     """Test that a rate law in a system of discrete time is reported with the time it needs."""
     system = System(
-        components=[StockElement('a')],
+        elements=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=DiscreteTime(),
     )
@@ -106,9 +105,9 @@ def test_rate_under_discrete_time_is_reported():
 
 def test_nested_system_inherits_time():
     """Test that a nested system without a time is checked against the time of its parent."""
-    nested = System('inner', components=[CounterElement('clock')])
-    assert validate(System(components=[nested], time=DiscreteTime())).ok
-    (issue,) = validate(System(components=[nested], time=ContinuousTime())).errors
+    nested = System('inner', elements=[CounterElement('clock')])
+    assert validate(System(elements=[nested], time=DiscreteTime())).ok
+    (issue,) = validate(System(elements=[nested], time=ContinuousTime())).errors
     assert issue.path == 'inner/clock'
 
 
@@ -121,7 +120,7 @@ def test_unknown_schedule_is_rejected():
 def test_static_time_rejects_dynamic_laws():
     """Test that a static system holding a rate law is reported."""
     system = System(
-        components=[StockElement('a')],
+        elements=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=StaticTime(),
     )
@@ -131,8 +130,8 @@ def test_static_time_rejects_dynamic_laws():
 def test_periodic_space_wraps_positions_without_box_component():
     """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
     system = System(
-        components=[ParticleElement('p', x=[0.9, 0.5], v=[1.0, 0.0])],
-        space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
+        elements=[ParticleElement('p', x=[0.9, 0.5], v=[1.0, 0.0])],
+        space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
@@ -144,9 +143,9 @@ def test_continuous_space_checks_its_box():
     with pytest.raises(ValidationError, match='unbounded'):
         ContinuousSpace(n_dim=2, boundary='periodic').check()
     with pytest.raises(ValidationError, match='positive side'):
-        ContinuousSpace(1.0, -1.0).check()
+        ContinuousSpace(extent=(1.0, -1.0)).check()
     with pytest.raises(ValidationError, match='boundary'):
-        ContinuousSpace(1.0, boundary='sticky').check()
+        ContinuousSpace(extent=(1.0,), boundary='sticky').check()
 
 
 def test_agents_and_fields_share_one_lattice_kind():
@@ -181,7 +180,7 @@ class CellElement(Element):
 
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
-    system = System(components=[GroupElement('cells', element=CellElement, size=10, variable=True)])
+    system = System(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
     trajectory = Simulation(system).run(until=3).trajectory_
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
@@ -189,14 +188,14 @@ def test_variable_group_of_elements_grows():
 def test_group_on_edges_has_one_member_per_edge():
     """Test that a group on the edges of a network with 30 edges holds 30 members, sized from the inherited space."""
     weights = GroupElement('weights', element=StockElement, on='edges')
-    problem = compile_system(System(components=[weights], space=NetworkSpace(nx.cycle_graph(30))))
+    problem = compile_system(System(elements=[weights], space=NetworkSpace(nx.cycle_graph(30))))
     assert problem.states.entry('weights.n').shape == (30,)
 
 
 def test_group_on_edges_outside_a_network_is_reported():
     """Test that a group on edges in a lattice space is reported with the space it needs."""
     (issue,) = validate(
-        System(components=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4)),
+        System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4)),
     ).errors
     assert 'need a network space' in issue.message
 
@@ -227,7 +226,7 @@ class TwoLevelElement(Element):
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that a plain element with a state in a Hilbert space and a generator law runs unitary dynamics."""
-    simulation = Simulation(System(components=[TwoLevelElement('q')]), solver='unitary', dt=np.pi).run(until=np.pi)
+    simulation = Simulation(System(elements=[TwoLevelElement('q')]), solver='unitary', dt=np.pi).run(until=np.pi)
     assert str(simulation.problem_.form.name) == 'QUANTUM'
     assert QuantumView(TwoLevelElement('q', psi='down')).initial_vector().tolist() == [0j, 1 + 0j]
     assert is_quantum(TwoLevelElement)
@@ -237,8 +236,15 @@ def test_element_with_hilbert_state_runs_unitary_dynamics():
 def test_sequence_state_is_rewritten_in_parallel():
     """Test that an element with a sequence state is rewritten by its productions at every step."""
     rules = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-    AlgaeElement = WordElement.define('AlgaeElement', laws=lambda s: [RewriteLaw(rules)])
-    system = System(components=[AlgaeElement('algae', axiom='A')])
+
+    class AlgaeElement(WordElement):
+        """Algae element."""
+
+        def laws(self, s):
+            """Return the laws of the algae element."""
+            return [RewriteLaw(rules)]
+
+    system = System(elements=[AlgaeElement('algae', axiom='A')])
     trajectory = Simulation(system).run(until=4).trajectory_
     assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
     assert structure_of(WordElement) == 'sequence'
@@ -283,7 +289,7 @@ def test_pairs_binding_needs_its_roles_and_cutoff():
         second: str = role()
 
     system = System(
-        components=[StockElement.group('herd', 3)],
+        elements=[GroupElement('herd', element=StockElement, size=3)],
         interactions=[ContactInteraction('c', first='herd', second='herd')],
     )
     issue = next(issue for issue in validate(system).errors if issue.code == 'binding')
@@ -300,7 +306,7 @@ def test_hyperedges_binding_needs_a_network_with_hyperedges():
         target: str = role()
 
     system = System(
-        components=[StockElement.lattice('nodes', LatticeSpace(4))],
+        elements=[LatticeElement('nodes', element=StockElement, space=LatticeSpace(4))],
         interactions=[TriadicInteraction('triads', target='nodes')],
     )
     (issue,) = [issue for issue in validate(system).errors if issue.code == 'binding']
@@ -319,15 +325,17 @@ class SoftSphereInteraction(PairPotentialInteraction):
 
 def test_system_prints_its_parameters():
     """Test that a system prints the parameters it was given, through scikit-learn."""
-    system = System('meadow', components=[PopulationElement('rabbits')])
-    assert repr(system) == "System(components=[PopulationElement(label='rabbits', n=1.0)], label='meadow')"
+    system = System('meadow', elements=[PopulationElement('rabbits')])
+    assert repr(system) == "System(elements=[PopulationElement(label='rabbits', n=1.0)], label='meadow')"
 
 
 def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = System(
-        components=[ParticleElement.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
-        space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
+        elements=[
+            GroupElement('gas', element=ParticleElement, size=1, values={'x': [[0.95, 0.5]], 'v': [[1.0, 0.0]]}),
+        ],
+        space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
     assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
@@ -339,7 +347,14 @@ def test_pair_interaction_conserves_momentum():
     """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
     rng = np.random.default_rng(0)
     system = System(
-        components=[ParticleElement.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
+        elements=[
+            GroupElement(
+                'gas',
+                element=ParticleElement,
+                size=200,
+                values={'x': rng.uniform(0, 3, (200, 2)), 'v': rng.normal(0, 1, (200, 2))},
+            ),
+        ],
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=0.2)],
         space=ContinuousSpace(n_dim=2),
     )

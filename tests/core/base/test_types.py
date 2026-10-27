@@ -5,6 +5,7 @@ import pickle  # nosec B403: the test loads only the pickles it makes
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import (
     BaseInteraction,
@@ -23,7 +24,6 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -82,21 +82,27 @@ def test_declared_noise_support():
     assert set(MilsteinSolver.supports.noise) == {NoiseKind.DIAGONAL}
 
 
-RotorElement = Element.define(
-    'RotorElement',
-    states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
-    parameters={'omega': 1.0},
-)
+class RotorElement(Element):
+    """Rotor element."""
+
+    theta = state(0.0, domain=NumericDomain.ANGLE)
+    omega = parameter(1.0)
 
 
-SpinInteraction = BaseInteraction.define(
-    'SpinInteraction',
-    roles=['target'],
-    laws=lambda s: [RateLaw(s.target.theta, s.target.omega)],
-)
+class SpinInteraction(BaseInteraction):
+    """Spin interaction."""
+
+    target = role()
+
+    def laws(self, s):
+        """Return the laws of the spin interaction."""
+        return [RateLaw(s.target.theta, s.target.omega)]
 
 
-SwitchElement = Element.define('SwitchElement', states={'on': state(False, domain=NumericDomain.BOOLEAN)})
+class SwitchElement(Element):
+    """Switch element."""
+
+    on = state(False, domain=NumericDomain.BOOLEAN)
 
 
 @pytest.mark.parametrize(
@@ -124,7 +130,7 @@ def test_domain_maps_to_sage_domain():
 def test_categorical_values_round_trip_as_labels():
     """Test that categorical states take labels as values and return them as labels."""
     system = System(
-        components=[PersonElement('ann', health='infected')],
+        elements=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     trajectory = Simulation(system).run(until=1).trajectory_
@@ -134,13 +140,13 @@ def test_categorical_values_round_trip_as_labels():
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match='categorical'):
-        Simulation(System(components=[PersonElement('ann', health='dead')])).run(until=1)
+        Simulation(System(elements=[PersonElement('ann', health='dead')])).run(until=1)
 
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past π lies in (-π, π] after every frame."""
     system = System(
-        components=[RotorElement('r', theta=6.0, omega=1.0)],
+        elements=[RotorElement('r', theta=6.0, omega=1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
     values = Simulation(system, dt=0.5).run(until=3).trajectory_.values('r.theta')
@@ -151,7 +157,7 @@ def test_angle_wraps_into_one_turn():
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
     system = System(
-        components=[RotorElement('r', theta=0.1, omega=-1.0)],
+        elements=[RotorElement('r', theta=0.1, omega=-1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
     values = Simulation(system, dt=0.1).run(until=1).trajectory_.values('r.theta')
@@ -167,10 +173,10 @@ def test_angle_encode_wraps_into_half_open_turn():
 
 def test_boolean_values_return_as_booleans():
     """Test that boolean states return booleans and reject other numbers."""
-    trajectory = Simulation(System(components=[SwitchElement('s', on=True)]), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(System(elements=[SwitchElement('s', on=True)]), dt=1).run(until=1).trajectory_
     assert trajectory.values('s.on').tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
-        Simulation(System(components=[SwitchElement('s', on=0.5)])).run(until=1)
+        Simulation(System(elements=[SwitchElement('s', on=0.5)])).run(until=1)
 
 
 class ValveElement(Element):
@@ -231,7 +237,12 @@ def test_state_default_sequence_is_copied():
 
 def test_state_accepts_fractional_order_without_companions():
     """Test that a state of a fractional order keeps its order and gets no companion states."""
-    RelaxingElement = Element.define('RelaxingElement', states={'x': state(1.0, order=0.6)})
+
+    class RelaxingElement(Element):
+        """Relaxing element."""
+
+        x = state(1.0, order=0.6)
+
     declaration = declarations_of(RelaxingElement, VariableKind.STATE)['x']
     assert declaration.order == 0.6
     assert declaration.is_fractional
@@ -242,7 +253,7 @@ def test_state_accepts_fractional_order_without_companions():
 def test_state_normalizes_integer_valued_orders():
     """Test that an order with an integer value is an integer order with its companions."""
     declarations = declarations_of(
-        Element.define('MassElement', states={'x': state(0.0, order=2.0)}),
+        type('MassElement', (Element,), {'x': state(0.0, order=2.0)}),
         VariableKind.STATE,
     )
     assert declarations['x'].order == 2

@@ -5,10 +5,12 @@
 
 import numpy as np
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import BaseLaw, state, vector
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -21,34 +23,54 @@ def _lorenz_96_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.x, vector(rates))]
 
 
-Lorenz84Element = Element.define(
-    'Lorenz84Element',
-    states={'x': 1.0, 'y': 1.0, 'z': 1.0},
-    parameters={'a': 0.25, 'b': 4.0, 'F': 8.0, 'G': 1.0},
-    laws=lambda s: [
-        RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
-        RateLaw(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
-        RateLaw(s.z, s.b * s.x * s.y + s.x * s.z - s.z),
-    ],
-)
+class Lorenz84Element(Element):
+    """Lorenz84 element."""
 
-Lorenz96Element = Element.define(
-    'Lorenz96Element',
-    states={'x': state(default=8.0, vector=True)},
-    parameters={'F': 8.0},
-    laws=_lorenz_96_laws,
-)
+    x = state(1.0)
+    y = state(1.0)
+    z = state(1.0)
+    a = parameter(0.25)
+    b = parameter(4.0)
+    F = parameter(8.0)
+    G = parameter(1.0)
 
-GeodynamoElement = Element.define(
-    'GeodynamoElement',
-    states={'Q': 0.1, 'D': 0.1, 'V': 0.1},
-    parameters={'mu': 0.119, 'nu': 0.1, 'Gamma': 0.9},
-    laws=lambda s: [
-        RateLaw(s.Q, s.mu * s.Q - s.V * s.D),
-        RateLaw(s.D, -s.nu * s.D + s.V * s.Q),
-        RateLaw(s.V, s.Gamma - s.V + s.Q * s.D),
-    ],
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the lorenz84 element."""
+        return [
+            RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
+            RateLaw(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
+            RateLaw(s.z, s.b * s.x * s.y + s.x * s.z - s.z),
+        ]
+
+
+class Lorenz96Element(Element):
+    """Lorenz96 element."""
+
+    x = state(default=8.0, vector=True)
+    F = parameter(8.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the lorenz96 element."""
+        return _lorenz_96_laws(s)
+
+
+class GeodynamoElement(Element):
+    """Geodynamo element."""
+
+    Q = state(0.1)
+    D = state(0.1)
+    V = state(0.1)
+    mu = parameter(0.119)
+    nu = parameter(0.1)
+    Gamma = parameter(0.9)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the geodynamo element."""
+        return [
+            RateLaw(s.Q, s.mu * s.Q - s.V * s.D),
+            RateLaw(s.D, -s.nu * s.D + s.V * s.Q),
+            RateLaw(s.V, s.Gamma - s.V + s.Q * s.D),
+        ]
 
 
 @register_model(
@@ -103,7 +125,7 @@ def lorenz_84(
         >>> lorenz_84(G=1.25).elements[0].G
         1.25
     """
-    return System(components=[Lorenz84Element('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
+    return System(elements=[Lorenz84Element('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
 
 
 @register_model(
@@ -144,7 +166,7 @@ def lorenz_96(
     """
     values = np.full(n_sites, float(F))
     values[0] += perturbation
-    return System(components=[Lorenz96Element('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
+    return System(elements=[Lorenz96Element('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
 
 
 @register_model(
@@ -196,4 +218,4 @@ def geodynamo(
         >>> geodynamo(mu=0.12).elements[0].mu
         0.12
     """
-    return System(components=[GeodynamoElement('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])
+    return System(elements=[GeodynamoElement('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])

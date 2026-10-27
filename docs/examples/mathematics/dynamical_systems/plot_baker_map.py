@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.analysis import kaplan_yorke_dimension, lyapunov_spectrum
+from skcomplex.analysis import kaplan_yorke_dimension, lyapunov_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

@@ -11,15 +11,15 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, role, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, total
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, RateLaw, Symbols, total
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
-NEAREST = Neighborhood.von_neumann()
+NEAREST = VonNeumannNeighborhood()
 STRATEGIES = 3
 
 
@@ -37,10 +37,10 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
     return np.where(beaten, neighbor, strategy)
 
 
-StrategyElement = Element.define(
-    'StrategyElement',
-    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
-)
+class StrategyElement(Element):
+    """Strategy element."""
+
+    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
 
 class ReplicationInteraction(BaseInteraction):
@@ -174,9 +174,9 @@ def replicator_dynamics(
     matrix = (((V - C) / 2, V), (0.0, V / 2)) if payoff is None else tuple(tuple(row) for row in payoff)
     strategies = len(matrix)
     shares = [1 / strategies] * strategies if x is None else list(x)
-    population = StrategyElement.group('population', strategies, x=shares)
+    population = GroupElement('population', element=StrategyElement, size=strategies, values={'x': shares})
     replication = ReplicationInteraction('replication', population='population', payoff=matrix)
-    return System(components=[population], interactions=[replication])
+    return System(elements=[population], interactions=[replication])
 
 
 @register_model(
@@ -213,5 +213,12 @@ def rock_paper_scissors(
     """
     strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)
     return System(
-        components=[CyclicSpeciesElement.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)],
+        elements=[
+            LatticeElement(
+                'lattice',
+                element=CyclicSpeciesElement,
+                space=LatticeSpace(tuple(shape)),
+                values={'strategy': strategies},
+            ),
+        ],
     )

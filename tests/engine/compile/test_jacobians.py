@@ -2,15 +2,19 @@
 
 import numpy as np
 import pytest
+import skfem
 from sage.all__sagemath_symbolics import sin, tanh
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import parameter, state
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.components import Element
+from skcomplex.core.elements import FieldElement, GroupElement
 from skcomplex.core.laws import RateLaw, count, maximum, mean, minimum, total, variance, where
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.spaces import LatticeSpace, MeshSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.fields import FieldElement, MeshSpace, SplitOperator, laplacian, mesh_laplacian
+from skcomplex.engine.compile import compile_system, mesh_laplacian
+from skcomplex.engine.solvers import SplitOperator
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky
@@ -51,8 +55,27 @@ def _finite_differences(problem, x, p, step=1e-6):
 )
 def test_jacobian_against_finite_differences(laws):
     """Test that the exact Jacobian equals central finite differences and that its pattern covers every entry."""
-    MemberElement = Element.define('MemberElement', states={'x': 0.0, 'y': 0.0}, laws=laws)
-    system = System(components=[MemberElement.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
+
+    class MemberElement(Element):
+        """Member element."""
+
+        x = state(0.0)
+        y = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the member element."""
+            return laws(s)
+
+    system = System(
+        elements=[
+            GroupElement(
+                'group',
+                element=MemberElement,
+                size=20,
+                values={'x': RNG.normal(size=20), 'y': RNG.normal(size=20)},
+            ),
+        ],
+    )
     problem = compile_system(system)
     x, p = problem.initial_state, problem.initial_parameters
     exact = problem.jacobian.evaluate(0.0, x, p).toarray()
@@ -71,39 +94,50 @@ def test_jacobian_of_pair_sums_is_not_derived():
 
 def test_pattern_is_omitted_above_the_limit():
     """Test that the pattern of a dense block above the size limit is omitted."""
-    MemberElement = Element.define(
-        'WideElement',
-        states={'x': 0.0},
-        laws=lambda s: [RateLaw(s.x, total(s.x))],
-    )
-    problem = compile_system(System(components=[MemberElement.group('group', 3000)]))
+
+    class WideElement(Element):
+        """Wide element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the wide element."""
+            return [RateLaw(s.x, total(s.x))]
+
+    MemberElement = WideElement
+    problem = compile_system(System(elements=[GroupElement('group', element=MemberElement, size=3000)]))
     assert problem.jacobian.pattern() is None
 
 
-ReactiveHeatElement = Element.define(
-    'ReactiveHeatElement',
-    states={'u': 0.0},
-    parameters={'D': 1.0, 'r': 1.0},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))],
-)
+class ReactiveHeatElement(Element):
+    """Reactive heat element."""
+
+    u = state(0.0)
+    D = parameter(1.0)
+    r = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the reactive heat element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))]
 
 
 def _reactive_mesh(refine=2):
     """Return heat with a cubic reaction on the L-shaped mesh with fixed boundary temperatures."""
+    grid = skfem.MeshTri.init_lshaped().refined(refine)
     plate = FieldElement(
         'plate',
         ReactiveHeatElement,
-        MeshSpace.l_shape(refine),
+        MeshSpace(grid.p, grid.t),
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
-    return System(components=[plate])
+    return System(elements=[plate])
 
 
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(components=[FieldElement('line', FisherKPPElement, space, boundary={'u': boundary})])
+    return System(elements=[FieldElement('line', FisherKPPElement, space, boundary={'u': boundary})])
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -119,7 +153,8 @@ def test_mesh_pattern():
     """Test that the mesh pattern is the stiffness pattern with the diagonal on free nodes and empty fixed rows."""
     problem = compile_system(_reactive_mesh())
     pattern = problem.jacobian.pattern().toarray()
-    stiffness = mesh_laplacian(MeshSpace.l_shape(2)).toarray() != 0
+    grid = skfem.MeshTri.init_lshaped().refined(2)
+    stiffness = mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()
@@ -188,12 +223,17 @@ def _callable_rate(t, values):
 
 def test_exact_jacobian_of_callable_law_raises():
     """Test that the exact Jacobian of a callable law raises an error naming the law and the automatic option."""
-    DecayElement = Element.define(
-        'DecayElement',
-        states={'u': 0.0},
-        laws=lambda s: [RateLaw(s.u, _callable_rate)],
-    )
-    problem = compile_system(System(components=[FieldElement('line', DecayElement, LatticeSpace(10))]))
+
+    class DecayElement(Element):
+        """Decay element."""
+
+        u = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the decay element."""
+            return [RateLaw(s.u, _callable_rate)]
+
+    problem = compile_system(System(elements=[FieldElement('line', DecayElement, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.validate()
     assert problem.jacobian.pattern().toarray().all()

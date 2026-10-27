@@ -8,11 +8,16 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import role, state
+
 from ....core.base import BaseInteraction, Expression, NumericDomain, ValidationError, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, mean
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.elements import GroupElement
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')
@@ -24,23 +29,34 @@ def _stuart_landau_rates(s: Symbols) -> tuple[Expression, Expression]:
     return s.tau * (growth * s.x - s.omega * s.y), s.tau * (growth * s.y + s.omega * s.x)
 
 
-StuartLandauElement = Element.define(
-    'StuartLandauElement',
-    states={'x': 1.0, 'y': 0.0},
-    parameters={'beta': 1.0, 'omega': 0.0, 'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])],
-    visual=VisualSpec('points', {'position': 'x', 'states': ()}),
-)
+class StuartLandauElement(Element):
+    """Stuart landau element."""
 
-GlobalCouplingInteraction = BaseInteraction.define(
-    'GlobalCouplingInteraction',
-    roles=['target', 'source'],
-    parameters={'K': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [
-        RateLaw(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
-        RateLaw(s.target.y, s.K * (mean(s.source.y) - s.target.y)),
-    ],
-)
+    visual = VisualSpec('points', {'position': 'x', 'states': ()})
+    x = state(1.0)
+    y = state(0.0)
+    beta = parameter(1.0)
+    omega = parameter(0.0)
+    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the stuart landau element."""
+        return [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])]
+
+
+class GlobalCouplingInteraction(BaseInteraction):
+    """Global coupling interaction."""
+
+    target = role()
+    source = role()
+    K = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the global coupling interaction."""
+        return [
+            RateLaw(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
+            RateLaw(s.target.y, s.K * (mean(s.source.y) - s.target.y)),
+        ]
 
 
 def _amplitude(member: Symbols) -> Expression:
@@ -96,10 +112,10 @@ def _spread_on_circle(size: int, random_state: int | np.random.Generator | None)
     references=('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021'),
     defaults={'until': 20.0, 'dt': 0.2},
     observables=lambda system: [
-        Observable('amplitude', _amplitude, group='oscillators'),
-        Observable('X', group='oscillators', variable='x'),
-        Observable('Y', group='oscillators', variable='y'),
-        Observable('order', _order),
+        ObservableSpec('amplitude', _amplitude, group='oscillators'),
+        ObservableSpec('X', group='oscillators', variable='x'),
+        ObservableSpec('Y', group='oscillators', variable='y'),
+        ObservableSpec('order', _order),
     ],
 )
 def oscillator_death(
@@ -151,9 +167,14 @@ def oscillator_death(
     """
     omegas = _frequency_quantiles(n_oscillators, width, distribution)
     x, y = _spread_on_circle(n_oscillators, random_state)
-    oscillators = StuartLandauElement.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
+    oscillators = GroupElement(
+        'oscillators',
+        element=StuartLandauElement,
+        size=n_oscillators,
+        values={'x': x, 'y': y, 'beta': 1.0, 'omega': omegas, 'tau': 1.0},
+    )
     return System(
-        components=[oscillators],
+        elements=[oscillators],
         interactions=[GlobalCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)],
     )
 
@@ -164,11 +185,11 @@ def oscillator_death(
     references=("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021'),
     defaults={'until': 40.0, 'dt': 0.2},
     observables=lambda system: [
-        Observable('amplitude', _amplitude, group='systems'),
-        Observable('X', group='systems', variable='x'),
-        Observable('Y', group='systems', variable='y'),
-        Observable('V', _time_scale_deviation_x, group='systems'),
-        Observable('W', _time_scale_deviation_y, group='systems'),
+        ObservableSpec('amplitude', _amplitude, group='systems'),
+        ObservableSpec('X', group='systems', variable='x'),
+        ObservableSpec('Y', group='systems', variable='y'),
+        ObservableSpec('V', _time_scale_deviation_x, group='systems'),
+        ObservableSpec('W', _time_scale_deviation_y, group='systems'),
     ],
 )
 def heterogeneous_global_coupling(
@@ -222,16 +243,13 @@ def heterogeneous_global_coupling(
     taus = 1 + heterogeneity * (2 * (np.arange(n_systems) + 1 / 2) / n_systems - 1)
     x, y = _spread_on_circle(n_systems, random_state)
     radius = math.sqrt(abs(beta))
-    systems = StuartLandauElement.group(
+    systems = GroupElement(
         'systems',
-        n_systems,
-        x=radius * x,
-        y=radius * y,
-        beta=beta,
-        omega=gamma,
-        tau=taus,
+        element=StuartLandauElement,
+        size=n_systems,
+        values={'x': radius * x, 'y': radius * y, 'beta': beta, 'omega': gamma, 'tau': taus},
     )
     return System(
-        components=[systems],
+        systems=[systems],
         interactions=[GlobalCouplingInteraction('coupling', target='systems', source='systems', K=k)],
     )

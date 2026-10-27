@@ -3,31 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import state
+
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-DrivenRosslerElement = Element.define(
-    'DrivenRosslerElement',
-    states={'x': 1.0, 'y': 1.0, 'z': 1.0, 'eta': 0.0},
-    parameters={
-        'a': 0.2,
-        'b': 0.4,
-        'c': 5.743,
-        'tau': parameter(default=50.0, domain=NumericDomain.POSITIVE),
-        'rho': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.x, -s.y - s.z),
-        RateLaw(s.y, s.x + s.a * s.y + s.eta),
-        RateLaw(s.z, s.b + s.z * (s.x - s.c)),
-        RateLaw(s.eta, -s.eta / s.tau),
-        NoiseLaw(s.eta, s.rho / s.tau),
-    ],
-)
+
+class DrivenRosslerElement(Element):
+    """Driven rossler element."""
+
+    x = state(1.0)
+    y = state(1.0)
+    z = state(1.0)
+    eta = state(0.0)
+    a = parameter(0.2)
+    b = parameter(0.4)
+    c = parameter(5.743)
+    tau = parameter(default=50.0, domain=NumericDomain.POSITIVE)
+    rho = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the driven rossler element."""
+        return [
+            RateLaw(s.x, -s.y - s.z),
+            RateLaw(s.y, s.x + s.a * s.y + s.eta),
+            RateLaw(s.z, s.b + s.z * (s.x - s.c)),
+            RateLaw(s.eta, -s.eta / s.tau),
+            NoiseLaw(s.eta, s.rho / s.tau),
+        ]
 
 
 @register_model(
@@ -94,4 +103,4 @@ def ou_driven_rossler(
         10.0
     """
     rossler = DrivenRosslerElement('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
-    return System(components=[rossler])
+    return System(elements=[rossler])

@@ -10,12 +10,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.base import BaseLaw, Expression, SymbolicVector, ValidationError, components_of
-from ....core.components import WienerProcess
-from ....core.laws import NoiseLaw, RateLaw
-from ....core.laws._laws import NOISE_CONVENTIONS
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.laws._noise import NOISE_CONVENTIONS
+from ....core.specs import WienerProcessSpec
+from ...problems import components_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._noise import process_covariance, process_keys
@@ -30,10 +32,10 @@ def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: De
         for law in laws:
             if not isinstance(law, NoiseLaw):
                 continue
-            targets = components_of(law.targets[0])
+            targets = components_of(law._get_targets()[0])
             values = (
                 components_of(law.value)
-                if isinstance(law.value, SymbolicVector | list | tuple)
+                if isinstance(law.value, FreeModuleElement | list | tuple)
                 else [law.value] * len(targets)
             )
             keys = process_keys(spec, law, declarations)
@@ -57,7 +59,7 @@ def _reads_state(term: _NoiseTerm, state: tuple[str, int]) -> bool:
 def _noise_correction(
     term: _NoiseTerm,
     terms: list[_NoiseTerm],
-    wieners: Mapping[str, WienerProcess],
+    wieners: Mapping[str, WienerProcessSpec],
 ) -> BaseLaw | None:
     """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
     alpha = NOISE_CONVENTIONS[term.law.convention]
@@ -91,7 +93,7 @@ def _noise_correction(
     if not parts:
         return None
     correction = sum(parts[1:], parts[0])
-    return None if correction.is_zero() else RateLaw((term.target,), correction)
+    return None if correction.is_zero() else RateLaw(term.target, correction)
 
 
 def _with_noise_corrections(

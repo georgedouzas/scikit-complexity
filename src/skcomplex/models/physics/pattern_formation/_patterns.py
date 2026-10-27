@@ -9,12 +9,18 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
+from ....engine.solvers import ETDRK4Solver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
@@ -24,22 +30,31 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
     return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
 
-GinzburgLandauElement = Element.define(
-    'GinzburgLandauElement',
-    states={'u': 0.0, 'v': 0.0},
-    parameters={'b': 1.0, 'c': -1.5},
-    laws=lambda s: [
-        RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
-        RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
-    ],
-)
+class GinzburgLandauElement(Element):
+    """Ginzburg landau element."""
 
-SwiftHohenbergElement = Element.define(
-    'SwiftHohenbergElement',
-    states={'u': 0.0},
-    parameters={'r': 0.3},
-    laws=lambda s: [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)],
-)
+    u = state(0.0)
+    v = state(0.0)
+    b = parameter(1.0)
+    c = parameter(-1.5)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the ginzburg landau element."""
+        return [
+            RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
+            RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
+        ]
+
+
+class SwiftHohenbergElement(Element):
+    """Swift hohenberg element."""
+
+    u = state(0.0)
+    r = parameter(0.3)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the swift hohenberg element."""
+        return [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)]
 
 
 @register_model(
@@ -91,7 +106,7 @@ def complex_ginzburg_landau(
     values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        components=[FieldElement('medium', GinzburgLandauElement, space, values=values, discretization='spectral')],
+        elements=[FieldElement('medium', GinzburgLandauElement, space, values=values, discretization='spectral')],
     )
 
 
@@ -138,5 +153,5 @@ def swift_hohenberg(
     values = {'u': _noise(shape, 0.01, random_state), 'r': r}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        components=[FieldElement('cells', SwiftHohenbergElement, space, values=values, discretization='spectral')],
+        elements=[FieldElement('cells', SwiftHohenbergElement, space, values=values, discretization='spectral')],
     )

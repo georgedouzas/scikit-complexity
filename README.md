@@ -126,7 +126,7 @@ bound to its roles:
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 
-from skcomplex.engine.analysis import equations_of
+from skcomplex.analysis import equations_of
 from skcomplex.core.base import NumericDomain, parameter, role
 from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw

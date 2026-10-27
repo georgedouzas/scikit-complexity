@@ -2,15 +2,16 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import ConservationError, ValidationError, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw, transfer
-from skcomplex.core.system import Observable, System
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import RateLaw, RuleLaw, transfer
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.runtime import InvariantObserver, Simulation
-from skcomplex.formalisms.agents import RuleLaw
 
-TOTAL_WEALTH = Observable('total_wealth', group='traders', variable='wealth', reduce='sum')
+TOTAL_WEALTH = ObservableSpec('total_wealth', group='traders', variable='wealth', reduce='sum')
 
 
 class TraderElement(Element):
@@ -41,7 +42,7 @@ class PrinterElement(TraderElement):
 
 def _traders(kind):
     """Return a system of four traders of a kind."""
-    return System(components=[kind.group('traders', 4)])
+    return System(elements=[GroupElement('traders', element=kind, size=4)])
 
 
 def test_invariant_observer_passes_when_the_laws_conserve_the_invariant():
@@ -72,9 +73,18 @@ def test_invariant_observer_rejects_an_invariant_without_its_observable():
 
 def test_invariant_observer_checks_continuous_runs():
     """Test that a rate law that changes an invariant state raises a conservation error at the first breaking frame."""
-    TankElement = Element.define('TankElement', states={'a': 1.0}, laws=lambda s: [RateLaw(s.a, 1.0)])
-    level = Observable('level', group='tank', variable='a', reduce='sum')
-    system = System(components=[TankElement('tank')])
+
+    class TankElement(Element):
+        """Tank element."""
+
+        a = state(1.0)
+
+        def laws(self, s):
+            """Return the laws of the tank element."""
+            return [RateLaw(s.a, 1.0)]
+
+    level = ObservableSpec('level', group='tank', variable='a', reduce='sum')
+    system = System(elements=[TankElement('tank')])
     simulation = Simulation(system, dt=0.5, observables=[level], invariants={'level': 0.1})
     with pytest.raises(ConservationError, match=r'invariant level .* at frame 1'):
         simulation.run(2)

@@ -7,7 +7,7 @@
     `ElementComponent.define(name, states, parameters, laws)` in `core`;
   - helpers `lookup`, `distributed_delay`, `delayed`, `where`, `step`, `ramp`, `pulse`, `pulse_train`, `total`, and
     the draws `uniform` and `normal`;
-  - `loops` and `loop_dominance` in `engine/analysis/_loops.py`, and the conservation check of `stocks-and-flows`.
+  - `loops` and `loop_dominance` in `analysis/_loops.py`, and the conservation check of `stocks-and-flows`.
 - **What PySD offers (version 3):**
   - Translators parse a file into an `AbstractModel`: `pysd.translators.vensim.vensim_file.VensimFile(path)`, then
     `.parse()` and `.get_abstract_model()`, and the same for XMILE with `XmileFile`.

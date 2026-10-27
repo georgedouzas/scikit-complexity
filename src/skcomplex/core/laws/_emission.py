@@ -1,0 +1,85 @@
+"""Define emission laws, the observations of hidden Markov sources."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from typing import Self
+
+from sage.all__sagemath_symbolics import Expression
+
+from ..spaces import DiscreteTime
+from ..specs import RequirementSpec
+from ._base import BaseLaw
+
+
+class EmissionLaw(BaseLaw):
+    """Observation of a hidden Markov source, a state drawn from the row of an emission matrix a hidden state selects.
+
+    The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
+
+    Args:
+        target:
+            The symbol of the observed scalar state.
+
+        source:
+            The symbol of the hidden state, which an update or transition law of the same element sets.
+
+        matrix:
+            The emission matrix, one row per value of the hidden state and one column per value of the observed state,
+            as numbers or expressions of parameters.
+
+        label:
+            The name of the law, or the empty string for a law without one.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws import EmissionLaw
+        >>> observed, hidden = var('observed'), var('hidden')
+        >>> EmissionLaw(observed, hidden, [[0.7, 0.3], [0.2, 0.8]]).check().prepare().targets_
+        (observed,)
+    """
+
+    def __init__(
+        self,
+        target: Expression,
+        source: Expression,
+        matrix: Sequence[Sequence[object]],
+        *,
+        label: str = '',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.matrix = matrix
+
+    def _get_targets(self) -> tuple[object, ...]:
+        """Return the observed state."""
+        return (self.target,)
+
+    def _get_requirements(self) -> RequirementSpec:
+        """Return what the law requires of a system: discrete time."""
+        return RequirementSpec(time=(DiscreteTime,))
+
+    def _check(self) -> Self:
+        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length.
+
+        Returns:
+            law:
+                The law itself.
+        """
+        self._check_matrix('matrix')
+        return self
+
+    def _run(self, inputs: object) -> object:
+        """Return the emission matrix at given values of the symbols it reads.
+
+        Args:
+            inputs:
+                A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            matrix:
+                The rows of the matrix, numbers when nothing symbolic is left.
+        """
+        return self._evaluate([list(row) for row in self.matrix], inputs)

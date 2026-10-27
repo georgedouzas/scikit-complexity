@@ -5,9 +5,10 @@ import math
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sqrt, tanh
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import parameter, role, state
 
 from skcomplex.core.base import BaseInteraction
-from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -24,42 +25,68 @@ def _cars(trajectory, n_cars, variable):
     return np.array([trajectory.values(f'car_{index}.{variable}') for index in range(n_cars)]).T
 
 
-CarElement = Element.define('CarElement', states={'x': 0.0, 'v': 0.0}, laws=lambda s: [RateLaw(s.x, s.v)])
+class CarElement(Element):
+    """Car element."""
+
+    x = state(0.0)
+    v = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the car element."""
+        return [RateLaw(s.x, s.v)]
 
 
-PerCarVelocityInteraction = BaseInteraction.define(
-    'PerCarVelocityInteraction',
-    roles=['leader', 'follower'],
-    parameters={'a': 1.0, 'V0': 1.0, 'hc': 2.0, 'offset': 0.0},
-    laws=lambda s: [
-        RateLaw(
-            s.follower.v,
-            s.a * (s.V0 * (tanh(s.leader.x - s.follower.x + s.offset - s.hc) + tanh(s.hc)) - s.follower.v),
-        ),
-    ],
-)
+class PerCarVelocityInteraction(BaseInteraction):
+    """Per car velocity interaction."""
 
+    leader = role()
+    follower = role()
+    a = parameter(1.0)
+    V0 = parameter(1.0)
+    hc = parameter(2.0)
+    offset = parameter(0.0)
 
-PerCarDriverInteraction = BaseInteraction.define(
-    'PerCarDriverInteraction',
-    roles=['leader', 'follower'],
-    parameters={'v0': 30.0, 'T': 1.5, 'a': 1.0, 'b': 1.5, 's0': 2.0, 'delta': 4.0, 'length': 5.0, 'offset': 0.0},
-    laws=lambda s: [
-        RateLaw(
-            s.follower.v,
-            s.a
-            * (
-                1
-                - (s.follower.v / s.v0) ** s.delta
-                - (
-                    (s.s0 + s.follower.v * s.T + s.follower.v * (s.follower.v - s.leader.v) / (2 * sqrt(s.a * s.b)))
-                    / (s.leader.x - s.follower.x + s.offset - s.length)
-                )
-                ** 2
+    def laws(self, s):
+        """Return the laws of the per car velocity interaction."""
+        return [
+            RateLaw(
+                s.follower.v,
+                s.a * (s.V0 * (tanh(s.leader.x - s.follower.x + s.offset - s.hc) + tanh(s.hc)) - s.follower.v),
             ),
-        ),
-    ],
-)
+        ]
+
+
+class PerCarDriverInteraction(BaseInteraction):
+    """Per car driver interaction."""
+
+    leader = role()
+    follower = role()
+    v0 = parameter(30.0)
+    T = parameter(1.5)
+    a = parameter(1.0)
+    b = parameter(1.5)
+    s0 = parameter(2.0)
+    delta = parameter(4.0)
+    length = parameter(5.0)
+    offset = parameter(0.0)
+
+    def laws(self, s):
+        """Return the laws of the per car driver interaction."""
+        return [
+            RateLaw(
+                s.follower.v,
+                s.a
+                * (
+                    1
+                    - (s.follower.v / s.v0) ** s.delta
+                    - (
+                        (s.s0 + s.follower.v * s.T + s.follower.v * (s.follower.v - s.leader.v) / (2 * sqrt(s.a * s.b)))
+                        / (s.leader.x - s.follower.x + s.offset - s.length)
+                    )
+                    ** 2
+                ),
+            ),
+        ]
 
 
 def _per_car(system, interaction):
@@ -87,7 +114,7 @@ def _per_car(system, interaction):
         )
         for index in range(n_cars)
     ]
-    return System(components=elements, interactions=interactions)
+    return System(elements=elements, interactions=interactions)
 
 
 def test_optimal_velocity_jams_move_backwards():

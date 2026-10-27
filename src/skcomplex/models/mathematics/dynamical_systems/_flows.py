@@ -5,33 +5,53 @@
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import state
 from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-LorenzElement = Element.define(
-    'LorenzElement',
-    states={'x': 1.0, 'y': 1.0, 'z': 1.0},
-    parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},
-    laws=lambda s: [
-        RateLaw(s.x, s.sigma * (s.y - s.x)),
-        RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-        RateLaw(s.z, s.x * s.y - s.beta * s.z),
-    ],
-)
 
-RosslerElement = Element.define(
-    'RosslerElement',
-    states={'x': 1.0, 'y': 1.0, 'z': 1.0},
-    parameters={'a': 0.2, 'b': 0.2, 'c': 5.7},
-    laws=lambda s: [
-        RateLaw(s.x, -s.y - s.z),
-        RateLaw(s.y, s.x + s.a * s.y),
-        RateLaw(s.z, s.b + s.z * (s.x - s.c)),
-    ],
-)
+class LorenzElement(Element):
+    """Lorenz element."""
+
+    x = state(1.0)
+    y = state(1.0)
+    z = state(1.0)
+    sigma = parameter(10.0)
+    rho = parameter(28.0)
+    beta = parameter(8 / 3)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the lorenz element."""
+        return [
+            RateLaw(s.x, s.sigma * (s.y - s.x)),
+            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+            RateLaw(s.z, s.x * s.y - s.beta * s.z),
+        ]
+
+
+class RosslerElement(Element):
+    """Rossler element."""
+
+    x = state(1.0)
+    y = state(1.0)
+    z = state(1.0)
+    a = parameter(0.2)
+    b = parameter(0.2)
+    c = parameter(5.7)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rossler element."""
+        return [
+            RateLaw(s.x, -s.y - s.z),
+            RateLaw(s.y, s.x + s.a * s.y),
+            RateLaw(s.z, s.b + s.z * (s.x - s.c)),
+        ]
 
 
 @register_model(
@@ -79,7 +99,7 @@ def lorenz(
         >>> lorenz(rho=20.0).elements[0].rho
         20.0
     """
-    return System(components=[LorenzElement('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
+    return System(elements=[LorenzElement('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
 
 
 @register_model(
@@ -127,15 +147,18 @@ def rossler(
         >>> rossler(c=4.0).elements[0].c
         4.0
     """
-    return System(components=[RosslerElement('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
+    return System(elements=[RosslerElement('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
 
 
-JerkElement = Element.define(
-    'JerkElement',
-    states={'x': state(default=0.0, order=3, initial=(0.0, 1.0))},
-    parameters={'A': 0.6},
-    laws=lambda s: [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
-)
+class JerkElement(Element):
+    """Jerk element."""
+
+    x = state(default=0.0, order=3, initial=(0.0, 1.0))
+    A = parameter(0.6)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the jerk element."""
+        return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
 
 
 @register_model(
@@ -175,15 +198,19 @@ def sprott_jerk(
         >>> sprott_jerk(A=0.5).elements[0].A
         0.5
     """
-    return System(components=[JerkElement('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
+    return System(elements=[JerkElement('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
 
 
-BlowUpElement = Element.define(
-    'BlowUpElement',
-    states={'x': 1.0},
-    parameters={'a': 1.0, 'p': 2.0},
-    laws=lambda s: [RateLaw(s.x, s.a * s.x**s.p)],
-)
+class BlowUpElement(Element):
+    """Blow up element."""
+
+    x = state(1.0)
+    a = parameter(1.0)
+    p = parameter(2.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the blow up element."""
+        return [RateLaw(s.x, s.a * s.x**s.p)]
 
 
 @register_model(
@@ -214,4 +241,4 @@ def finite_time_blow_up(x: float = 1.0, *, a: float = 1.0, p: float = 2.0) -> Sy
         >>> finite_time_blow_up(p=3.0).elements[0].p
         3.0
     """
-    return System(components=[BlowUpElement('growth', x=x, a=a, p=p)])
+    return System(elements=[BlowUpElement('growth', x=x, a=a, p=p)])

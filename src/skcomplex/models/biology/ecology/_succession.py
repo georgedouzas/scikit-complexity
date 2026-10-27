@@ -214,7 +214,7 @@ def mangrove_succession(
         [196.11, 80.0, 320.0]
     """
     return System(
-        components=[
+        elements=[
             StandElement('keora', volume=keora, mature=196.11),
             StandElement('gewa', volume=gewa, mature=80.0),
             StandElement('sundari', volume=sundari, mature=320.0),

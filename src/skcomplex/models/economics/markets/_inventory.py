@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 
@@ -45,20 +46,21 @@ def _dealer_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-CarDealershipElement = Element.define(
-    'CarDealershipElement',
-    states={'inventory': state(default=200.0, domain=NumericDomain.NONNEGATIVE, quantity='cars')},
-    parameters={
-        'demand': parameter(default=20.0, domain=NumericDomain.NONNEGATIVE),
-        'demand_step': parameter(default=2.0, domain=NumericDomain.REAL),
-        'step_time': parameter(default=25.0, domain=NumericDomain.NONNEGATIVE),
-        'coverage': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'perception_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-        'response_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'delivery_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_dealer_laws,
-)
+class CarDealershipElement(Element):
+    """Car dealership element."""
+
+    inventory = state(default=200.0, domain=NumericDomain.NONNEGATIVE, quantity='cars')
+    demand = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    demand_step = parameter(default=2.0, domain=NumericDomain.REAL)
+    step_time = parameter(default=25.0, domain=NumericDomain.NONNEGATIVE)
+    coverage = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    perception_delay = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    response_delay = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    delivery_delay = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the car dealership element."""
+        return _dealer_laws(s)
 
 
 @register_model(
@@ -67,9 +69,9 @@ CarDealershipElement = Element.define(
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 1.0},
     observables=lambda system: [
-        observe_element('dealer', 'perceived', _perceived),
-        observe_element('dealer', 'desired_inventory', _desired_inventory),
-        observe_element('dealer', 'orders', _orders),
+        ObservableSpec('perceived', _perceived, element='dealer'),
+        ObservableSpec('desired_inventory', _desired_inventory, element='dealer'),
+        ObservableSpec('orders', _orders, element='dealer'),
     ],
 )
 def car_dealer(
@@ -139,4 +141,4 @@ def car_dealer(
         response_delay=response_delay,
         delivery_delay=delivery_delay,
     )
-    return System(components=[dealer])
+    return System(elements=[dealer])

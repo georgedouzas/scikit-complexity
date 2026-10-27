@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
@@ -36,7 +37,7 @@ class PastureElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PastureElement
-        >>> PastureElement.group('pasture', 4, growth=0.1).size
+        >>> GroupElement('pasture', element=PastureElement, size=4, values={'growth': 0.1}).size
         4
     """
 
@@ -83,7 +84,7 @@ class CowElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import CowElement
-        >>> CowElement.group('cows', 10).size
+        >>> GroupElement('cows', element=CowElement, size=10).size
         10
     """
 
@@ -267,9 +268,23 @@ def meadow_capacity(
     cells = [(column, row) for column in range(width) for row in range(height)]
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
-        components=[
-            PastureElement.group('pasture', len(cells), variable=True, location=cells, growth=growth),
-            CowElement.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
+        elements=[
+            GroupElement(
+                'pasture',
+                element=PastureElement,
+                size=len(cells),
+                values={'growth': growth},
+                variable=True,
+                location=cells,
+            ),
+            GroupElement(
+                'cows',
+                element=CowElement,
+                size=cows,
+                values={'bite': bite},
+                variable=True,
+                location=[cells[int(pick)] for pick in picks],
+            ),
         ],
         interactions=[
             GrazingInteraction('grazing', cows='cows', pasture='pasture'),

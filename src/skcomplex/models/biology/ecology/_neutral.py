@@ -8,6 +8,7 @@ from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 class NeutralSpeciesElement(Element):
@@ -37,7 +38,7 @@ class NeutralSpeciesElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import NeutralSpeciesElement
-        >>> NeutralSpeciesElement.group('trees', 50).size
+        >>> GroupElement('trees', element=NeutralSpeciesElement, size=50).size
         50
     """
 
@@ -113,4 +114,13 @@ def neutral_macroecology(
         >>> neutral_macroecology(20).elements[0].size
         20
     """
-    return System(components=[NeutralSpeciesElement.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])
+    return System(
+        elements=[
+            GroupElement(
+                'species',
+                element=NeutralSpeciesElement,
+                size=species,
+                values={'n': n, 'b0': b0, 'b1': b1, 'd0': d0, 'd1': d1},
+            ),
+        ],
+    )

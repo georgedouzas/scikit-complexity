@@ -10,10 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -44,7 +45,7 @@ class BitStringElement(Element):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import BitStringElement
-        >>> group = BitStringElement.group('genomes', 4, genome=[0, 1, 2, 3])
+        >>> group = GroupElement('genomes', element=BitStringElement, size=4, values={'genome': [0, 1, 2, 3]})
         >>> group.label, group.element.__name__, group.size
         ('genomes', 'BitStringElement', 4)
     """
@@ -198,6 +199,13 @@ def bit_string_evolution(
         one_values=tuple(one_values.tolist()),
     )
     return System(
-        components=[BitStringElement.group('genomes', n_agents, genome=genomes, fitness=fitness)],
+        elements=[
+            GroupElement(
+                'genomes',
+                element=BitStringElement,
+                size=n_agents,
+                values={'genome': genomes, 'fitness': fitness},
+            ),
+        ],
         interactions=[reproduction],
     )

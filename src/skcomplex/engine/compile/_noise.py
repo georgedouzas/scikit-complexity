@@ -8,11 +8,12 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression
 
-from ...core.base import Expression, ValidationError, components_of
-from ...core.components import WienerProcess
+from ...core.errors import ValidationError
 from ...core.laws import NoiseLaw
-from ...core.problems import NoiseProcess
+from ...core.specs import WienerProcessSpec
+from ..problems import NoiseProcess, components_of
 from ._declarations import Declarations
 from ._specs import KernelSpec
 
@@ -27,7 +28,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
     if found is None:
         error_msg = (
             f'A noise law of {spec.owner} names the process {item!r}, which is not a label or the handle `dW` of a '
-            '`WienerProcess` bound to a role.'
+            '`WienerProcessSpec` bound to a role.'
         )
         raise ValidationError(error_msg)
     return ('wiener', *found)
@@ -35,7 +36,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
 
 def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
     """Return the process of every component of the target of a noise law, `None` for an independent process."""
-    count = len(components_of(law.targets[0]))
+    count = len(components_of(law._get_targets()[0]))
     process = law.process
     if process is None:
         return [None] * count
@@ -51,7 +52,7 @@ def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) ->
     return [_process_key(spec, item, declarations) for item in items]
 
 
-def process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcess]) -> float:
+def process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
     """Return the covariance per unit time of the increments of two processes, keys or independent markers."""
     if not (isinstance(first, tuple) and isinstance(second, tuple) and first[0] == 'wiener' == second[0]):
         return 1.0 if first == second else 0.0
@@ -73,8 +74,8 @@ def covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
         return vectors * np.sqrt(np.maximum(values, 0.0))
 
 
-def noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcess]) -> NoiseProcess | None:
-    """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcess`."""
+def noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
+    """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
     if key is None:
         return None
     kind, owner, item = key

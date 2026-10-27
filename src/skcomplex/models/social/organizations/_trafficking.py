@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 MONTH = 30
 QUARTER = 90
@@ -52,7 +53,7 @@ class PremisesElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import PremisesElement
-        >>> group = PremisesElement.group('premises', 3, brothel=1.0)
+        >>> group = GroupElement('premises', element=PremisesElement, size=3, values={'brothel': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('premises', 'PremisesElement', 3)
     """
@@ -80,7 +81,7 @@ class TravellerElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import TravellerElement
-        >>> group = TravellerElement.group('women', 4, victim=1.0)
+        >>> group = GroupElement('women', element=TravellerElement, size=4, values={'victim': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('women', 'TravellerElement', 4)
     """
@@ -258,20 +259,26 @@ def trafficking(
     cells = rng.permutation(width * height)[:n_places]
     places = [(int(cell % width), int(cell // width)) for cell in cells]
     brothel = (np.arange(n_places) >= n_houses).astype(float)
-    premises = PremisesElement.group(
+    premises = GroupElement(
         'premises',
-        n_places,
+        element=PremisesElement,
+        size=n_places,
+        values={'brothel': brothel, 'efficiency': rng.uniform(0, 3, n_places)},
         location=places,
-        brothel=brothel,
-        efficiency=rng.uniform(0, 3, n_places),
     )
     homes = [places[n_houses + index % n_brothels] for index in range(n_victims)]
     homes += [(int(rng.integers(width)), int(rng.integers(height))) for _ in range(n_free)]
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
-    women = TravellerElement.group('women', n_victims + n_free, location=homes, victim=victim)
+    women = GroupElement(
+        'women',
+        element=TravellerElement,
+        size=n_victims + n_free,
+        values={'victim': victim},
+        location=homes,
+    )
     day = DailyMovementsInteraction('day', women='women', premises='premises', n_cities=n_cities)
     return System(
-        components=[premises, women],
+        elements=[premises, women],
         interactions=[day],
         space=LatticeSpace((width, height), boundary='fixed'),
     )

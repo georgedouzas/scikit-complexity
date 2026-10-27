@@ -11,15 +11,18 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ....core.laws import ExtremalLaw, Symbols
+from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import ExtremalLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
-SPECIES_NEIGHBORHOODS: dict[str, Neighborhood | Adjacency] = {'ring': Neighborhood(((-1,), (1,))), 'graph': Adjacency()}
+SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
+    'ring': LatticeNeighborhood(((-1,), (1,))),
+    'graph': AdjacencyNeighborhood(),
+}
 FITNESS_VISUAL = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
 FITNESS_SITES = VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
 
@@ -130,12 +133,15 @@ def bak_sneppen(
     space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).prepare()
     count = int(space.size_ or 0)
     fitness = np.random.default_rng(random_state).random(count)
-    species = SpeciesElement.lattice(
+    species = LatticeElement(
         'species',
-        space,
+        element=SpeciesElement,
+        space=space,
+        values={
+            'fitness': fitness,
+            'updates': count if updates is None else updates,
+            'neighbors': 'ring' if graph is None else 'graph',
+        },
         visual=FITNESS_VISUAL if graph is None else FITNESS_SITES,
-        fitness=fitness,
-        updates=count if updates is None else updates,
-        neighbors='ring' if graph is None else 'graph',
     )
-    return System(components=[species])
+    return System(elements=[species])

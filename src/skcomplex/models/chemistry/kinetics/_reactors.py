@@ -13,12 +13,18 @@ from ....core.laws import RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CatalystPelletElement = Element.define(
-    'CatalystPelletElement',
-    states={'c': state(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'h': 0.1, 'k': 10.0, 'K': 20.0},
-    laws=lambda s: [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)],
-)
+
+class CatalystPelletElement(Element):
+    """Catalyst pellet element."""
+
+    c = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    h = parameter(0.1)
+    k = parameter(10.0)
+    K = parameter(20.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the catalyst pellet element."""
+        return [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)]
 
 
 class PulsedElectrodeElement(Element):
@@ -142,7 +148,7 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         >>> catalyst_pellet(k=5.0).elements[0].k
         5.0
     """
-    return System(components=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)])
+    return System(elements=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)])
 
 
 @register_model(
@@ -217,4 +223,4 @@ def pulsed_electrochemical_reactor(
         period=period,
         width=width,
     )
-    return System(components=[electrode])
+    return System(elements=[electrode])

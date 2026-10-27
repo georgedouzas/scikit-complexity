@@ -12,7 +12,7 @@ A star orbiting in a triangular galactic potential: at low energy its orbit is a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import poincare_section
+from skcomplex.analysis import poincare_section
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

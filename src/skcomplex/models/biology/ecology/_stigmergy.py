@@ -10,12 +10,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldElement
+from ...core.elements import GroupElement
 
 MARKS = 'ground/marks'
 PLANTS = 'plants'
@@ -24,22 +25,24 @@ PREDATORS = 'predators'
 PREY_TRAITS: dict[str, Any] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
 PREDATOR_TRAITS: dict[str, Any] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
-EmotionMarksElement = Element.define(
-    'EmotionMarksElement',
-    states={
-        'prey_happiness': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'prey_fear': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'predator_happiness': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'predator_anger': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={'decay': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [
-        RateLaw(s.prey_happiness, -s.decay * s.prey_happiness),
-        RateLaw(s.prey_fear, -s.decay * s.prey_fear),
-        RateLaw(s.predator_happiness, -s.decay * s.predator_happiness),
-        RateLaw(s.predator_anger, -s.decay * s.predator_anger),
-    ],
-)
+
+class EmotionMarksElement(Element):
+    """Emotion marks element."""
+
+    prey_happiness = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    prey_fear = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    predator_happiness = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    predator_anger = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    decay = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the emotion marks element."""
+        return [
+            RateLaw(s.prey_happiness, -s.decay * s.prey_happiness),
+            RateLaw(s.prey_fear, -s.decay * s.prey_fear),
+            RateLaw(s.predator_happiness, -s.decay * s.predator_happiness),
+            RateLaw(s.predator_anger, -s.decay * s.predator_anger),
+        ]
 
 
 def _kind(agent: AgentView) -> str:
@@ -81,7 +84,7 @@ class PlantElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PlantElement
-        >>> PlantElement.group('plants', 100).size
+        >>> GroupElement('plants', element=PlantElement, size=100).size
         100
     """
 
@@ -165,7 +168,7 @@ class ForagerElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import StigmergicPreyElement
-        >>> StigmergicPreyElement.group('prey', 10).size
+        >>> GroupElement('prey', element=StigmergicPreyElement, size=10).size
         10
     """
 
@@ -462,25 +465,33 @@ def stigmergic_predator_prey(
     flag = float(emotions)
     life = System(
         'life',
-        components=[
-            PlantElement.group(
+        elements=[
+            GroupElement(
                 PLANTS,
-                plants,
+                element=PlantElement,
+                size=plants,
+                values={'age': rng.integers(0, 4, plants).astype(float)},
                 variable=True,
                 location=plant_cells,
-                age=rng.integers(0, 4, plants).astype(float),
             ),
-            StigmergicPreyElement.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
-            StigmergicPredatorElement.group(
+            GroupElement(
+                PREY,
+                element=StigmergicPreyElement,
+                size=prey,
+                values={'emotions': flag, **PREY_TRAITS},
+                variable=True,
+                location=prey_cells,
+            ),
+            GroupElement(
                 PREDATORS,
-                predators,
+                element=StigmergicPredatorElement,
+                size=predators,
+                values={'emotions': flag, **PREDATOR_TRAITS},
                 variable=True,
                 location=predator_cells,
-                emotions=flag,
-                **PREDATOR_TRAITS,
             ),
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )
     marks = FieldElement('marks', EmotionMarksElement, LatticeSpace((width, height)), values={'decay': decay})
-    return System(components=[life, System('ground', components=[marks])])
+    return System(elements=[life], systems=[System('ground', elements=[marks])])

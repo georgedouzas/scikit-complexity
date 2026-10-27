@@ -10,18 +10,18 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
-SITE = Neighborhood(((0, 0),))
-TRIANGULAR = Neighborhood.triangular()
+SITE = LatticeNeighborhood(((0, 0),))
+TRIANGULAR = TriangularNeighborhood()
 VELOCITIES = np.column_stack(
     [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
 )
@@ -185,5 +185,11 @@ def fhp_lattice_gas(
     probability = np.where(inside, bump, density)[:, None]
     occupied = (np.random.default_rng(random_state).random((space.size_, DIRECTIONS)) < probability).astype(float)
     channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-    gas = FHPSiteElement.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
-    return System(components=[gas])
+    gas = LatticeElement(
+        'gas',
+        element=FHPSiteElement,
+        space=space,
+        values={'density': occupied.sum(axis=1), **channels},
+        visual=DENSITY_VISUAL,
+    )
+    return System(elements=[gas])

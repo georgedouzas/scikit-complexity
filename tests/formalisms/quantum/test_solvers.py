@@ -7,37 +7,45 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import BaseInteraction, SolverError, parameter, role
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.elements import LatticeElement
+from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.quantum import (
-    DissipatorLaw,
-    GeneratorLaw,
-    LindbladSolver,
-    QuantumTrajectoriesSolver,
-    UnitarySolver,
-    expectation,
-)
+from skcomplex.engine.solvers import LindbladSolver, QuantumTrajectoriesSolver, UnitarySolver
 from skcomplex.models.physics.realizations.quantum import QubitElement, SpinElement
 
 OMEGA = 2.0
 GAMMA = 0.5
 
-RabiElement = QubitElement.define(
-    'RabiElement',
-    parameters={'omega': OMEGA},
-    laws=lambda s: [GeneratorLaw(s.omega / 2 * s.x)],
-)
-DecayingElement = QubitElement.define(
-    'DecayingElement',
-    parameters={'gamma': GAMMA},
-    laws=lambda s: [DissipatorLaw(s.minus, s.gamma)],
-)
-DephasedElement = QubitElement.define(
-    'DephasedElement',
-    laws=lambda s: [GeneratorLaw(s.x), DissipatorLaw(s.z, 0.3)],
-)
+
+class RabiElement(QubitElement):
+    """Rabi element."""
+
+    omega = parameter(OMEGA)
+
+    def laws(self, s):
+        """Return the laws of the rabi element."""
+        return [GeneratorLaw(s.omega / 2 * s.x)]
+
+
+class DecayingElement(QubitElement):
+    """Decaying element."""
+
+    gamma = parameter(GAMMA)
+
+    def laws(self, s):
+        """Return the laws of the decaying element."""
+        return [DissipatorLaw(s.minus, s.gamma)]
+
+
+class DephasedElement(QubitElement):
+    """Dephased element."""
+
+    def laws(self, s):
+        """Return the laws of the dephased element."""
+        return [GeneratorLaw(s.x), DissipatorLaw(s.z, 0.3)]
 
 
 class XXZInteraction(BaseInteraction):
@@ -67,14 +75,16 @@ def _chain(n_sites, **values):
     """Return a Heisenberg chain from a Néel state."""
     labels = ['up', 'down'] * (n_sites // 2)
     return System(
-        components=[SpinElement.lattice('chain', LatticeSpace(n_sites), initial=labels)],
+        elements=[
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'initial': labels}),
+        ],
         interactions=[XXZInteraction('xxz', target='chain', **values)],
     )
 
 
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
-    system = System(components=[RabiElement('q')])
+    system = System(elements=[RabiElement('q')])
     simulation = Simulation(system, solver='unitary', dt=0.05, observables=Z).run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
     assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
@@ -93,12 +103,12 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(System(components=[DecayingElement('q')]), solver='unitary').run(until=1.0)
+        Simulation(System(elements=[DecayingElement('q')]), solver='unitary').run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
-    system = System(components=[DecayingElement('q')])
+    system = System(elements=[DecayingElement('q')])
     simulation = Simulation(system, dt=0.5, observables=Z).run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
@@ -109,7 +119,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = Simulation(System(components=[DephasedElement('q')]), dt=0.2).run(until=4.0).trajectory_
+    trajectory = Simulation(System(elements=[DephasedElement('q')]), dt=0.2).run(until=4.0).trajectory_
     purity = trajectory.values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
@@ -117,7 +127,7 @@ def test_lindblad_evolution_lowers_purity():
 
 def test_quantum_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
-    system = System(components=[DecayingElement('q')])
+    system = System(elements=[DecayingElement('q')])
     runs = [
         Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
         for _ in range(2)
@@ -128,7 +138,7 @@ def test_quantum_trajectories_are_reproducible():
 
 def test_quantum_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
-    system = System(components=[DecayingElement('q')])
+    system = System(elements=[DecayingElement('q')])
     problem = compile_system(system, observables=Z)
     rng = np.random.default_rng(0)
     values = np.array(

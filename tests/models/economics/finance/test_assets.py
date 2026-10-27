@@ -10,7 +10,7 @@ from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMo
 def test_asset_price_stays_positive_and_reproducible():
     """Test that geometric Brownian motion stays positive and is reproducible."""
     system = System(
-        components=[AssetElement('stock', price=100.0)],
+        elements=[AssetElement('stock', price=100.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
     )
     first = Simulation(system, dt=0.1, random_state=7).run(until=5).trajectory_.values('stock.price')

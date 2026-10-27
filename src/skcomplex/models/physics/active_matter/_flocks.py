@@ -11,8 +11,9 @@ from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
-from ....core.space import ContinuousSpace, DiscreteTime, Radius
-from ....core.system import Observable, System
+from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 HEADINGS = VisualSpec(
@@ -48,13 +49,13 @@ def _nematic_order(s: Symbols) -> Expression:
     return _modulus('mean_axis', s)
 
 
-def _orders(group: str) -> list[Observable]:
+def _orders(group: str) -> list[ObservableSpec]:
     """Return the mean heading and axis of a group of flockers and their moduli, the polar and nematic orders."""
     return [
-        Observable('mean_heading', _heading, group=group),
-        Observable('polarization', _polarization),
-        Observable('mean_axis', _axis, group=group),
-        Observable('nematic_order', _nematic_order),
+        ObservableSpec('mean_heading', _heading, group=group),
+        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_axis', _axis, group=group),
+        ObservableSpec('nematic_order', _nematic_order),
     ]
 
 
@@ -65,7 +66,7 @@ def _step(s: Symbols) -> BaseLaw:
 
 def _vicsek_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment with the mean heading within `r` plus angular noise, and the move."""
-    within = Radius(1.0, center=True)
+    within = RadiusNeighborhood(1.0, center=True)
     turn = atan2(neighbors(sin(s.other.theta), over=within), neighbors(cos(s.other.theta), over=within))
     return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
 
@@ -77,7 +78,7 @@ def _attraction(distance: Expression, s: Symbols) -> Expression:
 
 def _cohesive_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment, the cohesion, and the vectorial noise of the Grégoire-Chaté model, and the move."""
-    near, others = Radius(1.0, center=True), Radius(1.0)
+    near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
     dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
     distance = sqrt(dx**2 + dy**2)
     force = _attraction(distance, s)
@@ -98,51 +99,54 @@ def _cohesive_laws(s: Symbols) -> list[BaseLaw]:
 
 def _nematic_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment with the axes of the neighbours, each flipped to the near side, plus noise, and the move."""
-    within = Radius(1.0, center=True)
+    within = RadiusNeighborhood(1.0, center=True)
     side = where(cos(s.other.theta - s.theta) >= 0, 1, -1)
     turn = atan2(neighbors(side * sin(s.other.theta), over=within), neighbors(side * cos(s.other.theta), over=within))
     return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
 
 
-FLOCKER_STATES = {
-    'x': state(vector=True, position=True),
-    'theta': state(default=0.0, domain=NumericDomain.ANGLE),
-}
+class VicsekParticleElement(Element):
+    """Particle of a Vicsek flock that aligns its heading with its neighbours, with noise."""
 
-VicsekParticleElement = Element.define(
-    'VicsekParticleElement',
-    states=FLOCKER_STATES,
-    parameters={
-        'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_vicsek_laws,
-)
+    x = state(vector=True, position=True)
+    theta = state(default=0.0, domain=NumericDomain.ANGLE)
+    v0 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-CohesiveParticleElement = Element.define(
-    'CohesiveParticleElement',
-    states=FLOCKER_STATES,
-    parameters={
-        'v0': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'alpha': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'r_c': parameter(default=CLOSE, domain=NumericDomain.POSITIVE),
-        'r_e': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        'r_a': parameter(default=0.8, domain=NumericDomain.POSITIVE),
-    },
-    laws=_cohesive_laws,
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the particle."""
+        return _vicsek_laws(s)
 
-NematicParticleElement = Element.define(
-    'NematicParticleElement',
-    states=FLOCKER_STATES,
-    parameters={
-        'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_nematic_laws,
-)
+
+class CohesiveParticleElement(Element):
+    """Particle of a cohesive flock that aligns, repels close neighbours, and attracts distant ones."""
+
+    x = state(vector=True, position=True)
+    theta = state(default=0.0, domain=NumericDomain.ANGLE)
+    v0 = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    alpha = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r_c = parameter(default=CLOSE, domain=NumericDomain.POSITIVE)
+    r_e = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    r_a = parameter(default=0.8, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the particle."""
+        return _cohesive_laws(s)
+
+
+class NematicParticleElement(Element):
+    """Particle of a nematic flock that aligns its axis with its neighbours, either way."""
+
+    x = state(vector=True, position=True)
+    theta = state(default=0.0, domain=NumericDomain.ANGLE)
+    v0 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the particle."""
+        return _nematic_laws(s)
 
 
 def _flock(element: type[Element], n_particles: int, size: float, seed: int, **values: float) -> System:
@@ -154,7 +158,11 @@ def _flock(element: type[Element], n_particles: int, size: float, seed: int, **v
         **values,
     }
     flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
-    return System(components=[flock], space=ContinuousSpace(size, size, boundary='periodic'), time=DiscreteTime())
+    return System(
+        elements=[flock],
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        time=DiscreteTime(),
+    )
 
 
 @register_model(

@@ -13,7 +13,7 @@ slow frequency, and against each other at the fast one, so each mass alone trace
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import power_spectrum
+from skcomplex.analysis import power_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

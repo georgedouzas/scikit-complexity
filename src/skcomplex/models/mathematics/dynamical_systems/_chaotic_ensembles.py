@@ -6,38 +6,56 @@
 import numpy as np
 from sage.all__sagemath_symbolics import floor
 
+from skcomplex.core.declarations import state
+
 from ....core.base import Expression, NumericDomain, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, mod, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.elements import GroupElement
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
-CubicWalkElement = Element.define(
-    'CubicWalkElement',
-    states={'x': 0.3, 'y': 0.0},
-    parameters={'lam': parameter(default=15.0, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [
-        UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
-        UpdateLaw(s.y, s.y + 2 * s.x - 1),
-    ],
-    visual=VisualSpec('points', {'position': 'y', 'states': ()}),
-)
 
-SkewTentMapElement = Element.define(
-    'SkewTentMapElement',
-    states={'x': 0.4},
-    parameters={'a': parameter(default=0.3, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))],
-)
+class CubicWalkElement(Element):
+    """Cubic walk element."""
 
-DoublingMapElement = Element.define(
-    'DoublingMapElement',
-    states={'x': 0.4},
-    parameters={'q': parameter(default=DOUBLING_DENOMINATOR, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)],
-)
+    visual = VisualSpec('points', {'position': 'y', 'states': ()})
+    x = state(0.3)
+    y = state(0.0)
+    lam = parameter(default=15.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the cubic walk element."""
+        return [
+            UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
+            UpdateLaw(s.y, s.y + 2 * s.x - 1),
+        ]
+
+
+class SkewTentMapElement(Element):
+    """Skew tent map element."""
+
+    x = state(0.4)
+    a = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the skew tent map element."""
+        return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
+
+
+class DoublingMapElement(Element):
+    """Doubling map element."""
+
+    x = state(0.4)
+    q = parameter(default=DOUBLING_DENOMINATOR, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the doubling map element."""
+        return [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)]
 
 
 def _square_displacement(member: Symbols) -> Expression:
@@ -61,8 +79,8 @@ def _draw_cloud(
     references=('Bertin 2021',),
     defaults={'until': 200, 'dt': 1},
     observables=lambda system: [
-        Observable('displacement', group='walkers', variable='y'),
-        Observable('square_displacement', _square_displacement, group='walkers'),
+        ObservableSpec('displacement', group='walkers', variable='y'),
+        ObservableSpec('square_displacement', _square_displacement, group='walkers'),
     ],
 )
 def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
@@ -92,9 +110,14 @@ def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
         4
     """
     start = (np.arange(n_walkers) + 1 / 4) / n_walkers
-    walkers = CubicWalkElement.group('walkers', n_walkers, x=start, y=0.0, lam=lam)
+    walkers = GroupElement(
+        'walkers',
+        element=CubicWalkElement,
+        size=n_walkers,
+        values={'x': start, 'y': 0.0, 'lam': lam},
+    )
     return System(
-        components=[walkers],
+        elements=[walkers],
     )
 
 
@@ -145,7 +168,9 @@ def skew_tent_map(
         0.7
     """
     start = _draw_cloud(n_points, x, spread, random_state)
-    return System(components=[SkewTentMapElement.group('points', n_points, x=start, a=a)])
+    return System(
+        elements=[GroupElement('points', element=SkewTentMapElement, size=n_points, values={'x': start, 'a': a})],
+    )
 
 
 @register_model(
@@ -197,4 +222,6 @@ def doubling_map(
         41.0
     """
     start = np.floor(q * _draw_cloud(n_points, x, spread, random_state) + 1 / 2) / q
-    return System(components=[DoublingMapElement.group('points', n_points, x=start, q=q)])
+    return System(
+        elements=[GroupElement('points', element=DoublingMapElement, size=n_points, values={'x': start, 'q': q})],
+    )

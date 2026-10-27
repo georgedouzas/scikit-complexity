@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element, GroupElement
-from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import EncounterLaw, RateLaw, Symbols
+from ....core.laws.utils import moment
+from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import EncounterLaw, moment
 
 CRIMINAL_THRESHOLD = 0.5
 CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
@@ -172,7 +173,7 @@ class CitizensElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.crowds import CitizensElement
-        >>> CitizensElement.group('citizens', 5, f=0.2).size
+        >>> GroupElement('citizens', element=CitizensElement, size=5, values={'f': 0.2}).size
         5
     """
 
@@ -194,7 +195,7 @@ class SecurityAgentsElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.crowds import SecurityAgentsElement
-        >>> SecurityAgentsElement.group('security', 3, share=[0.5, 0.3, 0.2]).size
+        >>> GroupElement('security', element=SecurityAgentsElement, size=3, values={'share': [0.5, 0.3, 0.2]}).size
         3
     """
 
@@ -358,7 +359,7 @@ def _sizes_of(system: System) -> tuple[int, int]:
     return sizes['citizens'], sizes['security']
 
 
-def criminality_observables(classes: int, forces: int) -> list[Observable]:
+def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
     """Return the mean criminality, the criminal fraction, and the density of the security forces of the model.
 
     Args:
@@ -379,9 +380,9 @@ def criminality_observables(classes: int, forces: int) -> list[Observable]:
     """
     criminality = criminality_grid(classes)
     return [
-        Observable('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
-        Observable('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
-        Observable('security_forces', partial(security_density, forces=forces), group='security'),
+        ObservableSpec('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
+        ObservableSpec('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
+        ObservableSpec('security_forces', partial(security_density, forces=forces), group='security'),
     ]
 
 
@@ -455,7 +456,7 @@ def criminality(
     citizens = np.zeros(classes)
     citizens[0], citizens[-1] = 1.0 - criminals, criminals
     return System(
-        components=[
+        elements=[
             GroupElement('citizens', element=CitizensElement, size=classes, on='sites', values={'f': citizens}),
             GroupElement(
                 'security',

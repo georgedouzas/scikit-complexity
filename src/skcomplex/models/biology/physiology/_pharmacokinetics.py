@@ -106,4 +106,4 @@ def two_compartment_pharmacokinetics(
         >>> two_compartment_pharmacokinetics(c0=5.0).elements[0].Uc
         5.0
     """
-    return System(components=[TwoCompartmentElement('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])
+    return System(elements=[TwoCompartmentElement('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])

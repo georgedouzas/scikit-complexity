@@ -15,7 +15,7 @@ thermal cloud of the trap.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import histogram
+from skcomplex.analysis import histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver

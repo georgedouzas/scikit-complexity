@@ -7,22 +7,35 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-NonreciprocalMixtureElement = Element.define(
-    'NonreciprocalMixtureElement',
-    states={'phi': 0.0, 'psi': 0.0},
-    parameters={'chi': 0.0, 'alpha': 0.3, 'D': 0.1, 'kappa': 1.0},
-    laws=lambda s: [
-        RateLaw(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
-        RateLaw(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
-    ],
-)
+
+class NonreciprocalMixtureElement(Element):
+    """Nonreciprocal mixture element."""
+
+    phi = state(0.0)
+    psi = state(0.0)
+    chi = parameter(0.0)
+    alpha = parameter(0.3)
+    D = parameter(0.1)
+    kappa = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the nonreciprocal mixture element."""
+        return [
+            RateLaw(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
+            RateLaw(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
+        ]
 
 
 @register_model(
@@ -91,4 +104,4 @@ def nonreciprocal_cahn_hilliard(
         'kappa': kappa,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[FieldElement('mixture', NonreciprocalMixtureElement, space, values=values)])
+    return System(elements=[FieldElement('mixture', NonreciprocalMixtureElement, space, values=values)])

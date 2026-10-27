@@ -5,9 +5,8 @@
 
 from typing import cast
 
-from ....core.base import Form
 from ....core.laws import RateLaw
-from ....core.problems import Lowered, ReductionSchedule
+from ...problems import Form, Lowered, ReductionSchedule
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._jacobians import ExactJacobian

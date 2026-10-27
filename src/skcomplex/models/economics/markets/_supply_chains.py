@@ -5,10 +5,13 @@
 
 from itertools import pairwise
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
@@ -76,52 +79,60 @@ def _brewery_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-EchelonElement = Element.define(
-    'EchelonElement',
-    states={
-        'inventory': state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
-        'in_transit': state(default=8.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
-        'backlog': state(default=4.0, domain=NumericDomain.NONNEGATIVE),
-        'expected': state(default=4.0, domain=NumericDomain.NONNEGATIVE),
-        'supply_line': state(default=16.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'desired': parameter(default=13.44, domain=NumericDomain.REAL),
-        'theta': parameter(default=0.36, domain=NumericDomain.NONNEGATIVE),
-        'alpha': parameter(default=0.26, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=0.34, domain=NumericDomain.NONNEGATIVE),
-        'dispatch_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_echelon_laws,
-)
+class EchelonElement(Element):
+    """Echelon element."""
 
-SupplyLinkInteraction = BaseInteraction.define(
-    'SupplyLinkInteraction',
-    roles=['downstream', 'upstream'],
-    parameters={
-        'mail_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'shipping_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_link_laws,
-)
+    inventory = state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='beer')
+    in_transit = state(default=8.0, domain=NumericDomain.NONNEGATIVE, quantity='beer')
+    backlog = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    expected = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    supply_line = state(default=16.0, domain=NumericDomain.NONNEGATIVE)
+    desired = parameter(default=13.44, domain=NumericDomain.REAL)
+    theta = parameter(default=0.36, domain=NumericDomain.NONNEGATIVE)
+    alpha = parameter(default=0.26, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=0.34, domain=NumericDomain.NONNEGATIVE)
+    dispatch_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-RetailDemandInteraction = BaseInteraction.define(
-    'RetailDemandInteraction',
-    roles=['retailer'],
-    parameters={
-        'demand': parameter(default=4.0, domain=NumericDomain.NONNEGATIVE),
-        'demand_step': parameter(default=4.0, domain=NumericDomain.REAL),
-        'step_time': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_customer_laws,
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the echelon element."""
+        return _echelon_laws(s)
 
-BreweryInteraction = BaseInteraction.define(
-    'BreweryInteraction',
-    roles=['factory'],
-    parameters={'production_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE)},
-    laws=_brewery_laws,
-)
+
+class SupplyLinkInteraction(BaseInteraction):
+    """Supply link interaction."""
+
+    downstream = role()
+    upstream = role()
+    mail_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    shipping_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the supply link interaction."""
+        return _link_laws(s)
+
+
+class RetailDemandInteraction(BaseInteraction):
+    """Retail demand interaction."""
+
+    retailer = role()
+    demand = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    demand_step = parameter(default=4.0, domain=NumericDomain.REAL)
+    step_time = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the retail demand interaction."""
+        return _customer_laws(s)
+
+
+class BreweryInteraction(BaseInteraction):
+    """Brewery interaction."""
+
+    factory = role()
+    production_delay = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the brewery interaction."""
+        return _brewery_laws(s)
 
 
 @register_model(
@@ -130,9 +141,9 @@ BreweryInteraction = BaseInteraction.define(
     references=('Sterman 1989',),
     defaults={'until': 36.0, 'dt': 0.5},
     observables=lambda system: [
-        *(observe_element(label, 'orders', _orders) for label in ECHELONS),
-        *(observe_element(label, 'shipments', _shipments) for label in ECHELONS),
-        observe_element('customers', 'orders', _customer_orders),
+        *(ObservableSpec('orders', _orders, element=label) for label in ECHELONS),
+        *(ObservableSpec('shipments', _shipments, element=label) for label in ECHELONS),
+        ObservableSpec('orders', _customer_orders, element='customers'),
     ],
 )
 def beer_game(
@@ -249,4 +260,4 @@ def beer_game(
         step_time=step_time,
     )
     brewery = BreweryInteraction('brewery', factory='factory', production_delay=production_delay)
-    return System(components=echelons, interactions=[*links, customers, brewery])
+    return System(elements=echelons, interactions=[*links, customers, brewery])

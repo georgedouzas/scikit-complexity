@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._markets import CallAuction, MarketInteraction, OrderBook, Trade
 
@@ -83,7 +85,7 @@ class ZeroIntelligenceBuyerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ZeroIntelligenceBuyerElement
-        >>> ZeroIntelligenceBuyerElement.group('buyers', 5, value=100.0).size
+        >>> GroupElement('buyers', element=ZeroIntelligenceBuyerElement, size=5, values={'value': 100.0}).size
         5
     """
 
@@ -151,7 +153,7 @@ class ZeroIntelligenceSellerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ZeroIntelligenceSellerElement
-        >>> ZeroIntelligenceSellerElement.group('sellers', 5, value=50.0).size
+        >>> GroupElement('sellers', element=ZeroIntelligenceSellerElement, size=5, values={'value': 50.0}).size
         5
     """
 
@@ -298,13 +300,17 @@ def double_auction(
     values = rng.uniform(0.25 * ceiling, ceiling, n_buyers)
     costs = rng.uniform(0.0, 0.75 * ceiling, n_sellers)
     limit = float(constrained)
-    buyers = ZeroIntelligenceBuyerElement.group('buyers', n_buyers, value=values, ceiling=ceiling, constrained=limit)
-    sellers = ZeroIntelligenceSellerElement.group(
+    buyers = GroupElement(
+        'buyers',
+        element=ZeroIntelligenceBuyerElement,
+        size=n_buyers,
+        values={'value': values, 'ceiling': ceiling, 'constrained': limit},
+    )
+    sellers = GroupElement(
         'sellers',
-        n_sellers,
-        value=costs,
-        ceiling=ceiling,
-        constrained=limit,
+        element=ZeroIntelligenceSellerElement,
+        size=n_sellers,
+        values={'value': costs, 'ceiling': ceiling, 'constrained': limit},
     )
     market = MarketInteraction(
         'auction',
@@ -317,7 +323,7 @@ def double_auction(
         on_trade=_book_profit,
     )
     return System(
-        components=[buyers, sellers],
+        elements=[buyers, sellers],
         interactions=[market, AuctionLedgerInteraction('ledger', phase='close')],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('trade', repeat=rounds), Phase('close')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=rounds), PhaseSpec('close')])),
     )

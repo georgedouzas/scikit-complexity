@@ -5,12 +5,15 @@ import functools
 import numpy as np
 import pytest
 from scipy import stats
-
-from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.components import Element
+
+from skcomplex.analysis import conservation, loop_dominance, loops
+from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.laws import (
     BoundaryLaw,
     RateLaw,
+    RuleLaw,
     Sink,
     Source,
     TransferLaw,
@@ -21,12 +24,11 @@ from skcomplex.core.laws import (
     transfer,
     where,
 )
-from skcomplex.core.space import DiscreteTime
-from skcomplex.core.system import Observable, System, observe_element
-from skcomplex.engine.analysis import conservation, loop_dominance, loops
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
-from skcomplex.formalisms.agents import RuleLaw
 
 
 class TanksElement(Element):
@@ -75,52 +77,73 @@ def _fertility(s):
     return lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)])
 
 
-TubElement = Element.define(
-    'TubElement',
-    states={'water': state(0.0, quantity='water')},
-    parameters={'k': 0.5},
-    laws=_tub_laws,
-)
+class TubElement(Element):
+    """Tub element."""
+
+    water = state(0.0, quantity='water')
+    k = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the tub element."""
+        return _tub_laws(s)
 
 
-PopulationElement = Element.define(
-    'PopulationElement',
-    states={'n': state(10.0, quantity='people')},
-    parameters={'b': 0.03, 'd': 0.01},
-    laws=_population_laws,
-)
+class PopulationElement(Element):
+    """Population element."""
+
+    n = state(10.0, quantity='people')
+    b = parameter(0.03)
+    d = parameter(0.01)
+
+    def laws(self, s):
+        """Return the laws of the population element."""
+        return _population_laws(s)
 
 
-ClippedElement = Element.define(
-    'ClippedElement',
-    states={'water': state(0.0, quantity='water')},
-    laws=_clipped_laws,
-)
+class ClippedElement(Element):
+    """Clipped element."""
+
+    water = state(0.0, quantity='water')
+
+    def laws(self, s):
+        """Return the laws of the clipped element."""
+        return _clipped_laws(s)
 
 
-LedgerElement = Element.define(
-    'LedgerElement',
-    states={'a': state(10.0, quantity='money'), 'b': state(0.0, quantity='money'), 'c': state(0.0)},
-    laws=_ledger_laws,
-)
+class LedgerElement(Element):
+    """Ledger element."""
+
+    a = state(10.0, quantity='money')
+    b = state(0.0, quantity='money')
+    c = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the ledger element."""
+        return _ledger_laws(s)
 
 
-FertilityElement = Element.define(
-    'FertilityElement',
-    states={'food': state(-1.0)},
-    laws=lambda s: [RateLaw(s.food, 1.0)],
-)
+class FertilityElement(Element):
+    """Fertility element."""
+
+    food = state(-1.0)
+
+    def laws(self, s):
+        """Return the laws of the fertility element."""
+        return [RateLaw(s.food, 1.0)]
 
 
 def _delayed(kind):
     """Return an element whose output stock integrates a delay of a unit step at time 1 with delay time 6."""
     conserved, order = kind.startswith('material'), int(kind[-1])
     function = functools.partial(distributed_delay, order=order, conserved=conserved)
-    return Element.define(
+    return type(
         f'Delayed_{kind}',
-        states={'out': state(0.0)},
-        parameters={'T': 6.0},
-        laws=lambda s: [RateLaw(s.out, function(step(s.t, 1.0), s.T))],
+        (Element,),
+        {
+            'out': state(0.0),
+            'T': parameter(6.0),
+            'laws': lambda self, s: [RateLaw(s.out, function(step(s.t, 1.0), s.T))],
+        },
     )
 
 
@@ -176,9 +199,15 @@ class BorrowerElement(Element):
 def _credit_system(settles):
     """Return a lender and two bankrupt borrowers that each owe 5."""
     return System(
-        components=[
-            LenderElement.group('lenders', 1, loans=10.0, money=4.0),
-            BorrowerElement.group('firms', 2, variable=True, loans=-5.0, money=0.0, settles=float(settles)),
+        elements=[
+            GroupElement('lenders', element=LenderElement, size=1, values={'loans': 10.0, 'money': 4.0}),
+            GroupElement(
+                'firms',
+                element=BorrowerElement,
+                size=2,
+                values={'loans': -5.0, 'money': 0.0, 'settles': float(settles)},
+                variable=True,
+            ),
         ],
     )
 
@@ -203,25 +232,30 @@ class PaymentsInteraction(BaseInteraction):
 @pytest.mark.parametrize('time', [None, DiscreteTime()])
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
-    trajectory = Simulation(System(components=[TanksElement('t')], time=time), dt=1.0).run(until=5).trajectory_
+    trajectory = Simulation(System(elements=[TanksElement('t')], time=time), dt=1.0).run(until=5).trajectory_
     np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
     assert trajectory.values('t.a')[-1] < 3.0
 
 
 def test_transfer_with_the_environment_takes_none():
     """Test that a transfer from `None` draws the quantity from the environment."""
-    FilledElement = Element.define(
-        'FilledElement',
-        states={'n': 0.0},
-        laws=lambda s: [TransferLaw(None, s.n, 1.0, label='inflow')],
-    )
-    trajectory = Simulation(System(components=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
+
+    class FilledElement(Element):
+        """Filled element."""
+
+        n = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the filled element."""
+            return [TransferLaw(None, s.n, 1.0, label='inflow')]
+
+    trajectory = Simulation(System(elements=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
     assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
 
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
-    trajectory = Simulation(System(components=[TubElement('tub')]), dt=1).run(30).trajectory_
+    trajectory = Simulation(System(elements=[TubElement('tub')]), dt=1).run(30).trajectory_
     assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
     assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
     assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
@@ -230,39 +264,58 @@ def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
 
 def test_flow_between_quantities_is_rejected():
     """Test that a flow between holders of different quantities raises a conservation error."""
-    mixed = Element.define(
-        'MixedElement',
-        states={'x': state(1.0, quantity='mass'), 'y': state(0.0, quantity='energy')},
-        laws=lambda s: [TransferLaw(s.x, s.y, s.x)],
-    )
+
+    class MixedElement(Element):
+        """Mixed element."""
+
+        x = state(1.0, quantity='mass')
+        y = state(0.0, quantity='energy')
+
+        def laws(self, s):
+            """Return the laws of the mixed element."""
+            return [TransferLaw(s.x, s.y, s.x)]
+
+    mixed = MixedElement
     with pytest.raises(ConservationError, match='different quantities'):
-        compile_system(System(components=[mixed('m')]))
+        compile_system(System(elements=[mixed('m')]))
 
 
 def test_flow_holders_and_labels_are_checked():
     """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
     with pytest.raises(ValidationError, match='both of its holders'):
         TransferLaw(Source(), Sink(), 1.0).check()
-    twice = Element.define(
-        'TwiceElement',
-        states={'x': state(1.0)},
-        laws=lambda s: [TransferLaw(Source(), s.x, 1.0, label='f'), TransferLaw(s.x, Sink(), 1.0, label='f')],
-    )
+
+    class TwiceElement(Element):
+        """Twice element."""
+
+        x = state(1.0)
+
+        def laws(self, s):
+            """Return the laws of the twice element."""
+            return [TransferLaw(Source(), s.x, 1.0, label='f'), TransferLaw(s.x, Sink(), 1.0, label='f')]
+
+    twice = TwiceElement
     with pytest.raises(LabelError, match="'f'"):
-        compile_system(System(components=[twice('twice')]))
-    reads = Element.define(
-        'ReadsElement',
-        states={'x': state(1.0)},
-        parameters={'k': 1.0},
-        laws=lambda s: [TransferLaw(s.k, s.x, 1)],
-    )
+        compile_system(System(elements=[twice('twice')]))
+
+    class ReadsElement(Element):
+        """Reads element."""
+
+        x = state(1.0)
+        k = parameter(1.0)
+
+        def laws(self, s):
+            """Return the laws of the reads element."""
+            return [TransferLaw(s.k, s.x, 1)]
+
+    reads = ReadsElement
     with pytest.raises(ValidationError, match='not a state'):
-        compile_system(System(components=[reads('reads')]))
+        compile_system(System(elements=[reads('reads')]))
 
 
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
-    trajectory = Simulation(System(components=[LedgerElement('ledger')]), dt=1).run(5).trajectory_
+    trajectory = Simulation(System(elements=[LedgerElement('ledger')]), dt=1).run(5).trajectory_
     assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
     assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
@@ -271,20 +324,27 @@ def test_discrete_flows_are_per_step_and_join_the_updates():
 
 def test_jump_flows_move_their_size_at_random_times():
     """Test that a flow with a rate becomes a jump that conserves the total of its holders."""
-    jumping = Element.define(
-        'JumpingElement',
-        states={'a': state(50.0, quantity='coins'), 'b': state(0.0, quantity='coins')},
-        laws=lambda s: [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
-    )
-    trajectory = Simulation(System(components=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
+
+    class JumpingElement(Element):
+        """Jumping element."""
+
+        a = state(50.0, quantity='coins')
+        b = state(0.0, quantity='coins')
+
+        def laws(self, s):
+            """Return the laws of the jumping element."""
+            return [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')]
+
+    jumping = JumpingElement
+    trajectory = Simulation(System(elements=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
     assert np.all(trajectory.values('j.a') + trajectory.values('j.b') == 50.0)
     assert trajectory.values('j.b')[-1] > 0
 
 
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
-    fertility = observe_element('f', 'fertility', _fertility)
-    trajectory = Simulation(System(components=[FertilityElement('f')]), dt=0.5, observables=[fertility]).run(4)
+    fertility = ObservableSpec('fertility', _fertility, element='f')
+    trajectory = Simulation(System(elements=[FertilityElement('f')]), dt=0.5, observables=[fertility]).run(4)
     trajectory = trajectory.trajectory_
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
@@ -295,7 +355,7 @@ def test_table_function_interpolates_and_stays_flat():
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = Simulation(System(components=[_delayed('material_delay3')('d')]), dt=0.01).run(14).trajectory_
+    trajectory = Simulation(System(elements=[_delayed('material_delay3')('d')]), dt=0.01).run(14).trajectory_
     times = np.asarray(trajectory.times)
     output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
@@ -305,7 +365,7 @@ def test_third_order_delay_follows_the_erlang_step_response():
 @pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
-    trajectory = Simulation(System(components=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
+    trajectory = Simulation(System(elements=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
     hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'material_delay1' else 1.0
@@ -314,7 +374,7 @@ def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
 
 def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
-    system = System(components=[PopulationElement('pop')])
+    system = System(elements=[PopulationElement('pop')])
     found = {loop.nodes: loop.polarity for loop in loops(system).loops}
     assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).run(5).trajectory_
@@ -325,21 +385,21 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
 
 def test_conservation_returns_the_boundary_flows():
     """Test that the net inflow of people is births minus deaths."""
-    boundary = conservation(System(components=[PopulationElement('pop')]))
+    boundary = conservation(System(elements=[PopulationElement('pop')]))
     assert str(boundary['people']) == 'b_pop*n_pop - d_pop*n_pop'
 
 
 def test_monitor_detects_drift_beyond_the_flows():
     """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
     with pytest.raises(ConservationError, match="'water' drifted"):
-        Simulation(System(components=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
+        Simulation(System(elements=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
 
 
 def test_invariant_of_agents_names_the_observable_and_the_change():
     """Test that lowering assets alone breaks the balance sheet that an observable of the agents sums."""
-    balance = Observable('balance', _balance, group='banks', reduce='sum')
+    balance = ObservableSpec('balance', _balance, group='banks', reduce='sum')
     simulation = Simulation(
-        System(components=[BankElement.group('banks', 1)]),
+        System(elements=[GroupElement('banks', element=BankElement, size=1)]),
         observables=[balance],
         invariants={'balance': 1e-9},
     )
@@ -375,10 +435,10 @@ def test_transfer_moves_between_states_and_checks_names():
 def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
     """Test that the total money of the agents holds under transfers and the run names it when money appears."""
     system = System(
-        components=[LenderElement.group('holders', 3, variable=True, money=5.0)],
+        elements=[GroupElement('holders', element=LenderElement, size=3, values={'money': 5.0}, variable=True)],
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )
-    total = Observable('total_money', group='holders', variable='money', reduce='sum')
+    total = ObservableSpec('total_money', group='holders', variable='money', reduce='sum')
     simulation = Simulation(system, observables=[total], invariants={'total_money': 1e-9})
     if violated:
         with pytest.raises(ConservationError, match='invariant total_money'):

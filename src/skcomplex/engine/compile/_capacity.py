@@ -10,9 +10,10 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import CapacityError, Indices, VariableKind, Vector, declarations_of, declared_fields
-from ...core.problems import Entry
-from ...core.problems._neighbourhoods import ACTIVE_THRESHOLD
+from ...core.errors import CapacityError
+from ...core.types import Indices, Vector
+from ..problems import Entry, VariableKind, declarations_of, declared_variables, default_of
+from ..problems._neighbourhoods import ACTIVE_THRESHOLD
 from ._declarations import ACTIVE, ENDS, Block, Declarations
 from ._tree import coerce_value
 
@@ -159,7 +160,7 @@ def capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
         if name in {ACTIVE, *ENDS}:
             continue
         variables[name] = (entry, name in states)
-        default = element.get_default(name) if name in declared_fields(element) else 0.0
+        default = default_of(element, name) if name in declared_variables(element) else 0.0
         default = 0.0 if default is dataclasses.MISSING else default
         defaults[name] = coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
     source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])

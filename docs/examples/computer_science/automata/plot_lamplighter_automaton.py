@@ -11,11 +11,10 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.space import Memory
-from skcomplex.engine.analysis import LinearAutomaton
+from skcomplex.analysis import LinearAutomaton
+from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.groups import CayleySpace
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import lamplighter
 
@@ -35,7 +34,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 
 alive = simulation.trajectory_.values('cells.alive')
 quotient = CayleySpace(lamplighter(), quotient=3).prepare()
-parity = LinearAutomaton(quotient, Memory(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
+parity = LinearAutomaton(quotient, MemoryNeighborhood(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')

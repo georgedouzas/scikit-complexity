@@ -1,55 +1,77 @@
-"""Register the forms that sets of law classes compile to, and infer the form of a set of components."""
+"""Name the forms that sets of law classes compile to, and infer the form of a set of components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable, Mapping
-from typing import cast
+import itertools
+from collections.abc import Iterable
 
-from ...core.base import Form, IncompatibleLawsError, Registry, Trait, has_trait
-from ...core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.errors import IncompatibleLawsError
+from ...core.laws import (
+    DriveLaw,
+    ExtremalLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    NoiseLaw,
+    RateLaw,
+    RelaxationLaw,
+    RuleLaw,
+    SampleLaw,
+    UpdateLaw,
+)
+from ..problems import Form
+from ._laws import FORMLESS_LAWS
+from ._renewal_law import RenewalLaw
 
-CORE_FORMS: Mapping[frozenset[type], Form] = {
+LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw)
+STEPWISE_FORMS: dict[frozenset[type], Form] = {
+    frozenset({RenewalLaw}): Form.RENEWAL,
+    frozenset({RuleLaw}): Form.AGENT,
+    frozenset({SampleLaw}): Form.MONTE_CARLO,
+    **{
+        frozenset(kinds): Form.LATTICE
+        for count in range(1, len(LATTICE_LAWS) + 1)
+        for kinds in itertools.combinations(LATTICE_LAWS, count)
+    },
+}
+"""Forms whose solvers evaluate kernels step by step on the NumPy backend, by the law classes that compile to them."""
+
+FORMS: dict[frozenset[type], Form] = {
     frozenset(): Form.ODE,
     frozenset({RateLaw}): Form.ODE,
     frozenset({NoiseLaw}): Form.SDE,
     frozenset({RateLaw, NoiseLaw}): Form.SDE,
     frozenset({JumpLaw}): Form.JUMP,
     frozenset({UpdateLaw}): Form.DISCRETE,
+    **STEPWISE_FORMS,
 }
+"""Forms by the law classes that compile to them."""
 
-FORMS = Registry[Form]('form')
-STEPWISE = Registry[Form]('stepwise form')
-COMBINED = Registry[frozenset[type]]('combined law')
-
-
-def _forms() -> dict[frozenset[type], Form]:
-    """Return the forms of the shared core followed by the registered forms."""
-    return {**CORE_FORMS, **{cast('frozenset[type]', key): FORMS.resolve(key) for key in FORMS.keys}}
+COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
+"""Law classes that combine with laws of other classes of the same components into their form, with those classes."""
 
 
 def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
     """Return the law classes that decide the form of components with their own law classes.
 
-    A registered combined class, such as a renewal, drops out of the classes when the rest are its companions and no
+    A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
     component has laws of that class alone. A component with laws of that class alone next to components with other laws
     keeps it, so the system does not fit one form and runs as partitions.
     """
-    owned = [{kind for kind in kinds if not has_trait(kind, Trait.FORMLESS)} for kinds in owners]
+    owned = [{kind for kind in kinds if not issubclass(kind, FORMLESS_LAWS)} for kinds in owners]
     kinds: set[type] = set().union(*owned)
-    for key in COMBINED.keys:
-        kind = cast('type', key)
+    for kind, companions in COMBINED.items():
         rest = kinds - {kind}
         if kind not in kinds or not rest:
             continue
         alone = any(item == {kind} for item in owned)
-        if not alone and rest <= COMBINED.resolve(key):
+        if not alone and rest <= companions:
             kinds = rest
     return frozenset(kinds)
 
 
 def fits_form(owners: Iterable[set[type]]) -> bool:
-    """Check whether the law classes of components compile to one registered form.
+    """Check whether the law classes of components compile to one form.
 
     Args:
         owners:
@@ -59,13 +81,13 @@ def fits_form(owners: Iterable[set[type]]) -> bool:
         fits:
             Whether a form takes the law classes.
     """
-    return _form_kinds(owners) in _forms()
+    return _form_kinds(owners) in FORMS
 
 
 def infer_form(owners: Iterable[set[type]]) -> Form:
     """Return the form that the law classes of the components of a system determine.
 
-    A registered combined class, such as a renewal, drops out of the classes when the rest are its companions and no
+    A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
     component has laws of that class alone.
 
     Args:
@@ -78,51 +100,17 @@ def infer_form(owners: Iterable[set[type]]) -> Form:
 
     Raises:
         IncompatibleLawsError:
-            No registered form takes the law classes.
+            No form takes the law classes.
     """
     kinds = _form_kinds(owners)
-    forms = _forms()
-    if kinds not in forms:
+    if kinds not in FORMS:
         found = ', '.join(sorted(kind.__name__ for kind in kinds))
         supported = '; '.join(
-            ', '.join(sorted(kind.__name__ for kind in combination)) for combination in forms if combination
+            ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
         )
         error_msg = f'The system mixes the law kinds {found}. Supported combinations are: {supported}.'
         raise IncompatibleLawsError(error_msg)
-    return forms[kinds]
-
-
-def register_form(kinds: frozenset[type], form: Form, *, stepwise: bool = False) -> None:
-    """Register the form of a problem whose components have laws of a set of classes.
-
-    Args:
-        kinds:
-            The law classes, without the laws that decide no form.
-
-        form:
-            The form.
-
-        stepwise:
-            Whether the solvers of the form evaluate the kernels step by step on the NumPy backend, whatever the backend
-            asked for.
-    """
-    FORMS.register(kinds, form)
-    if stepwise:
-        STEPWISE.register(form, form)
-
-
-def register_combined(kind: type, companions: frozenset[type]) -> None:
-    """Register a law class that combines with laws of other classes of the same components into their form.
-
-    Args:
-        kind:
-            The law class, such as a renewal, which drops out of the classes that decide the form when the components
-            of a system with laws of the class have laws of the companion classes alone besides.
-
-        companions:
-            The law classes it combines with.
-    """
-    COMBINED.register(kind, companions)
+    return FORMS[kinds]
 
 
 def is_stepwise(form: Form) -> bool:
@@ -134,6 +122,6 @@ def is_stepwise(form: Form) -> bool:
 
     Returns:
         stepwise:
-            Whether the form was registered as stepwise.
+            Whether the form is stepwise.
     """
-    return form in STEPWISE.keys
+    return form in STEPWISE_FORMS.values()

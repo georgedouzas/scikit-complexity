@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import I, exp
 
 from ....core.base import Expression
 from ....core.laws import Symbols
-from ....core.system import Observable
+from ....core.specs import ObservableSpec
 
 
 def _phase_vector(member: Symbols) -> Expression:
@@ -22,9 +22,9 @@ def _modulus(name: str, s: Symbols) -> Expression:
     return abs(getattr(s, name))
 
 
-def _order_parameter(label: str, group: str) -> list[Observable]:
+def _order_parameter(label: str, group: str) -> list[ObservableSpec]:
     """Return the complex mean field of a group's phases and its modulus, the order parameter."""
     return [
-        Observable(f'{label}_field', _phase_vector, group=group),
-        Observable(label, partial(_modulus, f'{label}_field')),
+        ObservableSpec(f'{label}_field', _phase_vector, group=group),
+        ObservableSpec(label, partial(_modulus, f'{label}_field')),
     ]

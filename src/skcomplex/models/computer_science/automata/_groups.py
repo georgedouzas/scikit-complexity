@@ -6,7 +6,6 @@
 import string
 
 from ....core.base import ValidationError
-from ....formalisms.groups import FinitelyGeneratedGroup, automaton_group, finitely_presented_group, matrix_group
 
 HEISENBERG_GENERATORS = (
     ((1, 1, 0), (0, 1, 0), (0, 0, 1)),

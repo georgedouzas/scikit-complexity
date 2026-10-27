@@ -89,4 +89,4 @@ def nanoparticle_corona(
             BindingInteraction(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),
             DissociationInteraction(f'{name}_release', complex=complex_, first='nanoparticle', second=name, k=delta),
         ]
-    return System(components=elements, interactions=interactions)
+    return System(elements=elements, interactions=interactions)

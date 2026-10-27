@@ -12,12 +12,13 @@ from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw, Symbols
-from ....core.space import ContinuousSpace
+from ....core.laws import NoiseLaw, RateLaw, RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -335,16 +336,13 @@ def active_brownian_particles(
         10
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticleElement.group(
+    group = GroupElement(
         'swimmers',
-        n_particles,
-        x=positions,
-        theta=angles,
-        speed=speed,
-        D_t=D_t,
-        D_r=D_r,
+        element=ActiveParticleElement,
+        size=n_particles,
+        values={'x': positions, 'theta': angles, 'speed': speed, 'D_t': D_t, 'D_r': D_r},
     )
-    return System(components=[group], space=ContinuousSpace(n_dim=2))
+    return System(elements=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -399,17 +397,13 @@ def chiral_active_particles(
         1.0
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticleElement.group(
+    group = GroupElement(
         'swimmers',
-        n_particles,
-        x=positions,
-        theta=angles,
-        speed=speed,
-        omega=omega,
-        D_t=D_t,
-        D_r=D_r,
+        element=ActiveParticleElement,
+        size=n_particles,
+        values={'x': positions, 'theta': angles, 'speed': speed, 'omega': omega, 'D_t': D_t, 'D_r': D_r},
     )
-    return System(components=[group], space=ContinuousSpace(n_dim=2))
+    return System(elements=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -462,16 +456,13 @@ def active_ornstein_uhlenbeck_particles(
     rng = np.random.default_rng(random_state)
     positions = rng.uniform(0.0, size, (n_particles, 2))
     propulsion = rng.normal(0.0, math.sqrt(D / tau), (n_particles, 2))
-    group = OrnsteinUhlenbeckParticleElement.group(
+    group = GroupElement(
         'swimmers',
-        n_particles,
-        x=positions,
-        u=propulsion,
-        tau=tau,
-        D=D,
-        D_t=D_t,
+        element=OrnsteinUhlenbeckParticleElement,
+        size=n_particles,
+        values={'x': positions, 'u': propulsion, 'tau': tau, 'D': D, 'D_t': D_t},
     )
-    return System(components=[group], space=ContinuousSpace(n_dim=2))
+    return System(elements=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -518,16 +509,14 @@ def run_and_tumble(
         10
     """
     positions, angles = _swimmers(n_agents, size, random_state)
-    group = TumblerElement.group(
+    group = GroupElement(
         'bacteria',
-        n_agents,
+        element=TumblerElement,
+        size=n_agents,
+        values={'theta': angles, 'speed': speed, 'tumble_rate': tumble_rate, 'width': size},
         location=positions,
-        theta=angles,
-        speed=speed,
-        tumble_rate=tumble_rate,
-        width=size,
     )
-    return System(components=[group], space=ContinuousSpace(size, size, boundary='periodic'))
+    return System(elements=[group], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
 
 
 @register_model(
@@ -580,5 +569,10 @@ def depot_brownian_particles(
         10.0
     """
     velocities = np.random.default_rng(random_state).normal(0.0, 0.01, (n_particles, 2))
-    group = DepotParticleElement.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
-    return System(components=[group], space=ContinuousSpace(n_dim=2))
+    group = GroupElement(
+        'walkers',
+        element=DepotParticleElement,
+        size=n_particles,
+        values={'v': velocities, 'gamma': gamma, 'q': q, 'c': c, 'd': d, 'D': D},
+    )
+    return System(elements=[group], space=ContinuousSpace(n_dim=2))

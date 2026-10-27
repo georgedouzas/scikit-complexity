@@ -203,7 +203,7 @@ def competition(
         0.2
     """
     return System(
-        components=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
+        elements=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
         interactions=[
             CompetitionInteraction(
                 'competition',
@@ -281,7 +281,7 @@ def mutualism(
         ['growth_first', 'growth_second', 'mutualism']
     """
     return System(
-        components=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
+        elements=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
         interactions=[
             LogisticGrowthInteraction('growth_first', target='first', r=r1, K=K1),
             LogisticGrowthInteraction('growth_second', target='second', r=r2, K=K2),
@@ -344,6 +344,6 @@ def food_webs(
         for predator, prey, a, b in links
     ]
     return System(
-        components=[PopulationElement(name, n=n) for name, n in populations.items()],
+        elements=[PopulationElement(name, n=n) for name, n in populations.items()],
         interactions=interactions,
     )

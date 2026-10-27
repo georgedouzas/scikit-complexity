@@ -1,18 +1,21 @@
 """Test the `_observables` module of `skcomplex.engine.compile`."""
 
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import BaseInteraction, RoleError, role, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw, total
+from skcomplex.core.laws import RateLaw, RuleLaw, total
 from skcomplex.core.system import System
-from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of, validate
-from skcomplex.formalisms.agents import RuleLaw, runs_rules
-from skcomplex.formalisms.quantum import contains_quantum
+from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of, runs_rules, validate
+from skcomplex.engine.compile.passes import contains_quantum
 from skcomplex.models import catalog, create
 from skcomplex.models.biology.ecology import PopulationElement
 
-ObservedValueElement = Element.define('ObservedValueElement', states={'y': 0.0})
+
+class ObservedValueElement(Element):
+    """Observed value element."""
+
+    y = state(0.0)
 
 
 def _observed(entry_name):
@@ -46,10 +49,10 @@ def _readers(paths):
     """Return one reader of the modulus of every observable, added to a probe element."""
     readers = []
     for index, path in enumerate(paths):
-        Read = BaseInteraction.define(
+        Read = type(
             f'Read{index}',
-            roles=['probe', 'source'],
-            laws=lambda s: [RateLaw(s.probe.y, abs(s.source.value))],
+            (BaseInteraction,),
+            {'probe': role(), 'source': role(), 'laws': lambda self, s: [RateLaw(s.probe.y, abs(s.source.value))]},
         )
         readers.append(Read(f'read_{index}', probe=f'probe_{index}', source=f'model/{path}'))
     return readers
@@ -69,7 +72,7 @@ def test_reductions_agree_with_observables(entry):
         pytest.skip('The model has no observable that laws read at the current state.')
     model.label = 'model'
     probes = [ObservedValueElement(f'probe_{index}') for index in range(len(paths))]
-    problem = compile_system(System(components=[*probes, *[model]], interactions=_readers(paths)), backend='numpy')
+    problem = compile_system(System(elements=[*probes, *[model]], interactions=_readers(paths)), backend='numpy')
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)
@@ -118,9 +121,15 @@ class ForeignReductionInteraction(BaseInteraction):
 
 def _village(interaction):
     """Return a land and a village of two agent groups, coupled by an interaction."""
-    village = System('village', components=[WealthyElement.group('a', 2), WealthyElement.group('b', 2)])
-    land = System('land', components=[PopulationElement('soil')])
-    return System(components=[land, village], interactions=[interaction])
+    village = System(
+        'village',
+        elements=[
+            GroupElement('a', element=WealthyElement, size=2),
+            GroupElement('b', element=WealthyElement, size=2),
+        ],
+    )
+    land = System('land', elements=[PopulationElement('soil')])
+    return System(elements=[land, village], interactions=[interaction])
 
 
 def test_held_reduction_reads_one_group():

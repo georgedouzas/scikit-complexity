@@ -8,14 +8,18 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import state
+
 from ....core.base import BaseLaw, NumericDomain, parameter
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.laws.utils import divergence, gradient, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldElement, divergence, gradient, laplacian
 
 
 def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
@@ -27,24 +31,25 @@ def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
 
 
-ActiveScalarElement = Element.define(
-    'ActiveScalarElement',
-    states={'phi': 0.0},
-    parameters={
-        'kappa': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'lam': 1.0,
-        'zeta': 4.0,
-        'D': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_active_model_b_laws,
-)
+class ActiveScalarElement(Element):
+    """Active scalar element."""
+
+    phi = state(0.0)
+    kappa = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    lam = parameter(1.0)
+    zeta = parameter(4.0)
+    D = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the active scalar element."""
+        return _active_model_b_laws(s)
 
 
 @register_model(
     field='physics/active_matter',
     tags=('field', 'active matter', 'phase separation', 'microphase separation', 'conserved noise', 'model b', 'spde'),
     references=('Fodor, Jack, and Cates 2022', 'Wittkowski et al. 2014', 'Tjhung, Nardini, and Cates 2018'),
-    defaults={'until': 1500.0, 'dt': 30.0, 'solver': EulerMaruyamaSolver(dt=0.02), 'backend': 'numba'},
+    defaults={'until': 1500.0, 'dt': 30.0, 'solver': EulerMaruyamaSolver(dt=0.02), 'backend': NumbaBackend()},
 )
 def active_model_b(
     shape: Sequence[int] = (64, 64),
@@ -107,4 +112,4 @@ def active_model_b(
         'zeta': zeta,
         'D': D,
     }
-    return System(components=[FieldElement('fluid', ActiveScalarElement, LatticeSpace(shape), values=values)])
+    return System(elements=[FieldElement('fluid', ActiveScalarElement, LatticeSpace(shape), values=values)])

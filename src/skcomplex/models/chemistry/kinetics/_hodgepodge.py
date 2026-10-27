@@ -11,11 +11,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeSpace, MooreNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -77,7 +77,7 @@ class HodgepodgeCellElement(Element):
             worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
             return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
-        return [LocalRuleLaw(s.level, Neighborhood.moore(center=True), rule)]
+        return [LocalRuleLaw(s.level, MooreNeighborhood(center=True), rule)]
 
 
 @register_model(
@@ -127,4 +127,13 @@ def hodgepodge(
     """
     levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[HodgepodgeCellElement.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=HodgepodgeCellElement,
+                space=space,
+                values={'level': levels, 'n': n, 'k1': k1, 'k2': k2, 'g': g},
+            ),
+        ],
+    )

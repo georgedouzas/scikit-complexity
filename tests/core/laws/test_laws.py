@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import (
     BaseInteraction,
@@ -14,7 +15,6 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import Element
 from skcomplex.core.laws import (
     EquationLaw,
     JumpLaw,
@@ -37,44 +37,62 @@ from .conftest import PRECISE, MassElement
 POSITIVE = NumericDomain.POSITIVE
 
 
-WrittenElement = Element.define(
-    'WrittenElement',
-    states={'theta': state(default=0.3, order=2)},
-    parameters={'m': parameter(default=2.0, domain=POSITIVE), 'g': 9.81, 'l': 1.5},
-    laws=lambda s: [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
-)
+class WrittenElement(Element):
+    """Written element."""
+
+    theta = state(default=0.3, order=2)
+    m = parameter(default=2.0, domain=POSITIVE)
+    g = parameter(9.81)
+    l = parameter(1.5)
+
+    def laws(self, s):
+        """Return the laws of the written element."""
+        return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
 
-SolvedElement = Element.define(
-    'SolvedElement',
-    states={'theta': state(default=0.3, order=2)},
-    parameters={'g': 9.81, 'l': 1.5},
-    laws=lambda s: [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))],
-)
+class SolvedElement(Element):
+    """Solved element."""
+
+    theta = state(default=0.3, order=2)
+    g = parameter(9.81)
+    l = parameter(1.5)
+
+    def laws(self, s):
+        """Return the laws of the solved element."""
+        return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
 
 
-SquaredElement = Element.define(
-    'SquaredElement',
-    states={'x': state(default=1.0, order=2)},
-    laws=lambda s: [EquationLaw(derivative(s.x, 2) ** 2, s.x)],
-)
+class SquaredElement(Element):
+    """Squared element."""
+
+    x = state(default=1.0, order=2)
+
+    def laws(self, s):
+        """Return the laws of the squared element."""
+        return [EquationLaw(derivative(s.x, 2) ** 2, s.x)]
 
 
-OscillatorsElement = Element.define(
+OscillatorsElement = type(
     'OscillatorsElement',
-    states={f'x{index}': state(default=1.0, order=2) for index in range(7)},
-    laws=lambda s: [
-        EquationLaw(2 * derivative(getattr(s, f'x{index}'), 2), -getattr(s, f'x{index}')) for index in range(7)
-    ],
+    (Element,),
+    {
+        **{f'x{index}': state(default=1.0, order=2) for index in range(7)},
+        'laws': lambda self, s: [
+            EquationLaw(2 * derivative(getattr(s, f'x{index}'), 2), -getattr(s, f'x{index}')) for index in range(7)
+        ],
+    },
 )
 
 
-PushInteraction = BaseInteraction.define(
-    'PushInteraction',
-    roles=['target'],
-    parameters={'f': 1.0},
-    laws=lambda s: [RateLaw(s.target.theta, s.f)],
-)
+class PushInteraction(BaseInteraction):
+    """Push interaction."""
+
+    target = role()
+    f = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the push interaction."""
+        return [RateLaw(s.target.theta, s.f)]
 
 
 def _driven_equation(s):
@@ -118,68 +136,93 @@ class PolicyInteraction(BaseInteraction):
         return [UpdateLaw(s.target.rate, where(s.target.price > 1.05, s.target.rate + 0.01, s.target.rate))]
 
 
-FibonacciElement = Element.define(
-    'FibonacciElement',
-    states={'x': state(default=1.0, lags=1, initial=(1.0,))},
-    laws=lambda s: [UpdateLaw(s.x, s.x + lag(s.x, 1))],
-)
+class FibonacciElement(Element):
+    """Fibonacci element."""
+
+    x = state(default=1.0, lags=1, initial=(1.0,))
+
+    def laws(self, s):
+        """Return the laws of the fibonacci element."""
+        return [UpdateLaw(s.x, s.x + lag(s.x, 1))]
 
 
-IncomeElement = Element.define(
-    'IncomeElement',
-    states={'Y': state(default=110.0, lags=1, initial=(100.0,))},
-    parameters={'c': 0.8, 'v': 1.5, 'G': 20.0},
-    laws=lambda s: [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
-)
+class IncomeElement(Element):
+    """Income element."""
+
+    Y = state(default=110.0, lags=1, initial=(100.0,))
+    c = parameter(0.8)
+    v = parameter(1.5)
+    G = parameter(20.0)
+
+    def laws(self, s):
+        """Return the laws of the income element."""
+        return [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)]
 
 
-PumpElement = Element.define(
-    'PumpElement',
-    states={'x': 1.0},
-    parameters={'u': parameter(0.0, adaptive=True, bounds=(0, 1)), 'weight': 2.0},
-    laws=lambda s: [RateLaw(s.x, -s.x + s.u)],
-)
+class PumpElement(Element):
+    """Pump element."""
+
+    x = state(1.0)
+    u = parameter(0.0, adaptive=True, bounds=(0, 1))
+    weight = parameter(2.0)
+
+    def laws(self, s):
+        """Return the laws of the pump element."""
+        return [RateLaw(s.x, -s.x + s.u)]
 
 
-PendulumElement = Element.define(
-    'PendulumElement',
-    states={'theta': state(default=0.1, domain=NumericDomain.ANGLE, order=2)},
-    parameters={
-        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
-        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))],
-)
+class PendulumElement(Element):
+    """Pendulum element."""
+
+    theta = state(default=0.1, domain=NumericDomain.ANGLE, order=2)
+    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
+    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s):
+        """Return the laws of the pendulum element."""
+        return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
 
 
-SpringInteraction = BaseInteraction.define(
-    'SpringInteraction',
-    roles=['target'],
-    parameters={'k': 8.0},
-    laws=lambda s: [RateLaw(s.target.x, -s.k * s.target.x / s.target.m)],
-)
+class SpringInteraction(BaseInteraction):
+    """Spring interaction."""
+
+    target = role()
+    k = parameter(8.0)
+
+    def laws(self, s):
+        """Return the laws of the spring interaction."""
+        return [RateLaw(s.target.x, -s.k * s.target.x / s.target.m)]
 
 
-DamperInteraction = BaseInteraction.define(
-    'DamperInteraction',
-    roles=['target'],
-    parameters={'c': 0.4},
-    laws=lambda s: [RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)],
-)
+class DamperInteraction(BaseInteraction):
+    """Damper interaction."""
+
+    target = role()
+    c = parameter(0.4)
+
+    def laws(self, s):
+        """Return the laws of the damper interaction."""
+        return [RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)]
 
 
-StockElement = Element.define(
-    'StockElement',
-    states={'n': state(default=1.0)},
-    laws=lambda s: [RateLaw(s.n, -s.n)],
-)
+class StockElement(Element):
+    """Stock element."""
+
+    n = state(default=1.0)
+
+    def laws(self, s):
+        """Return the laws of the stock element."""
+        return [RateLaw(s.n, -s.n)]
 
 
-MismatchedInteraction = BaseInteraction.define(
-    'MismatchedInteraction',
-    roles=['target'],
-    laws=lambda s: [RateLaw(s.target.x, -s.target.x, order=1)],
-)
+class MismatchedInteraction(BaseInteraction):
+    """Mismatched interaction."""
+
+    target = role()
+
+    def laws(self, s):
+        """Return the laws of the mismatched interaction."""
+        return [RateLaw(s.target.x, -s.target.x, order=1)]
 
 
 def _leaky_laws(s):
@@ -187,11 +230,14 @@ def _leaky_laws(s):
     return [RateLaw(s.money, -0.1 * s.money)]
 
 
-LeakyElement = Element.define(
-    'LeakyElement',
-    states={'money': state(1.0, quantity='money')},
-    laws=_leaky_laws,
-)
+class LeakyElement(Element):
+    """Leaky element."""
+
+    money = state(1.0, quantity='money')
+
+    def laws(self, s):
+        """Return the laws of the leaky element."""
+        return _leaky_laws(s)
 
 
 @pytest.mark.parametrize('targets', [(), (symbol('n'), symbol('m'))])
@@ -217,15 +263,15 @@ def test_noise_rejects_unknown_process():
 
 def test_pendulum_as_written_matches_solved_form():
     """Test that `m l θ'' = -m g sin θ` runs exactly like the rate law `θ'' = -(g / l) sin θ`."""
-    written = Simulation(System(components=[WrittenElement('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
-    solved = Simulation(System(components=[SolvedElement('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
+    written = Simulation(System(elements=[WrittenElement('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
+    solved = Simulation(System(elements=[SolvedElement('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
     assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
 
 
 def test_rates_add_to_equation():
     """Test that a rate law on a state with an equation adds to the solved highest derivative."""
     pushed = System(
-        components=[WrittenElement('bob', theta=0.0)],
+        elements=[WrittenElement('bob', theta=0.0)],
         interactions=[PushInteraction('push', target='bob')],
     )
     trajectory = Simulation(pushed, solver=PRECISE, dt=0.01).run(until=0.1).trajectory_
@@ -235,14 +281,12 @@ def test_rates_add_to_equation():
 def test_nonlinear_highest_derivative_is_rejected():
     """Test that an equation with the square of a highest derivative names the equation and the derivative."""
     with pytest.raises(ValidationError, match=r'equation .* of s is not linear in the highest derivative x_d1'):
-        Simulation(System(components=[SquaredElement('s')])).run(until=1)
+        Simulation(System(elements=[SquaredElement('s')])).run(until=1)
 
 
 def test_many_equations_are_solved_numerically():
     """Test that seven equations, above the symbolic size, are solved per evaluation with the same result."""
-    trajectory = (
-        Simulation(System(components=[OscillatorsElement('o')]), solver=PRECISE, dt=0.1).run(until=3).trajectory_
-    )
+    trajectory = Simulation(System(elements=[OscillatorsElement('o')]), solver=PRECISE, dt=0.1).run(until=3).trajectory_
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):
         assert np.allclose(trajectory.values(f'o.x{index}'), expected, atol=1e-7)
@@ -263,8 +307,12 @@ def test_equation_takes_two_sides():
 def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     """Test that equations with a driver or a condition on the right side run like their rate laws."""
     fields = {'states': {'x': state(default=1.0, order=2)}, 'parameters': {'m': 2.0, 'k': 3.0}}
-    written = System(components=[Element.define('WrittenSpringElement', **fields, laws=equation)('mass')])
-    solved = System(components=[Element.define('SolvedSpringElement', **fields, laws=rate)('mass')])
+    written = System(
+        elements=[type('WrittenSpringElement', (Element,), {**fields, 'laws': lambda self, s: equation(s)})('mass')],
+    )
+    solved = System(
+        elements=[type('SolvedSpringElement', (Element,), {**fields, 'laws': lambda self, s: rate(s)})('mass')],
+    )
     first = Simulation(written, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
     second = Simulation(solved, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
     assert first == pytest.approx(second, abs=1e-8)
@@ -273,7 +321,7 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
 def test_adaptive_parameter_changes_only_when_the_policy_fires():
     """Test that the adaptive rate changes only at steps where prices exceed the target, and starts from its value."""
     system = System(
-        components=[EconomyElement('economy', rate=0.03)],
+        elements=[EconomyElement('economy', rate=0.03)],
         interactions=[PolicyInteraction('bank', target='economy')],
     )
     trajectory = Simulation(system).run(until=4).trajectory_
@@ -284,14 +332,14 @@ def test_adaptive_parameter_changes_only_when_the_policy_fires():
 
 def test_fibonacci_recurrence():
     """Test that `x_{t+1} = x_t + x_{t-1}` from 1 and 1 gives the Fibonacci sequence."""
-    trajectory = Simulation(System(components=[FibonacciElement('f')])).run(until=8).trajectory_
+    trajectory = Simulation(System(elements=[FibonacciElement('f')])).run(until=8).trajectory_
     assert trajectory.values('f.x').tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
     assert trajectory.values('f.x_lag1').tolist()[:3] == [1, 1, 2]
 
 
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's model with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
-    income = Simulation(System(components=[IncomeElement('economy')])).run(until=40).trajectory_.values('economy.Y')
+    income = Simulation(System(elements=[IncomeElement('economy')])).run(until=40).trajectory_.values('economy.Y')
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)
     first, last = np.abs(deviation[:10]).max(), np.abs(deviation[-10:]).max()
@@ -302,7 +350,7 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
 
 def test_adaptive_parameters_compile_with_their_bounds():
     """Test that compiling keeps the bounded adaptive parameters, the controls, and leaves the form an ODE."""
-    problem = compile_system(System(components=[PumpElement('pump')]))
+    problem = compile_system(System(elements=[PumpElement('pump')]))
     assert problem.form.name == 'ODE'
     assert set(problem.adaptive_parameters) == {'pump.u'}
     assert problem.adaptive_parameters['pump.u'].bounds == (0.0, 1.0)
@@ -311,9 +359,7 @@ def test_adaptive_parameters_compile_with_their_bounds():
 def test_initial_angular_velocity():
     """Test that a state of order 2 starts from its angle and its angular velocity, both recorded by path."""
     trajectory = (
-        Simulation(System(components=[PendulumElement('bob', theta=0.1, theta_d1=0.5)]), dt=0.1)
-        .run(until=1)
-        .trajectory_
+        Simulation(System(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)]), dt=0.1).run(until=1).trajectory_
     )
     assert trajectory.values('bob.theta')[0] == pytest.approx(0.1)
     assert trajectory.values('bob.theta_d1')[0] == pytest.approx(0.5)
@@ -322,14 +368,14 @@ def test_initial_angular_velocity():
 
 def test_first_order_unchanged():
     """Test that a state without an order compiles without companion states."""
-    simulation = Simulation(System(components=[StockElement('a')]), dt=0.5).run(until=1)
+    simulation = Simulation(System(elements=[StockElement('a')]), dt=0.5).run(until=1)
     assert simulation.problem_.states.names == ['a.n']
 
 
 def test_newton_superposition_of_separate_laws():
     """Test that a spring and a damper from separate interactions add up to `m x'' = -k x - c x'`."""
     system = System(
-        components=[MassElement('mass')],
+        elements=[MassElement('mass')],
         interactions=[SpringInteraction('spring', target='mass'), DamperInteraction('damper', target='mass')],
     )
     trajectory = Simulation(system, solver=PRECISE, dt=0.1).run(until=10).trajectory_
@@ -342,7 +388,7 @@ def test_newton_superposition_of_separate_laws():
 
 def test_order_mismatch_is_rejected():
     """Test that a law asserting order 1 on a state of order 2 names the law, the state, and both orders."""
-    system = System(components=[MassElement('mass')], interactions=[MismatchedInteraction('wrong', target='mass')])
+    system = System(elements=[MassElement('mass')], interactions=[MismatchedInteraction('wrong', target='mass')])
     with pytest.raises(
         ValidationError,
         match=r'wrong on mass\.x gives the derivative of order 1, but the state has order 2',
@@ -352,7 +398,7 @@ def test_order_mismatch_is_rejected():
 
 def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
-    system = System(components=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
+    system = System(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
     trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.001), dt=0.1).run(until=10).trajectory_
     energy = 0.5 * 2.0 * trajectory.values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
@@ -361,7 +407,7 @@ def test_velocity_verlet_runs_order_two_position():
 def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
-        compile_system(System(components=[LeakyElement('leaky')]))
+        compile_system(System(elements=[LeakyElement('leaky')]))
 
 
 @pytest.mark.parametrize(

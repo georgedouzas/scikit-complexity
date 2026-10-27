@@ -3,7 +3,8 @@
 from collections.abc import Sequence
 from typing import Any
 
-from skcomplex.core.system import Observable, System
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.models import create
 
@@ -13,7 +14,7 @@ def _run(
     until: float,
     dt: float = 1,
     random_state: int = 0,
-    observables: Sequence[Observable] = (),
+    observables: Sequence[ObservableSpec] = (),
 ) -> Trajectory:
     """Return the trajectory of a system run with a frame duration and a random state."""
     simulation = Simulation(system, dt=dt, random_state=random_state, observables=observables)

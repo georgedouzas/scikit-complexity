@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.analysis import block_entropies, epsilon_machine
+from skcomplex.analysis import block_entropies, epsilon_machine
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

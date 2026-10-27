@@ -2,13 +2,13 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import SolverError, parameter, state
-from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.control import PontryaginSolver
+from skcomplex.engine.solvers import PontryaginSolver
 
 
 class QuarticElement(Element):
@@ -59,7 +59,7 @@ def test_pontryagin_projects_the_control_onto_its_bounds(linear_quadratic, quadr
 def test_pontryagin_rejects_stationarity_without_unique_solution():
     """Test that a Hamiltonian with several stationary controls is rejected with a pointer to collocation."""
     with pytest.raises(SolverError, match='CollocationSolver'):
-        Simulation(System(components=[QuarticElement('plant')]), solver=PontryaginSolver(_quartic_cost)).run(
+        Simulation(System(elements=[QuarticElement('plant')]), solver=PontryaginSolver(_quartic_cost)).run(
             until=1.0,
         )
 

@@ -13,11 +13,14 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, NetworkSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, RuleLaw, matches
+from ...core.elements import GroupElement
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 
@@ -114,7 +117,7 @@ class BarterTraderElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import BarterTraderElement
-        >>> BarterTraderElement.group('traders', 4).size
+        >>> GroupElement('traders', element=BarterTraderElement, size=4).size
         4
     """
 
@@ -209,8 +212,8 @@ class BilateralBarterInteraction(BaseInteraction):
     references=('Wilhite 2001', 'Gooding 2019'),
     defaults={'until': 60},
     observables=lambda system: [
-        Observable('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        Observable('utility', _utility, group='traders'),
+        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        ObservableSpec('utility', _utility, group='traders'),
     ],
 )
 def wilhite_trade_networks(
@@ -275,17 +278,20 @@ def wilhite_trade_networks(
     rng = np.random.default_rng(random_state)
     graph = _trade_network(topology, n_agents, n_groups, shortcuts, rng)
     goods = rng.integers(1, int(endowment) + 1, size=(2, n_agents)).astype(float)
-    traders = BarterTraderElement.group(
+    traders = GroupElement(
         'traders',
-        n_agents,
+        element=BarterTraderElement,
+        size=n_agents,
+        values={
+            'good1': goods[0],
+            'good2': goods[1],
+            'mrs': goods[1] / goods[0],
+            'links': np.array([graph.degree(node) for node in range(n_agents)], dtype=float),
+        },
         location=list(range(n_agents)),
-        good1=goods[0],
-        good2=goods[1],
-        mrs=goods[1] / goods[0],
-        links=np.array([graph.degree(node) for node in range(n_agents)], dtype=float),
     )
     return System(
-        components=[traders],
+        elements=[traders],
         interactions=[BilateralBarterInteraction('barter', traders='traders', units=units)],
         space=NetworkSpace(graph),
         time=DiscreteTime(),

@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._learning import logit_choice
 
 
@@ -54,7 +56,7 @@ class ConsumerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ConsumerElement
-        >>> ConsumerElement.group('consumers', 4, ethics=0.5).size
+        >>> GroupElement('consumers', element=ConsumerElement, size=4, values={'ethics': 0.5}).size
         4
     """
 
@@ -109,7 +111,7 @@ class ConsumerElement(Element):
     tags=('consumer choice', 'social influence', 'agents', 'grid'),
     references=('Chesney 2021 ch. 3', 'Chesney 2021 ch. 7'),
     defaults={'until': 50},
-    observables=lambda system: [Observable('fair_share', group='consumers', variable='fair')],
+    observables=lambda system: [ObservableSpec('fair_share', group='consumers', variable='fair')],
 )
 def fair_food(
     width: int = 20,
@@ -172,20 +174,23 @@ def fair_food(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    consumers = ConsumerElement.group(
+    consumers = GroupElement(
         'consumers',
-        size,
+        element=ConsumerElement,
+        size=size,
+        values={
+            'ethics': rng.random(size),
+            'budget': rng.uniform(low_budget, high_budget, size),
+            'premium': premium,
+            'ethics_weight': ethics_weight,
+            'price_weight': price_weight,
+            'social_weight': social_weight,
+            'intensity': intensity,
+        },
         location=[(x, y) for x in range(width) for y in range(height)],
-        ethics=rng.random(size),
-        budget=rng.uniform(low_budget, high_budget, size),
-        premium=premium,
-        ethics_weight=ethics_weight,
-        price_weight=price_weight,
-        social_weight=social_weight,
-        intensity=intensity,
     )
     return System(
-        components=[consumers],
+        elements=[consumers],
         space=LatticeSpace((width, height), boundary='periodic', capacity=1),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('shopping', activation='simultaneous')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('shopping', activation='simultaneous')])),
     )

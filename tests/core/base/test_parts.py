@@ -28,7 +28,7 @@ def test_parts_derive_from_the_part_base():
 def test_system_runs_into_the_laws_of_its_parts():
     """Test that a prepared system runs into the laws of its element and of its interaction, in order."""
     system = System(
-        components=[PopulationElement('rabbits')],
+        elements=[PopulationElement('rabbits')],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits')],
     ).prepare()
     rabbits = SimpleNamespace(n=symbol('n'), r=symbol('r'))

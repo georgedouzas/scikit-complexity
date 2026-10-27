@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics, logit_choice
 
@@ -41,7 +43,7 @@ class SpeculatorElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import SpeculatorElement
-        >>> SpeculatorElement.group('traders', 10, intensity=2.0).size
+        >>> GroupElement('traders', element=SpeculatorElement, size=10, values={'intensity': 2.0}).size
         10
     """
 
@@ -230,7 +232,7 @@ def brock_hommes(
         >>> brock_hommes(100).elements[0].size
         100
     """
-    traders = SpeculatorElement.group('traders', n_traders, intensity=intensity)
+    traders = GroupElement('traders', element=SpeculatorElement, size=n_traders, values={'intensity': intensity})
     pricing = HeuristicPricingInteraction(
         'pricing',
         traders='traders',
@@ -243,7 +245,7 @@ def brock_hommes(
         initial=initial,
     )
     return System(
-        components=[traders],
+        elements=[traders],
         interactions=[pricing],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('choice'), Phase('pricing')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('pricing')])),
     )

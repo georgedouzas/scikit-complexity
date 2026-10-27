@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import ContinuousSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -81,7 +82,7 @@ class RestaurantElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import RestaurantElement
-        >>> group = RestaurantElement.group('restaurants', 3, kind=2.0)
+        >>> group = GroupElement('restaurants', element=RestaurantElement, size=3, values={'kind': 2.0})
         >>> group.label, group.element.__name__, group.size
         ('restaurants', 'RestaurantElement', 3)
     """
@@ -142,7 +143,9 @@ class EaterElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import EaterElement
-        >>> group = EaterElement.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
+        >>> group = GroupElement(
+        ...     'people', element=EaterElement, size=5, values={'home': [1.0, 2.0], 'work': [3.0, 4.0]}
+        ... )
         >>> group.label, group.element.__name__, group.size
         ('people', 'EaterElement', 5)
     """
@@ -267,25 +270,29 @@ def obesity(
     male = (rng.random(n_people) < 0.5).astype(float)  # noqa: PLR2004
     height = np.where(male > 0, rng.normal(176, 7, n_people), rng.normal(163, 7, n_people))
     weight = rng.normal(24, 3, n_people) * (height / 100) ** 2
-    people = EaterElement.group(
+    people = GroupElement(
         'people',
-        n_people,
+        element=EaterElement,
+        size=n_people,
+        values={
+            'home': home,
+            'work': work,
+            'weight': weight,
+            'height': height,
+            'age': rng.uniform(18, 65, n_people),
+            'male': male,
+            'habit': np.arange(n_people) % 3,
+            'bmi': weight / (height / 100) ** 2,
+            'reach': reach,
+            'activity': activity,
+        },
         location=home,
-        home=home,
-        work=work,
-        weight=weight,
-        height=height,
-        age=rng.uniform(18, 65, n_people),
-        male=male,
-        habit=np.arange(n_people) % 3,
-        bmi=weight / (height / 100) ** 2,
-        reach=reach,
-        activity=activity,
     )
-    restaurants = RestaurantElement.group(
+    restaurants = GroupElement(
         'restaurants',
-        n_places,
+        element=RestaurantElement,
+        size=n_places,
+        values={'kind': rng.integers(0, 3, n_places).astype(float)},
         location=rng.uniform(0, size, (n_places, 2)),
-        kind=rng.integers(0, 3, n_places).astype(float),
     )
-    return System(components=[people, restaurants], space=ContinuousSpace(size, size))
+    return System(elements=[people, restaurants], space=ContinuousSpace(extent=(size, size)))

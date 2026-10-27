@@ -15,6 +15,7 @@ from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, mean, total
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 def _sigmoid(x: Expression, gain: Expression, threshold: Expression) -> Expression:
@@ -157,7 +158,7 @@ class ThetaNeuronElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import ThetaNeuronElement
-        >>> ThetaNeuronElement.group('neurons', 10, eta=0.5).size
+        >>> GroupElement('neurons', element=ThetaNeuronElement, size=10, values={'eta': 0.5}).size
         10
     """
 
@@ -449,7 +450,7 @@ def wilson_cowan(
         >>> wilson_cowan(P=0.0).elements[0].P
         0.0
     """
-    return System(components=[WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
+    return System(elements=[WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
 
 
 @register_model(
@@ -504,14 +505,14 @@ def theta_neurons(
         20
     """
     phases = np.random.default_rng(random_state).uniform(0.0, 2 * math.pi, n_neurons)
-    neurons = ThetaNeuronElement.group(
+    neurons = GroupElement(
         'neurons',
-        n_neurons,
-        theta=phases,
-        eta=np.asarray(_lorentzian_quantiles(eta, delta, n_neurons)),
+        element=ThetaNeuronElement,
+        size=n_neurons,
+        values={'theta': phases, 'eta': np.asarray(_lorentzian_quantiles(eta, delta, n_neurons))},
     )
     return System(
-        components=[neurons],
+        elements=[neurons],
         interactions=[PulseCouplingInteraction('coupling', neurons='neurons', kappa=kappa, n=n)],
     )
 
@@ -560,7 +561,7 @@ def winners_take_all(
     """
     units = [RateUnitElement(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
     inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=beta)
-    return System(components=units, interactions=[inhibition])
+    return System(elements=units, interactions=[inhibition])
 
 
 @register_model(
@@ -613,4 +614,4 @@ def polyhomeostatic_neuron(
         0.1
     """
     neuron = PolyhomeostaticNeuronElement('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
-    return System(components=[neuron])
+    return System(elements=[neuron])

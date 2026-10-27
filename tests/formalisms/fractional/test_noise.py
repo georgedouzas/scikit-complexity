@@ -2,17 +2,18 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import parameter, state
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import NoiseLaw
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.formalisms.fractional import (
+from skcomplex.engine.solvers import (
+    EulerMaruyamaSolver,
     FractionalEulerMaruyamaSolver,
-    FractionalNoiseLaw,
     HorizonError,
     fractional_gaussian_noise,
 )
@@ -20,12 +21,18 @@ from skcomplex.formalisms.fractional import (
 
 def _walkers(hurst, members=1000, fractional=True):
     """Return a system of walkers driven by fractional noise of a Hurst index, or by ordinary noise."""
-    walker = Element.define(
-        'WalkerElement',
-        states={'x': 0.0},
-        laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=hurst) if fractional else NoiseLaw(s.x, 1)],
-    )
-    return System(components=[walker.group('w', members)])
+
+    class WalkerElement(Element):
+        """Walker element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the walker element."""
+            return [FractionalNoiseLaw(s.x, 1, hurst=hurst) if fractional else NoiseLaw(s.x, 1)]
+
+    walker = WalkerElement
+    return System(elements=[GroupElement('w', element=walker, size=members)])
 
 
 @pytest.mark.parametrize('hurst', [0.2, 0.5, 0.8])
@@ -96,14 +103,20 @@ def test_euler_maruyama_rejects_fractional_noise():
 
 def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
     """Test that a change of the Hurst index after the increments were drawn raises an error."""
-    walker = Element.define(
-        'WalkerElement',
-        states={'x': 0.0},
-        parameters={'H': 0.3},
-        laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=s.H)],
-    )
+
+    class WalkerElement(Element):
+        """Walker element."""
+
+        x = state(0.0)
+        H = parameter(0.3)
+
+        def laws(self, s):
+            """Return the laws of the walker element."""
+            return [FractionalNoiseLaw(s.x, 1, hurst=s.H)]
+
+    walker = WalkerElement
     solver = FractionalEulerMaruyamaSolver(dt=0.1, horizon=10)
-    simulation = Simulation(System(components=[walker('w')]), solver=solver, dt=1, random_state=0)
+    simulation = Simulation(System(elements=[walker('w')]), solver=solver, dt=1, random_state=0)
     simulation.run(5)
     simulation.update_parameters({'w.H': 0.6})
     with pytest.raises(SolverError, match=r'Hurst index changed'):

@@ -16,18 +16,17 @@ def _adoption(s: Symbols) -> list[BaseLaw]:
     return [TransferLaw(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
 
 
-BassMarketElement = Element.define(
-    'BassMarketElement',
-    states={
-        'P': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
-        'A': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
-    },
-    parameters={
-        'p': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
-        'q': parameter(default=0.38, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_adoption,
-)
+class BassMarketElement(Element):
+    """Bass market element."""
+
+    P = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
+    A = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
+    p = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    q = parameter(default=0.38, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the bass market element."""
+        return _adoption(s)
 
 
 @register_model(
@@ -70,4 +69,4 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
         490.0
     """
-    return System(components=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)])
+    return System(elements=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)])

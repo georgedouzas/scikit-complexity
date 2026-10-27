@@ -14,7 +14,7 @@ employees drift into a high-risk tail.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import histogram
+from skcomplex.analysis import histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

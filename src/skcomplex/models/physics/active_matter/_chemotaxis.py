@@ -7,28 +7,36 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from skcomplex.core.declarations import state
+
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import divergence, gradient, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, divergence, gradient, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-ChemotaxisElement = Element.define(
-    'ChemotaxisElement',
-    states={'rho': 1.0, 'c': 1.0},
-    parameters={
-        'D': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'chi': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-        'Dc': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'k': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.rho, s.D * laplacian(s.rho) - s.chi * divergence(s.rho * gradient(s.c))),
-        RateLaw(s.c, s.Dc * laplacian(s.c) + s.rho - s.k * s.c),
-    ],
-)
+
+class ChemotaxisElement(Element):
+    """Chemotaxis element."""
+
+    rho = state(1.0)
+    c = state(1.0)
+    D = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    chi = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    Dc = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    k = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the chemotaxis element."""
+        return [
+            RateLaw(s.rho, s.D * laplacian(s.rho) - s.chi * divergence(s.rho * gradient(s.c))),
+            RateLaw(s.c, s.Dc * laplacian(s.c) + s.rho - s.k * s.c),
+        ]
 
 
 @register_model(
@@ -101,4 +109,4 @@ def keller_segel(
         'k': k,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[FieldElement('colony', ChemotaxisElement, space, values=values)])
+    return System(elements=[FieldElement('colony', ChemotaxisElement, space, values=values)])

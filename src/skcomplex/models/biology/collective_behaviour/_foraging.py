@@ -9,24 +9,28 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
 PHEROMONE = 'ground/pheromone.level'
 
-PheromoneElement = Element.define(
-    'PheromoneElement',
-    states={'level': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'D': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-        'evaporation': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [RateLaw(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)],
-)
+
+class PheromoneElement(Element):
+    """Pheromone element."""
+
+    level = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    D = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    evaporation = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the pheromone element."""
+        return [RateLaw(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)]
 
 
 class AntElement(Element):
@@ -69,7 +73,7 @@ class AntElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import AntElement
-        >>> AntElement.group('ants', 5, location=(0, 0)).size
+        >>> GroupElement('ants', element=AntElement, size=5, location=(0, 0)).size
         5
     """
 
@@ -181,15 +185,18 @@ def pheromone_foraging(
         ['colony', 'ground']
     """
     nest, food = (5, height // 2), (width - 6, height // 2)
-    ants = AntElement.group(
+    ants = GroupElement(
         'ants',
-        n_ants,
+        element=AntElement,
+        size=n_ants,
+        values={
+            'nest_x': float(nest[0]),
+            'nest_y': float(nest[1]),
+            'food_x': float(food[0]),
+            'food_y': float(food[1]),
+            'attraction': attraction,
+        },
         location=nest,
-        nest_x=float(nest[0]),
-        nest_y=float(nest[1]),
-        food_x=float(food[0]),
-        food_y=float(food[1]),
-        attraction=attraction,
     )
     pheromone = FieldElement(
         'pheromone',
@@ -199,8 +206,8 @@ def pheromone_foraging(
         values={'D': D, 'evaporation': evaporation},
     )
     return System(
-        components=[
-            System('colony', components=[ants], space=LatticeSpace((width, height), boundary='fixed')),
-            System('ground', components=[pheromone]),
+        systems=[
+            System('colony', elements=[ants], space=LatticeSpace((width, height), boundary='fixed')),
+            System('ground', elements=[pheromone]),
         ],
     )

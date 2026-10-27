@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 GROWN_SHARE = 0.5
 
@@ -52,7 +53,7 @@ class GrassElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import GrassElement
-        >>> GrassElement.group('grass', 4, grown=1.0).size
+        >>> GroupElement('grass', element=GrassElement, size=4, values={'grown': 1.0}).size
         4
     """
 
@@ -111,7 +112,7 @@ class SheepElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import SheepElement
-        >>> SheepElement.group('sheep', 100).size
+        >>> GroupElement('sheep', element=SheepElement, size=100).size
         100
     """
 
@@ -170,7 +171,7 @@ class WolfElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import WolfElement
-        >>> WolfElement.group('wolves', 25).size
+        >>> GroupElement('wolves', element=WolfElement, size=25).size
         25
     """
 
@@ -259,20 +260,19 @@ def wolf_sheep(
     cells = [(column, row) for column in range(width) for row in range(height)]
     grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
     countdown = np.where(grown > 0, regrowth, rng.uniform(0, regrowth, len(cells)))
-    grass = GrassElement.group(
+    grass = GroupElement(
         'grass',
-        len(cells),
+        element=GrassElement,
+        size=len(cells),
+        values={'grown': grown, 'countdown': countdown, 'regrowth': regrowth},
         variable=True,
         location=cells,
-        grown=grown,
-        countdown=countdown,
-        regrowth=regrowth,
     )
     return System(
-        components=[
+        elements=[
             grass,
-            SheepElement.group('sheep', sheep, variable=True),
-            WolfElement.group('wolves', wolves, variable=True),
+            GroupElement('sheep', element=SheepElement, size=sheep, variable=True),
+            GroupElement('wolves', element=WolfElement, size=wolves, variable=True),
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.problems import Lowering
+from ._base import Lowering
 
 NO_BOUNDARY = """
 HAS_BOUNDARY = False

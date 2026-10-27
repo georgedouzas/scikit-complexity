@@ -12,8 +12,8 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.space import Neighborhood
-from skcomplex.engine.analysis import LinearAutomaton
+from skcomplex.analysis import LinearAutomaton
+from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -35,7 +35,7 @@ simulation = Simulation(system, observers=[observer]).run(until=40)
 space = system.elements[0].space
 values = simulation.trajectory_.values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = LinearAutomaton(space, Neighborhood.radius(), (1, -2, 1), 'GF(3)')
+laplacian = LinearAutomaton(space, BoxNeighborhood(), (1, -2, 1), 'GF(3)')
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(steps, (values != 0).sum(axis=1), 'o-', label='nonzero cells')
 ax.plot(steps, 2 * steps + 1, '--', label='light cone $2t + 1$')

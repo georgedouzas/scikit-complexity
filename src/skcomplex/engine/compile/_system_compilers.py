@@ -1,53 +1,17 @@
-"""Register the compilers that compile a whole system of a formalism into a problem of its form."""
+"""Define the compilers that compile a whole system they claim into a problem of its form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Mapping
 
-from ...core.base import BaseEstimator, Registry
-from ...core.problems import BaseProblem
 from ...core.system import System
-
-SYSTEM_COMPILERS = Registry['BaseSystemCompiler']('system compiler')
-
-
-def register_system_compiler(compiler: 'BaseSystemCompiler') -> None:
-    """Register a compiler of the systems it claims, keeping it once when registered again.
-
-    Args:
-        compiler:
-            The compiler.
-    """
-    SYSTEM_COMPILERS.register(compiler, compiler)
-
-
-def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
-    """Return the first registered compiler that claims a system, or `None` when the general compiler compiles it.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        compiler:
-            The compiler of the system, or `None`.
-
-    Examples:
-        >>> from skcomplex.engine.compile import claiming_compiler
-        >>> from skcomplex.models import create
-        >>> claiming_compiler(create('lotka_volterra')) is None
-        True
-    """
-    for key in SYSTEM_COMPILERS.keys:
-        compiler = SYSTEM_COMPILERS.resolve(key)
-        if compiler.prepare(system).claims_:
-            return compiler
-    return None
+from ..problems import BaseProblem
+from ..utils import BaseEstimator
 
 
 class BaseSystemCompiler(BaseEstimator):
-    """Compiler of a formalism that compiles a whole system it claims into a problem of the formalism's form.
+    """Compiler that compiles a whole system it claims, such as a quantum or a rewriting system, into a problem.
 
     `prepare(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=...,
     solver=..., initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_prepare`
@@ -92,7 +56,7 @@ class BaseSystemCompiler(BaseEstimator):
                 The backend requested for the problem.
 
             solver:
-                The solver the problem runs on, `'auto'` or a solver instance.
+                The solver the problem runs on, or `None` for the default solver of its form.
 
             initial_state:
                 Initial values that replace those of the components, by the dotted name of the state.

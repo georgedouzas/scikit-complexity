@@ -8,9 +8,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
-from ...core.base import Expression, symbols_of
-from ...core.problems import SCALAR_DIALECT, Entry, Kernel, Output, Reference, Source, print_expressions
+from ..problems import SCALAR_DIALECT, Entry, Kernel, Output, Reference, Source, print_expressions, symbols_of
 
 INDENT = '    '
 

@@ -6,39 +6,41 @@
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
 
-TradingEconomyElement = Element.define(
-    'TradingEconomyElement',
-    states={
-        'E': state(default=0.885, domain=NumericDomain.POSITIVE),
-        'X': state(default=32.0, domain=NumericDomain.NONNEGATIVE),
-        'M': state(default=34.0, domain=NumericDomain.NONNEGATIVE),
-        'PH': state(default=1.2, domain=NumericDomain.POSITIVE),
-    },
-    parameters={
-        'home_price': parameter(default=1.2, domain=NumericDomain.POSITIVE),
-        'inflation': parameter(default=0.1, domain=NumericDomain.REAL),
-        'world_price': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'exports': parameter(default=32.0, domain=NumericDomain.NONNEGATIVE),
-        'imports': parameter(default=34.0, domain=NumericDomain.NONNEGATIVE),
-        'export_price': parameter(default=1.062, domain=NumericDomain.POSITIVE),
-        'import_price': parameter(default=1.13, domain=NumericDomain.POSITIVE),
-        'export_elasticity': parameter(default=-1.0, domain=NumericDomain.REAL),
-        'import_elasticity': parameter(default=-1.0, domain=NumericDomain.REAL),
-        'floating': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'import_share': parameter(default=0.34, domain=NumericDomain.NONNEGATIVE),
-        'demand': parameter(default=52.0, domain=NumericDomain.NONNEGATIVE),
-        'government': parameter(default=50.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        UpdateLaw(s.PH, s.home_price * (1 + s.inflation)),
-        UpdateLaw(s.E, where(s.floating > 0, s.M * s.world_price / (s.X * s.home_price * (1 + s.inflation)), s.E)),
-        UpdateLaw(s.X, s.exports * (1 + s.export_elasticity * (s.PH * s.E / s.export_price - 1))),
-        UpdateLaw(s.M, s.imports * (1 + s.import_elasticity * (s.world_price / (s.E * s.import_price) - 1))),
-    ],
-)
+
+class TradingEconomyElement(Element):
+    """Trading economy element."""
+
+    E = state(default=0.885, domain=NumericDomain.POSITIVE)
+    X = state(default=32.0, domain=NumericDomain.NONNEGATIVE)
+    M = state(default=34.0, domain=NumericDomain.NONNEGATIVE)
+    PH = state(default=1.2, domain=NumericDomain.POSITIVE)
+    home_price = parameter(default=1.2, domain=NumericDomain.POSITIVE)
+    inflation = parameter(default=0.1, domain=NumericDomain.REAL)
+    world_price = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    exports = parameter(default=32.0, domain=NumericDomain.NONNEGATIVE)
+    imports = parameter(default=34.0, domain=NumericDomain.NONNEGATIVE)
+    export_price = parameter(default=1.062, domain=NumericDomain.POSITIVE)
+    import_price = parameter(default=1.13, domain=NumericDomain.POSITIVE)
+    export_elasticity = parameter(default=-1.0, domain=NumericDomain.REAL)
+    import_elasticity = parameter(default=-1.0, domain=NumericDomain.REAL)
+    floating = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    import_share = parameter(default=0.34, domain=NumericDomain.NONNEGATIVE)
+    demand = parameter(default=52.0, domain=NumericDomain.NONNEGATIVE)
+    government = parameter(default=50.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the trading economy element."""
+        return [
+            UpdateLaw(s.PH, s.home_price * (1 + s.inflation)),
+            UpdateLaw(s.E, where(s.floating > 0, s.M * s.world_price / (s.X * s.home_price * (1 + s.inflation)), s.E)),
+            UpdateLaw(s.X, s.exports * (1 + s.export_elasticity * (s.PH * s.E / s.export_price - 1))),
+            UpdateLaw(s.M, s.imports * (1 + s.import_elasticity * (s.world_price / (s.E * s.import_price) - 1))),
+        ]
 
 
 def _balance(s: Symbols) -> Expression:
@@ -58,12 +60,12 @@ def _output(s: Symbols) -> Expression:
     return s.home.demand + s.home.government + s.home.X - s.home.M
 
 
-def _trade_observables(system: System) -> list[Observable]:
+def _trade_observables(system: System) -> list[ObservableSpec]:
     """Return the trade balance, the real exchange rate, and the output."""
     return [
-        Observable('balance', _balance),
-        Observable('real_rate', _real_rate),
-        Observable('output', _output),
+        ObservableSpec('balance', _balance),
+        ObservableSpec('real_rate', _real_rate),
+        ObservableSpec('output', _output),
     ]
 
 
@@ -157,4 +159,4 @@ def exchange_rates(
         demand=demand,
         government=government,
     )
-    return System(components=[home])
+    return System(elements=[home])

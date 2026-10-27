@@ -6,14 +6,19 @@
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, Expression, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.laws.utils import divergence, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....formalisms.fields import FieldElement, divergence, laplacian
+from ...core.base import BaseLaw
+from ...core.elements import GroupElement
 from ._car_following import CarElement, _headway
 
 
@@ -27,41 +32,45 @@ def _local_density(s: Symbols) -> Expression:
     return 1 / _headway(s.cars.x, s.road_length)
 
 
-LangevinDrivingInteraction = BaseInteraction.define(
-    'LangevinDrivingInteraction',
-    roles=['cars'],
-    parameters={
-        'gamma': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'u0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'D1': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-        'road_length': parameter(default=100.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.cars.v, -s.gamma * (s.cars.v - _target_speed(_local_density(s), s))),
-        NoiseLaw(s.cars.v, sqrt(2 * s.D1 * _local_density(s))),
-    ],
-)
+class LangevinDrivingInteraction(BaseInteraction):
+    """Langevin driving interaction."""
 
-TrafficMomentsElement = Element.define(
-    'TrafficMomentsElement',
-    states={'rho': state(default=0.5, domain=NumericDomain.NONNEGATIVE), 'w': 0.25},
-    parameters={
-        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'u0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'D1': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.rho, -divergence([s.w]) + laplacian(s.D1 * s.rho**2 / 2)),
-        RateLaw(
-            s.w,
-            -divergence([2 * _target_speed(s.rho, s) * s.w - s.rho * _target_speed(s.rho, s) ** 2])
-            - s.gamma * (s.w - s.rho * _target_speed(s.rho, s))
-            + s.D1 * (laplacian(s.rho * s.w) + s.rho * laplacian(s.w) - s.w * laplacian(s.rho)) / 2,
-        ),
-    ],
-)
+    cars = role()
+    gamma = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    u0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    D1 = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    road_length = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the langevin driving interaction."""
+        return [
+            RateLaw(s.cars.v, -s.gamma * (s.cars.v - _target_speed(_local_density(s), s))),
+            NoiseLaw(s.cars.v, sqrt(2 * s.D1 * _local_density(s))),
+        ]
+
+
+class TrafficMomentsElement(Element):
+    """Traffic moments element."""
+
+    rho = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    w = state(0.25)
+    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    u0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    D1 = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the traffic moments element."""
+        return [
+            RateLaw(s.rho, -divergence([s.w]) + laplacian(s.D1 * s.rho**2 / 2)),
+            RateLaw(
+                s.w,
+                -divergence([2 * _target_speed(s.rho, s) * s.w - s.rho * _target_speed(s.rho, s) ** 2])
+                - s.gamma * (s.w - s.rho * _target_speed(s.rho, s))
+                + s.D1 * (laplacian(s.rho * s.w) + s.rho * laplacian(s.w) - s.w * laplacian(s.rho)) / 2,
+            ),
+        ]
 
 
 @register_model(
@@ -119,7 +128,12 @@ def langevin_traffic(
     """
     density = n_cars / length
     positions = np.arange(n_cars) * length / n_cars
-    cars = CarElement.group('cars', n_cars, x=positions, v=np.full(n_cars, u0 * (1 - density / rho_max)))
+    cars = GroupElement(
+        'cars',
+        element=CarElement,
+        size=n_cars,
+        values={'x': positions, 'v': np.full(n_cars, u0 * (1 - density / rho_max))},
+    )
     driving = LangevinDrivingInteraction(
         'drive',
         cars='cars',
@@ -129,7 +143,7 @@ def langevin_traffic(
         D1=D1,
         road_length=length,
     )
-    return System(components=[cars], interactions=[driving])
+    return System(elements=[cars], interactions=[driving])
 
 
 @register_model(
@@ -210,4 +224,4 @@ def traffic_density_equation(
     }
     space = LatticeSpace(n, spacing=length / n)
     road = FieldElement('road', TrafficMomentsElement, space, values=values)
-    return System(components=[road])
+    return System(elements=[road])

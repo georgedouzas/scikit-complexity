@@ -17,8 +17,8 @@ import numpy as np
 
 from skcomplex.core.base import wrap_angle
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 
 MODEL = 'complex_ginzburg_landau'

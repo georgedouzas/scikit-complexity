@@ -9,10 +9,11 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
@@ -38,7 +39,7 @@ class DinerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import DinerElement
-        >>> DinerElement.group('diners', 10, restaurants=10.0).size
+        >>> GroupElement('diners', element=DinerElement, size=10, values={'restaurants': 10.0}).size
         10
     """
 
@@ -97,7 +98,7 @@ class CrowdAvoidingDinerElement(DinerElement):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDinerElement
-        >>> CrowdAvoidingDinerElement.group('diners', 10, restaurants=10.0).size
+        >>> GroupElement('diners', element=CrowdAvoidingDinerElement, size=10, values={'restaurants': 10.0}).size
         10
     """
 
@@ -236,6 +237,11 @@ def kolkata_restaurant(
     n_restaurants = n_agents if n_restaurants is None else n_restaurants
     diner = CrowdAvoidingDinerElement if strategy == 'crowd_avoiding' else DinerElement
     choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
-    diners = diner.group('diners', n_agents, restaurant=choices, restaurants=float(n_restaurants))
+    diners = GroupElement(
+        'diners',
+        element=diner,
+        size=n_agents,
+        values={'restaurant': choices, 'restaurants': float(n_restaurants)},
+    )
     restaurants = RestaurantsInteraction('restaurants', diners='diners', n_restaurants=n_restaurants)
-    return System(components=[diners], interactions=[restaurants])
+    return System(elements=[diners], interactions=[restaurants])

@@ -4,16 +4,17 @@
 # License: MIT
 
 from collections import defaultdict
-from dataclasses import replace
 from typing import cast
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.base import BaseLaw, Expression, SymbolicVector, vector
-from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...problems import vector
 from .._census import kind_of, law_owner
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._laws import replaced
 from .._pipeline import BasePass
 from .._specs import KernelSpec, mask_of, masked_value
 from .._tree import Node
@@ -21,10 +22,10 @@ from .._tree import Node
 
 def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
     """Return an update law that keeps the value of its target on the free rows of a capacity layout."""
-    value, kept = masked_value(law.value, mask), masked_value(law.targets[0], 1 - mask)
-    if isinstance(value, SymbolicVector):
-        return UpdateLaw(law.targets, vector(a + b for a, b in zip(value, cast('SymbolicVector', kept), strict=True)))
-    return UpdateLaw(law.targets, SR(value) + SR(kept))
+    value, kept = masked_value(law.value, mask), masked_value(law._get_targets()[0], 1 - mask)
+    if isinstance(value, FreeModuleElement):
+        return UpdateLaw(law._get_targets()[0], vector(a + b for a, b in zip(value, cast('FreeModuleElement', kept), strict=True)))
+    return UpdateLaw(law._get_targets()[0], SR(value) + SR(kept))
 
 
 def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
@@ -35,10 +36,10 @@ def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -
     masked: list[BaseLaw] = []
     for law in laws:
         if isinstance(law, RateLaw | NoiseLaw):
-            masked.append(replace(law, value=masked_value(law.value, mask)))
+            masked.append(replaced(law, value=masked_value(law.value, mask)))
         elif isinstance(law, JumpLaw) and law.rate is not None:
-            masked.append(replace(law, rate=masked_value(law.rate, mask)))
-        elif isinstance(law, UpdateLaw) and isinstance(law.value, Expression | SymbolicVector | int | float):
+            masked.append(replaced(law, rate=masked_value(law.rate, mask)))
+        elif isinstance(law, UpdateLaw) and isinstance(law.value, Expression | FreeModuleElement | int | float):
             masked.append(_kept_update(law, mask))
         else:
             masked.append(law)

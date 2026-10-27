@@ -6,9 +6,10 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.control import PontryaginSolver
+from ....engine.solvers import PontryaginSolver
 from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
 
 MAX_DOSE = 1.0
@@ -223,7 +224,7 @@ class OptimalImmunotherapyElement(Element):
     tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
     references=(BOOK, 'de Pillis and Radunskaya 2001'),
     defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)},
-    observables=lambda system: [Observable('tumour_share', _tumour_share)],
+    observables=lambda system: [ObservableSpec('tumour_share', _tumour_share)],
 )
 def optimal_chemotherapy(
     E: float = 0.15,
@@ -260,7 +261,7 @@ def optimal_chemotherapy(
         >>> optimal_chemotherapy(w=1.0).components[0].w
         1.0
     """
-    return System(components=[OptimalChemotherapyElement('patient', E=E, A=A, N=N, w=w)])
+    return System(elements=[OptimalChemotherapyElement('patient', E=E, A=A, N=N, w=w)])
 
 
 @register_model(
@@ -272,7 +273,7 @@ def optimal_chemotherapy(
         'dt': 0.5,
         'solver': PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001),
     },
-    observables=lambda system: [Observable('immune_ratio', _immune_ratio)],
+    observables=lambda system: [ObservableSpec('immune_ratio', _immune_ratio)],
 )
 def optimal_immunotherapy(
     x: float = 0.1,
@@ -313,4 +314,4 @@ def optimal_immunotherapy(
         >>> optimal_immunotherapy(w1=0.5).components[0].w1
         0.5
     """
-    return System(components=[OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])
+    return System(elements=[OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])

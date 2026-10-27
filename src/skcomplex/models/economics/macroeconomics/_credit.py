@@ -10,11 +10,13 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._markets import MarketInteraction, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
@@ -98,7 +100,7 @@ class FirmElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import FirmElement
-        >>> FirmElement.group('firms', 10, net_worth=5.0).size
+        >>> GroupElement('firms', element=FirmElement, size=10, values={'net_worth': 5.0}).size
         10
     """
 
@@ -211,7 +213,7 @@ class BankElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import BankElement
-        >>> BankElement.group('banks', 5, equity=100.0).size
+        >>> GroupElement('banks', element=BankElement, size=5, values={'equity': 100.0}).size
         5
     """
 
@@ -317,17 +319,17 @@ class CreditMarketInteraction(MarketInteraction):
         model.report('spread', spread)
 
 
-def _credit_observables(system: System) -> list[Observable]:
+def _credit_observables(system: System) -> list[ObservableSpec]:
     """Return the concentration, equity, worth, returns, injections, defaults, and losses of the credit market."""
     return [
-        Observable('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        Observable('largest_share', group='banks', variable='lent', reduce=_largest_share),
-        Observable('bank_equity', group='banks', variable='equity', reduce='sum'),
-        Observable('firm_worth', group='firms', variable='net_worth', reduce='sum'),
-        Observable('returns', group='firms', variable='gross_return', reduce='sum'),
-        Observable('injected', group='firms', variable='injected', reduce='sum'),
-        Observable('defaults', group='firms', variable='defaulted', reduce='sum'),
-        Observable('bad_debt', group='banks', variable='losses', reduce='sum'),
+        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
+        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
+        ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
+        ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),
+        ObservableSpec('injected', group='firms', variable='injected', reduce='sum'),
+        ObservableSpec('defaults', group='firms', variable='defaulted', reduce='sum'),
+        ObservableSpec('bad_debt', group='banks', variable='losses', reduce='sum'),
     ]
 
 
@@ -410,21 +412,23 @@ def credit_networks(
         ['firms', 'banks']
     """
     rng = np.random.default_rng(random_state)
-    lenders = BankElement.group(
+    lenders = GroupElement(
         'banks',
-        banks,
-        equity=equity * rng.uniform(0.5, 1.5, banks),
-        alpha=alpha,
-        capital_ratio=capital_ratio,
+        element=BankElement,
+        size=banks,
+        values={'equity': equity * rng.uniform(0.5, 1.5, banks), 'alpha': alpha, 'capital_ratio': capital_ratio},
     )
-    borrowers = FirmElement.group(
+    borrowers = GroupElement(
         'firms',
-        firms,
-        net_worth=net_worth,
-        leverage=leverage,
-        mean_return=mean_return,
-        volatility=volatility,
-        entry=net_worth,
+        element=FirmElement,
+        size=firms,
+        values={
+            'net_worth': net_worth,
+            'leverage': leverage,
+            'mean_return': mean_return,
+            'volatility': volatility,
+            'entry': net_worth,
+        },
     )
     market = CreditMarketInteraction(
         'credit',
@@ -437,7 +441,7 @@ def credit_networks(
         on_trade=_lend,
     )
     return System(
-        components=[borrowers, lenders],
+        elements=[borrowers, lenders],
         interactions=[market],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('plan'), Phase('credit'), Phase('settle')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')])),
     )

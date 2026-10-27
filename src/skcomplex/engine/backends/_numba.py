@@ -16,45 +16,74 @@ from typing import Any, ClassVar
 import numba
 import numpy as np
 
-from ...core.base import (
-    NUMERIC_DOMAINS,
-    DomainKind,
-    ElementKind,
-    Form,
-    LawKind,
-    NoiseKind,
-    OrderKind,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    Vector,
+from ...core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    DestructionLaw,
+    DissipatorLaw,
+    DriveLaw,
+    EmissionLaw,
+    EncounterLaw,
+    EquationLaw,
+    ExtremalLaw,
+    FluxLaw,
+    FractionalNoiseLaw,
+    GeneratorLaw,
+    GraphProductionLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    MatchLaw,
+    NoiseLaw,
+    ProductionLaw,
+    ProliferationLaw,
+    RateLaw,
+    RelaxationLaw,
+    RuleLaw,
+    SampleLaw,
+    SubstitutionLaw,
+    TransferLaw,
+    TransitionLaw,
+    UpdateLaw,
 )
-from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.problems import (
+from ...core.spaces import (
+    CayleySpace,
+    ContinuousSpace,
+    ContinuousTime,
+    DiscreteTime,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    StaticTime,
+)
+from ...core.types import Vector
+from ..problems import (
     Accelerated,
-    BaseBackend,
     Draws,
     EdgeSearch,
     Entry,
+    Form,
     Kernel,
-    Lowering,
+    NoiseKind,
+    OrderKind,
     ReductionSchedule,
     Reference,
     Source,
-    reads_reductions,
-    register_backend,
+    SupportSpec,
+    step_count,
 )
-from ...core.problems._backends import (
+from ..problems._kernels import jump_channels, lower_noise
+from ..problems._neighbourhoods import EdgeRows, MetricSearch
+from . import _numba_neighbours, _numba_stencils
+from ._base import (
     AUTO_MEMBERS,
+    BaseBackend,
+    Lowering,
     adding_function,
     assigning_function,
     concatenating_function,
+    reads_reductions,
     report_fallbacks,
 )
-from ...core.problems._kernels import jump_channels, lower_noise
-from ...core.problems._neighbourhoods import EdgeRows, MetricSearch
-from ..solvers import step_count
-from . import _numba_neighbours, _numba_stencils
 from ._numba_kernels import _edge_kernel, _entry_function, _is_compilable, _member_kernel, _output_count, _pair_kernel
 from ._numba_loops import LOOPS, NO_BOUNDARY, _channel_arrays, _noise_arrays
 from ._numba_reductions import _reduce_function, _reductions_compile
@@ -83,7 +112,7 @@ from skcomplex.engine.backends._numba_neighbours import (
     radius_neighbours,
 )
 from skcomplex.engine.backends._numba_stencils import neighbor_value
-from skcomplex.engine.solvers import step_count
+from skcomplex.engine.problems import step_count
 """
 
 
@@ -182,24 +211,25 @@ class NumbaBackend(BaseBackend):
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
     Examples:
+        >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     components=[PopulationElement.group('herds', 2, n=[1.0, 2.0])],
+        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'n': [1.0, 2.0]})],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
-        >>> problem = compile_system(system, backend='numba')
+        >>> problem = compile_system(system, backend=NumbaBackend())
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
         [3.0, 6.0]
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time=set(TimeKind),
-        space=set(SpaceKind.registered()),
-        laws=set(LawKind.registered()),
-        domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
-        components=set(ElementKind),
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime, DiscreteTime, StaticTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={BoundaryLaw, CrossingLaw, DestructionLaw, DissipatorLaw, DriveLaw, EmissionLaw, EncounterLaw, EquationLaw, ExtremalLaw, FluxLaw, FractionalNoiseLaw, GeneratorLaw, GraphProductionLaw, JumpLaw, LocalRuleLaw, MatchLaw, NoiseLaw, ProductionLaw, ProliferationLaw, RateLaw, RelaxationLaw, RuleLaw, SampleLaw, SubstitutionLaw, TransferLaw, TransitionLaw, UpdateLaw},
+        
+        
         noise=set(NoiseKind),
         orders=set(OrderKind),
     )
@@ -438,6 +468,3 @@ class NumbaBackend(BaseBackend):
             offset, flags = draws.offset, draws.normal
             return Accelerated(iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags))
         return Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
-
-
-register_backend(NumbaBackend)

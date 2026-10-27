@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element, GroupElement
-from ....core.laws import Symbols
-from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, Symbols
+from ....core.laws.utils import moment
+from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import DestructionLaw, EncounterLaw, ProliferationLaw, moment
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 
@@ -112,7 +113,7 @@ class CellsElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.oncology import CellsElement
-        >>> CellsElement.group('tumour', 5, f=0.02).size
+        >>> GroupElement('tumour', element=CellsElement, size=5, values={'f': 0.02}).size
         5
     """
 
@@ -232,7 +233,7 @@ def _classes_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
 
 
-def immune_observables(classes: int) -> list[Observable]:
+def immune_observables(classes: int) -> list[ObservableSpec]:
     """Return the tumour density, the mean tumour progression, and the mean immune activation of the model.
 
     Args:
@@ -250,9 +251,9 @@ def immune_observables(classes: int) -> list[Observable]:
     """
     activities = activity_grid(classes)
     return [
-        Observable('tumour_density', partial(cell_density, activities=activities), group='tumour'),
-        Observable('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
-        Observable('immune_activation', partial(mean_activity, activities=activities), group='immune'),
+        ObservableSpec('tumour_density', partial(cell_density, activities=activities), group='tumour'),
+        ObservableSpec('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
+        ObservableSpec('immune_activation', partial(mean_activity, activities=activities), group='immune'),
     ]
 
 
@@ -325,10 +326,10 @@ def immune_competition(
     immune_density = np.zeros(classes)
     immune_density[int(np.argmin(np.abs(activities - activation)))] = immune
     return System(
-        components=[
+        elements=[
             GroupElement('tumour', element=CellsElement, size=classes, on='sites', values={'f': tumour_density}),
             GroupElement('immune', element=CellsElement, size=classes, on='sites', values={'f': immune_density}),
-            CellsElement.group('host', 1, f=1.0),
+            GroupElement('host', element=CellsElement, size=1, values={'f': 1.0}),
         ],
         interactions=[
             TumourGrowthInteraction(

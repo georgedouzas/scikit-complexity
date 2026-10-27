@@ -11,10 +11,11 @@ import numpy.typing as npt
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.spaces import DiscreteTime
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import Phase, PhasesSchedule
+from ...core.elements import GroupElement
 from ..realizations._exchange import cobb_douglas
 from ._goods_traders import ExchangeInteraction
 
@@ -28,12 +29,12 @@ def _utility(agent: Any) -> float:  # noqa: ANN401
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _barter_observables(system: System) -> list[Observable]:
+def _barter_observables(system: System) -> list[ObservableSpec]:
     """Return the mean utility of the barterers and the total of both goods."""
     del system
     return [
-        Observable('utility', _utility, group='barterers', reduce='mean'),
-        *(Observable(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
+        ObservableSpec('utility', _utility, group='barterers', reduce='mean'),
+        *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     ]
 
 
@@ -101,7 +102,7 @@ class BartererElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import BartererElement
-        >>> BartererElement.group('barterers', 2, chocolate=[8.0, 2.0]).size
+        >>> GroupElement('barterers', element=BartererElement, size=2, values={'chocolate': [8.0, 2.0]}).size
         2
     """
 
@@ -198,16 +199,15 @@ def barter(
             'cigarettes': rng.uniform(min(cigarettes), max(cigarettes), n_barterers),
         }
         shares = rng.uniform(min(weights), max(weights), n_barterers)
-    barterers = BartererElement.group(
+    barterers = GroupElement(
         'barterers',
-        n_barterers,
+        element=BartererElement,
+        size=n_barterers,
+        values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
         variable=True,
-        chocolate_weight=shares,
-        cigarettes_weight=1 - shares,
-        **holdings,
     )
     return System(
-        components=[barterers],
+        elements=[barterers],
         interactions=[ExchangeInteraction('exchange', traders='barterers', goods=GOODS, quantity=quantity)],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('trade')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade')])),
     )

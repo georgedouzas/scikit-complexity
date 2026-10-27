@@ -13,7 +13,7 @@ whose border creeps for a while, then freezes after about forty steps.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of
+from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create

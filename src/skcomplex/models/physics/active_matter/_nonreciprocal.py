@@ -13,9 +13,11 @@ from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform
-from ....core.space import ContinuousSpace, DiscreteTime, Radius
-from ....core.system import Observable, System
+from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 
@@ -124,7 +126,7 @@ class NonreciprocalMoverElement(Element):
             laws:
                 The laws of the component.
         """
-        over = Radius(self.radius, center=True)
+        over = RadiusNeighborhood(self.radius, center=True)
         weight = _coupling(s)
         direction = atan2(
             neighbors(weight * sin(s.other.theta), over=over),
@@ -142,8 +144,8 @@ class NonreciprocalMoverElement(Element):
     references=('Fruchart, Hanai, Littlewood, and Vitelli 2021', 'te Vrugt and Wittkowski 2024'),
     defaults={'until': 300.0, 'dt': 1.0},
     observables=lambda system: [
-        Observable('heading_a', _heading_a, group='movers'),
-        Observable('heading_b', _heading_b, group='movers'),
+        ObservableSpec('heading_a', _heading_a, group='movers'),
+        ObservableSpec('heading_b', _heading_b, group='movers'),
     ],
 )
 def nonreciprocal_vicsek(
@@ -192,14 +194,21 @@ def nonreciprocal_vicsek(
     """
     rng = np.random.default_rng(random_state)
     species = (np.arange(n_movers) % 2).astype(float)
-    movers = NonreciprocalMoverElement.group(
+    movers = GroupElement(
         'movers',
-        n_movers,
-        x=rng.uniform(0, size, (n_movers, 2)),
-        theta=rng.uniform(-math.pi, math.pi, n_movers),
-        species=species,
-        J_ab=J_ab,
-        J_ba=J_ba,
-        eta=eta,
+        element=NonreciprocalMoverElement,
+        size=n_movers,
+        values={
+            'x': rng.uniform(0, size, (n_movers, 2)),
+            'theta': rng.uniform(-math.pi, math.pi, n_movers),
+            'species': species,
+            'J_ab': J_ab,
+            'J_ba': J_ba,
+            'eta': eta,
+        },
     )
-    return System(components=[movers], space=ContinuousSpace(size, size, boundary='periodic'), time=DiscreteTime())
+    return System(
+        elements=[movers],
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        time=DiscreteTime(),
+    )

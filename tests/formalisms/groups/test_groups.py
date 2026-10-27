@@ -5,15 +5,8 @@ import sys
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.formalisms.groups import (
-    CayleySpace,
-    WordProblemError,
-    automaton_group,
-    finitely_presented_group,
-    matrix_group,
-    parse_word,
-    permutation_group,
-)
+from skcomplex.core.laws.utils import parse_word
+from skcomplex.core.spaces import CayleySpace
 
 GRIGORCHUK = {
     'a': ((None, None), (1, 0)),

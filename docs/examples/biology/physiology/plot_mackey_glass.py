@@ -11,7 +11,7 @@ feedback makes the concentration oscillate irregularly, a chaotic signal that ne
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import delay_embedding
+from skcomplex.analysis import delay_embedding
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

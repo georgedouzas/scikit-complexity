@@ -15,10 +15,10 @@ run: large yellow and purple domains with smooth, gently curved walls.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of
+from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 
 MODEL = 'allen_cahn'

@@ -188,4 +188,4 @@ def probabilistic_boolean_network(
         )
         for name, candidates in chosen.items()
     ]
-    return System(components=nodes, interactions=functions)
+    return System(elements=nodes, interactions=functions)

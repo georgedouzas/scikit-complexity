@@ -8,8 +8,10 @@ import numpy as np
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 def _recovered_share(member: Symbols) -> Expression:
@@ -58,7 +60,12 @@ class ImmunizingDegreeClassElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ImmunizingDegreeClassElement
-        >>> ImmunizingDegreeClassElement.group('network', 3, k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2]).size
+        >>> GroupElement(
+        ...     'network',
+        ...     element=ImmunizingDegreeClassElement,
+        ...     size=3,
+        ...     values={'k': [1.0, 2.0, 3.0], 'P': [0.5, 0.3, 0.2]},
+        ... ).size
         3
     """
 
@@ -97,8 +104,8 @@ class ImmunizingDegreeClassElement(Element):
     ),
     defaults={'until': 100.0, 'dt': 0.5},
     observables=lambda system: [
-        Observable('infected', _infected_share, group='network', reduce='sum'),
-        Observable('recovered', _recovered_share, group='network', reduce='sum'),
+        ObservableSpec('infected', _infected_share, group='network', reduce='sum'),
+        ObservableSpec('recovered', _recovered_share, group='network', reduce='sum'),
     ],
 )
 def heterogeneous_mean_field_sir(
@@ -149,17 +156,12 @@ def heterogeneous_mean_field_sir(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = ImmunizingDegreeClassElement.group(
+    classes = GroupElement(
         'network',
-        len(degrees),
-        s=1.0 - infected,
-        i=infected,
-        r=0.0,
-        beta=beta,
-        mu=mu,
-        k=degrees,
-        P=weights,
+        element=ImmunizingDegreeClassElement,
+        size=len(degrees),
+        values={'s': 1.0 - infected, 'i': infected, 'r': 0.0, 'beta': beta, 'mu': mu, 'k': degrees, 'P': weights},
     )
     return System(
-        components=[classes],
+        elements=[classes],
     )

@@ -9,11 +9,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import SERIES_COLORS
 from ._utils import PARTS, log_scalars
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 
 def _series_index(problem: BaseProblem, path: str, state: str) -> int:
@@ -115,6 +115,3 @@ class ScalarsVisual(BaseVisual):
         if not getattr(element, 'states', True):
             return []
         return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
-
-
-register_visual('scalars', ScalarsVisual)

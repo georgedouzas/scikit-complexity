@@ -10,10 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Bits = npt.NDArray[np.int64]
 
@@ -72,7 +73,7 @@ class SpeculatorElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import SpeculatorElement
-        >>> SpeculatorElement.group('players', 11, first=3, second=5).size
+        >>> GroupElement('players', element=SpeculatorElement, size=11, values={'first': 3, 'second': 5}).size
         11
     """
 
@@ -254,7 +255,12 @@ def minority_game(
         error_msg = f'The minority game needs an odd number of agents, got {n_agents}.'
         raise ValueError(error_msg)
     codes = np.random.default_rng(random_state).integers(MAX_SEED, size=(2, n_agents)).astype(float)
-    players = SpeculatorElement.group('players', n_agents, first=codes[0], second=codes[1])
+    players = GroupElement(
+        'players',
+        element=SpeculatorElement,
+        size=n_agents,
+        values={'first': codes[0], 'second': codes[1]},
+    )
     period = period if evolutionary else 0
     game = MinorityGameInteraction('game', players='players', memory=memory, period=period, fraction=fraction)
-    return System(components=[players], interactions=[game])
+    return System(elements=[players], interactions=[game])

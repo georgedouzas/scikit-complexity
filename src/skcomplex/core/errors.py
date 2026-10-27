@@ -1,0 +1,96 @@
+"""Define the exceptions the library raises."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+
+class SkcomplexError(Exception):
+    """Base exception of the library."""
+
+
+class NotCheckedError(SkcomplexError):
+    """A part is prepared or run before it is checked."""
+
+
+class ValidationError(SkcomplexError):
+    """A system, a value, or a combination of a system with its solver and backend is not valid."""
+
+
+class ConservationError(ValidationError):
+    """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
+
+
+class LabelError(ValidationError):
+    """A label is missing, duplicated, or produces a name collision."""
+
+
+class ArgumentError(SkcomplexError, TypeError):
+    """A component is given an argument its type does not declare, or misses a required one."""
+
+
+class RoleError(ValidationError):
+    """A role of an interaction refers to an element that does not exist."""
+
+
+class RewritingError(ValidationError):
+    """A rewriting system is malformed, or a generation would exceed its maximum size."""
+
+
+class SpaceError(ValidationError):
+    """A vector variable has no space to take its dimension from."""
+
+
+class SpaceTooLargeError(SpaceError):
+    """A space would hold more sites than its limit, or its elements would overflow their integer type."""
+
+
+class UnregisteredLawError(ValidationError):
+    """A system holds a law of a class that neither the shared core nor a formalism registered."""
+
+
+class IncompatibleLawsError(ValidationError):
+    """A system mixes law kinds that no single form supports."""
+
+
+class BackendError(SkcomplexError):
+    """A backend is not registered or cannot compile a problem."""
+
+
+class PipelineError(SkcomplexError):
+    """The passes of a compilation cannot be ordered, or a pass reads a field that no pass writes."""
+
+
+class SolverError(SkcomplexError):
+    """A solver does not fit the problem or fails to advance it."""
+
+
+class ParameterError(SkcomplexError):
+    """A parameter name is not part of the problem."""
+
+
+class SimulationError(SkcomplexError):
+    """A simulation is used in a state that does not allow the operation."""
+
+
+class CapacityError(SimulationError):
+    """A topology request needs more members than a variable group on a network holds rows for."""
+
+
+class ExperimentError(SkcomplexError):
+    """An experiment cannot run its tasks, such as when its worker processes die."""
+
+
+class AnalysisError(SkcomplexError):
+    """An analysis cannot be applied to the system or the data."""
+
+
+class RegistryError(SkcomplexError):
+    """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
+
+
+class BackendWarning(UserWarning):
+    """A part of a problem runs on another backend than the one requested, or a compiled kernel runs in Python."""
+
+
+class UnobservedStatesWarning(UserWarning):
+    """An analysis drops states that have no observed transitions."""

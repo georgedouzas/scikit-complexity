@@ -11,11 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import NetworkSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -79,7 +80,7 @@ class ThinkerElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import ThinkerElement
-        >>> group = ThinkerElement.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
+        >>> group = GroupElement('thinkers', element=ThinkerElement, size=5, values={'valences': [1.0, 1.0, -1.0]})
         >>> group.label, group.element.__name__, group.size
         ('thinkers', 'ThinkerElement', 5)
     """
@@ -188,9 +189,14 @@ def cognitive_consistency(
     size = nx.number_of_nodes(graph)
     signs = np.where(np.random.default_rng(random_state).random(size) < positive, 1.0, -1.0)
     valences = signs[:, None] * np.array(POSITIVE)
-    thinkers = ThinkerElement.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
+    thinkers = GroupElement(
+        'thinkers',
+        element=ThinkerElement,
+        size=size,
+        values={'valences': valences, 'attitude': valences[:, 1], 'decay': decay},
+    )
     return System(
-        components=[thinkers],
+        elements=[thinkers],
         interactions=[ConversationsInteraction('talks', target='thinkers')],
         space=NetworkSpace(graph),
     )

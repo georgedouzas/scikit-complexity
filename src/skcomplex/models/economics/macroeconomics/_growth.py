@@ -42,17 +42,22 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
         0.3
     """
     return System(
-        components=[EconomyElement('economy', k=k)],
+        elements=[EconomyElement('economy', k=k)],
         interactions=[SolowGrowthInteraction('growth', target='economy', s=s, alpha=alpha, delta=delta)],
     )
 
 
-IncomeElement = Element.define(
-    'IncomeElement',
-    states={'Y': state(default=110.0, lags=1, initial=(100.0,))},
-    parameters={'c': 0.8, 'v': 1.5, 'G': 20.0},
-    laws=lambda s: [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
-)
+class IncomeElement(Element):
+    """Income element."""
+
+    Y = state(default=110.0, lags=1, initial=(100.0,))
+    c = parameter(0.8)
+    v = parameter(1.5)
+    G = parameter(20.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the income element."""
+        return [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)]
 
 
 @register_model(
@@ -98,7 +103,7 @@ def multiplier_accelerator(
         >>> multiplier_accelerator(v=0.5).elements[0].v
         0.5
     """
-    return System(components=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
+    return System(elements=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
 
 
 class EconomyElement(Element):

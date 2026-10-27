@@ -11,48 +11,38 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, I
+from sage.all__sagemath_symbolics import RR, SR, Expression, I
+from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.base import (
-    BaseLaw,
-    Expression,
-    NumericDomain,
-    RoleError,
-    SymbolicVector,
-    ValidationError,
+from ....core.errors import RoleError, ValidationError
+from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import Call, NeighborReduction, Reduction, neighborhoods_in, reductions_in
+from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
+from ...problems import (
+    Entry,
+    ReductionSchedule,
+    Reference,
+    Source,
     VariableKind,
+    both,
     declarations_of,
     symbol,
     symbols_of,
     vector,
 )
-from ....core.laws import (
-    BoundaryLaw,
-    Call,
-    JumpLaw,
-    NeighborReduction,
-    NoiseLaw,
-    RateLaw,
-    Reduction,
-    UpdateLaw,
-    both,
-    neighborhoods_in,
-    reductions_in,
-)
-from ....core.problems import Entry, ReductionSchedule, Reference, Source
-from ....core.problems._neighbourhoods import (
+from ...problems._neighbourhoods import (
     ACTIVE_THRESHOLD,
     CompiledNeighborhood,
     PairRead,
     default_neighborhood,
     neighbor_search,
 )
-from ....core.problems._reads import Read
-from ....core.problems._reductions import CompiledReduction
-from ....core.space import Adjacency, BaseNeighborhood
+from ...problems._reads import Read
+from ...problems._reductions import CompiledReduction
 from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations
+from .._laws import replaced
 from .._observables import _HeldElement, held_reduction
 from .._pipeline import BasePass
 from .._specs import KernelSpec, activity_symbol, group_space
@@ -71,8 +61,8 @@ def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseL
     else:
         value = reductions.lower(value, spec)
     if isinstance(law, RateLaw | NoiseLaw):
-        return replace(law, value=value)
-    return type(law)(law.targets, value)
+        return replaced(law, value=value)
+    return replaced(law, value=value)
 
 
 def _prune_foreign(spec: KernelSpec, declarations: Declarations) -> None:
@@ -119,7 +109,7 @@ class _Reductions:
 
     def lower(self, value: object, spec: KernelSpec) -> object:
         """Return a law value with every reduction replaced by the placeholder that kernels read."""
-        if isinstance(value, SymbolicVector):
+        if isinstance(value, FreeModuleElement):
             return vector(self.lower(item, spec) for item in value)
         if not isinstance(value, Expression):
             return value
@@ -302,7 +292,7 @@ class _Reductions:
             readers = weights.shape[0] if weights is not None else None
             shape = (readers,) if readers is not None else ()
             members_of = readers if readers is not None and not spec.sets else None
-            entry = Entry(f'__reduced_{index}', self.extent, shape, NumericDomain.REAL, members_of)
+            entry = Entry(f'__reduced_{index}', self.extent, shape, RR, members_of)
             placeholder = symbol(f'_reduced_{index}')
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
@@ -364,7 +354,7 @@ class _Reductions:
         edges = self.declarations.blocks[entry.name.rpartition('.')[0]]
         nodes = self.declarations.blocks[group]
         layer = getattr(over, 'layer', None)
-        same = isinstance(over, Adjacency) and group_space(edges) is group_space(nodes)
+        same = isinstance(over, AdjacencyNeighborhood) and group_space(edges) is group_space(nodes)
         if not same or getattr(edges.node.component, 'layer', None) != layer:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over {over!r} reads {entry.name} of the edge group '
@@ -443,7 +433,7 @@ class _Reductions:
             search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
-            entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), NumericDomain.REAL, block.rows)
+            entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), RR, block.rows)
             compiled = CompiledNeighborhood(
                 symbol(f'_neighbours_{index}'),
                 reduction.kind,
@@ -486,7 +476,7 @@ class ReductionsPass(BasePass):
         for spec, event in compilation.events:
             reset = {target: reductions.lower(SR(value), spec) for target, value in (event.reset or {}).items()}
             guard = reductions.lower(SR(event.guard), spec)
-            events.append((spec, replace(event, guard=guard, reset=reset if event.reset is not None else None)))
+            events.append((spec, replaced(event, guard=guard, reset=reset if event.reset is not None else None)))
         compilation.events = events
         for spec, _ in lowered:
             _prune_foreign(spec, declarations)

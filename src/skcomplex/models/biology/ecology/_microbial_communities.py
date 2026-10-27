@@ -13,6 +13,7 @@ from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
@@ -141,9 +142,14 @@ def generalized_lotka_volterra(
     if len(abundances) != size or len(a) != size or any(len(row) != size for row in a):
         error_msg = f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
         raise ValidationError(error_msg)
-    species = MicrobeElement.group('species', size, x=abundances, b=[float(value) for value in b])
+    species = GroupElement(
+        'species',
+        element=MicrobeElement,
+        size=size,
+        values={'x': abundances, 'b': [float(value) for value in b]},
+    )
     matrix = tuple(tuple(float(value) for value in row) for row in a)
     return System(
-        components=[species],
+        elements=[species],
         interactions=[GeneralizedLotkaVolterraInteraction('glv', community='species', a=matrix)],
     )

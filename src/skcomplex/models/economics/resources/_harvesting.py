@@ -7,20 +7,23 @@ from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, count
+from ....core.laws import RateLaw, RuleLaw, Symbols, count
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
-StockElement = Element.define(
-    'StockElement',
-    states={'n': state(default=1000.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'r': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'K': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))],
-)
+
+class StockElement(Element):
+    """Stock element."""
+
+    n = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    r = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the stock element."""
+        return [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))]
 
 
 class FarmerElement(Element):
@@ -44,7 +47,7 @@ class FarmerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.resources import FarmerElement
-        >>> FarmerElement.group('farmers', 10).size
+        >>> GroupElement('farmers', element=FarmerElement, size=10).size
         10
     """
 
@@ -161,7 +164,7 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         >>> [subsystem.label for subsystem in harvesting().systems]
         ['land', 'village']
     """
-    land = System('land', components=[StockElement('stock', n=K, r=r, K=K)])
-    village = System('village', components=[FarmerElement.group('farmers', farmers)])
+    land = System('land', elements=[StockElement('stock', n=K, r=r, K=K)])
+    village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=farmers)])
     harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=effort)
-    return System(components=[land, village], interactions=[harvest])
+    return System(elements=[land, village], interactions=[harvest])

@@ -8,13 +8,19 @@ from ....core.components import Element
 from ....core.laws import UpdateLaw, bernoulli
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-EhrenfestUrnElement = Element.define(
-    'EhrenfestUrnElement',
-    states={'n': state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)},
-    parameters={'N': parameter(40, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))],
-)
+
+class EhrenfestUrnElement(Element):
+    """Ehrenfest urn element."""
+
+    n = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    N = parameter(40, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the ehrenfest urn element."""
+        return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))]
 
 
 @register_model(
@@ -49,4 +55,4 @@ def ehrenfest_urn(n_balls: int = 40, *, in_first: int | None = None) -> System:
         10
     """
     n = n_balls if in_first is None else in_first
-    return System(components=[EhrenfestUrnElement('urn', n=n, N=n_balls)])
+    return System(elements=[EhrenfestUrnElement('urn', n=n, N=n_balls)])

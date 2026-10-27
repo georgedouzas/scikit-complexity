@@ -13,23 +13,27 @@ from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
-CircuitElement = Element.define(
-    'CircuitElement',
-    states={'q': state(default=1.0, order=2)},
-    parameters={
-        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'R': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'V': parameter(default=0.0),
-        'omega': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
-    ],
-)
+
+class CircuitElement(Element):
+    """Circuit element."""
+
+    q = state(default=1.0, order=2)
+    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    R = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    V = parameter(default=0.0)
+    omega = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the circuit element."""
+        return [
+            EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+        ]
 
 
 @register_model(
@@ -81,7 +85,7 @@ def rlc_circuit(
         >>> rlc_circuit(R=0.5).elements[0].R
         0.5
     """
-    return System(components=[CircuitElement('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
+    return System(elements=[CircuitElement('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
 
 
 def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
@@ -91,110 +95,131 @@ def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Express
     return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
 
 
-ChuaCircuitElement = Element.define(
-    'ChuaCircuitElement',
-    states={'x': 0.1, 'y': 0.0, 'z': 0.0},
-    parameters={
-        'alpha': parameter(default=15.6, domain=NumericDomain.POSITIVE),
-        'beta': parameter(default=28.0, domain=NumericDomain.POSITIVE),
-        'm0': parameter(default=-8 / 7),
-        'm1': parameter(default=-5 / 7),
-    },
-    laws=lambda s: [
-        RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
-        RateLaw(s.y, s.x - s.y + s.z),
-        RateLaw(s.z, -s.beta * s.y),
-    ],
-)
+class ChuaCircuitElement(Element):
+    """Chua circuit element."""
 
-MultiscrollChuaCircuitElement = Element.define(
-    'MultiscrollChuaCircuitElement',
-    states={'x': 1.0, 'y': 1.0, 'z': 0.0},
-    parameters={
-        'alpha': parameter(default=10.82, domain=NumericDomain.POSITIVE),
-        'beta': parameter(default=14.286, domain=NumericDomain.POSITIVE),
-        'a': parameter(default=1.3, domain=NumericDomain.POSITIVE),
-        'b': parameter(default=0.11, domain=NumericDomain.POSITIVE),
-        'c': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
-        RateLaw(s.y, s.x - s.y + s.z),
-        RateLaw(s.z, -s.beta * s.y),
-    ],
-)
+    x = state(0.1)
+    y = state(0.0)
+    z = state(0.0)
+    alpha = parameter(default=15.6, domain=NumericDomain.POSITIVE)
+    beta = parameter(default=28.0, domain=NumericDomain.POSITIVE)
+    m0 = parameter(default=-8 / 7)
+    m1 = parameter(default=-5 / 7)
 
-MixedModeChuaCircuitElement = Element.define(
-    'MixedModeChuaCircuitElement',
-    states={'x': 0.01, 'y': 0.0, 'z': 0.0},
-    parameters={
-        'epsilon': parameter(default=0.01, domain=NumericDomain.POSITIVE),
-        'a': parameter(default=1.5),
-        'b': parameter(default=-1.0),
-        'alpha': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'R': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=0.005, domain=NumericDomain.POSITIVE),
-        'c': parameter(default=0.00053),
-    },
-    laws=lambda s: [
-        RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
-        RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
-        RateLaw(s.z, s.c - s.beta * s.y),
-    ],
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the chua circuit element."""
+        return [
+            RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
+            RateLaw(s.y, s.x - s.y + s.z),
+            RateLaw(s.z, -s.beta * s.y),
+        ]
 
-MemristorCircuitElement = Element.define(
-    'MemristorCircuitElement',
-    states={'v': 0.1, 'i': 0.0, 'w': 0.1},
-    parameters={
-        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'L': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.v, s.i / s.C),
-        RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
-        RateLaw(s.w, -s.i - s.alpha * s.w + s.w * s.i),
-    ],
-)
 
-TunnelDiodeCircuitElement = Element.define(
-    'TunnelDiodeCircuitElement',
-    states={'V': 0.1, 'i': 0.0},
-    parameters={
-        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
-        RateLaw(s.i, s.V / s.L),
-    ],
-)
+class MultiscrollChuaCircuitElement(Element):
+    """Multiscroll chua circuit element."""
 
-KickedCircuitElement = Element.define(
-    'KickedCircuitElement',
-    states={'x': state(default=0.0, order=2), 'clock': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'R': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'A': parameter(default=1.0),
-        'T': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
-        RateLaw(s.clock, 1),
-        EventLaw(
-            s.clock - s.T,
-            {s.clock: 0, derivative(s.x, 1): derivative(s.x, 1) + s.A / (s.L * s.C)},
-            direction=1,
-            label='impulse',
-        ),
-    ],
-)
+    x = state(1.0)
+    y = state(1.0)
+    z = state(0.0)
+    alpha = parameter(default=10.82, domain=NumericDomain.POSITIVE)
+    beta = parameter(default=14.286, domain=NumericDomain.POSITIVE)
+    a = parameter(default=1.3, domain=NumericDomain.POSITIVE)
+    b = parameter(default=0.11, domain=NumericDomain.POSITIVE)
+    c = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the multiscroll chua circuit element."""
+        return [
+            RateLaw(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
+            RateLaw(s.y, s.x - s.y + s.z),
+            RateLaw(s.z, -s.beta * s.y),
+        ]
+
+
+class MixedModeChuaCircuitElement(Element):
+    """Mixed mode chua circuit element."""
+
+    x = state(0.01)
+    y = state(0.0)
+    z = state(0.0)
+    epsilon = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    a = parameter(default=1.5)
+    b = parameter(default=-1.0)
+    alpha = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    R = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=0.005, domain=NumericDomain.POSITIVE)
+    c = parameter(default=0.00053)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mixed mode chua circuit element."""
+        return [
+            RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
+            RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
+            RateLaw(s.z, s.c - s.beta * s.y),
+        ]
+
+
+class MemristorCircuitElement(Element):
+    """Memristor circuit element."""
+
+    v = state(0.1)
+    i = state(0.0)
+    w = state(0.1)
+    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    L = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the memristor circuit element."""
+        return [
+            RateLaw(s.v, s.i / s.C),
+            RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
+            RateLaw(s.w, -s.i - s.alpha * s.w + s.w * s.i),
+        ]
+
+
+class TunnelDiodeCircuitElement(Element):
+    """Tunnel diode circuit element."""
+
+    V = state(0.1)
+    i = state(0.0)
+    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the tunnel diode circuit element."""
+        return [
+            RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
+            RateLaw(s.i, s.V / s.L),
+        ]
+
+
+class KickedCircuitElement(Element):
+    """Kicked circuit element."""
+
+    x = state(default=0.0, order=2)
+    clock = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    R = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    A = parameter(default=1.0)
+    T = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the kicked circuit element."""
+        return [
+            EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
+            RateLaw(s.clock, 1),
+            EventLaw(
+                s.clock - s.T,
+                {s.clock: 0, derivative(s.x, 1): derivative(s.x, 1) + s.A / (s.L * s.C)},
+                direction=1,
+                label='impulse',
+            ),
+        ]
 
 
 @register_model(
@@ -262,7 +287,7 @@ def chua(
     element = ChuaCircuitElement if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
     initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
     values: dict[str, Any] = {name: value for name, value in initial.items() if value is not None}
-    return System(components=[element('circuit', z=z, **values)])
+    return System(elements=[element('circuit', z=z, **values)])
 
 
 @register_model(
@@ -343,7 +368,7 @@ def mixed_mode_chua(
         beta=beta,
         c=c,
     )
-    return System(components=[circuit])
+    return System(elements=[circuit])
 
 
 @register_model(
@@ -399,7 +424,7 @@ def memristor_oscillator(
         >>> memristor_oscillator(L=2.0).elements[0].L
         2.0
     """
-    return System(components=[MemristorCircuitElement('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
+    return System(elements=[MemristorCircuitElement('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
 
 
 @register_model(
@@ -451,7 +476,7 @@ def tunnel_diode_oscillator(
         >>> tunnel_diode_oscillator(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[TunnelDiodeCircuitElement('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
+    return System(elements=[TunnelDiodeCircuitElement('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
 
 
 @register_model(
@@ -507,4 +532,4 @@ def impulsive_circuits(
         >>> impulsive_circuits(T=3.0).elements[0].T
         3.0
     """
-    return System(components=[KickedCircuitElement('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])
+    return System(elements=[KickedCircuitElement('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])

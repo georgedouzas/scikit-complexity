@@ -9,12 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldElement, laplacian
 
 
 class AlievPanfilovElement(Element):
@@ -144,4 +145,4 @@ def aliev_panfilov(
     v[:, : columns // 2] = 2.0
     values = {'u': u, 'v': v, 'D': D, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(components=[FieldElement('tissue', AlievPanfilovElement, space, values=values)])
+    return System(elements=[FieldElement('tissue', AlievPanfilovElement, space, values=values)])

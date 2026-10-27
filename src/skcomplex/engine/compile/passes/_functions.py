@@ -10,24 +10,25 @@ from dataclasses import replace
 from typing import cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.base import BackendWarning, BaseLaw, Expression, Form, NumericDomain, Vector, wrap_angle
+from ....core.errors import BackendWarning
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.problems import (
+from ....core.types import Vector
+from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
+from ...problems import (
     Accelerated,
-    BaseBackend,
+    Form,
     Kernel,
     Layout,
     Lowered,
-    Lowering,
     Output,
     ReductionSchedule,
     Source,
     VectorFunction,
-    resolve_backend,
+    wrap_angle,
 )
-from ....core.problems._problem import real_components_of
+from ...problems._problem import real_components_of
 from .._compilation import Compilation
 from .._declarations import Declarations, member_count
 from .._forms import is_stepwise
@@ -82,7 +83,7 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
         + [
             np.arange(entry.start, entry.start + entry.size)
             for entry in states.entries
-            if entry.domain is NumericDomain.ANGLE
+            if entry.period is not None
         ],
     )
     if not indices.size:
@@ -103,8 +104,8 @@ def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseB
     requested = resolve_backend(compilation.backend, members)
     if not is_stepwise(form):
         return requested
-    chosen = resolve_backend('numpy', members)
-    if compilation.backend != 'auto' and requested.name != chosen.name:
+    chosen = NumpyBackend()
+    if compilation.backend is not None and requested.name != chosen.name:
         message = (
             f'The {form.value} form runs on the {chosen.name} backend, because its solvers evaluate the kernels '
             f'step by step on {chosen.name} arrays, not on the {requested.name} backend asked for.'
@@ -116,7 +117,7 @@ def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseB
 def _backends_of(form: Form, kernels: Mapping[type, list[Kernel]], name: str, lowering: Lowering) -> dict[str, str]:
     """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
     backends = {form.name: name}
-    backends.update({str(cast('type[BaseLaw]', kind).law_kind): name for kind, items in kernels.items() if items})
+    backends.update({cast('type', kind).__name__: name for kind, items in kernels.items() if items})
     backends.update(lowering.backends)
     return backends
 

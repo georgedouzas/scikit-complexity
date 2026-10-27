@@ -5,38 +5,44 @@
 
 import copy
 import dataclasses
+import functools
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Self
+from types import SimpleNamespace
+from typing import Annotated, Any, Self
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, I
+from sage.all__sagemath_symbolics import RR, SR, Expression, I
+from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import (
-    Expression,
+from ...core.elements import Element, GroupElement
+from ...core.errors import RoleError, ValidationError
+from ...core.laws.utils import Reduction, count, maximum, mean, minimum, reductions_in, total, variance
+from ...core.specs import ObservableSpec, StateSpec
+from ...core.system import System
+from ...core.types import Vector
+from ..problems import (
+    BaseProblem,
+    Entry,
     Form,
-    NumericDomain,
-    RoleError,
-    SymbolicVector,
-    ValidationError,
+    Getter,
+    Problem,
+    ReductionSchedule,
+    Reference,
+    Source,
     VariableKind,
-    Vector,
     declarations_of,
-    state,
+    numpy_function,
     symbol,
     symbols_of,
     vector,
 )
-from ...core.components import Element, GroupElement
-from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
-from ...core.problems import BaseProblem, Entry, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
-from ...core.problems._problem import real_components_of
-from ...core.problems._quantities import _Recorded
-from ...core.problems._reads import Read
-from ...core.problems._reductions import CompiledReduction
-from ...core.system import Observable, System, reduce_values
+from ..problems._problem import real_components_of
+from ..problems._quantities import _Recorded
+from ..problems._reads import Read
+from ..problems._reductions import CompiledReduction, reduce_values
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
 from ._flows import _delay_calls
@@ -54,7 +60,7 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-type Declared = dict[str, tuple[str, Observable]]
+type Declared = dict[str, tuple[str, ObservableSpec]]
 
 
 def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
@@ -92,11 +98,29 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def _with_observables(system: System, observables: Sequence[Observable]) -> System:
+def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
+    """Return the value of an expression of an element's namespace and the time, read from its system's namespace."""
+    return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
+
+
+def _of_root(observable: ObservableSpec) -> ObservableSpec:
+    """Return an observable of an element as the observable of the root system labelled `<element>.<label>`."""
+    if observable.element is None or not callable(observable.expression):
+        return observable
+    expression = functools.partial(_element_value, observable.element, observable.expression)
+    return dataclasses.replace(
+        observable,
+        label=f'{observable.element}.{observable.label}',
+        expression=expression,
+        element=None,
+    )
+
+
+def _with_observables(system: System, observables: Sequence[ObservableSpec]) -> System:
     """Return a copy of a system tree that declares observables in the systems their labels name."""
-    by_scope: dict[str, list[Observable]] = {}
+    by_scope: dict[str, list[ObservableSpec]] = {}
     for observable in observables:
-        checked = observable.check()
+        checked = _of_root(observable.check())
         scope, _, label = checked.label.rpartition('/')
         by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
     if not by_scope:
@@ -120,26 +144,17 @@ def _system_paths(system: System, scope: str = '') -> Iterator[str]:
         yield from _system_paths(child, path)
 
 
-def _attached_component(
-    component: Element | GroupElement | System,
-    by_scope: dict[str, list[Observable]],
-    scope: str,
-) -> Element | GroupElement | System:
-    """Return a nested system with its observables attached, or the component."""
-    if isinstance(component, System):
-        return _attached(component, by_scope, _join(scope, component.label))
-    return component
 
 
-def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str) -> System:
+def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
     """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
     copied = copy.copy(system)
-    copied.components = [_attached_component(component, by_scope, scope) for component in system.components]
+    copied.systems = [_attached(child, by_scope, _join(scope, child.label)) for child in system.systems]
     copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
     return copied
 
 
-def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
+def _tree(items: Mapping[str, Any], **root: Any) -> SimpleNamespace:  # noqa: ANN401
     """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, with extra values at the root."""
     nested: dict[str, Any] = {}
     for path, value in items.items():
@@ -150,10 +165,10 @@ def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
         element, _, variable = last.partition('.')
         node.setdefault(element, {})[variable] = value
 
-    def build(node: dict[str, Any]) -> Symbols:
-        return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
+    def build(node: dict[str, Any]) -> SimpleNamespace:
+        return SimpleNamespace(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
 
-    return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
+    return SimpleNamespace(**{key: build(value) for key, value in nested.items()}, **root)
 
 
 def _entry_of(problem: BaseProblem, name: str) -> Entry | None:
@@ -164,7 +179,7 @@ def _entry_of(problem: BaseProblem, name: str) -> Entry | None:
     return None
 
 
-def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, Node]) -> bool:
+def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, Node]) -> bool:
     """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
     if observable.group is None:
         return True
@@ -177,23 +192,25 @@ def _source_of(block: Block) -> Source:
     return Source.MEMBER if block.node.members is not None else Source.SINGLE
 
 
-def _reduced_value(path: str, observable: Observable, block: Block) -> object:
+def _reduced_value(path: str, observable: ObservableSpec, block: Block) -> object:
     """Return an observable that reduces a group as a reduction over the group's member symbols."""
     namespace, _ = block.namespace(_source_of(block))
     if observable.reduce == 'count':
         return count(over=namespace)
     if observable.variable is not None:
         if observable.variable not in block.symbols:
-            error_msg = f'Observable {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+            error_msg = (
+                f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+            )
             raise ValidationError(error_msg)
         value: Any = block.symbols[observable.variable]
     elif observable.expression is None:
-        error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
+        error_msg = f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
         raise ValidationError(error_msg)
     else:
         value = observable.expression(namespace) if callable(observable.expression) else observable.expression
     reducer = REDUCERS[str(observable.reduce)]
-    if isinstance(value, SymbolicVector):
+    if isinstance(value, FreeModuleElement):
         return vector(reducer(item, over=namespace) for item in value)
     return reducer(value, over=namespace)
 
@@ -232,7 +249,7 @@ def _held_label(reduction: '_HeldReduction', labels: set[str]) -> str:
     return label
 
 
-def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
+def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
     """Yield the path of every system in a tree that declares observables, with each observable.
 
     Args:
@@ -252,7 +269,7 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
         yield from observables_of(child, _join(scope, child.label))
 
 
-def namespace_of(problem: BaseProblem, scope: str = '') -> Symbols:
+def namespace_of(problem: BaseProblem, scope: str = '') -> SimpleNamespace:
     """Return the namespace of the states and parameters of the single elements and interactions of a system.
 
     The namespace nests the symbols by their dotted names, so `s.plant.x` is the state `plant.x`, and
@@ -273,7 +290,7 @@ def namespace_of(problem: BaseProblem, scope: str = '') -> Symbols:
         >>> from skcomplex.engine.compile import compile_system, namespace_of
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> namespace_of(compile_system(System(components=[PopulationElement('rabbits')]))).rabbits.n
+        >>> namespace_of(compile_system(System(elements=[PopulationElement('rabbits')]))).rabbits.n
         n_rabbits
     """
     prefix = f'{scope}/' if scope else ''
@@ -383,23 +400,18 @@ def with_held_reductions(system: System, reductions: Sequence['_HeldReduction'],
             The system tree with the elements that hold the reductions.
     """
     own = [reduction for reduction in reductions if reduction.group.rpartition('/')[0] == scope]
-    components = [
-        (
-            with_held_reductions(component, reductions, _join(scope, component.label))
-            if isinstance(component, System)
-            else component
-        )
-        for component in system.components
-    ]
-    if not own and all(new is old for new, old in zip(components, system.components, strict=True)):
+    children = [with_held_reductions(child, reductions, _join(scope, child.label)) for child in system.systems]
+    if not own and all(new is old for new, old in zip(children, system.systems, strict=True)):
         return system
-    labels = {component.label for component in system.components}
+    labels = {part.label for part in (*system.elements, *system.interactions, *system.systems)}
+    held = []
     for reduction in own:
         label = _held_label(reduction, labels)
         labels.add(label)
-        components.append(_HeldElement(label, reduction=reduction))
+        held.append(_HeldElement(label, reduction=reduction))
     copied = copy.copy(system)
-    copied.components = components
+    copied.elements = [*system.elements, *held]
+    copied.systems = children
     return copied
 
 
@@ -430,7 +442,8 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
     if not held:
         return system, held
     copied = copy.copy(system)
-    copied.components = [*system.elements, *elements, *children]
+    copied.elements = [*system.elements, *elements]
+    copied.systems = children
     return copied, held
 
 
@@ -502,10 +515,15 @@ def check_held_reads(problem: Problem, held: list[str]) -> None:
 class _HeldElement(Element):
     """Element that holds the value of a held reduction in its state `value`, which laws of other partitions read."""
 
-    value: float = state(default=0.0)
-
-    def __init__(self, label: str, *, reduction: '_HeldReduction', **values: Any) -> None:  # noqa: ANN401
-        super().__init__(label, **values)
+    def __init__(
+        self,
+        label: str,
+        value: Annotated[float, StateSpec()] = 0.0,
+        *,
+        reduction: '_HeldReduction | None' = None,
+    ) -> None:
+        super().__init__(label)
+        self.value = value
         self.reduction = reduction
 
 
@@ -633,7 +651,7 @@ class _MemberReductions:
         index = len(self.found)
         shape = (self.size,) if weights is not None else ()
         members = self.size if weights is not None else None
-        entry = Entry(f'__observed_{index}', self.extent, shape, NumericDomain.REAL, members)
+        entry = Entry(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
         self.found[key] = CompiledReduction(
@@ -675,10 +693,13 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
-        >>> from skcomplex.core.system import Observable, System
+        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> system = System(components=[PopulationElement.group('herd', 2, n=[2.0, 6.0])])
-        >>> total = Observable('total', group='herd', reduce='sum', variable='n')
+        >>> system = System(
+        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
+        ... )
+        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
@@ -714,7 +735,7 @@ class ObservableEvaluator:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
                 raise ValidationError(error_msg)
             if observable.group is None and observable.expression is None:
-                error_msg = f'Observable {path} has neither an expression nor a group. Give one of them.'
+                error_msg = f'ObservableSpec {path} has neither an expression nor a group. Give one of them.'
                 raise ValidationError(error_msg)
             if observable.group is None:
                 self.getters_[path] = self._expression_getter(scope, path, observable)
@@ -760,7 +781,7 @@ class ObservableEvaluator:
                 readers.append(_from_members(_from_vector(vector == 'x', index)))
             else:
                 error_msg = (
-                    f'Observable {path} uses the symbol {item}, which is neither a variable of a single element or '
+                    f'ObservableSpec {path} uses the symbol {item}, which is neither a variable of a single element or '
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
@@ -791,7 +812,7 @@ class ObservableEvaluator:
             members[item] = _from_vector(reference.is_state, indices)
         return self._compile(recorded.path, recorded.expression, {}, members)
 
-    def _expression_getter(self, scope: str, path: str, observable: Observable) -> Getter:
+    def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         earlier = {
@@ -821,7 +842,7 @@ class ObservableEvaluator:
             references.update(delay.references)
         if _delay_calls(expression):
             error_msg = (
-                f'Observable {path} reads {_delay_calls(expression)[0]}, a delay that no law of the system uses. '
+                f'ObservableSpec {path} reads {_delay_calls(expression)[0]}, a delay that no law of the system uses. '
                 'Observe a delay that a law of the same element reads.'
             )
             raise ValidationError(error_msg)
@@ -836,7 +857,7 @@ class ObservableEvaluator:
         """Return the entry of a state or parameter by name, or `None`."""
         return _entry_of(self.problem, name)
 
-    def _reduction_getter(self, scope: str, path: str, observable: Observable) -> Getter:
+    def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""
         group = _join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
@@ -845,7 +866,7 @@ class ObservableEvaluator:
         names = {**element.states, **element.parameters}
         if observable.variable is not None:
             if observable.variable not in names:
-                error_msg = f'Observable {path} reduces {observable.variable}, which {group} does not declare.'
+                error_msg = f'ObservableSpec {path} reduces {observable.variable}, which {group} does not declare.'
                 raise ValidationError(error_msg)
             name = names[observable.variable]
             is_state = self.problem.states.has(name)
@@ -860,7 +881,7 @@ class ObservableEvaluator:
         size = element.members or 1
         if observable.expression is None:
             if observable.reduce != 'count':
-                error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
+                error_msg = f'ObservableSpec {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(size)
         members: dict[Expression, Read] = {}
@@ -870,7 +891,7 @@ class ObservableEvaluator:
             for column, item in enumerate(real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
                 members[item] = Read(is_state, indices, entry, column, entry.columns)
-        namespace = Symbols(
+        namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
@@ -895,10 +916,10 @@ class ObservableEvaluator:
 
         return read_expression
 
-    def _agent_getter(self, group: str, path: str, observable: Observable) -> Getter:
+    def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> Getter:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partitions:
-            error_msg = f'Observable {path} reduces {group}, which is neither an element group nor an agent group.'
+            error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
 
         def read_agents(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
@@ -953,7 +974,7 @@ class Observer:
         self,
         path: str,
         scope: str,
-        observable: Observable,
+        observable: ObservableSpec,
     ) -> tuple[object, dict[Expression, Reference]]:
         """Return an expression of the symbols of a system's elements, with earlier observables by label."""
         prefix = f'{scope}/' if scope else ''
@@ -981,7 +1002,7 @@ class Observer:
         self,
         path: str,
         scope: str,
-        observable: Observable,
+        observable: ObservableSpec,
     ) -> tuple[object, dict[Expression, Reference]]:
         """Return the value of an observable with the references of the symbols it reads."""
         if path in self.values:
@@ -1001,4 +1022,4 @@ class Observer:
             return None
         scope, observable = self.live[path]
         value, references = self.value(path, scope, observable)
-        return Observed(Symbols(value=value), dict(references))
+        return Observed(SimpleNamespace(value=value), dict(references))

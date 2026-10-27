@@ -11,10 +11,11 @@ from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, vector
 from ....core.laws import RateLaw, Symbols, mod, series, where
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ...core.elements import GroupElement
 from ._diffusion import BrownianParticleElement
 
 
@@ -184,15 +185,14 @@ def tilted_periodic_potential(
         >>> tilted_periodic_potential(10, f=2.0).interactions[0].f
         2.0
     """
-    particles = BrownianParticleElement.group(
+    particles = GroupElement(
         'particles',
-        n_particles,
-        x=np.zeros((n_particles, 1)),
-        gamma=gamma,
-        temperature=kT,
+        element=BrownianParticleElement,
+        size=n_particles,
+        values={'x': np.zeros((n_particles, 1)), 'gamma': gamma, 'temperature': kT},
     )
     washboard = TiltedWashboardInteraction('washboard', target='particles', U0=U0, L=L, f=f)
-    return System(components=[particles], interactions=[washboard], space=ContinuousSpace(n_dim=1))
+    return System(elements=[particles], interactions=[washboard], space=ContinuousSpace(n_dim=1))
 
 
 @register_model(
@@ -261,12 +261,11 @@ def flashing_ratchet(
     """
     rng = np.random.default_rng(random_state)
     times = np.cumsum(rng.exponential(1 / rate, int(2 * rate * duration) + 10))
-    particles = BrownianParticleElement.group(
+    particles = GroupElement(
         'particles',
-        n_particles,
-        x=np.zeros((n_particles, 1)),
-        gamma=gamma,
-        temperature=kT,
+        element=BrownianParticleElement,
+        size=n_particles,
+        values={'x': np.zeros((n_particles, 1)), 'gamma': gamma, 'temperature': kT},
     )
     sawtooth = FlashingSawtoothInteraction(
         'sawtooth',
@@ -276,4 +275,4 @@ def flashing_ratchet(
         asymmetry=asymmetry,
         switches=tuple(float(time) for time in times[times < duration]),
     )
-    return System(components=[particles], interactions=[sawtooth], space=ContinuousSpace(n_dim=1))
+    return System(elements=[particles], interactions=[sawtooth], space=ContinuousSpace(n_dim=1))

@@ -8,59 +8,72 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import FluxLaw, RateLaw
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, FluxLaw, SSPRKSolver, laplacian
+from ....engine.solvers import SSPRKSolver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 
-LighthillWhithamRichardsElement = Element.define(
-    'LighthillWhithamRichardsElement',
-    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')],
-)
 
-PayneElement = Element.define(
-    'PayneElement',
-    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
-    parameters={
-        'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'tau': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        FluxLaw(s.rho, s.q),
-        FluxLaw(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
-        RateLaw(s.q, (s.rho * s.vmax * (1 - s.rho / s.rho_max) - s.q) / s.tau),
-    ],
-)
+class LighthillWhithamRichardsElement(Element):
+    """Lighthill whitham richards element."""
 
-KernerKonhauserElement = Element.define(
-    'KernerKonhauserElement',
-    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
-    parameters={
-        'V0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'tau': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        'c0': parameter(default=0.3, domain=NumericDomain.POSITIVE),
-        'mu': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        FluxLaw(s.rho, s.q),
-        FluxLaw(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
-        RateLaw(
-            s.q,
-            (s.rho * s.V0 * (1 / (1 + exp((s.rho / s.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET) - s.q) / s.tau
-            + s.mu * laplacian(s.q / s.rho),
-        ),
-    ],
-)
+    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    vmax = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the lighthill whitham richards element."""
+        return [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')]
+
+
+class PayneElement(Element):
+    """Payne element."""
+
+    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    q = state(0.21)
+    vmax = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    tau = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the payne element."""
+        return [
+            FluxLaw(s.rho, s.q),
+            FluxLaw(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
+            RateLaw(s.q, (s.rho * s.vmax * (1 - s.rho / s.rho_max) - s.q) / s.tau),
+        ]
+
+
+class KernerKonhauserElement(Element):
+    """Kerner konhauser element."""
+
+    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    q = state(0.21)
+    V0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    tau = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    c0 = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    mu = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the kerner konhauser element."""
+        return [
+            FluxLaw(s.rho, s.q),
+            FluxLaw(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
+            RateLaw(
+                s.q,
+                (s.rho * s.V0 * (1 / (1 + exp((s.rho / s.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET) - s.q)
+                / s.tau
+                + s.mu * laplacian(s.q / s.rho),
+            ),
+        ]
 
 
 def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
@@ -130,7 +143,7 @@ def lighthill_whitham_richards(
         values=values,
         discretization='finite-volume',
     )
-    return System(components=[road])
+    return System(elements=[road])
 
 
 @register_model(
@@ -193,7 +206,7 @@ def payne(
         values=values,
         discretization='finite-volume',
     )
-    return System(components=[road])
+    return System(elements=[road])
 
 
 @register_model(
@@ -270,4 +283,4 @@ def kerner_konhauser(
     }
     space = LatticeSpace(n, spacing=length / n)
     road = FieldElement('road', KernerKonhauserElement, space, values=values, discretization='finite-volume')
-    return System(components=[road])
+    return System(elements=[road])

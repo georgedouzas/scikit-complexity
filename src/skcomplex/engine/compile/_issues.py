@@ -6,7 +6,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from ...core.base import SkcomplexError, ValidationError
+from ...core.errors import SkcomplexError, ValidationError
 
 ERROR = 'error'
 WARNING = 'warning'

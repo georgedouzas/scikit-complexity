@@ -1,1 +1,1 @@
-"""What works on a system: compilation, solvers, backends, runtime, visualization, experiments, and analysis."""
+"""What runs a system: compilation, problems, solvers, backends, runtime, and visualization."""

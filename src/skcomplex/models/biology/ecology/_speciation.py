@@ -10,10 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -35,7 +37,7 @@ class OrganismElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import OrganismElement
-        >>> OrganismElement.group('community', 10, species=0.0).size
+        >>> GroupElement('community', element=OrganismElement, size=10, values={'species': 0.0}).size
         10
     """
 
@@ -122,7 +124,7 @@ class NeutralReplacementInteraction(BaseInteraction):
     references=('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003'),
     defaults={'until': 500},
     observables=lambda system: [
-        Observable('richness', group='community', variable='species', reduce=_richness),
+        ObservableSpec('richness', group='community', variable='species', reduce=_richness),
     ],
 )
 def neutral_biodiversity(
@@ -162,6 +164,6 @@ def neutral_biodiversity(
     """
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)
     return System(
-        components=[OrganismElement.group('community', individuals, species=labels)],
+        elements=[GroupElement('community', element=OrganismElement, size=individuals, values={'species': labels})],
         interactions=[NeutralReplacementInteraction('replacement', community='community', nu=nu)],
     )

@@ -3,17 +3,27 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-SlowManifoldElement = Element.define(
-    'SlowManifoldElement',
-    states={'x1': 1.0, 'x2': 1.0},
-    parameters={'mu': -0.05, 'lam': -1.0},
-    laws=lambda s: [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))],
-)
+
+class SlowManifoldElement(Element):
+    """Slow manifold element."""
+
+    x1 = state(1.0)
+    x2 = state(1.0)
+    mu = parameter(-0.05)
+    lam = parameter(-1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the slow manifold element."""
+        return [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))]
 
 
 @register_model(
@@ -59,4 +69,4 @@ def koopman_slow_manifold(
         >>> koopman_slow_manifold(lam=-2.0).elements[0].lam
         -2.0
     """
-    return System(components=[SlowManifoldElement('flow', x1=x1, x2=x2, mu=mu, lam=lam)])
+    return System(elements=[SlowManifoldElement('flow', x1=x1, x2=x2, mu=mu, lam=lam)])

@@ -10,11 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import JumpLaw, RateLaw, Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import JumpLaw, LocalRuleLaw, RateLaw, Symbols
+from ....core.spaces import BoxNeighborhood, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -86,7 +86,7 @@ class MicrostateElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.P, Neighborhood.radius(), _master_step, reads=(s.P, s.U))]
+        return [LocalRuleLaw(s.P, BoxNeighborhood(), _master_step, reads=(s.P, s.U))]
 
 
 class ZoneElement(Element):
@@ -242,7 +242,16 @@ def discrete_master_equation(
     probability = np.zeros(n_states)
     probability[0] = 1.0
     space = LatticeSpace(n_states)
-    return System(components=[MicrostateElement.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
+    return System(
+        elements=[
+            LatticeElement(
+                'states',
+                element=MicrostateElement,
+                space=space,
+                values={'P': probability, 'U': potential, 'beta': beta, 'w': w},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -285,7 +294,9 @@ def two_phase_zone_exchange(
         >>> two_phase_zone_exchange(5).elements[0].size
         5
     """
-    return System(components=[ZoneElement.group('zones', n_zones, Na=Na, p=p, k=k)])
+    return System(
+        elements=[GroupElement('zones', element=ZoneElement, size=n_zones, values={'Na': Na, 'p': p, 'k': k})],
+    )
 
 
 @register_model(
@@ -340,4 +351,4 @@ def landau_relaxation(
         >>> landau_relaxation(T=2.0).elements[0].T
         2.0
     """
-    return System(components=[OrderParameterElement('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])
+    return System(elements=[OrderParameterElement('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])

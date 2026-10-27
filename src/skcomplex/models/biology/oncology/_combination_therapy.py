@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import exp, log, sin
 from ....core.base import BaseLaw, Expression, NumericDomain, ParameterError, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 
@@ -1083,7 +1084,7 @@ def chemoimmunotherapy(
         width=width,
         doses=doses,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1156,7 +1157,7 @@ def clonal_chemoimmunotherapy(
         u_chemo2=u_chemo2,
         u_vaccine=u_vaccine,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1206,7 +1207,7 @@ def chemovirotherapy(
         >>> chemovirotherapy(infusion='exponential').elements[0].infusion
         'exponential'
     """
-    return System(components=[ChemovirotherapyTumourElement('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
+    return System(elements=[ChemovirotherapyTumourElement('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
 
 
 @register_model(
@@ -1248,7 +1249,7 @@ def glioma_chemovirotherapy(
         >>> glioma_chemovirotherapy(u1=0.0).elements[0].u1
         0.0
     """
-    return System(components=[GliomaBrainElement('brain', AU=AU, V=V, u1=u1)])
+    return System(elements=[GliomaBrainElement('brain', AU=AU, V=V, u1=u1)])
 
 
 @register_model(
@@ -1318,7 +1319,7 @@ def her2_targeted_therapy(
         t_p=t_p,
         sigma=sigma,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1326,7 +1327,7 @@ def her2_targeted_therapy(
     tags=('antiangiogenic therapy', 'immunotherapy', 'combination therapy', 'pharmacokinetics', 'resistance', 'ode'),
     references=(BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999'),
     defaults={'until': 150.0, 'dt': 0.25},
-    observables=lambda system: [Observable('toxicity', _total_toxicity)],
+    observables=lambda system: [ObservableSpec('toxicity', _total_toxicity)],
 )
 def angiogenesis_immunotherapy(
     A: float = 5000.0,
@@ -1401,4 +1402,4 @@ def angiogenesis_immunotherapy(
         period=period,
         doses=doses,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])

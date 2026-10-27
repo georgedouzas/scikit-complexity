@@ -8,14 +8,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from .....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, SymbolicVector, parameter, role
+from .....core.interactions import PairPotentialInteraction, PotentialInteraction
 from .....core.laws import NoiseLaw, RateLaw, Symbols
-from .....formalisms.particles import (
-    LammpsFix,
-    PairPotentialInteraction,
-    PotentialInteraction,
-    register_lammps_fix,
-    register_lammps_pair,
-)
+from .....engine.solvers import LammpsFix
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
@@ -395,7 +390,9 @@ def _langevin(fix: LammpsFix) -> str:
     return f'fix {fix.name} {fix.group} langevin {temperature} {temperature} {fix.mass() / gamma} {fix.seed()}'
 
 
-register_lammps_pair(LennardJonesInteraction, 'lj/cut', _lennard_jones)
-register_lammps_fix(ConstantForceInteraction, _addforce)
-register_lammps_fix(LinearDragInteraction, _viscous)
-register_lammps_fix(LangevinThermostatInteraction, _langevin)
+LAMMPS_PAIRS = {LennardJonesInteraction: ('lj/cut', _lennard_jones)}
+LAMMPS_FIXES = {
+    ConstantForceInteraction: _addforce,
+    LinearDragInteraction: _viscous,
+    LangevinThermostatInteraction: _langevin,
+}

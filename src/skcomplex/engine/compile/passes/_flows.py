@@ -6,20 +6,11 @@
 from dataclasses import replace
 from typing import cast
 
-from ....core.base import BaseLaw
-from ....core.laws import TransferLaw
-from ....core.problems import Problem, StockFlow
+from ...problems import Problem, StockFlow
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._flows import StockFlowPass, quantities_of
 from .._pipeline import BasePass
-from .._specs import KernelSpec
-
-
-def _flow_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
-    """Return the component that declares a flow, or `None` for another law."""
-    del agents
-    return spec.owner if isinstance(law, TransferLaw) else None
 
 
 class ExpandFlowsPass(BasePass):
@@ -80,7 +71,3 @@ class FlowsProblemPass(BasePass):
             cast('Problem', compilation.problem),
             stock_flow=cast('StockFlow', compilation.facts['stock_flow']),
         )
-
-
-PASSES = (ExpandFlowsPass(), LowerFlowsPass(), FlowsProblemPass())
-OWNER_RULES = (_flow_owner,)

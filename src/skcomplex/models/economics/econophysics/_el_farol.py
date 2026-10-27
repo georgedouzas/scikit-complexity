@@ -11,11 +11,13 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics
 
@@ -102,7 +104,7 @@ class PatronElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import PatronElement
-        >>> PatronElement.group('patrons', 100, predictors=7).size
+        >>> GroupElement('patrons', element=PatronElement, size=100, values={'predictors': 7}).size
         100
     """
 
@@ -260,9 +262,14 @@ def el_farol(
         float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
         for _ in range(n_agents)
     ]
-    patrons = PatronElement.group('patrons', n_agents, predictors=masks, discount=discount)
+    patrons = GroupElement(
+        'patrons',
+        element=PatronElement,
+        size=n_agents,
+        values={'predictors': masks, 'discount': discount},
+    )
     return System(
-        components=[patrons],
+        elements=[patrons],
         interactions=[BarInteraction('bar', capacity=capacity)],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('decide'), Phase('count')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('decide'), PhaseSpec('count')])),
     )

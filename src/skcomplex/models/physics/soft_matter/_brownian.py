@@ -14,19 +14,21 @@ from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DoubleWellElement = Element.define(
-    'DoubleWellElement',
-    states={'x': -1.0},
-    parameters={
-        'amplitude': 0.1,
-        'frequency': 0.01,
-        'D': parameter(default=0.12, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
-        NoiseLaw(s.x, sqrt(2 * s.D)),
-    ],
-)
+
+class DoubleWellElement(Element):
+    """Double well element."""
+
+    x = state(-1.0)
+    amplitude = parameter(0.1)
+    frequency = parameter(0.01)
+    D = parameter(default=0.12, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the double well element."""
+        return [
+            RateLaw(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
+            NoiseLaw(s.x, sqrt(2 * s.D)),
+        ]
 
 
 @register_model(
@@ -69,7 +71,7 @@ def stochastic_resonance(
         >>> stochastic_resonance(D=0.2).elements[0].D
         0.2
     """
-    return System(components=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
+    return System(elements=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
 
 
 class WallParticleElement(Element):
@@ -183,4 +185,4 @@ def brownian_near_wall(
         'ito'
     """
     particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
-    return System(components=[particle])
+    return System(elements=[particle])

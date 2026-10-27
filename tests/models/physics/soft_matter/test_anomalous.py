@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.analysis import hurst_exponent
+from skcomplex.analysis import hurst_exponent
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver
+from skcomplex.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from skcomplex.models.physics.soft_matter import (
     annealed_transient_time_motion,
     continuous_time_random_walk,

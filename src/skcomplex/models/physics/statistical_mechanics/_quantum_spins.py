@@ -5,11 +5,12 @@
 from typing import Any, ClassVar
 
 from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import DissipatorLaw, GeneratorLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.compile import Operator
 from ....engine.runtime import register_model
-from ....formalisms.quantum import DissipatorLaw, GeneratorLaw, Operator, expectation
+from ...core.elements import LatticeElement
 from ..realizations.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
@@ -242,11 +243,11 @@ def quantum_heisenberg(
         raise ValidationError(error_msg)
     space = LatticeSpace(n_sites, boundary=BOUNDARIES[boundary])
     labels = _initial_labels(n_sites, initial)
-    chain = SpinElement.lattice('chain', space, initial=labels)
+    chain = LatticeElement('chain', element=SpinElement, space=space, values={'initial': labels})
     interactions: list[BaseInteraction] = [
         XXZExchangeInteraction('exchange', target='chain', J=J, delta=delta),
         ZeemanFieldInteraction('field', target='chain', h=h),
     ]
     if gamma > 0:
         interactions.append(DephasingInteraction('dephasing', target='chain', gamma=gamma))
-    return System('quantum_heisenberg', components=[chain], interactions=interactions)
+    return System('quantum_heisenberg', elements=[chain], interactions=interactions)

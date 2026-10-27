@@ -12,7 +12,7 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import milling_order, polar_order
+from skcomplex.analysis import milling_order, polar_order
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

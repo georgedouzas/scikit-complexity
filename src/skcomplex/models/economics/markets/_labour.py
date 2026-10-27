@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._markets import DeferredAcceptance, MarketInteraction, Trade
 
@@ -45,7 +47,7 @@ class EmployerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import EmployerElement
-        >>> EmployerElement.group('firms', 5).size
+        >>> GroupElement('firms', element=EmployerElement, size=5).size
         5
     """
 
@@ -128,7 +130,7 @@ class JobseekerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import JobseekerElement
-        >>> JobseekerElement.group('workers', 5).size
+        >>> GroupElement('workers', element=JobseekerElement, size=5).size
         5
     """
 
@@ -236,7 +238,7 @@ def _unemployed(agent: AgentView) -> float:
     tags=('labour', 'market', 'matching', 'agents'),
     references=('Hamill and Gilbert 2016 ch. 7',),
     defaults={'until': 200},
-    observables=lambda system: [Observable('unemployment', _unemployed, group='workers')],
+    observables=lambda system: [ObservableSpec('unemployment', _unemployed, group='workers')],
 )
 def labour_market(
     n_workers: int = 200,
@@ -304,24 +306,25 @@ def labour_market(
     rng = np.random.default_rng(random_state)
     employed = rng.random(n_workers) >= unemployment
     employers = np.where(employed, rng.integers(n_firms, size=n_workers), -1).astype(float)
-    firms = EmployerElement.group(
+    firms = GroupElement(
         'firms',
-        n_firms,
-        vacancy_rate=vacancy_rate,
-        low_wage=low_wage,
-        high_wage=high_wage,
-        bid=low_wage,
+        element=EmployerElement,
+        size=n_firms,
+        values={'vacancy_rate': vacancy_rate, 'low_wage': low_wage, 'high_wage': high_wage, 'bid': low_wage},
     )
-    workers = JobseekerElement.group(
+    workers = GroupElement(
         'workers',
-        n_workers,
-        employer=employers,
-        wage=np.where(employed, (low_wage + high_wage) / 2, 0.0),
-        supply=0.0,
-        ask=reservation,
-        separation=separation,
-        reservation=reservation,
-        decline=decline,
+        element=JobseekerElement,
+        size=n_workers,
+        values={
+            'employer': employers,
+            'wage': np.where(employed, (low_wage + high_wage) / 2, 0.0),
+            'supply': 0.0,
+            'ask': reservation,
+            'separation': separation,
+            'reservation': reservation,
+            'decline': decline,
+        },
     )
     market = MarketInteraction(
         'labour',
@@ -334,7 +337,7 @@ def labour_market(
         on_trade=hire,
     )
     return System(
-        components=[firms, workers],
+        elements=[firms, workers],
         interactions=[SearchCountInteraction('office', workers='workers', phase='matching'), market],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('offers'), Phase('matching')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
     )

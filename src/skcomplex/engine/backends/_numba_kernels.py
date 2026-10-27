@@ -6,10 +6,10 @@
 import hashlib
 
 from numba.core.dispatcher import Dispatcher
+from sage.all__sagemath_symbolics import Expression
 
-from ...core.base import Expression
-from ...core.problems import EdgeSearch, Kernel, Output, Reference, Source
-from ...core.problems._kernels import PairSearch
+from ..problems import EdgeSearch, Kernel, Output, Reference, Source
+from ..problems._kernels import PairSearch
 from ._numba_source import INDENT, _emit_values, _hoist_layout, _index, _is_shared, _single_reads, _Source, _vector
 
 

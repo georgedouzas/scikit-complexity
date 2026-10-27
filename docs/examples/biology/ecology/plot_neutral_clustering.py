@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -26,7 +27,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = Simulation(
     system,
     dt=0.25,
-    backend='numba',
+    backend=NumbaBackend(),
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
@@ -58,7 +59,13 @@ def expected_variance(times):
 times = simulation.trajectory_.times
 still = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=0.0)
 isolated = (
-    Simulation(still, dt=0.25, backend='numba', random_state=0, observables=describe(MODEL).observables_of(still))
+    Simulation(
+        still,
+        dt=0.25,
+        backend=NumbaBackend(),
+        random_state=0,
+        observables=describe(MODEL).observables_of(still),
+    )
     .run(until=60)
     .trajectory_.values('variance')
 )

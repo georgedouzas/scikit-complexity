@@ -1,7 +1,8 @@
 """Share the trader element of the tests of the economics realizations."""
 
-from skcomplex.core.base import state
 from skcomplex.core.components import Element
+
+from skcomplex.core.base import state
 
 
 class TraderElement(Element):

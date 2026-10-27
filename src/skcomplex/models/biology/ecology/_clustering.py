@@ -11,9 +11,12 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
-from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
+from ...core.elements import LatticeElement
 
 
 def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
@@ -127,10 +130,10 @@ class HoppingInteraction(BaseInteraction):
     field='biology/ecology',
     tags=('neutral theory', 'clustering', 'jump process', 'lattice', 'birth-death', 'diffusion'),
     references=('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009'),
-    defaults={'until': 50.0, 'dt': 0.5, 'backend': 'numba'},
+    defaults={'until': 50.0, 'dt': 0.5, 'backend': NumbaBackend()},
     observables=lambda system: [
-        Observable('mean', group='patches', variable='n', reduce='mean'),
-        Observable('variance', group='patches', variable='n', reduce='var'),
+        ObservableSpec('mean', group='patches', variable='n', reduce='mean'),
+        ObservableSpec('variance', group='patches', variable='n', reduce='var'),
     ],
 )
 def neutral_clustering(
@@ -171,12 +174,17 @@ def neutral_clustering(
         8
     """
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)
-    patches = PatchElement.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
+    patches = LatticeElement(
+        'patches',
+        element=PatchElement,
+        space=LatticeSpace(lattice),
+        values={'n': np.full(lattice, float(n)), 'alpha': alpha},
+    )
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:
         interactions.append(HoppingInteraction('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
     return System(
-        components=[patches],
+        elements=[patches],
         interactions=interactions,
     )

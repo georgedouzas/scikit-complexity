@@ -10,18 +10,24 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols, Totalistic
-from ....core.space import LatticeSpace, Memory, Neighborhood
-from ....core.system import Observable, System
+from ....core.laws import LocalRuleLaw, Symbols, Totalistic
+from ....core.spaces import (
+    BoxNeighborhood,
+    CayleySpace,
+    GeneratorNeighborhood,
+    LatticeSpace,
+    MemoryNeighborhood,
+)
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.groups import CayleySpace
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 type Array = npt.NDArray[np.float64]
-GENERATOR_MEMORY = Memory(('1', 'a', 'a^-1'))
-GRIGORCHUK_MEMORY = Memory(('1', 'a', 'b', 'c', 'd'))
-LAMPLIGHTER_MEMORY = Memory(('1', 'a', 'b'))
+GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
+GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
+LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
 
 
 def _majority(center: Array, *values: Array, degree: Array) -> Array:
@@ -36,14 +42,14 @@ def _random_cells(size: int, density: float, random_state: int | np.random.Gener
     return (np.random.default_rng(random_state).random(size) < density).astype(float)
 
 
-def _density_observables(system: System) -> list[Observable]:
+def _density_observables(system: System) -> list[ObservableSpec]:
     """Return the density of ones of the cells."""
-    return [Observable('density', group='cells', variable='alive')]
+    return [ObservableSpec('density', group='cells', variable='alive')]
 
 
-def _mean_observables(system: System) -> list[Observable]:
+def _mean_observables(system: System) -> list[ObservableSpec]:
     """Return the mean value of the cells."""
-    return [Observable('mean', group='cells', variable='value')]
+    return [ObservableSpec('mean', group='cells', variable='value')]
 
 
 class MajorityCellElement(Element):
@@ -77,7 +83,7 @@ class MajorityCellElement(Element):
         self,
         label: str,
         *,
-        memory: Memory = GENERATOR_MEMORY,
+        memory: MemoryNeighborhood = GENERATOR_MEMORY,
         **values: Any,  # noqa: ANN401
     ) -> None:
         super().__init__(label, **values)
@@ -125,7 +131,7 @@ class ParityCellElement(Element):
         self,
         label: str,
         *,
-        memory: Memory = LAMPLIGHTER_MEMORY,
+        memory: MemoryNeighborhood = LAMPLIGHTER_MEMORY,
         **values: Any,  # noqa: ANN401
     ) -> None:
         super().__init__(label, **values)
@@ -189,7 +195,7 @@ class LaplacianCellElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.value, Neighborhood.radius(), _laplacian)]
+        return [LocalRuleLaw(s.value, BoxNeighborhood(), _laplacian)]
 
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
@@ -232,19 +238,28 @@ class GoldenMeanCellElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.alive, Neighborhood.radius(), _golden_move, schedule='random-sequential', stochastic=True),
+            LocalRuleLaw(s.alive, BoxNeighborhood(), _golden_move, schedule='random-sequential', stochastic=True),
         ]
 
 
 def _majority_system(
     space: CayleySpace,
-    memory: Memory,
+    memory: MemoryNeighborhood,
     density: float,
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
     cells = _random_cells(space.prepare().size_, density, random_state)
-    return System(components=[MajorityCellElement.lattice('cells', space, alive=cells, memory=memory)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=MajorityCellElement,
+                space=space,
+                values={'alive': cells, 'memory': memory},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -290,7 +305,12 @@ def free_group_automaton(
         53
     """
     group = free_group(rank)
-    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(
+        CayleySpace(group, ball=radius),
+        GeneratorNeighborhood(group.generators),
+        density,
+        random_state,
+    )
 
 
 @register_model(
@@ -332,7 +352,16 @@ def lamplighter_automaton(
     """
     space = CayleySpace(lamplighter(), ball=radius)
     cells = _random_cells(space.prepare().size_, density, random_state)
-    return System(components=[ParityCellElement.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=ParityCellElement,
+                space=space,
+                values={'alive': cells, 'memory': LAMPLIGHTER_MEMORY},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -372,7 +401,12 @@ def heisenberg_automaton(
         17
     """
     group = heisenberg()
-    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(
+        CayleySpace(group, ball=radius),
+        GeneratorNeighborhood(group.generators),
+        density,
+        random_state,
+    )
 
 
 @register_model(
@@ -421,7 +455,12 @@ def baumslag_solitar_automaton(
         17
     """
     group = baumslag_solitar(m, n)
-    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(
+        CayleySpace(group, ball=radius),
+        GeneratorNeighborhood(group.generators),
+        density,
+        random_state,
+    )
 
 
 @register_model(
@@ -461,7 +500,14 @@ def linear_ring_automaton(
     values = np.zeros(size)
     values[size // 2] = 1.0
     return System(
-        components=[LaplacianCellElement.lattice('cells', LatticeSpace(size), value=values, modulus=modulus)],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=LaplacianCellElement,
+                space=LatticeSpace(size),
+                values={'value': values, 'modulus': modulus},
+            ),
+        ],
     )
 
 
@@ -492,7 +538,7 @@ def subshifts(size: int = 200) -> System:
         >>> subshifts(10).elements[0].size
         10
     """
-    return System(components=[GoldenMeanCellElement.lattice('cells', LatticeSpace(size))])
+    return System(elements=[LatticeElement('cells', element=GoldenMeanCellElement, space=LatticeSpace(size))])
 
 
 @register_model(

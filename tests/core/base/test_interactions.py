@@ -6,6 +6,8 @@ import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
+from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.declarations import state
 
 from skcomplex.core.base import (
     BaseDomain,
@@ -17,34 +19,50 @@ from skcomplex.core.base import (
     parameter,
     role,
 )
-from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.elements import LatticeElement
 from skcomplex.core.laws import (
     JumpLaw,
     RateLaw,
     UpdateLaw,
     neighbors,
 )
-from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
-from skcomplex.core.space import BaseSpace, BaseTime, DiscreteTime, LatticeSpace, Layer, NetworkSpace
+from skcomplex.core.spaces import BaseSpace, BaseTime, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.specs import LayerSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import BaseBackend
 from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
+from skcomplex.engine.problems import BaseProblem
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
+from skcomplex.engine.solvers import BaseSolver, RK4Solver
 from skcomplex.models.biology.ecology import PredationInteraction
 
 BACKENDS = ('numpy', 'numba')
 
 
-NeuronElement = Element.define('NeuronElement', states={'a': 0.0})
+class NeuronElement(Element):
+    """Neuron element."""
+
+    a = state(0.0)
 
 
-SynapseElement = Element.define('SynapseElement', states={'w': 0.1})
+class SynapseElement(Element):
+    """Synapse element."""
+
+    w = state(0.1)
 
 
-PersonElement = Element.define('PersonElement', states={'infected': 0.0, 'wage': 0.0})
+class PersonElement(Element):
+    """Person element."""
+
+    infected = state(0.0)
+    wage = state(0.0)
 
 
-OscillatorElement = Element.define('OscillatorElement', states={'theta': 0.0}, parameters={'omega': 0.0})
+class OscillatorElement(Element):
+    """Oscillator element."""
+
+    theta = state(0.0)
+    omega = parameter(0.0)
 
 
 def test_interaction_rejects_a_layer_when_checked():
@@ -124,8 +142,8 @@ class CouplingInteraction(BaseInteraction):
 def _hebbian(space, activities):
     """Return a network of neurons with fixed activities and Hebbian synapses on its edges."""
     return System(
-        components=[
-            NeuronElement.lattice('neurons', space, a=activities),
+        elements=[
+            LatticeElement('neurons', element=NeuronElement, space=space, values={'a': activities}),
             GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
         ],
         interactions=[HebbianInteraction('hebb', nodes='neurons', synapses='synapses', eta=2.0)],
@@ -155,12 +173,17 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     """Test that the source and target of a directed edge follow its direction, and edge states weigh the flow."""
-    JobElement = Element.define('JobElement', states={'salary': 1.0})
+
+    class JobElement(Element):
+        """Job element."""
+
+        salary = state(1.0)
+
     graph = nx.DiGraph([(0, 1), (2, 1), (1, 3)])
     space = NetworkSpace(graph)
     system = System(
-        components=[
-            PersonElement.lattice('people', space),
+        elements=[
+            LatticeElement('people', element=PersonElement, space=space),
             GroupElement('jobs', element=JobElement, space=space, on='edges', values={'salary': [1.0, 2.0, 4.0]}),
         ],
         interactions=[WagesInteraction('wages', people='people', jobs='jobs')],
@@ -180,11 +203,21 @@ def test_two_layers_carry_infection_and_wages_apart():
     contact = nx.path_graph(5)
     work = nx.Graph([(0, 4), (2, 3)])
     work.add_nodes_from(range(5))
-    JobElement = Element.define('JobElement', states={'salary': 1.0})
-    space = NetworkSpace(contact, layers=[Layer('work', work)])
+
+    class JobElement(Element):
+        """Job element."""
+
+        salary = state(1.0)
+
+    space = NetworkSpace(contact, layers=[LayerSpec('work', work)])
     system = System(
-        components=[
-            PersonElement.lattice('people', space, infected=[1.0, 0.0, 0.0, 0.0, 0.0]),
+        elements=[
+            LatticeElement(
+                'people',
+                element=PersonElement,
+                space=space,
+                values={'infected': [1.0, 0.0, 0.0, 0.0, 0.0]},
+            ),
             GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work'),
         ],
         interactions=[
@@ -197,8 +230,13 @@ def test_two_layers_carry_infection_and_wages_apart():
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
     isolated = System(
-        components=[
-            PersonElement.lattice('people', space, infected=[1.0, 0.0, 0.0, 0.0, 0.0]),
+        elements=[
+            LatticeElement(
+                'people',
+                element=PersonElement,
+                space=space,
+                values={'infected': [1.0, 0.0, 0.0, 0.0, 0.0]},
+            ),
             GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work'),
         ],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
@@ -211,14 +249,20 @@ def test_two_layers_carry_infection_and_wages_apart():
 def test_edge_states_weigh_neighbourhood_reductions(backend):
     """Test that a reduction over a network weighs every neighbour with the state of the edge that joins them."""
     space = NetworkSpace(nx.path_graph(4))
-    WeightedInteraction = BaseInteraction.define(
-        'WeightedInteraction',
-        roles=['nodes', 'links'],
-        laws=lambda s: [RateLaw(s.nodes.theta, neighbors(s.nodes.other.theta, weight=s.links.w))],
-    )
+
+    class WeightedInteraction(BaseInteraction):
+        """Weighted interaction."""
+
+        nodes = role()
+        links = role()
+
+        def laws(self, s):
+            """Return the laws of the weighted interaction."""
+            return [RateLaw(s.nodes.theta, neighbors(s.nodes.other.theta, weight=s.links.w))]
+
     system = System(
-        components=[
-            OscillatorElement.lattice('nodes', space, theta=[1.0, 2.0, 3.0, 4.0]),
+        elements=[
+            LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': [1.0, 2.0, 3.0, 4.0]}),
             GroupElement(
                 'links',
                 element=SynapseElement,
@@ -243,8 +287,8 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rng = np.random.default_rng(1)
     theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
     system = System(
-        components=[
-            OscillatorElement.lattice('oscillators', space, theta=theta),
+        elements=[
+            LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}),
             GroupElement('links', element=SynapseElement, space=space, on='edges', values={'w': weights}),
         ],
         interactions=[CouplingInteraction('coupling', oscillators='oscillators', links='links')],
@@ -261,18 +305,35 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
 
 def test_edge_jumps_change_the_ends_of_their_edge():
     """Test that a jump law of an edge changes the states at its ends and that its channels follow the edges."""
-    SISElement = Element.define('SISElement', states={'s': 1.0, 'i': 0.0})
-    SpreadInteraction = BaseInteraction.define(
-        'SpreadInteraction',
-        roles=['nodes'],
-        parameters={'beta': 1.0},
-        over='neighbors',
-        laws=lambda s: [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})],
-    )
+
+    class SISElement(Element):
+        """S i s element."""
+
+        s = state(1.0)
+        i = state(0.0)
+
+    class SpreadInteraction(BaseInteraction):
+        """Spread interaction."""
+
+        over = 'neighbors'
+        nodes = role()
+        beta = parameter(1.0)
+
+        def laws(self, s):
+            """Return the laws of the spread interaction."""
+            return [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})]
+
     graph = nx.DiGraph([(0, 1), (1, 2), (2, 3)])
     space = NetworkSpace(graph)
     system = System(
-        components=[SISElement.lattice('nodes', space, s=[0.0, 1.0, 1.0, 1.0], i=[1.0, 0.0, 0.0, 0.0])],
+        elements=[
+            LatticeElement(
+                'nodes',
+                element=SISElement,
+                space=space,
+                values={'s': [0.0, 1.0, 1.0, 1.0], 'i': [1.0, 0.0, 0.0, 0.0]},
+            ),
+        ],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).run(until=60.0).trajectory_
@@ -281,17 +342,29 @@ def test_edge_jumps_change_the_ends_of_their_edge():
 
 def test_edge_interactions_run_on_lattice_bonds():
     """Test that an interaction over neighbours on a lattice runs once per bond of neighbouring sites."""
-    DiffusionInteraction = BaseInteraction.define(
-        'DiffusionInteraction',
-        roles=['cells'],
-        over='neighbors',
-        laws=lambda s: [
-            RateLaw(s.source.theta, s.target.theta - s.source.theta),
-            RateLaw(s.target.theta, s.source.theta - s.target.theta),
-        ],
-    )
+
+    class DiffusionInteraction(BaseInteraction):
+        """Diffusion interaction."""
+
+        over = 'neighbors'
+        cells = role()
+
+        def laws(self, s):
+            """Return the laws of the diffusion interaction."""
+            return [
+                RateLaw(s.source.theta, s.target.theta - s.source.theta),
+                RateLaw(s.target.theta, s.source.theta - s.target.theta),
+            ]
+
     system = System(
-        components=[OscillatorElement.lattice('cells', LatticeSpace(4), theta=[1.0, 0.0, 0.0, 0.0])],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=OscillatorElement,
+                space=LatticeSpace(4),
+                values={'theta': [1.0, 0.0, 0.0, 0.0]},
+            ),
+        ],
         interactions=[DiffusionInteraction('diffusion', cells='cells')],
     )
     problem = compile_system(system)
@@ -301,11 +374,16 @@ def test_edge_interactions_run_on_lattice_bonds():
 
 def test_update_laws_set_the_edge_member_only():
     """Test that an update law of an edge sets the edge member, and one that sets an end raises an error."""
-    ContactElement = Element.define('ContactElement', states={'contacted': 0.0})
+
+    class ContactElement(Element):
+        """Contact element."""
+
+        contacted = state(0.0)
+
     space = NetworkSpace(nx.path_graph(3))
     system = System(
-        components=[
-            PersonElement.lattice('people', space, infected=[1.0, 0.0, 0.0]),
+        elements=[
+            LatticeElement('people', element=PersonElement, space=space, values={'infected': [1.0, 0.0, 0.0]}),
             GroupElement('contacts', element=ContactElement, space=space, on='edges'),
         ],
         interactions=[InfectionInteraction('infection', people='people', contacts='contacts')],
@@ -317,11 +395,16 @@ def test_update_laws_set_the_edge_member_only():
 
 def test_edge_group_of_another_layer_is_rejected():
     """Test that an interaction that names another layer than its edge group raises a role error."""
-    JobElement = Element.define('JobElement', states={'salary': 1.0})
-    space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))])
+
+    class JobElement(Element):
+        """Job element."""
+
+        salary = state(1.0)
+
+    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
     system = System(
-        components=[
-            PersonElement.lattice('people', space),
+        elements=[
+            LatticeElement('people', element=PersonElement, space=space),
             GroupElement('jobs', element=JobElement, space=space, on='edges'),
         ],
         interactions=[WagesInteraction('wages', people='people', jobs='jobs', layer='work')],
@@ -332,9 +415,9 @@ def test_edge_group_of_another_layer_is_rejected():
 
 def test_validation_reports_a_missing_layer():
     """Test that an interaction that names a layer the network lacks gets a binding issue listing the layers."""
-    space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))])
+    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
     system = System(
-        components=[PersonElement.lattice('people', space)],
+        elements=[LatticeElement('people', element=PersonElement, space=space)],
         interactions=[ContagionInteraction('contagion', people='people', layer='trade')],
     )
     issues = validate(system).issues

@@ -10,6 +10,7 @@ from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 class PolyaUrnElement(Element):
@@ -101,4 +102,13 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
         >>> polya_urn(3).elements[0].size
         3
     """
-    return System(components=[PolyaUrnElement.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])
+    return System(
+        elements=[
+            GroupElement(
+                'urns',
+                element=PolyaUrnElement,
+                size=n_urns,
+                values={'red': float(red), 'blue': float(blue), 'added': added},
+            ),
+        ],
+    )

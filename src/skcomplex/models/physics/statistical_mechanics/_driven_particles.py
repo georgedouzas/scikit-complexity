@@ -11,9 +11,11 @@ import numpy.typing as npt
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, shift_member, where
-from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -306,7 +308,7 @@ class ReservoirInteraction(BaseInteraction):
     field='physics/statistical_mechanics',
     tags=('zero-range process', 'condensation', 'nonequilibrium', 'jump process'),
     references=('Evans and Hanney 2005', 'Bertin 2021'),
-    defaults={'until': 2000.0, 'dt': 10.0, 'backend': 'numba'},
+    defaults={'until': 2000.0, 'dt': 10.0, 'backend': NumbaBackend()},
 )
 def zero_range_process(
     n_sites: int = 50,
@@ -354,15 +356,15 @@ def zero_range_process(
         (20.0, 1)
     """
     occupations = _scatter(round(density * n_sites), n_sites, random_state)
-    sites = ParticleSiteElement.lattice('sites', LatticeSpace(n_sites), n=occupations)
-    return System(components=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=p, q=q, b=b)])
+    sites = LatticeElement('sites', element=ParticleSiteElement, space=LatticeSpace(n_sites), values={'n': occupations})
+    return System(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=p, q=q, b=b)])
 
 
 @register_model(
     field='physics/statistical_mechanics',
     tags=('zero-range process', 'energy cascade', 'nonequilibrium', 'tree', 'jump process'),
     references=('Bertin 2021', 'Bertin 2005'),
-    defaults={'until': 200.0, 'dt': 1.0, 'backend': 'numba'},
+    defaults={'until': 200.0, 'dt': 1.0, 'backend': NumbaBackend()},
 )
 def dissipative_zero_range(
     n_levels: int = 5,
@@ -417,7 +419,7 @@ def dissipative_zero_range(
         (13, 14)
     """
     n_nodes = _level_start(n_levels + 1, branches)
-    nodes = TreeNodeElement.group('nodes', n_nodes, x=_tree_layout(n_levels, branches))
+    nodes = GroupElement('nodes', element=TreeNodeElement, size=n_nodes, values={'x': _tree_layout(n_levels, branches)})
     interactions: list[BaseInteraction] = []
     for level in range(1, n_levels):
         rate = nu * float(branches ** (level - 1)) ** alpha
@@ -434,14 +436,14 @@ def dissipative_zero_range(
         ReservoirInteraction('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
         ReservoirInteraction('dissipation', sites=leaves, exit=dissipation),
     ]
-    return System(components=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+    return System(elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
     field='physics/statistical_mechanics',
     tags=('exclusion', 'nonequilibrium', 'phase transition', 'traffic', 'jump process'),
     references=('Derrida, Evans, Hakim, and Pasquier 1993', 'Bertin 2021'),
-    defaults={'until': 500.0, 'dt': 2.0, 'backend': 'numba'},
+    defaults={'until': 500.0, 'dt': 2.0, 'backend': NumbaBackend()},
 )
 def asep(
     n_sites: int = 100,
@@ -493,10 +495,15 @@ def asep(
         3
     """
     occupied = (np.random.default_rng(random_state).random(n_sites) < density).astype(float)
-    lane = ParticleSiteElement.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
+    lane = LatticeElement(
+        'lane',
+        element=ParticleSiteElement,
+        space=LatticeSpace(n_sites, boundary='fixed'),
+        values={'n': occupied},
+    )
     interactions = [
         ExclusionHopsInteraction('hops', sites='lane', p=p, q=q),
         ReservoirInteraction('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
         ReservoirInteraction('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
     ]
-    return System(components=[lane], interactions=interactions)
+    return System(elements=[lane], interactions=interactions)

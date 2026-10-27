@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from skcomplex.analysis import controllability, linearize
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import controllability, linearize
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
 from skcomplex.models.engineering.control import CartPendulumElement
@@ -22,7 +22,7 @@ def test_pid_inverted_pendulum_returns_upright():
 def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
     trajectory = (
-        Simulation(System(components=[CartPendulumElement('cart', theta=0.1)]), dt=0.1).run(until=1.0).trajectory_
+        Simulation(System(elements=[CartPendulumElement('cart', theta=0.1)]), dt=0.1).run(until=1.0).trajectory_
     )
     assert trajectory.values('cart.theta')[-1] > 0.5
 
@@ -39,6 +39,6 @@ def test_lqr_oscillator_comes_to_rest():
 def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
     plant = run('lqr_oscillator', settings={'until': 0.1}).system
-    plant = System(components=list(plant.components))
+    plant = System(elements=list(plant.components))
     model = linearize(plant)
     assert controllability(model.A, model.B) == 2

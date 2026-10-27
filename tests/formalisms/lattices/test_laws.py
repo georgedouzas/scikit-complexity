@@ -3,15 +3,16 @@
 import pytest
 
 from skcomplex.core.base import symbol
-from skcomplex.core.space import Neighborhood
-from skcomplex.formalisms.lattices import DriveLaw, Energy, LocalRuleLaw, MoveLaw, RelaxationLaw, SampleLaw, SamplerLaw
+from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
+from skcomplex.core.spaces import VonNeumannNeighborhood
+from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
 
 
 def test_relaxation_targets_the_states_of_its_relaxation_laws():
     """Test that a relaxation checks its laws and targets the states they change, in order of first appearance."""
     height, grains = symbol('height'), symbol('grains')
-    topple = LocalRuleLaw((height, grains), Neighborhood.von_neumann(center=True), lambda z, *n: z)
-    settle = LocalRuleLaw(height, Neighborhood.von_neumann(center=True), lambda z, *n: z)
+    topple = LocalRuleLaw((height, grains), VonNeumannNeighborhood(center=True), lambda z, *n: z)
+    settle = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z)
     drop = DriveLaw(height, lambda values, *, random: values + 1)
     law = RelaxationLaw([drop], [topple, settle], lambda *values: True).check()
     assert law.targets == (height, grains)
@@ -22,18 +23,20 @@ def test_relaxation_targets_the_states_of_its_relaxation_laws():
 def test_sample_targets_the_state_of_its_move():
     """Test that a Monte Carlo sample checks its move and sampler and targets the moved state."""
     spin = symbol('spin')
-    law = SampleLaw(Energy(-spin, Neighborhood.von_neumann()), MoveLaw.flip(spin), SamplerLaw('glauber', 2.0)).check()
+    law = SampleLaw(
+        EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec.flip(spin), SamplerSpec('glauber', 2.0)
+    ).check()
     assert law.targets == (spin,)
     assert law.move.targets == (spin,)
     with pytest.raises(ValueError, match='Unknown sampler'):
-        SampleLaw(Energy(-spin, Neighborhood.von_neumann()), MoveLaw.flip(spin), SamplerLaw('other')).check()
+        SampleLaw(EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec.flip(spin), SamplerSpec('other')).check()
 
 
 @pytest.mark.parametrize(
     'law',
     [
         DriveLaw((symbol('a'), symbol('b')), lambda values, *, random: values),
-        MoveLaw((symbol('a'), symbol('b'))),
+        MoveSpec((symbol('a'), symbol('b'))),
     ],
 )
 def test_laws_of_one_lattice_state_reject_several_targets(law):

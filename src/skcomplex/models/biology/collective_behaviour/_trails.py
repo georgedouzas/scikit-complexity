@@ -9,12 +9,14 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
 GROUND = 'land/ground.G'
 TRAIL = 'land/ground.V'
@@ -115,7 +117,7 @@ class WalkerElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import WalkerElement
-        >>> WalkerElement.group('walkers', 4, location=(0, 0)).size
+        >>> GroupElement('walkers', element=WalkerElement, size=4, location=(0, 0)).size
         4
     """
 
@@ -229,15 +231,18 @@ def active_walkers(
     corners = _corners(size, size)
     starts = rng.integers(len(corners), size=n_walkers)
     goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
-    walkers = WalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
+        element=WalkerElement,
+        size=n_walkers,
+        values={
+            'goal_x': np.array([float(goal[0]) for goal in goals]),
+            'goal_y': np.array([float(goal[1]) for goal in goals]),
+            'attraction': attraction,
+            'width': float(size),
+            'height': float(size),
+        },
         location=[corners[start] for start in starts],
-        goal_x=np.array([float(goal[0]) for goal in goals]),
-        goal_y=np.array([float(goal[1]) for goal in goals]),
-        attraction=attraction,
-        width=float(size),
-        height=float(size),
     )
     ground = FieldElement(
         'ground',
@@ -246,8 +251,8 @@ def active_walkers(
         values={'T': T},
     )
     return System(
-        components=[
-            System('people', components=[walkers], space=LatticeSpace((size, size), boundary='fixed')),
-            System('land', components=[ground]),
+        systems=[
+            System('people', elements=[walkers], space=LatticeSpace((size, size), boundary='fixed')),
+            System('land', elements=[ground]),
         ],
     )

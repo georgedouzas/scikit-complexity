@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.engine.analysis import autocorrelation
+from skcomplex.analysis import autocorrelation
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.systems_biology import (
     negative_autoregulation,

@@ -10,11 +10,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import NetworkSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class ThresholdNodeElement(Element):
@@ -32,7 +33,7 @@ class ThresholdNodeElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.spreading import ThresholdNodeElement
-        >>> group = ThresholdNodeElement.group('nodes', 10, threshold=0.18)
+        >>> group = GroupElement('nodes', element=ThresholdNodeElement, size=10, values={'threshold': 0.18})
         >>> group.label, group.element.__name__, group.size
         ('nodes', 'ThresholdNodeElement', 10)
     """
@@ -114,5 +115,10 @@ def watts_cascades(
     size = nx.number_of_nodes(graph)
     active = np.zeros(size)
     active[rng.choice(size, seeds, replace=False)] = 1.0
-    nodes = ThresholdNodeElement.group('nodes', size, active=active, threshold=threshold)
-    return System(components=[nodes], space=NetworkSpace(graph))
+    nodes = GroupElement(
+        'nodes',
+        element=ThresholdNodeElement,
+        size=size,
+        values={'active': active, 'threshold': threshold},
+    )
+    return System(elements=[nodes], space=NetworkSpace(graph))

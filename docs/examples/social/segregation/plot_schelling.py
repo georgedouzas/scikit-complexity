@@ -14,7 +14,7 @@ segregated than anyone's preference.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import like_neighbor_share
+from skcomplex.analysis import like_neighbor_share
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

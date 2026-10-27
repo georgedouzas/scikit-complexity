@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 
 TOLERANCE = 1e-9
@@ -57,7 +59,7 @@ class DepositorElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import DepositorElement
-        >>> DepositorElement.group('customers', 10, deposit=5.0).size
+        >>> GroupElement('customers', element=DepositorElement, size=10, values={'deposit': 5.0}).size
         10
     """
 
@@ -165,7 +167,7 @@ class ReserveBankElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import ReserveBankElement
-        >>> ReserveBankElement.group('banks', 3, index=[0, 1, 2]).size
+        >>> GroupElement('banks', element=ReserveBankElement, size=3, values={'index': [0, 1, 2]}).size
         3
     """
 
@@ -292,9 +294,9 @@ class RegulatorInteraction(InstitutionInteraction):
     references=('Hamill and Gilbert 2016 ch. 9',),
     defaults={'until': 300},
     observables=lambda system: [
-        Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
-        Observable('reserves', group='banks', variable='reserves', reduce='sum'),
-        Observable('loans', group='banks', variable='loans', reduce='sum'),
+        ObservableSpec('broad_money', group='banks', variable='deposits', reduce='sum'),
+        ObservableSpec('reserves', group='banks', variable='reserves', reduce='sum'),
+        ObservableSpec('loans', group='banks', variable='loans', reduce='sum'),
     ],
 )
 def fractional_reserve_banking(
@@ -360,21 +362,17 @@ def fractional_reserve_banking(
     owners = rng.integers(banks, size=customers)
     deposit = base_money / customers
     holdings = np.bincount(owners, minlength=banks) * deposit
-    depositors = DepositorElement.group(
+    depositors = GroupElement(
         'customers',
-        customers,
-        bank=owners,
-        deposit=deposit,
-        spending=spending,
-        repayment=repayment,
+        element=DepositorElement,
+        size=customers,
+        values={'bank': owners, 'deposit': deposit, 'spending': spending, 'repayment': repayment},
     )
-    lenders = ReserveBankElement.group(
+    lenders = GroupElement(
         'banks',
-        banks,
-        index=np.arange(banks),
-        reserves=holdings,
-        deposits=holdings,
-        reserve_ratio=ratio,
+        element=ReserveBankElement,
+        size=banks,
+        values={'index': np.arange(banks), 'reserves': holdings, 'deposits': holdings, 'reserve_ratio': ratio},
     )
     regulator = RegulatorInteraction(
         'regulator',
@@ -384,7 +382,9 @@ def fractional_reserve_banking(
         change_at=change_at,
     )
     return System(
-        components=[depositors, lenders],
+        elements=[depositors, lenders],
         interactions=[regulator],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('regulate'), Phase('pay'), Phase('lend', repeat=10)])),
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
+        ),
     )

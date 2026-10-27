@@ -247,7 +247,7 @@ def random_boolean_network(
         )
         for index in range(n_nodes)
     ]
-    return System(components=nodes, interactions=functions)
+    return System(elements=nodes, interactions=functions)
 
 
 @register_model(
@@ -288,4 +288,4 @@ def yeast_cell_cycle(active: Sequence[str] = YEAST_START) -> System:
         )
         for name in YEAST_NODES
     ]
-    return System(components=nodes, interactions=functions)
+    return System(elements=nodes, interactions=functions)

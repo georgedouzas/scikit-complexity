@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class ContenderElement(Element):
@@ -39,7 +40,7 @@ class ContenderElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import ContenderElement
-        >>> group = ContenderElement.group('contenders', 10)
+        >>> group = GroupElement('contenders', element=ContenderElement, size=10)
         >>> group.label, group.element.__name__, group.size
         ('contenders', 'ContenderElement', 10)
     """
@@ -141,11 +142,11 @@ def bonabeau_hierarchies(
     """
     size = int(width * height * density)
     cells = np.random.default_rng(random_state).permutation(width * height)[:size]
-    contenders = ContenderElement.group(
+    contenders = GroupElement(
         'contenders',
-        size,
+        element=ContenderElement,
+        size=size,
+        values={'eta': eta, 'relaxation': relaxation},
         location=[(int(cell % width), int(cell // width)) for cell in cells],
-        eta=eta,
-        relaxation=relaxation,
     )
-    return System(components=[contenders], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
+    return System(elements=[contenders], space=LatticeSpace((width, height), boundary='periodic', capacity=1))

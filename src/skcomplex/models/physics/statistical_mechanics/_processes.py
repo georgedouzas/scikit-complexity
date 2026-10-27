@@ -11,12 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import DriveLaw, LocalRuleLaw, RuleLaw, Symbols
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.lattices import DriveLaw, LocalRuleLaw
+from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -119,7 +119,7 @@ class Q2RSpinElement(Element):
             laws:
                 The laws of the component.
         """
-        nearest = Neighborhood.von_neumann(n_dim=self.n_dim, center=True)
+        nearest = VonNeumannNeighborhood(n_dim=self.n_dim, center=True)
         return [LocalRuleLaw((s.spin, s.phase), nearest, _flip_without_cost, reads=(s.spin, s.phase))]
 
 
@@ -155,7 +155,7 @@ class PercolationSiteElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.cover, Neighborhood.von_neumann(center=True), _burn)]
+        return [LocalRuleLaw(s.cover, VonNeumannNeighborhood(center=True), _burn)]
 
 
 class ContactSiteElement(Element):
@@ -199,7 +199,7 @@ class ContactSiteElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.infected, Neighborhood.von_neumann(center=True), _spread, stochastic=True)]
+        return [LocalRuleLaw(s.infected, VonNeumannNeighborhood(center=True), _spread, stochastic=True)]
 
 
 class ExclusionSiteElement(Element):
@@ -359,8 +359,13 @@ def q2r(
     shape = tuple(shape)
     spins = np.where(np.random.default_rng(random_state).random(shape) < up, 1.0, -1.0)
     space = LatticeSpace(shape)
-    group = Q2RSpinElement.lattice('spins', space, spin=spins, phase=_checkerboard(shape), n_dim=len(shape))
-    return System(components=[group])
+    group = LatticeElement(
+        'spins',
+        element=Q2RSpinElement,
+        space=space,
+        values={'spin': spins, 'phase': _checkerboard(shape), 'n_dim': len(shape)},
+    )
+    return System(elements=[group])
 
 
 @register_model(
@@ -403,7 +408,9 @@ def site_percolation(
     cover = (np.random.default_rng(random_state).random(shape) < p).astype(float)
     cover[0] *= BURNING
     space = LatticeSpace(shape, boundary='fixed')
-    return System(components=[PercolationSiteElement.lattice('lattice', space, cover=cover)])
+    return System(
+        elements=[LatticeElement('lattice', element=PercolationSiteElement, space=space, values={'cover': cover})],
+    )
 
 
 @register_model(
@@ -452,7 +459,16 @@ def contact_process(
     shape = tuple(shape)
     states = (np.random.default_rng(random_state).random(shape) < infected).astype(float)
     space = LatticeSpace(shape)
-    return System(components=[ContactSiteElement.lattice('lattice', space, infected=states, rate=rate, tau=tau)])
+    return System(
+        elements=[
+            LatticeElement(
+                'lattice',
+                element=ContactSiteElement,
+                space=space,
+                values={'infected': states, 'rate': rate, 'tau': tau},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -511,8 +527,13 @@ def tasep(
     occupied = np.zeros(n_sites)
     occupied[rng.choice(n_sites, round(density * n_sites), replace=False)] = 1.0
     space = LatticeSpace(n_sites, boundary='periodic' if ring else 'fixed')
-    lane = ExclusionSiteElement.lattice('lane', space, occupied=occupied, p=p, alpha=alpha, beta=beta, ring=ring)
-    return System(components=[lane])
+    lane = LatticeElement(
+        'lane',
+        element=ExclusionSiteElement,
+        space=space,
+        values={'occupied': occupied, 'p': p, 'alpha': alpha, 'beta': beta, 'ring': ring},
+    )
+    return System(elements=[lane])
 
 
 @register_model(
@@ -557,13 +578,14 @@ def diffusion_limited_aggregation(
     cells[0] = middle
     stuck = np.zeros(n_walkers)
     stuck[0] = 1.0
-    walkers = WalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
+        element=WalkerElement,
+        size=n_walkers,
+        values={'stuck': stuck},
         location=[tuple(map(int, cell)) for cell in cells],
-        stuck=stuck,
     )
     return System(
-        components=[walkers],
+        elements=[walkers],
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
     )

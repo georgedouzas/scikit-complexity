@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.analysis import fano_factor
+from skcomplex.analysis import fano_factor
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

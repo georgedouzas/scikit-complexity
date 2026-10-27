@@ -10,11 +10,14 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 from ..realizations._markets import Trade
 
 
@@ -24,13 +27,13 @@ def _largest_share(sales: Any) -> float:  # noqa: ANN401
     return float(values.max() / values.sum()) if values.size and values.sum() > 0 else 0.0
 
 
-def _shops_observables(system: System) -> list[Observable]:
+def _shops_observables(system: System) -> list[ObservableSpec]:
     """Return the number of shops, their mean price, and the share of the sales of the largest shop."""
     del system
     return [
-        Observable('open_shops', group='shops', variable='price', reduce='count'),
-        Observable('mean_price', group='shops', variable='price', reduce='mean'),
-        Observable('concentration', group='shops', variable='sales', reduce=_largest_share),
+        ObservableSpec('open_shops', group='shops', variable='price', reduce='count'),
+        ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
+        ObservableSpec('concentration', group='shops', variable='sales', reduce=_largest_share),
     ]
 
 
@@ -119,7 +122,7 @@ class ResidentElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ResidentElement
-        >>> ResidentElement.group('shoppers', 3, online=1.0).size
+        >>> GroupElement('shoppers', element=ResidentElement, size=3, values={'online': 1.0}).size
         3
     """
 
@@ -205,7 +208,7 @@ class StoreElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import StoreElement
-        >>> StoreElement.group('shops', 4, price=10.0).size
+        >>> GroupElement('shops', element=StoreElement, size=4, values={'price': 10.0}).size
         4
     """
 
@@ -399,26 +402,28 @@ def shops(
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
     places = rng.choice(len(cells), size=min(n_shops, len(cells)), replace=False)
-    shoppers = ResidentElement.group(
+    shoppers = GroupElement(
         'shoppers',
-        len(cells),
+        element=ResidentElement,
+        size=len(cells),
+        values={'bid': value, 'online': online, 'distance_cost': distance_cost},
         location=cells,
-        bid=value,
-        online=online,
-        distance_cost=distance_cost,
     )
-    stores = StoreElement.group(
+    stores = GroupElement(
         'shops',
-        len(places),
+        element=StoreElement,
+        size=len(places),
+        values={
+            'price': rng.uniform(0.25 * value, 0.75 * value, len(places)),
+            'capacity': capacity,
+            'fixed_cost': fixed_cost,
+        },
         variable=True,
         location=[cells[index] for index in places],
-        price=rng.uniform(0.25 * value, 0.75 * value, len(places)),
-        capacity=capacity,
-        fixed_cost=fixed_cost,
     )
     return System(
-        components=[shoppers, stores],
+        elements=[shoppers, stores],
         interactions=[ShoppingInteraction('shopping', shoppers='shoppers', shops='shops')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='moore'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('market'), Phase('accounts')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
     )

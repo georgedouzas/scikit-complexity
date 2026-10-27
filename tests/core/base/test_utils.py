@@ -16,7 +16,7 @@ from skcomplex.core.base import (
 )
 
 SOURCE = str(Path(str(files('skcomplex'))))
-PACKAGES = ('skcomplex.core', 'skcomplex.engine', 'skcomplex.formalisms')
+PACKAGES = ('skcomplex.core', 'skcomplex.engine', 'skcomplex.experiments', 'skcomplex.analysis')
 ARITHMETIC = {
     '__add__',
     '__radd__',
@@ -92,7 +92,9 @@ def test_no_class_defines_magic_methods():
             if cls.__module__ != module.__name__:
                 continue
             extra = set(_hand_written(cls)) - {'__init__'}
-            if cls.__qualname__ == 'Operator' and module.__name__.startswith('skcomplex.formalisms.quantum'):
+            if cls.__qualname__ == 'Operator' and module.__name__.startswith(
+                'skcomplex.engine.compile._quantum_operators',
+            ):
                 extra -= ARITHMETIC
             if extra:
                 found[f'{module.__name__}.{cls.__qualname__}'] = sorted(extra)

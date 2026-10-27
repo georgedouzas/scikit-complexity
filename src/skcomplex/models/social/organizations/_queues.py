@@ -9,10 +9,11 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class TaskElement(Element):
@@ -36,7 +37,7 @@ class TaskElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import TaskElement
-        >>> group = TaskElement.group('tasks', 2, priority=[0.2, 0.7])
+        >>> group = GroupElement('tasks', element=TaskElement, size=2, values={'priority': [0.2, 0.7]})
         >>> group.label, group.element.__name__, group.size
         ('tasks', 'TaskElement', 2)
     """
@@ -139,5 +140,5 @@ def priority_queues(
         3
     """
     priorities = np.random.default_rng(random_state).random(n_tasks)
-    tasks = TaskElement.group('tasks', n_tasks, priority=priorities, greed=greed)
-    return System(components=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])
+    tasks = GroupElement('tasks', element=TaskElement, size=n_tasks, values={'priority': priorities, 'greed': greed})
+    return System(elements=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])

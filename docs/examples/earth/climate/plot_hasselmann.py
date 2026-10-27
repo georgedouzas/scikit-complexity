@@ -12,7 +12,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import autocorrelation, histogram
+from skcomplex.analysis import autocorrelation, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver

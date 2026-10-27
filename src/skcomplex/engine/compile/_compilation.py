@@ -7,11 +7,13 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...core.base import BaseLaw, Expression, Form
-from ...core.laws import EventLaw
-from ...core.problems import BaseBackend, Lowered, Output, Problem, ReductionSchedule
-from ...core.problems._problem import _MarkovMatrix
+from sage.all__sagemath_symbolics import Expression
+
+from ...core.laws import BaseLaw, CrossingLaw
 from ...core.system import System
+from ..backends import BaseBackend
+from ..problems import Form, Lowered, Output, Problem, ReductionSchedule
+from ..problems._problem import _MarkovMatrix
 from ._census import Census
 from ._declarations import Block, Declarations
 from ._jacobians import ExactJacobian
@@ -40,10 +42,10 @@ class Compilation:
             The system, with the observables of the run.
 
         backend:
-            `'auto'`, a registered backend name, or a backend instance.
+            The backend instance, or `None` for the backend that suits the size of the system.
 
         solver:
-            `'auto'`, a registered solver name, or a solver instance.
+            The solver instance, or `None` for the default solver of the system's form.
 
         owners:
             The paths of the elements and groups whose laws a partition keeps, or `None` to keep every law.
@@ -146,15 +148,15 @@ class Compilation:
             kernels take in place of the outputs of the law's value.
 
         facts:
-            The facts that the passes of formalisms record, by name.
+            The facts that passes record, by name.
 
         done:
             The passes that ran.
     """
 
     system: System
-    backend: str | BaseBackend = 'auto'
-    solver: object = 'auto'
+    backend: BaseBackend | None = None
+    solver: object = None
     owners: frozenset[str] | None = None
     held: tuple[str, ...] = ()
     nodes: list[Node] | None = None
@@ -185,7 +187,7 @@ class Compilation:
     problem: Problem | None = None
     delays: list[dict[str, Any]] = field(default_factory=list)
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
-    events: list[tuple[KernelSpec, EventLaw]] = field(default_factory=list)
+    events: list[tuple[KernelSpec, CrossingLaw]] = field(default_factory=list)
     renewals: list[BoundRenewal] = field(default_factory=list)
     outputs: dict[int, list[Output]] = field(default_factory=dict)
     facts: dict[str, Any] = field(default_factory=dict)

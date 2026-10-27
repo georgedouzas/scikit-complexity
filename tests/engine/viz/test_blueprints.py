@@ -2,10 +2,11 @@
 
 import pytest
 import rerun.blueprint as rrb
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
-from skcomplex.core.components import Element
-from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.elements import FieldElement, GroupElement
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -20,7 +21,6 @@ from skcomplex.engine.viz import (
     primary_view,
     save_blueprint,
 )
-from skcomplex.formalisms.fields import FieldElement
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.heat import HeatElement
@@ -83,13 +83,16 @@ def test_default_blueprint_shows_one_dimensional_points_over_whole_run():
 
 def test_default_blueprint_shows_other_states_of_points_over_whole_run():
     """Test that the time series view of the other states of two-dimensional points shows the whole run."""
-    WalkerElement = Element.define(
-        'WalkerElement',
-        states={'x': state(0.0, vector=True), 'energy': 0.0},
-        visual=VisualSpec('points', {'position': 'x'}),
-    )
+
+    class WalkerElement(Element):
+        """Walker element."""
+
+        visual = VisualSpec('points', {'position': 'x'})
+        x = state(0.0, vector=True)
+        energy = state(0.0)
+
     blueprint = default_blueprint(
-        System(components=[WalkerElement.group('walkers', 3)], space=ContinuousSpace(n_dim=2)),
+        System(elements=[GroupElement('walkers', element=WalkerElement, size=3)], space=ContinuousSpace(n_dim=2)),
     )
     assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
     assert _whole_run_series(blueprint)
@@ -125,7 +128,7 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 def test_default_blueprint_splits_series_by_six():
     """Test that a type with more than six series is split over several views."""
-    system = System(components=[PopulationElement(f'p{index}') for index in range(8)])
+    system = System(elements=[PopulationElement(f'p{index}') for index in range(8)])
     names = [str(view.name) for view in _views(default_blueprint(system))]
     assert names == ['PopulationElement 1', 'PopulationElement 2']
 
@@ -239,4 +242,4 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
     field = FieldElement('plate', HeatElement, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
-    assert compile_system(System(components=[field])).elements[0].visual.kind == 'sites'
+    assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'

@@ -8,9 +8,10 @@ from sage.all__sagemath_symbolics import exp, log
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.control import CollocationSolver
+from ....engine.solvers import CollocationSolver
 
 MIN_CONSUMPTION = 0.05
 MAX_CONSUMPTION = 5.0
@@ -108,7 +109,7 @@ class RamseyEconomyElement(Element):
         'dt': 0.5,
         'solver': CollocationSolver(objective=_utility, terminal=_capital_value, sense='max', nodes=81),
     },
-    observables=lambda system: [Observable('saving_rate', _saving_rate)],
+    observables=lambda system: [ObservableSpec('saving_rate', _saving_rate)],
 )
 def optimal_consumption(
     k: float = 1.0,
@@ -152,4 +153,4 @@ def optimal_consumption(
         >>> optimal_consumption(rho=0.05).components[0].rho
         0.05
     """
-    return System(components=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])
+    return System(elements=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])

@@ -11,12 +11,13 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
 
-from ...core.base import Expression, Indices, ValidationError, Vector, symbols_of
-from ...core.problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function
-from ...core.problems._kernels import member_indices
-from ...core.problems._reductions import CompiledReduction
+from ...core.errors import ValidationError
+from ...core.types import Indices, Vector
+from ..problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function, symbols_of
+from ..problems._kernels import member_indices
+from ..problems._reductions import CompiledReduction
 
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]

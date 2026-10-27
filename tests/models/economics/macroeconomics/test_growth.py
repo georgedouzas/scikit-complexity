@@ -21,7 +21,7 @@ def test_solow_reaches_steady_state():
     """Test that Solow capital approaches `(s / delta) ** (1 / (1 - alpha))`."""
     s, alpha, delta = 0.3, 0.4, 0.1
     system = System(
-        components=[EconomyElement('country', k=1.0)],
+        elements=[EconomyElement('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
     capital = Simulation(system, dt=10.0).run(until=300).trajectory_.values('country.k')[-1]

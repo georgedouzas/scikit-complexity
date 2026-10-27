@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.analysis import flow_matrix
+from skcomplex.analysis import flow_matrix
 from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

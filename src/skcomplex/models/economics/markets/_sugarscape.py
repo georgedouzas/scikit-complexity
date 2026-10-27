@@ -10,11 +10,13 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime, LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 
 type Array = npt.NDArray[np.float64]
@@ -73,7 +75,7 @@ class PatchElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import PatchElement
-        >>> PatchElement.group('patches', 4, capacity=2.0).size
+        >>> GroupElement('patches', element=PatchElement, size=4, values={'capacity': 2.0}).size
         4
     """
 
@@ -133,7 +135,7 @@ class ForagerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ForagerElement
-        >>> ForagerElement.group('foragers', 3, vision=2.0).size
+        >>> GroupElement('foragers', element=ForagerElement, size=3, values={'vision': 2.0}).size
         3
     """
 
@@ -322,27 +324,29 @@ def sugarscape(
     rng = np.random.default_rng(random_state)
     capacity = landscape(width, height).ravel()
     cells = [(x, y) for x in range(width) for y in range(height)]
-    patches = PatchElement.group(
+    patches = GroupElement(
         'patches',
-        len(cells),
+        element=PatchElement,
+        size=len(cells),
+        values={'sugar': capacity, 'capacity': capacity, 'growback': growback},
         location=cells,
-        sugar=capacity,
-        capacity=capacity,
-        growback=growback,
     )
     occupied = rng.choice(len(cells), size=min(n_foragers, len(cells)), replace=False)
-    foragers = ForagerElement.group(
+    foragers = GroupElement(
         'foragers',
-        len(occupied),
+        element=ForagerElement,
+        size=len(occupied),
+        values={
+            'sugar': rng.uniform(low_sugar, high_sugar, len(occupied)),
+            'vision': rng.integers(1, max_vision + 1, len(occupied)).astype(float),
+            'metabolism': rng.uniform(1.0, max_metabolism, len(occupied)),
+        },
         variable=True,
         location=[cells[index] for index in occupied],
-        sugar=rng.uniform(low_sugar, high_sugar, len(occupied)),
-        vision=rng.integers(1, max_vision + 1, len(occupied)).astype(float),
-        metabolism=rng.uniform(1.0, max_metabolism, len(occupied)),
     )
     return System(
-        components=[patches, foragers],
+        elements=[patches, foragers],
         interactions=[CensusInteraction('census', foragers='foragers', phase='growth')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('foraging'), Phase('growth')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
     )

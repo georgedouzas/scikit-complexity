@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import ContinuousSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 ROAD_WIDTH = 1.0
 
@@ -60,7 +61,7 @@ class MotoristElement(Element):
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import MotoristElement
-        >>> MotoristElement.group('cars', 3, x=[0.0, 10.0, 20.0]).size
+        >>> GroupElement('cars', element=MotoristElement, size=3, values={'x': [0.0, 10.0, 20.0]}).size
         3
     """
 
@@ -205,7 +206,7 @@ class DriverElement(Element):
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import DriverElement
-        >>> DriverElement.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
+        >>> GroupElement('drivers', element=DriverElement, size=2, location=[(0.0, 0.5), (10.0, 0.5)]).size
         2
     """
 
@@ -300,17 +301,20 @@ def charbonneau_traffic(
     """
     rng = np.random.default_rng(random_state)
     positions = np.cumsum(rng.uniform(3.0, 17.0, n_cars))
-    cars = MotoristElement.group(
+    cars = GroupElement(
         'cars',
-        n_cars,
-        x=positions,
-        v=np.zeros(n_cars),
-        rank=np.arange(n_cars, dtype=float),
-        safe_distance=safe_distance,
-        speed_limit=speed_limit,
+        element=MotoristElement,
+        size=n_cars,
+        values={
+            'x': positions,
+            'v': np.zeros(n_cars),
+            'rank': np.arange(n_cars, dtype=float),
+            'safe_distance': safe_distance,
+            'speed_limit': speed_limit,
+        },
     )
     return System(
-        components=[cars],
+        elements=[cars],
         interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=probability)],
     )
 
@@ -356,12 +360,11 @@ def ring_road_drivers(
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)
-    drivers = DriverElement.group(
+    drivers = GroupElement(
         'drivers',
-        n_cars,
+        element=DriverElement,
+        size=n_cars,
+        values={'rank': np.arange(n_cars, dtype=float), 'eps': eps, 'speed_limit': speed_limit},
         location=[(float(position), ROAD_WIDTH / 2) for position in positions],
-        rank=np.arange(n_cars, dtype=float),
-        eps=eps,
-        speed_limit=speed_limit,
     )
-    return System(components=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, boundary='periodic'))
+    return System(elements=[drivers], space=ContinuousSpace(extent=(length, ROAD_WIDTH), boundary='periodic'))

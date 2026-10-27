@@ -3,26 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import NumericDomain, state
 from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, delayed
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-ClimateAnomalyElement = Element.define(
-    'ClimateAnomalyElement',
-    states={'T': state(default=0.0, domain=NumericDomain.REAL)},
-    parameters={'lam': 0.5, 'sigma': 0.3},
-    laws=lambda s: [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)],
-)
 
-DelayedOscillatorElement = Element.define(
-    'DelayedOscillatorElement',
-    states={'T': state(default=0.1, domain=NumericDomain.REAL)},
-    parameters={'alpha': 0.75, 'delta': 6.0},
-    laws=lambda s: [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))],
-)
+class ClimateAnomalyElement(Element):
+    """Climate anomaly element."""
+
+    T = state(default=0.0, domain=NumericDomain.REAL)
+    lam = parameter(0.5)
+    sigma = parameter(0.3)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the climate anomaly element."""
+        return [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)]
+
+
+class DelayedOscillatorElement(Element):
+    """Delayed oscillator element."""
+
+    T = state(default=0.1, domain=NumericDomain.REAL)
+    alpha = parameter(0.75)
+    delta = parameter(6.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the delayed oscillator element."""
+        return [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))]
 
 
 @register_model(
@@ -56,7 +70,7 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         >>> hasselmann(lam=0.1).elements[0].lam
         0.1
     """
-    return System(components=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)])
+    return System(elements=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)])
 
 
 @register_model(
@@ -92,4 +106,4 @@ def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
         >>> enso(delta=4.0).elements[0].delta
         4.0
     """
-    return System(components=[DelayedOscillatorElement('pacific', T=T, alpha=alpha, delta=delta)])
+    return System(elements=[DelayedOscillatorElement('pacific', T=T, alpha=alpha, delta=delta)])

@@ -11,11 +11,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _widened, colors_of
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 MAX_POINT_DIMENSIONS = 3
 TRAIL_LENGTH = 256
@@ -224,6 +224,3 @@ class PointsVisual(BaseVisual):
             contents = [f'+ {path}/{state}/**' for state in others]
             views.append(rrb.TimeSeriesView(origin=path, contents=contents, name=path))
         return views
-
-
-register_visual('points', PointsVisual)

@@ -45,7 +45,7 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         2.0
     """
     return System(
-        components=[MarketElement('market', price=price)],
+        elements=[MarketElement('market', price=price)],
         interactions=[CobwebInteraction('cobweb', target='market', a=a, b=b, c=c, d=d)],
     )
 

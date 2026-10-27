@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import Element
-from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
-from ....core.space import ContinuousSpace
+from ....core.laws import FractionalNoiseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....formalisms.fractional import FractionalEulerMaruyamaSolver, FractionalNoiseLaw
+from ....engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
+from ...core.elements import GroupElement
 
 POINTS = VisualSpec('points', {'position': 'x'})
 
@@ -317,15 +317,13 @@ def continuous_time_random_walk(
         >>> continuous_time_random_walk(10, alpha=0.7).elements[0].values['alpha']
         0.7
     """
-    walkers = ContinuousTimeWalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
-        x=np.zeros((n_walkers, n_dim)),
-        alpha=alpha,
-        tau0=tau0,
-        sigma=sigma,
+        element=ContinuousTimeWalkerElement,
+        size=n_walkers,
+        values={'x': np.zeros((n_walkers, n_dim)), 'alpha': alpha, 'tau0': tau0, 'sigma': sigma},
     )
-    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -378,16 +376,13 @@ def levy_walk(
     """
     directions = np.random.default_rng(random_state).standard_normal((n_walkers, n_dim))
     velocities = speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
-    walkers = LevyWalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
-        x=np.zeros((n_walkers, n_dim)),
-        v=velocities,
-        sigma=sigma,
-        tau0=tau0,
-        speed=speed,
+        element=LevyWalkerElement,
+        size=n_walkers,
+        values={'x': np.zeros((n_walkers, n_dim)), 'v': velocities, 'sigma': sigma, 'tau0': tau0, 'speed': speed},
     )
-    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -437,15 +432,13 @@ def annealed_transient_time_motion(
         2.0
     """
     coefficients = np.random.default_rng(random_state).beta(sigma, 1.0, n_walkers)
-    walkers = TransientWalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
-        x=np.zeros((n_walkers, n_dim)),
-        D=coefficients,
-        sigma=sigma,
-        gamma=gamma,
+        element=TransientWalkerElement,
+        size=n_walkers,
+        values={'x': np.zeros((n_walkers, n_dim)), 'D': coefficients, 'sigma': sigma, 'gamma': gamma},
     )
-    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -488,8 +481,13 @@ def fractional_brownian_motion(
         >>> fractional_brownian_motion(10, H=0.7).elements[0].values['H']
         0.7
     """
-    walkers = FractionalWalkerElement.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
-    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    walkers = GroupElement(
+        'walkers',
+        element=FractionalWalkerElement,
+        size=n_walkers,
+        values={'x': np.zeros((n_walkers, n_dim)), 'D': D, 'H': H},
+    )
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -532,5 +530,10 @@ def levy_flight(
         >>> levy_flight(10, mu=1.5).elements[0].values['mu']
         1.5
     """
-    walkers = LevyFlierElement.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
-    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    walkers = GroupElement(
+        'walkers',
+        element=LevyFlierElement,
+        size=n_walkers,
+        values={'x': np.zeros((n_walkers, n_dim)), 'mu': mu, 'l0': l0},
+    )
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))

@@ -18,8 +18,8 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
+from skcomplex.analysis import ccdf, gini
 from skcomplex.core.system import Observable
-from skcomplex.engine.analysis import ccdf, gini
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe

@@ -5,13 +5,14 @@
 
 from typing import ClassVar
 
+import networkx as nx
+
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, total, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import add_edge, add_node
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 SMALLEST_TOTAL = 1e-12
@@ -258,7 +259,7 @@ def _nodes(element: type[VertexElement], capacity: int, **values: object) -> Gro
 def _grown(nodes: GroupElement, growth: Element, space: NetworkSpace, capacity: int) -> System:
     """Return a growing network of a group on its nodes, a variable edge group, and the arrival of nodes."""
     links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
-    return System(components=[nodes, links, growth], space=space, time=DiscreteTime())
+    return System(elements=[nodes, links, growth], space=space, time=DiscreteTime())
 
 
 @register_model(
@@ -294,7 +295,7 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
         >>> int(trajectory.network(-1).sources.size)
         23
     """
-    space = NetworkSpace.complete(seed_nodes)
+    space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(VertexElement, n_nodes)
     return _grown(nodes, AttachmentElement('growth', edges=edges), space, edges * n_nodes + seed_nodes**2)
 
@@ -334,7 +335,7 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
         >>> holme_kim(20).components[0].element.__name__
         'TriadVertexElement'
     """
-    space = NetworkSpace.complete(seed_nodes)
+    space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(TriadVertexElement, n_nodes, triad=triad, extra=edges - 1)
     return _grown(nodes, AttachmentElement('growth', edges=1), space, edges * n_nodes + seed_nodes**2)
 
@@ -373,7 +374,7 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
         >>> vertex_copying(20).components[2].randomness
         0.2
     """
-    space = NetworkSpace.complete(seed_nodes)
+    space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(CopyingVertexElement, n_nodes)
     growth = CopyingElement('growth', edges=edges, randomness=randomness)
     return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2)

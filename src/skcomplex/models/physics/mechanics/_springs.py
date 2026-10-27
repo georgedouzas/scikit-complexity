@@ -5,20 +5,29 @@
 
 from sage.all__sagemath_symbolics import cos
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, NumericDomain, parameter
+from ....core.elements import ParticleElement
 from ....core.laws import RateLaw
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleElement
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
-HarmonicForceInteraction = BaseInteraction.define(
-    'HarmonicForceInteraction',
-    roles=['target'],
-    parameters={'F': 0.0, 'omega': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)],
-)
+
+class HarmonicForceInteraction(BaseInteraction):
+    """Harmonic force interaction."""
+
+    target = role()
+    F = parameter(0.0)
+    omega = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the harmonic force interaction."""
+        return [RateLaw(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)]
 
 
 @register_model(
@@ -108,7 +117,7 @@ def two_mass_spring_damper(
     """
     rest1, rest2 = l1, l1 + l2
     return System(
-        components=[ParticleElement('first', x=x1, v=0.0, m=m1), ParticleElement('second', x=x2, v=0.0, m=m2)],
+        elements=[ParticleElement('first', x=x1, v=0.0, m=m1), ParticleElement('second', x=x2, v=0.0, m=m2)],
         interactions=[
             HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
             HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),

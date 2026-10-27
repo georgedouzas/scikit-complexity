@@ -8,38 +8,57 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw, RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
+from ....engine.solvers import ETDRK4Solver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
-AllenCahnElement = Element.define(
-    'AllenCahnElement',
-    states={'phi': 0.0},
-    parameters={'kappa': 1.0},
-    laws=lambda s: [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))],
-)
 
-CahnHilliardElement = Element.define(
-    'CahnHilliardElement',
-    states={'phi': 0.0},
-    parameters={'kappa': 1.0},
-    laws=lambda s: [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))],
-)
+class AllenCahnElement(Element):
+    """Allen cahn element."""
 
-ThermalCahnHilliardElement = Element.define(
-    'ThermalCahnHilliardElement',
-    states={'phi': 0.0},
-    parameters={'kappa': 1.0, 'temperature': 0.0},
-    laws=lambda s: [
-        RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
-        NoiseLaw(s.phi, sqrt(2 * s.temperature), conserved=True),
-    ],
-)
+    phi = state(0.0)
+    kappa = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the allen cahn element."""
+        return [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))]
+
+
+class CahnHilliardElement(Element):
+    """Cahn hilliard element."""
+
+    phi = state(0.0)
+    kappa = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the cahn hilliard element."""
+        return [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))]
+
+
+class ThermalCahnHilliardElement(Element):
+    """Thermal cahn hilliard element."""
+
+    phi = state(0.0)
+    kappa = parameter(1.0)
+    temperature = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the thermal cahn hilliard element."""
+        return [
+            RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
+            NoiseLaw(s.phi, sqrt(2 * s.temperature), conserved=True),
+        ]
 
 
 def _ordering(
@@ -58,9 +77,9 @@ def _ordering(
     values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
     space = LatticeSpace(shape, spacing=length / shape[0])
     if not temperature:
-        return System(components=[FieldElement('mixture', element, space, values=values, discretization='spectral')])
+        return System(elements=[FieldElement('mixture', element, space, values=values, discretization='spectral')])
     values['temperature'] = temperature
-    return System(components=[FieldElement('mixture', ThermalCahnHilliardElement, space, values=values)])
+    return System(elements=[FieldElement('mixture', ThermalCahnHilliardElement, space, values=values)])
 
 
 @register_model(

@@ -114,7 +114,7 @@ def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 
         [99, 1, 0]
     """
     return System(
-        components=[
+        elements=[
             ListenersElement('ignorants', n=n_people - 1),
             ListenersElement('spreaders', n=1),
             ListenersElement('stiflers', n=0),

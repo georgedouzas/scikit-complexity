@@ -10,11 +10,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
-from ...core.space import LatticeSpace, NetworkSpace
+from ...core.spaces import LatticeSpace, NetworkSpace
+from ..problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
 from ..runtime import Frame
 from ._utils import GRID_RADIUS, NODE_SPACING
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
 CHANGING_REACH = 10.0
@@ -170,15 +170,19 @@ class SiteVisual(BaseVisual):
                 One view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
+            >>> from skcomplex.core.elements import LatticeElement
             >>> import networkx as nx
             >>> from skcomplex.core.base import state
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.core.components import Element
-            >>> from skcomplex.core.space import NetworkSpace
+            >>> from skcomplex.core.spaces import NetworkSpace
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.viz import SiteVisual
-            >>> NodeElement = Element.define('NodeElement', states={'value': state(0.0)})
-            >>> system = System(components=[NodeElement.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
+            >>> class NodeElement(Element):
+            ...     value = state(0.0)
+            >>> system = System(
+            ...     elements=[LatticeElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)))]
+            ... )
             >>> problem = compile_system(system)
             >>> [type(view).__name__ for view in SiteVisual().prepare(problem.elements[0], problem).views_]
             ['GraphView']
@@ -207,6 +211,3 @@ class SiteVisual(BaseVisual):
         low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
-
-
-register_visual('sites', SiteVisual)

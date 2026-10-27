@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class ResidentElement(Element):
@@ -31,7 +32,7 @@ class ResidentElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.segregation import ResidentElement
-        >>> group = ResidentElement.group('residents', 10, kind=1.0)
+        >>> group = GroupElement('residents', element=ResidentElement, size=10, values={'kind': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('residents', 'ResidentElement', 10)
     """
@@ -119,5 +120,10 @@ def schelling(
     rng = np.random.default_rng(random_state)
     size = int(width * height * density)
     kinds = (rng.random(size) < minority).astype(float)
-    residents = ResidentElement.group('residents', size, kind=kinds, threshold=threshold)
-    return System(components=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))
+    residents = GroupElement(
+        'residents',
+        element=ResidentElement,
+        size=size,
+        values={'kind': kinds, 'threshold': threshold},
+    )
+    return System(elements=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))

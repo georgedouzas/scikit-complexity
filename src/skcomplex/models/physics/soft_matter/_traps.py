@@ -8,15 +8,16 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
-from ....core.system import Observable, System
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
-ALONG_ROW = Neighborhood(((0, 0), (0, -1), (0, 1)))
+ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})
 
 
@@ -84,12 +85,12 @@ class TrapSiteElement(Element):
         return [LocalRuleLaw(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
 
 
-def _trap_observables(system: System) -> list[Observable]:
+def _trap_observables(system: System) -> list[ObservableSpec]:
     """Return the visits, the walkers, and the mean position of the traps."""
     return [
-        Observable('visits', group='traps', variable='visited', reduce='sum'),
-        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
-        Observable('position', _mean_position),
+        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
+        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
+        ObservableSpec('position', _mean_position),
     ]
 
 
@@ -145,12 +146,11 @@ def biased_trap_walk(
     tau = np.ceil(tau0 * (1 - np.random.default_rng(random_state).random(shape)) ** (-1 / alpha))
     start = np.zeros(shape)
     start[:, 0] = 1.0
-    traps = TrapSiteElement.lattice(
+    traps = LatticeElement(
         'traps',
-        LatticeSpace(shape, boundary='fixed', fill=-1.0),
+        element=TrapSiteElement,
+        space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
+        values={'occupied': start, 'visited': start, 'tau': tau},
         visual=VISITED,
-        occupied=start,
-        visited=start,
-        tau=tau,
     )
-    return System(components=[traps])
+    return System(elements=[traps])

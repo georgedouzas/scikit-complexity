@@ -10,11 +10,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import ContinuousSpace, DiscreteTime
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace, DiscreteTime
+from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ...core.elements import GroupElement
 
 
 def _unit(vector: np.ndarray) -> np.ndarray:
@@ -77,7 +79,7 @@ class ShoalMemberElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import ShoalMemberElement
-        >>> ShoalMemberElement.group('shoal', 10, location=(5.0, 5.0)).size
+        >>> GroupElement('shoal', element=ShoalMemberElement, size=10, location=(5.0, 5.0)).size
         10
     """
 
@@ -218,18 +220,17 @@ def couzin_leadership(
     weights = np.zeros(n_fish)
     weights[: round(informed * n_fish)] = omega
     locations = size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-    shoal = ShoalMemberElement.group(
+    shoal = GroupElement(
         'shoal',
-        n_fish,
+        element=ShoalMemberElement,
+        size=n_fish,
+        values={'vx': np.cos(headings), 'vy': np.sin(headings), 'omega': weights, 'preferred': preferred, 'size': size},
         location=[tuple(point) for point in locations],
-        vx=np.cos(headings),
-        vy=np.sin(headings),
-        omega=weights,
-        preferred=preferred,
-        size=size,
     )
     return System(
-        components=[shoal],
-        space=ContinuousSpace(size, size, boundary='periodic'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('turn', activation='simultaneous'), Phase('swim')])),
+        elements=[shoal],
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
+        ),
     )

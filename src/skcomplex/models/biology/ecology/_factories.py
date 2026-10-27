@@ -8,6 +8,8 @@ from ....core.components import Element
 from ....core.laws import UpdateLaw, lag
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 from ._populations import (
     DelayedLogisticGrowthInteraction,
     ExponentialGrowthInteraction,
@@ -45,7 +47,7 @@ def exponential_growth(n: float = 10.0, r: float = 0.1) -> System:
         0.2
     """
     return System(
-        components=[PopulationElement('population', n=n)],
+        elements=[PopulationElement('population', n=n)],
         interactions=[ExponentialGrowthInteraction('growth', target='population', r=r)],
     )
 
@@ -79,7 +81,7 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
         500.0
     """
     return System(
-        components=[PopulationElement('population', n=n)],
+        elements=[PopulationElement('population', n=n)],
         interactions=[LogisticGrowthInteraction('growth', target='population', r=r, K=K)],
     )
 
@@ -129,7 +131,7 @@ def varying_capacity_logistic(
         0.2
     """
     return System(
-        components=[PopulationElement('population', n=n)],
+        elements=[PopulationElement('population', n=n)],
         interactions=[
             SeasonalLogisticGrowthInteraction(
                 'growth',
@@ -177,7 +179,7 @@ def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float 
         1.0
     """
     return System(
-        components=[PopulationElement('population', n=n)],
+        elements=[PopulationElement('population', n=n)],
         interactions=[DelayedLogisticGrowthInteraction('growth', target='population', r=r, K=K, tau=tau)],
     )
 
@@ -237,7 +239,7 @@ def lotka_volterra(
         else LogisticGrowthInteraction('growth', target='prey', r=r, K=K)
     )
     return System(
-        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             growth,
             PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
@@ -246,11 +248,14 @@ def lotka_volterra(
     )
 
 
-RabbitsElement = Element.define(
-    'RabbitsElement',
-    states={'pairs': state(default=1.0, domain=NumericDomain.NONNEGATIVE, lags=1, initial=(0.0,))},
-    laws=lambda s: [UpdateLaw(s.pairs, s.pairs + lag(s.pairs, 1))],
-)
+class RabbitsElement(Element):
+    """Rabbits element."""
+
+    pairs = state(default=1.0, domain=NumericDomain.NONNEGATIVE, lags=1, initial=(0.0,))
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rabbits element."""
+        return [UpdateLaw(s.pairs, s.pairs + lag(s.pairs, 1))]
 
 
 @register_model(
@@ -280,4 +285,4 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         >>> fibonacci_rabbits().elements[0].pairs
         1.0
     """
-    return System(components=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)])
+    return System(elements=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)])

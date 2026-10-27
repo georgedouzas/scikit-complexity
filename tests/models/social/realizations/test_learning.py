@@ -1,13 +1,15 @@
 """Test the `_learning` module of `skcomplex.models.social.realizations`."""
 
 import numpy as np
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import state
-from skcomplex.core.components import Element
-from skcomplex.core.space import DiscreteTime, LatticeSpace
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import RuleLaw
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 from skcomplex.models.social.realizations import imitate
 
 
@@ -33,9 +35,17 @@ def test_simultaneous_imitation():
     payoffs = np.zeros(width)
     payoffs[0] = 1.0
     system = System(
-        components=[ImitatorElement.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
+        elements=[
+            GroupElement(
+                'players',
+                element=ImitatorElement,
+                size=width,
+                values={'strategy': payoffs, 'payoff': payoffs},
+                location=locations,
+            ),
+        ],
         space=LatticeSpace((width, 1), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('imitation', activation='simultaneous')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('imitation', activation='simultaneous')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
     for frame in range(4):

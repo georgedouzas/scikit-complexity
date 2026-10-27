@@ -9,10 +9,11 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class WordElement(Element):
@@ -33,7 +34,7 @@ class WordElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.spreading import WordElement
-        >>> group = WordElement.group('words', 1, count=1.0)
+        >>> group = GroupElement('words', element=WordElement, size=1, values={'count': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('words', 'WordElement', 1)
     """
@@ -145,8 +146,14 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         >>> simon_yule().elements[0].size
         1
     """
-    words = WordElement.group('words', 1, variable=True, count=1.0, innovation=innovation)
+    words = GroupElement(
+        'words',
+        element=WordElement,
+        size=1,
+        values={'count': 1.0, 'innovation': innovation},
+        variable=True,
+    )
     return System(
-        components=[words],
+        elements=[words],
         interactions=[WritingInteraction('writing', target='words', words_per_step=words_per_step)],
     )

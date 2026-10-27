@@ -177,4 +177,4 @@ def circadian_clock(
         >>> circadian_clock(v_d=1.2).elements[0].v_d
         1.2
     """
-    return System(components=[PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])
+    return System(elements=[PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])

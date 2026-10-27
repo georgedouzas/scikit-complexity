@@ -5,6 +5,8 @@
 
 import numpy as np
 
+from skcomplex.core.declarations import state
+
 from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, where
@@ -61,27 +63,36 @@ def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
     return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
-SinaiBilliardElement = Element.define(
-    'SinaiBilliardElement',
-    states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
-    parameters={
-        'size': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'radius': parameter(default=0.4, domain=NumericDomain.POSITIVE),
-    },
-    laws=_sinai_laws,
-    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls}),
-)
+class SinaiBilliardElement(Element):
+    """Sinai billiard element."""
 
-MushroomBilliardElement = Element.define(
-    'MushroomBilliardElement',
-    states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
-    parameters={
-        'radius': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'width': parameter(default=0.4, domain=NumericDomain.POSITIVE),
-        'height': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_mushroom_laws,
-)
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls})
+    x = state(0.1)
+    y = state(0.6)
+    vx = state(0.6)
+    vy = state(0.8)
+    size = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    radius = parameter(default=0.4, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the sinai billiard element."""
+        return _sinai_laws(s)
+
+
+class MushroomBilliardElement(Element):
+    """Mushroom billiard element."""
+
+    x = state(0.1)
+    y = state(0.6)
+    vx = state(0.6)
+    vy = state(0.8)
+    radius = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    width = parameter(default=0.4, domain=NumericDomain.POSITIVE)
+    height = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mushroom billiard element."""
+        return _mushroom_laws(s)
 
 
 @register_model(
@@ -156,7 +167,7 @@ def billiards(
     """
     if shape == 'sinai':
         table = SinaiBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
-        return System(components=[table])
+        return System(elements=[table])
     if shape == 'mushroom':
         table = MushroomBilliardElement(
             'particle',
@@ -168,6 +179,6 @@ def billiards(
             width=width,
             height=height,
         )
-        return System(components=[table])
+        return System(elements=[table])
     error_msg = f'Unknown billiard shape {shape!r}. Use one of {", ".join(SHAPES)}.'
     raise ValidationError(error_msg)

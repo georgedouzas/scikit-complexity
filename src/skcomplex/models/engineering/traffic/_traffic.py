@@ -10,11 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -87,8 +87,8 @@ class RoadElement(Element):
                 following = np.where(velocity == distance, velocity, following)
             return following
 
-        ahead = Neighborhood(tuple((distance,) for distance in range(vmax + 1)))
-        behind = Neighborhood(tuple((-distance,) for distance in range(vmax + 1)))
+        ahead = LatticeNeighborhood(tuple((distance,) for distance in range(vmax + 1)))
+        behind = LatticeNeighborhood(tuple((-distance,) for distance in range(vmax + 1)))
         return [LocalRuleLaw(s.velocity, ahead, accelerate, stochastic=True), LocalRuleLaw(s.velocity, behind, move)]
 
 
@@ -136,5 +136,10 @@ def nagel_schreckenberg(
     rng = np.random.default_rng(random_state)
     velocity = np.full(length, -1.0)
     velocity[rng.choice(length, size=round(density * length), replace=False)] = 0.0
-    road = RoadElement.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
-    return System(components=[road])
+    road = LatticeElement(
+        'road',
+        element=RoadElement,
+        space=LatticeSpace(length),
+        values={'velocity': velocity, 'slowdown': slowdown, 'vmax': vmax},
+    )
+    return System(elements=[road])

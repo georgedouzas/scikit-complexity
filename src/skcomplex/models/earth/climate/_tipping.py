@@ -11,11 +11,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousTime, NetworkSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import ContinuousTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
 
 FOLD = math.sqrt(4 / 27)
 
@@ -122,4 +123,4 @@ def tipping_cascade_network(
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
     elements = FieldElement('elements', TippingElementElement, NetworkSpace(graph), values=values)
-    return System(components=[elements], time=ContinuousTime())
+    return System(elements=[elements], time=ContinuousTime())

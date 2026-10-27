@@ -12,7 +12,7 @@ other at irregular times: the double-scroll chaotic attractor.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import lyapunov_spectrum
+from skcomplex.analysis import lyapunov_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

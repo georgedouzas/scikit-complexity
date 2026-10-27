@@ -13,7 +13,7 @@ by short bursts in which it rises to values of order one and falls back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import detect_events, histogram
+from skcomplex.analysis import detect_events, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver

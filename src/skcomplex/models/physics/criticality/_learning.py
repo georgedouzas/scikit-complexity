@@ -14,8 +14,10 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -26,12 +28,12 @@ def _reward(actions: Array, couplings: Array) -> float:
     return float(actions @ couplings @ actions / actions.size)
 
 
-def _observables(system: System) -> list[Observable]:
+def _observables(system: System) -> list[ObservableSpec]:
     """Return the observable of the mean reward per agent of the SK game."""
     values = cast('Mapping[str, Any]', system.elements[0].values)
     couplings = np.asarray(values['couplings'], dtype=float)
     return [
-        Observable('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
+        ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
     ]
 
 
@@ -152,13 +154,16 @@ def sk_game(
     """
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
-    agents = LearningAgentElement.group(
+    agents = GroupElement(
         'agents',
-        n_agents,
-        sigma=rng.choice([-1.0, 1.0], size=n_agents),
-        Q=0.0,
-        alpha=alpha,
-        temperature=temperature,
-        couplings=upper + upper.T,
+        element=LearningAgentElement,
+        size=n_agents,
+        values={
+            'sigma': rng.choice([-1.0, 1.0], size=n_agents),
+            'Q': 0.0,
+            'alpha': alpha,
+            'temperature': temperature,
+            'couplings': upper + upper.T,
+        },
     )
-    return System(components=[agents])
+    return System(elements=[agents])

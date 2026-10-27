@@ -5,28 +5,42 @@
 
 from sage.all__sagemath_symbolics import sin
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-GridNodeElement = Element.define(
-    'GridNodeElement',
-    states={'phi': state(default=0.0, order=2)},
-    parameters={'P': 1.0, 'gamma': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))],
-)
 
-TransmissionLineInteraction = BaseInteraction.define(
-    'TransmissionLineInteraction',
-    roles=['first', 'second'],
-    parameters={'K': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [
-        RateLaw(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),
-        RateLaw(s.second.phi, s.K * sin(s.first.phi - s.second.phi)),
-    ],
-)
+class GridNodeElement(Element):
+    """Grid node element."""
+
+    phi = state(default=0.0, order=2)
+    P = parameter(1.0)
+    gamma = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the grid node element."""
+        return [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))]
+
+
+class TransmissionLineInteraction(BaseInteraction):
+    """Transmission line interaction."""
+
+    first = role()
+    second = role()
+    K = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the transmission line interaction."""
+        return [
+            RateLaw(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),
+            RateLaw(s.second.phi, s.K * sin(s.first.phi - s.second.phi)),
+        ]
 
 
 @register_model(
@@ -106,4 +120,4 @@ def power_grid(
         interactions.append(
             TransmissionLineInteraction(f'line_{first}_{second}', first=f'node_{first}', second=f'node_{second}', K=K),
         )
-    return System(components=elements, interactions=interactions)
+    return System(elements=elements, interactions=interactions)

@@ -11,7 +11,7 @@ def test_cobweb_converges_to_equilibrium():
     """Test that a cobweb market with `d < b` converges to `(a - c) / (b + d)`."""
     a, b, c, d = 10.0, 2.0, 1.0, 1.0
     system = System(
-        components=[MarketElement('m', price=1.0)],
+        elements=[MarketElement('m', price=1.0)],
         interactions=[CobwebInteraction('c', target='m', a=a, b=b, c=c, d=d)],
     )
     price = Simulation(system).run(until=60).trajectory_.values('m.price')[-1]

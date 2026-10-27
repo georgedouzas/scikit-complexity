@@ -10,24 +10,27 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 from ..realizations._markets import OrderBook, Trade
 
 LOWEST_PRICE = 0.01
 HOLDINGS = ('money', 'shares')
 
 
-def _order_book_observables(system: System) -> list[Observable]:
+def _order_book_observables(system: System) -> list[ObservableSpec]:
     """Return the share of chartists, the mean wealth of the traders, and their total money and shares."""
     del system
     return [
-        Observable('chartists', group='traders', variable='strategy', reduce='mean'),
-        Observable('mean_wealth', group='traders', variable='wealth', reduce='mean'),
-        *(Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
+        ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
+        ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        *(ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
     ]
 
 
@@ -88,7 +91,7 @@ class StockTraderElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.finance import StockTraderElement
-        >>> StockTraderElement.group('traders', 4, strategy=1.0).size
+        >>> GroupElement('traders', element=StockTraderElement, size=4, values={'strategy': 1.0}).size
         4
     """
 
@@ -328,27 +331,35 @@ def order_book(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    traders = StockTraderElement.group(
+    traders = GroupElement(
         'traders',
-        len(cells),
+        element=StockTraderElement,
+        size=len(cells),
+        values={
+            'strategy': (rng.random(len(cells)) < chartists).astype(float),
+            'money': 10 * fundamental,
+            'shares': 10.0,
+            'wealth': 20 * fundamental,
+            'fundamental': fundamental,
+            'reversion': reversion,
+            'extrapolation': extrapolation,
+            'noise': noise,
+            'imitation': imitation,
+        },
         location=cells,
-        strategy=(rng.random(len(cells)) < chartists).astype(float),
-        money=10 * fundamental,
-        shares=10.0,
-        wealth=20 * fundamental,
-        fundamental=fundamental,
-        reversion=reversion,
-        extrapolation=extrapolation,
-        noise=noise,
-        imitation=imitation,
     )
     return System(
-        components=[traders],
+        elements=[traders],
         interactions=[BookInteraction('book', traders='traders', opening=fundamental)],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(
-            schedule=PhasesSchedule(
-                [Phase('quote'), Phase('trade'), Phase('account'), Phase('imitation', activation='simultaneous')],
+            schedule=PhasesScheduleSpec(
+                [
+                    PhaseSpec('quote'),
+                    PhaseSpec('trade'),
+                    PhaseSpec('account'),
+                    PhaseSpec('imitation', activation='simultaneous'),
+                ],
             ),
         ),
     )

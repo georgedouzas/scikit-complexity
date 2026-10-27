@@ -10,32 +10,40 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, UpdateLaw
-from ....core.space import NetworkSpace
+from ....core.elements import FieldElement
+from ....core.laws import RateLaw, RuleLaw, Symbols, UpdateLaw
+from ....core.laws.utils import laplacian
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
-NodeContentElement = Element.define(
-    'NodeContentElement',
-    states={'u': 0.0},
-    parameters={'D': parameter(1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
-)
 
-NodeRankElement = Element.define(
-    'NodeRankElement',
-    states={'rank': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'damping': parameter(0.85, domain=NumericDomain.NONNEGATIVE),
-        'degree': parameter(1.0, domain=NumericDomain.POSITIVE),
-        'n_nodes': parameter(1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        UpdateLaw(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
-    ],
-)
+class NodeContentElement(Element):
+    """Node content element."""
+
+    u = state(0.0)
+    D = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the node content element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u))]
+
+
+class NodeRankElement(Element):
+    """Node rank element."""
+
+    rank = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    damping = parameter(0.85, domain=NumericDomain.NONNEGATIVE)
+    degree = parameter(1.0, domain=NumericDomain.POSITIVE)
+    n_nodes = parameter(1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the node rank element."""
+        return [
+            UpdateLaw(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
+        ]
 
 
 class NetworkWalkerElement(Element):
@@ -50,7 +58,7 @@ class NetworkWalkerElement(Element):
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import NetworkWalkerElement
-        >>> group = NetworkWalkerElement.group('walkers', 5)
+        >>> group = GroupElement('walkers', element=NetworkWalkerElement, size=5)
         >>> group.label, group.element.__name__, group.size
         ('walkers', 'NetworkWalkerElement', 5)
     """
@@ -120,7 +128,10 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
         3
     """
     graph = _graph_or_default(graph)
-    return System(components=[NetworkWalkerElement.group('walkers', n_walkers)], space=NetworkSpace(graph))
+    return System(
+        elements=[GroupElement('walkers', element=NetworkWalkerElement, size=n_walkers)],
+        space=NetworkSpace(graph),
+    )
 
 
 @register_model(
@@ -158,7 +169,7 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     initial = np.zeros(graph.number_of_nodes())
     initial[source] = 1.0
     nodes = FieldElement('nodes', NodeContentElement, NetworkSpace(graph), values={'u': initial, 'D': D})
-    return System(components=[nodes])
+    return System(elements=[nodes])
 
 
 @register_model(
@@ -193,4 +204,4 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     size = graph.number_of_nodes()
     degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
     values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    return System(components=[FieldElement('pages', NodeRankElement, NetworkSpace(graph), values=values)])
+    return System(elements=[FieldElement('pages', NodeRankElement, NetworkSpace(graph), values=values)])

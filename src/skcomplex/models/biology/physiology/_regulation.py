@@ -328,7 +328,7 @@ def glucose_dual_hormone_control(
         exercise_time=exercise_time,
         duration=duration,
     )
-    return System(components=[organism])
+    return System(elements=[organism])
 
 
 @register_model(
@@ -377,4 +377,4 @@ def coagulation_positive_feedback(
         0.2
     """
     blood = CoagulationElement('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
-    return System(components=[blood])
+    return System(elements=[blood])

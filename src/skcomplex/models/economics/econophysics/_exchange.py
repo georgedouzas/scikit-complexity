@@ -5,10 +5,11 @@
 
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class TraderElement(Element):
@@ -23,7 +24,7 @@ class TraderElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import TraderElement
-        >>> group = TraderElement.group('traders', 100)
+        >>> group = GroupElement('traders', element=TraderElement, size=100)
         >>> group.label, group.element.__name__, group.size
         ('traders', 'TraderElement', 100)
     """
@@ -83,4 +84,4 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
         >>> boltzmann_wealth(10).elements[0].size
         10
     """
-    return System(components=[TraderElement.group('traders', n_agents)])
+    return System(elements=[GroupElement('traders', element=TraderElement, size=n_agents)])

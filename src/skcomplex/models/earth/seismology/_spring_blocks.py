@@ -5,14 +5,17 @@
 
 import numpy as np
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols, both, where
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldElement, laplacian
 
 
 def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
@@ -24,12 +27,21 @@ def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.x, sliding), RateLaw(s.v, where(stuck, 0, (force - friction) / s.m))]
 
 
-SpringBlockElement = Element.define(
-    'SpringBlockElement',
-    states={'x': state(default=0.0, domain=NumericDomain.REAL), 'v': state(default=0.0, domain=NumericDomain.REAL)},
-    parameters={'m': 1.0, 'k_c': 2.5, 'k_p': 1.0, 'velocity': 0.01, 'F0': 1.0, 'v_c': 0.5},
-    laws=_spring_block_laws,
-)
+class SpringBlockElement(Element):
+    """Spring block element."""
+
+    x = state(default=0.0, domain=NumericDomain.REAL)
+    v = state(default=0.0, domain=NumericDomain.REAL)
+    m = parameter(1.0)
+    k_c = parameter(2.5)
+    k_p = parameter(1.0)
+    velocity = parameter(0.01)
+    F0 = parameter(1.0)
+    v_c = parameter(0.5)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the spring block element."""
+        return _spring_block_laws(s)
 
 
 @register_model(
@@ -99,4 +111,4 @@ def burridge_knopoff(
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={'x': offsets, 'k_c': k_c, 'k_p': k_p, 'velocity': velocity, 'F0': F0, 'v_c': v_c},
     )
-    return System(components=[fault])
+    return System(elements=[fault])

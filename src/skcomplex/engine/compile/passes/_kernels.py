@@ -6,12 +6,16 @@
 from collections import defaultdict
 from typing import cast
 
-from ....core.base import BaseLaw, Expression, Trait, ValidationError, components_of, has_trait, symbols_of
-from ....core.laws import BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.problems import Kernel, Layout, Lowered, Output, Reference, Source
+from sage.all__sagemath_symbolics import Expression
+
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import Call
+from ...problems import Kernel, Layout, Lowered, Output, Reference, Source, components_of, symbols_of
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._laws import KERNEL_FREE_LAWS
 from .._lowering import symbolic_components
 from .._noise import noise_process, process_keys
 from .._pipeline import BasePass
@@ -73,7 +77,7 @@ def _is_once(spec: KernelSpec, law: BaseLaw) -> bool:
     """Check whether a law of a group's interaction sets single elements from reductions alone, so it runs once."""
     if spec.rows <= 1 or spec.pairs is not None or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return False
-    if not all(reference.source is Source.SINGLE for reference in target_references(law.targets[0], spec)):
+    if not all(reference.source is Source.SINGLE for reference in target_references(law._get_targets()[0], spec)):
         return False
     expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
     sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
@@ -123,7 +127,7 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
     for spec, laws in specs:
         outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
         for law in laws:
-            if has_trait(law, Trait.KERNEL_FREE):
+            if isinstance(law, KERNEL_FREE_LAWS):
                 continue
             if isinstance(law, JumpLaw):
                 output = _outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
@@ -136,7 +140,7 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
             if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                 raise ValidationError(error_msg)
-            targets = target_references(law.targets[0], spec)
+            targets = target_references(law._get_targets()[0], spec)
             once = _is_once(spec, law)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)], once=once)

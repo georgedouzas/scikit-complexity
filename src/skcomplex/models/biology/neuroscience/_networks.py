@@ -12,11 +12,12 @@ from scipy.ndimage import convolve
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import EventLaw, RateLaw, Symbols, delayed, maximum
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
 
 type Array = npt.NDArray[np.float64]
 
@@ -387,7 +388,7 @@ def delayed_lif_network(
         )
         for source, target in _random_connections(n_neurons, probability, rng)
     ]
-    return System(components=neurons, interactions=synapses)
+    return System(elements=neurons, interactions=synapses)
 
 
 @register_model(
@@ -459,4 +460,4 @@ def legion(
         values=values,
     )
     inhibition = GlobalInhibitionInteraction('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(components=[oscillators, InhibitorElement('inhibitor')], interactions=[inhibition])
+    return System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[inhibition])

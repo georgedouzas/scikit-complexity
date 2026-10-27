@@ -8,26 +8,42 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-ActiveFieldElement = Element.define(
-    'ActiveFieldElement',
-    states={'rho': 0.5, 'nu': 1.0},
-    parameters={'a': -1.0, 'b': 1.0, 'c': 1.0, 'd': 1.0, 'e': 0.2, 'f': 0.0, 'g': 0.0},
-    laws=lambda s: [
-        RateLaw(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
-        NoiseLaw(s.rho, s.e * sqrt(s.rho)),
-        RateLaw(s.nu, laplacian(s.nu) + s.f - s.g * s.rho),
-        BoundaryLaw(s.rho, (s.rho + abs(s.rho)) / 2),
-        BoundaryLaw(s.nu, (s.nu + abs(s.nu)) / 2),
-    ],
-)
+
+class ActiveFieldElement(Element):
+    """Active field element."""
+
+    rho = state(0.5)
+    nu = state(1.0)
+    a = parameter(-1.0)
+    b = parameter(1.0)
+    c = parameter(1.0)
+    d = parameter(1.0)
+    e = parameter(0.2)
+    f = parameter(0.0)
+    g = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the active field element."""
+        return [
+            RateLaw(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
+            NoiseLaw(s.rho, s.e * sqrt(s.rho)),
+            RateLaw(s.nu, laplacian(s.nu) + s.f - s.g * s.rho),
+            BoundaryLaw(s.rho, (s.rho + abs(s.rho)) / 2),
+            BoundaryLaw(s.nu, (s.nu + abs(s.nu)) / 2),
+        ]
 
 
 @register_model(
@@ -116,4 +132,4 @@ def directed_percolation_langevin(
         'f': f,
         'g': g,
     }
-    return System(components=[FieldElement('neurons', ActiveFieldElement, LatticeSpace(shape), values=values)])
+    return System(elements=[FieldElement('neurons', ActiveFieldElement, LatticeSpace(shape), values=values)])

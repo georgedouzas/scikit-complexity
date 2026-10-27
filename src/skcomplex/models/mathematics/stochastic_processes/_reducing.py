@@ -7,10 +7,11 @@ from typing import ClassVar
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class ReducingBallElement(Element):
@@ -34,7 +35,7 @@ class ReducingBallElement(Element):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBallElement
-        >>> group = ReducingBallElement.group('balls', 3, n_states=10.0)
+        >>> group = GroupElement('balls', element=ReducingBallElement, size=3, values={'n_states': 10.0})
         >>> group.label, group.element.__name__, group.size
         ('balls', 'ReducingBallElement', 3)
     """
@@ -91,7 +92,7 @@ class FragmentElement(Element):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import FragmentElement
-        >>> group = FragmentElement.group('fragments', 1, length=100.0)
+        >>> group = GroupElement('fragments', element=FragmentElement, size=1, values={'length': 100.0})
         >>> group.label, group.element.__name__, group.size
         ('fragments', 'FragmentElement', 1)
     """
@@ -160,14 +161,13 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
         4
     """
     return System(
-        components=[
-            ReducingBallElement.group(
+        elements=[
+            GroupElement(
                 'balls',
-                n_balls,
+                element=ReducingBallElement,
+                size=n_balls,
+                values={'level': float(n_states), 'n_states': float(n_states), 'lam': lam},
                 variable=True,
-                level=float(n_states),
-                n_states=float(n_states),
-                lam=lam,
             ),
         ],
     )
@@ -200,4 +200,14 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         >>> fragmentation(50).elements[0].size
         1
     """
-    return System(components=[FragmentElement.group('fragments', 1, variable=True, length=float(size), rate=rate)])
+    return System(
+        elements=[
+            GroupElement(
+                'fragments',
+                element=FragmentElement,
+                size=1,
+                values={'length': float(size), 'rate': rate},
+                variable=True,
+            ),
+        ],
+    )

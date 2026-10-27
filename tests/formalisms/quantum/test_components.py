@@ -6,9 +6,10 @@ import pytest
 import qutip
 
 from skcomplex.core.base import ValidationError, symbol
-from skcomplex.core.laws import Symbols
-from skcomplex.core.space import LatticeSpace, NetworkSpace, neighbor_pairs
-from skcomplex.formalisms.quantum import DissipatorLaw, GeneratorLaw, LocalOperator, Operator, QuantumView, expectation
+from skcomplex.core.elements import LatticeElement
+from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, Symbols
+from skcomplex.core.spaces import LatticeSpace, NetworkSpace
+from skcomplex.engine.compile import LocalOperator, Operator, QuantumView
 from skcomplex.models.physics.realizations.quantum import ModeElement, QubitElement, SiteElement, SpinElement
 
 
@@ -115,12 +116,10 @@ def test_laws_reject_values_that_are_not_operators():
 
 def test_neighbor_pairs_list_lattice_and_network_bonds():
     """Test that neighbour pairs are the bonds of periodic and open lattices and of networks."""
-    assert neighbor_pairs(LatticeSpace(4), 4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
-    assert neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3) == [(0, 1), (1, 2)]
-    assert len(neighbor_pairs(LatticeSpace((2, 3)), 6)) == 9
-    assert neighbor_pairs(NetworkSpace(nx.path_graph(3)), 3) == [(0, 1), (1, 2)]
-    with pytest.raises(ValidationError, match='Neighbours'):
-        neighbor_pairs(None, 2)
+    assert LatticeSpace(4).check().prepare()._neighbor_pairs() == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    assert LatticeSpace(3, boundary='fixed').check().prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
+    assert len(LatticeSpace((2, 3)).check().prepare()._neighbor_pairs()) == 9
+    assert NetworkSpace(nx.path_graph(3)).check().prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
 
 
 def test_site_namespace_has_projectors_and_diagonals():
@@ -144,6 +143,6 @@ def test_expectation_keeps_member_values():
 
 def test_lattice_group_keeps_the_expectation_visual():
     """Test that a lattice of quantum elements is drawn by its expectations."""
-    assert SpinElement.lattice('chain', LatticeSpace(3)).visual.kind == 'expectations'
+    assert LatticeElement('chain', element=SpinElement, space=LatticeSpace(3)).visual.kind == 'expectations'
 
     assert isinstance(Operator({}), Operator)

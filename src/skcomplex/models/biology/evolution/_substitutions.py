@@ -12,9 +12,11 @@ import numpy.typing as npt
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, total
-from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -53,8 +55,9 @@ class LocusElement(Element):
             The random field of the locus, the fitness gained by the allele `1` over the allele `-1`, halved.
 
     Examples:
+        >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.models.biology.evolution import LocusElement
-        >>> LocusElement.group('genome', 10, h=0.05).size
+        >>> GroupElement('genome', element=LocusElement, size=10, values={'h': 0.05}).size
         10
     """
 
@@ -142,20 +145,20 @@ class SubstitutionInteraction(BaseInteraction):
         ]
 
 
-def _walk_observables(system: System) -> list[Observable]:
+def _walk_observables(system: System) -> list[ObservableSpec]:
     """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
     couplings = system.interactions[0].couplings
     loci = int(system.elements[0].size or 0)
     matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
     return [
-        Observable('field_share', _field_share, group='genome', reduce='sum'),
-        Observable(
+        ObservableSpec('field_share', _field_share, group='genome', reduce='sum'),
+        ObservableSpec(
             'coupling_share',
             group='genome',
             variable='s',
             reduce=partial(_coupling_share, couplings=matrix),
         ),
-        Observable('fitness', _genome_fitness),
+        ObservableSpec('fitness', _genome_fitness),
     ]
 
 
@@ -222,8 +225,13 @@ def origin_fixation_walk(
     upper = np.triu(rng.normal(0.0, coupling / np.sqrt(loci), (loci, loci)), 1)
     matrix = upper + upper.T
     couplings = matrix if coupling else None
-    genome = LocusElement.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
+    genome = LatticeElement(
+        'genome',
+        element=LocusElement,
+        space=LatticeSpace(loci),
+        values={'s': -np.ones(loci), 'h': fields},
+    )
     return System(
-        components=[genome],
+        elements=[genome],
         interactions=[SubstitutionInteraction('substitution', genome='genome', N=N, mu=mu, F0=F0, couplings=couplings)],
     )

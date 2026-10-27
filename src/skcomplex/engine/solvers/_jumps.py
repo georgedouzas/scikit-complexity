@@ -8,22 +8,13 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.base import (
-    DomainKind,
-    ElementKind,
-    Form,
-    LawKind,
-    NoiseKind,
-    OrderKind,
-    SolverError,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    Vector,
-)
-from ...core.problems import Problem
+from ...core.errors import SolverError
+from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.types import Vector
+from ..problems import Form, NoiseKind, OrderKind, Problem, SupportSpec
 from ._hybrid import reject_hybrid
-from ._stepper import Solver, register_solver
+from ._stepper import Solver
 
 
 class GillespieSolver(Solver):
@@ -39,7 +30,7 @@ class GillespieSolver(Solver):
         >>> from skcomplex.engine.solvers import GillespieSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
+        ...         elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
@@ -48,19 +39,12 @@ class GillespieSolver(Solver):
         [0.0, 10.0]
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
-        domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.VARIABLE_GROUP,
-            ElementKind.SYSTEM,
-        },
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={JumpLaw, BoundaryLaw, TransferLaw},
+        
+        
         orders={OrderKind.INTEGER},
     )
 
@@ -156,30 +140,32 @@ class RenewalSolver(Solver):
     Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
 
     Examples:
+        >>> from skcomplex.core.elements import GroupElement
+        >>> from skcomplex.core.declarations import state
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import JumpLaw, draw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.solvers import RenewalSolver
-        >>> CounterElement = Element.define(
-        ...     'CounterElement',
-        ...     states={'n': 0.0},
-        ...     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
-        ... )
-        >>> problem = compile_system(System(components=[CounterElement.group('counters', 3)]))
+        >>> class CounterElement(Element):
+        ...     n = state(0.0)
+        ...
+        ...     def laws(self, s):
+        ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
+        >>> problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
         >>> stepper = RenewalSolver().prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0)
         >>> bool(np.all(state[:3] > 50))
         True
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
-        domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+        
+        
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )
@@ -212,7 +198,3 @@ class RenewalSolver(Solver):
             return x
         clock.begin(t, x, p)
         return self._bounded(until, clock.fire_until(until, x, p), p)
-
-
-register_solver('gillespie', GillespieSolver, default=True)
-register_solver('renewal', RenewalSolver, default=True)

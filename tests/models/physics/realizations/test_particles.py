@@ -3,12 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import LammpsSolver
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, ScipyODESolver, VelocityVerletSolver
-from skcomplex.formalisms.particles import LammpsSolver, ParticleElement
 from skcomplex.models.physics.realizations.particles import (
     ConstantForceInteraction,
     GravityInteraction,
@@ -24,7 +25,7 @@ from skcomplex.models.physics.statistical_mechanics import ideal_gas
 def _pair(interaction, distance):
     """Return a system of two particles at a distance with one pair interaction."""
     return System(
-        components=[ParticleElement.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
+        elements=[GroupElement('pair', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [distance, 0.0]]})],
         interactions=[interaction],
         space=ContinuousSpace(n_dim=2),
     )
@@ -33,7 +34,7 @@ def _pair(interaction, distance):
 def test_particle_constant_acceleration():
     """Test that a constant force displaces a particle by `F * t**2 / (2 * m)`."""
     system = System(
-        components=[ParticleElement('p', m=2.0)],
+        elements=[ParticleElement('p', m=2.0)],
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),
     )
@@ -44,7 +45,7 @@ def test_particle_constant_acceleration():
 def test_spring_conserves_energy():
     """Test that two particles joined by a spring keep their total energy."""
     system = System(
-        components=[ParticleElement('a', x=[0.0, 0.0], v=[0.0, 1.0]), ParticleElement('b', x=[2.0, 0.0], m=2.0)],
+        elements=[ParticleElement('a', x=[0.0, 0.0], v=[0.0, 1.0]), ParticleElement('b', x=[2.0, 0.0], m=2.0)],
         interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -60,7 +61,7 @@ def test_spring_conserves_energy():
 def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
     system = System(
-        components=[
+        elements=[
             ParticleElement('sun', m=1000.0),
             ParticleElement('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6),
         ],
@@ -75,7 +76,7 @@ def test_gravity_keeps_circular_orbit():
 def test_linear_drag_slows_particle():
     """Test that drag decays the velocity exponentially."""
     system = System(
-        components=[ParticleElement('p', v=1.0)],
+        elements=[ParticleElement('p', v=1.0)],
         interactions=[LinearDragInteraction('air', target='p', gamma=0.5)],
         space=ContinuousSpace(n_dim=1),
     )
@@ -118,7 +119,7 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
     """Test that a gas at temperature 0.5 under a thermostat at 2 approaches 2 within 5 percent."""
     gas = ideal_gas(2000, kT=0.5, size=40.0, random_state=0)
     system = System(
-        components=gas.elements,
+        elements=gas.elements,
         interactions=[
             *gas.interactions,
             LangevinThermostatInteraction('bath', target='gas', temperature=2.0, gamma=1.0),

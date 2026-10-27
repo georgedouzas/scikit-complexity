@@ -8,35 +8,26 @@ from typing import Any
 import numpy as np
 
 from ....core.base import NumericDomain, ValidationError, parameter
-from ....core.laws import Symbols
+from ....core.elements import PatchElement, WordElement
+from ....core.laws import ProductionLaw, SubstitutionLaw, Symbols
+from ....core.specs import AffineSpec, PrototileSpec
 from ....core.system import System
-from ....engine.runtime import register_model
-from ....formalisms.rewriting import (
-    Affine,
-    PatchElement,
-    ProductionLaw,
-    Prototile,
-    RewriteLaw,
-    RewritingLaw,
-    SubstitutionLaw,
-    WordElement,
-    WordGeometry,
-)
+from ....engine.runtime import WordGeometry, register_model
 
 SHAPES = ('triangle', 'carpet')
 
 
-def _sierpinski_tiles(shape: str) -> tuple[Prototile, list[tuple[str, Affine]]]:
+def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
     """Return the prototile of a Sierpiński shape and the scaled copies that replace it."""
     if shape == 'triangle':
         height = np.sqrt(3) / 2
         corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
-        pieces = [('triangle', Affine(scale=0.5, translation=corner)) for corner in corners]
-        return Prototile('triangle', [(0.0, 0.0), (1.0, 0.0), (0.5, height)]), pieces
+        pieces = [('triangle', AffineSpec(scale=0.5, translation=corner)) for corner in corners]
+        return PrototileSpec('triangle', [(0.0, 0.0), (1.0, 0.0), (0.5, height)]), pieces
     if shape == 'carpet':
         cells = [(column, row) for row in range(3) for column in range(3) if (column, row) != (1, 1)]
-        pieces = [('square', Affine(scale=1 / 3, translation=(column / 3, row / 3))) for column, row in cells]
-        return Prototile('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
+        pieces = [('square', AffineSpec(scale=1 / 3, translation=(column / 3, row / 3))) for column, row in cells]
+        return PrototileSpec('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
     error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
     raise ValidationError(error_msg)
 
@@ -105,8 +96,8 @@ class CantorElement(PatchElement):
                 The rewriting law of the patch.
         """
         pieces = [
-            ('interval', Affine(scale=s.ratio)),
-            ('interval', Affine(scale=s.ratio, translation=(1 - s.ratio, 0))),
+            ('interval', AffineSpec(scale=s.ratio)),
+            ('interval', AffineSpec(scale=s.ratio, translation=(1 - s.ratio, 0))),
         ]
         return [RewriteLaw([SubstitutionLaw('interval', pieces)])]
 
@@ -187,7 +178,7 @@ def koch_curve(angle: float = 60.0) -> System:
         geometry=WordGeometry(angle=angle, step=1.0, contraction=1 / 3),
         bounds=(-0.03, -0.05, 1.03, 0.35),
     )
-    return System(components=[word])
+    return System(elements=[word])
 
 
 @register_model(
@@ -223,9 +214,9 @@ def cantor_set(ratio: float = 1 / 3) -> System:
     if not 0 < ratio < 0.5:  # noqa: PLR2004
         error_msg = f'ratio = {ratio!r} must lie between 0 and 1/2.'
         raise ValidationError(error_msg)
-    interval = Prototile('interval', [(0.0, 0.0), (1.0, 0.0)])
+    interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
     return System(
-        components=[CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
+        elements=[CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
     )
 
 
@@ -264,4 +255,4 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
         [1.0, 3.0, 9.0]
     """
     prototile, _ = _sierpinski_tiles(shape)
-    return System(components=[SierpinskiElement('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])
+    return System(elements=[SierpinskiElement('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])

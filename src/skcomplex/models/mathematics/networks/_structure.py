@@ -8,30 +8,33 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
+from skcomplex.core.declarations import parameter
+
+from ....analysis import assortativity, centrality, communities, motif_zscores, summarize_network
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import NetworkSpace
-from ....core.system import Observable, System
-from ....engine.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import NetworkSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 BLOCKS = 4
 BLOCK_SIZE = 100
 IN_DEGREE = 16
 OUT_DEGREE = 2
 
-NetworkMeasuresElement = Element.define(
-    'NetworkMeasuresElement',
-    parameters={
-        'path_length': 0.0,
-        'assortativity': 0.0,
-        'modularity': 0.0,
-        'agreement': 0.0,
-        'triangle_zscore': 0.0,
-    },
-)
+
+class NetworkMeasuresElement(Element):
+    """Network measures element."""
+
+    path_length = parameter(0.0)
+    assortativity = parameter(0.0)
+    modularity = parameter(0.0)
+    agreement = parameter(0.0)
+    triangle_zscore = parameter(0.0)
 
 
 class NetworkNodeElement(Element):
@@ -55,7 +58,7 @@ class NetworkNodeElement(Element):
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import NetworkNodeElement
-        >>> group = NetworkNodeElement.group('nodes', 3)
+        >>> group = GroupElement('nodes', element=NetworkNodeElement, size=3)
         >>> group.label, group.element.__name__, group.size
         ('nodes', 'NetworkNodeElement', 3)
     """
@@ -132,18 +135,18 @@ def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
     return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
 
-def _structure_observables(system: System) -> list[Observable]:
+def _structure_observables(system: System) -> list[ObservableSpec]:
     """Return the clustering, path length, assortativity, modularity, agreement, and triangle z-score.
 
     The agreement is 0 without a reference partition, and the triangle z-score is 0 without null samples.
     """
     return [
-        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
-        Observable('path_length', _path_length),
-        Observable('assortativity', _assortativity),
-        Observable('modularity', _modularity),
-        Observable('agreement', _agreement),
-        Observable('triangle_zscore', _triangle_zscore),
+        ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
+        ObservableSpec('path_length', _path_length),
+        ObservableSpec('assortativity', _assortativity),
+        ObservableSpec('modularity', _modularity),
+        ObservableSpec('agreement', _agreement),
+        ObservableSpec('triangle_zscore', _triangle_zscore),
     ]
 
 
@@ -200,14 +203,17 @@ def network_structure_analysis(
     clustering = nx.clustering(network)
     betweenness = centrality(network, 'betweenness')
     nodes = list(network.nodes())
-    group = NetworkNodeElement.group(
+    group = GroupElement(
         'nodes',
-        len(nodes),
+        element=NetworkNodeElement,
+        size=len(nodes),
+        values={
+            'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
+            'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
+            'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
+            'community': found.labels.astype(float),
+        },
         location=nodes,
-        degree=np.asarray([network.degree(node) for node in nodes], dtype=float),
-        clustering=np.asarray([clustering[node] for node in nodes], dtype=float),
-        betweenness=np.asarray([betweenness[node] for node in nodes], dtype=float),
-        community=found.labels.astype(float),
     )
     zscore = (
         motif_zscores(network, samples=null_samples, random_state=random_state).zscores['triangle']
@@ -222,4 +228,4 @@ def network_structure_analysis(
         agreement=0.0 if found.agreement is None else found.agreement,
         triangle_zscore=zscore,
     )
-    return System(components=[group, measures], space=NetworkSpace(network))
+    return System(elements=[group, measures], space=NetworkSpace(network))

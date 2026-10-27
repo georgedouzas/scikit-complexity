@@ -5,16 +5,16 @@
 
 from typing import ClassVar
 
+import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import rewire
 
 SMALLEST_DEGREE = 1e-9
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
@@ -228,7 +228,7 @@ def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarra
     )
     ties = GroupElement('ties', element=TieElement, on='edges', variable=True)
     separation = SeparationInteraction('separation', voters='voters', ties='ties')
-    return System(components=[agents, ties], interactions=[separation], space=space, time=DiscreteTime())
+    return System(elements=[agents, ties], interactions=[separation], space=space, time=DiscreteTime())
 
 
 @register_model(
@@ -279,7 +279,7 @@ def coevolving_voter(
         True
     """
     rng = np.random.default_rng(random_state)
-    space = NetworkSpace.erdos_renyi(n_voters, mean_degree / (n_voters - 1), seed=rng)
+    space = NetworkSpace(nx.gnp_random_graph(n_voters, mean_degree / (n_voters - 1), seed=rng))
     opinions = (rng.random(n_voters) < 0.5).astype(float)  # noqa: PLR2004
     return _coevolving(CoevolvingVoterElement, space, opinions, rewiring=rewiring, activity=activity)
 
@@ -336,6 +336,6 @@ def join_a_club(
         'ClubMemberElement'
     """
     rng = np.random.default_rng(random_state)
-    space = NetworkSpace.erdos_renyi(n_agents, mean_degree / (n_agents - 1), seed=rng)
+    space = NetworkSpace(nx.gnp_random_graph(n_agents, mean_degree / (n_agents - 1), seed=rng))
     opinions = (rng.random(n_agents) < 0.5).astype(float)  # noqa: PLR2004
     return _coevolving(ClubMemberElement, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)

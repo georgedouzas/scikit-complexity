@@ -8,32 +8,22 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import RR, SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import (
-    BaseLaw,
-    Expression,
-    LabelError,
-    NumericDomain,
-    Registry,
-    RoleError,
-    SpaceKind,
-    SymbolicVector,
-    ValidationError,
-    VariableKind,
-    components_of,
-    declarations_of,
-    symbol,
-    vector,
-)
-from ...core.components import GroupElement, WienerProcess
-from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
-from ...core.problems import EdgeSearch, Reference, Source
-from ...core.problems._kernels import Search
-from ...core.problems._problem import real_components_of
-from ...core.space import BaseSpace, NetworkSpace, neighbor_pairs
+from ...core.elements import GroupElement
+from ...core.errors import LabelError, RoleError, ValidationError
+from ...core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
+from ...core.laws import BaseLaw, JumpLaw
+from ...core.laws.utils import neighborhoods_in, reductions_in
+from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.specs import WienerProcessSpec
+from ..problems import EdgeSearch, Reference, Source, VariableKind, components_of, declarations_of, symbol, vector
+from ..problems._kernels import PairSearch, Search
+from ..problems._problem import real_components_of
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._tree import Node
 
@@ -41,14 +31,11 @@ MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 EDGE_NAMES = ('source', 'target', 'edge')
 
 type Observe = Callable[[Node, object], Observed | None]
-type Binding = Callable[[Block, dict[str, Block], Expression], KernelSpec]
-
-BINDINGS = Registry[Binding]('binding')
 
 
 def _resolve_path(node: Node, role: str, label: object, elements: dict[str, Block]) -> Block:
     """Return the block of an element, a group, or Wiener processes that a role of an interaction binds to by label."""
-    name = label.label if isinstance(label, WienerProcess) else label
+    name = label.label if isinstance(label, WienerProcessSpec) else label
     path = f'{node.scope}{name}' if isinstance(name, str) else None
     if path not in elements:
         where = node.scope.rstrip('/') or 'the root system'
@@ -112,7 +99,7 @@ def _entry_path(block: Block, index: int | None) -> str:
     return block.node.path if index is None else f'{block.node.path}[{index}]'
 
 
-def _entry_namespace(block: Block, index: int | None) -> tuple[Symbols, dict[Expression, Reference]]:
+def _entry_namespace(block: Block, index: int | None) -> tuple[SimpleNamespace, dict[Expression, Reference]]:
     """Return the namespace of an entry of a variadic role, an element or one member of a group."""
     return block.namespace(Source.SINGLE) if index is None else block.member_namespace(index)
 
@@ -200,7 +187,7 @@ def _interaction_specs(
     specs = []
     for index in range(next(iter(sizes), 1)):
         parameters, references = block.namespace(Source.SINGLE)
-        namespaces: dict[str, Symbols | tuple[Symbols, ...]] = {}
+        namespaces: dict[str, SimpleNamespace | tuple[SimpleNamespace, ...]] = {}
         set_symbols: dict[Expression, SetSymbol] = {}
         for role, members in sets.items():
             namespaces[role], role_references = members[index].namespace(Source.SINGLE)
@@ -226,7 +213,7 @@ def _interaction_specs(
         specs.append(
             KernelSpec(
                 node.path,
-                Symbols(t=time, **vars(parameters), **namespaces),
+                SimpleNamespace(t=time, **vars(parameters), **namespaces),
                 references,
                 groups[group] if group is not None else 1,
                 roles=paths,
@@ -355,9 +342,9 @@ def _edge_search(
             raise RoleError(error_msg)
         sources, targets = space.edges_[layer]
         size = space.size_
-    elif space is not None and space.space_kind == SpaceKind.LATTICE and edges is None and layer is None:
+    elif space is not None and space.space_kind == LatticeSpace and edges is None and layer is None:
         size = int(space.size_ or 0)
-        pairs = np.array(neighbor_pairs(space, size), dtype=np.intp).reshape(-1, 2)
+        pairs = np.array(space.check().prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
     else:
         error_msg = (
@@ -397,7 +384,7 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     target, target_references = nodes.namespace(Source.SECOND, alias='__target')
     references.update(source_references)
     references.update(target_references)
-    namespaces: dict[str, Symbols] = {'source': source, 'target': target}
+    namespaces: dict[str, SimpleNamespace] = {'source': source, 'target': target}
     paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
     groups: dict[str, int] = {}
     if edges is not None:
@@ -408,10 +395,10 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
         groups[edges.node.path] = edges.rows
     elif search.source is not None:
         changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
-        activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', NumericDomain.REAL)
+        activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', RR)
         references[activity] = Reference(changing.entries[ACTIVE], False, 0, Source.MEMBER)
         paths['edge'] = changing.node.path
-    namespace = Symbols(t=time, **vars(parameters), **namespaces)
+    namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
     group = edges.node.path if edges is not None else None
     return KernelSpec(node.path, namespace, references, search.size, search, roles=paths, group=group, groups=groups)
 
@@ -421,7 +408,7 @@ def resolve_role(node: Node, role: str, elements: dict[str, Block]) -> Block:
     return _resolve_path(node, role, getattr(node.component, role), elements)
 
 
-def with_other(block: Block, namespace: Symbols, references: dict[Expression, Reference]) -> Symbols:
+def with_other(block: Block, namespace: SimpleNamespace, references: dict[Expression, Reference]) -> SimpleNamespace:
     """Return the namespace of a group's member with `other`, the namespace of a neighbour in reductions over them.
 
     A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
@@ -430,7 +417,7 @@ def with_other(block: Block, namespace: Symbols, references: dict[Expression, Re
         return namespace
     other, other_references = block.namespace(Source.OTHER, alias='__other')
     references.update(other_references)
-    return Symbols(**vars(namespace), other=other)
+    return SimpleNamespace(**vars(namespace), other=other)
 
 
 def member_spec(block: Block, time: Expression) -> KernelSpec:
@@ -438,7 +425,7 @@ def member_spec(block: Block, time: Expression) -> KernelSpec:
     namespace, references = block.namespace(Source.MEMBER)
     namespace = with_other(block, namespace, references)
     group = block.node.path if block.node.members is not None else None
-    return KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
+    return KernelSpec(block.node.path, SimpleNamespace(t=time, **vars(namespace)), references, block.rows, group=group)
 
 
 def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
@@ -449,12 +436,12 @@ def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
     each together.
     """
     values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
-    if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
+    if not spec.groups or (len(spec.groups) == 1 and not any(reductions_in(value) for value in values)):
         return
     read: set[Expression] = set()
     for law, value in zip(laws, values, strict=True):
         read |= _outside_reductions(value)
-        read |= {item for target in law.targets for item in components_of(target)}
+        read |= {item for target in law._get_targets() for item in components_of(target)}
     owners = {
         reference.entry.name.rpartition('.')[0]
         for item in read
@@ -491,7 +478,7 @@ def target_references(target: object, spec: KernelSpec) -> list[Reference]:
 def component_of(node: Node) -> object:
     """Return the object whose `laws` method describes a node, a representative member for a group."""
     if isinstance(node.component, GroupElement):
-        return node.component.element(node.component.label, **(node.component.values or {}))
+        return node.component.element(node.component.label, **(node.component.values or {})).check()
     return node.component
 
 
@@ -556,29 +543,53 @@ def masked_value(value: object, mask: Expression) -> object:
         value:
             The masked value, or the value itself when it is neither symbolic nor a number.
     """
-    if isinstance(value, SymbolicVector):
+    if isinstance(value, FreeModuleElement):
         return vector(SR(item) * mask for item in value)
     if isinstance(value, Expression | int | float):
         return SR(value) * mask
     return value
 
 
-def register_binding(over: str, binding: Binding) -> None:
-    """Register how the kernel spec of an interaction with a binding is built, such as `'pairs'`.
+def _space_period(node: Node) -> float | None:
+    """Return the side of the periodic box that a pair interaction measures minimum image distances in, or `None`."""
+    space = node.space
+    if not isinstance(space, ContinuousSpace) or not space.periodic_:
+        return None
+    if len(set(space.extent_)) > 1:
+        error_msg = (
+            f'Pair interaction {node.path} lives in the periodic box {space.extent_}, whose sides differ. Pair '
+            'searches measure minimum image distances in boxes with equal sides.'
+        )
+        raise ValidationError(error_msg)
+    return space.extent_[0]
 
-    Args:
-        over:
-            The binding, the class variable `over` of the interaction.
 
-        binding:
-            The function that returns the kernel spec of an interaction from its block, the blocks of the elements
-            and groups by path, and the time symbol.
-    """
-    BINDINGS.register(over, binding)
+def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> KernelSpec:
+    """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
+    node = block.node
+    interaction: BaseInteraction = node.component
+    first, second = resolve_role(node, 'first', elements), resolve_role(node, 'second', elements)
+    position = getattr(type(interaction), 'position', 'x')
+    for bound in (first, second):
+        entry = bound.entries.get(position)
+        if entry is None or not entry.member_shape:
+            error_msg = f'Pair interaction {node.path} needs the vector state {position!r} in {bound.node.path}.'
+            raise ValidationError(error_msg)
+    parameters, references = block.namespace(Source.SINGLE)
+    first_namespace, first_references = first.namespace(Source.FIRST)
+    second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
+    references.update(first_references)
+    references.update(second_references)
+    period = getattr(interaction, 'period', None)
+    period = period if period is not None else _space_period(node)
+    pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
+    namespace = SimpleNamespace(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
+    paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
+    return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
 def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe: Observe) -> list[KernelSpec]:
-    """Return the kernel specs of a component: its intrinsic laws, its edges, its registered binding, or its roles.
+    """Return the kernel specs of a component: its intrinsic laws, its edges, its pairs, or its roles.
 
     Args:
         block:
@@ -599,11 +610,10 @@ def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe
     """
     if not is_interaction(block.node):
         return [member_spec(block, time)]
-    over = type(block.node.component).over
-    if over == 'neighbors':
+    if isinstance(block.node.component, NeighborInteraction):
         return [_edge_spec(block, elements, time)]
-    if over in BINDINGS.keys:
-        return [BINDINGS.resolve(over)(block, elements, time)]
+    if isinstance(block.node.component, PairInteraction):
+        return [_pair_spec(block, elements, time)]
     return _interaction_specs(block, elements, time, observe)
 
 
@@ -621,7 +631,7 @@ class KernelSpec:
     """Namespace, references, and evaluation indices that the laws of one component are lowered with."""
 
     owner: str
-    namespace: Symbols
+    namespace: SimpleNamespace
     references: dict[Expression, Reference]
     rows: int
     pairs: Search | None = None
@@ -637,5 +647,5 @@ class KernelSpec:
 class Observed:
     """Value of an observable that a role reads at the current state, with the references of its symbols."""
 
-    namespace: Symbols
+    namespace: SimpleNamespace
     references: dict[Expression, Reference]

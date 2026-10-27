@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import sin
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 from ._delays import delay3, smooth
 
@@ -169,101 +170,100 @@ def _irrigation_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-RiceMillElement = Element.define(
-    'RiceMillElement',
-    states={
-        'paddy': state(default=2000.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
-        'rice': state(default=1300.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
-        'husk': state(default=400.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
-        'bran': state(default=160.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
-        'capacity': state(default=2000.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'harvest': parameter(default=2000.0, domain=NumericDomain.NONNEGATIVE),
-        'seasonality': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
-        'procurement_delay': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'milling_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'outturn': parameter(default=0.65, domain=NumericDomain.NONNEGATIVE),
-        'husk_share': parameter(default=HUSK_SHARE, domain=NumericDomain.NONNEGATIVE),
-        'bran_share': parameter(default=BRAN_SHARE, domain=NumericDomain.NONNEGATIVE),
-        'dispatch_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'by_product_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'perception_time': parameter(default=6.0, domain=NumericDomain.POSITIVE),
-        'expansion_time': parameter(default=12.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_rice_mill_laws,
-)
+class RiceMillElement(Element):
+    """Rice mill element."""
 
-WasteSystemElement = Element.define(
-    'WasteSystemElement',
-    states={
-        'population': state(default=1e6, domain=NumericDomain.NONNEGATIVE, quantity='people'),
-        'uncollected': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
-        'recycled': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
-        'composted': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
-        'landfill': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
-        'dumped': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
-        'collection_capacity': state(default=1.5e5, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'growth_rate': parameter(default=0.02, domain=NumericDomain.REAL),
-        'per_capita': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'collection_time': parameter(default=0.05, domain=NumericDomain.POSITIVE),
-        'recycling_share': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'composting_share': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
-        'landfill_capacity': parameter(default=2e6, domain=NumericDomain.POSITIVE),
-        'recycling_time': parameter(default=0.25, domain=NumericDomain.POSITIVE),
-        'composting_time': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        'capacity_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_waste_laws,
-)
+    paddy = state(default=2000.0, domain=NumericDomain.NONNEGATIVE, quantity='grain')
+    rice = state(default=1300.0, domain=NumericDomain.NONNEGATIVE, quantity='grain')
+    husk = state(default=400.0, domain=NumericDomain.NONNEGATIVE, quantity='grain')
+    bran = state(default=160.0, domain=NumericDomain.NONNEGATIVE, quantity='grain')
+    capacity = state(default=2000.0, domain=NumericDomain.NONNEGATIVE)
+    harvest = parameter(default=2000.0, domain=NumericDomain.NONNEGATIVE)
+    seasonality = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    procurement_delay = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    milling_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    outturn = parameter(default=0.65, domain=NumericDomain.NONNEGATIVE)
+    husk_share = parameter(default=HUSK_SHARE, domain=NumericDomain.NONNEGATIVE)
+    bran_share = parameter(default=BRAN_SHARE, domain=NumericDomain.NONNEGATIVE)
+    dispatch_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    by_product_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    perception_time = parameter(default=6.0, domain=NumericDomain.POSITIVE)
+    expansion_time = parameter(default=12.0, domain=NumericDomain.POSITIVE)
 
-ReliefPipelineElement = Element.define(
-    'ReliefPipelineElement',
-    states={
-        'in_transit': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food'),
-        'warehouse': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food'),
-    },
-    parameters={
-        'affected': parameter(default=1e5, domain=NumericDomain.NONNEGATIVE),
-        'ration': parameter(default=5e-4, domain=NumericDomain.NONNEGATIVE),
-        'onset': parameter(default=10.0, domain=NumericDomain.NONNEGATIVE),
-        'shipping_delay': parameter(default=14.0, domain=NumericDomain.POSITIVE),
-        'cover': parameter(default=7.0, domain=NumericDomain.NONNEGATIVE),
-        'stock_time': parameter(default=7.0, domain=NumericDomain.POSITIVE),
-        'pipeline_time': parameter(default=14.0, domain=NumericDomain.POSITIVE),
-        'distribution_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_relief_laws,
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rice mill element."""
+        return _rice_mill_laws(s)
 
-IrrigationSchemeElement = Element.define(
-    'IrrigationSchemeElement',
-    states={
-        'reservoir': state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water'),
-        'soil': state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='water'),
-        'groundwater': state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='water'),
-    },
-    parameters={
-        'river_inflow': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'seasonality': parameter(default=0.9, domain=NumericDomain.NONNEGATIVE),
-        'reservoir_capacity': parameter(default=80.0, domain=NumericDomain.POSITIVE),
-        'evaporation': parameter(default=0.001, domain=NumericDomain.NONNEGATIVE),
-        'spill_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'release_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'canal_loss': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'potential_et': parameter(default=0.4, domain=NumericDomain.NONNEGATIVE),
-        'field_capacity': parameter(default=20.0, domain=NumericDomain.POSITIVE),
-        'target': parameter(default=0.7, domain=NumericDomain.NONNEGATIVE),
-        'refill_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-        'percolation': parameter(default=0.005, domain=NumericDomain.NONNEGATIVE),
-        'pump_capacity': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'pump_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'baseflow_time': parameter(default=500.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_irrigation_laws,
-)
+
+class WasteSystemElement(Element):
+    """Waste system element."""
+
+    population = state(default=1e6, domain=NumericDomain.NONNEGATIVE, quantity='people')
+    uncollected = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste')
+    recycled = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste')
+    composted = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste')
+    landfill = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste')
+    dumped = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste')
+    collection_capacity = state(default=1.5e5, domain=NumericDomain.NONNEGATIVE)
+    growth_rate = parameter(default=0.02, domain=NumericDomain.REAL)
+    per_capita = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    collection_time = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    recycling_share = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    composting_share = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    landfill_capacity = parameter(default=2e6, domain=NumericDomain.POSITIVE)
+    recycling_time = parameter(default=0.25, domain=NumericDomain.POSITIVE)
+    composting_time = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    capacity_time = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the waste system element."""
+        return _waste_laws(s)
+
+
+class ReliefPipelineElement(Element):
+    """Relief pipeline element."""
+
+    in_transit = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food')
+    warehouse = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food')
+    affected = parameter(default=1e5, domain=NumericDomain.NONNEGATIVE)
+    ration = parameter(default=5e-4, domain=NumericDomain.NONNEGATIVE)
+    onset = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    shipping_delay = parameter(default=14.0, domain=NumericDomain.POSITIVE)
+    cover = parameter(default=7.0, domain=NumericDomain.NONNEGATIVE)
+    stock_time = parameter(default=7.0, domain=NumericDomain.POSITIVE)
+    pipeline_time = parameter(default=14.0, domain=NumericDomain.POSITIVE)
+    distribution_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the relief pipeline element."""
+        return _relief_laws(s)
+
+
+class IrrigationSchemeElement(Element):
+    """Irrigation scheme element."""
+
+    reservoir = state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')
+    soil = state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='water')
+    groundwater = state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='water')
+    river_inflow = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    seasonality = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    reservoir_capacity = parameter(default=80.0, domain=NumericDomain.POSITIVE)
+    evaporation = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    spill_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    release_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    canal_loss = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    potential_et = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    field_capacity = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    target = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
+    refill_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    percolation = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    pump_capacity = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    pump_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    baseflow_time = parameter(default=500.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the irrigation scheme element."""
+        return _irrigation_laws(s)
 
 
 @register_model(
@@ -272,9 +272,9 @@ IrrigationSchemeElement = Element.define(
     references=('Bala et al. 2017',),
     defaults={'until': 120.0, 'dt': 0.25},
     observables=lambda system: [
-        observe_element('mill', 'procurement', _procurement),
-        observe_element('mill', 'indicated_milling', _indicated_milling),
-        observe_element('mill', 'milling', _milling),
+        ObservableSpec('procurement', _procurement, element='mill'),
+        ObservableSpec('indicated_milling', _indicated_milling, element='mill'),
+        ObservableSpec('milling', _milling, element='mill'),
     ],
 )
 def rice_milling(
@@ -343,7 +343,7 @@ def rice_milling(
         outturn=outturn,
         expansion_time=expansion_time,
     )
-    return System(components=[mill])
+    return System(elements=[mill])
 
 
 @register_model(
@@ -352,9 +352,9 @@ def rice_milling(
     references=('Bala et al. 2017',),
     defaults={'until': 40.0, 'dt': 0.1},
     observables=lambda system: [
-        observe_element('city', 'generation', _generation),
-        observe_element('city', 'collection', _collection),
-        observe_element('city', 'acceptance', _acceptance),
+        ObservableSpec('generation', _generation, element='city'),
+        ObservableSpec('collection', _collection, element='city'),
+        ObservableSpec('acceptance', _acceptance, element='city'),
     ],
 )
 def solid_waste(
@@ -418,7 +418,7 @@ def solid_waste(
         composting_share=composting_share,
         landfill_capacity=landfill_capacity,
     )
-    return System(components=[city])
+    return System(elements=[city])
 
 
 @register_model(
@@ -427,8 +427,8 @@ def solid_waste(
     references=('Bala et al. 2017',),
     defaults={'until': 120.0, 'dt': 0.5},
     observables=lambda system: [
-        observe_element('relief', 'need', _need),
-        observe_element('relief', 'shipments', _shipments),
+        ObservableSpec('need', _need, element='relief'),
+        ObservableSpec('shipments', _shipments, element='relief'),
     ],
 )
 def food_relief(
@@ -489,7 +489,7 @@ def food_relief(
         cover=cover,
         stock_time=stock_time,
     )
-    return System(components=[relief])
+    return System(elements=[relief])
 
 
 @register_model(
@@ -498,9 +498,9 @@ def food_relief(
     references=('Bala et al. 2017',),
     defaults={'until': 730.0, 'dt': 1.0},
     observables=lambda system: [
-        observe_element('scheme', 'demand', _demand),
-        observe_element('scheme', 'release', _release),
-        observe_element('scheme', 'pumping', _pumping),
+        ObservableSpec('demand', _demand, element='scheme'),
+        ObservableSpec('release', _release, element='scheme'),
+        ObservableSpec('pumping', _pumping, element='scheme'),
     ],
 )
 def irrigation(
@@ -564,4 +564,4 @@ def irrigation(
         canal_loss=canal_loss,
         pump_capacity=pump_capacity,
     )
-    return System(components=[scheme])
+    return System(elements=[scheme])

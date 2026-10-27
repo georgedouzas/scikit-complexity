@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
@@ -33,18 +34,17 @@ def _contest_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-ContestElement = Element.define(
-    'ContestElement',
-    states={
-        'a': state(default=55.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
-        'b': state(default=45.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
-    },
-    parameters={
-        'budget': parameter(default=10.0, domain=NumericDomain.NONNEGATIVE),
-        'lifetime': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_contest_laws,
-)
+class ContestElement(Element):
+    """Contest element."""
+
+    a = state(default=55.0, domain=NumericDomain.NONNEGATIVE, quantity='resources')
+    b = state(default=45.0, domain=NumericDomain.NONNEGATIVE, quantity='resources')
+    budget = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    lifetime = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the contest element."""
+        return _contest_laws(s)
 
 
 def _symptom(s: Symbols) -> Expression:
@@ -63,21 +63,20 @@ def _burden_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-BurdenElement = Element.define(
-    'BurdenElement',
-    states={
-        'capability': state(default=0.5, domain=NumericDomain.NONNEGATIVE, quantity='capability'),
-        'intervention': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='intervention'),
-    },
-    parameters={
-        'desired': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'fix_rate': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'build_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-        'solution_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'erosion': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_burden_laws,
-)
+class BurdenElement(Element):
+    """Burden element."""
+
+    capability = state(default=0.5, domain=NumericDomain.NONNEGATIVE, quantity='capability')
+    intervention = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='intervention')
+    desired = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    fix_rate = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    build_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    solution_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    erosion = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the burden element."""
+        return _burden_laws(s)
 
 
 def _desired_a(s: Symbols) -> Expression:
@@ -101,19 +100,18 @@ def _escalation_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-ArmsRaceElement = Element.define(
-    'ArmsRaceElement',
-    states={
-        'a': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
-        'b': state(default=10.5, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
-    },
-    parameters={
-        'margin': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'adjustment_time': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'perception_delay': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_escalation_laws,
-)
+class ArmsRaceElement(Element):
+    """Arms race element."""
+
+    a = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='arms')
+    b = state(default=10.5, domain=NumericDomain.NONNEGATIVE, quantity='arms')
+    margin = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    adjustment_time = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    perception_delay = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the arms race element."""
+        return _escalation_laws(s)
 
 
 @register_model(
@@ -122,8 +120,8 @@ ArmsRaceElement = Element.define(
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 0.5},
     observables=lambda system: [
-        observe_element('contest', 'success', _success),
-        observe_element('contest', 'allocation', _allocation),
+        ObservableSpec('success', _success, element='contest'),
+        ObservableSpec('allocation', _allocation, element='contest'),
     ],
 )
 def success_to_the_successful(
@@ -165,7 +163,7 @@ def success_to_the_successful(
         >>> success_to_the_successful(a=60.0).elements[0].a
         60.0
     """
-    return System(components=[ContestElement('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
+    return System(elements=[ContestElement('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
 
 
 @register_model(
@@ -173,7 +171,7 @@ def success_to_the_successful(
     tags=('system traps', 'addiction', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 60.0, 'dt': 0.5},
-    observables=lambda system: [observe_element('burden', 'symptom', _symptom)],
+    observables=lambda system: [ObservableSpec('symptom', _symptom, element='burden')],
 )
 def shifting_the_burden(
     capability: float = 0.5,
@@ -237,7 +235,7 @@ def shifting_the_burden(
         solution_delay=solution_delay,
         erosion=erosion,
     )
-    return System(components=[burden])
+    return System(elements=[burden])
 
 
 @register_model(
@@ -246,8 +244,8 @@ def shifting_the_burden(
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 0.5},
     observables=lambda system: [
-        observe_element('race', 'desired_a', _desired_a),
-        observe_element('race', 'desired_b', _desired_b),
+        ObservableSpec('desired_a', _desired_a, element='race'),
+        ObservableSpec('desired_b', _desired_b, element='race'),
     ],
 )
 def escalation(
@@ -300,4 +298,4 @@ def escalation(
         adjustment_time=adjustment_time,
         perception_delay=perception_delay,
     )
-    return System(components=[race])
+    return System(elements=[race])

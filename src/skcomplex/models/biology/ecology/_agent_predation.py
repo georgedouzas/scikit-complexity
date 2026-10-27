@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 PREY = 'prey'
 
@@ -36,7 +37,7 @@ class PreyElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PreyElement
-        >>> PreyElement.group('rabbits', 200).size
+        >>> GroupElement('rabbits', element=PreyElement, size=200).size
         200
     """
 
@@ -86,7 +87,7 @@ class PredatorElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PredatorElement
-        >>> PredatorElement.group('foxes', 50).size
+        >>> GroupElement('foxes', element=PredatorElement, size=50).size
         50
     """
 
@@ -187,15 +188,22 @@ def agent_based_lotka_volterra(
     cells = rng.integers(0, [width, height], size=(prey + predators, 2))
     locations = [tuple(int(item) for item in cell) for cell in cells]
     return System(
-        components=[
-            PreyElement.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
-            PredatorElement.group(
+        elements=[
+            GroupElement(
+                'prey',
+                element=PreyElement,
+                size=prey,
+                values={'birth': birth},
+                variable=True,
+                location=locations[:prey],
+            ),
+            GroupElement(
                 'predators',
-                predators,
+                element=PredatorElement,
+                size=predators,
+                values={'conversion': conversion, 'death': death},
                 variable=True,
                 location=locations[prey:],
-                conversion=conversion,
-                death=death,
             ),
         ],
         space=LatticeSpace((width, height), boundary='periodic'),

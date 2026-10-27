@@ -11,15 +11,15 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, Symbols
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import DriveLaw, LocalRuleLaw, RelaxationLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
-NEAREST = Neighborhood.von_neumann(center=True)
+NEAREST = VonNeumannNeighborhood(center=True)
 
 
 class FaultElement(Element):
@@ -134,4 +134,8 @@ def earthquakes(
     """
     forces = np.random.default_rng(random_state).random(tuple(shape))
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[FaultElement.lattice('fault', space, force=forces, alpha=alpha)])
+    return System(
+        elements=[
+            LatticeElement('fault', element=FaultElement, space=space, values={'force': forces, 'alpha': alpha}),
+        ],
+    )

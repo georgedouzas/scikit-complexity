@@ -11,7 +11,7 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import lyapunov_spectrum
+from skcomplex.analysis import lyapunov_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

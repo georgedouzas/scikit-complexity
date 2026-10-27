@@ -3,39 +3,55 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import state
+
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-LeakyIntegrateAndFireElement = Element.define(
-    'LeakyIntegrateAndFireElement',
-    states={'v': -65.0},
-    parameters={
-        'rest': -65.0,
-        'threshold': -50.0,
-        'reset': -65.0,
-        'resistance': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'tau': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'I': 2.0,
-    },
-    laws=lambda s: [
-        RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
-        EventLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
-    ],
-)
 
-IzhikevichElement = Element.define(
-    'IzhikevichElement',
-    states={'v': -65.0, 'u': -13.0},
-    parameters={'a': 0.02, 'b': 0.2, 'c': -65.0, 'd': 8.0, 'I': 10.0, 'peak': 30.0},
-    laws=lambda s: [
-        RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
-        RateLaw(s.u, s.a * (s.b * s.v - s.u)),
-        EventLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
-    ],
-)
+class LeakyIntegrateAndFireElement(Element):
+    """Leaky integrate and fire element."""
+
+    v = state(-65.0)
+    rest = parameter(-65.0)
+    threshold = parameter(-50.0)
+    reset = parameter(-65.0)
+    resistance = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    tau = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    I = parameter(2.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the leaky integrate and fire element."""
+        return [
+            RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
+            EventLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
+        ]
+
+
+class IzhikevichElement(Element):
+    """Izhikevich element."""
+
+    v = state(-65.0)
+    u = state(-13.0)
+    a = parameter(0.02)
+    b = parameter(0.2)
+    c = parameter(-65.0)
+    d = parameter(8.0)
+    I = parameter(10.0)
+    peak = parameter(30.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the izhikevich element."""
+        return [
+            RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
+            RateLaw(s.u, s.a * (s.b * s.v - s.u)),
+            EventLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
+        ]
 
 
 @register_model(
@@ -93,7 +109,7 @@ def integrate_and_fire(
         13.86
     """
     return System(
-        components=[
+        elements=[
             LeakyIntegrateAndFireElement(
                 'neuron',
                 v=v,
@@ -160,4 +176,4 @@ def izhikevich(
         >>> izhikevich(d=2.0).elements[0].d
         2.0
     """
-    return System(components=[IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])
+    return System(elements=[IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])

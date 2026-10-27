@@ -345,7 +345,7 @@ def radiotherapy_competition(
         period=period,
         width=width,
     )
-    return System(components=[tissue])
+    return System(elements=[tissue])
 
 
 @register_model(
@@ -454,4 +454,4 @@ def lq_radiosensitizer(
         start=start,
         fractions=fractions,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])

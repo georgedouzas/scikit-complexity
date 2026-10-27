@@ -12,7 +12,7 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of, structure_factor
+from skcomplex.analysis import fields_of, structure_factor
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, default_blueprint

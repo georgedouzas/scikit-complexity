@@ -7,47 +7,16 @@ import math
 import warnings
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import numpy as np
-from numba.extending import register_jitable
 
-from ...core.base import BackendError, Form, SolverError, Vector
-from ...core.problems import BaseProblem, BaseSolver, Problem
-from ..compile import SOLVERS, solver_registry
+from ...core.errors import BackendError, SolverError
+from ...core.types import Vector
+from ..problems import Form, Problem
+from ._base import BaseSolver
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
-
-STEP_TOLERANCE = 1e-9
-
-
-@register_jitable
-def step_count(t: float, until: float, dt: float) -> int:
-    """Return the number of equal steps no longer than `dt` from time `t` to time `until`, at least one.
-
-    A span within `1e-9` steps above a whole number of steps takes that whole number, so rounding in the span does not
-    add a step. The compiled loops of the Numba backend call the same function.
-
-    Args:
-        t:
-            The start time.
-
-        until:
-            The end time.
-
-        dt:
-            The largest step.
-
-    Returns:
-        count:
-            The number of steps.
-
-    Examples:
-        >>> from skcomplex.engine.solvers import step_count
-        >>> step_count(0.1, 0.4, 0.1)
-        3
-    """
-    return max(1, math.ceil((until - t) / dt - STEP_TOLERANCE))
 
 
 class Solver(BaseSolver[Problem]):
@@ -173,53 +142,6 @@ class Solver(BaseSolver[Problem]):
         locator = self.locator_
         self.events_, locator.records = locator.records, []
         self.stopped_at_ = locator.stopped_at
-
-
-def register_solver(name: str, stepper: type[Solver], *, default: bool = False) -> None:
-    """Register a stepper class under a name for its form.
-
-    Args:
-        name:
-            The name users select the stepper with.
-
-        stepper:
-            The stepper class.
-
-        default:
-            Whether the stepper is the default of its form.
-    """
-    SOLVERS.register((stepper.form, name), stepper)
-    if default:
-        SOLVERS.register((stepper.form, 'auto'), stepper)
-
-
-def resolve_solver(problem: BaseProblem, solver: str | BaseSolver[Any]) -> BaseSolver[Any]:
-    """Return a stepper for a problem from a registered name or an instance.
-
-    Args:
-        problem:
-            The compiled problem.
-
-        solver:
-            A registered name, `'auto'` for the default of the problem's form, or a stepper instance.
-
-    Returns:
-        stepper:
-            A new stepper for a name, or the given instance.
-
-    Raises:
-        SolverError:
-            No stepper of the problem's form is registered under the name.
-    """
-    if isinstance(solver, BaseSolver):
-        return solver
-    solver_registry()
-    try:
-        return SOLVERS.resolve((problem.form, solver))()
-    except KeyError as error:
-        names = [str(key[1]) for key in SOLVERS.keys if isinstance(key, tuple) and key[0] == problem.form]
-        error_msg = f'No {problem.form.value} solver named {solver!r}. Available names are: {", ".join(names)}.'
-        raise SolverError(error_msg) from error
 
 
 class ExternalSolver(Solver):

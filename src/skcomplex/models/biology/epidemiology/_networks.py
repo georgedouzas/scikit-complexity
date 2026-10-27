@@ -9,11 +9,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols, total
-from ....core.space import NetworkSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
 
 class DegreeClassElement(Element):
@@ -41,7 +43,9 @@ class DegreeClassElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import DegreeClassElement
-        >>> DegreeClassElement.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).prepare().size_
+        >>> GroupElement(
+        ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
+        ... ).prepare().size_
         2
     """
 
@@ -173,8 +177,13 @@ def heterogeneous_mean_field_sis(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = DegreeClassElement.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
-    return System(components=[classes])
+    classes = GroupElement(
+        'network',
+        element=DegreeClassElement,
+        size=len(degrees),
+        values={'rho': rho, 'lam': lam, 'k': degrees, 'P': weights},
+    )
+    return System(elements=[classes])
 
 
 @register_model(
@@ -238,4 +247,4 @@ def metapopulation(
         'gamma': gamma,
         'D': D,
     }
-    return System(components=[FieldElement('cities', SubpopulationElement, NetworkSpace(graph), values=values)])
+    return System(elements=[FieldElement('cities', SubpopulationElement, NetworkSpace(graph), values=values)])

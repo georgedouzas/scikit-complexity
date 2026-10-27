@@ -9,22 +9,15 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import (
-    Expression,
-    Indices,
-    SolverError,
-    SymbolicVector,
-    ValidationError,
-    Vector,
-    components_of,
-    symbol,
-    symbols_of,
-)
-from ...core.laws import Draw, draws_in, has_reductions, is_draw
-from ...core.laws._laws import RenewalLaw
-from ...core.problems import Entry, Reference, RenewalRecord, Source, numpy_function
+from ...core.errors import SolverError, ValidationError
+from ...core.laws.utils import Draw, draws_in, reductions_in
+from ...core.laws.utils._draws import DRAWS
+from ...core.types import Indices, Vector
+from ..problems import Entry, Reference, RenewalRecord, Source, components_of, numpy_function, symbol, symbols_of
+from ._renewal_law import RenewalLaw
 from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 
@@ -132,9 +125,10 @@ def _declared(owner: str, found: list[Draw]) -> dict[str, Draw]:
 
 def _lowest_value(owner: str, description: str, waiting: Expression) -> float:
     """Return the lowest value a waiting time that is a single draw can take, or 0 when it is not known."""
-    if not is_draw(waiting):
+    operator = waiting.operator()
+    if operator is None or getattr(operator, 'name', lambda: '')() not in DRAWS:
         return 0.0
-    found = Draw.of(waiting)
+    found = draws_in(waiting)[0]
     numbers = [float(item) if SR(item).is_numeric() else None for item in found.arguments]
     if found.kind == 'normal':
         return -math.inf
@@ -403,11 +397,11 @@ def compile_renewal(
         SR(item)
         for target, value in reset.items()
         for item in (
-            components_of(value) if isinstance(value, SymbolicVector) else [value] * len(components_of(target))
+            components_of(value) if isinstance(value, FreeModuleElement) else [value] * len(components_of(target))
         )
     ]
     waiting = SR(law.waiting)
-    if any(has_reductions(item) for item in [*values, waiting]):
+    if any(reductions_in(item) for item in [*values, waiting]):
         error_msg = (
             f'The {description} of {owner} reads a reduction over a group. Renewal laws read the states and parameters '
             'of the renewing member.'

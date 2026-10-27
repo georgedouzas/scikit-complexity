@@ -10,16 +10,17 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols, neighbors
-from ....core.space import LatticeSpace, Neighborhood
-from ....core.system import Observable, System
+from ....core.laws import SampleLaw, Symbols, neighbors
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import EnergySpec, MoveSpec, ObservableSpec, SamplerSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
+from ...core.elements import LatticeElement
 from ._fully_connected_spins import SPIN_IMAGE
 
 type Couplings = npt.NDArray[np.floating]
 
-NEAREST = Neighborhood.von_neumann()
+NEAREST = VonNeumannNeighborhood()
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, int]:
@@ -109,9 +110,9 @@ class BondSpinElement(Element):
         )
         return [
             SampleLaw(
-                Energy(-s.spin * (field + s.h), NEAREST),
-                MoveLaw.flip(s.spin),
-                SamplerLaw('metropolis', s.temperature),
+                EnergySpec(-s.spin * (field + s.h), NEAREST),
+                MoveSpec.flip(s.spin),
+                SamplerSpec('metropolis', s.temperature),
             ),
         ]
 
@@ -156,9 +157,9 @@ class MattisSpinElement(BondSpinElement):
     pattern: float = state(default=1.0, domain=NumericDomain.INTEGER)
 
 
-def _magnetization_observables(system: System) -> list[Observable]:
+def _magnetization_observables(system: System) -> list[ObservableSpec]:
     """Return the magnetization of the spins."""
-    return [Observable('magnetization', group='spins', variable='spin')]
+    return [ObservableSpec('magnetization', group='spins', variable='spin')]
 
 
 @register_model(
@@ -227,23 +228,21 @@ def edwards_anderson(
         error_msg = f"The disorder is 'bimodal' or 'gaussian', not {disorder!r}."
         raise ValidationError(error_msg)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = BondSpinElement.lattice(
+    group = LatticeElement(
         'spins',
-        LatticeSpace(shape),
+        element=BondSpinElement,
+        space=LatticeSpace(shape),
+        values={'spin': spins, 'h': h, 'temperature': temperature, **_bond_states(right, down)},
         visual=SPIN_IMAGE,
-        spin=spins,
-        h=h,
-        temperature=temperature,
-        **_bond_states(right, down),
     )
-    return System(components=[group])
+    return System(elements=[group])
 
 
-def _pattern_observables(system: System) -> list[Observable]:
+def _pattern_observables(system: System) -> list[ObservableSpec]:
     """Return the magnetization of the spins and their overlap with the pattern."""
     return [
-        Observable('magnetization', group='spins', variable='spin'),
-        Observable('overlap', _overlap, group='spins'),
+        ObservableSpec('magnetization', group='spins', variable='spin'),
+        ObservableSpec('overlap', _overlap, group='spins'),
     ]
 
 
@@ -303,14 +302,11 @@ def mattis_spin_glass(
     right = J * pattern * np.roll(pattern, -1, axis=1)
     down = J * pattern * np.roll(pattern, -1, axis=0)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = MattisSpinElement.lattice(
+    group = LatticeElement(
         'spins',
-        LatticeSpace(shape),
+        element=MattisSpinElement,
+        space=LatticeSpace(shape),
+        values={'spin': spins, 'pattern': pattern, 'h': h, 'temperature': temperature, **_bond_states(right, down)},
         visual=VisualSpec('image', {'states': ()}),
-        spin=spins,
-        pattern=pattern,
-        h=h,
-        temperature=temperature,
-        **_bond_states(right, down),
     )
-    return System(components=[group])
+    return System(elements=[group])

@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Symbols, TransferLaw, lookup, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 PROFITABILITY_EFFECT = (
@@ -130,31 +131,30 @@ def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-PlantationElement = Element.define(
-    'PlantationElement',
-    states={
-        'forest': state(default=490.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
-        'area': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
-        'abandoned': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
-        'shade_removal': state(default=5.0, domain=NumericDomain.NONNEGATIVE),
-        'insects': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'yield_normal': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-        'price': parameter(default=40.0, domain=NumericDomain.NONNEGATIVE),
-        'cost': parameter(default=100.0, domain=NumericDomain.NONNEGATIVE),
-        'thinning_cost': parameter(default=20.0, domain=NumericDomain.NONNEGATIVE),
-        'adjustment_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'abandon_time': parameter(default=4.0, domain=NumericDomain.POSITIVE),
-        'conversion_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'palm_margin': parameter(default=0.4, domain=NumericDomain.POSITIVE),
-        'thinning_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
-        'insect_growth': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
-        'insect_control': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
-        'subsidy': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_cocoa_laws,
-)
+class PlantationElement(Element):
+    """Plantation element."""
+
+    forest = state(default=490.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
+    area = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
+    abandoned = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
+    shade_removal = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    insects = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    yield_normal = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    price = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
+    cost = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    thinning_cost = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    adjustment_time = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    abandon_time = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    conversion_time = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    palm_margin = parameter(default=0.4, domain=NumericDomain.POSITIVE)
+    thinning_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
+    insect_growth = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    insect_control = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    subsidy = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the plantation element."""
+        return _cocoa_laws(s)
 
 
 @register_model(
@@ -163,9 +163,9 @@ PlantationElement = Element.define(
     references=('Bala et al. 2017',),
     defaults={'until': 50.0, 'dt': 0.25},
     observables=lambda system: [
-        observe_element('cocoa', 'cocoa_yield', _cocoa_yield),
-        observe_element('cocoa', 'profit_per_area', _profit_per_area),
-        observe_element('cocoa', 'profitability', _profitability),
+        ObservableSpec('cocoa_yield', _cocoa_yield, element='cocoa'),
+        ObservableSpec('profit_per_area', _profit_per_area, element='cocoa'),
+        ObservableSpec('profitability', _profitability, element='cocoa'),
     ],
 )
 def cocoa(
@@ -225,4 +225,4 @@ def cocoa(
         insect_growth=insect_growth,
         subsidy=subsidy,
     )
-    return System(components=[plantation])
+    return System(elements=[plantation])

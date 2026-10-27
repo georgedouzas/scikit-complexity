@@ -7,7 +7,7 @@ from scipy.optimize import brentq
 from skcomplex.core.base import ValidationError
 from skcomplex.engine.compile import missing_declarations
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.control import CollocationSolver
+from skcomplex.engine.solvers import CollocationSolver
 
 
 def _singular_level(cost, discount):

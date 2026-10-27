@@ -11,11 +11,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _phase_colors
 from ._utils import MODULUS, PHASE
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 
 class MeshVisual(BaseVisual):
@@ -127,6 +127,3 @@ class MeshVisual(BaseVisual):
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))
         return views
-
-
-register_visual('mesh', MeshVisual)

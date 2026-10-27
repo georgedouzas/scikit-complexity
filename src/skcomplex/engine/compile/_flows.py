@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
 import re
 from collections import defaultdict
 from collections.abc import Mapping
@@ -11,36 +10,27 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import RR, SR, Expression
 
-from ...core.base import (
-    BaseLaw,
-    ConservationError,
-    Expression,
-    LabelError,
-    NumericDomain,
-    ValidationError,
-    VariableKind,
-    Vector,
-    declarations_of,
-    symbol,
-    symbols_of,
-)
+from ...core.errors import ConservationError, LabelError, ValidationError
 from ...core.laws import (
+    BaseLaw,
     BoundaryLaw,
-    EventLaw,
+    CrossingLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
     Sink,
+    Source,
     TransferLaw,
     UpdateLaw,
 )
-from ...core.laws import Source as Environment
-from ...core.laws._flows import delay_parts
-from ...core.problems import Entry, LoopTerm, Reference, StockFlow
-from ...core.problems import Source as Read
-from ...core.problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
+from ...core.laws.utils import delay_parts
+from ...core.types import Vector
+from ..problems import Entry, LoopTerm, Reference, StockFlow, VariableKind, declarations_of, symbol, symbols_of
+from ..problems import Source as Read
+from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
+from ._laws import replaced
 
 BOUNDARY_PREFIX = '__boundary'
 
@@ -57,12 +47,12 @@ def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> 
     if not mapping:
         return law
     if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-        return dataclasses.replace(law, value=_substituted(law.value, mapping))
+        return replaced(law, value=_substituted(law.value, mapping))
     if isinstance(law, JumpLaw):
         return JumpLaw(_substituted(law.rate, mapping), law.changes)
-    if isinstance(law, EventLaw):
+    if isinstance(law, CrossingLaw):
         reset = None if law.reset is None else {key: _substituted(item, mapping) for key, item in law.reset.items()}
-        return dataclasses.replace(law, guard=_substituted(law.guard, mapping), reset=reset)
+        return replaced(law, guard=_substituted(law.guard, mapping), reset=reset)
     return law
 
 
@@ -95,7 +85,7 @@ class _Declared(Protocol):
         self,
         name: str,
         initial: Vector,
-        domain: NumericDomain,
+        domain: object,
         shape: tuple[int, ...] = (),
         members: int | None = None,
     ) -> Entry:
@@ -143,9 +133,9 @@ def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Ex
     each = time / len(stages)
     if _delay_parts(kind)[0]:
         inflows = [value, *(stage / each for stage in stages[:-1])]
-        return [RateLaw((stage,), inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
+        return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
     inputs = [value, *stages[:-1]]
-    return [RateLaw((stage,), (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
+    return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
 
 
 def _holder(
@@ -154,7 +144,7 @@ def _holder(
     owner: str,
 ) -> tuple[str | None, str]:
     """Return the state name of a holder, or `None` for the environment, and its name in flow matrices."""
-    if isinstance(holder, Environment | Sink):
+    if isinstance(holder, Source | Sink):
         return None, holder.label
     reference = references.get(holder)
     if reference is None or not reference.is_state:
@@ -169,9 +159,9 @@ def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -
     """Return the laws holding the update law of a state component and its index, or `None`."""
     for spec, laws in specs:
         for index, law in enumerate(laws):
-            if not isinstance(law, UpdateLaw) or not isinstance(law.targets[0], Expression):
+            if not isinstance(law, UpdateLaw) or not isinstance(law._get_targets()[0], Expression):
                 continue
-            reference = spec.references.get(law.targets[0])
+            reference = spec.references.get(law._get_targets()[0])
             if reference is None:
                 continue
             found: tuple[Any, ...] = (reference.entry.name, reference.column)
@@ -293,7 +283,7 @@ class StockFlowPass:
                 JumpLaw(flow.rate, {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [RateLaw((item,), sign * amount) for item, sign in holders]
+            laws = [RateLaw(item, sign * amount) for item, sign in holders]
         sign = 1 if source is None else -1 if sink is None else 0
         born = _Born(spec, compiled, amount, sign)
         self._flows.append(born)
@@ -334,9 +324,9 @@ class StockFlowPass:
             if (
                 isinstance(law, RateLaw)
                 and isinstance(law.value, Expression)
-                and isinstance(law.targets[0], Expression)
+                and isinstance(law._get_targets()[0], Expression)
             ):
-                target, _ = self._quantity_of(law.targets[0], spec)
+                target, _ = self._quantity_of(law._get_targets()[0], spec)
                 self._terms.append((spec, 'rate', target, law.value, None, None))
             expanded.append(law)
         return expanded
@@ -346,15 +336,15 @@ class StockFlowPass:
         if id(law) in self._born:
             return
         targets: list[tuple[object, object]] = []
-        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.targets[0], Expression):
-            targets = [(law.targets[0], law.value)]
+        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law._get_targets()[0], Expression):
+            targets = [(law._get_targets()[0], law.value)]
         elif isinstance(law, JumpLaw):
             targets = list(law.changes.items())
-        elif isinstance(law, UpdateLaw) and isinstance(law.targets[0], Expression):
+        elif isinstance(law, UpdateLaw) and isinstance(law._get_targets()[0], Expression):
             value = law.value
-            if isinstance(value, Expression) and bool((value - law.targets[0]).is_trivial_zero()):
+            if isinstance(value, Expression) and bool((value - law._get_targets()[0]).is_trivial_zero()):
                 return
-            targets = [(law.targets[0], value)]
+            targets = [(law._get_targets()[0], value)]
         for target, value in targets:
             name, quantity = self._quantity_of(target, spec)
             if quantity is not None:
@@ -371,7 +361,7 @@ class StockFlowPass:
         for spec, laws in specs:
             for law in [law for law in laws if id(law) in self._born and isinstance(law, RateLaw)]:
                 laws.remove(law)
-                target: Any = law.targets[0]
+                target: Any = law._get_targets()[0]
                 reference = spec.references[target]
                 key: tuple[Any, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
@@ -384,7 +374,7 @@ class StockFlowPass:
                 host = next(laws for spec, laws in specs if spec is host_spec)
                 value: Expression = target
                 index = len(host)
-                host.append(UpdateLaw((target,), target))
+                host.append(UpdateLaw(target, target))
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found: Any = host[index]
@@ -392,7 +382,7 @@ class StockFlowPass:
             for spec, _, increment in items:
                 _merge_references(host_spec, spec, increment)
                 value += increment
-            host[index] = UpdateLaw((target,), value)
+            host[index] = UpdateLaw(target, value)
 
     def _accumulate(
         self,
@@ -411,7 +401,7 @@ class StockFlowPass:
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
             name = f'{BOUNDARY_PREFIX}.{quantity}'
-            entry = declarations.declare_state(name, np.zeros(1), NumericDomain.REAL)
+            entry = declarations.declare_state(name, np.zeros(1), RR)
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
@@ -420,7 +410,7 @@ class StockFlowPass:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
                     _merge_references(items[0].spec, born.spec, born.amount)
-                laws_of[id(items[0].spec)].append(UpdateLaw((accumulator,), accumulator + total))
+                laws_of[id(items[0].spec)].append(UpdateLaw(accumulator, accumulator + total))
                 continue
             for born in items:
                 self._add_boundary(laws_of[id(born.spec)], born, accumulator)
@@ -432,7 +422,7 @@ class StockFlowPass:
             if isinstance(law, JumpLaw) and self._born.get(id(law)) is born:
                 laws[index] = JumpLaw(law.rate, {**law.changes, accumulator: born.sign * born.amount})
                 return
-        laws.append(RateLaw((accumulator,), born.sign * born.amount))
+        laws.append(RateLaw(accumulator, born.sign * born.amount))
 
     def _expand_delays(self, spec: _Spec, laws: list[BaseLaw], declarations: _Declared, discrete: bool) -> None:
         """Replace the delays and smoothings in a spec's rate laws and records by hidden stocks with their own laws."""
@@ -460,7 +450,7 @@ class StockFlowPass:
             entry = declarations.declare_state(
                 f'{spec.owner}.{kind}_{counter}',
                 np.full(order, start * each),
-                NumericDomain.REAL,
+                RR,
                 (order,),
             )
             for column, stage in enumerate(stages):

@@ -293,7 +293,7 @@ def binary_ant_decision(
         )
         for chosen, other in (('left', 'right'), ('right', 'left'))
     ]
-    return System(components=branches, interactions=choices)
+    return System(elements=branches, interactions=choices)
 
 
 @register_model(
@@ -354,4 +354,4 @@ def rats(
         calming=calming,
         stochastic=stochastic,
     )
-    return System(components=groups, interactions=[transitions])
+    return System(elements=groups, interactions=[transitions])

@@ -10,26 +10,18 @@ from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import CC, ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ...core.base import (
-    BaseDomain,
-    BaseInteraction,
-    LabelError,
-    NumericDomain,
-    RoleError,
-    SkcomplexError,
-    SpaceError,
-    TimeKind,
-    Trait,
-    ValidationError,
-    Variable,
-    VariableKind,
-    declarations_of,
-    has_trait,
-)
-from ...core.components import Element, GroupElement, WienerProcess, probe_laws
-from ...core.space import BaseSpace, LatticeSpace, NetworkSpace
+from ...core.elements import Element, GroupElement
+from ...core.errors import LabelError, RoleError, SkcomplexError, SpaceError, ValidationError
+from ...core.interactions import BaseInteraction
+from ...core.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from ...core.specs import WienerProcessSpec
 from ...core.system import System
+from ..problems import Variable, VariableKind, contains, declarations_of, default_of, encode
+from ._laws import AGENT_LAWS
+from ._probe import probe_laws
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
@@ -93,13 +85,13 @@ def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> N
         raise type(error)(error_msg) from error
 
 
-def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcess]:
+def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
     """Return the Wiener processes that the noise roles of an interaction bind, after checking every role."""
     processes = []
     for name, declaration in declarations_of(type(interaction), VariableKind.ROLE).items():
         value = getattr(interaction, name)
-        if declaration.noise != isinstance(value, WienerProcess):
-            expected = 'a WienerProcess' if declaration.noise else 'an element or group path'
+        if declaration.noise != isinstance(value, WienerProcessSpec):
+            expected = 'a WienerProcessSpec' if declaration.noise else 'an element or group path'
             error_msg = (
                 f'Interaction {scope}{interaction.label} binds its role {name!r} to {value!r}, but the role takes '
                 f'{expected}. Bind {expected}, and declare a role of Wiener processes with `role(noise=True)`.'
@@ -110,7 +102,7 @@ def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerPro
     return processes
 
 
-def _same_process(first: WienerProcess, second: WienerProcess) -> bool:
+def _same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
     """Check whether two Wiener processes of one label have the same dimension and covariance."""
     if first.dimension != second.dimension:
         return False
@@ -119,7 +111,7 @@ def _same_process(first: WienerProcess, second: WienerProcess) -> bool:
 
 def _check_processes(system: System, scope: str, labels: set[str]) -> None:
     """Raise an error for Wiener processes of one label that differ, or whose label another child of a system uses."""
-    found: dict[str, WienerProcess] = {}
+    found: dict[str, WienerProcessSpec] = {}
     for interaction in system.interactions:
         for process in _bound_processes(interaction, scope):
             _check_label(process.label, scope)
@@ -172,7 +164,7 @@ def _sized(element: Element | GroupElement, space: BaseSpace | None) -> Element 
         return element
     if element.size is None and element.space is None:
         return copy.copy(element).prepare(space)
-    return element.prepare(space)
+    return element.check().prepare(space)
 
 
 def _with_capacity(
@@ -223,7 +215,7 @@ def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | No
             return known
     try:
         if not hasattr(space, 'size_'):
-            space.prepare()
+            space.check().prepare()
     except ValidationError:
         seen.append(space)
         return space
@@ -261,7 +253,7 @@ class Node:
 
     path: str
     scope: str
-    component: Element | GroupElement | BaseInteraction | WienerProcess
+    component: Element | GroupElement | BaseInteraction | WienerProcessSpec
     space: BaseSpace | None
     agent: bool = False
     active: int | None = None
@@ -293,9 +285,13 @@ class Node:
                 The value given by the user or the default.
         """
         if not isinstance(self.component, GroupElement):
-            return getattr(self.component, variable)
+            return (
+                getattr(self.component, variable)
+                if hasattr(self.component, variable)
+                else default_of(self.component, variable)
+            )
         values = self.component.values or {}
-        default = self.component.element.get_default(variable)
+        default = default_of(self.component.element, variable)
         if variable not in values:
             return default
         value = values[variable]
@@ -320,9 +316,13 @@ def _flatten(system: System, scope: str, space: BaseSpace | None, seen: list[Bas
     _check_children(system, scope)
     nodes = []
     for element, place in zip(system.elements, places, strict=True):
+        element.check().prepare(place)
         sized, active = _with_capacity(_sized(element, space), place)
         nodes.append(Node(f'{scope}{element.label}', scope, sized, place, active=active))
-    nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
+    nodes += [
+        Node(f'{scope}{interaction.label}', scope, interaction.check().prepare(), space)
+        for interaction in system.interactions
+    ]
     for child in system.systems:
         nodes += _flatten(child, f'{scope}{child.label}/', space, seen)
     return nodes
@@ -375,7 +375,7 @@ def _flat_value(
     return array.ravel()
 
 
-def noise_processes(nodes: list[Node]) -> dict[str, WienerProcess]:
+def noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
     """Return the Wiener processes that the noise roles of the interactions of a system tree bind, by path.
 
     Interactions of one system that bind processes of one label share them, at the path of the label in that system.
@@ -388,13 +388,13 @@ def noise_processes(nodes: list[Node]) -> dict[str, WienerProcess]:
         processes:
             The Wiener processes by path, in the order the interactions first bind them.
     """
-    processes: dict[str, WienerProcess] = {}
+    processes: dict[str, WienerProcessSpec] = {}
     for node in nodes:
         if not isinstance(node.component, BaseInteraction):
             continue
         for name, declaration in declarations_of(type(node.component), VariableKind.ROLE).items():
             value = getattr(node.component, name)
-            if declaration.noise and isinstance(value, WienerProcess):
+            if declaration.noise and isinstance(value, WienerProcessSpec):
                 processes.setdefault(f'{node.scope}{value.label}', value)
     return processes
 
@@ -420,7 +420,7 @@ def is_topology_group(component: object, space: BaseSpace | None) -> bool:
         return False
     if not isinstance(space, NetworkSpace):
         return False
-    return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
+    return not any(isinstance(law, AGENT_LAWS) for law in probe_laws(component) or [])
 
 
 def flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[Node]:
@@ -450,8 +450,8 @@ def flatten_system(system: System, scope: str = '', space: BaseSpace | None = No
     return _flatten(system, scope, space)
 
 
-def declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
-    """Return the declared time of every system of a tree by path, a nested system inheriting its parent's.
+def declared_times(system: System, scope: str = '', inherited: type | None = None) -> dict[str, type | None]:
+    """Return the class of the declared time of every system of a tree by path, a nested system inheriting its parent's.
 
     Args:
         system:
@@ -465,9 +465,9 @@ def declared_times(system: System, scope: str = '', inherited: TimeKind | None =
 
     Returns:
         times:
-            The time of every system by path, `None` for a system without a declared time.
+            The time class of every system by path, such as `ContinuousTime`, or `None` for a system without one.
     """
-    time = system.time.prepare().time_kind_ if system.time is not None else inherited
+    time = type(system.time) if system.time is not None else inherited
     times = {scope: time}
     for child in system.systems:
         times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
@@ -503,7 +503,7 @@ def shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple
     if space is None:
         error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
         raise SpaceError(error_msg)
-    if not NumericDomain.POSITIVE.contains(space.n_dim_) or not NumericDomain.INTEGER.contains(space.n_dim_):
+    if not contains(RealSet.open(0, oo), space.n_dim_) or not contains(ZZ, space.n_dim_):
         error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
     return (int(space.n_dim_),)
@@ -513,7 +513,7 @@ def coerce_value(
     name: str,
     value: object,
     shape: tuple[int, ...],
-    domain: BaseDomain,
+    domain: object,
     members: int | None = None,
 ) -> npt.NDArray[np.float64]:
     """Return a value as a flat float array of the given shape after validating it.
@@ -544,13 +544,13 @@ def coerce_value(
         ValidationError:
             The value is not numeric, has the wrong shape, or is outside the domain.
     """
-    if not domain.contains(value):
-        error_msg = f'{name} = {_describe(value)} is not in the {domain.value} domain.'
-        if NumericDomain.COMPLEX.contains(value):
+    if not contains(domain, value):
+        error_msg = f'{name} = {_describe(value)} is not in its domain {domain}.'
+        if contains(CC, value):
             error_msg = (
-                f'{name} = {_describe(value)} has a nonzero imaginary part, which the {domain.value} domain does not '
-                f'hold. Declare {name.rpartition(".")[2]} with `domain=Domain.COMPLEX` to give it complex values.'
+                f'{name} = {_describe(value)} has a nonzero imaginary part, which its domain {domain} does not hold. '
+                f'Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex values.'
             )
         raise ValidationError(error_msg)
-    flat = _flat_value(name, value, domain.encode(value), shape, members)
-    return np.ascontiguousarray(flat).view(float) if domain is NumericDomain.COMPLEX else flat
+    flat = _flat_value(name, value, encode(domain, value), shape, members)
+    return np.ascontiguousarray(flat).view(float) if domain is CC else flat

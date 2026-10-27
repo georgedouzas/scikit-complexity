@@ -9,12 +9,14 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
@@ -111,7 +113,7 @@ class TumourCellElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.oncology import TumourCellElement
-        >>> TumourCellElement.group('tumour', 3, location=(5, 5)).size
+        >>> GroupElement('tumour', element=TumourCellElement, size=3, location=(5, 5)).size
         3
     """
 
@@ -178,7 +180,7 @@ class VesselElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.oncology import VesselElement
-        >>> VesselElement.group('vessels', 2, location=[(0, 0), (0, 1)]).size
+        >>> GroupElement('vessels', element=VesselElement, size=2, location=[(0, 0), (0, 1)]).size
         2
     """
 
@@ -232,7 +234,7 @@ class SproutElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.oncology import SproutElement
-        >>> SproutElement.group('sprouts', 2, location=(0, 5)).size
+        >>> GroupElement('sprouts', element=SproutElement, size=2, location=(0, 5)).size
         2
     """
 
@@ -337,20 +339,27 @@ def tumour_angiogenesis(
     ]
     tips = sorted(int(row) for row in rng.choice(height, size=n_sprouts, replace=False))
     groups = [
-        TumourCellElement.group('tumour', len(tumour), variable=True, location=tumour),
-        VesselElement.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
-        SproutElement.group(
+        GroupElement('tumour', element=TumourCellElement, size=len(tumour), variable=True, location=tumour),
+        GroupElement(
+            'vessels',
+            element=VesselElement,
+            size=height,
+            variable=True,
+            location=[(0, row) for row in range(height)],
+        ),
+        GroupElement(
             'sprouts',
-            n_sprouts,
+            element=SproutElement,
+            size=n_sprouts,
+            values={'chemotaxis': chemotaxis},
             variable=True,
             location=[(0, row) for row in tips],
-            chemotaxis=chemotaxis,
         ),
     ]
     tissue = FieldElement('tissue', TissueElement, LatticeSpace((width, height), boundary='reflecting'))
     return System(
-        components=[
-            System('cells', components=groups, space=LatticeSpace((width, height), boundary='fixed')),
-            System('tissue', components=[tissue]),
+        systems=[
+            System('cells', elements=groups, space=LatticeSpace((width, height), boundary='fixed')),
+            System('tissue', elements=[tissue]),
         ],
     )

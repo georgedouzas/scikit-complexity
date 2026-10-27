@@ -7,10 +7,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class InvestingFirmElement(Element):
@@ -56,7 +58,7 @@ class InvestingFirmElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import InvestingFirmElement
-        >>> InvestingFirmElement.group('firms', 10, gamma=1.2).size
+        >>> GroupElement('firms', element=InvestingFirmElement, size=10, values={'gamma': 1.2}).size
         10
     """
 
@@ -109,7 +111,7 @@ class InvestingFirmElement(Element):
     tags=('business cycle', 'agents', 'firms'),
     references=('Caiani et al. 2016', 'Delli Gatti et al. 2010'),
     defaults={'until': 100},
-    observables=lambda system: [Observable('production', group='firms', reduce='sum', variable='Y')],
+    observables=lambda system: [ObservableSpec('production', group='firms', reduce='sum', variable='Y')],
 )
 def toy_firm_investment(
     n_firms: int = 100,
@@ -154,5 +156,10 @@ def toy_firm_investment(
         20
     """
     profits = pbar + 2.0 * np.random.default_rng(random_state).random(n_firms)
-    firms = InvestingFirmElement.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
-    return System(components=[firms])
+    firms = GroupElement(
+        'firms',
+        element=InvestingFirmElement,
+        size=n_firms,
+        values={'Z': profits, 'gamma': gamma, 'phi': phi, 'r': r, 'pbar': pbar},
+    )
+    return System(elements=[firms])

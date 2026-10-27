@@ -8,13 +8,17 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import BaseLaw, Expression, NumericDomain, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols, where
-from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws.utils import gradient, laplacian
+from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, gradient, laplacian
 
 
 def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401
@@ -59,67 +63,70 @@ def _budyko_sellers_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
 
 
-IceAlbedoClimateElement = Element.define(
-    'IceAlbedoClimateElement',
-    states={'T': state(default=290.0, domain=NumericDomain.POSITIVE)},
-    parameters={
-        's': 1.0,
-        'epsilon': 0.65,
-        'sigma': 1.6e-10,
-        'albedo': 0.5,
-        'contrast': 0.2,
-        'T_ice': 263.0,
-        'width': 4.0,
-    },
-    laws=lambda s: [
-        RateLaw(
-            s.T,
-            s.s * (1 - (s.albedo - s.contrast * tanh((s.T - s.T_ice) / s.width))) - s.sigma * s.epsilon * s.T**4,
-        ),
-    ],
-)
+class IceAlbedoClimateElement(Element):
+    """Ice albedo climate element."""
 
-LatitudeBandElement = Element.define(
-    'LatitudeBandElement',
-    states={'T': state(default=15.0, domain=NumericDomain.REAL)},
-    parameters={
-        'x': 0.5,
-        'Q': 334.4,
-        's2': -0.482,
-        'A': 203.3,
-        'B': 2.09,
-        'D': 0.649,
-        'C': 10.0,
-        'albedo_ice': 0.62,
-        'albedo_free': 0.319,
-        'albedo_slope': 0.202,
-        'T_ice': -10.0,
-        'width': 1.0,
-    },
-    laws=_budyko_sellers_laws,
-)
+    T = state(default=290.0, domain=NumericDomain.POSITIVE)
+    s = parameter(1.0)
+    epsilon = parameter(0.65)
+    sigma = parameter(1.6e-10)
+    albedo = parameter(0.5)
+    contrast = parameter(0.2)
+    T_ice = parameter(263.0)
+    width = parameter(4.0)
 
-DaisyworldElement = Element.define(
-    'DaisyworldElement',
-    states={
-        'white': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'black': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'L': 1.0,
-        'S': 917.0,
-        'sigma': 5.67e-8,
-        'q': 2.06e9,
-        'p': 1.0,
-        'gamma': 0.3,
-        'k': 0.003265,
-        'optimum': 295.5,
-        'albedo_ground': 0.5,
-        'albedo_white': 0.75,
-        'albedo_black': 0.25,
-    },
-    laws=_daisyworld_laws,
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the ice albedo climate element."""
+        return [
+            RateLaw(
+                s.T,
+                s.s * (1 - (s.albedo - s.contrast * tanh((s.T - s.T_ice) / s.width))) - s.sigma * s.epsilon * s.T**4,
+            ),
+        ]
+
+
+class LatitudeBandElement(Element):
+    """Latitude band element."""
+
+    T = state(default=15.0, domain=NumericDomain.REAL)
+    x = parameter(0.5)
+    Q = parameter(334.4)
+    s2 = parameter(-0.482)
+    A = parameter(203.3)
+    B = parameter(2.09)
+    D = parameter(0.649)
+    C = parameter(10.0)
+    albedo_ice = parameter(0.62)
+    albedo_free = parameter(0.319)
+    albedo_slope = parameter(0.202)
+    T_ice = parameter(-10.0)
+    width = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the latitude band element."""
+        return _budyko_sellers_laws(s)
+
+
+class DaisyworldElement(Element):
+    """Daisyworld element."""
+
+    white = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    black = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    L = parameter(1.0)
+    S = parameter(917.0)
+    sigma = parameter(5.67e-8)
+    q = parameter(2.06e9)
+    p = parameter(1.0)
+    gamma = parameter(0.3)
+    k = parameter(0.003265)
+    optimum = parameter(295.5)
+    albedo_ground = parameter(0.5)
+    albedo_white = parameter(0.75)
+    albedo_black = parameter(0.25)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the daisyworld element."""
+        return _daisyworld_laws(s)
 
 
 @register_model(
@@ -190,7 +197,7 @@ def energy_balance(
         T_ice=T_ice,
         width=width,
     )
-    return System(components=[climate])
+    return System(elements=[climate])
 
 
 @register_model(
@@ -256,7 +263,7 @@ def budyko_sellers(
         boundary={'T': 'zero-flux'},
         values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
     )
-    return System(components=[bands])
+    return System(elements=[bands])
 
 
 @register_model(
@@ -264,7 +271,7 @@ def budyko_sellers(
     tags=('ode', 'regulation', 'Gaia', 'vegetation'),
     references=('Watson and Lovelock 1983', 'Jensen 2023'),
     defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [Observable('temperature', _daisyworld_temperature)],
+    observables=lambda system: [ObservableSpec('temperature', _daisyworld_temperature)],
 )
 def daisyworld(
     white: float = 0.2,
@@ -302,5 +309,5 @@ def daisyworld(
         1.2
     """
     return System(
-        components=[DaisyworldElement('planet', white=white, black=black, L=L, gamma=gamma)],
+        elements=[DaisyworldElement('planet', white=white, black=black, L=L, gamma=gamma)],
     )

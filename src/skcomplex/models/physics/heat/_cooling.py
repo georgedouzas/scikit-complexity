@@ -3,18 +3,27 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import state
+
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-CoffeeCupElement = Element.define(
-    'CoffeeCupElement',
-    states={'T': 90.0},
-    parameters={'room': 20.0, 'k': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.T, -s.k * (s.T - s.room))],
-)
+
+class CoffeeCupElement(Element):
+    """Coffee cup element."""
+
+    T = state(90.0)
+    room = parameter(20.0)
+    k = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the coffee cup element."""
+        return [RateLaw(s.T, -s.k * (s.T - s.room))]
 
 
 @register_model(
@@ -48,4 +57,4 @@ def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> Sy
         >>> cooling_coffee(T=5.0).elements[0].T
         5.0
     """
-    return System(components=[CoffeeCupElement('coffee', T=T, room=room, k=k)])
+    return System(elements=[CoffeeCupElement('coffee', T=T, room=room, k=k)])

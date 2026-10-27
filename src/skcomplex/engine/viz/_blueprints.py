@@ -10,14 +10,14 @@ from pathlib import Path
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import ValidationError
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.system import Observable, System
+from ...core.errors import ValidationError
+from ...core.specs import ObservableSpec
+from ...core.system import System
 from ..compile import compile_system, observables_of
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
+from ._kinds import agents_visual_of, resolve_visual
 from ._points import PointsVisual
 from ._scalars import ScalarsVisual
-from ._traits import agents_visual_of
-from ._visuals import resolve_visual
 
 MAX_SERIES_PER_VIEW = 6
 MAX_VIEWS_PER_ROW = 3
@@ -29,7 +29,7 @@ WHOLE_RUN = rrb.TimeAxis(
 )
 
 
-def _problem_of(system: System | BaseProblem, observables: Sequence[Observable] = ()) -> BaseProblem:
+def _problem_of(system: System | BaseProblem, observables: Sequence[ObservableSpec] = ()) -> BaseProblem:
     """Return the problem of a system with its observables, compiling it when it is not compiled yet."""
     return system if isinstance(system, BaseProblem) else compile_system(system, observables=observables)
 
@@ -250,7 +250,7 @@ def default_blueprint(
     *,
     parameters: bool = False,
     primary: str | None = None,
-    observables: Sequence[Observable] = (),
+    observables: Sequence[ObservableSpec] = (),
 ) -> rrb.Blueprint:
     """Return a Rerun blueprint built from the views the visuals of a system declare.
 

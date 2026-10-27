@@ -1,7 +1,7 @@
 """Test the `_groups` module of `skcomplex.models.computer_science.automata`."""
 
-from skcomplex.core.space import Memory
-from skcomplex.formalisms.groups import CayleySpace, automaton_group, parse_word
+from skcomplex.core.laws.utils import parse_word
+from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.models.computer_science.automata import (
     grigorchuk_group,
     heisenberg,
@@ -51,7 +51,7 @@ def test_grigorchuk_level_quotients_run_periodic_rules():
     for level in (1, 2, 3, 4):
         space = CayleySpace(grigorchuk_group(), quotient=level).prepare()
         sizes.append(space.size_)
-        assert (space._index_table(Memory(('1', 'a', 'b', 'c', 'd'))) < space.size_).all()
+        assert (space._index_table(MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))) < space.size_).all()
     assert sizes == [2, 8, 128, 4096]
 
 

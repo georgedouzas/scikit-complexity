@@ -8,20 +8,24 @@ from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-QuadraticSupplyMarketElement = Element.define(
-    'QuadraticSupplyMarketElement',
-    states={'P': state(default=1.0, domain=NumericDomain.REAL)},
-    parameters={
-        'k': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'beta': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'lam': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'delta': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'gamma': parameter(default=-0.1, domain=NumericDomain.REAL),
-    },
-    laws=lambda s: [RateLaw(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))],
-)
+
+class QuadraticSupplyMarketElement(Element):
+    """Quadratic supply market element."""
+
+    P = state(default=1.0, domain=NumericDomain.REAL)
+    k = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    beta = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    lam = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    delta = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    gamma = parameter(default=-0.1, domain=NumericDomain.REAL)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the quadratic supply market element."""
+        return [RateLaw(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))]
 
 
 @register_model(
@@ -87,4 +91,4 @@ def riccati_prices(
         alpha=alpha,
         gamma=gamma,
     )
-    return System(components=[market])
+    return System(elements=[market])

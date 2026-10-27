@@ -2,13 +2,15 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import NumericDomain, ValidationError, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.space import ContinuousTime, LatticeSpace
-from skcomplex.core.system import Observable, System
+from skcomplex.core.laws.utils import moment
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
+from skcomplex.engine.compile import distribution_from, members_from
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.kinetics import distribution_from, members_from, moment
 
 CLASSES = np.arange(9.0)
 
@@ -38,7 +40,7 @@ def mean_class(s):
 def _traders():
     """Return 1000 traders with random wealth classes."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
-    return TraderElement.group('traders', 1000, wealth=wealth)
+    return GroupElement('traders', element=TraderElement, size=1000, values={'wealth': wealth})
 
 
 def test_agents_bin_into_a_distribution():
@@ -47,10 +49,10 @@ def test_agents_bin_into_a_distribution():
     distribution = distribution_from(traders, 'wealth', CLASSES, element=DensityElement, label='wealth')
     assert distribution.on == 'sites'
     assert distribution.size == 9
-    system = System(components=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
+    system = System(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
-        Observable('density', density, group='wealth'),
-        Observable('mean', mean_class, group='wealth'),
+        ObservableSpec('density', density, group='wealth'),
+        ObservableSpec('mean', mean_class, group='wealth'),
     ]
     trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
     assert trajectory.values('density')[0] == pytest.approx(1.0)

@@ -11,45 +11,44 @@ from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import RR, SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
-from ...core.base import (
-    BaseLaw,
-    CategoricalDomain,
-    Expression,
-    IncompatibleLawsError,
-    NumericDomain,
-    SymbolicVector,
-    ValidationError,
-    Vector,
-    components_of,
-    symbol,
-    symbols_of,
-    vector,
-)
+from ...core.errors import IncompatibleLawsError, ValidationError
 from ...core.laws import (
+    BaseLaw,
     BoundaryLaw,
-    Call,
-    Draw,
+    CrossingLaw,
     EmissionLaw,
     EquationLaw,
-    EventLaw,
     JumpLaw,
     NoiseLaw,
     RateLaw,
     TransitionLaw,
     UpdateLaw,
-    categorical,
-    draws_in,
-    values_of,
+)
+from ...core.laws.utils import Call, Draw, categorical, draws_in
+from ...core.types import Vector
+from ..problems import (
+    DomainKind,
+    Draws,
+    Entry,
+    Reference,
+    Source,
+    components_of,
+    domain_kind,
+    labels_of,
+    numpy_function,
+    symbol,
+    symbols_of,
+    vector,
     where,
 )
-from ...core.laws._laws import RenewalLaw
-from ...core.problems import Draws, Entry, Reference, Source, numpy_function
-from ...core.problems._problem import SampledDraw, _MarkovMatrix
+from ..problems._problem import SampledDraw, _MarkovMatrix
+from ._laws import values_of
+from ._renewal_law import RenewalLaw
 
-ALPHABET_DOMAINS = (NumericDomain.INTEGER, NumericDomain.NONNEGATIVE_INTEGER, NumericDomain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})
 RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 DISTRIBUTIONS = tuple(
@@ -63,7 +62,7 @@ DISTRIBUTIONS = tuple(
 
 def _is_symbolic(value: object) -> bool:
     """Check whether a law value is symbolic, as opposed to a call or a Python function."""
-    return isinstance(value, Expression | SymbolicVector) or not (isinstance(value, Call) or callable(value))
+    return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, Call) or callable(value))
 
 
 def _alphabet_size(description: str, reference: Reference | None) -> int | None:
@@ -72,11 +71,12 @@ def _alphabet_size(description: str, reference: Reference | None) -> int | None:
         error_msg = f'The {description} must target a scalar state of its component.'
         raise ValidationError(error_msg)
     domain = reference.entry.domain
-    if isinstance(domain, CategoricalDomain):
-        return len(domain.labels)
-    if domain is NumericDomain.BOOLEAN:
+    labels = labels_of(domain)
+    if labels is not None:
+        return len(labels)
+    if domain_kind(domain) == DomainKind.BOOLEAN:
         return 2
-    if domain in ALPHABET_DOMAINS:
+    if domain_kind(domain) == DomainKind.INTEGER:
         return None
     error_msg = (
         f'The {description} moves {reference.entry.name}, whose domain {domain} is not a finite alphabet. Declare the '
@@ -141,12 +141,12 @@ class MatrixLaw:
 
 def _transition(owner: str, law: TransitionLaw, references: dict[Expression, Reference]) -> tuple[UpdateLaw, MatrixLaw]:
     """Return the update law a transition law becomes and its matrix."""
-    description = f'transition law of {owner}.{law.targets[0]}'
-    size = _alphabet_size(description, references.get(law.targets[0]))
+    description = f'transition law of {owner}.{law._get_targets()[0]}'
+    size = _alphabet_size(description, references.get(law._get_targets()[0]))
     _check_shape(description, law.matrix, size, size)
     _check_shape(description, law.matrix, len(law.matrix), len(law.matrix))
-    value = categorical(_draw_name('transition', law.targets[0]), _selected_row(law.targets[0], law.matrix))
-    return UpdateLaw(law.targets, value), MatrixLaw(owner, description, law.matrix)
+    value = categorical(_draw_name('transition', law._get_targets()[0]), _selected_row(law._get_targets()[0], law.matrix))
+    return UpdateLaw(law._get_targets()[0], value), MatrixLaw(owner, description, law.matrix)
 
 
 def _emission(
@@ -156,8 +156,8 @@ def _emission(
     updates: dict[str, object],
 ) -> tuple[UpdateLaw, MatrixLaw]:
     """Return the update law an emission law becomes, reading the hidden state's next value, and its matrix."""
-    description = f'emission law of {owner}.{law.targets[0]}'
-    columns = _alphabet_size(description, references.get(law.targets[0]))
+    description = f'emission law of {owner}.{law._get_targets()[0]}'
+    columns = _alphabet_size(description, references.get(law._get_targets()[0]))
     rows = _alphabet_size(description, references.get(law.source))
     _check_shape(description, law.matrix, rows, columns)
     hidden = updates.get(str(law.source))
@@ -167,8 +167,8 @@ def _emission(
             'sets. Give the hidden state a transition law in the same component.'
         )
         raise ValidationError(error_msg)
-    value = categorical(_draw_name('emission', law.targets[0]), _selected_row(SR(hidden), law.matrix))
-    return UpdateLaw(law.targets, value), MatrixLaw(owner, description, law.matrix)
+    value = categorical(_draw_name('emission', law._get_targets()[0]), _selected_row(SR(hidden), law.matrix))
+    return UpdateLaw(law._get_targets()[0], value), MatrixLaw(owner, description, law.matrix)
 
 
 def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
@@ -354,7 +354,7 @@ def check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
     for law in laws:
         if not isinstance(
             law,
-            RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | EventLaw | RenewalLaw,
+            RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
         ):
             continue
         values = [value for value in values_of(law, include=RANDOM_FIELDS) if _is_symbolic(value)]
@@ -406,7 +406,7 @@ def markov_laws(
             matrices.append(matrix)
         else:
             rewritten.append(law)
-    updates = {str(law.targets[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
+    updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
     for index, law in enumerate(rewritten):
         if isinstance(law, EmissionLaw):
             rewritten[index], matrix = _emission(owner, law, references, updates)
@@ -586,8 +586,8 @@ class DrawLowering:
                 lowered.append(law)
                 continue
             values = [_lowered(SR(item), slots) for item in components_of(law.value)]
-            value = vector(values) if isinstance(law.value, SymbolicVector) else values[0]
-            lowered.append(UpdateLaw(law.targets, value))
+            value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
+            lowered.append(UpdateLaw(law._get_targets()[0], value))
         return lowered
 
     def allocate(self) -> None:
@@ -603,7 +603,7 @@ class DrawLowering:
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
-            entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, NumericDomain.REAL, members)
+            entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
             source = Source.MEMBER if grouped else Source.SINGLE
             request.references[request.slot] = Reference(entry, False, 0, source)
             if request.draw is None:

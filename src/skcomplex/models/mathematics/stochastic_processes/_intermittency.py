@@ -11,16 +11,24 @@ from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import HeunSolver
+from ...core.base import BaseLaw
+from ...core.elements import GroupElement
+from ...core.laws import Symbols
 
-IntermittentVariableElement = Element.define(
-    'IntermittentVariableElement',
-    states={'x': state(default=1.0, domain=NumericDomain.POSITIVE)},
-    parameters={'epsilon': 0.0, 'D': parameter(default=0.5, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [
-        RateLaw(s.x, s.epsilon * s.x - s.x**3),
-        NoiseLaw(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich'),
-    ],
-)
+
+class IntermittentVariableElement(Element):
+    """Intermittent variable element."""
+
+    x = state(default=1.0, domain=NumericDomain.POSITIVE)
+    epsilon = parameter(0.0)
+    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the intermittent variable element."""
+        return [
+            RateLaw(s.x, s.epsilon * s.x - s.x**3),
+            NoiseLaw(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich'),
+        ]
 
 
 @register_model(
@@ -65,5 +73,10 @@ def on_off_intermittency(
         >>> on_off_intermittency(5).components[0].size
         5
     """
-    variables = IntermittentVariableElement.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
-    return System(components=[variables])
+    variables = GroupElement(
+        'variables',
+        element=IntermittentVariableElement,
+        size=n_realizations,
+        values={'x': x, 'epsilon': epsilon, 'D': D},
+    )
+    return System(elements=[variables])

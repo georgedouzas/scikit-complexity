@@ -8,23 +8,32 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
+from skcomplex.core.declarations import state
+
 from ....core.base import Expression, NumericDomain, parameter, role, vector
 from ....core.components import Element
+from ....core.elements import FieldElement, ParticleElement
+from ....core.interactions import PotentialInteraction
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ....formalisms.fields import FieldElement, laplacian
-from ....formalisms.particles import ParticleElement, PotentialInteraction
+from ...core.base import BaseLaw
 from ..realizations.particles import SpringInteraction
 
-WaveStringElement = Element.define(
-    'WaveStringElement',
-    states={'u': 0.0, 'v': 0.0},
-    parameters={'c': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))],
-)
+
+class WaveStringElement(Element):
+    """Wave string element."""
+
+    u = state(0.0)
+    v = state(0.0)
+    c = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the wave string element."""
+        return [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))]
 
 
 def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np.ndarray:
@@ -159,7 +168,7 @@ def spring_chain(
         DrivenAnchorInteraction('left_end', target='mass_0', k=k, center=[0.0, 0.0], amplitude=amplitude, omega=omega),
         DrivenAnchorInteraction('right_end', target=f'mass_{n_masses - 1}', k=k, center=[length, 0.0]),
     ]
-    return System(components=masses, interactions=[*anchors, *springs], space=ContinuousSpace(n_dim=2))
+    return System(elements=masses, interactions=[*anchors, *springs], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -220,4 +229,4 @@ def standing_waves(
         boundary={'u': edges, 'v': edges},
         values={'u': shape, 'c': c},
     )
-    return System(components=[string])
+    return System(elements=[string])

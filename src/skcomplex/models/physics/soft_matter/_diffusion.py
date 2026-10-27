@@ -13,12 +13,13 @@ from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state, vector
 from ....core.components import Element
+from ....core.elements import ParticleElement
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols, pulse_train, where
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.particles import ParticleElement
+from ...core.elements import GroupElement
 from ..realizations.particles import LangevinThermostatInteraction
 from ._brownian import DoubleWellElement
 
@@ -214,16 +215,17 @@ class SpeckleFieldInteraction(BaseInteraction):
         return [RateLaw(position, s.strength * vector([intensity.diff(item) for item in position]))]
 
 
-ScaledWalkerElement = Element.define(
-    'ScaledWalkerElement',
-    states={'x': 0.0},
-    parameters={
-        'K': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        't0': parameter(default=0.01, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [NoiseLaw(s.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))],
-)
+class ScaledWalkerElement(Element):
+    """Scaled walker element."""
+
+    x = state(0.0)
+    K = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    t0 = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the scaled walker element."""
+        return [NoiseLaw(s.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
 
 
 class ModulatedParticleElement(Element):
@@ -346,25 +348,23 @@ def brownian_motion(
     """
     space = ContinuousSpace(n_dim=n_dim)
     if not inertial:
-        beads = BrownianParticleElement.group(
+        beads = GroupElement(
             'beads',
-            n_particles,
-            x=np.zeros((n_particles, n_dim)),
-            gamma=gamma,
-            temperature=kT,
+            element=BrownianParticleElement,
+            size=n_particles,
+            values={'x': np.zeros((n_particles, n_dim)), 'gamma': gamma, 'temperature': kT},
         )
-        return System(components=[beads], space=space)
+        return System(elements=[beads], space=space)
     velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
-    beads = ParticleElement.group(
+    beads = GroupElement(
         'beads',
-        n_particles,
-        x=np.zeros((n_particles, n_dim)),
-        v=velocities,
-        m=m,
+        element=ParticleElement,
+        size=n_particles,
+        values={'x': np.zeros((n_particles, n_dim)), 'v': velocities, 'm': m},
         visual=POINTS,
     )
     bath = LangevinThermostatInteraction('bath', target='beads', temperature=kT, gamma=gamma)
-    return System(components=[beads], interactions=[bath], space=space)
+    return System(elements=[beads], interactions=[bath], space=space)
 
 
 @register_model(
@@ -423,12 +423,11 @@ def optical_trap(
         2.0
     """
     n_dim = len(k)
-    beads = BrownianParticleElement.group(
+    beads = GroupElement(
         'beads',
-        n_particles,
-        x=np.zeros((n_particles, n_dim)),
-        gamma=gamma,
-        temperature=kT,
+        element=BrownianParticleElement,
+        size=n_particles,
+        values={'x': np.zeros((n_particles, n_dim)), 'gamma': gamma, 'temperature': kT},
     )
     trap = OpticalTrapInteraction(
         'tweezers',
@@ -439,7 +438,7 @@ def optical_trap(
         blink_period=blink_period,
         duty=duty,
     )
-    return System(components=[beads], interactions=[trap], space=ContinuousSpace(n_dim=n_dim))
+    return System(elements=[beads], interactions=[trap], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -479,8 +478,13 @@ def kramers_escape(
         0.2
     """
     positions = -1.0 + np.random.default_rng(random_state).normal(0.0, 0.1, n_particles)
-    group = DoubleWellElement.group('particles', n_particles, x=positions, amplitude=0.0, D=D)
-    return System(components=[group])
+    group = GroupElement(
+        'particles',
+        element=DoubleWellElement,
+        size=n_particles,
+        values={'x': positions, 'amplitude': 0.0, 'D': D},
+    )
+    return System(elements=[group])
 
 
 @register_model(
@@ -527,16 +531,13 @@ def multiplicative_noise(
         >>> multiplicative_noise(10, convention='ito').components[0].values['convention']
         'ito'
     """
-    group = ModulatedParticleElement.group(
+    group = GroupElement(
         'particles',
-        n_particles,
-        x=L / 2,
-        s0=s0,
-        ds=ds,
-        L=L,
-        convention=convention,
+        element=ModulatedParticleElement,
+        size=n_particles,
+        values={'x': L / 2, 's0': s0, 'ds': ds, 'L': L, 'convention': convention},
     )
-    return System(components=[group])
+    return System(elements=[group])
 
 
 @register_model(
@@ -579,7 +580,16 @@ def scaled_brownian_motion(
         >>> scaled_brownian_motion(10, alpha=1.5).elements[0].values['alpha']
         1.5
     """
-    return System(components=[ScaledWalkerElement.group('walkers', n_particles, K=K, alpha=alpha, t0=t0)])
+    return System(
+        elements=[
+            GroupElement(
+                'walkers',
+                element=ScaledWalkerElement,
+                size=n_particles,
+                values={'K': K, 'alpha': alpha, 't0': t0},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -652,5 +662,10 @@ def diffusion_in_a_speckle_field(
         lengths=tuple(float(item) for item in lengths),
     )
     positions = rng.uniform(size / 4, 3 * size / 4, (n_particles, 2))
-    beads = BrownianParticleElement.group('beads', n_particles, x=positions, gamma=1.0, temperature=D)
-    return System(components=[beads], interactions=[speckle], space=ContinuousSpace(n_dim=2))
+    beads = GroupElement(
+        'beads',
+        element=BrownianParticleElement,
+        size=n_particles,
+        values={'x': positions, 'gamma': 1.0, 'temperature': D},
+    )
+    return System(elements=[beads], interactions=[speckle], space=ContinuousSpace(n_dim=2))

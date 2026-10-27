@@ -3,18 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseEstimator, Registry, VisualSpec
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.space import BaseSpace, NetworkSpace
+from ...core.spaces import BaseSpace, NetworkSpace
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
+from ..utils import BaseEstimator
 from ._colors import palette_colors
 from ._utils import _network_layout
 
@@ -25,7 +24,7 @@ class BaseVisual(BaseEstimator):
     `prepare(element, problem)` keeps the element, forgets what earlier frames left, and sets the Rerun views that show
     what the visual logs. `run(frame, recording)` logs the element at one frame: a compiled element through the hook
     `_log`, and agents through the hook `_log_agents` with the snapshot of the frame. Subclasses implement `_log`,
-    `_log_agents`, or both, declare their views with `_views`, and are registered under a name with `register_visual`.
+    `_log_agents`, or both, declare their views with `_views`, and are named by the kind of a `VisualSpec` in `VISUALS`.
 
     Attributes:
         element_:
@@ -90,34 +89,3 @@ class BaseVisual(BaseEstimator):
         if id(space.graph) not in self.layouts_:
             self.layouts_[id(space.graph)] = _network_layout(space.graph)
         return self.layouts_[id(space.graph)]
-
-
-VISUALS = Registry[type[BaseVisual]]('visual')
-
-
-def register_visual(kind: str, visual: type[BaseVisual]) -> None:
-    """Register a visual class under the name element types refer to.
-
-    Args:
-        kind:
-            The name used in `VisualSpec.kind`.
-
-        visual:
-            The visual class, built with the options of the `VisualSpec`.
-    """
-    VISUALS.register(kind, visual)
-
-
-def resolve_visual(spec: VisualSpec) -> BaseVisual:
-    """Build the visual a spec names.
-
-    Args:
-        spec:
-            The visual spec of an element type.
-
-    Returns:
-        visual:
-            The visual built with the spec's options.
-    """
-    options: dict[str, Any] = dict(spec.options)
-    return VISUALS.resolve(spec.kind)(**options)

@@ -8,10 +8,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -48,7 +49,7 @@ class NamerElement(Element):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.models.social.opinion_dynamics import NamerElement
-        >>> group = NamerElement.group('namers', 5, words=np.zeros((5, 5)))
+        >>> group = GroupElement('namers', element=NamerElement, size=5, values={'words': np.zeros((5, 5))})
         >>> group.label, group.element.__name__, group.size
         ('namers', 'NamerElement', 5)
     """
@@ -127,5 +128,10 @@ def naming_game(n_agents: int = 50) -> System:
         >>> naming_game(10).elements[0].size
         10
     """
-    namers = NamerElement.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
-    return System(components=[namers], interactions=[NamingGamesInteraction('games', target='namers')])
+    namers = GroupElement(
+        'namers',
+        element=NamerElement,
+        size=n_agents,
+        values={'words': np.zeros((n_agents, n_agents))},
+    )
+    return System(elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])

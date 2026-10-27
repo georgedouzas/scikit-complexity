@@ -6,11 +6,12 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
+from ....analysis import linearize, lqr
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import EquationLaw, RateLaw, Symbols, derivative
-from ....core.system import Observable, System
-from ....engine.analysis import linearize, lqr
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
 from ..realizations._controllers import IntegratorElement, PIDInteraction, StateFeedbackInteraction
@@ -153,7 +154,7 @@ class DrivenOscillatorElement(Element):
     tags=('control', 'feedback', 'pid', 'unstable equilibrium', 'ode'),
     references=('Åström and Murray 2008',),
     defaults={'until': 5.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [Observable('tilt', _tilt)],
+    observables=lambda system: [ObservableSpec('tilt', _tilt)],
 )
 def pid_inverted_pendulum(
     theta: float = 0.1,
@@ -215,7 +216,7 @@ def pid_inverted_pendulum(
         kd=kd,
         limits=(-FORCE_LIMIT, FORCE_LIMIT),
     )
-    return System(components=[cart, IntegratorElement('memory')], interactions=[controller])
+    return System(elements=[cart, IntegratorElement('memory')], interactions=[controller])
 
 
 @register_model(
@@ -223,7 +224,7 @@ def pid_inverted_pendulum(
     tags=('control', 'feedback', 'linear-quadratic regulator', 'oscillator', 'ode'),
     references=('Åström and Murray 2008',),
     defaults={'until': 10.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [Observable('energy', _oscillator_energy)],
+    observables=lambda system: [ObservableSpec('energy', _oscillator_energy)],
 )
 def lqr_oscillator(
     x: float = 1.0,
@@ -266,7 +267,7 @@ def lqr_oscillator(
         [2.317, 3.825]
     """
     oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
-    model = linearize(System(components=[oscillator]), controls=['oscillator.force'])
+    model = linearize(System(elements=[oscillator]), controls=['oscillator.force'])
     gain = lqr(model.A, model.B, q * np.eye(len(model.states)), [[r]])
     states = tuple(name.removeprefix('oscillator.') for name in model.states)
     regulator = StateFeedbackInteraction(
@@ -277,4 +278,4 @@ def lqr_oscillator(
         gain=tuple(float(value) for value in gain[0]),
         limits=(-FORCE_LIMIT, FORCE_LIMIT),
     )
-    return System(components=[oscillator], interactions=[regulator])
+    return System(elements=[oscillator], interactions=[regulator])

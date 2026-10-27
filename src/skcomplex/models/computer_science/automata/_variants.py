@@ -12,17 +12,17 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, ParameterError, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 from ._automata import LifeCellElement
 
 type Array = npt.NDArray[np.float64]
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
-PREDECESSORS = Neighborhood(((-1,), (0,)))
+PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
 
 
 def _parse_life_rule(rule: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
@@ -89,7 +89,7 @@ class NoisyElementaryCellElement(Element):
             output = (number >> (4 * left + 2 * center + right).astype(int)) & 1
             return np.where(random < noise, 1 - output, output).astype(float)
 
-        return [LocalRuleLaw(s.alive, Neighborhood.radius(), noisy, stochastic=True)]
+        return [LocalRuleLaw(s.alive, BoxNeighborhood(), noisy, stochastic=True)]
 
 
 class DiffusionCellElement(Element):
@@ -129,7 +129,7 @@ class DiffusionCellElement(Element):
         def diffuse(level: Array, *around: Array, r: Any) -> Array:  # noqa: ANN401
             return level + r * (sum(around) - len(around) * level)
 
-        return [LocalRuleLaw(s.level, Neighborhood.von_neumann(center=True), diffuse)]
+        return [LocalRuleLaw(s.level, VonNeumannNeighborhood(center=True), diffuse)]
 
 
 class PascalCellElement(Element):
@@ -220,7 +220,16 @@ def highlife(
     born, survive = _parse_life_rule(rule)
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[LifeCellElement.lattice('cells', space, alive=values, born=born, survive=survive)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=LifeCellElement,
+                space=space,
+                values={'alive': values, 'born': born, 'survive': survive},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -267,7 +276,14 @@ def noisy_automata(
     values = _random_cells((size,), density, random_state)
     space = LatticeSpace(size)
     return System(
-        components=[NoisyElementaryCellElement.lattice('cells', space, alive=values, noise=noise, rule=rule)],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=NoisyElementaryCellElement,
+                space=space,
+                values={'alive': values, 'noise': noise, 'rule': rule},
+            ),
+        ],
     )
 
 
@@ -304,7 +320,16 @@ def diffusion_automaton(shape: Sequence[int] = (50, 50), *, r: float = 0.1, widt
     level = np.zeros(tuple(shape))
     rows, columns = (shape[0] - width) // 2, (shape[1] - width) // 2
     level[rows : rows + width, columns : columns + width] = 1.0
-    return System(components=[DiffusionCellElement.lattice('cells', LatticeSpace(tuple(shape)), level=level, r=r)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=DiffusionCellElement,
+                space=LatticeSpace(tuple(shape)),
+                values={'level': level, 'r': r},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -334,4 +359,8 @@ def unbounded_alphabet_automaton(size: int = 101) -> System:
     """
     value = np.zeros(size)
     value[size // 2] = 1.0
-    return System(components=[PascalCellElement.lattice('cells', LatticeSpace(size), value=value)])
+    return System(
+        elements=[
+            LatticeElement('cells', element=PascalCellElement, space=LatticeSpace(size), values={'value': value}),
+        ],
+    )

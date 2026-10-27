@@ -12,23 +12,25 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-from ...core.base import (
-    NUMERIC_DOMAINS,
-    ElementKind,
-    Expression,
-    Form,
-    LawKind,
-    OrderKind,
-    SolverError,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    Vector,
-    components_of,
+from ...core.errors import SolverError
+from ...core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    DestructionLaw,
+    EncounterLaw,
+    EquationLaw,
+    FluxLaw,
+    JumpLaw,
+    ProliferationLaw,
+    RateLaw,
+    TransferLaw,
 )
-from ...core.problems import Problem, VectorFunction
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.types import Vector
+from ..problems import Form, OrderKind, Problem, SupportSpec, VectorFunction, components_of, step_count
 from ._hybrid import (
     RESTART,
     History,
@@ -42,7 +44,7 @@ from ._hybrid import (
     reject_hybrid,
     with_delays,
 )
-from ._stepper import Solver, register_solver, step_count
+from ._stepper import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
 IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
@@ -221,7 +223,7 @@ class ScipyODESolver(Solver):
         >>> from skcomplex.engine.solvers import ScipyODESolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationElement('a', n=1)],
+        ...         elements=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
@@ -231,18 +233,12 @@ class ScipyODESolver(Solver):
         2.7183
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.ENCOUNTER},
-        domains=NUMERIC_DOMAINS,
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.SYSTEM,
-        },
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, EncounterLaw, ProliferationLaw, DestructionLaw},
+        
+        
         orders={OrderKind.INTEGER},
     )
 
@@ -642,7 +638,7 @@ class RK4Solver(Solver):
         >>> from skcomplex.engine.solvers import RK4Solver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationElement('a', n=1)],
+        ...         elements=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
@@ -651,26 +647,20 @@ class RK4Solver(Solver):
         2.7182818285
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={
-            LawKind.JUMP,
-            LawKind.RATE,
-            LawKind.EQUATION,
-            LawKind.EVENT,
-            LawKind.BOUNDARY,
-            LawKind.TRANSFER,
-            LawKind.ENCOUNTER,
+            JumpLaw,
+            RateLaw, FluxLaw,
+            EquationLaw,
+            CrossingLaw,
+            BoundaryLaw,
+            TransferLaw,
+            EncounterLaw, ProliferationLaw, DestructionLaw,
         },
-        domains=NUMERIC_DOMAINS,
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.SYSTEM,
-        },
+        
+        
         orders={OrderKind.INTEGER},
     )
 
@@ -783,14 +773,14 @@ class VelocityVerletSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.space import ContinuousSpace
+        >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.particles import ParticleElement
+        >>> from skcomplex.core.elements import ParticleElement
         >>> from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
         >>> from skcomplex.engine.solvers import VelocityVerletSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[ParticleElement('ball')],
+        ...         elements=[ParticleElement('ball')],
         ...         interactions=[ConstantForceInteraction('push', target='ball', F=2.0)],
         ...         space=ContinuousSpace(n_dim=1),
         ...     ),
@@ -800,12 +790,12 @@ class VelocityVerletSolver(Solver):
         [1.0, 2.0]
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
-        domains=NUMERIC_DOMAINS,
-        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
+        
+        
         orders={OrderKind.INTEGER},
     )
 
@@ -880,8 +870,3 @@ class VelocityVerletSolver(Solver):
             rates = drift(time, state, p)
             state[self.velocities_] += step / 2 * rates[self.velocities_]
         return state
-
-
-register_solver('scipy', ScipyODESolver, default=True)
-register_solver('rk4', RK4Solver)
-register_solver('velocity-verlet', VelocityVerletSolver)

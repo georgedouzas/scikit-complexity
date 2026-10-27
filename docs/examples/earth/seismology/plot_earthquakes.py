@@ -13,7 +13,7 @@ a power law, like the Gutenberg-Richter law of real faults.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import ccdf, fit_power_law
+from skcomplex.analysis import ccdf, fit_power_law
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

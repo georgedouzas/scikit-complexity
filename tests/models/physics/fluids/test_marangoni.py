@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from scipy.stats import skew
 
-from skcomplex.engine.analysis import fields_of, pattern_wavelength
+from skcomplex.analysis import fields_of, pattern_wavelength
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.fields import ETDRK4Solver
+from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.models.physics.fluids import benard_marangoni
 
 

@@ -11,12 +11,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import NumericDomain
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 MIN_HISTORY = 64
 MAX_HISTORY = 256
@@ -139,7 +138,7 @@ class ImageVisual(BaseVisual):
             if magnitudes.ndim == 1:
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                cyclic = frame.problem.states.entry(name).domain is NumericDomain.ANGLE
+                cyclic = frame.problem.states.entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
@@ -195,6 +194,3 @@ class ImageVisual(BaseVisual):
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]
-
-
-register_visual('image', ImageVisual)

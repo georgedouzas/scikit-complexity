@@ -1027,7 +1027,7 @@ def continuous_androgen_suppression(
         du=du,
         a=a,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1137,7 +1137,7 @@ def ideta_intermittent_androgen(
         h0=h0,
         h1=h1,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1260,7 +1260,7 @@ def prostate_cell_quota(
         period=period,
         width=width,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1325,7 +1325,7 @@ def prostate_androgen_receptor(
         5.0
     """
     prostate = AndrogenReceptorProstateElement('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
-    return System(components=[prostate])
+    return System(elements=[prostate])
 
 
 @register_model(
@@ -1395,7 +1395,7 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
         h0=h0,
         h1=h1,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -1452,4 +1452,4 @@ def tamoxifen_cell_cycle(
         0.0
     """
     tumour = TamoxifenTumourElement('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
-    return System(components=[tumour])
+    return System(elements=[tumour])

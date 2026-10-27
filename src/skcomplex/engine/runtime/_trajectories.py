@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.problems import BaseProblem, NetworkSnapshot, Record
+from ..problems import BaseProblem, NetworkSnapshot, Record, decode
 from ..solvers import AgentSnapshot
 
 
@@ -51,7 +51,7 @@ class Trajectory:
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[PopulationElement('a', n=1)],
+        ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
@@ -111,10 +111,10 @@ class Trajectory:
         """
         if self.problem.states.has(name):
             entry = self.problem.states.entry(name)
-            return self._present(name, entry.domain.decode(np.asarray(self.problem.states.read(self.states, name))))
+            return self._present(name, decode(entry.domain, np.asarray(self.problem.states.read(self.states, name))))
         if self.problem.parameters.has(name):
             entry = self.problem.parameters.entry(name)
-            values = entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
+            values = decode(entry.domain, np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._present(name, values)
         if self.reporters and name in self.reporters[0]:
             return np.asarray([frame[name] for frame in self.reporters], dtype=float)
@@ -143,7 +143,7 @@ class Trajectory:
         Examples:
             >>> import numpy as np
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.core.system import replicate
+            >>> from skcomplex.experiments._ensembles import replicate
             >>> from skcomplex.engine.runtime import Simulation
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})

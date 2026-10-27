@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import (
     BaseInteraction,
@@ -15,13 +16,13 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw, UpdateLaw, count, maximum, mean, total
-from skcomplex.core.system import Observable, System
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw, count, maximum, mean, total
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
-from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -136,15 +137,15 @@ class TendingInteraction(BaseInteraction):
 def _lotka_volterra():
     """Return a Lotka-Volterra system split into a prey and a predator subsystem."""
     return System(
-        components=[
+        systems=[
             System(
                 'prey',
-                components=[PopulationElement('rabbits', n=40)],
+                elements=[PopulationElement('rabbits', n=40)],
                 interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000)],
             ),
             System(
                 'predators',
-                components=[PopulationElement('foxes', n=9)],
+                elements=[PopulationElement('foxes', n=9)],
                 interactions=[MortalityInteraction('death', target='foxes', d=0.4)],
             ),
         ],
@@ -155,9 +156,9 @@ def _lotka_volterra():
 def _counting_system(agents=3):
     """Return land first, then a village of breeders whose count a land rate reads."""
     return System(
-        components=[
-            System('land', components=[PopulationElement('soil', n=0.0)]),
-            System('village', components=[BreederElement.group('farmers', agents, variable=True)]),
+        systems=[
+            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            System('village', elements=[GroupElement('farmers', element=BreederElement, size=agents, variable=True)]),
         ],
         interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )
@@ -176,9 +177,9 @@ def test_agents_and_ode_split_into_two_partitions():
 def test_laws_join_the_partition_of_their_target():
     """Test that one interaction's rate and rule join the partitions of their targets, the rate counted per farmer."""
     system = System(
-        components=[
-            System('land', components=[PopulationElement('soil', n=0.0)]),
-            System('village', components=[IdleElement.group('farmers', 2)]),
+        systems=[
+            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            System('village', elements=[GroupElement('farmers', element=IdleElement, size=2)]),
         ],
         interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
     )
@@ -191,10 +192,10 @@ def test_laws_join_the_partition_of_their_target():
 def test_mixed_leaf_subsystem_names_itself():
     """Test that a subsystem without children that mixes kinds names itself and suggests splitting it."""
     system = System(
-        components=[
+        systems=[
             System(
                 'economy',
-                components=[MarketElement('market'), PopulationElement('herd')],
+                elements=[MarketElement('market'), PopulationElement('herd')],
                 interactions=[
                     CobwebInteraction('cobweb', target='market'),
                     ExponentialGrowthInteraction('growth', target='herd'),
@@ -209,15 +210,15 @@ def test_mixed_leaf_subsystem_names_itself():
 def test_mix_across_subsystems_gives_partitions():
     """Test that a discrete subsystem next to an ODE subsystem gives a discrete and an ODE partition."""
     system = System(
-        components=[
+        systems=[
             System(
                 'market',
-                components=[MarketElement('wheat')],
+                elements=[MarketElement('wheat')],
                 interactions=[CobwebInteraction('cobweb', target='wheat')],
             ),
             System(
                 'herd',
-                components=[PopulationElement('sheep')],
+                elements=[PopulationElement('sheep')],
                 interactions=[ExponentialGrowthInteraction('growth', target='sheep')],
             ),
         ],
@@ -243,9 +244,9 @@ def test_held_reduction_counts_agents():
 def test_held_reductions_of_agent_states(reduction, expected):
     """Test that laws read the total, the mean, and the largest value of an agent state across partitions."""
     system = System(
-        components=[
-            System('land', components=[PopulationElement('soil')]),
-            System('village', components=[IdleElement.group('farmers', 3)]),
+        systems=[
+            System('land', elements=[PopulationElement('soil')]),
+            System('village', elements=[GroupElement('farmers', element=IdleElement, size=3)]),
         ],
         interactions=[
             WealthInteraction('accumulate', target='land/soil', source='village/farmers', reduction=reduction),
@@ -259,9 +260,9 @@ def test_held_reductions_of_agent_states(reduction, expected):
 def test_held_reductions_of_one_group_share_an_element():
     """Test that two laws reading the same reduction of agents read one element, and other reductions get their own."""
     system = System(
-        components=[
-            System('land', components=[PopulationElement('soil'), PopulationElement('dust')]),
-            System('village', components=[IdleElement.group('farmers', 3)]),
+        systems=[
+            System('land', elements=[PopulationElement('soil'), PopulationElement('dust')]),
+            System('village', elements=[GroupElement('farmers', element=IdleElement, size=3)]),
         ],
         interactions=[
             WealthInteraction('first', target='land/soil', source='village/farmers'),
@@ -276,11 +277,11 @@ def test_held_reductions_of_one_group_share_an_element():
 def test_reduction_of_element_group_reads_other_partition():
     """Test that a discrete law reads the total of an element group of an ODE partition at the synchronisation point."""
     system = System(
-        components=[
-            System('ledger', components=[TallyElement('tally')]),
+        systems=[
+            System('ledger', elements=[TallyElement('tally')]),
             System(
                 'herds',
-                components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 3.0])],
+                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
         ],
@@ -294,17 +295,17 @@ def test_reduction_of_element_group_reads_other_partition():
 def test_held_observable_reduces_element_group():
     """Test that an observable reducing an element group with a function is held for a role of another partition."""
     system = System(
-        components=[
-            System('ledger', components=[TallyElement('tally')]),
+        systems=[
+            System('ledger', elements=[TallyElement('tally')]),
             System(
                 'herds',
-                components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 3.0])],
+                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
         ],
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
-    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='n')
+    largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='n')
     trajectory = Simulation(system, dt=1, observables=[largest]).run(until=1).trajectory_
     assert trajectory.values('herds/largest.value')[0] == 3.0
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
@@ -319,13 +320,13 @@ def test_partition_system_rejects_reductions_of_agents():
 def test_agent_rules_read_other_partitions():
     """Test that agent rules read the states of the ODE partition at the last synchronisation point."""
     system = System(
-        components=[
+        systems=[
             System(
                 'land',
-                components=[PopulationElement('soil', n=5.0)],
+                elements=[PopulationElement('soil', n=5.0)],
                 interactions=[ExponentialGrowthInteraction('growth', target='soil', r=1.0)],
             ),
-            System('village', components=[IdleElement.group('farmers', 2)]),
+            System('village', elements=[GroupElement('farmers', element=IdleElement, size=2)]),
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -347,9 +348,9 @@ def test_sync_interval_must_be_whole_steps_for_agents():
 def test_gauss_seidel_reads_already_advanced_values():
     """Test that Gauss-Seidel reads the partitions advanced before and Jacobi reads the start of the interval."""
     village_first = System(
-        components=[
-            System('village', components=[BreederElement.group('farmers', 3, variable=True)]),
-            System('land', components=[PopulationElement('soil', n=0.0)]),
+        systems=[
+            System('village', elements=[GroupElement('farmers', element=BreederElement, size=3, variable=True)]),
+            System('land', elements=[PopulationElement('soil', n=0.0)]),
         ],
         interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )

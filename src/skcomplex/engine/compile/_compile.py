@@ -8,23 +8,24 @@ from typing import cast
 
 import numpy as np
 
-from ...core.base import Form, ValidationError
-from ...core.problems import BaseBackend, BaseProblem, Partition, Problem, with_initial_state
-from ...core.system import Observable, System
+from ...core.errors import ValidationError
+from ...core.specs import ObservableSpec
+from ...core.system import System
+from ..backends import BaseBackend
+from ..problems import BaseProblem, Form, Partition, Problem, with_initial_state
 from ._compilation import Compilation
 from ._declarations import is_interaction
 from ._observables import _with_observables, check_held_reads
-from ._pipeline import _registered_passes, run_passes
+from ._pipeline import run_passes
 from ._planner import _Plan
-from ._system_compilers import claiming_compiler
 from ._tree import Node
 from ._validation import validate
-from .passes._core import CORE_PASSES
+from .passes._core import PASSES, claiming_compiler
 
 
 def _compiled(compilation: Compilation) -> Problem:
     """Return the problem of a compilation, running every pass it has not run yet."""
-    return cast('Problem', run_passes(compilation, _registered_passes(CORE_PASSES)).problem)
+    return cast('Problem', run_passes(compilation, PASSES).problem)
 
 
 def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> Problem:
@@ -77,7 +78,7 @@ def _planned_problem(compilation: Compilation) -> Problem:
     plan = cast('_Plan', compilation.plan)
     if len(plan.partitions) <= 1:
         return _compiled(compilation)
-    kinds = cast('dict[str, set[type]]', run_passes(compilation, _registered_passes(CORE_PASSES), until='kinds').kinds)
+    kinds = cast('dict[str, set[type]]', run_passes(compilation, PASSES, until='kinds').kinds)
     owners = [(item.name, frozenset(owner for owner in kinds if item.holds(owner))) for item in plan.partitions]
     return _partitioned(compilation, owners)
 
@@ -118,10 +119,10 @@ def compiled_problem(system: 'System | BaseProblem', purpose: str) -> Problem:
 
 def compile_system(
     system: System,
-    backend: str | BaseBackend = 'auto',
-    observables: Sequence[Observable] = (),
+    backend: BaseBackend | None = None,
+    observables: Sequence[ObservableSpec] = (),
     *,
-    solver: object = 'auto',
+    solver: object = None,
     initial_state: Mapping[str, object] | None = None,
 ) -> BaseProblem:
     """Compile a system into a problem of the form its law kinds determine.
@@ -135,16 +136,16 @@ def compile_system(
             The system to compile.
 
         backend:
-            `'auto'`, a registered backend name such as `'numpy'` or `'numba'`, or a backend instance. `'auto'` picks
-            Numba for systems whose groups hold at least 1000 members in total and NumPy otherwise.
+            The backend instance, or `None` for `NumbaBackend` on systems whose groups hold at least 1000 members in
+            total and `NumpyBackend` on the others.
 
         observables:
             The observables to compute at every frame, labelled by their path from the root, such as
             `village/mean_wealth` for an observable of the nested system `village`.
 
         solver:
-            The solver the problem runs on, `'auto'` or a solver instance, whose limits compiling checks, such as the
-            largest dimension of a Hilbert space.
+            The solver the problem runs on, or `None` for the default solver of its form, whose limits compiling
+            checks, such as the largest dimension of a Hilbert space.
 
         initial_state:
             Initial values that replace those of the components, by the dotted name of the state, such as
@@ -173,7 +174,7 @@ def compile_system(
             The system mixes law kinds that no form supports.
 
         BackendError:
-            The backend is not registered, or an agent group declares a complex state.
+            An agent group declares a complex state.
 
         ValidationError:
             Validation finds problems of more than one kind, all listed in the message.
@@ -184,7 +185,7 @@ def compile_system(
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationElement('rabbits', n=10)],
+        ...         elements=[PopulationElement('rabbits', n=10)],
         ...         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ...     ),
         ... )
@@ -206,7 +207,7 @@ def compile_system(
     return with_initial_state(problem, initial)
 
 
-def partition_system(system: System, backend: str | BaseBackend = 'auto') -> Problem:
+def partition_system(system: System, backend: BaseBackend | None = None) -> Problem:
     """Compile a system as one partition per subsystem, also when the whole system fits one form.
 
     The elements of the root system form one partition and every child subsystem forms another, so a co-simulation
@@ -232,15 +233,15 @@ def partition_system(system: System, backend: str | BaseBackend = 'auto') -> Pro
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     components=[
+        ...     elements=[
         ...         System(
         ...             'a',
-        ...             components=[PopulationElement('x')],
+        ...             elements=[PopulationElement('x')],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
         ...         System(
         ...             'b',
-        ...             components=[PopulationElement('y')],
+        ...             elements=[PopulationElement('y')],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],
@@ -249,7 +250,7 @@ def partition_system(system: System, backend: str | BaseBackend = 'auto') -> Pro
         ['a', 'b']
     """
     system = _with_observables(system, ())
-    compilation = run_passes(Compilation(system, backend), _registered_passes(CORE_PASSES), until='nodes')
+    compilation = run_passes(Compilation(system, backend), PASSES, until='nodes')
     elements = {node.path for node in cast('list[Node]', compilation.nodes) if not is_interaction(node)}
     own = frozenset(path for path in elements if '/' not in path)
     plan = [(system.label, own)] if own else []

@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.engine.analysis import as_graph
+from skcomplex.analysis import as_graph
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.social.opinion_dynamics import coevolving_voter, join_a_club

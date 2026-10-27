@@ -15,7 +15,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.analysis import mittag_leffler
+from skcomplex.analysis import mittag_leffler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

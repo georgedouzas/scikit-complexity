@@ -5,8 +5,9 @@
 
 import numpy as np
 
-from ...core.base import BaseEstimator, SimulationError
-from ...core.problems import BaseProblem
+from ...core.errors import SimulationError
+from ..problems import BaseProblem
+from ..utils import BaseEstimator
 from ._frames import Frame
 from ._trajectories import Trajectory
 
@@ -41,7 +42,7 @@ class RecorderObserver(BaseObserver):
         >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
         >>> recorder = RecorderObserver()
-        >>> _ = Simulation(System(components=[PopulationElement('a')]), dt=1, observers=[recorder]).run(until=2)
+        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder]).run(until=2)
         >>> len(recorder.trajectory_.times)
         3
     """

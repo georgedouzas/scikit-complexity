@@ -13,7 +13,7 @@ coordination through marks left in the environment.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of
+from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

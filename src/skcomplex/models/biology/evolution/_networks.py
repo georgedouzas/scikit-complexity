@@ -11,10 +11,9 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, neighbors, normal, total, uniform, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import add_edge, add_node, remove_node
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
@@ -369,7 +368,7 @@ def sole_manrubia(
         visual=HIDDEN,
     )
     return System(
-        components=[species, edge_group],
+        elements=[species, edge_group],
         interactions=[
             DependencyFieldInteraction('field', species='species', couplings='couplings'),
             CouplingDriftInteraction('drift', species='species', couplings='couplings', noise=noise),
@@ -455,4 +454,4 @@ def jain_krishna(
         capacity=n * n,
         visual=HIDDEN,
     )
-    return System(components=[species, links], time=DiscreteTime())
+    return System(elements=[species, links], time=DiscreteTime())

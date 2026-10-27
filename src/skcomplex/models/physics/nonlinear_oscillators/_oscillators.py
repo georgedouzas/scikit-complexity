@@ -10,54 +10,93 @@ from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
-
-DuffingElement = Element.define(
-    'DuffingElement',
-    states={'x': state(default=1.0, order=2)},
-    parameters={'delta': 0.3, 'alpha': -1.0, 'beta': 1.0, 'gamma': 0.5, 'omega': 1.2},
-    laws=lambda s: [
-        RateLaw(s.x, -s.delta * derivative(s.x, 1) - s.alpha * s.x - s.beta * s.x**3 + s.gamma * cos(s.omega * s.t)),
-    ],
-)
-
-VanDerPolElement = Element.define(
-    'VanDerPolElement',
-    states={'x': state(default=2.0, order=2)},
-    parameters={'mu': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x)],
-)
-
-HenonHeilesElement = Element.define(
-    'HenonHeilesElement',
-    states={'x': state(default=0.0, order=2, initial=(0.35,)), 'y': state(default=0.1, order=2)},
-    laws=lambda s: [RateLaw(s.x, -s.x - 2 * s.x * s.y), RateLaw(s.y, -s.y - s.x**2 + s.y**2)],
-    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
-)
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 
-StuartLandauElement = Element.define(
-    'StuartLandauElement',
-    states={'x': 1.0, 'y': 0.0},
-    parameters={'mu': 1.0, 'omega': 1.0, 'beta': 0.0},
-    laws=lambda s: [
-        RateLaw(s.x, s.mu * s.x - s.omega * s.y - (s.x**2 + s.y**2) * (s.x - s.beta * s.y)),
-        RateLaw(s.y, s.mu * s.y + s.omega * s.x - (s.x**2 + s.y**2) * (s.y + s.beta * s.x)),
-    ],
-)
+class DuffingElement(Element):
+    """Duffing element."""
 
-ForcedVanDerPolElement = Element.define(
-    'ForcedVanDerPolElement',
-    states={'x': state(default=2.0, order=2)},
-    parameters={'mu': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE), 'A': 1.0, 'omega': 1.0},
-    laws=lambda s: [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x + s.A * cos(s.omega * s.t))],
-)
+    x = state(default=1.0, order=2)
+    delta = parameter(0.3)
+    alpha = parameter(-1.0)
+    beta = parameter(1.0)
+    gamma = parameter(0.5)
+    omega = parameter(1.2)
 
-AdlerPhaseElement = Element.define(
-    'AdlerPhaseElement',
-    states={'phi': 0.0},
-    parameters={'detuning': 0.5, 'epsilon': 1.0},
-    laws=lambda s: [RateLaw(s.phi, s.detuning + s.epsilon * sin(s.phi))],
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the duffing element."""
+        return [
+            RateLaw(
+                s.x,
+                -s.delta * derivative(s.x, 1) - s.alpha * s.x - s.beta * s.x**3 + s.gamma * cos(s.omega * s.t),
+            ),
+        ]
+
+
+class VanDerPolElement(Element):
+    """Van der pol element."""
+
+    x = state(default=2.0, order=2)
+    mu = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the van der pol element."""
+        return [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x)]
+
+
+class HenonHeilesElement(Element):
+    """Henon heiles element."""
+
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None})
+    x = state(default=0.0, order=2, initial=(0.35,))
+    y = state(default=0.1, order=2)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the henon heiles element."""
+        return [RateLaw(s.x, -s.x - 2 * s.x * s.y), RateLaw(s.y, -s.y - s.x**2 + s.y**2)]
+
+
+class StuartLandauElement(Element):
+    """Stuart landau element."""
+
+    x = state(1.0)
+    y = state(0.0)
+    mu = parameter(1.0)
+    omega = parameter(1.0)
+    beta = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the stuart landau element."""
+        return [
+            RateLaw(s.x, s.mu * s.x - s.omega * s.y - (s.x**2 + s.y**2) * (s.x - s.beta * s.y)),
+            RateLaw(s.y, s.mu * s.y + s.omega * s.x - (s.x**2 + s.y**2) * (s.y + s.beta * s.x)),
+        ]
+
+
+class ForcedVanDerPolElement(Element):
+    """Forced van der pol element."""
+
+    x = state(default=2.0, order=2)
+    mu = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    A = parameter(1.0)
+    omega = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the forced van der pol element."""
+        return [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x + s.A * cos(s.omega * s.t))]
+
+
+class AdlerPhaseElement(Element):
+    """Adler phase element."""
+
+    phi = state(0.0)
+    detuning = parameter(0.5)
+    epsilon = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the adler phase element."""
+        return [RateLaw(s.phi, s.detuning + s.epsilon * sin(s.phi))]
 
 
 @register_model(
@@ -110,7 +149,7 @@ def duffing(
         0.3
     """
     return System(
-        components=[
+        elements=[
             DuffingElement('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega),
         ],
     )
@@ -144,7 +183,7 @@ def van_der_pol(x: float = 2.0, v: float = 0.0, *, mu: float = 1.0) -> System:
         >>> van_der_pol(mu=3.0).elements[0].mu
         3.0
     """
-    return System(components=[VanDerPolElement('oscillator', x=x, x_d1=v, mu=mu)])
+    return System(elements=[VanDerPolElement('oscillator', x=x, x_d1=v, mu=mu)])
 
 
 @register_model(
@@ -179,7 +218,7 @@ def henon_heiles(x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0
         >>> henon_heiles(px=0.3).elements[0].x_d1
         0.3
     """
-    return System(components=[HenonHeilesElement('star', x=x, y=y, x_d1=px, y_d1=py)])
+    return System(elements=[HenonHeilesElement('star', x=x, y=y, x_d1=px, y_d1=py)])
 
 
 @register_model(
@@ -226,7 +265,7 @@ def stuart_landau(
         >>> stuart_landau(mu=0.5).elements[0].mu
         0.5
     """
-    return System(components=[StuartLandauElement('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
+    return System(elements=[StuartLandauElement('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
 
 
 @register_model(
@@ -273,7 +312,7 @@ def forced_van_der_pol(
         >>> forced_van_der_pol(A=0.5).elements[0].A
         0.5
     """
-    return System(components=[ForcedVanDerPolElement('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
+    return System(elements=[ForcedVanDerPolElement('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
 
 
 @register_model(
@@ -307,4 +346,4 @@ def adler_equation(phi: float = 0.0, *, detuning: float = 0.5, epsilon: float = 
         >>> adler_equation(detuning=2.0).elements[0].detuning
         2.0
     """
-    return System(components=[AdlerPhaseElement('difference', phi=phi, detuning=detuning, epsilon=epsilon)])
+    return System(elements=[AdlerPhaseElement('difference', phi=phi, detuning=detuning, epsilon=epsilon)])

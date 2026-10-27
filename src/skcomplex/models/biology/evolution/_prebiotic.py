@@ -14,6 +14,7 @@ from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 def _mean_fitness(master: Symbols) -> Expression:
@@ -146,11 +147,11 @@ class MutationInteraction(BaseInteraction):
         return [UpdateLaw(s.target.x, gained / _mean_fitness(s.master))]
 
 
-MoleculeElement = Element.define(
-    'MoleculeElement',
-    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'growth': 0.0},
-)
+class MoleculeElement(Element):
+    """Molecule element."""
+
+    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    growth = parameter(0.0)
 
 
 class CatalysisInteraction(BaseInteraction):
@@ -259,7 +260,7 @@ def eigen_quasispecies(classes: int = 12, *, u: float = 0.3, sigma: float = 0.5)
         )
         for source, target in itertools.pairwise(labels)
     ]
-    return System(components=elements, interactions=interactions)
+    return System(elements=elements, interactions=interactions)
 
 
 @register_model(
@@ -315,11 +316,14 @@ def hypercycles(
     else:
         error_msg = f'Unknown topology {topology!r}. Use cycle or complete.'
         raise ValidationError(error_msg)
-    soup = MoleculeElement.group(
+    soup = GroupElement(
         'soup',
-        molecules,
-        x=[1 / molecules] * molecules,
-        growth=[float(alpha * index) for index in range(1, molecules + 1)],
+        element=MoleculeElement,
+        size=molecules,
+        values={
+            'x': [1 / molecules] * molecules,
+            'growth': [float(alpha * index) for index in range(1, molecules + 1)],
+        },
     )
     catalysis = CatalysisInteraction(
         'catalysis',
@@ -327,4 +331,4 @@ def hypercycles(
         omega=omega,
         topology=tuple(tuple(float(value) for value in row) for row in links),
     )
-    return System(components=[soup], interactions=[catalysis])
+    return System(elements=[soup], interactions=[catalysis])

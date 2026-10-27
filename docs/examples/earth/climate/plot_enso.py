@@ -12,7 +12,7 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import power_spectrum
+from skcomplex.analysis import power_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

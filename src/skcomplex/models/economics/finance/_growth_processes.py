@@ -8,17 +8,19 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
-def _size_observables() -> list[Observable]:
+def _size_observables() -> list[ObservableSpec]:
     """Return the mean and the largest size of the firms."""
     return [
-        Observable('mean_size', group='firms', variable='x'),
-        Observable('max_size', group='firms', reduce='max', variable='x'),
+        ObservableSpec('mean_size', group='firms', variable='x'),
+        ObservableSpec('max_size', group='firms', reduce='max', variable='x'),
     ]
 
 
@@ -43,7 +45,7 @@ class GibratFirmElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.finance import GibratFirmElement
-        >>> GibratFirmElement.group('firms', 10, mu=1.0).size
+        >>> GroupElement('firms', element=GibratFirmElement, size=10, values={'mu': 1.0}).size
         10
     """
 
@@ -103,7 +105,7 @@ class KestenFirmElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.finance import KestenFirmElement
-        >>> KestenFirmElement.group('firms', 10, b_high=2.0).size
+        >>> GroupElement('firms', element=KestenFirmElement, size=10, values={'b_high': 2.0}).size
         10
     """
 
@@ -226,8 +228,13 @@ def gibrat_process(
         >>> gibrat_process(10).elements[0].size
         10
     """
-    firms = GibratFirmElement.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
-    return System(components=[firms])
+    firms = GroupElement(
+        'firms',
+        element=GibratFirmElement,
+        size=n_firms,
+        values={'x': x, 'previous': x, 'mu': mu, 'sigma': sigma},
+    )
+    return System(elements=[firms])
 
 
 @register_model(
@@ -275,9 +282,14 @@ def multiplicative_process(
         >>> multiplicative_process(c=0.5).interactions[0].c
         0.5
     """
-    firms = GibratFirmElement.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
+    firms = GroupElement(
+        'firms',
+        element=GibratFirmElement,
+        size=n_firms,
+        values={'x': x, 'previous': x, 'mu': mu, 'sigma': sigma},
+    )
     return System(
-        components=[firms],
+        elements=[firms],
         interactions=[ReflectingFloorInteraction('floor', firms='firms', c=c)],
     )
 
@@ -331,13 +343,10 @@ def kesten_process(
         >>> kesten_process(10).elements[0].size
         10
     """
-    firms = KestenFirmElement.group(
+    firms = GroupElement(
         'firms',
-        n_firms,
-        x=x,
-        lambda_low=lambda_low,
-        lambda_high=lambda_high,
-        b_low=b_low,
-        b_high=b_high,
+        element=KestenFirmElement,
+        size=n_firms,
+        values={'x': x, 'lambda_low': lambda_low, 'lambda_high': lambda_high, 'b_low': b_low, 'b_high': b_high},
     )
-    return System(components=[firms])
+    return System(elements=[firms])

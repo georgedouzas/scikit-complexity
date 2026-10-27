@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.analysis import ccdf, fit_power_law
 from skcomplex.core.system import Observable
-from skcomplex.engine.analysis import ccdf, fit_power_law
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe

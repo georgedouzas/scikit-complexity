@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, total
-from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import EncounterLaw, Symbols, total
+from ....core.laws.utils import moment
+from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import EncounterLaw, moment
 
 WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
 
@@ -168,7 +169,7 @@ def _classes_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
 
 
-def wealth_observables(classes: int) -> list[Observable]:
+def wealth_observables(classes: int) -> list[ObservableSpec]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution `wealth` over wealth classes.
 
     Args:
@@ -186,9 +187,9 @@ def wealth_observables(classes: int) -> list[Observable]:
     """
     wealth = wealth_classes(classes)
     return [
-        Observable('density', partial(wealth_density, wealth=wealth), group='wealth'),
-        Observable('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
-        Observable('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
+        ObservableSpec('density', partial(wealth_density, wealth=wealth), group='wealth'),
+        ObservableSpec('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
+        ObservableSpec('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
 
 
@@ -204,7 +205,7 @@ class WealthClassElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import WealthClassElement
-        >>> WealthClassElement.group('wealth', 9, f=1 / 9).size
+        >>> GroupElement('wealth', element=WealthClassElement, size=9, values={'f': 1 / 9}).size
         9
     """
 
@@ -380,12 +381,12 @@ def kinetic_wealth_welfare(
         ),
     ]
     if tax > 0:
-        components.append(WealthClassElement.group('state', 1, f=1.0))
+        components.append(GroupElement('state', element=WealthClassElement, size=1, values={'f': 1.0}))
         interactions.append(
             WelfarePolicyInteraction('welfare', population='wealth', policy='state', classes=classes, tax=tax),
         )
     return System(
-        components=components,
+        elements=components,
         interactions=interactions,
         space=LatticeSpace(classes, boundary='fixed'),
         time=ContinuousTime(),

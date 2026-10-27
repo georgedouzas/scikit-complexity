@@ -1,16 +1,15 @@
 """Test the Cayley graph visual of lattice groups on group spaces."""
 
 import numpy as np
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Totalistic
-from skcomplex.core.space import Memory
+from skcomplex.core.elements import LatticeElement
+from skcomplex.core.laws import LocalRuleLaw, Totalistic
+from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Frame, Simulation
-from skcomplex.engine.viz import default_blueprint
-from skcomplex.formalisms.groups import CayleySpace, CayleyVisual, finitely_presented_group
-from skcomplex.formalisms.lattices import LocalRuleLaw
+from skcomplex.engine.viz import CayleyVisual, default_blueprint
 
 
 class ParityElement(Element):
@@ -20,7 +19,7 @@ class ParityElement(Element):
 
     def laws(self, s):
         """Return the parity rule."""
-        return [LocalRuleLaw(s.alive, Memory(('1', 'a', 'b')), Totalistic({1: 1, 3: 1}))]
+        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('1', 'a', 'b')), Totalistic({1: 1, 3: 1}))]
 
 
 class Logs:
@@ -39,7 +38,9 @@ def _simulation():
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
-    return Simulation(System(components=[ParityElement.lattice('cells', space, alive=cells)])).run(until=2)
+    return Simulation(
+        System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
+    ).run(until=2)
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():

@@ -3,50 +3,56 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import parameter
+
 from ....core.base import VisualSpec, state
 from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-DipoleChargeElement = Element.define(
-    'DipoleChargeElement',
-    states={
-        'x': state(default=1.0, order=2),
-        'y': state(default=0.0, order=2),
-        'z': state(default=0.0, order=2),
-    },
-    parameters={'alpha': 1.0},
-    laws=lambda s: [
-        RateLaw(
-            s.x,
-            3
-            * s.alpha
-            * s.z
-            / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
-            * (derivative(s.y, 1) * s.z - derivative(s.z, 1) * s.y)
-            - s.alpha * derivative(s.y, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
-        ),
-        RateLaw(
-            s.y,
-            -3
-            * s.alpha
-            * s.z
-            / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
-            * (derivative(s.x, 1) * s.z - derivative(s.z, 1) * s.x)
-            + s.alpha * derivative(s.x, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
-        ),
-        RateLaw(
-            s.z,
-            3
-            * s.alpha
-            * s.z
-            / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
-            * (derivative(s.x, 1) * s.y - derivative(s.y, 1) * s.x),
-        ),
-    ],
-    visual=VisualSpec('bodies', {'positions': ('x', 'y', 'z'), 'trail': None, 'marks': [(0.0, 0.0, 0.0)]}),
-)
+
+class DipoleChargeElement(Element):
+    """Dipole charge element."""
+
+    visual = VisualSpec('bodies', {'positions': ('x', 'y', 'z'), 'trail': None, 'marks': [(0.0, 0.0, 0.0)]})
+    x = state(default=1.0, order=2)
+    y = state(default=0.0, order=2)
+    z = state(default=0.0, order=2)
+    alpha = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the dipole charge element."""
+        return [
+            RateLaw(
+                s.x,
+                3
+                * s.alpha
+                * s.z
+                / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
+                * (derivative(s.y, 1) * s.z - derivative(s.z, 1) * s.y)
+                - s.alpha * derivative(s.y, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
+            ),
+            RateLaw(
+                s.y,
+                -3
+                * s.alpha
+                * s.z
+                / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
+                * (derivative(s.x, 1) * s.z - derivative(s.z, 1) * s.x)
+                + s.alpha * derivative(s.x, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
+            ),
+            RateLaw(
+                s.z,
+                3
+                * s.alpha
+                * s.z
+                / (s.x**2 + s.y**2 + s.z**2) ** (5 / 2)
+                * (derivative(s.x, 1) * s.y - derivative(s.y, 1) * s.x),
+            ),
+        ]
 
 
 @register_model(
@@ -104,4 +110,4 @@ def stormer_problem(
         >>> stormer_problem(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[DipoleChargeElement('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])
+    return System(elements=[DipoleChargeElement('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])

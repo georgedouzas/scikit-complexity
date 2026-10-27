@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.experiments import Experiment, GridDesign
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import ImageVisual, RerunObserver
+from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.physics.statistical_mechanics import ising, potts, xy
 
 from .conftest import magnetization

@@ -1,0 +1,102 @@
+"""Define proliferation laws, encounters of active particles that create new particles."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from typing import Self
+
+import numpy as np
+from sage.all__sagemath_symbolics import Expression
+
+from ..spaces import ContinuousTime, LatticeSpace
+from ..specs import RequirementSpec
+from ._base import BaseLaw
+
+
+class ProliferationLaw(BaseLaw):
+    """Proliferative encounter, which creates a particle in the test group without removing the candidate.
+
+    A candidate particle at activity `h` that meets a field particle at activity `k` creates, at the rate `mu[h, k]`,
+    a new particle at activity `i` with probability `B[h, k, i]`, so the law adds
+    `sum_hk mu[h, k] B[h, k, i] f_h g_k` to the rate of the test density at `i`.
+
+    Args:
+        candidate:
+            The symbol of the candidate density.
+
+        field:
+            The symbol of the field density.
+
+        rate:
+            The proliferation rate, a number or a parameter expression, or an array `mu[h, k]` of them.
+
+        outcomes:
+            The array `B[h, k, i]` of the probabilities of the new particle's activity, or `None` for the
+            candidate's own activity, which needs a test group of the candidate's size.
+
+        test:
+            The symbol of the density that gains the new particles, or `None` for the candidate's own density.
+
+        label:
+            The name of the law, or the empty string for a law without one.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws import ProliferationLaw
+        >>> f, g = var('f'), var('g')
+        >>> ProliferationLaw(f, g, 0.5).check().run({})
+        (0.5, None)
+    """
+
+    def __init__(
+        self,
+        candidate: Expression,
+        field: Expression,
+        rate: object,
+        outcomes: object = None,
+        test: Expression | None = None,
+        *,
+        label: str = '',
+    ) -> None:
+        super().__init__(label)
+        self.candidate = candidate
+        self.field = field
+        self.rate = rate
+        self.outcomes = outcomes
+        self.test = test
+
+    def _get_targets(self) -> tuple[object, ...]:
+        """Return the densities the encounter changes, the candidate and the test."""
+        return (self.candidate,) if self.test is None or self.test is self.candidate else (self.candidate, self.test)
+
+    def _get_requirements(self) -> RequirementSpec:
+        """Return what the law requires of a system: continuous time on activity lattices."""
+        return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
+
+    def _check(self) -> Self:
+        """Raise an error for a rate or outcome table of the wrong dimensions, or whose activities disagree.
+
+        Returns:
+            law:
+                The law itself.
+        """
+        self._check_table('rate', (0, 2))
+        if self.outcomes is not None:
+            self._check_table('outcomes', (3,))
+        self._check_outcomes('rate', 'outcomes')
+        return self
+
+    def _run(self, inputs: object) -> object:
+        """Return the rate and the outcome table at given values of the symbols they read.
+
+        Args:
+            inputs:
+                A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            tables:
+                The rate and the outcome table, as nested lists of numbers when nothing symbolic is left, or `None`
+                for the candidate's own activity.
+        """
+        outcomes = None if self.outcomes is None else np.asarray(self.outcomes, dtype=object).tolist()
+        return self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)

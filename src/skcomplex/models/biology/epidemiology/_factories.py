@@ -54,7 +54,7 @@ def sir(
         ['S', 'I', 'R']
     """
     return System(
-        components=[
+        elements=[
             CompartmentElement('S', n=susceptible),
             CompartmentElement('I', n=infected),
             CompartmentElement('R', n=recovered),
@@ -110,7 +110,7 @@ def sis(
         ['S', 'I']
     """
     return System(
-        components=[CompartmentElement('S', n=susceptible), CompartmentElement('I', n=infected)],
+        elements=[CompartmentElement('S', n=susceptible), CompartmentElement('I', n=infected)],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
             RecoveryInteraction('recovery', infected='I', recovered='S', gamma=gamma, stochastic=stochastic),
@@ -170,7 +170,7 @@ def sirs(
         0.1
     """
     return System(
-        components=[
+        elements=[
             CompartmentElement('S', n=susceptible),
             CompartmentElement('I', n=infected),
             CompartmentElement('R', n=recovered),

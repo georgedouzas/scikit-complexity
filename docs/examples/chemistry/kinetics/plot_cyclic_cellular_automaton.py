@@ -12,7 +12,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import correlation_function, fields_of
+from skcomplex.analysis import correlation_function, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

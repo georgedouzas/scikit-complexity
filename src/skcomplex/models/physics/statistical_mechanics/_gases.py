@@ -6,10 +6,12 @@
 import numpy as np
 
 from ....core.base import BaseInteraction, VisualSpec
-from ....core.space import ContinuousSpace
+from ....core.elements import ParticleElement
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleElement
+from ....engine.solvers import VelocityVerletSolver
+from ...core.elements import GroupElement
 from ..realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 
@@ -70,17 +72,16 @@ def ideal_gas(
     velocities = rng.normal(0.0, np.sqrt(kT / mass), size=(n_molecules, n_dim))
     velocities -= velocities.mean(axis=0)
     visual = VisualSpec('points', {'position': 'x', 'radius': size / 200, 'color_by': 'v', 'states': ()})
-    molecules = ParticleElement.group(
+    molecules = GroupElement(
         label,
-        n_molecules,
-        x=rng.uniform(0.0, size, size=(n_molecules, n_dim)),
-        v=velocities,
-        m=mass,
+        element=ParticleElement,
+        size=n_molecules,
+        values={'x': rng.uniform(0.0, size, size=(n_molecules, n_dim)), 'v': velocities, 'm': mass},
         visual=visual,
     )
     return System(
-        components=[molecules],
-        space=ContinuousSpace(*[size] * n_dim, boundary='reflecting'),
+        elements=[molecules],
+        space=ContinuousSpace(extent=[size] * n_dim, boundary='reflecting'),
     )
 
 
@@ -88,7 +89,7 @@ def ideal_gas(
     field='physics/statistical_mechanics',
     tags=('molecular dynamics', 'pair potential', 'ode'),
     references=('Lennard-Jones 1924', 'Verlet 1967'),
-    defaults={'until': 0.5, 'dt': 0.005, 'solver': 'velocity-verlet'},
+    defaults={'until': 0.5, 'dt': 0.005, 'solver': VelocityVerletSolver()},
 )
 def lennard_jones_fluid(
     n_particles: int = 400,
@@ -140,7 +141,9 @@ def lennard_jones_fluid(
     if temperature is not None:
         interactions.append(LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature))
     return System(
-        components=[ParticleElement.group('fluid', n_particles, x=positions, v=velocities)],
+        elements=[
+            GroupElement('fluid', element=ParticleElement, size=n_particles, values={'x': positions, 'v': velocities}),
+        ],
         interactions=interactions,
-        space=ContinuousSpace(size, size, boundary='periodic'),
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

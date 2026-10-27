@@ -27,4 +27,5 @@ class PlanPass(BasePass):
         compilation.plan = _plan_partitions(
             cast('Census', compilation.census),
             cast('dict[str, set[type]]', compilation.kinds),
+            [] if compilation.solver is None else [type(compilation.solver)],
         )

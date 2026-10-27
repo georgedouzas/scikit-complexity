@@ -10,11 +10,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols, neighbors
-from ....core.space import Adjacency, NetworkSpace
+from ....core.laws import SampleLaw, Symbols, neighbors
+from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
+from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
+from ...core.elements import LatticeElement
 
 NODES = 400
 DEGREE = 4
@@ -82,9 +83,9 @@ class GraphIsingSpinElement(Element):
         energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum') - s.h * s.spin
         return [
             SampleLaw(
-                Energy(energy, Adjacency()),
-                MoveLaw.flip(s.spin),
-                SamplerLaw(self.sampler, s.temperature, 'colored'),
+                EnergySpec(energy, AdjacencyNeighborhood()),
+                MoveSpec.flip(s.spin),
+                SamplerSpec(self.sampler, s.temperature, 'colored'),
             ),
         ]
 
@@ -148,13 +149,10 @@ def graph_ising(
     size = graph.number_of_nodes()
     spins = np.ones(size) if initial == 'up' else rng.choice([-1.0, 1.0], size=size)
     space = NetworkSpace(graph)
-    group = GraphIsingSpinElement.lattice(
+    group = LatticeElement(
         'spins',
-        space,
-        spin=spins,
-        J=J,
-        h=h,
-        temperature=temperature,
-        sampler=sampler,
+        element=GraphIsingSpinElement,
+        space=space,
+        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature, 'sampler': sampler},
     )
-    return System(components=[group])
+    return System(elements=[group])

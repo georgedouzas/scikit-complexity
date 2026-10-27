@@ -6,13 +6,14 @@
 
 import numpy as np
 import scipy.sparse
+from sage.all__sagemath_symbolics import Expression
 
-from ...core.base import Expression, ValidationError
-from ...core.problems import SCALAR_DIALECT, ReductionSchedule, print_expressions
-from ...core.problems._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
-from ...core.problems._reads import Read
-from ...core.problems._reductions import CompiledReduction
-from ...core.space import Cone, Nearest
+from ...core.errors import ValidationError
+from ...core.spaces import ConeNeighborhood, NearestNeighborhood
+from ..problems import SCALAR_DIALECT, ReductionSchedule, print_expressions
+from ..problems._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
+from ..problems._reads import Read
+from ..problems._reductions import CompiledReduction
 from ._numba_source import INDENT, _hoist_layout, _Source
 
 
@@ -150,10 +151,10 @@ def _search_lines(source: _Source, reduction: CompiledNeighborhood, index: int) 
     ]
     neighbourhood = search.neighbourhood
     center = bool(neighbourhood.center)
-    if isinstance(neighbourhood, Nearest):
+    if isinstance(neighbourhood, NearestNeighborhood):
         call = f'nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
-    if not isinstance(neighbourhood, Cone):
+    if not isinstance(neighbourhood, ConeNeighborhood):
         call = f'radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
     heading = search.heading

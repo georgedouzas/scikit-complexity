@@ -5,9 +5,10 @@ import time
 import numpy as np
 import pytest
 import quantecon
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import IncompatibleLawsError, NumericDomain, ParameterError, ValidationError, parameter, state
-from skcomplex.core.components import Element
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.laws import (
     EmissionLaw,
     RateLaw,
@@ -28,48 +29,90 @@ CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 EMISSION = [[0.7, 0.3], [0.2, 0.8]]
 BINARY = NumericDomain.categorical(0, 1)
 
-UniformElement = Element.define(
-    'UniformElement',
-    states={'x': 0.0},
-    laws=lambda s: [UpdateLaw(s.x, uniform('u', 0, 1))],
-)
-WalkerElement = Element.define(
-    'WalkerElement',
-    states={'x': 0.0},
-    laws=lambda s: [UpdateLaw(s.x, s.x + normal('step', 0, 1))],
-)
-FlipElement = Element.define(
-    'FlipElement',
-    states={'a': 0.0, 'b': 0.0},
-    laws=lambda s: [UpdateLaw(s.a, bernoulli('flip', 0.5)), UpdateLaw(s.b, 1 - bernoulli('flip', 0.5))],
-)
-RampElement = Element.define(
-    'RampElement',
-    states={'x': 0.0, 'y': 0.0},
-    parameters={'p': 0.5},
-    laws=lambda s: [UpdateLaw(s.x, s.x + 1), UpdateLaw(s.y, bernoulli('b', s.p * s.x))],
-)
-ConflictElement = Element.define(
-    'ConflictElement',
-    states={'a': 0.0, 'b': 0.0},
-    laws=lambda s: [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, uniform('u', 0, 2))],
-)
-DriftingElement = Element.define(
-    'DriftingElement',
-    states={'x': 0.0},
-    laws=lambda s: [RateLaw(s.x, normal('kick', 0, 1))],
-)
-ChainElement = Element.define(
-    'ChainElement',
-    states={'x': state(default=0, domain=BINARY)},
-    parameters={'stay': parameter(0.9, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [TransitionLaw(s.x, [[s.stay, 1 - s.stay], [0.4, 0.6]])],
-)
-BrokenElement = Element.define(
-    'BrokenElement',
-    states={'x': state(default=0, domain=BINARY)},
-    laws=lambda s: [TransitionLaw(s.x, [[0.8, 0.1], [0.4, 0.6]])],
-)
+
+class UniformElement(Element):
+    """Uniform element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the uniform element."""
+        return [UpdateLaw(s.x, uniform('u', 0, 1))]
+
+
+class WalkerElement(Element):
+    """Walker element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the walker element."""
+        return [UpdateLaw(s.x, s.x + normal('step', 0, 1))]
+
+
+class FlipElement(Element):
+    """Flip element."""
+
+    a = state(0.0)
+    b = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the flip element."""
+        return [UpdateLaw(s.a, bernoulli('flip', 0.5)), UpdateLaw(s.b, 1 - bernoulli('flip', 0.5))]
+
+
+class RampElement(Element):
+    """Ramp element."""
+
+    x = state(0.0)
+    y = state(0.0)
+    p = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the ramp element."""
+        return [UpdateLaw(s.x, s.x + 1), UpdateLaw(s.y, bernoulli('b', s.p * s.x))]
+
+
+class ConflictElement(Element):
+    """Conflict element."""
+
+    a = state(0.0)
+    b = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the conflict element."""
+        return [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, uniform('u', 0, 2))]
+
+
+class DriftingElement(Element):
+    """Drifting element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the drifting element."""
+        return [RateLaw(s.x, normal('kick', 0, 1))]
+
+
+class ChainElement(Element):
+    """Chain element."""
+
+    x = state(default=0, domain=BINARY)
+    stay = parameter(0.9, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s):
+        """Return the laws of the chain element."""
+        return [TransitionLaw(s.x, [[s.stay, 1 - s.stay], [0.4, 0.6]])]
+
+
+class BrokenElement(Element):
+    """Broken element."""
+
+    x = state(default=0, domain=BINARY)
+
+    def laws(self, s):
+        """Return the laws of the broken element."""
+        return [TransitionLaw(s.x, [[0.8, 0.1], [0.4, 0.6]])]
 
 
 def _hidden(emission, order=1):
@@ -79,10 +122,10 @@ def _hidden(emission, order=1):
         found = [TransitionLaw(s.h, CHAIN), EmissionLaw(s.o, s.h, emission)]
         return found if order == 1 else found[::-1]
 
-    return Element.define(
+    return type(
         'HiddenElement',
-        states={'h': state(default=0, domain=BINARY), 'o': state(default=0, domain=BINARY)},
-        laws=laws,
+        (Element,),
+        {'h': state(default=0, domain=BINARY), 'o': state(default=0, domain=BINARY), 'laws': lambda self, s: laws(s)},
     )
 
 
@@ -105,39 +148,45 @@ def _run_lengths(series, symbol):
 
 def test_compile_system_draws_uniform_values():
     """Test that a uniform draw has mean 0.5 and no lag-1 autocorrelation over 100000 steps."""
-    x = _run(System(components=[UniformElement('a')]), 100000).values('a.x')[1:]
+    x = _run(System(elements=[UniformElement('a')]), 100000).values('a.x')[1:]
     assert abs(x.mean() - 0.5) < 0.005
     assert abs(np.corrcoef(x[:-1], x[1:])[0, 1]) < 0.01
 
 
 def test_compile_system_draws_independently_for_members():
     """Test that 1000 normal walkers reach variance 100 after 100 steps with uncorrelated halves."""
-    final = _run(System(components=[WalkerElement.group('g', 1000)]), 100).values('g.x')[-1]
+    final = _run(System(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).values('g.x')[-1]
     assert final.var() == pytest.approx(100, rel=0.15)
     assert abs(np.corrcoef(final[:500], final[500:])[0, 1]) < 0.1
 
 
 def test_compile_system_reads_arguments_before_the_step():
     """Test that a draw's probability uses the state and parameter values before the step."""
-    y = _run(System(components=[RampElement('r')]), 20).values('r.y')
+    y = _run(System(elements=[RampElement('r')]), 20).values('r.y')
     assert y[1] == 0
     assert np.all(y[3:] == 1)
 
 
 def test_compile_system_keeps_conditions_on_draws_undecided():
     """Test that a condition on a draw with constant arguments is drawn at every step, not decided when written."""
-    coin = Element.define(
-        'CoinElement',
-        states={'x': 0.0},
-        laws=lambda s: [UpdateLaw(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))],
-    )
-    x = _run(System(components=[coin('c')]), 20000).values('c.x')[1:]
+
+    class CoinElement(Element):
+        """Coin element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the coin element."""
+            return [UpdateLaw(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))]
+
+    coin = CoinElement
+    x = _run(System(elements=[coin('c')]), 20000).values('c.x')[1:]
     assert np.mean(x) == pytest.approx(0.5, abs=0.02)
 
 
 def test_compile_system_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
-    trajectory = _run(System(components=[FlipElement('f')]), 200)
+    trajectory = _run(System(elements=[FlipElement('f')]), 200)
     assert np.all((trajectory.values('f.a') + trajectory.values('f.b'))[1:] == 1)
 
 
@@ -145,25 +194,25 @@ def test_compile_system_rejects_conflicting_draws():
     """Test that one draw name with two argument lists raises an error naming both declarations."""
     declarations = r"c uses the draw name 'u' for uniform_u\(0, 1\) and for uniform_u\(0, 2\)"
     with pytest.raises(ValidationError, match=declarations):
-        compile_system(System(components=[ConflictElement('c')]))
+        compile_system(System(elements=[ConflictElement('c')]))
 
 
 def test_compile_system_rejects_draws_in_rate_laws():
     """Test that a draw in a rate law raises an error that suggests a noise law."""
     with pytest.raises(IncompatibleLawsError, match=r'RateLaw of d holds the random draw normal_kick.*Noise laws'):
-        compile_system(System(components=[DriftingElement('d')]))
+        compile_system(System(elements=[DriftingElement('d')]))
 
 
 def test_transition_reaches_the_stationary_distribution():
     """Test that a two-symbol chain spends the stationary fraction of steps in its first symbol."""
-    x = _codes(_run(System(components=[ChainElement('c')]), 100000).values('c.x'))
+    x = _codes(_run(System(elements=[ChainElement('c')]), 100000).values('c.x'))
     stationary = quantecon.MarkovChain(np.array(CHAIN)).stationary_distributions[0]
     assert np.mean(x == 0) == pytest.approx(stationary[0], abs=0.01)
 
 
 def test_transition_follows_a_live_matrix_change():
     """Test that the run lengths of the first symbol fall from mean 10 to mean 2 after a live change."""
-    simulation = Simulation(System(components=[ChainElement('c')]), dt=1.0, random_state=0).run(50000)
+    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).run(50000)
     simulation.update_parameters({'c.stay': 0.5})
     simulation.extend(100000)
     x = _codes(simulation.trajectory_.values('c.x'))
@@ -174,12 +223,12 @@ def test_transition_follows_a_live_matrix_change():
 def test_transition_rejects_a_row_that_does_not_sum_to_one():
     """Test that compiling a matrix with a row that sums to 0.9 names the law, the row, and the sum."""
     with pytest.raises(ValidationError, match=r'row 0 of the transition law of b\.x.* sums to 0\.9'):
-        compile_system(System(components=[BrokenElement('b')]))
+        compile_system(System(elements=[BrokenElement('b')]))
 
 
 def test_transition_rejects_a_live_change_that_breaks_a_row():
     """Test that a parameter change that makes an entry negative is rejected and the value is kept."""
-    simulation = Simulation(System(components=[ChainElement('c')]), dt=1.0, random_state=0).run(10)
+    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).run(10)
     with pytest.raises(ParameterError, match=r'c\.stay.*entry \(0, 1\) of the transition law of c\.x.*below 0'):
         simulation.update_parameters({'c.stay': 1.2})
     assert simulation.problem_.parameters.read(simulation.parameters_, 'c.stay') == pytest.approx(0.9)
@@ -187,13 +236,13 @@ def test_transition_rejects_a_live_change_that_breaks_a_row():
 
 def test_emission_aligns_with_the_hidden_state():
     """Test that an identity emission matrix copies the hidden sequence frame by frame."""
-    trajectory = _run(System(components=[_hidden([[1, 0], [0, 1]])('s')]), 2000)
+    trajectory = _run(System(elements=[_hidden([[1, 0], [0, 1]])('s')]), 2000)
     assert np.array_equal(_codes(trajectory.values('s.h')), _codes(trajectory.values('s.o')))
 
 
 def test_emission_draws_from_the_selected_row():
     """Test that the observed frequencies given each hidden state match the emission rows."""
-    trajectory = _run(System(components=[_hidden(EMISSION)('s')]), 100000)
+    trajectory = _run(System(elements=[_hidden(EMISSION)('s')]), 100000)
     hidden, observed = _codes(trajectory.values('s.h'))[1:], _codes(trajectory.values('s.o'))[1:]
     for row in (0, 1):
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
@@ -201,15 +250,15 @@ def test_emission_draws_from_the_selected_row():
 
 def test_compile_system_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
-    first = _run(System(components=[_hidden(EMISSION)('s')]), 500)
-    second = _run(System(components=[_hidden(EMISSION)('s')]), 500)
+    first = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
+    second = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
 
 def test_compile_system_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
-    first = _run(System(components=[_hidden(EMISSION, order=1)('s')]), 500)
-    second = _run(System(components=[_hidden(EMISSION, order=2)('s')]), 500)
+    first = _run(System(elements=[_hidden(EMISSION, order=1)('s')]), 500)
+    second = _run(System(elements=[_hidden(EMISSION, order=2)('s')]), 500)
     assert np.array_equal(_codes(first.values('s.h')), _codes(second.values('s.h')))
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
@@ -217,30 +266,45 @@ def test_compile_system_ignores_the_order_of_laws():
 def test_compile_system_draws_beside_reductions():
     """Test that a draw compared with a weighted sum over a group reads both values, each in its own slot."""
     weights = np.array([[0.0, 5.0], [-5.0, 0.0]])
-    spins = Element.define(
-        'SpinsElement',
-        states={'s': 1.0, 'h': 0.0},
-        laws=lambda s: [
-            UpdateLaw(s.h, where(uniform('u', 0, 1e-9) < total(s.s, weights=weights), 1, -1)),
-            UpdateLaw(s.s, s.s),
-        ],
-    )
-    trajectory = _run(System(components=[spins.group('g', 2)]), 3)
+
+    class SpinsElement(Element):
+        """Spins element."""
+
+        s = state(1.0)
+        h = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the spins element."""
+            return [
+                UpdateLaw(s.h, where(uniform('u', 0, 1e-9) < total(s.s, weights=weights), 1, -1)),
+                UpdateLaw(s.s, s.s),
+            ]
+
+    spins = SpinsElement
+    trajectory = _run(System(elements=[GroupElement('g', element=spins, size=2)]), 3)
     assert trajectory.values('g.h')[-1].tolist() == [1.0, -1.0]
 
 
 def test_compile_system_agrees_across_backends():
     """Test that uniform, Bernoulli, and categorical draws give equal trajectories on NumPy and Numba."""
-    mixed = Element.define(
-        'MixedElement',
-        states={'x': 0.0, 'k': 0.0, 'b': 0.0},
-        laws=lambda s: [
-            UpdateLaw(s.x, s.x / 2 + uniform('u', 0, 1)),
-            UpdateLaw(s.k, categorical('k', [1, 2, s.x + 1])),
-            UpdateLaw(s.b, where(s.k > 0, bernoulli('b', 0.3), 0)),
-        ],
-    )
-    system = System(components=[mixed.group('m', 50)])
+
+    class MixedElement(Element):
+        """Mixed element."""
+
+        x = state(0.0)
+        k = state(0.0)
+        b = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the mixed element."""
+            return [
+                UpdateLaw(s.x, s.x / 2 + uniform('u', 0, 1)),
+                UpdateLaw(s.k, categorical('k', [1, 2, s.x + 1])),
+                UpdateLaw(s.b, where(s.k > 0, bernoulli('b', 0.3), 0)),
+            ]
+
+    mixed = MixedElement
+    system = System(elements=[GroupElement('m', element=mixed, size=50)])
     numpy, numba = _run(system, 300, 'numpy'), _run(system, 300, 'numba')
     for name in ('m.x', 'm.k', 'm.b'):
         assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
@@ -248,19 +312,25 @@ def test_compile_system_agrees_across_backends():
 
 def test_compile_system_keeps_deterministic_maps_unchanged():
     """Test that a map without draws keeps its deterministic signature and has no draws."""
-    logistic = Element.define(
-        'LogisticElement',
-        states={'x': 0.3},
-        laws=lambda s: [UpdateLaw(s.x, 3.7 * s.x * (1 - s.x))],
-    )
-    problem = compile_system(System(components=[logistic('l')]))
+
+    class LogisticElement(Element):
+        """Logistic element."""
+
+        x = state(0.3)
+
+        def laws(self, s):
+            """Return the laws of the logistic element."""
+            return [UpdateLaw(s.x, 3.7 * s.x * (1 - s.x))]
+
+    logistic = LogisticElement
+    problem = compile_system(System(elements=[logistic('l')]))
     assert not problem.stochastic
     assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == pytest.approx([0.777])
 
 
 def test_compile_system_writes_draws_into_equations():
     """Test that the equation of a component that draws reads the uniform value of the draw."""
-    problem = compile_system(System(components=[RampElement('r')]))
+    problem = compile_system(System(elements=[RampElement('r')]))
     assert str(problem.equations['r.y']) == 'where(bernoulli_b_r < p_r*x_r, 1, 0)'
 
 
@@ -278,13 +348,29 @@ def _elapsed(problem, rng):
 
 def test_compile_system_runs_compiled_chains_fast():
     """Test that 100000 two-state chains take less than 10 times a deterministic map of the same size."""
-    two = Element.define(
-        'TwoElement',
-        states={'x': state(default=0, domain=BINARY)},
-        laws=lambda s: [TransitionLaw(s.x, CHAIN)],
-    )
-    flip = Element.define('FlipperElement', states={'x': 0.0}, laws=lambda s: [UpdateLaw(s.x, 1 - s.x)])
-    chains = compile_system(System(components=[two.group('c', 100000)]), backend='numba')
-    flips = compile_system(System(components=[flip.group('c', 100000)]), backend='numba')
+
+    class TwoElement(Element):
+        """Two element."""
+
+        x = state(default=0, domain=BINARY)
+
+        def laws(self, s):
+            """Return the laws of the two element."""
+            return [TransitionLaw(s.x, CHAIN)]
+
+    two = TwoElement
+
+    class FlipperElement(Element):
+        """Flipper element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the flipper element."""
+            return [UpdateLaw(s.x, 1 - s.x)]
+
+    flip = FlipperElement
+    chains = compile_system(System(elements=[GroupElement('c', element=two, size=100000)]), backend='numba')
+    flips = compile_system(System(elements=[GroupElement('c', element=flip, size=100000)]), backend='numba')
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)

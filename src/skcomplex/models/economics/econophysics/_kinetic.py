@@ -7,10 +7,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class SaverElement(Element):
@@ -25,7 +27,7 @@ class SaverElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import SaverElement
-        >>> group = SaverElement.group('savers', 10, wealth=2.0)
+        >>> group = GroupElement('savers', element=SaverElement, size=10, values={'wealth': 2.0})
         >>> group.label, group.element.__name__, group.size
         ('savers', 'SaverElement', 10)
     """
@@ -161,7 +163,7 @@ class DebtExchangeInteraction(BaseInteraction):
     tags=('wealth', 'agents', 'exchange', 'kinetic'),
     references=('Chakraborti and Chakrabarti 2000', 'Dragulescu and Yakovenko 2000', 'Yakovenko and Rosser 2009'),
     defaults={'until': 200},
-    observables=lambda system: [Observable('variance', group='traders', variable='wealth', reduce='var')],
+    observables=lambda system: [ObservableSpec('variance', group='traders', variable='wealth', reduce='var')],
 )
 def kinetic_wealth_exchange(
     n_agents: int = 500,
@@ -218,6 +220,6 @@ def kinetic_wealth_exchange(
         else DebtExchangeInteraction('trades', traders='traders', debt=debt, amount=amount)
     )
     return System(
-        components=[SaverElement.group('traders', n_agents, wealth=wealth)],
+        elements=[GroupElement('traders', element=SaverElement, size=n_agents, values={'wealth': wealth})],
         interactions=[trades],
     )

@@ -437,7 +437,7 @@ def hahnfeldt(
         width=width,
         start=start,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])
 
 
 @register_model(
@@ -510,4 +510,4 @@ def vascular_core_periphery(
         width=width,
         start=start,
     )
-    return System(components=[tumour])
+    return System(elements=[tumour])

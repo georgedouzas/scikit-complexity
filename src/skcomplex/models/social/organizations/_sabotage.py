@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 DAYS_PER_YEAR = 365
 PREDISPOSED = 0.1
@@ -67,7 +68,7 @@ class SupervisorElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import SupervisorElement
-        >>> group = SupervisorElement.group('supervisors', 3)
+        >>> group = GroupElement('supervisors', element=SupervisorElement, size=3)
         >>> group.label, group.element.__name__, group.size
         ('supervisors', 'SupervisorElement', 3)
     """
@@ -170,7 +171,7 @@ class EmployeeElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.organizations import EmployeeElement
-        >>> group = EmployeeElement.group('employees', 10, affect=0.5)
+        >>> group = GroupElement('employees', element=EmployeeElement, size=10, values={'affect': 0.5})
         >>> group.label, group.element.__name__, group.size
         ('employees', 'EmployeeElement', 10)
     """
@@ -277,16 +278,14 @@ def insider_sabotage(
     rng = np.random.default_rng(random_state)
     predisposed = (rng.random(n_employees) < PREDISPOSED).astype(float)
     affect = rng.choice(AFFECTS, n_employees, p=AFFECT_SHARES)
-    employees = EmployeeElement.group(
+    employees = GroupElement(
         'employees',
-        n_employees,
-        predisposed=predisposed,
-        affect=affect,
-        risk=predisposed + affect,
-        turnover=turnover,
+        element=EmployeeElement,
+        size=n_employees,
+        values={'predisposed': predisposed, 'affect': affect, 'risk': predisposed + affect, 'turnover': turnover},
     )
-    supervisors = SupervisorElement.group('supervisors', n_supervisors)
+    supervisors = GroupElement('supervisors', element=SupervisorElement, size=n_supervisors)
     return System(
-        components=[employees, supervisors],
+        elements=[employees, supervisors],
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
     )

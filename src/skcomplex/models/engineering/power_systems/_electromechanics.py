@@ -8,6 +8,7 @@ from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, derivative, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
 
 
 def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:
@@ -20,108 +21,118 @@ def _wheel_load(s: Symbols) -> Expression:
     return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
 
-RegenerativeCarElement = Element.define(
-    'RegenerativeCarElement',
-    states={'v': state(default=20.0), 'I': 0.0, 'Vs': 0.0},
-    parameters={
-        'm': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
-        'A': parameter(default=1.2, domain=NumericDomain.NONNEGATIVE),
-        'L': parameter(default=0.01, domain=NumericDomain.POSITIVE),
-        'R': parameter(default=0.05, domain=NumericDomain.POSITIVE),
-        'C': parameter(default=680.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=50.0, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
-        RateLaw(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
-        RateLaw(s.Vs, s.I / s.C),
-    ],
-)
+class RegenerativeCarElement(Element):
+    """Regenerative car element."""
 
-FaradayDiskElement = Element.define(
-    'FaradayDiskElement',
-    states={'I': 0.0, 'U': 0.0, 'omega': 0.0},
-    parameters={
-        'B': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
-        'r1': parameter(default=0.025, domain=NumericDomain.POSITIVE),
-        'r2': parameter(default=0.55, domain=NumericDomain.POSITIVE),
-        'L': parameter(default=0.2, domain=NumericDomain.POSITIVE),
-        'C': parameter(default=0.75, domain=NumericDomain.POSITIVE),
-        'R1': parameter(default=2.3, domain=NumericDomain.POSITIVE),
-        'R2': parameter(default=109.0, domain=NumericDomain.POSITIVE),
-        'alpha': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'beta': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'J': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        'mu': parameter(default=1.2566370614359173e-4, domain=NumericDomain.NONNEGATIVE),
-        'N': parameter(default=250.0, domain=NumericDomain.NONNEGATIVE),
-        'l': parameter(default=0.05, domain=NumericDomain.POSITIVE),
-        'M': parameter(default=4.8),
-        'a0': 8.0,
-        'a1': parameter(default=0.75, domain=NumericDomain.NONNEGATIVE),
-        'a3': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(
-            s.I,
-            (
-                -s.R1 * s.I
-                - s.U
-                + (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) * s.omega / 2
-                - (s.a0 + s.a1 * s.I + s.a3 * s.I**3)
-            )
-            / s.L,
-        ),
-        RateLaw(s.U, (s.I - s.U / s.R2) / s.C),
-        RateLaw(
-            s.omega,
-            (
-                s.M
-                - _dry_friction(s.omega, s.alpha)
-                - s.beta * s.r2 * s.omega
-                - s.I * (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) / 2
-            )
-            / s.J,
-        ),
-    ],
-)
+    v = state(default=20.0)
+    I = state(0.0)
+    Vs = state(0.0)
+    m = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
+    A = parameter(default=1.2, domain=NumericDomain.NONNEGATIVE)
+    L = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    R = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    C = parameter(default=680.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
 
-RailSegmentElement = Element.define(
-    'RailSegmentElement',
-    states={'z': state(default=0.0, order=2), 'zs': state(default=0.0, order=2)},
-    parameters={
-        'Mr': parameter(default=60.0, domain=NumericDomain.POSITIVE),
-        'Ms': parameter(default=156.0, domain=NumericDomain.POSITIVE),
-        'kr': parameter(default=6000.0, domain=NumericDomain.NONNEGATIVE),
-        'br': parameter(default=300.0, domain=NumericDomain.NONNEGATIVE),
-        'ks': parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE),
-        'bs': parameter(default=520.0, domain=NumericDomain.NONNEGATIVE),
-        'k2': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'alpha': 1.75,
-        'beta': -1.0,
-        'F': parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE),
-        'T': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'width': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'spacing': parameter(default=3.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        RateLaw(
-            s.z,
-            (_wheel_load(s) - s.br * (derivative(s.z, 1) - derivative(s.zs, 1)) - s.kr * (s.z - s.zs)) / s.Mr,
-        ),
-        RateLaw(
-            s.zs,
-            (
-                s.br * (derivative(s.z, 1) - derivative(s.zs, 1))
-                + s.kr * (s.z - s.zs)
-                - s.bs * derivative(s.zs, 1)
-                - s.ks * s.zs
-                - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)
-            )
-            / s.Ms,
-        ),
-    ],
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the regenerative car element."""
+        return [
+            RateLaw(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
+            RateLaw(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
+            RateLaw(s.Vs, s.I / s.C),
+        ]
+
+
+class FaradayDiskElement(Element):
+    """Faraday disk element."""
+
+    I = state(0.0)
+    U = state(0.0)
+    omega = state(0.0)
+    B = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    r1 = parameter(default=0.025, domain=NumericDomain.POSITIVE)
+    r2 = parameter(default=0.55, domain=NumericDomain.POSITIVE)
+    L = parameter(default=0.2, domain=NumericDomain.POSITIVE)
+    C = parameter(default=0.75, domain=NumericDomain.POSITIVE)
+    R1 = parameter(default=2.3, domain=NumericDomain.POSITIVE)
+    R2 = parameter(default=109.0, domain=NumericDomain.POSITIVE)
+    alpha = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    J = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    mu = parameter(default=1.2566370614359173e-4, domain=NumericDomain.NONNEGATIVE)
+    N = parameter(default=250.0, domain=NumericDomain.NONNEGATIVE)
+    l = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    M = parameter(default=4.8)
+    a0 = parameter(8.0)
+    a1 = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
+    a3 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the faraday disk element."""
+        return [
+            RateLaw(
+                s.I,
+                (
+                    -s.R1 * s.I
+                    - s.U
+                    + (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) * s.omega / 2
+                    - (s.a0 + s.a1 * s.I + s.a3 * s.I**3)
+                )
+                / s.L,
+            ),
+            RateLaw(s.U, (s.I - s.U / s.R2) / s.C),
+            RateLaw(
+                s.omega,
+                (
+                    s.M
+                    - _dry_friction(s.omega, s.alpha)
+                    - s.beta * s.r2 * s.omega
+                    - s.I * (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) / 2
+                )
+                / s.J,
+            ),
+        ]
+
+
+class RailSegmentElement(Element):
+    """Rail segment element."""
+
+    z = state(default=0.0, order=2)
+    zs = state(default=0.0, order=2)
+    Mr = parameter(default=60.0, domain=NumericDomain.POSITIVE)
+    Ms = parameter(default=156.0, domain=NumericDomain.POSITIVE)
+    kr = parameter(default=6000.0, domain=NumericDomain.NONNEGATIVE)
+    br = parameter(default=300.0, domain=NumericDomain.NONNEGATIVE)
+    ks = parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE)
+    bs = parameter(default=520.0, domain=NumericDomain.NONNEGATIVE)
+    k2 = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha = parameter(1.75)
+    beta = parameter(-1.0)
+    F = parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    T = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    width = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    spacing = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rail segment element."""
+        return [
+            RateLaw(
+                s.z,
+                (_wheel_load(s) - s.br * (derivative(s.z, 1) - derivative(s.zs, 1)) - s.kr * (s.z - s.zs)) / s.Mr,
+            ),
+            RateLaw(
+                s.zs,
+                (
+                    s.br * (derivative(s.z, 1) - derivative(s.zs, 1))
+                    + s.kr * (s.z - s.zs)
+                    - s.bs * derivative(s.zs, 1)
+                    - s.ks * s.zs
+                    - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)
+                )
+                / s.Ms,
+            ),
+        ]
 
 
 @register_model(
@@ -184,7 +195,7 @@ def regenerative_braking(
         100.0
     """
     car = RegenerativeCarElement('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
-    return System(components=[car])
+    return System(elements=[car])
 
 
 @register_model(
@@ -266,7 +277,7 @@ def faraday_disk(
         6.0
     """
     charger = FaradayDiskElement('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
-    return System(components=[charger])
+    return System(elements=[charger])
 
 
 @register_model(
@@ -325,4 +336,4 @@ def wheel_rail_contact(
         500.0
     """
     rail = RailSegmentElement('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
-    return System(components=[rail])
+    return System(elements=[rail])

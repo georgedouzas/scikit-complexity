@@ -12,9 +12,10 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, draw, uniform
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 class TrapWalkerElement(Element):
@@ -109,12 +110,10 @@ def trap_model(
         0.8
     """
     rng = np.random.default_rng(random_state)
-    walkers = TrapWalkerElement.group(
+    walkers = GroupElement(
         'walkers',
-        n_walkers,
-        x=rng.random((n_walkers, 2)),
-        E=rng.exponential(1.0, n_walkers),
-        T=T,
-        tau0=tau0,
+        element=TrapWalkerElement,
+        size=n_walkers,
+        values={'x': rng.random((n_walkers, 2)), 'E': rng.exponential(1.0, n_walkers), 'T': T, 'tau0': tau0},
     )
-    return System(components=[walkers], space=ContinuousSpace(n_dim=2))
+    return System(elements=[walkers], space=ContinuousSpace(n_dim=2))

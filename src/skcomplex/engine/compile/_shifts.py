@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core.base import Expression
-from ...core.space import LatticeSpace
+from sage.all__sagemath_symbolics import Expression
+
+from ...core.spaces import LatticeSpace
 
 
 def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:

@@ -5,40 +5,60 @@ import warnings
 import networkx as nx
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.declarations import parameter
 
 from skcomplex.core.base import ValidationError, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.space import LatticeSpace, NetworkSpace
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws import RateLaw, RuleLaw
+from skcomplex.core.laws.utils import advection, divergence, gradient, laplacian
+from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.fields import FieldElement, advection, divergence, gradient, laplacian
 
-HeatElement = Element.define(
-    'HeatElement',
-    states={'u': 0.0},
-    parameters={'D': 1.0},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
-)
-DecayElement = Element.define(
-    'DecayElement',
-    states={'u': 2.0},
-    parameters={'k': 0.5},
-    laws=lambda s: [RateLaw(s.u, -s.k * s.u)],
-)
-DriftElement = Element.define(
-    'DriftElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, -advection(s.u, [1.0]))],
-)
-SpreadElement = Element.define(
-    'SpreadElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, divergence(gradient(s.u, 1)))],
-)
+
+class HeatElement(Element):
+    """Heat element."""
+
+    u = state(0.0)
+    D = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the heat element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u))]
+
+
+class DecayElement(Element):
+    """Decay element."""
+
+    u = state(2.0)
+    k = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the decay element."""
+        return [RateLaw(s.u, -s.k * s.u)]
+
+
+class DriftElement(Element):
+    """Drift element."""
+
+    u = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the drift element."""
+        return [RateLaw(s.u, -advection(s.u, [1.0]))]
+
+
+class SpreadElement(Element):
+    """Spread element."""
+
+    u = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the spread element."""
+        return [RateLaw(s.u, divergence(gradient(s.u, 1)))]
 
 
 def _heat_kernel(backend):
@@ -49,7 +69,7 @@ def _heat_kernel(backend):
     initial[n // 2] = 1 / spacing
     rod = FieldElement('rod', HeatElement, LatticeSpace(n, spacing=spacing), values={'u': initial})
     values = (
-        Simulation(System(components=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend).run(until=0.5).state_
+        Simulation(System(elements=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend).run(until=0.5).state_
     )
     kernel = np.exp(-((positions - positions[n // 2]) ** 2) / 2) / np.sqrt(2 * np.pi)
     return values, kernel
@@ -58,7 +78,7 @@ def _heat_kernel(backend):
 def test_uniform_decay():
     """Test that every site of a 50 x 50 field follows the exponential decay of the single-site equation."""
     trajectory = (
-        Simulation(System(components=[FieldElement('grid', DecayElement, LatticeSpace((50, 50)))]), dt=0.5)
+        Simulation(System(elements=[FieldElement('grid', DecayElement, LatticeSpace((50, 50)))]), dt=0.5)
         .run(2)
         .trajectory_
     )
@@ -77,7 +97,7 @@ def test_diffusion_on_network():
     """Test that a field diffusing on a connected network keeps its sum and converges to the mean."""
     graph = nx.connected_watts_strogatz_graph(50, 4, 0.2, seed=1)
     initial = np.random.default_rng(0).random(50)
-    system = System(components=[FieldElement('net', HeatElement, NetworkSpace(graph), values={'u': initial})])
+    system = System(elements=[FieldElement('net', HeatElement, NetworkSpace(graph), values={'u': initial})])
     values = Simulation(system, dt=1).run(until=60).trajectory_.values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
@@ -87,7 +107,7 @@ def test_diffusion_on_network_without_edges():
     """Test that a field on nodes without edges compiles, with no diffusive step limit, and stays put."""
     initial = np.array([0.2, 0.7])
     system = System(
-        components=[FieldElement('net', HeatElement, NetworkSpace(nx.empty_graph(2)), values={'u': initial})],
+        elements=[FieldElement('net', HeatElement, NetworkSpace(nx.empty_graph(2)), values={'u': initial})],
     )
     values = Simulation(system, dt=1).run(until=3).trajectory_.values('net.u')
     assert values[-1] == pytest.approx(initial)
@@ -105,7 +125,7 @@ def test_zero_flux_conserves_mass(backend):
         values={'u': initial},
     )
     totals = (
-        Simulation(System(components=[plate]), dt=1, backend=backend).run(until=30).trajectory_.values('plate.u').sum(1)
+        Simulation(System(elements=[plate]), dt=1, backend=backend).run(until=30).trajectory_.values('plate.u').sum(1)
     )
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
@@ -114,7 +134,7 @@ def test_zero_flux_conserves_mass(backend):
 def test_fixed_boundary_holds_edge_value():
     """Test that a fixed boundary drives a line towards the linear profile between its two edge values."""
     rod = FieldElement('rod', HeatElement, LatticeSpace(20), boundary={'u': ('fixed', 1.0)})
-    values = Simulation(System(components=[rod]), dt=50).run(until=500).state_
+    values = Simulation(System(elements=[rod]), dt=50).run(until=500).state_
     assert values == pytest.approx(np.ones(20), abs=1e-3)
 
 
@@ -124,14 +144,12 @@ def test_advection_and_divergence():
     profile = np.exp(-((positions - 3) ** 2))
     space = LatticeSpace(200, spacing=0.05)
     moved = (
-        Simulation(System(components=[FieldElement('a', DriftElement, space, values={'u': profile})]), dt=1)
-        .run(2)
-        .state_
+        Simulation(System(elements=[FieldElement('a', DriftElement, space, values={'u': profile})]), dt=1).run(2).state_
     )
     assert positions[np.argmax(moved)] == pytest.approx(5.0)
     assert moved.sum() == pytest.approx(profile.sum())
     spread = (
-        Simulation(System(components=[FieldElement('d', SpreadElement, space, values={'u': profile})]), dt=1)
+        Simulation(System(elements=[FieldElement('d', SpreadElement, space, values={'u': profile})]), dt=1)
         .run(1)
         .state_
     )
@@ -141,26 +159,26 @@ def test_advection_and_divergence():
 
 def test_equations_keep_operators():
     """Test that the equations of a field show its operators, not the stencils they lower to."""
-    problem = compile_system(System(components=[FieldElement('rod', HeatElement, LatticeSpace(10))]))
+    problem = compile_system(System(elements=[FieldElement('rod', HeatElement, LatticeSpace(10))]))
     assert str(problem.equations['rod.u[i]']) == 'D_rod*laplacian(u_rod)'
 
 
 def test_operator_outside_field_is_rejected():
     """Test that an operator on a group that is not a field is rejected."""
     with pytest.raises(ValidationError, match='Create the group with `FieldElement`'):
-        compile_system(System(components=[GroupElement('rod', element=HeatElement, size=5)]))
+        compile_system(System(elements=[GroupElement('rod', element=HeatElement, size=5)]))
 
 
 def test_unknown_boundary_is_rejected():
     """Test that an unknown boundary condition names the known ones."""
     rod = FieldElement('rod', HeatElement, LatticeSpace(10), boundary={'u': 'open'})
     with pytest.raises(ValueError, match='zero-flux'):
-        compile_system(System(components=[rod]))
+        compile_system(System(elements=[rod]))
 
 
 def test_too_large_step_warns():
     """Test that RK4 with four times the diffusive stability limit warns with the limit before the run."""
-    problem = compile_system(System(components=[FieldElement('plate', HeatElement, LatticeSpace((20, 20)))]))
+    problem = compile_system(System(elements=[FieldElement('plate', HeatElement, LatticeSpace((20, 20)))]))
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
         Simulation(problem, dt=1.0, solver=RK4Solver(dt=1.0)).run(until=0)
@@ -186,19 +204,24 @@ class MarkerElement(Element):
 
 def test_agents_read_and_deposit_fields():
     """Test that deposits reach the field at every synchronisation point and agents read the value there."""
-    StillElement = Element.define(
-        'StillElement',
-        states={'u': 0.0},
-        laws=lambda s: [RateLaw(s.u, 0 * laplacian(s.u))],
-    )
+
+    class StillElement(Element):
+        """Still element."""
+
+        u = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the still element."""
+            return [RateLaw(s.u, 0 * laplacian(s.u))]
+
     system = System(
-        components=[
+        systems=[
             System(
                 'walkers',
-                components=[MarkerElement.group('markers', 1, location=(1, 2))],
+                elements=[GroupElement('markers', element=MarkerElement, size=1, location=(1, 2))],
                 space=LatticeSpace((4, 3), boundary='fixed'),
             ),
-            System('ground', components=[FieldElement('level', StillElement, LatticeSpace((4, 3)))]),
+            System('ground', elements=[FieldElement('level', StillElement, LatticeSpace((4, 3)))]),
         ],
     )
     simulation = Simulation(system, dt=1).run(until=5)
@@ -208,11 +231,14 @@ def test_agents_read_and_deposit_fields():
     assert simulation.trajectory_.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
 
 
-GrowthElement = Element.define(
-    'GrowthElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, s.u + laplacian(s.u))],
-)
+class GrowthElement(Element):
+    """Growth element."""
+
+    u = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the growth element."""
+        return [RateLaw(s.u, s.u + laplacian(s.u))]
 
 
 @pytest.mark.parametrize('discretization', ['spectral', 'finite-difference'])
@@ -227,7 +253,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         values={'u': checkerboard},
         discretization=discretization,
     )
-    final = np.asarray(Simulation(System(components=[field]), dt=0.01).run(until=0.5).trajectory_.values('m.u'))[-1]
+    final = np.asarray(Simulation(System(elements=[field]), dt=0.01).run(until=0.5).trajectory_.values('m.u'))[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)
         if discretization == 'finite-difference'

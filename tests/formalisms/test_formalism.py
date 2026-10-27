@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import ClassVar
 
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import (
     BaseLaw,
@@ -18,17 +19,15 @@ from skcomplex.core.base import (
     LawKind,
     NumericDomain,
     RegistryError,
-    Requires,
+    RequirementSpec,
     Trait,
     is_registered,
     register_laws,
     state,
 )
-from skcomplex.core.components import Element
 from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
-from skcomplex.formalisms import Formalism, register
 
 SOURCE = Path(str(files('skcomplex'))).parent
 ROOT = Path(str(files('tests'))).parent
@@ -54,7 +53,7 @@ class StrayLaw(BaseLaw):
     law_kind: ClassVar[LawKind] = LawKind.RATE
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires()
+    requires: ClassVar[RequirementSpec] = RequirementSpec()
 
     targets: Expression | tuple[Expression, ...]
     value: object
@@ -133,7 +132,7 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
         'from skcomplex.engine.compile import compile_system, validate\n'
         'from skcomplex.engine.runtime import Simulation\n'
         'from skcomplex.core.system import System\n'
-        "system = System(components=[NucleusElement('a', n=2.0, k=0.5)])\n"
+        "system = System(elements=[NucleusElement('a', n=2.0, k=0.5)])\n"
         'simulation = Simulation(system, dt=0.5).run(until=2)\n'
         'print(json.dumps({\n'
         "    'valid': validate(system).ok,\n"
@@ -180,7 +179,7 @@ def test_register_laws_rejects_classes_without_declarations():
 
 def test_validate_reports_unregistered_law():
     """Test that validation names a law class that no formalism registered and says a formalism must register it."""
-    report = validate(System(components=[DriftingElement('d')]))
+    report = validate(System(elements=[DriftingElement('d')]))
     (issue,) = [issue for issue in report.issues if issue.code == 'law-unregistered']
     assert 'StrayLaw' in issue.message
     assert 'formalism must register' in issue.message

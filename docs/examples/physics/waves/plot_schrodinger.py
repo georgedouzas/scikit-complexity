@@ -12,10 +12,10 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.analysis import purity
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4Solver
-from skcomplex.formalisms.quantum import purity
 from skcomplex.models import create, run
 
 MODEL = 'schrodinger'

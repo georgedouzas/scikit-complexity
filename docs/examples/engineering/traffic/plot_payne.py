@@ -13,10 +13,10 @@ Greenshields law and the anticipation of drivers smooth it out, so the road retu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of
+from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'payne'

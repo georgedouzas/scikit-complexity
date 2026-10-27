@@ -18,9 +18,9 @@ from skcomplex.core.base import (
     role,
     symbol,
 )
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.problems import BaseProblem, Problem
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.elements import GroupElement, LatticeElement
+from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, RateLaw
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
     BasePass,
@@ -29,17 +29,10 @@ from skcomplex.engine.compile import (
     claiming_compiler,
     compile_system,
 )
-from skcomplex.formalisms import registered_formalisms
-from skcomplex.formalisms.quantum import (
-    DissipatorLaw,
-    GeneratorLaw,
-    HilbertSpaceError,
-    LindbladSolver,
-    QuantumCompiler,
-    QuantumProblem,
-    expectation,
-)
-from skcomplex.formalisms.quantum._passes import hamiltonian_at, state_of
+from skcomplex.engine.compile.passes import HilbertSpaceError, QuantumCompiler, QuantumProblem
+from skcomplex.engine.compile.passes._quantum import hamiltonian_at, state_of
+from skcomplex.engine.problems import BaseProblem, Problem
+from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.realizations.quantum import ModeElement, QubitElement, SpinElement
 
@@ -58,15 +51,46 @@ class HeisenbergInteraction(BaseInteraction):
         return [GeneratorLaw(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
 
 
-PlusElement = QubitElement.define('PlusElement', laws=lambda s: [GeneratorLaw(s.plus)])
-ForeignElement = QubitElement.define('ForeignElement', laws=lambda s: [GeneratorLaw(symbol('n_rabbits') * s.z)])
-ClassicalElement = QubitElement.define('ClassicalElement', laws=lambda s: [RateLaw(symbol('x'), 1)])
-DecayingElement = QubitElement.define(
-    'DecayingElement',
-    parameters={'gamma': 0.5},
-    laws=lambda s: [DissipatorLaw(s.minus, s.gamma)],
-)
-NegativeElement = QubitElement.define('NegativeElement', laws=lambda s: [DissipatorLaw(s.minus, -1.0)])
+class PlusElement(QubitElement):
+    """Plus element."""
+
+    def laws(self, s):
+        """Return the laws of the plus element."""
+        return [GeneratorLaw(s.plus)]
+
+
+class ForeignElement(QubitElement):
+    """Foreign element."""
+
+    def laws(self, s):
+        """Return the laws of the foreign element."""
+        return [GeneratorLaw(symbol('n_rabbits') * s.z)]
+
+
+class ClassicalElement(QubitElement):
+    """Classical element."""
+
+    def laws(self, s):
+        """Return the laws of the classical element."""
+        return [RateLaw(symbol('x'), 1)]
+
+
+class DecayingElement(QubitElement):
+    """Decaying element."""
+
+    gamma = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the decaying element."""
+        return [DissipatorLaw(s.minus, s.gamma)]
+
+
+class NegativeElement(QubitElement):
+    """Negative element."""
+
+    def laws(self, s):
+        """Return the laws of the negative element."""
+        return [DissipatorLaw(s.minus, -1.0)]
 
 
 def local_z(member):
@@ -76,7 +100,12 @@ def local_z(member):
 
 def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
     """Test that a chain of spins and a mode compile to the tensor product of their spaces."""
-    system = System(components=[SpinElement.lattice('chain', LatticeSpace(10)), ModeElement('cavity', quanta=4)])
+    system = System(
+        elements=[
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(10)),
+            ModeElement('cavity', quanta=4),
+        ],
+    )
     problem = compile_system(system)
     assert isinstance(problem, QuantumProblem)
     assert problem.form == Form.QUANTUM
@@ -86,7 +115,7 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
 
 def test_compile_system_rejects_too_large_spaces():
     """Test that a space above the dimension limit raises an error naming the group, its dimension, and the limit."""
-    system = System(components=[SpinElement.group('chain', 40)])
+    system = System(elements=[GroupElement('chain', element=SpinElement, size=40)])
     with pytest.raises(HilbertSpaceError, match=r'chain of dimension 1099511627776.*max_dimension = 16777216'):
         compile_system(system, solver=LindbladSolver(max_dimension=2**24))
 
@@ -94,7 +123,7 @@ def test_compile_system_rejects_too_large_spaces():
 def test_compile_system_counts_one_exchange_term_per_bond():
     """Test that an exchange on a periodic lattice of 8 spins equals the sum of the 8 bond terms."""
     system = System(
-        components=[SpinElement.lattice('chain', LatticeSpace(8))],
+        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(8))],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system)
@@ -113,7 +142,9 @@ def test_compile_system_counts_one_exchange_term_per_bond():
 def test_compile_system_folds_constant_hamiltonians():
     """Test that a Hamiltonian with numeric coefficients folds to one constant matrix."""
     system = System(
-        components=[QubitElement.define('FixedElement', laws=lambda s: [GeneratorLaw(0.5 * s.z + s.x)])('q')],
+        elements=[
+            type('FixedElement', (QubitElement,), {'laws': lambda self, s: [GeneratorLaw(0.5 * s.z + s.x)]})('q'),
+        ],
     )
     problem = compile_system(system)
     assert len(problem.hamiltonian) == 1
@@ -123,33 +154,39 @@ def test_compile_system_folds_constant_hamiltonians():
 def test_compile_system_rejects_non_hermitian_hamiltonians():
     """Test that a Hamiltonian without its adjoint raises an error that names the law."""
     with pytest.raises(ValidationError, match=r'Hamiltonian of q is not Hermitian.*adjoint'):
-        compile_system(System(components=[PlusElement('q')]))
+        compile_system(System(elements=[PlusElement('q')]))
 
 
 def test_compile_system_rejects_classical_symbols_in_coefficients():
     """Test that a coefficient reading a symbol other than parameters and time raises an error."""
     with pytest.raises(ValidationError, match='n_rabbits'):
-        compile_system(System(components=[ForeignElement('q')]))
+        compile_system(System(elements=[ForeignElement('q')]))
 
 
 def test_compile_system_rejects_classical_elements_and_laws():
     """Test that quantum systems hold neither classical elements nor classical laws."""
     with pytest.raises(IncompatibleLawsError, match='rabbits'):
-        compile_system(System(components=[QubitElement('q'), PopulationElement('rabbits')]))
+        compile_system(System(elements=[QubitElement('q'), PopulationElement('rabbits')]))
     with pytest.raises(IncompatibleLawsError, match='RateLaw'):
-        compile_system(System(components=[ClassicalElement('q')]))
+        compile_system(System(elements=[ClassicalElement('q')]))
 
 
 def test_compile_system_rejects_negative_rates():
     """Test that a dissipator with a negative rate raises an error."""
     with pytest.raises(ValidationError, match='non-negative'):
-        compile_system(System(components=[NegativeElement('q')]))
+        compile_system(System(elements=[NegativeElement('q')]))
 
 
 def test_compile_system_stores_neel_states():
     """Test that a Néel state has norm 1 and one nonzero amplitude at its basis index."""
     labels = ['up', 'down'] * 3
-    problem = compile_system(System(components=[SpinElement.lattice('chain', LatticeSpace(6), initial=labels)]))
+    problem = compile_system(
+        System(
+            elements=[
+                LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'initial': labels}),
+            ],
+        ),
+    )
     state = state_of(problem, problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
@@ -159,22 +196,22 @@ def test_compile_system_stores_neel_states():
 def test_compile_system_rejects_invalid_initial_states(initial, message):
     """Test that an unnormalised vector or an unknown name raises an error that names the system."""
     with pytest.raises(ValidationError, match=message):
-        compile_system(System('box', components=[QubitElement('q')]), initial_state={'box.state': initial})
+        compile_system(System('box', elements=[QubitElement('q')]), initial_state={'box.state': initial})
 
 
 def test_compile_system_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
-    problem = compile_system(System(components=[DecayingElement('q')]))
+    problem = compile_system(System(elements=[DecayingElement('q')]))
     assert not problem.pure
     assert state_of(problem, problem.initial_state).shape == (2, 2)
-    mixed = compile_system(System(components=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2})
+    mixed = compile_system(System(elements=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2})
     assert not mixed.pure
 
 
 def test_compile_system_starts_from_the_ground_state():
     """Test that the initial state 'ground' is the lowest eigenstate."""
     system = System(
-        components=[SpinElement.lattice('chain', LatticeSpace(4))],
+        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(4))],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system, initial_state={'system.state': 'ground'})
@@ -189,7 +226,9 @@ def test_compile_system_starts_from_the_ground_state():
 def test_observable_evaluator_reads_local_magnetization():
     """Test that a group observable gives one expectation of the local z per site."""
     labels = ['up', 'down'] * 4
-    system = System(components=[SpinElement.lattice('chain', LatticeSpace(8), initial=labels)])
+    system = System(
+        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'initial': labels})],
+    )
     observables = [
         expectation('sz', local_z, group='chain'),
         expectation('total', local_z, group='chain', reduce='sum'),
@@ -202,15 +241,18 @@ def test_observable_evaluator_reads_local_magnetization():
 
 def test_observable_evaluator_rejects_non_operators():
     """Test that a quantum observable must give an operator."""
-    system = System(components=[QubitElement('q')])
+    system = System(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
         ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))])).prepare()
 
 
 def test_quantum_pass_claims_quantum_systems():
     """Test that the registered quantum pass claims a quantum system and leaves a classical one."""
-    assert isinstance(claiming_compiler(System(components=[SpinElement.group('chain', 2)])), QuantumCompiler)
-    assert claiming_compiler(System(components=[PopulationElement('rabbits', n=10)])) is None
+    assert isinstance(
+        claiming_compiler(System(elements=[GroupElement('chain', element=SpinElement, size=2)])),
+        QuantumCompiler,
+    )
+    assert claiming_compiler(System(elements=[PopulationElement('rabbits', n=10)])) is None
 
 
 def test_registered_formalisms_list_quantum():

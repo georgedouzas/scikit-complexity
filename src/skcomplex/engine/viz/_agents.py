@@ -10,12 +10,12 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.space import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
 from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _radius_of
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 PATH_COLOR = (86, 180, 233)
 PATH_WIDTH = 1.0
@@ -213,6 +213,3 @@ class AgentsVisual(BaseVisual):
             )
             return [rrb.Spatial2DView(origin=element.path, name=element.path, visual_bounds=bounds)]
         return [rrb.Spatial2DView(origin=element.path, name=element.path)]
-
-
-register_visual('agents', AgentsVisual)

@@ -4,20 +4,18 @@
 # License: MIT
 
 from collections.abc import Sequence, Sized
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.space import BaseSpace
+from ...core.spaces import BaseSpace
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
 from ._colors import SERIES_COLORS, _widened
-from ._visuals import register_visual, resolve_visual
 
 BINS = 20
 MAX_LEVELS = 50
@@ -52,36 +50,6 @@ def _histogram(
     low, high = (low, high) if high > low else (low - 0.5, low + 0.5)
     counts, edges = np.histogram(numbers, bins=bins, range=(low, high))
     return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])
-
-
-def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisual:
-    """Return the visual of an agent group: its declared agents visual, or the traits visual without a space.
-
-    Args:
-        agents:
-            The compiled agents.
-
-        problem:
-            The compiled problem, with the space the agents live in.
-
-    Returns:
-        visual:
-            The visual that logs the agents.
-
-    Examples:
-        >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.engine.viz import agents_visual_of
-        >>> from skcomplex.models import create
-        >>> problem = compile_system(create('moran_process'))
-        >>> type(agents_visual_of(problem.agents[0], problem)).__name__
-        'TraitsVisual'
-    """
-    visual: Any = resolve_visual(agents.visual)
-    if not isinstance(visual, AgentsVisual):
-        visual = AgentsVisual()
-    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
-        return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
-    return visual
 
 
 class TraitsVisual(AgentsVisual):
@@ -240,6 +208,3 @@ class TraitsVisual(AgentsVisual):
         histogram = rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram')
         first = [histogram, series] if self.histogram_first else [series, histogram]
         return [*first, rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits')]
-
-
-register_visual('traits', TraitsVisual)

@@ -12,12 +12,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols, Totalistic
-from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
+from ....core.laws import LocalRuleLaw, RuleLaw, Symbols, Totalistic
+from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -36,7 +36,7 @@ class VoterElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VoterElement
-        >>> group = VoterElement.group('voters', 20, opinion=1.0)
+        >>> group = GroupElement('voters', element=VoterElement, size=20, values={'opinion': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('voters', 'VoterElement', 20)
     """
@@ -102,7 +102,7 @@ class MajorityVoterElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.opinion, Neighborhood.moore(center=True), Totalistic(lambda total: total >= MAJORITY)),
+            LocalRuleLaw(s.opinion, MooreNeighborhood(center=True), Totalistic(lambda total: total >= MAJORITY)),
         ]
 
 
@@ -129,7 +129,7 @@ class VariantVoterElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VariantVoterElement
-        >>> group = VariantVoterElement.group('voters', 10, threshold=0.5)
+        >>> group = GroupElement('voters', element=VariantVoterElement, size=10, values={'threshold': 0.5})
         >>> group.label, group.element.__name__, group.size
         ('voters', 'VariantVoterElement', 10)
     """
@@ -215,7 +215,16 @@ def majority_rule(
         100
     """
     values = _random_cells(shape, density, random_state)
-    return System(components=[MajorityVoterElement.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
+    return System(
+        elements=[
+            LatticeElement(
+                'voters',
+                element=MajorityVoterElement,
+                space=LatticeSpace(tuple(shape)),
+                values={'opinion': values},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -256,7 +265,10 @@ def voter_model(
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
     opinions = (rng.random(size) < share).astype(float)
-    return System(components=[VoterElement.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
+    return System(
+        elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
+        space=NetworkSpace(graph),
+    )
 
 
 @register_model(
@@ -305,11 +317,14 @@ def voter_variants(
     rng = np.random.default_rng(random_state)
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    voters = VariantVoterElement.group(
+    voters = GroupElement(
         'voters',
-        size,
-        opinion=(rng.random(size) < share).astype(float),
-        contrarian=(rng.random(size) < contrarians).astype(float),
-        threshold=threshold,
+        element=VariantVoterElement,
+        size=size,
+        values={
+            'opinion': (rng.random(size) < share).astype(float),
+            'contrarian': (rng.random(size) < contrarians).astype(float),
+            'threshold': threshold,
+        },
     )
-    return System(components=[voters], space=NetworkSpace(graph))
+    return System(elements=[voters], space=NetworkSpace(graph))

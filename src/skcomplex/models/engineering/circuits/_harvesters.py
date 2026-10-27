@@ -8,8 +8,10 @@ from sage.all__sagemath_symbolics import sin
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, derivative
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
 
 
 def _piezo_voltage(s: Symbols) -> Expression:
@@ -18,34 +20,36 @@ def _piezo_voltage(s: Symbols) -> Expression:
     return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
 
 
-PiezoHarvesterElement = Element.define(
-    'PiezoHarvesterElement',
-    states={'y1': state(default=0.0, order=2), 'y2': state(default=0.0, order=2)},
-    parameters={
-        'm1': parameter(default=40.0, domain=NumericDomain.POSITIVE),
-        'm2': parameter(default=400.0, domain=NumericDomain.POSITIVE),
-        'k1': parameter(default=2.0e5, domain=NumericDomain.NONNEGATIVE),
-        'k2': parameter(default=2.0e4, domain=NumericDomain.NONNEGATIVE),
-        'b': parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE),
-        'A': parameter(default=0.01, domain=NumericDomain.NONNEGATIVE),
-        'omega': parameter(default=9.42, domain=NumericDomain.NONNEGATIVE),
-        'n': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'd': parameter(default=4.0e-10, domain=NumericDomain.POSITIVE),
-        'C': parameter(default=1.0e-8, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(
-            s.y1,
-            (
-                -s.b * (derivative(s.y1, 1) - derivative(s.y2, 1))
-                - s.k2 * (s.y1 - s.y2)
-                - s.k1 * (s.y1 - s.A * sin(s.omega * s.t))
-            )
-            / s.m1,
-        ),
-        RateLaw(s.y2, (-s.b * (derivative(s.y2, 1) - derivative(s.y1, 1)) - s.k2 * (s.y2 - s.y1)) / s.m2),
-    ],
-)
+class PiezoHarvesterElement(Element):
+    """Piezo harvester element."""
+
+    y1 = state(default=0.0, order=2)
+    y2 = state(default=0.0, order=2)
+    m1 = parameter(default=40.0, domain=NumericDomain.POSITIVE)
+    m2 = parameter(default=400.0, domain=NumericDomain.POSITIVE)
+    k1 = parameter(default=2.0e5, domain=NumericDomain.NONNEGATIVE)
+    k2 = parameter(default=2.0e4, domain=NumericDomain.NONNEGATIVE)
+    b = parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE)
+    A = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    omega = parameter(default=9.42, domain=NumericDomain.NONNEGATIVE)
+    n = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    d = parameter(default=4.0e-10, domain=NumericDomain.POSITIVE)
+    C = parameter(default=1.0e-8, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the piezo harvester element."""
+        return [
+            RateLaw(
+                s.y1,
+                (
+                    -s.b * (derivative(s.y1, 1) - derivative(s.y2, 1))
+                    - s.k2 * (s.y1 - s.y2)
+                    - s.k1 * (s.y1 - s.A * sin(s.omega * s.t))
+                )
+                / s.m1,
+            ),
+            RateLaw(s.y2, (-s.b * (derivative(s.y2, 1) - derivative(s.y1, 1)) - s.k2 * (s.y2 - s.y1)) / s.m2),
+        ]
 
 
 @register_model(
@@ -53,7 +57,7 @@ PiezoHarvesterElement = Element.define(
     tags=('energy harvesting', 'piezoelectric', 'vibration', 'vehicles', 'ode'),
     references=('Trzaska 2023',),
     defaults={'until': 10.0, 'dt': 0.01},
-    observables=lambda system: [Observable('voltage', _piezo_voltage)],
+    observables=lambda system: [ObservableSpec('voltage', _piezo_voltage)],
 )
 def vibration_energy_harvester(
     *,
@@ -116,4 +120,4 @@ def vibration_energy_harvester(
         1000.0
     """
     harvester = PiezoHarvesterElement('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
-    return System(components=[harvester])
+    return System(elements=[harvester])

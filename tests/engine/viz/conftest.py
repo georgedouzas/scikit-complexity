@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
-from skcomplex.core.problems import Problem
-from skcomplex.core.space import BaseSpace
+from skcomplex.core.spaces import BaseSpace
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Frame
 from skcomplex.engine.solvers import AgentSnapshot
 from skcomplex.engine.viz import BaseVisual

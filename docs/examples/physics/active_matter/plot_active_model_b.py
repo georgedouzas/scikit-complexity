@@ -17,7 +17,8 @@ of about the same size, roughened by the conserved noise.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import fields_of, structure_factor
+from skcomplex.analysis import fields_of, structure_factor
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -31,7 +32,7 @@ simulation = Simulation(
     system,
     dt=30.0,
     solver=EulerMaruyamaSolver(dt=0.02),
-    backend='numba',
+    backend=NumbaBackend(),
     observers=[observer],
     random_state=0,
 ).run(until=1500)

@@ -1131,7 +1131,7 @@ def kirschner_panetta(
         u1=u1,
         u2=u2,
     )
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -1206,7 +1206,7 @@ def dendritic_cell_vaccine(
         start=start,
         doses=doses,
     )
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -1272,7 +1272,7 @@ def anti_pd1_checkpoint(
         0.0
     """
     site = CheckpointTumourElement('site', E=E, A=A, u_ap=u_ap, sigma=sigma, ENC=ENC, r3=r3, b=b, c_l=c_l)
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -1350,7 +1350,7 @@ def delayed_dc_vaccine(
         tau2=tau2,
         tau3=tau3,
     )
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -1410,4 +1410,4 @@ def tumour_immune_suppression(
         1.0
     """
     site = SuppressedTumourElement('site', alpha_a=alpha_a, r1=r1, r2=r2, EMC=EMC, EMH=EMH, EMR=EMR)
-    return System(components=[site])
+    return System(elements=[site])

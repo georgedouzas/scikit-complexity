@@ -230,12 +230,20 @@ class DissociationInteraction(BaseInteraction):
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
-SchloglElement = Element.define(
-    'SchloglElement',
-    states={'x': state(default=50.0, domain=NumericDomain.REAL)},
-    parameters={'c1': 1.5e-6, 'c2': 2.5e-3, 'c3': 2e-4, 'c4': 3.5, 'A': 1e5, 'B': 2e5},
-    laws=_schlogl_laws,
-)
+class SchloglElement(Element):
+    """Schlogl element."""
+
+    x = state(default=50.0, domain=NumericDomain.REAL)
+    c1 = parameter(1.5e-6)
+    c2 = parameter(2.5e-3)
+    c3 = parameter(2e-4)
+    c4 = parameter(3.5)
+    A = parameter(1e5)
+    B = parameter(2e5)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the schlogl element."""
+        return _schlogl_laws(s)
 
 
 @register_model(
@@ -287,7 +295,7 @@ def michaelis_menten(
         ['E', 'S', 'C', 'P']
     """
     return System(
-        components=[
+        elements=[
             SpeciesElement('E', n=enzyme),
             SpeciesElement('S', n=substrate),
             SpeciesElement('C'),
@@ -370,7 +378,7 @@ def chemical_langevin_equation(
         >>> chemical_langevin_equation(c4=3.0).elements[0].c4
         3.0
     """
-    return System(components=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
+    return System(elements=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
 
 
 @register_model(
@@ -419,7 +427,7 @@ def chemical_langevin_network(
         [True, True, True]
     """
     return System(
-        components=[
+        elements=[
             SpeciesElement('E', n=enzyme),
             SpeciesElement('S', n=substrate),
             SpeciesElement('C'),

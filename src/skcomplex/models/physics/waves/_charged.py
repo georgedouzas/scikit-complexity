@@ -9,11 +9,12 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols, ramp
-from ....core.space import LatticeSpace
+from ....core.laws.utils import gradient, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, gradient, laplacian
 
 
 class ChargedWaveFunctionElement(Element):
@@ -170,7 +171,7 @@ def charged_schrodinger(
     }
     space = LatticeSpace(n_sites, spacing=spacing)
     return System(
-        components=[
+        elements=[
             FieldElement('packet', ChargedWaveFunctionElement, space, values=values, discretization='spectral'),
         ],
     )

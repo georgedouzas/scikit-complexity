@@ -6,11 +6,14 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
+from skcomplex.core.declarations import role, state
+
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, maximum, mean, where
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 from ._utils import _order_parameter
 
 
@@ -34,32 +37,41 @@ def _integrate_and_fire_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-WinfreeOscillatorElement = Element.define(
-    'WinfreeOscillatorElement',
-    states={'theta': 0.0},
-    parameters={'omega': 1.0},
-    laws=lambda s: [RateLaw(s.theta, s.omega)],
-)
+class WinfreeOscillatorElement(Element):
+    """Winfree oscillator element."""
 
-WinfreeMeanFieldInteraction = BaseInteraction.define(
-    'WinfreeMeanFieldInteraction',
-    roles=['target'],
-    parameters={'K': 1.0},
-    laws=lambda s: [
-        RateLaw(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
-    ],
-)
+    theta = state(0.0)
+    omega = parameter(1.0)
 
-IntegrateAndFireOscillatorElement = Element.define(
-    'IntegrateAndFireOscillatorElement',
-    states={'x': 0.0},
-    parameters={
-        'S': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'epsilon': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_integrate_and_fire_laws,
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the winfree oscillator element."""
+        return [RateLaw(s.theta, s.omega)]
+
+
+class WinfreeMeanFieldInteraction(BaseInteraction):
+    """Winfree mean field interaction."""
+
+    target = role()
+    K = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the winfree mean field interaction."""
+        return [
+            RateLaw(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
+        ]
+
+
+class IntegrateAndFireOscillatorElement(Element):
+    """Integrate and fire oscillator element."""
+
+    x = state(0.0)
+    S = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    epsilon = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the integrate and fire oscillator element."""
+        return _integrate_and_fire_laws(s)
 
 
 @register_model(
@@ -99,14 +111,17 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
         >>> len(winfree(5).interactions)
         1
     """
-    oscillators = WinfreeOscillatorElement.group(
+    oscillators = GroupElement(
         'oscillators',
-        n_oscillators,
-        theta=np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),
-        omega=np.linspace(1 - spread, 1 + spread, n_oscillators),
+        element=WinfreeOscillatorElement,
+        size=n_oscillators,
+        values={
+            'theta': np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),
+            'omega': np.linspace(1 - spread, 1 + spread, n_oscillators),
+        },
     )
     return System(
-        components=[oscillators],
+        elements=[oscillators],
         interactions=[WinfreeMeanFieldInteraction('coupling', target='oscillators', K=K)],
     )
 
@@ -158,12 +173,10 @@ def mirollo_strogatz(
         3
     """
     charges = np.random.default_rng(seed).uniform(0.0, 1.0, n_oscillators)
-    oscillators = IntegrateAndFireOscillatorElement.group(
+    oscillators = GroupElement(
         'oscillators',
-        n_oscillators,
-        x=charges,
-        S=S,
-        gamma=gamma,
-        epsilon=epsilon,
+        element=IntegrateAndFireOscillatorElement,
+        size=n_oscillators,
+        values={'x': charges, 'S': S, 'gamma': gamma, 'epsilon': epsilon},
     )
-    return System(components=[oscillators])
+    return System(elements=[oscillators])

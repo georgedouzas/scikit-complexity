@@ -11,10 +11,9 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, maximum, neighbors, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import add_edge, remove_node, rewire
 from ._growth import DEGREE_VISUAL, LinkElement
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
@@ -223,10 +222,10 @@ def network_attack(
     if strategy not in STRATEGIES:
         error_msg = f'Unknown strategy {strategy!r}. Use one of {", ".join(STRATEGIES)}.'
         raise ValidationError(error_msg)
-    space = NetworkSpace.barabasi_albert(n_nodes, edges, seed=random_state)
+    space = NetworkSpace(nx.barabasi_albert_graph(n_nodes, edges, seed=random_state))
     targeted = float(strategy == 'targeted')
     groups = _variable_network(FailingElement, space, space.graph.number_of_edges(), rate=rate, targeted=targeted)
-    return System(components=groups, space=space, time=DiscreteTime())
+    return System(elements=groups, space=space, time=DiscreteTime())
 
 
 @register_model(
@@ -295,9 +294,9 @@ def random_graph_ensembles(
             int(np.ceil(1.5 * mean_degree * n_nodes / 2)) + 10,
             rate=rate,
         )
-        return System(components=groups, space=space, time=DiscreteTime())
-    space = NetworkSpace.watts_strogatz(n_nodes, int(mean_degree), 0.0)
+        return System(elements=groups, space=space, time=DiscreteTime())
+    space = NetworkSpace(nx.watts_strogatz_graph(n_nodes, int(mean_degree), 0.0))
     rate = 1 - (1 - rewiring) ** (1 / steps)
     groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
     rewiring_law = RewiringInteraction('rewiring', nodes='nodes', links='links', rate=rate)
-    return System(components=groups, interactions=[rewiring_law], space=space, time=DiscreteTime())
+    return System(elements=groups, interactions=[rewiring_law], space=space, time=DiscreteTime())

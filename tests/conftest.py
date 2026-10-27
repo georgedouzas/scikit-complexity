@@ -6,10 +6,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 import pytest
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import state
 
 from skcomplex.core.base import BaseInteraction, BaseLaw, parameter, role
-from skcomplex.core.components import Element, WienerProcess
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.laws import NoiseLaw, RateLaw, Symbols, UpdateLaw
+from skcomplex.core.specs import WienerProcessSpec
 from skcomplex.core.system import System
 
 
@@ -43,8 +46,16 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(pytest.mark.skip(reason=reason))
 
 
-NodeElement = Element.define('NodeElement', states={'x': 0.0})
-HoldingElement = Element.define('HoldingElement', states={'n': 0.0})
+class NodeElement(Element):
+    """Node element."""
+
+    x = state(0.0)
+
+
+class HoldingElement(Element):
+    """Holding element."""
+
+    n = state(0.0)
 
 
 def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
@@ -55,24 +66,24 @@ def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0)
         NodeElement('c', x=4.0),
         NodeElement('hub', x=8.0),
         NodeElement('target'),
-        NodeElement.group('nodes', 10, x=np.arange(10.0)),
+        GroupElement('nodes', element=NodeElement, size=10, values={'x': np.arange(10.0)}),
     ]
     return System(
-        components=elements,
+        elements=elements,
         interactions=[WeightedSumInteraction('sum', target='target', inputs=inputs, weights=weights)],
     )
 
 
 def _correlated(covariance: npt.ArrayLike | None) -> System:
-    """Return two holdings driven by a `WienerProcess` of a covariance."""
+    """Return two holdings driven by a `WienerProcessSpec` of a covariance."""
     return System(
-        components=[HoldingElement('a'), HoldingElement('b')],
+        elements=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             DriveInteraction(
                 'drive',
                 first='a',
                 second='b',
-                noise=WienerProcess('market', dimension=2, covariance=covariance),
+                noise=WienerProcessSpec('market', dimension=2, covariance=covariance),
             ),
         ],
     )
@@ -91,11 +102,11 @@ class CallableGrowthInteraction(BaseInteraction):
 
 
 class DriveInteraction(BaseInteraction):
-    """Unit noise on two elements from the two processes of a `WienerProcess`."""
+    """Unit noise on two elements from the two processes of a `WienerProcessSpec`."""
 
     first: str = role()
     second: str = role()
-    noise: WienerProcess = role(noise=True)
+    noise: WienerProcessSpec = role(noise=True)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the noise of both elements."""

@@ -6,9 +6,9 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import exp
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import BaseLaw, NumericDomain, parameter, state
-from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, Symbols
 from skcomplex.core.system import System
 
@@ -67,7 +67,7 @@ def riccati_control() -> Control:
 @pytest.fixture
 def linear_quadratic() -> System:
     """Return the scalar linear-quadratic problem `x' = u`, `x(0) = 1`, with cost `∫ (x^2 + u^2) / 2 dt`."""
-    return System(components=[IntegratorElement('plant')])
+    return System(elements=[IntegratorElement('plant')])
 
 
 @pytest.fixture
@@ -85,4 +85,4 @@ def profit() -> Cost:
 @pytest.fixture
 def harvesting() -> System:
     """Return the discounted harvest of a logistic resource with bounded effort."""
-    return System(components=[FisheryElement('fishery')])
+    return System(elements=[FisheryElement('fishery')])

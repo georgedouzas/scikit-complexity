@@ -12,8 +12,10 @@ from sage.all__sagemath_symbolics import tanh
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, total, uniform, where
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -134,13 +136,13 @@ class LearnerElement(Element):
         ]
 
 
-def _observables(system: System) -> list[Observable]:
+def _observables(system: System) -> list[ObservableSpec]:
     """Return the mean reward, the mean temperature, and the least fitness of the agents."""
     del system
     return [
-        Observable('mean_reward', group='agents', variable='reward'),
-        Observable('mean_temperature', group='agents', variable='temperature'),
-        Observable('least_fitness', group='agents', variable='fitness', reduce='min'),
+        ObservableSpec('mean_reward', group='agents', variable='reward'),
+        ObservableSpec('mean_temperature', group='agents', variable='temperature'),
+        ObservableSpec('least_fitness', group='agents', variable='fitness', reduce='min'),
     ]
 
 
@@ -206,15 +208,18 @@ def evolutionary_sk_game(
         temperatures = rng.uniform(0.0, max_temperature, n_agents)
     else:
         temperatures = np.broadcast_to(np.asarray(temperature, dtype=float), (n_agents,)).copy()
-    agents = LearnerElement.group(
+    agents = GroupElement(
         'agents',
-        n_agents,
+        element=LearnerElement,
+        size=n_agents,
+        values={
+            'spin': spins,
+            'temperature': temperatures,
+            'memory': memory,
+            'max_temperature': max_temperature,
+            'couplings': couplings,
+            'evolving': evolving,
+        },
         visual=TEMPERATURE_VISUAL,
-        spin=spins,
-        temperature=temperatures,
-        memory=memory,
-        max_temperature=max_temperature,
-        couplings=couplings,
-        evolving=evolving,
     )
-    return System(components=[agents])
+    return System(elements=[agents])

@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import KineticSolver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.kinetics import KineticSolver
 from skcomplex.models import create, describe
 
 MODEL = 'evacuation'

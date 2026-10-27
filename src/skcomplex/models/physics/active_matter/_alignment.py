@@ -11,10 +11,12 @@ from sage.all__sagemath_symbolics import I, exp, sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace
-from ....core.system import Observable, System
+from ....core.spaces import ContinuousSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ...core.elements import GroupElement
 from ._particles import ActiveParticleElement
 
 HEADINGS = VisualSpec(
@@ -106,8 +108,8 @@ class PolarAlignmentInteraction(BaseInteraction):
     references=('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020'),
     defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.05)},
     observables=lambda system: [
-        Observable('mean_heading', _heading, group='swimmers'),
-        Observable('polarization', _polarization),
+        ObservableSpec('mean_heading', _heading, group='swimmers'),
+        ObservableSpec('polarization', _polarization),
     ],
 )
 def aligning_active_brownian_particles(
@@ -165,14 +167,17 @@ def aligning_active_brownian_particles(
         0.5
     """
     rng = np.random.default_rng(random_state)
-    swimmers = ActiveParticleElement.group(
+    swimmers = GroupElement(
         'swimmers',
-        n_particles,
-        x=rng.uniform(0.0, size, (n_particles, 2)),
-        theta=rng.uniform(0.0, 2 * math.pi, n_particles),
-        speed=speed,
-        D_t=D_t,
-        D_r=D_r,
+        element=ActiveParticleElement,
+        size=n_particles,
+        values={
+            'x': rng.uniform(0.0, size, (n_particles, 2)),
+            'theta': rng.uniform(0.0, 2 * math.pi, n_particles),
+            'speed': speed,
+            'D_t': D_t,
+            'D_r': D_r,
+        },
         visual=HEADINGS,
     )
     alignment = PolarAlignmentInteraction(
@@ -184,7 +189,7 @@ def aligning_active_brownian_particles(
         gamma=gamma,
     )
     return System(
-        components=[swimmers],
+        elements=[swimmers],
         interactions=[alignment],
-        space=ContinuousSpace(size, size, boundary='periodic'),
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

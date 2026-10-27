@@ -4,12 +4,21 @@ import dataclasses
 
 from skcomplex.core import base
 from skcomplex.core.base import BaseLaw, LawClass, LawKind, Trait, has_trait, law_classes, symbol
-from skcomplex.core.laws import BoundaryLaw, EventLaw, RateLaw, Totalistic, TransferLaw
-from skcomplex.core.space import Neighborhood
-from skcomplex.formalisms.agents import MatchLaw
-from skcomplex.formalisms.lattices import LocalRuleLaw
-from skcomplex.formalisms.quantum import DissipatorLaw, GeneratorLaw
-from skcomplex.formalisms.rewriting import GraphProductionLaw, ProductionLaw, SubstitutionLaw
+from skcomplex.core.laws import (
+    BoundaryLaw,
+    DissipatorLaw,
+    EventLaw,
+    GeneratorLaw,
+    GraphProductionLaw,
+    LocalRuleLaw,
+    MatchLaw,
+    ProductionLaw,
+    RateLaw,
+    SubstitutionLaw,
+    Totalistic,
+    TransferLaw,
+)
+from skcomplex.core.spaces import BoxNeighborhood
 
 
 def test_law_classes_share_the_base():
@@ -50,7 +59,7 @@ def test_targets_are_a_tuple_once_checked():
     checked = RateLaw(x, 1).check()
     assert isinstance(checked.targets, tuple)
     assert checked.targets[0] is x
-    assert LocalRuleLaw([x, y], Neighborhood.radius(), Totalistic({2: 1})).check().targets == (x, y)
+    assert LocalRuleLaw([x, y], BoxNeighborhood(), Totalistic({2: 1})).check().targets == (x, y)
     assert EventLaw(x - 1).check().targets == ()
 
 
@@ -69,8 +78,8 @@ def test_base_holds_no_quantity():
 def test_law_runs_alone_once_prepared():
     """Test that a prepared rate law knows its targets, reads, and owner, and runs into its rate at given values."""
     n, r = symbol('n'), symbol('r')
-    law = RateLaw(n, r * n).prepare(None, 'meadow/rabbits')
-    assert law.run(n=10, r=0.5) == 5.0
+    law = RateLaw(n, r * n).prepare('meadow/rabbits')
+    assert law.run({'n': 10, 'r': 0.5}) == 5.0
     assert law.targets_ == (n,)
     assert law.reads_ == {n, r}
     assert law.owner_ == 'meadow/rabbits'

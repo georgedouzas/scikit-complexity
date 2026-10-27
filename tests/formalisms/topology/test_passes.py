@@ -5,31 +5,54 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 import pytest
-
-from skcomplex.core.base import BaseInteraction, CapacityError, ElementKind, SpaceKind, parameter, role
 from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.declarations import state
+
+from skcomplex.analysis import as_graph, fit_power_law
+from skcomplex.core.base import BaseInteraction, CapacityError, ElementKind, SpaceKind, parameter, role
+from skcomplex.core.elements import LatticeElement
 from skcomplex.core.laws import JumpLaw, UpdateLaw, neighbors, total
-from skcomplex.core.space import Adjacency, DiscreteTime, Layer, NetworkSpace, Radius
+from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.specs import LayerSpec, TopologyRequestSpec
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import as_graph, fit_power_law
 from skcomplex.engine.compile import compile_system, missing_declarations, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import GillespieSolver, IterationSolver, RK4Solver
-from skcomplex.formalisms.topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, rewire
 
 BACKENDS = ('numpy', 'numba')
 
-NodeElement = Element.define(
-    'NodeElement',
-    states={'age': 0.0, 'x': 1.0},
-    laws=lambda s: [UpdateLaw(s.age, s.age + 1)],
-)
-LinkElement = Element.define('LinkElement', states={'w': 1.0})
-GrowthElement = Element.define(
-    'GrowthElement',
-    laws=lambda s: [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)],
-)
-SISElement = Element.define('SISElement', states={'i': 0.0}, parameters={'beta': 0.3, 'gamma': 1.0})
+
+class NodeElement(Element):
+    """Node element."""
+
+    age = state(0.0)
+    x = state(1.0)
+
+    def laws(self, s):
+        """Return the laws of the node element."""
+        return [UpdateLaw(s.age, s.age + 1)]
+
+
+class LinkElement(Element):
+    """Link element."""
+
+    w = state(1.0)
+
+
+class GrowthElement(Element):
+    """Growth element."""
+
+    def laws(self, s):
+        """Return the laws of the growth element."""
+        return [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)]
+
+
+class SISElement(Element):
+    """S i s element."""
+
+    i = state(0.0)
+    beta = parameter(0.3)
+    gamma = parameter(1.0)
 
 
 class RewiringInteraction(BaseInteraction):
@@ -51,9 +74,9 @@ class RewiringInteraction(BaseInteraction):
 
 def _growing(size, capacity, *, edges=2):
     """Return a network that starts complete on `size` nodes and grows by preferential attachment."""
-    space = NetworkSpace.complete(size)
+    space = NetworkSpace(nx.complete_graph(size))
     return System(
-        components=[
+        elements=[
             GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=capacity),
             GroupElement(
                 'links',
@@ -117,19 +140,30 @@ def test_a_full_capacity_raises_a_capacity_error():
 def test_requests_remove_and_add_edges_and_nodes():
     """Test that update laws of nodes and edges remove edges and nodes, and add edges to present nodes only."""
     space = NetworkSpace(nx.path_graph(6))
-    PruningInteraction = BaseInteraction.define(
-        'PruningInteraction',
-        roles=['nodes', 'links'],
-        over='neighbors',
-        laws=lambda s: [UpdateLaw(remove_edge(), s.source.x * s.target.x)],
-    )
-    LeavingElement = Element.define(
-        'LeavingElement',
-        states={'age': 0.0, 'x': 0.0},
-        laws=lambda s: [UpdateLaw(remove_node(), s.x)],
-    )
+
+    class PruningInteraction(BaseInteraction):
+        """Pruning interaction."""
+
+        over = 'neighbors'
+        nodes = role()
+        links = role()
+
+        def laws(self, s):
+            """Return the laws of the pruning interaction."""
+            return [UpdateLaw(remove_edge(), s.source.x * s.target.x)]
+
+    class LeavingElement(Element):
+        """Leaving element."""
+
+        age = state(0.0)
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the leaving element."""
+            return [UpdateLaw(remove_node(), s.x)]
+
     system = System(
-        components=[
+        elements=[
             GroupElement(
                 'nodes',
                 element=LeavingElement,
@@ -147,14 +181,19 @@ def test_requests_remove_and_add_edges_and_nodes():
     snapshot = trajectory.network(1)
     assert snapshot.nodes.tolist() == [2, 3, 4]
     assert sorted(zip(snapshot.sources.tolist(), snapshot.targets.tolist(), strict=True)) == [(2, 3), (3, 4)]
-    JoiningElement = Element.define(
-        'JoiningElement',
-        states={'x': 0.0},
-        laws=lambda s: [UpdateLaw(add_edge(w=5.0), s.x)],
-    )
+
+    class JoiningElement(Element):
+        """Joining element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the joining element."""
+            return [UpdateLaw(add_edge(w=5.0), s.x)]
+
     space = NetworkSpace(nx.empty_graph(4))
     system = System(
-        components=[
+        elements=[
             GroupElement(
                 'nodes',
                 element=JoiningElement,
@@ -176,18 +215,23 @@ def test_requests_remove_and_add_edges_and_nodes():
 
 def _prevalence(w, seed):
     """Return the mean prevalence of SIS with rewiring at rate `w` late in a run on a random graph."""
-    space = NetworkSpace.erdos_renyi(200, 0.04, seed=seed)
+    space = NetworkSpace(nx.gnp_random_graph(200, 0.04, seed=seed))
     infected = np.random.default_rng(seed).random(200) < 0.2
-    SpreadInteraction = BaseInteraction.define(
-        'SpreadInteraction',
-        roles=['nodes'],
-        laws=lambda s: [
-            JumpLaw(s.nodes.beta * (1 - s.nodes.i) * neighbors(s.nodes.other.i), {s.nodes.i: 1}),
-            JumpLaw(s.nodes.gamma * s.nodes.i, {s.nodes.i: -1}),
-        ],
-    )
+
+    class SpreadInteraction(BaseInteraction):
+        """Spread interaction."""
+
+        nodes = role()
+
+        def laws(self, s):
+            """Return the laws of the spread interaction."""
+            return [
+                JumpLaw(s.nodes.beta * (1 - s.nodes.i) * neighbors(s.nodes.other.i), {s.nodes.i: 1}),
+                JumpLaw(s.nodes.gamma * s.nodes.i, {s.nodes.i: -1}),
+            ]
+
     system = System(
-        components=[
+        elements=[
             GroupElement(
                 'nodes',
                 element=SISElement,
@@ -216,15 +260,25 @@ def test_rewiring_raises_the_epidemic_threshold():
 
 def test_reductions_over_capacity_groups_count_present_members():
     """Test that a total over a variable group sums the present members only."""
-    CounterElement = Element.define('CounterElement', states={'size': 0.0})
-    CountingInteraction = BaseInteraction.define(
-        'CountingInteraction',
-        roles=['counter', 'nodes'],
-        laws=lambda s: [UpdateLaw(s.counter.size, total(s.nodes.x))],
-    )
-    space = NetworkSpace.complete(3)
+
+    class CounterElement(Element):
+        """Counter element."""
+
+        size = state(0.0)
+
+    class CountingInteraction(BaseInteraction):
+        """Counting interaction."""
+
+        counter = role()
+        nodes = role()
+
+        def laws(self, s):
+            """Return the laws of the counting interaction."""
+            return [UpdateLaw(s.counter.size, total(s.nodes.x))]
+
+    space = NetworkSpace(nx.complete_graph(3))
     system = System(
-        components=[
+        elements=[
             GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=10),
             GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=30),
             GrowthElement('growth'),
@@ -242,13 +296,18 @@ def test_reductions_over_capacity_groups_count_present_members():
 def test_validation_reports_a_request_on_a_fixed_group():
     """Test that a law that requests a new edge on a network with a fixed edge group gets the issue group-fixed."""
     space = NetworkSpace(nx.path_graph(4))
-    JoiningElement = Element.define(
-        'JoiningElement',
-        states={'x': 1.0},
-        laws=lambda s: [UpdateLaw(add_edge(), 0.5)],
-    )
+
+    class JoiningElement(Element):
+        """Joining element."""
+
+        x = state(1.0)
+
+        def laws(self, s):
+            """Return the laws of the joining element."""
+            return [UpdateLaw(add_edge(), 0.5)]
+
     system = System(
-        components=[
+        elements=[
             GroupElement('nodes', element=JoiningElement, space=space, on='sites', variable=True),
             GroupElement('links', element=LinkElement, space=space, on='edges'),
         ],
@@ -264,8 +323,8 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
     """Test that a node request on a network whose site groups are fixed names the fixed groups."""
     space = NetworkSpace(nx.path_graph(4))
     system = System(
-        components=[
-            NodeElement.lattice('nodes', space),
+        elements=[
+            LatticeElement('nodes', element=NodeElement, space=space),
             GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
             GrowthElement('growth'),
         ],
@@ -278,12 +337,20 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
 
 def test_validation_reports_a_metric_neighbourhood_on_a_network():
     """Test that a reduction over a radius on a network gets law-space with a fix that names a layer."""
-    ReadingElement = Element.define(
-        'ReadingElement',
-        states={'x': 0.0},
-        laws=lambda s: [UpdateLaw(s.x, neighbors(s.other.x, over=Radius(1.0)))],
+
+    class ReadingElement(Element):
+        """Reading element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the reading element."""
+            return [UpdateLaw(s.x, neighbors(s.other.x, over=RadiusNeighborhood(1.0)))]
+
+    system = System(
+        elements=[LatticeElement('nodes', element=ReadingElement, space=NetworkSpace(nx.path_graph(3)))],
+        time=DiscreteTime(),
     )
-    system = System(components=[ReadingElement.lattice('nodes', NetworkSpace(nx.path_graph(3)))], time=DiscreteTime())
     issues = validate(system).issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'continuous space' in issues[0].fix
@@ -292,13 +359,20 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
 
 def test_validation_reports_a_reduction_over_a_missing_layer():
     """Test that a reduction over a layer the network lacks gets a binding issue that lists its layers."""
-    ReadingElement = Element.define(
-        'ReadingElement',
-        states={'x': 0.0},
-        laws=lambda s: [UpdateLaw(s.x, neighbors(s.other.x, over=Adjacency(layer='trade')))],
-    )
-    space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.path_graph(3))])
-    issues = validate(System(components=[ReadingElement.lattice('nodes', space)], time=DiscreteTime())).issues
+
+    class ReadingElement(Element):
+        """Reading element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the reading element."""
+            return [UpdateLaw(s.x, neighbors(s.other.x, over=AdjacencyNeighborhood(layer='trade')))]
+
+    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(3))])
+    issues = validate(
+        System(elements=[LatticeElement('nodes', element=ReadingElement, space=space)], time=DiscreteTime()),
+    ).issues
     assert [issue.code for issue in issues] == ['binding']
     assert "'work'" in issues[0].message
 
@@ -313,9 +387,9 @@ def test_validation_lists_the_solvers_of_variable_groups():
 def test_network_primitives_and_solvers_declare_their_requirements_and_support():
     """Test that layers, neighbourhoods, and requests require their spaces, and solvers declare network groups."""
     assert Layer.requires.space == {SpaceKind.NETWORK}
-    assert Adjacency.requires.space == {SpaceKind.NETWORK}
-    assert Radius.requires.space == {SpaceKind.CONTINUOUS}
-    assert TopologyRequest.requires.space == {SpaceKind.NETWORK}
+    assert AdjacencyNeighborhood.requires.space == {SpaceKind.NETWORK}
+    assert RadiusNeighborhood.requires.space == {SpaceKind.CONTINUOUS}
+    assert TopologyRequestSpec.requires.space == {SpaceKind.NETWORK}
     assert missing_declarations() == []
     for solver in (IterationSolver, GillespieSolver):
         assert {ElementKind.VARIABLE_GROUP, ElementKind.EDGE_GROUP} <= solver.supports.components

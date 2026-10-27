@@ -7,12 +7,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import wrap_angle
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, CompiledAgents, CompiledElement, wrap_angle
 from ..runtime import Frame
 from ._colors import _phase_colors
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 PHASE_MARGIN = 0.1
 HEIGHT_SHARE = 0.6
@@ -109,6 +108,3 @@ class PhaseRingVisual(BaseVisual):
         )
         path = f'{element.path}/phases'
         return [rrb.Spatial2DView(origin=path, name=element.path, visual_bounds=bounds)]
-
-
-register_visual('phase_ring', PhaseRingVisual)

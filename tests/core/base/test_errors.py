@@ -12,7 +12,7 @@ from .conftest import PersonElement, ProgressionInteraction
 def test_checked_mode_catches_values_outside_alphabet():
     """Test that checked mode names the state when a law leaves the alphabet."""
     system = System(
-        components=[PersonElement('ann', health='recovered')],
+        elements=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health .*categorical'):

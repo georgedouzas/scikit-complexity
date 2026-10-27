@@ -14,7 +14,7 @@ fluctuates around one state for a while and then switches to the other, again an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import histogram
+from skcomplex.analysis import histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver

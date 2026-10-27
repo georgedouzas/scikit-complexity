@@ -11,11 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element, GroupElement
-from ....core.laws import Symbols
-from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import EncounterLaw, Symbols
+from ....core.laws.utils import moment
+from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import EncounterLaw, moment
 
 EVACUATION_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Gibelli 2015', 'Agnelli, Colasuonno, and Knopoff 2015')
 
@@ -229,7 +230,7 @@ class PedestriansElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.crowds import PedestriansElement
-        >>> PedestriansElement.group('signs', 1, f=1.0).prepare().size_
+        >>> GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}).prepare().size_
         1
     """
 
@@ -358,7 +359,7 @@ def _sizes_of(system: System) -> tuple[int, int]:
     return int(crowding.rooms), int(crowding.speeds)
 
 
-def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
+def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
     """Return the evacuated fraction and the mean walking speed of a crowd `crowd`.
 
     Args:
@@ -378,8 +379,8 @@ def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
         ['evacuated', 'mean_speed']
     """
     return [
-        Observable('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
-        Observable('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
+        ObservableSpec('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
+        ObservableSpec('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
     ]
 
 
@@ -442,7 +443,7 @@ def evacuation(
     initial[:rooms, speeds // 2] = 1.0 / rooms
     crowd_space = LatticeSpace((rooms + 1, speeds), boundary='fixed')
     return System(
-        components=[
+        elements=[
             GroupElement(
                 'crowd',
                 element=PedestriansElement,
@@ -450,7 +451,7 @@ def evacuation(
                 space=crowd_space,
                 values={'f': initial.ravel()},
             ),
-            PedestriansElement.group('signs', 1, f=1.0),
+            GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}),
         ],
         interactions=[
             WalkingInteraction(

@@ -7,25 +7,36 @@ from typing import Any
 
 import numpy as np
 
+from skcomplex.core.declarations import state
+
 from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import DissipatorLaw, GeneratorLaw, RateLaw, Symbols
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
-from ....formalisms.quantum import DissipatorLaw, GeneratorLaw
+from ....engine.solvers import ETDRK4Solver
+from ...core.base import BaseLaw
 from ..realizations.quantum import SiteElement
 
-WaveFunctionElement = Element.define(
-    'WaveFunctionElement',
-    states={'u': 0.0, 'w': 0.0},
-    parameters={'D': parameter(default=0.5, domain=NumericDomain.POSITIVE), 'V': 0.0},
-    laws=lambda s: [
-        RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
-        RateLaw(s.w, s.D * laplacian(s.u) - s.V * s.u),
-    ],
-)
+
+class WaveFunctionElement(Element):
+    """Wave function element."""
+
+    u = state(0.0)
+    w = state(0.0)
+    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    V = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the wave function element."""
+        return [
+            RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
+            RateLaw(s.w, s.D * laplacian(s.u) - s.V * s.u),
+        ]
+
 
 FORMULATIONS = ('fields', 'operators')
 
@@ -144,8 +155,8 @@ def schrodinger(
 
     The operator formulation builds the same particle as one quantum subsystem whose basis states are the sites, with
     the Hamiltonian `-D laplacian + V` of the same spectral Laplacian, normalised so that `|psi|²` is the probability of
-    every site. It runs with the quantum solvers, so it takes `settings={'solver': 'auto'}`, and it accepts position
-    dephasing at the rate `gamma`, which turns the state into a density matrix.
+    every site. It runs with the quantum solvers, and it accepts position dephasing at the rate `gamma`, which turns
+    the state into a density matrix.
 
     Args:
         n_sites:
@@ -207,7 +218,7 @@ def schrodinger(
             interactions.append(PositionDephasingInteraction('dephasing', target='packet', gamma=gamma))
         return System(
             'schrodinger',
-            components=[SiteElement('packet', space=space, initial=amplitudes)],
+            elements=[SiteElement('packet', space=space, initial=amplitudes)],
             interactions=interactions,
         )
     packet = FieldElement(
@@ -217,4 +228,4 @@ def schrodinger(
         values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
         discretization='spectral',
     )
-    return System(components=[packet])
+    return System(elements=[packet])

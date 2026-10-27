@@ -162,9 +162,9 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 # Test modules are public, so ruff asks for `__init__` docstrings that pydoclint forbids beside a class docstring.
 "test_*" = ["ANN", "PLR2004", "D107"]
 "conftest.py" = ["D107"]
-"src/skcomplex/core/base/_types.py" = ["ANN401"]
+"src/skcomplex/core/declarations.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
-"src/skcomplex/engine/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
+"src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -210,7 +210,7 @@ scikit-fem = "skfem"
 
 [tool.deptry.per_rule_ignores]
 # Maxima and cysignals are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
-# libraries are imported on first use through `skcomplex.engine.analysis._lazy.module`, by name, and GAP on the first
+# libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
 # group space that needs it, by name.
 DEP002 = [
     "passagemath-maxima",
@@ -235,10 +235,11 @@ DEP004 = ["pandas"]
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Formalisms build on the engine, which builds on the core"
+name = "Analysis builds on experiments, which build on the engine, which builds on the core"
 type = "layers"
 layers = [
-    "skcomplex.formalisms",
+    "skcomplex.analysis",
+    "skcomplex.experiments",
     "skcomplex.engine",
     "skcomplex.core",
 ]
@@ -248,12 +249,14 @@ name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core"]
 layers = [
-    "problems",
     "system",
-    "components",
+    "elements | interactions",
     "laws",
-    "space",
+    "spaces",
     "base",
+    "types",
+    "specs",
+    "errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -261,8 +264,6 @@ name = "Engine packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.engine"]
 layers = [
-    "analysis",
-    "experiments",
     "viz",
     "runtime",
     "backends",
@@ -271,48 +272,32 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The core, the engine, and the formalisms never import the models"
+name = "The core, the engine, experiments, and analysis never import the models"
 type = "forbidden"
 source_modules = [
+    "skcomplex.analysis",
     "skcomplex.core",
     "skcomplex.engine",
-    "skcomplex.formalisms",
+    "skcomplex.experiments",
 ]
 forbidden_modules = ["skcomplex.models"]
 
 [[tool.importlinter.contracts]]
-name = "Formalisms import only the formalisms they declare"
-type = "independence"
-modules = [
-    "skcomplex.formalisms.agents",
-    "skcomplex.formalisms.control",
-    "skcomplex.formalisms.fields",
-    "skcomplex.formalisms.fractional",
-    "skcomplex.formalisms.groups",
-    "skcomplex.formalisms.kinetics",
-    "skcomplex.formalisms.lattices",
-    "skcomplex.formalisms.particles",
-    "skcomplex.formalisms.quantum",
-    "skcomplex.formalisms.rewriting",
-    "skcomplex.formalisms.topology",
-]
-ignore_imports = ["skcomplex.formalisms.fields -> skcomplex.formalisms.lattices"]
-
-[[tool.importlinter.contracts]]
-name = "Models import only public modules of the core, the engine, and the formalisms"
+name = "Models import only public modules of the core, the engine, experiments, and analysis"
 type = "forbidden"
 source_modules = ["skcomplex.models"]
 forbidden_modules = [
+    "skcomplex.analysis.*",
     "skcomplex.core.**",
     "skcomplex.engine.**",
-    "skcomplex.formalisms.**",
+    "skcomplex.experiments.*",
 ]
 allow_indirect_imports = true
 ignore_imports = [
     "skcomplex.models -> skcomplex.engine.*",
     "skcomplex.models.** -> skcomplex.core.*",
+    "skcomplex.models.** -> skcomplex.core.laws.utils",
     "skcomplex.models.** -> skcomplex.engine.*",
-    "skcomplex.models.** -> skcomplex.formalisms.*",
 ]
 
 [[tool.importlinter.contracts]]

@@ -1,0 +1,69 @@
+"""Define generator laws, the operators that add up to the Hamiltonian of a quantum system."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from typing import Self
+
+from ..errors import ValidationError
+from ..spaces import ContinuousTime
+from ..specs import RequirementSpec
+from ._base import BaseLaw
+from .utils import has_operator
+
+
+class GeneratorLaw(BaseLaw):
+    """Operator that adds to the Hamiltonian of a quantum system, with `ħ = 1`.
+
+    Args:
+        operator:
+            The Hermitian operator, an expression of local operators of the namespaces the law receives.
+
+        label:
+            The name of the law, or the empty string for a law without one.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import SR, var
+        >>> from skcomplex.core.laws import GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
+        >>> GeneratorLaw(var('h') * z).check().run({'h': 0.5})
+        0.5*local_operator(q, z)
+    """
+
+    def __init__(self, operator: object, *, label: str = '') -> None:
+        super().__init__(label)
+        self.operator = operator
+
+    def _get_targets(self) -> tuple[object, ...]:
+        """Return no states, since the Hamiltonian changes the quantum state of the whole system."""
+        return ()
+
+    def _get_requirements(self) -> RequirementSpec:
+        """Return what the law requires of a system: continuous time."""
+        return RequirementSpec(time=(ContinuousTime,))
+
+    def _check(self) -> Self:
+        """Raise an error for an operator without local operators.
+
+        Returns:
+            law:
+                The law itself.
+        """
+        if not has_operator(self.operator):
+            error_msg = f'A generator takes an operator built from local operators, but got {self.operator!r}.'
+            raise ValidationError(error_msg)
+        return self
+
+    def _run(self, inputs: object) -> object:
+        """Return the operator with its coefficients at given values of the symbols they read.
+
+        Args:
+            inputs:
+                A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            operator:
+                The operator.
+        """
+        return self._evaluate(self.operator, inputs)

@@ -11,8 +11,9 @@ from typing import Any
 import numpy as np
 from scipy.optimize import brentq
 
-from ...core.base import SolverError, Vector
-from ...core.problems import CompiledEvent, EventRecord, Problem, Record
+from ...core.errors import SolverError
+from ...core.types import Vector
+from ..problems import CompiledEvent, EventRecord, Problem, Record
 
 type Interpolant = Callable[[float], Vector]
 type Bounded = Callable[[float, Vector, Vector], Vector]

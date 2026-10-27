@@ -8,12 +8,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, vector
+from ....core.elements import ParticleElement
+from ....core.interactions import PairPotentialInteraction
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.particles import PairPotentialInteraction, ParticleElement
+from ...core.elements import GroupElement
 
 
 class MotivationInteraction(BaseInteraction):
@@ -212,7 +214,12 @@ def social_force(
     rng = np.random.default_rng(random_state)
     cutoff = 2.0
     walkers = [
-        ParticleElement.group(label, n_walkers, x=rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2)))
+        GroupElement(
+            label,
+            element=ParticleElement,
+            size=n_walkers,
+            values={'x': rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2))},
+        )
         for label in ('rightward', 'leftward')
     ]
     interactions: list[BaseInteraction] = []
@@ -227,7 +234,7 @@ def social_force(
         for first, second in pairs
     ]
     return System(
-        components=walkers,
+        elements=walkers,
         interactions=interactions,
-        space=ContinuousSpace(length, length, boundary='periodic'),
+        space=ContinuousSpace(extent=(length, length), boundary='periodic'),
     )

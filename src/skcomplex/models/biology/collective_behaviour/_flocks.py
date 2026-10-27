@@ -11,12 +11,14 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace
+from ....core.elements import ParticleElement
+from ....core.interactions import PairPotentialInteraction
+from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.particles import PairPotentialInteraction, ParticleElement
+from ...core.elements import GroupElement
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
@@ -78,7 +80,7 @@ class BoidElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import BoidElement
-        >>> BoidElement.group('flock', 10, location=(5.0, 5.0)).size
+        >>> GroupElement('flock', element=BoidElement, size=10, location=(5.0, 5.0)).size
         10
     """
 
@@ -295,20 +297,23 @@ def boids(
     """
     rng = np.random.default_rng(random_state)
     headings = rng.uniform(0.0, 2 * math.pi, n_boids)
-    flock = BoidElement.group(
+    flock = GroupElement(
         'flock',
-        n_boids,
+        element=BoidElement,
+        size=n_boids,
+        values={
+            'vx': np.cos(headings),
+            'vy': np.sin(headings),
+            'radius': radius,
+            'cohesion': cohesion,
+            'separation': separation,
+            'alignment': alignment,
+            'width': size,
+            'height': size,
+        },
         location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 2))],
-        vx=np.cos(headings),
-        vy=np.sin(headings),
-        radius=radius,
-        cohesion=cohesion,
-        separation=separation,
-        alignment=alignment,
-        width=size,
-        height=size,
     )
-    return System(components=[flock], space=ContinuousSpace(size, size, boundary='periodic'))
+    return System(elements=[flock], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
 
 
 @register_model(
@@ -369,7 +374,7 @@ def bird_swarm(
     """
     rng = np.random.default_rng(random_state)
     positions, velocities = rng.uniform(-3.0, 3.0, (n_birds, 2)), rng.normal(0.0, 1.0, (n_birds, 2))
-    birds = ParticleElement.group('birds', n_birds, x=positions, v=velocities)
+    birds = GroupElement('birds', element=ParticleElement, size=n_birds, values={'x': positions, 'v': velocities})
     potential = MorsePotentialInteraction(
         'flocking',
         first='birds',
@@ -381,4 +386,4 @@ def bird_swarm(
         l_r=l_r,
     )
     flight = SelfPropulsionInteraction('flight', target='birds', alpha=alpha, beta=beta)
-    return System(components=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))
+    return System(elements=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))

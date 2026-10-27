@@ -11,11 +11,12 @@ from scipy import ndimage
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Integers = npt.NDArray[np.int64]
 
@@ -102,7 +103,9 @@ class VillageElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VillageElement
-        >>> VillageElement.group('villages', 4, culture=0, features=3, traits=5).size
+        >>> GroupElement(
+        ...     'villages', element=VillageElement, size=4, values={'culture': 0, 'features': 3, 'traits': 5}
+        ... ).size
         4
     """
 
@@ -269,16 +272,15 @@ def axelrod(
     digits = rng.integers(traits, size=(size, features))
     cultures = (digits * traits ** np.arange(features)).sum(axis=1).astype(float)
     locations = [(x, y) for x in range(width) for y in range(height)]
-    villages = VillageElement.group(
+    villages = GroupElement(
         'villages',
-        size,
+        element=VillageElement,
+        size=size,
+        values={'culture': cultures, 'features': features, 'traits': traits},
         location=locations,
-        culture=cultures,
-        features=features,
-        traits=traits,
     )
     return System(
-        components=[villages],
+        elements=[villages],
         interactions=[CultureCensusInteraction('census', villages='villages', width=width, height=height)],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann', capacity=1),
     )

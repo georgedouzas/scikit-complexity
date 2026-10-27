@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -58,7 +59,7 @@ class BelieverElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import BelieverElement
-        >>> group = BelieverElement.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
+        >>> group = GroupElement('people', element=BelieverElement, size=4, values={'belief': [1.0, 0.0, 0.0, 0.0]})
         >>> group.label, group.element.__name__, group.size
         ('people', 'BelieverElement', 4)
     """
@@ -121,7 +122,7 @@ class AdopterElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdopterElement
-        >>> group = AdopterElement.group('people', 10, threshold=50.0)
+        >>> group = GroupElement('people', element=AdopterElement, size=10, values={'threshold': 50.0})
         >>> group.label, group.element.__name__, group.size
         ('people', 'AdopterElement', 10)
     """
@@ -284,15 +285,14 @@ def influentials(
     belief[chosen, PASSIONATE] = belief[chosen].max(axis=1) + 1
     weights = np.ones(size)
     weights[chosen] = influence
-    people = BelieverElement.group(
+    people = GroupElement(
         'people',
-        size,
+        element=BelieverElement,
+        size=size,
+        values={'belief': belief, 'caring': belief.argmax(axis=1).astype(float), 'influence': weights},
         location=[(column, row) for column in range(width) for row in range(height)],
-        belief=belief,
-        caring=belief.argmax(axis=1).astype(float),
-        influence=weights,
     )
-    return System(components=[people], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
+    return System(elements=[people], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
 
 
 @register_model(
@@ -350,17 +350,15 @@ def threshold_adoption(
     innovators = np.argsort(drawn)[: max(1, round(INNOVATORS * n_agents))]
     adopted = np.zeros(n_agents)
     adopted[innovators] = 1.0
-    people = AdopterElement.group(
+    people = GroupElement(
         'people',
-        n_agents,
+        element=AdopterElement,
+        size=n_agents,
+        values={'adopted': adopted, 'threshold': drawn, 'reach': reach, 'shifting': shifting},
         location=rng.uniform(0, size, (n_agents, 2)),
-        adopted=adopted,
-        threshold=drawn,
-        reach=reach,
-        shifting=shifting,
     )
     return System(
-        components=[people],
+        elements=[people],
         interactions=[AdoptionInteraction('adoption', target='people', size=size, mode=mode)],
-        space=ContinuousSpace(size, size, boundary='periodic'),
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

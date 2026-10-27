@@ -12,20 +12,27 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ....core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, Symbols
+from ....core.spaces import (
+    AdjacencyNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    NetworkSpace,
+    TriangularNeighborhood,
+    VonNeumannNeighborhood,
+)
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import DriveLaw, LocalRuleLaw, RelaxationLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
-NEAREST = Neighborhood.von_neumann(center=True)
-SITE_NEIGHBORHOODS: dict[str, Neighborhood | Adjacency] = {
-    'triangular': Neighborhood.triangular(center=True),
-    'graph': Adjacency(center=True),
+NEAREST = VonNeumannNeighborhood(center=True)
+SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
+    'triangular': TriangularNeighborhood(center=True),
+    'graph': AdjacencyNeighborhood(center=True),
 }
-NEAREST_STEPS = np.array(Neighborhood.von_neumann().offsets)
+NEAREST_STEPS = np.array(VonNeumannNeighborhood().offsets)
 MANNA_THRESHOLD = 2
 BURNING = 2
 
@@ -300,7 +307,9 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     """
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[SandpileCellElement.lattice('pile', space, height=heights)])
+    return System(
+        elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+    )
 
 
 @register_model(
@@ -333,7 +342,9 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
     """
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[MannaCellElement.lattice('pile', space, height=heights)])
+    return System(
+        elements=[LatticeElement('pile', element=MannaCellElement, space=space, values={'height': heights})],
+    )
 
 
 @register_model(
@@ -380,7 +391,14 @@ def forest_fire(
     cover = (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
     space = LatticeSpace(tuple(shape))
     return System(
-        components=[ForestElement.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)],
+        elements=[
+            LatticeElement(
+                'forest',
+                element=ForestElement,
+                space=space,
+                values={'cover': cover, 'growth': growth, 'lightning': lightning},
+            ),
+        ],
     )
 
 
@@ -447,12 +465,15 @@ def hexagonal_forest_fire(
         if cover is None
         else np.ravel(np.asarray(cover, dtype=float))
     )
-    forest = SpreadingForestElement.lattice(
+    forest = LatticeElement(
         'forest',
-        space,
-        cover=initial,
-        growth=growth,
-        lightning=lightning,
-        neighbors='triangular' if graph is None else 'graph',
+        element=SpreadingForestElement,
+        space=space,
+        values={
+            'cover': initial,
+            'growth': growth,
+            'lightning': lightning,
+            'neighbors': 'triangular' if graph is None else 'graph',
+        },
     )
-    return System(components=[forest])
+    return System(elements=[forest])

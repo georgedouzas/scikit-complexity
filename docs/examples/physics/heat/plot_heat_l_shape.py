@@ -13,8 +13,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import IMEXEulerSolver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import IMEXEulerSolver
 from skcomplex.models import create, describe
 
 MODEL = 'heat_l_shape'

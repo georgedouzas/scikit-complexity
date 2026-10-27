@@ -2,15 +2,16 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role, state, symbol
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.space import ContinuousTime, LatticeSpace
-from skcomplex.core.system import Observable, System
+from skcomplex.core.laws import EncounterLaw, RateLaw
+from skcomplex.core.laws.utils import moment
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.kinetics import EncounterLaw, moment
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
@@ -71,16 +72,16 @@ def activity_variance(s):
 
 
 OBSERVABLES = [
-    Observable('density', density, group='wealth'),
-    Observable('mean_activity', mean_activity, group='wealth'),
-    Observable('variance', activity_variance, group='wealth'),
+    ObservableSpec('density', density, group='wealth'),
+    ObservableSpec('mean_activity', mean_activity, group='wealth'),
+    ObservableSpec('variance', activity_variance, group='wealth'),
 ]
 
 
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
     return System(
-        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
         interactions=[UpwardInteraction('upward', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -122,7 +123,7 @@ def test_mean_activity_is_recorded_at_every_frame():
 def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
     system = System(
-        components=[
+        elements=[
             GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE}),
             RecorderElement('recorder'),
         ],
@@ -149,7 +150,7 @@ def test_moment_inside_a_group_law_is_shared():
             return [RateLaw(s.population.f, moment(s.population.f, 1, ACTIVITIES))]
 
     system = System(
-        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
         interactions=[RelaxInteraction('relax', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),

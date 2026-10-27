@@ -2,16 +2,15 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
+from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.formalisms import registered_formalisms
-from skcomplex.formalisms.kinetics import DestructionLaw, EncounterLaw, KineticSolver, ProliferationLaw
+from skcomplex.engine.solvers import KineticSolver, RK4Solver
 
 CLASSES = 9
 
@@ -75,7 +74,7 @@ def _profile(size=CLASSES):
 def _wealth_system(table=None, time=None, space=None):
     """Return a system of one density on an activity lattice with conservative encounters."""
     return System(
-        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[
             _exchange(table if table is not None else _exchange_table(CLASSES))('exchange', population='wealth'),
         ],
@@ -139,7 +138,7 @@ def test_parameter_in_transition_table_is_evaluated():
             return [EncounterLaw(s.population.f, s.population.f, 1.0, table)]
 
     system = System(
-        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[BiasedInteraction('bias', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -157,7 +156,7 @@ def test_parameter_in_transition_table_is_evaluated():
 def test_proliferation_and_destruction_change_the_density():
     """Test that proliferation adds and destruction removes density at the declared rates."""
     system = System(
-        components=[
+        elements=[
             GroupElement('cells', element=DensityElement, on='sites', values={'f': _profile()}),
             GroupElement('signal', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 0.1)}),
         ],
@@ -177,7 +176,7 @@ def test_proliferation_and_destruction_change_the_density():
 def test_encounter_reads_a_field_on_a_grid_of_another_size():
     """Test that a candidate density reads a field density on an activity grid of another size."""
     system = System(
-        components=[
+        elements=[
             GroupElement('cells', element=DensityElement, on='sites', size=CLASSES, values={'f': _profile()}),
             GroupElement(
                 'signal',
@@ -228,7 +227,7 @@ def test_rk4_runs_encounters():
 def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
     system = System(
-        components=[GroupElement('wealth', element=DensityElement, size=CLASSES, values={'f': _profile()})],
+        elements=[GroupElement('wealth', element=DensityElement, size=CLASSES, values={'f': _profile()})],
         interactions=[_exchange(_exchange_table(CLASSES))('exchange', population='wealth')],
         time=ContinuousTime(),
     )

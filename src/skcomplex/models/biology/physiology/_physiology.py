@@ -9,22 +9,33 @@ import numpy as np
 
 from ....core.base import NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, delayed
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-FitzHughNagumoElement = Element.define(
-    'FitzHughNagumoElement',
-    states={'u': 0.0, 'v': 0.0},
-    parameters={'D': 1.0, 'a': 0.7, 'b': 0.8, 'epsilon': 0.02},
-    laws=lambda s: [
-        RateLaw(s.u, s.D * laplacian(s.u) + s.u - s.u**3 / 3 - s.v),
-        RateLaw(s.v, s.epsilon * (s.u + s.a - s.b * s.v)),
-    ],
-)
+
+class FitzHughNagumoElement(Element):
+    """Fitz hugh nagumo element."""
+
+    u = state(0.0)
+    v = state(0.0)
+    D = parameter(1.0)
+    a = parameter(0.7)
+    b = parameter(0.8)
+    epsilon = parameter(0.02)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the fitz hugh nagumo element."""
+        return [
+            RateLaw(s.u, s.D * laplacian(s.u) + s.u - s.u**3 / 3 - s.v),
+            RateLaw(s.v, s.epsilon * (s.u + s.a - s.b * s.v)),
+        ]
 
 
 @register_model(
@@ -76,15 +87,21 @@ def fitzhugh_nagumo(
     v[:, : columns // 2] = 1.0
     values = {'u': u, 'v': v, 'D': D, 'a': a, 'b': b, 'epsilon': epsilon}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(components=[FieldElement('medium', FitzHughNagumoElement, space, values=values)])
+    return System(elements=[FieldElement('medium', FitzHughNagumoElement, space, values=values)])
 
 
-MackeyGlassElement = Element.define(
-    'MackeyGlassElement',
-    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': parameter(default=17.0, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
-)
+class MackeyGlassElement(Element):
+    """Mackey glass element."""
+
+    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    beta = parameter(0.2)
+    gamma = parameter(0.1)
+    n = parameter(10.0)
+    tau = parameter(default=17.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mackey glass element."""
+        return [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)]
 
 
 @register_model(
@@ -130,4 +147,4 @@ def mackey_glass(
         >>> mackey_glass(tau=6.0).elements[0].tau
         6.0
     """
-    return System(components=[MackeyGlassElement('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])
+    return System(elements=[MackeyGlassElement('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])

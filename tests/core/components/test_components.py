@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
 from sklearn.base import clone
 
 from skcomplex.core.base import (
@@ -20,29 +21,31 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import BoundaryLaw, JumpLaw, RateLaw
-from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.elements import LatticeElement, ParticleElement
+from skcomplex.core.laws import BoundaryLaw, JumpLaw, RateLaw, RuleLaw
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.particles import ParticleElement
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement, PredationInteraction
 
-StockElement = Element.define(
-    'StockElement',
-    states={'n': state(1.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'k': 0.0},
-)
+
+class StockElement(Element):
+    """Stock element."""
+
+    n = state(1.0, domain=NumericDomain.NONNEGATIVE)
+    k = parameter(0.0)
 
 
-GrowthInteraction = BaseInteraction.define(
-    'GrowthInteraction',
-    roles=['target'],
-    parameters={'r': parameter(0.5, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
-)
+class GrowthInteraction(BaseInteraction):
+    """Growth interaction."""
+
+    target = role()
+    r = parameter(0.5, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s):
+        """Return the laws of the growth interaction."""
+        return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
 def _decay_laws(self, s):
@@ -50,12 +53,15 @@ def _decay_laws(self, s):
     return [RateLaw(s.n, -s.k * s.n)]
 
 
-DecayingElement = Element.define(
-    'DecayingElement',
-    states={'n': 1.0},
-    parameters={'k': 0.2},
-    laws=_decay_laws,
-)
+class DecayingElement(Element):
+    """Decaying element."""
+
+    n = state(1.0)
+    k = parameter(0.2)
+
+    def laws(self, s):
+        """Return the laws of the decaying element."""
+        return _decay_laws(self, s)
 
 
 class StockClassElement(Element):
@@ -100,17 +106,27 @@ class AttractionInteraction(BaseInteraction):
         return [BoundaryLaw(s.first.v, s.first.v)]
 
 
-BoxElement = Element.define('BoxElement', states={'n': 0.0})
+class BoxElement(Element):
+    """Box element."""
+
+    n = state(0.0)
 
 
-TransferInteraction = BaseInteraction.define(
-    'TransferInteraction',
-    roles=['source', 'sink'],
-    laws=lambda s: [RateLaw(s.sink.n, s.source.n)],
-)
+class TransferInteraction(BaseInteraction):
+    """Transfer interaction."""
+
+    source = role()
+    sink = role()
+
+    def laws(self, s):
+        """Return the laws of the transfer interaction."""
+        return [RateLaw(s.sink.n, s.source.n)]
 
 
-CellElement = Element.define('CellElement', states={'size': 0.0})
+class CellElement(Element):
+    """Cell element."""
+
+    size = state(0.0)
 
 
 def _numpy_vector_rate(s):
@@ -135,9 +151,9 @@ def _parameter_jump(s):
 
 def test_defined_types_match_classes():
     """Test that a defined model simulates exactly like the same model written with classes."""
-    defined = System(components=[StockElement('a', n=2.0)], interactions=[GrowthInteraction('g', target='a', r=0.3)])
+    defined = System(elements=[StockElement('a', n=2.0)], interactions=[GrowthInteraction('g', target='a', r=0.3)])
     written = System(
-        components=[StockClassElement('a', n=2.0)],
+        elements=[StockClassElement('a', n=2.0)],
         interactions=[GrowthClassInteraction('g', target='a', r=0.3)],
     )
     first = Simulation(defined, dt=0.5).run(until=2).trajectory_.states
@@ -158,7 +174,7 @@ def test_defined_types_declare_fields():
 def test_defined_types_form_groups():
     """Test that a group of 100 members of a defined type compiles once and exposes its parameters."""
     system = System(
-        components=[StockElement.group('herd', 100, n=np.linspace(1, 2, 100))],
+        elements=[GroupElement('herd', element=StockElement, size=100, values={'n': np.linspace(1, 2, 100)})],
         interactions=[GrowthInteraction('g', target='herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -176,7 +192,7 @@ def test_defined_types_clone_and_pickle():
     """Test that instances of defined types clone and pickle with their values."""
     growth = GrowthInteraction('g', target='a', r=0.7)
     assert clone(growth).get_params() == growth.get_params()
-    data = pickle.dumps(System(components=[StockElement('a', n=3.0)], interactions=[growth]))
+    data = pickle.dumps(System(elements=[StockElement('a', n=3.0)], interactions=[growth]))
     restored = pickle.loads(data)  # noqa: S301  # nosec B301: loads data the test just dumped
     assert restored.elements[0].n == 3.0
     assert restored.interactions[0].r == 0.7
@@ -184,14 +200,14 @@ def test_defined_types_clone_and_pickle():
 
 def test_laws_function_receives_component():
     """Test that a laws function with two arguments receives the component and the namespace."""
-    trajectory = Simulation(System(components=[DecayingElement('a', n=1.0)]), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(System(elements=[DecayingElement('a', n=1.0)]), dt=1).run(until=1).trajectory_
     assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
 def test_group_stores_arguments():
     """Test that a group stores its label, size, and values unmodified."""
     positions = np.zeros((1000, 2))
-    group = ParticleElement.group('gas', 1000, x=positions)
+    group = GroupElement('gas', element=ParticleElement, size=1000, values={'x': positions})
     assert group.label == 'gas'
     assert group.size == 1000
     assert group.values['x'] is positions
@@ -201,7 +217,7 @@ def test_group_stores_arguments():
 def test_group_position_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
     system = System(
-        components=[ParticleElement.group('gas', 1000, x=np.zeros((1000, 2)))],
+        elements=[GroupElement('gas', element=ParticleElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
     assert compile_system(system).states.entry('gas.x').shape == (1000, 2)
@@ -209,15 +225,15 @@ def test_group_position_state_has_member_shape():
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that checking a group with the wrong number of values names the group, the variable, and both sizes."""
-    group = ParticleElement.group('gas', 1000, x=np.zeros((999, 2)))
+    group = GroupElement('gas', element=ParticleElement, size=1000, values={'x': np.zeros((999, 2))})
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
         group.check()
 
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and lattice-shaped arrays pass the checks of group creation."""
-    assert ParticleElement.group('gas', 3, x=[0.5, 0.5]).prepare().size_ == 3
-    assert PopulationElement.group('herds', 3, n=[1.0, 2.0, 3.0]).prepare().size_ == 3
+    assert GroupElement('gas', element=ParticleElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
+    assert GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]}).prepare().size_ == 3
     assert (
         GroupElement(
             'cells',
@@ -235,7 +251,7 @@ def test_group_shared_and_lattice_values_are_accepted():
 @pytest.mark.parametrize(('size', 'match'), [(0, 'positive integer'), (2.5, 'positive integer')])
 def test_group_invalid_size_raises_error(size, match):
     """Test that checking a group rejects a size that is not a positive integer."""
-    group = PopulationElement.group('herds', size)
+    group = GroupElement('herds', element=PopulationElement, size=size)
     with pytest.raises(ValidationError, match=match):
         group.check()
 
@@ -243,7 +259,7 @@ def test_group_invalid_size_raises_error(size, match):
 def test_group_unknown_value_raises_error():
     """Test that checking a group with an undeclared value names it and lists the declared states and parameters."""
     message = r'sets foo, which PopulationElement does not declare\. Its states are n'
-    group = PopulationElement.group('herds', 3, foo=1)
+    group = GroupElement('herds', element=PopulationElement, size=3, values={'foo': 1})
     with pytest.raises(ValidationError, match=message):
         group.check()
 
@@ -257,14 +273,16 @@ def test_group_non_element_type_raises_error():
 
 def test_group_with_invalid_values_fails_validation_with_its_path():
     """Test that a group built with an invalid size is reported by compiling the system, with the path of the group."""
-    system = System(components=[System('meadow', components=[PopulationElement.group('herds', 0)])])
+    system = System(
+        systems=[System('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])],
+    )
     with pytest.raises(ValidationError, match=r'meadow/herds: Group .herds. has size 0'):
         compile_system(system)
 
 
 def test_group_default_visual_is_prepared():
     """Test that a prepared group holds the visual of its element type as its default visual."""
-    group = PopulationElement.group('herds', 3).prepare()
+    group = GroupElement('herds', element=PopulationElement, size=3).prepare()
     assert group.default_visual_ == PopulationElement.visual
     assert list(group.declarations_) == []
 
@@ -272,7 +290,7 @@ def test_group_default_visual_is_prepared():
 def test_role_binds_to_group_and_applies_to_every_member():
     """Test that an interaction bound to a group applies its law to every member."""
     system = System(
-        components=[PopulationElement.group('herds', 3, n=[1.0, 2.0, 3.0])],
+        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
         interactions=[ExponentialGrowthInteraction('growth', target='herds', r=2.0)],
     )
     problem = compile_system(system)
@@ -283,7 +301,10 @@ def test_role_binds_to_group_and_applies_to_every_member():
 def test_single_element_bound_with_group_receives_sum():
     """Test that a single element bound next to a group receives the sum over the members."""
     system = System(
-        components=[PopulationElement.group('rabbits', 3, n=[1.0, 2.0, 3.0]), PopulationElement('fox', n=2.0)],
+        elements=[
+            GroupElement('rabbits', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]}),
+            PopulationElement('fox', n=2.0),
+        ],
         interactions=[PredationInteraction('hunt', predator='fox', prey='rabbits', a=1.0, b=1.0)],
     )
     problem = compile_system(system)
@@ -297,7 +318,10 @@ def test_single_element_bound_with_group_receives_sum():
 def test_interaction_reads_two_groups_member_by_member(backend):
     """Test that an interaction bound to two groups of equal size reads row `i` of both together."""
     system = System(
-        components=[BoxElement.group('source', 5, n=np.arange(5.0)), BoxElement.group('sink', 5)],
+        elements=[
+            GroupElement('source', element=BoxElement, size=5, values={'n': np.arange(5.0)}),
+            GroupElement('sink', element=BoxElement, size=5),
+        ],
         interactions=[TransferInteraction('flow', source='source', sink='sink')],
     )
     problem = compile_system(system, backend=backend)
@@ -309,7 +333,10 @@ def test_interaction_reads_two_groups_member_by_member(backend):
 def test_interaction_reading_groups_of_different_sizes_raises_error():
     """Test that an interaction reading groups of different sizes member by member names both groups and sizes."""
     system = System(
-        components=[BoxElement.group('source', 5), BoxElement.group('sink', 7)],
+        elements=[
+            GroupElement('source', element=BoxElement, size=5),
+            GroupElement('sink', element=BoxElement, size=7),
+        ],
         interactions=[TransferInteraction('flow', source='source', sink='sink')],
     )
     with pytest.raises(RoleError, match=r"sink of 7 members, source of 5 members.*over 'pairs'"):
@@ -318,22 +345,16 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
 
 def test_group_takes_state_named_size():
     """Test that a state named size takes per-member values, since the group size is given by position."""
-    group = CellElement.group('cells', 3, size=[1.0, 2.0, 3.0])
-    problem = compile_system(System(components=[group]))
+    group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
+    problem = compile_system(System(elements=[group]))
     assert group.size == 3
     assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
-
-
-def test_group_label_and_size_are_positional_only():
-    """Test that the label and the size of a group cannot be given by keyword."""
-    with pytest.raises(TypeError, match='positional argument'):
-        BoxElement.group(label='boxes', size=3)
 
 
 def test_pair_interaction_rejects_other_law_kinds():
     """Test that pair interactions take rate laws only."""
     system = System(
-        components=[ParticleElement.group('gas', 3)],
+        elements=[GroupElement('gas', element=ParticleElement, size=3)],
         interactions=[AttractionInteraction('pull', first='gas', second='gas')],
         space=ContinuousSpace(n_dim=2),
     )
@@ -357,7 +378,7 @@ def test_pair_interaction_needs_vector_position():
             return [RateLaw(s.first.n, s.second.n)]
 
     system = System(
-        components=[PopulationElement.group('herds', 3)],
+        elements=[GroupElement('herds', element=PopulationElement, size=3)],
         interactions=[ContactInteraction('contact', first='herds', second='herds')],
     )
     with pytest.raises(ValidationError, match="vector state 'x'"):
@@ -366,14 +387,25 @@ def test_pair_interaction_needs_vector_position():
 
 def test_lattice_keeps_visual_of_element_type():
     """Test that a lattice group of a type that declares a visual takes that visual, not an image."""
-    ColumnElement = Element.define('ColumnElement', states={'h': 0.0}, visual=VisualSpec('heights'))
-    assert ColumnElement.lattice('columns', LatticeSpace((3,))).visual.kind == 'heights'
+
+    class ColumnElement(Element):
+        """Column element."""
+
+        visual = VisualSpec('heights')
+        h = state(0.0)
+
+    assert LatticeElement('columns', element=ColumnElement, space=LatticeSpace((3,))).visual.kind == 'heights'
 
 
 def test_lattice_without_type_visual_is_an_image():
     """Test that a lattice group of a type that declares no visual is drawn as an image."""
-    CellElement = Element.define('CellElement', states={'h': 0.0})
-    assert CellElement.lattice('cells', LatticeSpace((3,))).visual.kind == 'image'
+
+    class CellElement(Element):
+        """Cell element."""
+
+        h = state(0.0)
+
+    assert LatticeElement('cells', element=CellElement, space=LatticeSpace((3,))).visual.kind == 'image'
 
 
 def test_element_stores_arguments():
@@ -386,29 +418,34 @@ def test_element_stores_arguments():
 def test_element_state_named_visual_raises_error():
     """Test that an element type with a state named visual names the state and lists the reserved names."""
     with pytest.raises(LabelError, match=r"'visual'.*label, remembers, visual are reserved"):
-        Element.define('PaintedElement', states={'visual': 0.0})
+        type('PaintedElement', (Element,), {'visual': state(0.0)})('painted').check()
 
 
 @pytest.mark.parametrize('name', ['location', 'alive', 'position'])
 def test_agent_state_named_like_view_raises_error(name):
     """Test that an agent with a state named like an attribute of the agent view or of Mesa raises a label error."""
-    SettlerElement = Element.define(
+    SettlerElement = type(
         'SettlerElement',
-        states={name: 0.0},
-        laws=lambda s: [RuleLaw(lambda agent, model: None)],
+        (Element,),
+        {name: state(0.0), 'laws': lambda self, s: [RuleLaw(lambda agent, model: None)]},
     )
     with pytest.raises(LabelError, match=rf'settlers declare the variables {name},.*agents_here.*reserved'):
-        compile_system(System(components=[SettlerElement.group('settlers', 2)]))
+        compile_system(System(elements=[GroupElement('settlers', element=SettlerElement, size=2)]))
 
 
 def test_numpy_scalar_times_vector_is_rejected():
     """Test that a law value that NumPy built as an array raises a named error that names the state."""
-    MovingElement = Element.define(
-        'MovingElement',
-        states={'v': state(0.0, vector=True)},
-        laws=_numpy_vector_rate,
-    )
-    system = System(components=[MovingElement('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
+
+    class MovingElement(Element):
+        """Moving element."""
+
+        v = state(0.0, vector=True)
+
+        def laws(self, s):
+            """Return the laws of the moving element."""
+            return _numpy_vector_rate(s)
+
+    system = System(elements=[MovingElement('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match=r'RateLaw of \(v_m.*float'):
         compile_system(system)
 
@@ -417,7 +454,11 @@ def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     trajectories = [
         Simulation(
-            System(components=[Element.define('DecayElement', states={'x': 2.0}, laws=laws)('d')]),
+            System(
+                elements=[
+                    type('DecayElement', (Element,), {'x': state(2.0), 'laws': lambda self, s, f=laws: f(s)})('d'),
+                ],
+            ),
             dt=0.5,
         )
         .run(until=2)
@@ -429,11 +470,16 @@ def test_numpy_scalar_values_match_floats():
 
 def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
-    CounterElement = Element.define(
-        'CounterElement',
-        states={'n': 0.0},
-        parameters={'k': 2.0},
-        laws=_parameter_jump,
-    )
+
+    class CounterElement(Element):
+        """Counter element."""
+
+        n = state(0.0)
+        k = parameter(2.0)
+
+        def laws(self, s):
+            """Return the laws of the counter element."""
+            return _parameter_jump(s)
+
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
-        compile_system(System(components=[CounterElement('c')]))
+        compile_system(System(elements=[CounterElement('c')]))

@@ -2,12 +2,14 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.declarations import role
 from sklearn.base import clone
 
 from skcomplex.core.base import ArgumentError, BaseElement, BaseInteraction, parameter, state, symbol
-from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import RateLaw, Symbols
-from skcomplex.core.system import Observable, System
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
@@ -66,7 +68,7 @@ def test_component_is_the_base_of_elements_and_groups_only():
         assert issubclass(kind, BaseElement)
     for kind in (BaseInteraction, System):
         assert not issubclass(kind, BaseElement)
-    system = System(components=[System('meadow', components=[PopulationElement('rabbits')])])
+    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits')])])
     assert not isinstance(system, BaseElement)
 
 
@@ -85,14 +87,14 @@ def test_component_rejects_unknown_and_missing_arguments():
     assert rabbits.foo == 1
     with pytest.raises(ArgumentError, match="'foo'"):
         rabbits.check()
-    growth = BaseInteraction.define('GrowthInteraction', roles=['target'])('growth')
+    growth = type('GrowthInteraction', (BaseInteraction,), {'target': role()})('growth')
     with pytest.raises(TypeError, match="'target'"):
         growth.check()
 
 
 def test_validation_checks_every_component_with_its_path():
     """Test that validating a system reports a component with an undeclared value by its path."""
-    system = System(components=[System('meadow', components=[PopulationElement('rabbits', foo=1)])])
+    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits', foo=1)])])
     report = validate(system)
     assert not report.ok
     assert report.errors[0].message.startswith("meadow/rabbits: PopulationElement got 'foo'")
@@ -100,11 +102,10 @@ def test_validation_checks_every_component_with_its_path():
 
 def test_component_runs_its_laws_and_prepares_its_declarations():
     """Test that `run` returns the laws of the `laws` hook and `prepare` sets the declarations."""
-    growth = BaseInteraction.define(
+    growth = type(
         'GrowthInteraction',
-        roles=['target'],
-        parameters={'r': 1.0},
-        laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
+        (BaseInteraction,),
+        {'target': role(), 'r': parameter(1.0), 'laws': lambda self, s: [RateLaw(s.target.n, s.r * s.target.n)]},
     )('growth', target='rabbits').prepare()
     assert list(growth.declarations_) == ['target', 'r']
     n, r = symbol('n'), symbol('r')
@@ -117,15 +118,13 @@ def test_elements_and_interactions_declare_laws_only():
     """Test that elements and interactions declare no quantities, so a system holds no part besides them."""
     for kind in (BaseElement, BaseInteraction, Element, GroupElement):
         assert not hasattr(kind, 'quantities')
-    with pytest.raises(TypeError, match='quantities'):
-        Element.define('LeveragedElement', states={'debt': 1.0}, quantities=lambda s: [])
 
 
 def test_auxiliary_is_an_expression_of_the_laws_that_an_observable_records():
     """Test that a law computes the leverage as an expression and the run records an observable of the same one."""
-    system = System(components=[FirmElement('firm')])
+    system = System(elements=[FirmElement('firm')])
     assert str(compile_system(system).equations['firm.debt']) == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
-    leverage = Observable('leverage', _firm_leverage)
+    leverage = ObservableSpec('leverage', _firm_leverage)
     trajectory = Simulation(system, dt=0.5, observables=[leverage]).run(until=2).trajectory_
     debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
     np.testing.assert_allclose(trajectory.values('leverage'), debt / equity)
@@ -141,11 +140,11 @@ def test_component_parameters_list_settings_and_declared_names():
 
 def test_clone_keeps_declared_values():
     """Test that a clone of a group of 100 members has the same values and compiles to the same problem."""
-    group = PopulationElement.group('herds', 100, n=np.linspace(1.0, 2.0, 100))
+    group = GroupElement('herds', element=PopulationElement, size=100, values={'n': np.linspace(1.0, 2.0, 100)})
     cloned = clone(group)
     assert (cloned.label, cloned.size) == ('herds', 100)
     assert np.array_equal(cloned.values['n'], group.values['n'])
-    first, second = compile_system(System(components=[group])), compile_system(System(components=[cloned]))
+    first, second = compile_system(System(elements=[group])), compile_system(System(elements=[cloned]))
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations
     single = PendulumElement('bob', theta=0.3)

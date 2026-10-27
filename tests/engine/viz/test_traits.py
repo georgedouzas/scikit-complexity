@@ -3,9 +3,11 @@
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import state
 
 from skcomplex.core.base import VisualSpec
-from skcomplex.core.components import Element
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.laws import UpdateLaw, uniform
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -149,13 +151,19 @@ def test_charbonneau_traffic_has_a_space_time_view():
 
 def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
     """Test that a group of members without a space logs the histogram of every state and can show it first."""
-    walker = Element.define(
-        'WalkerElement',
-        states={'x': 0.0},
-        laws=lambda s: [UpdateLaw(s.x, s.x + uniform('step', -1, 1))],
-    )
+
+    class WalkerElement(Element):
+        """Walker element."""
+
+        x = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the walker element."""
+            return [UpdateLaw(s.x, s.x + uniform('step', -1, 1))]
+
+    walker = WalkerElement
     visual = VisualSpec('traits', {'color_by': 'x', 'histogram_first': True})
-    system = System(components=[walker.group('walkers', 50, visual=visual)])
+    system = System(elements=[GroupElement('walkers', element=walker, size=50, visual=visual)])
     views = [type(view).__name__ for view in _views(default_blueprint(compile_system(system)))]
     assert views[:2] == ['BarChartView', 'TimeSeriesView']
     logged = []

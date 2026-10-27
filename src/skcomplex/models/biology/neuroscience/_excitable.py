@@ -11,11 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import Adjacency, DiscreteTime, NetworkSpace
-from ....core.system import Observable, System
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -93,7 +94,7 @@ class ExcitableElementElement(Element):
             fires = np.where(random >= quiet, float(EXCITED), 0.0)
             return np.where(phase == 0, fires, (phase + 1) % n_states)
 
-        return [LocalRuleLaw(s.phase, Adjacency(), excite, stochastic=True)]
+        return [LocalRuleLaw(s.phase, AdjacencyNeighborhood(), excite, stochastic=True)]
 
 
 @register_model(
@@ -102,7 +103,7 @@ class ExcitableElementElement(Element):
     references=('Kinouchi and Copelli 2006', 'Larremore et al. 2011'),
     defaults={'until': 1000, 'dt': 1},
     observables=lambda system: [
-        Observable('activity', group='neurons', variable='phase', reduce=_excited_fraction),
+        ObservableSpec('activity', group='neurons', variable='phase', reduce=_excited_fraction),
     ],
 )
 def kinouchi_copelli(
@@ -162,12 +163,10 @@ def kinouchi_copelli(
         if excited is None
         else (rng.random(size) < excited).astype(float)
     )
-    neurons = ExcitableElementElement.lattice(
+    neurons = LatticeElement(
         'neurons',
-        NetworkSpace(graph),
-        phase=phase,
-        p=sigma / degree,
-        stimulus=stimulus,
-        n_states=n_states,
+        element=ExcitableElementElement,
+        space=NetworkSpace(graph),
+        values={'phase': phase, 'p': sigma / degree, 'stimulus': stimulus, 'n_states': n_states},
     )
-    return System(components=[neurons], time=DiscreteTime())
+    return System(elements=[neurons], time=DiscreteTime())

@@ -10,11 +10,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, neighbors, where
-from ....core.space import Adjacency, DiscreteTime, NetworkSpace
+from ....core.laws import RuleLaw, Symbols, UpdateLaw, neighbors, where
+from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement, LatticeElement
 
 
 class DiscussantElement(Element):
@@ -35,7 +36,7 @@ class DiscussantElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussantElement
-        >>> group = DiscussantElement.group('people', 10, opinion=0.5)
+        >>> group = GroupElement('people', element=DiscussantElement, size=10, values={'opinion': 0.5})
         >>> group.label, group.element.__name__, group.size
         ('people', 'DiscussantElement', 10)
     """
@@ -141,15 +142,14 @@ def deffuant(
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
     visual = VisualSpec('traits', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
-    people = DiscussantElement.group(
+    people = GroupElement(
         'people',
-        n_agents,
-        opinion=opinions,
-        confidence=confidence,
-        convergence=convergence,
+        element=DiscussantElement,
+        size=n_agents,
+        values={'opinion': opinions, 'confidence': confidence, 'convergence': convergence},
         visual=visual,
     )
-    return System(components=[people], interactions=[EncountersInteraction('meetings', target='people')])
+    return System(elements=[people], interactions=[EncountersInteraction('meetings', target='people')])
 
 
 class ConfidentElement(Element):
@@ -190,7 +190,12 @@ class ConfidentElement(Element):
                 The laws of the component.
         """
         close = where(abs(s.other.opinion - s.opinion) < s.confidence, 1, 0)
-        mean = neighbors(s.other.opinion, over=Adjacency(center=True), reduce='normalized-mean', weight=close)
+        mean = neighbors(
+            s.other.opinion,
+            over=AdjacencyNeighborhood(center=True),
+            reduce='normalized-mean',
+            weight=close,
+        )
         return [UpdateLaw(s.opinion, mean)]
 
 
@@ -239,5 +244,10 @@ def hegselmann_krause(
     """
     space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
     opinions = np.random.default_rng(random_state).random(space.size_)
-    people = ConfidentElement.lattice('people', space, opinion=opinions, confidence=confidence)
-    return System(components=[people], time=DiscreteTime())
+    people = LatticeElement(
+        'people',
+        element=ConfidentElement,
+        space=space,
+        values={'opinion': opinions, 'confidence': confidence},
+    )
+    return System(elements=[people], time=DiscreteTime())

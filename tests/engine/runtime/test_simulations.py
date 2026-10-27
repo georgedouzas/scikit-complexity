@@ -4,7 +4,9 @@ import time
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
+from skcomplex.analysis import flow_matrix
 from skcomplex.core.base import (
     ParameterError,
     SimulationError,
@@ -13,17 +15,15 @@ from skcomplex.core.base import (
     parameter,
     state,
 )
-from skcomplex.core.components import Element
+from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.laws import (
     RateLaw,
+    RuleLaw,
 )
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import flow_matrix
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.particles import ParticleElement
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
@@ -42,7 +42,7 @@ from ...conftest import _correlated, _summed
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return System(
-        components=[ParticleElement.group('gas', n)],
+        elements=[GroupElement('gas', element=ParticleElement, size=n)],
         interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
     )
@@ -69,7 +69,7 @@ class FrameCounterObserver(BaseObserver):
 def _growth(r=1.0):
     """Return a system of exponential growth."""
     return System(
-        components=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=r)],
     )
 
@@ -77,7 +77,7 @@ def _growth(r=1.0):
 def _epidemic():
     """Return a stochastic SIR system."""
     return System(
-        components=[CompartmentElement('S', n=95), CompartmentElement('I', n=5), CompartmentElement('R')],
+        elements=[CompartmentElement('S', n=95), CompartmentElement('I', n=5), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
@@ -88,7 +88,7 @@ def _epidemic():
 def _logistic():
     """Return a logistic population."""
     return System(
-        components=[PopulationElement('rabbits', n=10)],
+        elements=[PopulationElement('rabbits', n=10)],
         interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
     )
 
@@ -109,12 +109,15 @@ class SaverElement(Element):
         agent.savings += agent.rate
 
 
-HeaterElement = Element.define(
-    'HeaterElement',
-    states={'T': 0.0},
-    parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
-    laws=lambda s: [RateLaw(s.T, s.power - s.T)],
-)
+class HeaterElement(Element):
+    """Heater element."""
+
+    T = state(0.0)
+    power = parameter(0.0, adaptive=True, bounds=(0, 1))
+
+    def laws(self, s):
+        """Return the laws of the heater element."""
+        return [RateLaw(s.T, s.power - s.T)]
 
 
 STORED_GEOMETRIC_BROWNIAN_MOTION = [
@@ -220,14 +223,14 @@ def test_simulation_hands_frames_to_observers():
 
 def test_simulation_discrete_frames_are_integer_times():
     """Test that discrete maps produce frames at integer times."""
-    system = System(components=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     trajectory = Simulation(system).run(until=10).trajectory_
     assert trajectory.times.tolist() == list(map(float, range(11)))
 
 
 def test_simulation_discrete_noninteger_dt_raises_error():
     """Test that a discrete map needs an integer dt."""
-    system = System(components=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     with pytest.raises(ValidationError, match='positive integer'):
         Simulation(system, dt=0.5).run(until=1)
 
@@ -269,7 +272,7 @@ def test_simulation_update_unknown_parameter_raises_error():
 
 def test_simulation_update_invalid_value_raises_error():
     """Test that parameter values are checked against their domain."""
-    system = System(components=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     simulation = Simulation(system).run(until=1)
     with pytest.raises(ValidationError, match='positive'):
         simulation.update_parameters({'c.b': -1.0})
@@ -348,7 +351,7 @@ def test_simulation_parameters_carry_over_runs():
 
 def test_simulation_agent_parameters_carry_over_runs():
     """Test that an agent group parameter set between runs is read by the rules of the next run."""
-    simulation = Simulation(System(components=[SaverElement.group('savers', 3)])).run(until=0)
+    simulation = Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=3)])).run(until=0)
     simulation.update_parameters({'savers.rate': 5.0})
     trajectory = simulation.run(until=2).trajectory_
     assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
@@ -408,7 +411,7 @@ def test_trajectory_gives_agent_locations_over_frames():
 def test_initial_state_replaces_the_values_of_components():
     """Test that a simulation starts from given initial values by state name and rejects unknown names."""
     system = System(
-        components=[PopulationElement('rabbits', n=10)],
+        elements=[PopulationElement('rabbits', n=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
     trajectory = Simulation(system, dt=1.0, initial_state={'rabbits.n': 20.0}).run(until=1.0).trajectory_
@@ -421,7 +424,7 @@ def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
     trajectory = (
-        Simulation(System(components=[HeaterElement('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
+        Simulation(System(elements=[HeaterElement('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
     )
     np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
     assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
@@ -429,7 +432,7 @@ def test_simulation_schedules_a_bounded_control():
 
 
 def test_correlated_noise_repeats_with_same_seed():
-    """Test that two runs of a correlated `WienerProcess` with random state 0 on the Numba backend are equal."""
+    """Test that two runs of a correlated `WienerProcessSpec` with random state 0 on the Numba backend are equal."""
     system = _correlated([[1.0, 0.5], [0.5, 1.0]])
     runs = [
         Simulation(system, backend='numba', random_state=0, dt=0.1).run(until=2).trajectory_.states for _ in range(2)

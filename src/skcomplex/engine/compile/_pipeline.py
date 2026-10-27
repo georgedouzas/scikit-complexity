@@ -5,17 +5,15 @@
 
 import heapq
 from collections import defaultdict
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from typing import ClassVar
 
-from ...core.base import BaseEstimator, PipelineError, Registry
+from ...core.errors import PipelineError
+from ..utils import BaseEstimator
 from ._compilation import Compilation
 from ._issues import Issue
 
 type Check = Callable[[Compilation], list[Issue]]
-
-PASSES = Registry['BasePass']('pass')
-CHECKS = Registry[Check]('check')
 
 
 def _roles(passes: Sequence['BasePass']) -> dict[str, tuple[list[int], list[int], list[int]]]:
@@ -50,7 +48,7 @@ def _check_inputs(
             index = (refiners or readers)[0]
             error_msg = (
                 f'The pass {type(passes[index]).__name__} reads the field {name!r}, which no pass produces and the '
-                'compilation does not hold. Register the pass that produces it.'
+                'compilation does not hold. Add the pass that produces it.'
             )
             raise PipelineError(error_msg)
 
@@ -86,17 +84,12 @@ def _needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
     return needed
 
 
-def _registered_passes(passes: Iterable['BasePass'] = ()) -> list['BasePass']:
-    """Return passes followed by the registered passes, in registration order."""
-    return [*passes, *(PASSES.resolve(key) for key in PASSES.keys)]
-
-
 def order_passes(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
     """Return passes in an order where every field is produced, then refined, then read.
 
     A pass that writes a field without reading it produces the field, and runs before the passes that refine it, which
     read and write it, and those run before the passes that only read it. Passes that the fields leave unordered run in
-    the order they are given, so refiners of one field run in the order they are registered.
+    the order they are given, so refiners of one field run in the order they are given.
 
     Args:
         passes:
@@ -180,42 +173,11 @@ def run_passes(compilation: Compilation, passes: Sequence['BasePass'], until: st
     return compilation
 
 
-def register_pass(item: 'BasePass') -> None:
-    """Register a pass that every compilation runs, keeping it once, in its first place, when registered again.
-
-    Args:
-        item:
-            The pass.
-    """
-    if item not in PASSES.keys:
-        PASSES.register(item, item)
-
-
-def register_check(check: Check) -> None:
-    """Register a check that validation runs on every system the general compiler compiles, keeping it once.
-
-    Args:
-        check:
-            The check, which takes the compilation state after planning and returns the issues it finds.
-    """
-    CHECKS.register(check, check)
-
-
-def registered_checks() -> list[Check]:
-    """Return the registered checks in registration order.
-
-    Returns:
-        checks:
-            The checks.
-    """
-    return [CHECKS.resolve(key) for key in CHECKS.keys]
-
-
 class BasePass(BaseEstimator):
     """Step of a compilation that reads fields of the compilation state and writes others.
 
     A pass declares the fields it reads and writes as the class variables `reads` and `writes`, which order the passes
-    of a compilation. A field it reads is a field of `Compilation` or a fact a pass of a formalism adds. A pass fits
+    of a compilation. A field it reads is a field of `Compilation` or a fact another pass adds. A pass fits
     nothing, and `run(compilation)` calls its hook `_run`, which reads the fields the pass reads and writes the fields
     it writes.
     """

@@ -5,14 +5,17 @@
 
 import numpy as np
 
+from skcomplex.core.declarations import state
+
 from ....core.base import BaseLaw, NumericDomain, parameter
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols, both, pulse_train, where
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldElement, laplacian
 
 
 def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
@@ -29,22 +32,24 @@ def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-FrictionalBlockElement = Element.define(
-    'FrictionalBlockElement',
-    states={'x': 0.0, 'v': 0.0},
-    parameters={
-        'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'k': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'anchor': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'mu_s': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'mu_d': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
-        'amplitude': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
-        'shake_time': parameter(default=2.0, domain=NumericDomain.POSITIVE),
-        'relax_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
-        'v_stick': parameter(default=0.02, domain=NumericDomain.POSITIVE),
-    },
-    laws=_frictional_block_laws,
-)
+class FrictionalBlockElement(Element):
+    """Frictional block element."""
+
+    x = state(0.0)
+    v = state(0.0)
+    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    k = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    anchor = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    mu_s = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    mu_d = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    amplitude = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    shake_time = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    relax_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
+    v_stick = parameter(default=0.02, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the frictional block element."""
+        return _frictional_block_laws(s)
 
 
 @register_model(
@@ -132,4 +137,4 @@ def shaken_spring_block(
             'v_stick': v_stick,
         },
     )
-    return System(components=[chain])
+    return System(elements=[chain])

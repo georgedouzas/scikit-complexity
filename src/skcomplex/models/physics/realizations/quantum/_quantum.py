@@ -14,8 +14,8 @@ import scipy.sparse as sp
 
 from .....core.base import ValidationError, VisualSpec, state
 from .....core.components import Element
-from .....core.space import BaseSpace, LatticeSpace, NetworkSpace, neighbor_pairs
-from .....formalisms.quantum import HilbertDomain, LocalOperator, Operator, QuantumView, sparse_matrix
+from .....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from .....engine.compile import HilbertDomain, LocalOperator, Operator, QuantumView, sparse_matrix
 
 DIGEST_SIZE = 8
 
@@ -72,7 +72,7 @@ def _site_space(element: 'SiteElement') -> HilbertDomain:
     else:
         error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
         raise ValidationError(error_msg)
-    rows, columns = zip(*neighbor_pairs(space, size), strict=True) if size > 1 else ((), ())
+    rows, columns = zip(*space.prepare()._neighbor_pairs(), strict=True) if size > 1 else ((), ())
     adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
     laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
     operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}
@@ -98,7 +98,7 @@ class SpinElement(Element):
                 The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.formalisms.quantum import QuantumView
+        >>> from skcomplex.engine.compile import QuantumView
         >>> from skcomplex.models.physics.realizations.quantum import SpinElement
         >>> QuantumView(SpinElement('s', j=1)).dimension
         3
@@ -131,7 +131,7 @@ class QubitElement(Element):
             The state in the Hilbert space: `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.formalisms.quantum import QuantumView
+        >>> from skcomplex.engine.compile import QuantumView
         >>> from skcomplex.models.physics.realizations.quantum import QubitElement
         >>> sorted(QuantumView(QubitElement('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
@@ -158,7 +158,7 @@ class ModeElement(Element):
                 The state in the Hilbert space: the number of quanta, or a vector.
 
     Examples:
-        >>> from skcomplex.formalisms.quantum import QuantumView
+        >>> from skcomplex.engine.compile import QuantumView
         >>> from skcomplex.models.physics.realizations.quantum import ModeElement
         >>> QuantumView(ModeElement('cavity', quanta=4)).dimension
         5
@@ -200,8 +200,8 @@ class SiteElement(Element):
                 The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
     Examples:
-        >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.core.space import LatticeSpace
+        >>> from skcomplex.engine.compile import QuantumView
+        >>> from skcomplex.core.spaces import LatticeSpace
         >>> from skcomplex.models.physics.realizations.quantum import SiteElement
         >>> QuantumView(SiteElement('particle', space=LatticeSpace(16))).dimension
         16

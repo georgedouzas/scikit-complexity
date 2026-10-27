@@ -8,6 +8,7 @@ from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 class QueueElement(Element):
@@ -97,5 +98,10 @@ def birth_death_queue(
         >>> birth_death_queue(5).elements[0].size
         5
     """
-    queue = QueueElement.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
-    return System(components=[queue])
+    queue = GroupElement(
+        'queues',
+        element=QueueElement,
+        size=n_queues,
+        values={'n': n, 'arrival_rate': arrival_rate, 'service_rate': service_rate},
+    )
+    return System(elements=[queue])

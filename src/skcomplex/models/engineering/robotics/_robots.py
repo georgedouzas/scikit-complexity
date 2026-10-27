@@ -11,11 +11,12 @@ from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols, delayed, where
-from ....core.space import ContinuousSpace
+from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, RuleLaw, Symbols, delayed, where
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9
@@ -187,7 +188,7 @@ class SwarmRobotElement(Element):
 
     Examples:
         >>> from skcomplex.models.engineering.robotics import SwarmRobotElement
-        >>> SwarmRobotElement.group('robots', 2, location=[(1.0, 1.0), (2.0, 1.0)]).size
+        >>> GroupElement('robots', element=SwarmRobotElement, size=2, location=[(1.0, 1.0), (2.0, 1.0)]).size
         2
     """
 
@@ -329,21 +330,24 @@ def light_seeking_robots(
         4
     """
     headings = np.linspace(0.0, 2 * np.pi, n_robots, endpoint=False)
-    robots = LightSensitiveRobotElement.group(
+    robots = GroupElement(
         'robots',
-        n_robots,
-        x=np.zeros(n_robots),
-        y=np.zeros(n_robots),
-        phi=headings,
-        V0=V0,
-        V_inf=V_inf,
-        I0=I0,
-        r0=r0,
-        tau=tau,
-        R=R,
-        delay=delay,
+        element=LightSensitiveRobotElement,
+        size=n_robots,
+        values={
+            'x': np.zeros(n_robots),
+            'y': np.zeros(n_robots),
+            'phi': headings,
+            'V0': V0,
+            'V_inf': V_inf,
+            'I0': I0,
+            'r0': r0,
+            'tau': tau,
+            'R': R,
+            'delay': delay,
+        },
     )
-    return System(components=[robots])
+    return System(elements=[robots])
 
 
 @register_model(
@@ -407,18 +411,21 @@ def swarmtaxis(
     rng = np.random.default_rng(random_state)
     start = np.array([size / 5, size / 2])
     points = np.clip(start + rng.normal(0.0, spread, (n_robots, 2)), 0.0, size)
-    robots = SwarmRobotElement.group(
+    robots = GroupElement(
         'robots',
-        n_robots,
+        element=SwarmRobotElement,
+        size=n_robots,
+        values={
+            'heading': rng.uniform(0.0, 2 * np.pi, n_robots),
+            'speed': speed,
+            'radio_range': radio_range,
+            'alpha': float(n_robots),
+            'avoid_illuminated': avoid_illuminated,
+            'avoid_shadowed': avoid_shadowed,
+            'beacon_x': size - BEACON_MARGIN,
+            'beacon_y': size / 2,
+            'arena': size,
+        },
         location=[tuple(map(float, point)) for point in points],
-        heading=rng.uniform(0.0, 2 * np.pi, n_robots),
-        speed=speed,
-        radio_range=radio_range,
-        alpha=float(n_robots),
-        avoid_illuminated=avoid_illuminated,
-        avoid_shadowed=avoid_shadowed,
-        beacon_x=size - BEACON_MARGIN,
-        beacon_y=size / 2,
-        arena=size,
     )
-    return System(components=[robots], space=ContinuousSpace(size, size))
+    return System(elements=[robots], space=ContinuousSpace(extent=(size, size)))

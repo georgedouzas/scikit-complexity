@@ -11,10 +11,9 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, total, uniform, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import add_node, remove_node
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
@@ -269,7 +268,7 @@ def sequentially_linear_ecosystem(
         visual=HIDDEN,
     )
     return System(
-        components=[species, influences],
+        elements=[species, influences],
         interactions=[
             LinearGrowthInteraction('growth', species='species', influences='influences', rate=rate),
             InfluenceDrawInteraction('draw', species='species', influences='influences'),

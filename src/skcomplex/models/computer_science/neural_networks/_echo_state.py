@@ -14,6 +14,7 @@ from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 
 
 def _recurrent_weights(
@@ -122,7 +123,7 @@ def echo_state_network(
 
     The recurrent weights are sparse and Gaussian, scaled to a spectral radius below 1, so the reservoir has the echo
     state property: its activities forget their initial values and become a function of the input history alone. A
-    readout trained on these activities, as `skcomplex.engine.analysis.ReservoirSurrogate` does, turns the reservoir
+    readout trained on these activities, as `skcomplex.analysis.ReservoirSurrogate` does, turns the reservoir
     into a forecaster.
 
     Args:
@@ -161,14 +162,17 @@ def echo_state_network(
     """
     rng = np.random.default_rng(random_state)
     weights = _recurrent_weights(n_units, connectivity, spectral_radius, rng)
-    units = ReservoirUnitElement.group(
+    units = GroupElement(
         'units',
-        n_units,
-        r=rng.uniform(-1.0, 1.0, n_units),
-        w_in=rng.uniform(-input_scaling, input_scaling, n_units),
-        leak=leak,
-        amplitude=amplitude,
-        frequency=frequency,
-        weights=weights,
+        element=ReservoirUnitElement,
+        size=n_units,
+        values={
+            'r': rng.uniform(-1.0, 1.0, n_units),
+            'w_in': rng.uniform(-input_scaling, input_scaling, n_units),
+            'leak': leak,
+            'amplitude': amplitude,
+            'frequency': frequency,
+            'weights': weights,
+        },
     )
-    return System(components=[units])
+    return System(elements=[units])

@@ -67,7 +67,7 @@ def test_chemical_langevin_equation_switches_by_noise():
 def test_langevin_binding_conserves_difference():
     """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
     system = System(
-        components=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
+        elements=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
         interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
     )
     trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyamaSolver(dt=1e-3))
@@ -75,7 +75,7 @@ def test_langevin_binding_conserves_difference():
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
         System(
-            components=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
+            elements=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
             interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001)],
         ),
         5.0,
@@ -87,7 +87,7 @@ def test_langevin_binding_conserves_difference():
 def test_langevin_and_stochastic_reaction_is_rejected():
     """Test that a reaction both stochastic and in Langevin mode raises an error that names it."""
     system = System(
-        components=[SpeciesElement('A', n=10.0), SpeciesElement('B', n=10.0), SpeciesElement('C')],
+        elements=[SpeciesElement('A', n=10.0), SpeciesElement('B', n=10.0), SpeciesElement('C')],
         interactions=[
             BindingInteraction('binding', first='A', second='B', product='C', stochastic=True, langevin=True),
         ],

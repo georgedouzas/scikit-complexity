@@ -160,7 +160,7 @@ A law can also be a Python function of time and current values, which covers rul
 
 ```python
 from skcomplex.core.base import role
-from skcomplex.core.base import BaseInteraction
+from skcomplex.core.base import BaseInteraction, parameter, role
 from skcomplex.core.laws import RateLaw
 
 class ThresholdInteraction(BaseInteraction):
@@ -211,29 +211,6 @@ Models written with SymPy move to Sage as follows. A SymPy expression in a law r
 | `sympy.diff(f, x)` and `f.subs(x, y)` | `f.diff(x)` and `f.subs({x: y})` |
 | `sympy.Eq(a, b)`, `.lhs`, and `.rhs` | `a == b`, `.lhs()`, and `.rhs()` |
 
-### Defining without classes
-
-`Element.define` and `BaseInteraction.define` build the same types from declarations and a laws function, which suits
-one-off models. The types behave like classes in groups, cloning, and parameter introspection, and pickle when they are
-assigned to a module-level name equal to their name.
-
-```python
-from skcomplex.core.base import NumericDomain, parameter, state
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import RateLaw
-
-from skcomplex.core.components import Element
-
-SpeciesDefinedElement = Element.define('SpeciesDefinedElement', states={'n': state(10.0, domain=NumericDomain.NONNEGATIVE)})
-BirthDefinedInteraction = BaseInteraction.define(
-    'BirthDefinedInteraction',
-    roles=['target'],
-    parameters={'rate': parameter(0.5, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.target.n, s.rate * s.target.n)],
-)
-print(BirthDefinedInteraction('birth', target='deer', rate=0.2))
-```
-
 ### State domains
 
 Besides real, positive, nonnegative, and integer values, a state takes booleans, angles, or the labels of a finite
@@ -246,8 +223,14 @@ from skcomplex.core.base import NumericDomain, state
 from skcomplex.core.components import Element
 
 health = NumericDomain.categorical('susceptible', 'infected', 'recovered')
-PersonElement = Element.define('PersonElement', states={'health': state('susceptible', domain=health)})
-RotorElement = Element.define('RotorElement', states={'theta': state(0.0, domain=NumericDomain.ANGLE)})
+class PersonElement(Element):
+    """Person element."""
+
+    health = state('susceptible', domain=health)
+class RotorElement(Element):
+    """Rotor element."""
+
+    theta = state(0.0, domain=NumericDomain.ANGLE)
 ```
 
 ### Complex states
@@ -269,13 +252,16 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
-PhaseElement = Element.define(
-    'PhaseElement',
-    states={'z': state(1.0, domain=NumericDomain.COMPLEX)},
-    parameters={'omega': parameter(2.0)},
-    laws=lambda s: [RateLaw(s.z, I * s.omega * s.z)],
-)
-z = Simulation(System(components=[PhaseElement('osc')]), dt=0.5).run(until=10).trajectory_.values('osc.z')
+class PhaseElement(Element):
+    """Phase element."""
+
+    z = state(1.0, domain=NumericDomain.COMPLEX)
+    omega = parameter(2.0)
+
+    def laws(self, s):
+        """Return the laws of the phase element."""
+        return [RateLaw(s.z, I * s.omega * s.z)]
+z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).run(until=10).trajectory_.values('osc.z')
 assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
 ```
 
@@ -299,13 +285,19 @@ from skcomplex.core.components import Element
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.laws import EquationLaw, derivative
+from skcomplex.core.declarations import parameter
 
-PendulumElement = Element.define(
-    'PendulumElement',
-    states={'theta': state(default=0.5, domain=NumericDomain.ANGLE, order=2)},
-    parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
-    laws=lambda s: [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
-)
+class PendulumElement(Element):
+    """Pendulum element."""
+
+    theta = state(default=0.5, domain=NumericDomain.ANGLE, order=2)
+    m = parameter(1.0)
+    g = parameter(9.81)
+    l = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the pendulum element."""
+        return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 bob = PendulumElement('bob', theta_d1=0.5).prepare()
 print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumElement, 'theta_d1'))
 ```
@@ -333,7 +325,7 @@ from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
 
 landscape = System(
-    components=[
+    elements=[
         System('forest', components=[PopulationElement('foxes', n=5)]),
         System('meadow', components=[PopulationElement('rabbits', n=50)]),
     ],
@@ -393,14 +385,21 @@ from skcomplex.core.system import System
 import numpy as np
 
 from skcomplex.core.laws import EventLaw, NoiseLaw, RateLaw, delayed, step
+from skcomplex.core.declarations import parameter
 
-MackeyGlassElement = Element.define(
-    'MackeyGlassElement',
-    states={'x': state(0.5, history=lambda t: 0.5 + 0.1 * np.sin(t))},
-    parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': 17.0},
-    laws=lambda s: [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
-)
-cells = System(components=[MackeyGlassElement('cells')])
+class MackeyGlassElement(Element):
+    """Mackey glass element."""
+
+    x = state(0.5, history=lambda t: 0.5 + 0.1 * np.sin(t))
+    beta = parameter(0.2)
+    gamma = parameter(0.1)
+    n = parameter(10.0)
+    tau = parameter(17.0)
+
+    def laws(self, s):
+        """Return the laws of the mackey glass element."""
+        return [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)]
+cells = System(elements=[MackeyGlassElement('cells')])
 print(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1])
 ```
 
@@ -417,17 +416,22 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import EventLaw, RateLaw, derivative
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.core.declarations import parameter
 
-BallElement = Element.define(
-    'BallElement',
-    states={'h': state(default=1.0, order=2)},
-    parameters={'g': 9.81, 'e': 0.8},
-    laws=lambda s: [
+class BallElement(Element):
+    """Ball element."""
+
+    h = state(default=1.0, order=2)
+    g = parameter(9.81)
+    e = parameter(0.8)
+
+    def laws(self, s):
+        """Return the laws of the ball element."""
+        return [
         RateLaw(s.h, -s.g),
         EventLaw(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
-    ],
-)
-trajectory = Simulation(System(components=[BallElement('ball')]), dt=0.01).run(until=3).trajectory_
+    ]
+trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).run(until=3).trajectory_
 print([round(event.time, 6) for event in trajectory.events])
 ```
 
@@ -441,14 +445,18 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, step
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.core.declarations import parameter, state
 
-FilterElement = Element.define(
-    'FilterElement',
-    states={'y': 0.0},
-    parameters={'k': 1.0},
-    laws=lambda s: [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))],
-)
-print(Simulation(System(components=[FilterElement('filter')]), dt=0.5).run(until=10).trajectory_.values('filter.y')[-1])
+class FilterElement(Element):
+    """Filter element."""
+
+    y = state(0.0)
+    k = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the filter element."""
+        return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
+print(Simulation(System(elements=[FilterElement('filter')]), dt=0.5).run(until=10).trajectory_.values('filter.y')[-1])
 ```
 
 **Noise conventions.** `NoiseLaw(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read. The
@@ -463,21 +471,26 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.engine.solvers import MilsteinSolver
+from skcomplex.core.declarations import parameter, state
 
-GrowthElement = Element.define(
-    'GrowthElement',
-    states={'x': 1.0},
-    parameters={'mu': 0.5, 'sigma': 0.8},
-    laws=lambda s: [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')],
-)
-growth = System(components=[GrowthElement('asset')])
+class GrowthElement(Element):
+    """Growth element."""
+
+    x = state(1.0)
+    mu = parameter(0.5)
+    sigma = parameter(0.8)
+
+    def laws(self, s):
+        """Return the laws of the growth element."""
+        return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')]
+growth = System(elements=[GrowthElement('asset')])
 print(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).run(until=1).state_)
 ```
 
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
 every component and every group member takes its own independent process. Laws of one component, or of one member,
 that name the same label share one increment, so a reaction can drive every species it changes with one process. A
-`WienerProcess(label, dimension, covariance)` declares processes whose increments over a step `h` have the covariance
+`WienerProcessSpec(label, dimension, covariance)` declares processes whose increments over a step `h` have the covariance
 `h C`. It is no component: an interaction binds it through a role declared with `role(noise=True)`, and its noise laws
 name process `k` with `s.<role>.dW[k]`, which every component, and every member of a group, can share. Interactions of
 one system that bind processes of one label share them and their correlations. The covariance is fixed when the system
@@ -492,25 +505,29 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.base import role
-from skcomplex.core.components import WienerProcess
+from skcomplex.core.specs import WienerProcessSpec
 from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.declarations import state
 
-StockElement = Element.define('StockElement', states={'n': 0.0})
+class StockElement(Element):
+    """Stock element."""
+
+    n = state(0.0)
 
 
 class MarketInteraction(BaseInteraction):
     first: str = role()
     second: str = role()
-    noise: WienerProcess = role(noise=True)
+    noise: WienerProcessSpec = role(noise=True)
 
     def laws(self, s):
         return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
 
 
-processes = WienerProcess('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
+processes = WienerProcessSpec('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
 market = System(
-    components=[StockElement('a'), StockElement('b')],
+    elements=[StockElement('a'), StockElement('b')],
     interactions=[MarketInteraction('drive', first='a', second='b', noise=processes)],
 )
 trajectory = Simulation(market, solver=EulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
@@ -541,22 +558,28 @@ from skcomplex.core.system import System
 
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.formalisms.fields import FieldElement, laplacian
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.declarations import parameter, state
 
-DensityElement = Element.define(
-    'DensityElement',
-    states={'rho': 1.0},
-    parameters={'D': 1.0, 'T': 0.1},
-    laws=lambda s: [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)],
-)
-gas = System(components=[FieldElement('gas', DensityElement, LatticeSpace((16, 16)))])
+class DensityElement(Element):
+    """Density element."""
+
+    rho = state(1.0)
+    D = parameter(1.0)
+    T = parameter(0.1)
+
+    def laws(self, s):
+        """Return the laws of the density element."""
+        return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)]
+gas = System(elements=[FieldElement('gas', DensityElement, LatticeSpace((16, 16)))])
 density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_.values('gas.rho')
 print(density[-1].sum(), density[-1].std() > 0)
 ```
 
 Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
-that drives several states, `'correlated'`, the processes of a `WienerProcess` with a covariance, and `'conserved'`,
+that drives several states, `'correlated'`, the processes of a `WienerProcessSpec` with a covariance, and `'conserved'`,
 the link processes of conserved noise. `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four.
 `MilsteinSolver`, whose derivative-free correction holds for diagonal noise only, and the LAMMPS backend support diagonal
 noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists the declarations. In the library,
@@ -594,17 +617,23 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.laws import UpdateLaw, bernoulli, normal, where
+from skcomplex.core.declarations import parameter, state
+from skcomplex.core.elements import GroupElement
 
-PersistentElement = Element.define(
-    'PersistentElement',
-    states={'d': 1.0, 'x': 0.0},
-    parameters={'q': 0.8},
-    laws=lambda s: [
+class PersistentElement(Element):
+    """Persistent element."""
+
+    d = state(1.0)
+    x = state(0.0)
+    q = parameter(0.8)
+
+    def laws(self, s):
+        """Return the laws of the persistent element."""
+        return [
         UpdateLaw(s.d, where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d)),
         UpdateLaw(s.x, s.x + where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d) + normal('jitter', 0, 0.1)),
-    ],
-)
-walkers = System(components=[PersistentElement.group('walkers', 500)])
+    ]
+walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
 final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
@@ -632,20 +661,22 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.laws import EmissionLaw, TransitionLaw
+from skcomplex.core.declarations import parameter
 
-SourceElement = Element.define(
-    'SourceElement',
-    states={
-        'hidden': state(default='calm', domain=NumericDomain.categorical('calm', 'storm')),
-        'symbol': state(default='a', domain=NumericDomain.categorical('a', 'b')),
-    },
-    parameters={'stay': 0.9},
-    laws=lambda s: [
+class SourceElement(Element):
+    """Source element."""
+
+    hidden = state(default='calm', domain=NumericDomain.categorical('calm', 'storm'))
+    symbol = state(default='a', domain=NumericDomain.categorical('a', 'b'))
+    stay = parameter(0.9)
+
+    def laws(self, s):
+        """Return the laws of the source element."""
+        return [
         TransitionLaw(s.hidden, [[s.stay, 1 - s.stay], [0.4, 0.6]]),
         EmissionLaw(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
-    ],
-)
-simulation = Simulation(System(components=[SourceElement('source')]), dt=1.0, random_state=0).run(until=10000)
+    ]
+simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).run(until=10000)
 print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
@@ -675,13 +706,18 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.laws import draw
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import GroupElement
 
-FlierElement = Element.define(
-    'FlierElement',
-    states={'x': 0.0},
-    laws=lambda s: [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))],
-)
-flight = Simulation(System(components=[FlierElement.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
+class FlierElement(Element):
+    """Flier element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the flier element."""
+        return [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))]
+flight = Simulation(System(elements=[GroupElement('fliers', element=FlierElement, size=100)]), dt=1.0, random_state=0).run(until=20)
 print(flight.trajectory_.values('fliers.x').shape)
 ```
 
@@ -706,14 +742,19 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.laws import JumpLaw
+from skcomplex.core.declarations import parameter, state
+from skcomplex.core.elements import GroupElement
 
-WalkerElement = Element.define(
-    'WalkerElement',
-    states={'x': 0.0},
-    parameters={'alpha': 0.5},
-    laws=lambda s: [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
-)
-walk = Simulation(System(components=[WalkerElement.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
+class WalkerElement(Element):
+    """Walker element."""
+
+    x = state(0.0)
+    alpha = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the walker element."""
+        return [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')]
+walk = Simulation(System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)]), dt=100.0, random_state=0).run(until=1000)
 print(walk.problem_.form.value, walk.trajectory_.values('jumps.renewals')[-1] > 1000)
 ```
 
@@ -738,11 +779,21 @@ from skcomplex.core.components import Element
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver, FractionalNoiseLaw
+from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+from skcomplex.core.laws import FractionalNoiseLaw
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import GroupElement
 
-RoughElement = Element.define('RoughElement', states={'x': 0.0}, laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=0.3)])
+class RoughElement(Element):
+    """Rough element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the rough element."""
+        return [FractionalNoiseLaw(s.x, 1, hurst=0.3)]
 rough = Simulation(
-    System(components=[RoughElement.group('walkers', 500)]),
+    System(elements=[GroupElement('walkers', element=RoughElement, size=500)]),
     solver=FractionalEulerMaruyamaSolver(dt=0.01),
     dt=0.1,
     random_state=0,
@@ -782,12 +833,19 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.engine.analysis import mittag_leffler
+from skcomplex.analysis import mittag_leffler
 from skcomplex.core.base import state
-from skcomplex.formalisms.fractional import L1Solver
+from skcomplex.engine.solvers import L1Solver
 
-RelaxingElement = Element.define('RelaxingElement', states={'x': state(1.0, order=0.6)}, laws=lambda s: [RateLaw(s.x, -s.x)])
-relaxing = Simulation(System(components=[RelaxingElement('a')]), solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
+class RelaxingElement(Element):
+    """Relaxing element."""
+
+    x = state(1.0, order=0.6)
+
+    def laws(self, s):
+        """Return the laws of the relaxing element."""
+        return [RateLaw(s.x, -s.x)]
+relaxing = Simulation(System(elements=[RelaxingElement('a')]), solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
 exact = mittag_leffler(0.6, 1.0, -(20.0**0.6))
 print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
 ```
@@ -797,7 +855,7 @@ order that is neither an integer nor in `(0, 1)` (`fractional-order`), a fractio
 time is not continuous (`fractional-time`), a chosen solver or backend that does not integrate fractional orders
 (`order-unsupported`), and a law on a fractional state that no fractional solver runs, such as a noise law
 (`solver-unsupported`). Solvers and backends declare the kinds of order they integrate in the `orders` field of their
-`Supports`, `'integer'` or `'fractional'`. The NumPy and Numba backends run the fractional form.
+`SupportSpec`, `'integer'` or `'fractional'`. The NumPy and Numba backends run the fractional form.
 
 `mittag_leffler(alpha, beta, z)` evaluates the two-parameter Mittag-Leffler function. It sums the power series in
 arbitrary precision with Sage for moderate arguments and takes the asymptotic expansion for large ones.
@@ -826,14 +884,19 @@ from skcomplex.core.system import System
 import numpy as np
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.system import Observable
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import GroupElement
 
-OscillatorElement = Element.define(
-    'OscillatorElement',
-    states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
-    parameters={'omega': 1.0},
-    laws=lambda s: [RateLaw(s.theta, s.omega)],
-)
+class OscillatorElement(Element):
+    """Oscillator element."""
+
+    theta = state(0.0, domain=NumericDomain.ANGLE)
+    omega = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the oscillator element."""
+        return [RateLaw(s.theta, s.omega)]
 
 
 def phase_vector(member):
@@ -845,9 +908,9 @@ def order_parameter(s):
 
 
 oscillators = System(
-    components=[OscillatorElement.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
+    elements=[GroupElement('phases', element=OscillatorElement, size=100, values={'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)})],
 )
-observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
+observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
 order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
@@ -864,16 +927,19 @@ import numpy as np
 from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import Observable, System
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 
 from sage.all__sagemath_symbolics import cos, sin
 
-MeanFieldInteraction = BaseInteraction.define(
-    'MeanFieldInteraction',
-    roles=['target', 'X', 'Y'],
-    parameters={'K': 1.0},
-    laws=lambda s: [RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))],
-)
+class MeanFieldInteraction(BaseInteraction):
+    target = role()
+    X = role()
+    Y = role()
+    K = parameter(1.0)
+
+    def laws(self, s):
+        return [RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))]
 
 
 def cosine(member):
@@ -885,10 +951,15 @@ def sine(member):
 
 
 coupled = System(
-    components=[OscillatorElement.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
+    elements=[GroupElement(
+            'phases',
+            element=OscillatorElement,
+            size=100,
+            values={'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)},
+        )],
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
-observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
+observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
 print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1].round(2))
 ```
 
@@ -910,7 +981,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.laws import Sink, Source, TransferLaw, lookup
-from skcomplex.core.system import observe_element
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.declarations import parameter
 
 
 def birth_rate(s):
@@ -921,13 +993,17 @@ def population_laws(s):
     return [TransferLaw(Source(), s.n, birth_rate(s), label='births'), TransferLaw(s.n, Sink(), s.d * s.n, label='deaths')]
 
 
-PeopleElement = Element.define(
-    'PeopleElement',
-    states={'n': state(10.0, quantity='people')},
-    parameters={'b': 0.03, 'd': 0.01},
-    laws=population_laws,
-)
-crowd = System(components=[PeopleElement('crowd')])
+class PeopleElement(Element):
+    """People element."""
+
+    n = state(10.0, quantity='people')
+    b = parameter(0.03)
+    d = parameter(0.01)
+
+    def laws(self, s):
+        """Return the laws of the people element."""
+        return population_laws(s)
+crowd = System(elements=[PeopleElement('crowd')])
 observed = [observe_element('crowd', 'birth_rate', birth_rate)]
 trajectory = Simulation(crowd, dt=1.0, observables=observed).run(until=10).trajectory_
 print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
@@ -943,7 +1019,7 @@ the transaction-flow matrix of a frame, one row per flow and one column per hold
 ```python continuation
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.engine.analysis import conservation, flow_matrix
+from skcomplex.analysis import conservation, flow_matrix
 from skcomplex.engine.runtime import ConservationObserver
 
 print(conservation(crowd))
@@ -961,7 +1037,7 @@ realizations in `skcomplex.models.engineering.processes`.
 feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
 
 ```python continuation
-from skcomplex.engine.analysis import loop_dominance, loops
+from skcomplex.analysis import loop_dominance, loops
 
 for loop in loops(crowd).loops:
     print(loop.polarity, ' -> '.join(loop.nodes))
@@ -979,11 +1055,13 @@ tagged state raises `ConservationError` until its holdings are settled with tran
 ```python
 from skcomplex.core.base import state
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import Observable, System
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.system import System
 
 from skcomplex.core.components import Element
-from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.core.laws import RuleLaw
 from skcomplex.core.laws import transfer
+from skcomplex.core.elements import GroupElement
 
 
 def net_worth(agent):
@@ -1005,8 +1083,8 @@ class TraderElement(Element):
             transfer(borrower, agent, 1.0, 'claims')
 
 
-balance = Observable('net_worth', net_worth, group='traders', reduce='sum')
-market = System(components=[TraderElement.group('traders', 3)])
+balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
+market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
 traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).run(until=3).trajectory_
 print(traders.agents('traders', 3).values['cash'].sum())
 ```
@@ -1031,15 +1109,19 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.engine.compile import validate
+from skcomplex.core.declarations import state
 
-HeaterElement = Element.define(
-    'HeaterElement',
-    states={'T': 0.0},
-    parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
-    laws=lambda s: [RateLaw(s.T, s.power - s.T)],
-)
-room = System(components=[HeaterElement('heater')])
-print([issue.path for issue in validate(System(components=[HeaterElement('heater', power=2.0)])).errors])
+class HeaterElement(Element):
+    """Heater element."""
+
+    T = state(0.0)
+    power = parameter(0.0, adaptive=True, bounds=(0, 1))
+
+    def laws(self, s):
+        """Return the laws of the heater element."""
+        return [RateLaw(s.T, s.power - s.T)]
+room = System(elements=[HeaterElement('heater')])
+print([issue.path for issue in validate(System(elements=[HeaterElement('heater', power=2.0)])).errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
 print(heated.values('heater.power'))
@@ -1070,15 +1152,19 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
+from skcomplex.engine.solvers import CollocationSolver, PontryaginSolver
+from skcomplex.core.declarations import state
 
-PlantElement = Element.define(
-    'PlantElement',
-    states={'x': 1.0},
-    parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-    laws=lambda s: [RateLaw(s.x, s.u)],
-)
-plant = System(components=[PlantElement('plant')])
+class PlantElement(Element):
+    """Plant element."""
+
+    x = state(1.0)
+    u = parameter(0.0, adaptive=True, bounds=(-10, 10))
+
+    def laws(self, s):
+        """Return the laws of the plant element."""
+        return [RateLaw(s.x, s.u)]
+plant = System(elements=[PlantElement('plant')])
 
 
 def cost(s):
@@ -1131,15 +1217,20 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 
-from skcomplex.engine.analysis import controllability, linearize, lqr, observability
+from skcomplex.analysis import controllability, linearize, lqr, observability
+from skcomplex.core.declarations import state
 
-CartElement = Element.define(
-    'CartElement',
-    states={'x': 0.0, 'v': 0.0},
-    parameters={'force': parameter(0.0, adaptive=True, bounds=(-1, 1))},
-    laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, s.force)],
-)
-model = linearize(System(components=[CartElement('cart')]), outputs=['cart.x'])
+class CartElement(Element):
+    """Cart element."""
+
+    x = state(0.0)
+    v = state(0.0)
+    force = parameter(0.0, adaptive=True, bounds=(-1, 1))
+
+    def laws(self, s):
+        """Return the laws of the cart element."""
+        return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
+model = linearize(System(elements=[CartElement('cart')]), outputs=['cart.x'])
 print(controllability(model.A, model.B), observability(model.A, model.C))
 print(lqr(model.A, model.B, [[1, 0], [0, 1]], [[1]]).round(3))
 ```
@@ -1163,7 +1254,7 @@ listed in their import order, so a package imports only the packages above it.
 - `space`: `BaseSpace` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
 - `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and
   flows.
-- `components`: `BaseElement`, `Element`, `GroupElement`, and `WienerProcess`, which is no component.
+- `components`: `BaseElement`, `Element`, `GroupElement`, and `WienerProcessSpec`, which is no component.
 - `interactions`: `BaseInteraction` and the bindings of its roles.
 - `system`: `System`, `Observable`, `observe_element`, and ensembles.
 - `compile`: validation and the pipeline of passes that turns a system into a problem.
@@ -1213,8 +1304,7 @@ A name specific to one formalism is imported from the package of that formalism,
 - `registered_formalisms()` lists the registered formalisms in registration order.
 
 ```python
-from skcomplex.formalisms import registered_formalisms
-from skcomplex.formalisms.quantum import GeneratorLaw
+from skcomplex.core.laws import GeneratorLaw
 
 quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
 print([law.__name__ for law in quantum.laws], sorted(quantum.solvers))
@@ -1252,8 +1342,8 @@ from skcomplex.core.base import (
     LawClass,
     LawKind,
     OrderKind,
-    Requires,
-    Supports,
+    RequirementSpec,
+    SupportSpec,
     TimeKind,
     Trait,
     VisualSpec,
@@ -1262,10 +1352,9 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.engine.compile import BaseSystemCompiler
-from skcomplex.core.problems import CompiledElement, Problem
-from skcomplex.core.problems import Entry, Layout
+from skcomplex.engine.problems import CompiledElement, Problem
+from skcomplex.engine.problems import Entry, Layout
 from skcomplex.core.components import Element
-from skcomplex.formalisms import Formalism, register
 from skcomplex.core.base import BaseLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import Solver
@@ -1280,7 +1369,7 @@ class DecayLaw(BaseLaw):
     law_kind: ClassVar[LawKind] = DECAY
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires()
+    requires: ClassVar[RequirementSpec] = RequirementSpec()
 
     targets: Expression | tuple[Expression, ...]
     rate: object
@@ -1329,7 +1418,7 @@ class DecayCompiler(BaseSystemCompiler):
 
 
 class ExactDecaySolver(Solver):
-    supports: ClassVar[Supports] = Supports(
+    supports: ClassVar[SupportSpec] = SupportSpec(
         time={TimeKind.CONTINUOUS},
         laws={DECAY},
         domains={DomainKind.REAL},
@@ -1353,7 +1442,7 @@ register(
         defaults=(ExactDecaySolver,),
     ),
 )
-decayed = Simulation(System(components=[NucleusElement('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
+decayed = Simulation(System(elements=[NucleusElement('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
 print(type(decayed.stepper_).__name__, decayed.trajectory_.values('atom.n')[-1].round(4))
 ```
 
@@ -1426,19 +1515,23 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import create, register_model
+from skcomplex.core.declarations import parameter
 
-TankElement = Element.define(
-    'TankElement',
-    states={'level': state(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'k': 0.5},
-    laws=lambda s: [RateLaw(s.level, -s.k * s.level)],
-)
+class TankElement(Element):
+    """Tank element."""
+
+    level = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the tank element."""
+        return [RateLaw(s.level, -s.k * s.level)]
 
 
 @register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
 def draining_tank(level: float = 2.0) -> System:
     """Return a tank that drains at a rate proportional to its level."""
-    return System(components=[TankElement('tank', level=level)])
+    return System(elements=[TankElement('tank', level=level)])
 
 
 print(create('draining_tank').elements[0].level)
@@ -1474,21 +1567,21 @@ from skcomplex.core.system import System
 
 import numpy as np
 
-from skcomplex.formalisms.particles import ParticleElement
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.elements import ParticleElement
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import GroupElement
 
 rng = np.random.default_rng(0)
 gas = System(
-    components=[ParticleElement.group('gas', 1_000, x=rng.uniform(0, 1, (1_000, 2)), v=rng.normal(0, 1, (1_000, 2)))],
-    space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
+    elements=[GroupElement('gas', element=ParticleElement, size=1_000, values={'x': rng.uniform(0, 1, (1_000, 2)), 'v': rng.normal(0, 1, (1_000, 2))})],
+    space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).run(until=0.5).trajectory_
 print(trajectory.values('gas.x').shape)
 ```
 
-- The label and the size of a group are given by position, `ParticleElement.group('gas', 1_000, ...)`, so a state named
-  `size` takes per-member values by keyword. States and parameters cannot be named `label`, `visual`, or `remembers`,
-  and those of agents cannot take the names of the agent view, such as `location` or `alive`.
+- A group is `GroupElement(label, element=..., size=..., values={...})`, with per-member values by state name. States
+  and parameters of agents cannot take the names of the agent view, such as `location` or `alive`.
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
@@ -1528,26 +1621,41 @@ from skcomplex.core.system import System
 from sage.all__sagemath_symbolics import tanh
 
 from skcomplex.core.laws import total
+from skcomplex.core.declarations import role, state
+from skcomplex.core.elements import GroupElement
 
-UnitElement = Element.define('UnitElement', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
-units = System(components=[UnitElement.group('units', 50, x=np.linspace(-1, 1, 50))])
+class UnitElement(Element):
+    """Unit element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the unit element."""
+        return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
+units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 print(Simulation(units, dt=0.5).run(until=2).trajectory_.values('units.x')[-1, :3].round(3))
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
-StrategyElement = Element.define('StrategyElement', states={'x': 0.5})
-ReplicationInteraction = BaseInteraction.define(
-    'ReplicationInteraction',
-    roles=['population'],
-    laws=lambda s: [
+class StrategyElement(Element):
+    """Strategy element."""
+
+    x = state(0.5)
+class ReplicationInteraction(BaseInteraction):
+    """Replication interaction."""
+
+    population = role()
+
+    def laws(self, s):
+        """Return the laws of the replication interaction."""
+        return [
         RateLaw(
             s.population.x,
             s.population.x
             * (total(s.population.x, weights=payoff) - total(s.population.x * total(s.population.x, weights=payoff))),
         ),
-    ],
-)
+    ]
 game = System(
-    components=[StrategyElement.group('population', 2, x=[0.1, 0.9])],
+    elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
 print(Simulation(game, dt=1.0).run(until=40).trajectory_.values('population.x')[-1].round(3))
@@ -1562,16 +1670,23 @@ from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw, total
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.core.declarations import parameter, role, state
 
-InhibitionInteraction = BaseInteraction.define(
-    'InhibitionInteraction',
-    roles=['units'],
-    parameters={'beta': 2.0},
-    laws=lambda s: [RateLaw(s.units.x, s.units.x * (1 - s.units.x) - s.beta * s.units.x * (total(s.units.x) - s.units.x))],
-)
-ActivityElement = Element.define('ActivityElement', states={'x': 0.1})
+class InhibitionInteraction(BaseInteraction):
+    """Inhibition interaction."""
+
+    units = role()
+    beta = parameter(2.0)
+
+    def laws(self, s):
+        """Return the laws of the inhibition interaction."""
+        return [RateLaw(s.units.x, s.units.x * (1 - s.units.x) - s.beta * s.units.x * (total(s.units.x) - s.units.x))]
+class ActivityElement(Element):
+    """Activity element."""
+
+    x = state(0.1)
 network = System(
-    components=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
+    elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
 print(Simulation(network, dt=1.0).run(until=30).state_.round(3))
@@ -1591,8 +1706,13 @@ from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import GroupElement
 
-NodeElement = Element.define('NodeElement', states={'x': 0.0})
+class NodeElement(Element):
+    """Node element."""
+
+    x = state(0.0)
 
 
 class WeightedSumInteraction(BaseInteraction):
@@ -1606,7 +1726,7 @@ class WeightedSumInteraction(BaseInteraction):
 
 
 summed = System(
-    components=[NodeElement('a', x=1.0), NodeElement('b', x=2.0), NodeElement('out'), NodeElement.group('nodes', 5, x=[0.0, 1.0, 2.0, 3.0, 4.0])],
+    elements=[NodeElement('a', x=1.0), NodeElement('b', x=2.0), NodeElement('out'), GroupElement('nodes', element=NodeElement, size=5, values={'x': [0.0, 1.0, 2.0, 3.0, 4.0]})],
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
 simulation = Simulation(summed, dt=1).run(until=1)
@@ -1617,7 +1737,7 @@ print(simulation.trajectory_.values('out.x'), simulation.parameters_)
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
 read like a single element, while a variadic role gives one law the whole sequence. `random_boolean_network` and
 `yeast_cell_cycle` read the inputs of every node through one variadic role. A role declared with `role(noise=True)`
-binds a `WienerProcess` instead of a path, as the section on shared and correlated noise shows.
+binds a `WienerProcessSpec` instead of a path, as the section on shared and correlated noise shows.
 
 ### Several groups and member offsets
 
@@ -1642,18 +1762,31 @@ import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
 from skcomplex.core.laws import RateLaw, mod, shift_member
+from skcomplex.core.declarations import parameter, role, state
+from skcomplex.core.elements import GroupElement
 
-CarElement = Element.define('CarElement', states={'x': 0.0, 'v': 1.0}, laws=lambda s: [RateLaw(s.x, s.v)])
-FollowingComponentInteraction = BaseInteraction.define(
-    'FollowingComponentInteraction',
-    roles=['cars'],
-    parameters={'length': 40.0},
-    laws=lambda s: [
+class CarElement(Element):
+    """Car element."""
+
+    x = state(0.0)
+    v = state(1.0)
+
+    def laws(self, s):
+        """Return the laws of the car element."""
+        return [RateLaw(s.x, s.v)]
+class FollowingComponentInteraction(BaseInteraction):
+    """Following component interaction."""
+
+    cars = role()
+    length = parameter(40.0)
+
+    def laws(self, s):
+        """Return the laws of the following component interaction."""
+        return [
         RateLaw(s.cars.v, tanh(mod(shift_member(s.cars.x, 1) - s.cars.x, s.length) - 2.0) + tanh(2.0) - s.cars.v),
-    ],
-)
+    ]
 ring = System(
-    components=[CarElement.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
+    elements=[GroupElement('cars', element=CarElement, size=20, values={'x': np.arange(20) * 2.0 + np.eye(20)[0] * 0.1})],
     interactions=[FollowingComponentInteraction('following', cars='cars', length=40.0)],
 )
 print(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1)
@@ -1677,15 +1810,24 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, total
 from skcomplex.core.system import System
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import GroupElement
 
-UnitElement = Element.define('UnitElement', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
-units = System(components=[UnitElement.group('units', 50, x=np.linspace(-1, 1, 50))])
+class UnitElement(Element):
+    """Unit element."""
+
+    x = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the unit element."""
+        return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
+units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = compile_system(units)
 jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
-`dynamics_of`, `fixed_points`, `stability`, and `jacobian` of `skcomplex.engine.analysis` expand a group of at most 64
+`dynamics_of`, `fixed_points`, `stability`, and `jacobian` of `skcomplex.analysis` expand a group of at most 64
 members into one equation per member, with every reduction written as an explicit sum, so the fixed points of
 replicator dynamics are derived symbolically. A larger group raises an error that states the limit.
 
@@ -1696,13 +1838,14 @@ group or between two groups. `PairPotentialInteraction` derives the forces from 
 
 ```python
 import numpy as np
-from skcomplex.formalisms.particles import ParticleElement
+from skcomplex.core.elements import ParticleElement
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
 from skcomplex.core.base import NumericDomain, parameter
-from skcomplex.formalisms.particles import PairPotentialInteraction
+from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.elements import GroupElement
 
 
 class LennardJonesInteraction(PairPotentialInteraction):
@@ -1715,7 +1858,7 @@ class LennardJonesInteraction(PairPotentialInteraction):
 
 side = np.arange(10) * 1.2
 liquid = System(
-    components=[ParticleElement.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)})],
     interactions=[LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5)],
     space=ContinuousSpace(n_dim=2),
 )
@@ -1735,7 +1878,7 @@ stochastic systems, jump processes, and discrete maps.
 ## Lattice models
 
 Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(shape, boundary=...)` is a box of `Z^d`
-with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `Element.lattice(label, space, **values)` puts one member
+with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `LatticeElement(label, element=..., space=space, values={...})` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
 
 Every space speaks the verbs of the framework. `space.prepare()` checks its arguments and derives its facts, which end in
@@ -1745,7 +1888,7 @@ of every site `positions_`, whether it wraps `periodic_`, and the visual of its 
 space's own. Compiling a system fits its spaces, so a space needs `prepare()` only when its facts are read before.
 
 ```python
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
 space = LatticeSpace((4, 3), neighborhood='von_neumann').prepare()
 print(space.size_, space.shape_, space.periodic_, space.run(0).tolist())
@@ -1765,18 +1908,22 @@ from skcomplex.core.components import Element
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.lattices import LocalRuleLaw
+from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws import OuterTotalistic
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import LatticeElement
 
-LifeElement = Element.define(
-    'LifeElement',
-    states={'alive': state(0, domain=NumericDomain.BOOLEAN)},
-    laws=lambda s: [LocalRuleLaw(s.alive, Neighborhood.moore(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))],
-)
+class LifeElement(Element):
+    """Life element."""
+
+    alive = state(0, domain=NumericDomain.BOOLEAN)
+
+    def laws(self, s):
+        """Return the laws of the life element."""
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-cells = System(components=[LifeElement.lattice('cells', LatticeSpace((20, 20)), alive=glider)])
+cells = System(elements=[LatticeElement('cells', element=LifeElement, space=LatticeSpace((20, 20)), values={'alive': glider})])
 trajectory = Simulation(cells, dt=1).run(until=4).trajectory_
 print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1))))
 ```
@@ -1811,56 +1958,68 @@ changes live.
 from skcomplex.core.base import NumericDomain, state
 from skcomplex.core.components import Element
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
+from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
+from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws import neighbors
+from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import LatticeElement
 
-nearest = Neighborhood.von_neumann()
-SpinElement = Element.define(
-    'SpinElement',
-    states={'spin': state(1.0, domain=NumericDomain.INTEGER)},
-    parameters={'J': 1.0, 'temperature': 1.5},
-    laws=lambda s: [
+nearest = VonNeumannNeighborhood()
+class SpinElement(Element):
+    """Spin element."""
+
+    spin = state(1.0, domain=NumericDomain.INTEGER)
+    J = parameter(1.0)
+    temperature = parameter(1.5)
+
+    def laws(self, s):
+        """Return the laws of the spin element."""
+        return [
         SampleLaw(
             Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
             MoveLaw.flip(s.spin),
             SamplerLaw('metropolis', s.temperature),
         ),
-    ],
-)
-spins = System(components=[SpinElement.lattice('spins', LatticeSpace((32, 32)))])
+    ]
+spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
 **Triangular lattices.** `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so
 every boundary works as on a square lattice, and places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane,
-given by the `positions` property. `Neighborhood.triangular()` holds its six neighbours counterclockwise from 0
+given by the `positions` property. `TriangularNeighborhood()` holds its six neighbours counterclockwise from 0
 degrees, so direction `k + 3` modulo 6 is opposite to direction `k`, as lattice gases need. The cells of the sites
 are the hexagons of a hexagonal tiling.
 
 ```python
 import numpy as np
 from skcomplex.core.components import Element
-from skcomplex.formalisms.lattices import LocalRuleLaw
+from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import LatticeElement
 
-BurnElement = Element.define(
-    'BurnElement',
-    states={'fire': 0.0},
-    laws=lambda s: [LocalRuleLaw(s.fire, Neighborhood.triangular(center=True), lambda *values: np.max(values, axis=0))],
-)
+class BurnElement(Element):
+    """Burn element."""
+
+    fire = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the burn element."""
+        return [LocalRuleLaw(s.fire, TriangularNeighborhood(center=True), lambda *values: np.max(values, axis=0))]
 fire = np.zeros((40, 40))
 fire[20, 20] = 1
-forest = System(components=[BurnElement.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
+forest = System(elements=[LatticeElement('forest', element=BurnElement, space=LatticeSpace((40, 40), geometry='triangular'), values={'fire': fire})])
 burning = Simulation(forest, dt=1).run(until=3).trajectory_.lattice('forest.fire')
 print([int(item.sum()) for item in burning])
 ```
 
-**Lattices on graphs.** `Element.lattice` also takes a `NetworkSpace`, with one site per node in the order of
+**Lattices on graphs.** `LatticeElement` also takes a `NetworkSpace`, with one site per node in the order of
 `graph.nodes`, and initial values as arrays in node order or mappings from node to value. `Adjacency(center=False)` is
 the neighbourhood of a node, its neighbours along its edges, padded to the largest degree with the network's `fill`
 value. Local rules, drives, relaxations, Monte Carlo laws, and extremal laws run on graphs as on lattices. Lookup rules
@@ -1877,29 +2036,36 @@ of square lattices.
 ```python
 from skcomplex.core.base import NumericDomain, state
 from skcomplex.core.components import Element
-from skcomplex.formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
+from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
+from skcomplex.core.laws import SampleLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 import networkx as nx
 
 from skcomplex.core.laws import neighbors
-from skcomplex.core.space import Adjacency, NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, GeneratorNeighborhood, MooreNeighborhood, NetworkSpace, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import LatticeElement
 
-GraphSpinElement = Element.define(
-    'GraphSpinElement',
-    states={'spin': state(1.0, domain=NumericDomain.INTEGER)},
-    parameters={'J': 1.0, 'temperature': 1.0},
-    laws=lambda s: [
+class GraphSpinElement(Element):
+    """Graph spin element."""
+
+    spin = state(1.0, domain=NumericDomain.INTEGER)
+    J = parameter(1.0)
+    temperature = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the graph spin element."""
+        return [
         SampleLaw(
-            Energy(-s.J * s.spin * neighbors(s.other.spin, reduce='sum'), Adjacency()),
+            Energy(-s.J * s.spin * neighbors(s.other.spin, reduce='sum'), AdjacencyNeighborhood()),
             MoveLaw.flip(s.spin),
             SamplerLaw('metropolis', s.temperature, schedule='colored'),
         ),
-    ],
-)
+    ]
 graph = nx.random_regular_graph(4, 200, seed=0)
-spins = System(components=[GraphSpinElement.lattice('spins', NetworkSpace(graph))])
+spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
@@ -1914,22 +2080,27 @@ arguments by position or keyword, with no keyword-only arguments, and both backe
 import numpy as np
 from skcomplex.core.components import Element
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.lattices import ExtremalLaw
+from skcomplex.core.laws import ExtremalLaw
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import LatticeElement
 
 
 def renew(fitness, random):
     return random
 
 
-SpeciesElement = Element.define(
-    'SpeciesElement',
-    states={'fitness': 0.5},
-    laws=lambda s: [ExtremalLaw(s.fitness, Neighborhood(((-1,), (1,))), renew, repeat=100)],
-)
-ring = System(components=[SpeciesElement.lattice('ring', LatticeSpace(100), fitness=np.random.default_rng(0).random(100))])
+class SpeciesElement(Element):
+    """Species element."""
+
+    fitness = state(0.5)
+
+    def laws(self, s):
+        """Return the laws of the species element."""
+        return [ExtremalLaw(s.fitness, LatticeNeighborhood(((-1,), (1,))), renew, repeat=100)]
+ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=LatticeSpace(100), values={'fitness': np.random.default_rng(0).random(100)})])
 trajectory = Simulation(ring, dt=10, random_state=0).run(until=100).trajectory_
 print(len(trajectory.events), trajectory.events[0].label)
 ```
@@ -1953,7 +2124,7 @@ change edge states, laws reduce over the neighbours of a node, and topology requ
 The class methods of `NetworkSpace` wrap the generators of NetworkX: `erdos_renyi`, `watts_strogatz`,
 `barabasi_albert`, `configuration_model`, `stochastic_block_model`, `grid`, `complete`, and the spatially embedded
 `waxman` and `random_geometric`, whose node positions are the fitted `positions_`. A random generator takes a seed or
-a NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
+a NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `LayerSpec` names a second
 relation over the same nodes, such as work next to contacts. Fitting a network lowers every layer to arrays by its
 label: `graphs_` holds its graph, `edges_` the source and target of every edge, and `adjacency_` the neighbours of
 every node in compressed sparse row form.
@@ -1961,13 +2132,15 @@ every node in compressed sparse row form.
 ```python
 import networkx as nx
 
-from skcomplex.core.space import Layer, NetworkSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, MooreNeighborhood, NetworkSpace, TriangularNeighborhood, VonNeumannNeighborhood
 
-first = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
-second = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
+from skcomplex.core.specs import LayerSpec
+
+first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
+second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 print(sorted(first.graph.edges) == sorted(second.graph.edges))
 
-space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))]).prepare()
+space = NetworkSpace(nx.path_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))]).prepare()
 print(list(space.graphs_), [item.tolist() for item in space.edges_['work']])
 ```
 
@@ -1991,11 +2164,19 @@ from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.core.space import NetworkSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, MooreNeighborhood, NetworkSpace, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
+from skcomplex.core.declarations import state
+from skcomplex.core.elements import LatticeElement
 
-NeuronElement = Element.define('NeuronElement', states={'a': 0.0})
-SynapseElement = Element.define('SynapseElement', states={'w': 0.1})
+class NeuronElement(Element):
+    """Neuron element."""
+
+    a = state(0.0)
+class SynapseElement(Element):
+    """Synapse element."""
+
+    w = state(0.1)
 
 
 class HebbianInteraction(BaseInteraction):
@@ -2010,8 +2191,8 @@ class HebbianInteraction(BaseInteraction):
 
 space = NetworkSpace(nx.cycle_graph(6))
 system = System(
-    components=[
-        NeuronElement.lattice('neurons', space, a=[1.0, 1.0, 1.0, 0.0, 0.0, 0.0]),
+    elements=[
+        LatticeElement('neurons', element=NeuronElement, space=space, values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}),
         GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
     ],
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
@@ -2037,20 +2218,32 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw, neighbors
-from skcomplex.core.space import NetworkSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, MooreNeighborhood, NetworkSpace, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
+from skcomplex.core.declarations import role, state
+from skcomplex.core.elements import LatticeElement
 
-NodeElement = Element.define('NodeElement', states={'u': 0.0})
-LinkElement = Element.define('LinkElement', states={'w': 1.0})
-DiffusionInteraction = BaseInteraction.define(
-    'DiffusionInteraction',
-    roles=['nodes', 'links'],
-    laws=lambda s: [RateLaw(s.nodes.u, neighbors(s.nodes.other.u - s.nodes.u, weight=s.links.w))],
-)
+class NodeElement(Element):
+    """Node element."""
+
+    u = state(0.0)
+class LinkElement(Element):
+    """Link element."""
+
+    w = state(1.0)
+class DiffusionInteraction(BaseInteraction):
+    """Diffusion interaction."""
+
+    nodes = role()
+    links = role()
+
+    def laws(self, s):
+        """Return the laws of the diffusion interaction."""
+        return [RateLaw(s.nodes.u, neighbors(s.nodes.other.u - s.nodes.u, weight=s.links.w))]
 space = NetworkSpace(nx.path_graph(3))
 system = System(
-    components=[
-        NodeElement.lattice('nodes', space, u=[0.0, 1.0, 4.0]),
+    elements=[
+        LatticeElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}),
         GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': [1.0, 10.0]}),
     ],
     interactions=[DiffusionInteraction('diffusion', nodes='nodes', links='links')],
@@ -2084,18 +2277,31 @@ adds one node with two edges at every step:
 import numpy as np
 
 from skcomplex.core.components import Element, GroupElement
-from skcomplex.formalisms.topology import add_node
 from skcomplex.core.laws import UpdateLaw, neighbors
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import DiscreteTime, NetworkSpace
+from skcomplex.core.spaces import DiscreteTime, GeneratorNeighborhood, MooreNeighborhood, NetworkSpace, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
+from skcomplex.core.declarations import state
 
-NodeElement = Element.define('NodeElement', states={'age': 0.0}, laws=lambda s: [UpdateLaw(s.age, s.age + 1)])
-LinkElement = Element.define('LinkElement')
-GrowthElement = Element.define('GrowthElement', laws=lambda s: [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)])
-space = NetworkSpace.complete(3)
+class NodeElement(Element):
+    """Node element."""
+
+    age = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the node element."""
+        return [UpdateLaw(s.age, s.age + 1)]
+class LinkElement(Element):
+    """Link element."""
+class GrowthElement(Element):
+    """Growth element."""
+
+    def laws(self, s):
+        """Return the laws of the growth element."""
+        return [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)]
+space = NetworkSpace(nx.complete_graph(3))
 system = System(
-    components=[
+    elements=[
         GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=203),
         GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=403),
         GrowthElement('growth'),
@@ -2126,7 +2332,7 @@ import numpy as np
 
 from skcomplex.core.base import NumericDomain, parameter, role, state
 from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
 
 class WealthDensityElement(Element):
@@ -2165,12 +2371,12 @@ into another subsystem.
 import numpy as np
 from skcomplex.core.base import parameter, role
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
 from skcomplex.engine.compile import validate
 from skcomplex.core.base import BaseInteraction
-from skcomplex.formalisms.kinetics import EncounterLaw
+from skcomplex.core.laws import EncounterLaw
 
 
 def exchange_table(cooperation, competition):
@@ -2194,7 +2400,7 @@ class ExchangeInteraction(BaseInteraction):
 
 
 economy = System(
-    components=[wealth],
+    elements=[wealth],
     interactions=[ExchangeInteraction('exchange', population='wealth')],
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
@@ -2216,10 +2422,10 @@ External actions need no primitive of their own.
 ```python continuation
 import numpy as np
 from skcomplex.core.base import parameter, role
-from skcomplex.formalisms.kinetics import EncounterLaw
+from skcomplex.core.laws import EncounterLaw
 from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
 class PolicyInteraction(BaseInteraction):
@@ -2237,7 +2443,7 @@ class PolicyInteraction(BaseInteraction):
 
 
 welfare = System(
-    components=[wealth, WealthDensityElement.group('government', 1, f=1.0)],
+    elements=[wealth, GroupElement('government', element=WealthDensityElement, size=1, values={'f': 1.0})],
     interactions=[ExchangeInteraction('exchange', population='wealth'), PolicyInteraction('policy', population='wealth', government='government')],
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
@@ -2256,9 +2462,9 @@ receives the namespace of one member, and its function must be defined at module
 
 ```python continuation
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import Observable
+from skcomplex.core.specs import ObservableSpec
 
-from skcomplex.formalisms.kinetics import moment
+from skcomplex.core.laws.utils import moment
 
 
 def mean_wealth(s):
@@ -2270,8 +2476,8 @@ def wealth_variance(s):
 
 
 observables = [
-    Observable('mean_wealth', mean_wealth, group='wealth'),
-    Observable('wealth_variance', wealth_variance, group='wealth'),
+    ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
+    ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = Simulation(economy, dt=10.0, observables=observables).run(until=100).trajectory_
 print(trajectory.values('mean_wealth')[-1].round(3), trajectory.values('wealth_variance')[[0, -1]].round(3))
@@ -2293,7 +2499,7 @@ import numpy as np
 from skcomplex.engine.compile import validate
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.formalisms.kinetics import KineticSolver
+from skcomplex.engine.solvers import KineticSolver
 
 sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).run(until=100)
 print(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum().round(2))
@@ -2311,9 +2517,11 @@ level its moments.
 ```python continuation
 from skcomplex.core.components import Element
 
-from skcomplex.formalisms.kinetics import distribution_from, members_from
+from skcomplex.engine.compile import distribution_from, members_from
 
-TraderElement = Element.define('TraderElement', states={'w': 0.0})
+class TraderElement(Element):
+    w = state(0.0)
+
 traders = members_from(densities[-1], TraderElement, 1000, activities=classes, random_state=0)
 binned = distribution_from(traders, 'w', classes, element=WealthDensityElement, label='wealth')
 print(binned.values['f'].sum(), round(float(binned.values['f'] @ classes), 3), round(traders.values['w'].mean(), 3))
@@ -2332,7 +2540,7 @@ Cayley graph of a finitely generated group on the ball of radius `r` in its gene
 lattice kind, so `LocalRuleLaw`, `SampleLaw`, and the other lattice laws run on it with the NumPy and Numba backends, and a
 run reads only its neighbour table. Fitting the space enumerates its sites, numbered by word length: `words_` names
 their shortest words, `ball_sizes_` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
-`Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
+`Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `GeneratorNeighborhood(group.generators)`
 gives the identity followed by every generator and its inverse.
 
 The groups formalism, `skcomplex.formalisms.groups`, holds group spaces and the general constructors that give
@@ -2359,24 +2567,28 @@ rings by word length, colored by state, with the edges of the generators logged 
 import numpy as np
 from skcomplex.core.base import NumericDomain, state
 from skcomplex.core.components import Element
-from skcomplex.formalisms.lattices import LocalRuleLaw
+from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.groups import CayleySpace, finitely_presented_group, permutation_group
+from skcomplex.core.spaces import CayleySpace
 from skcomplex.core.laws import Totalistic
-from skcomplex.core.space import Memory
+from skcomplex.core.spaces import GeneratorNeighborhood, MemoryNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import LatticeElement
 
 free = finitely_presented_group(['a', 'b'])
 tree = CayleySpace(free, ball=4).prepare()
-memory = Memory.generators(free)
-MajorityElement = Element.define(
-    'MajorityElement',
-    states={'alive': state(0, domain=NumericDomain.BOOLEAN)},
-    laws=lambda s: [LocalRuleLaw(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))],
-)
+memory = GeneratorNeighborhood(free.generators)
+class MajorityElement(Element):
+    """Majority element."""
+
+    alive = state(0, domain=NumericDomain.BOOLEAN)
+
+    def laws(self, s):
+        """Return the laws of the majority element."""
+        return [LocalRuleLaw(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))]
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
-majority = System(components=[MajorityElement.lattice('cells', tree, alive=cells)])
+majority = System(elements=[LatticeElement('cells', element=MajorityElement, space=tree, values={'alive': cells})])
 print(tree.ball_sizes_, Simulation(majority, dt=1).run(until=3).trajectory_.values('cells.alive').shape)
 print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).prepare().words_)
 ```
@@ -2387,7 +2599,7 @@ tree by `a = (1, 1)(0 1)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is not fini
 faster than any polynomial and slower than any exponential.
 
 ```python
-from skcomplex.formalisms.groups import CayleySpace
+from skcomplex.core.spaces import CayleySpace
 
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
@@ -2395,7 +2607,7 @@ ball, quotient = CayleySpace(grigorchuk_group(), ball=6).prepare(), CayleySpace(
 print(ball.ball_sizes_, quotient.size_)
 ```
 
-**Theory of automata.** `skcomplex.engine.analysis` decides the properties the theory studies on finite universes, where
+**Theory of automata.** `skcomplex.analysis` decides the properties the theory studies on finite universes, where
 they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
 not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` is the map on configurations of a
 local rule, with `step` and `run`.
@@ -2410,14 +2622,14 @@ local rule, with `step` and `run`.
 
 ```python
 from skcomplex.core.laws import OuterTotalistic
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.engine.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
+from skcomplex.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
 from skcomplex.core.laws import Table
 
-life = Automaton(LatticeSpace((6, 6)), Neighborhood.moore(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
+life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
 print(is_surjective(life), garden_of_eden(life, random_state=0) is not None)
-shift = Automaton(LatticeSpace(8), Neighborhood(((1,),)), Table({(1,): 1}))
+shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
 print(compose(shift, inverse(shift)).step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
 ```
 
@@ -2432,12 +2644,12 @@ frame of a run, which never increases under an automaton, and `difference_patter
 after one cell changes.
 
 ```python
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.engine.analysis import LinearAutomaton, Subshift, configuration_entropy
+from skcomplex.analysis import LinearAutomaton, Subshift, configuration_entropy
 
-laplacian = LinearAutomaton(LatticeSpace(5), Neighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
-golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
+laplacian = LinearAutomaton(LatticeSpace(5), LatticeNeighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
+golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
 print(laplacian.is_invertible(), laplacian.is_surjective(infinite=True))
 print([golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 8)])
 print(configuration_entropy(golden, [LatticeSpace(24, boundary='fixed')]).round(3))
@@ -2459,21 +2671,26 @@ import numpy as np
 from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.fields import FieldElement, laplacian
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.declarations import parameter, state
 
-DiffusionInteractionElement = Element.define(
-    'DiffusionInteractionElement',
-    states={'u': 0.0},
-    parameters={'D': 1.0},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
-)
+class DiffusionInteractionElement(Element):
+    """Diffusion interaction element."""
+
+    u = state(0.0)
+    D = parameter(1.0)
+
+    def laws(self, s):
+        """Return the laws of the diffusion interaction element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u))]
 initial = np.zeros(400)
 initial[200] = 20.0
 rod = FieldElement('rod', DiffusionInteractionElement, LatticeSpace(400, spacing=0.05), boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = Simulation(System(components=[rod]), dt=0.1).run(until=0.5).trajectory_
+trajectory = Simulation(System(elements=[rod]), dt=0.1).run(until=0.5).trajectory_
 print(trajectory.values('rod.u')[-1].max(), trajectory.values('rod.u').sum(axis=1)[[0, -1]])
 ```
 
@@ -2505,9 +2722,9 @@ The same laws of a field run with another discretization by changing `FieldEleme
 - `'finite-volume'` fields take `FluxLaw(state, flux)`s, `du/dt + divergence(flux) = 0`, updated with MUSCL
   reconstruction, minmod or van Leer limiters, and Rusanov or exact Godunov fluxes. `SSPRKSolver` steps them by the CFL
   condition and by the stability limit of their Laplacian rates at the current parameters, and conserves their totals.
-- `'finite-element'` fields live on a `MeshSpace`, such as `MeshSpace.l_shape`, `MeshSpace.rectangle`, `MeshSpace.disk`, or
-  `MeshSpace.load(path)`, with stiffness and mass matrices from scikit-fem and boundary values that can be functions of
-  the coordinates. They stream to Rerun as colored meshes.
+- `'finite-element'` fields live on a `MeshSpace` of the points and cells of a scikit-fem mesh, such as
+  `MeshSpace(grid.p, grid.t)` for `grid = skfem.MeshTri.init_lshaped().refined(3)`, with stiffness and mass matrices
+  from scikit-fem and boundary values that can be functions of the coordinates. They stream to Rerun as colored meshes.
 
 The compiler splits the rate of every field into a linear part with constant coefficients, such as
 `D * laplacian(u)` or `-laplacian(laplacian(u))`, and a nonlinear remainder. `IMEXEulerSolver`, `IMEX2Solver`, and
@@ -2518,19 +2735,25 @@ equations take steps far beyond the explicit limit.
 ```python
 import numpy as np
 from skcomplex.core.components import Element
-from skcomplex.formalisms.fields import FieldElement, laplacian
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.fields import ETDRK4Solver, divergence
+from skcomplex.engine.solvers import ETDRK4Solver
+from skcomplex.core.laws.utils import divergence
+from skcomplex.core.declarations import state
 
-ChaosElement = Element.define(
-    'ChaosElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
-)
+class ChaosElement(Element):
+    """Chaos element."""
+
+    u = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the chaos element."""
+        return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
 positions = np.arange(1, 129) * 32 * np.pi / 128
 line = FieldElement(
     'line',
@@ -2539,7 +2762,7 @@ line = FieldElement(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-print(np.abs(Simulation(System(components=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).run(until=100).state_).max())
+print(np.abs(Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).run(until=100).state_).max())
 ```
 
 The implicit methods of `ScipyODESolver` are the stiff path for finite-difference and finite element fields, with adaptive
@@ -2609,6 +2832,7 @@ import numba
 
 from skcomplex.core.laws import Call, RateLaw
 from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.core.elements import GroupElement
 
 
 @numba.njit
@@ -2625,7 +2849,7 @@ class SaturationInteraction(BaseInteraction):
 
 
 herds = System(
-    components=[PopulationElement.group('herds', 2000, n=1.0)],
+    elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
 print(Simulation(herds, dt=0.1).run(until=1).trajectory_.values('herds.n')[-1, 0])
@@ -2642,17 +2866,18 @@ integrates them with velocity Verlet.
 
 ```python
 import numpy as np
-from skcomplex.formalisms.particles import ParticleElement
+from skcomplex.core.elements import ParticleElement
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.particles import LammpsSolver
+from skcomplex.engine.backends import LammpsSolver
 from skcomplex.models.physics.realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
+from skcomplex.core.elements import GroupElement
 side = np.arange(10) * 1.2
 
 atoms = System(
-    components=[ParticleElement.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)})],
     interactions=[
         LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5),
         LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0),
@@ -2698,8 +2923,9 @@ from skcomplex.core.system import System
 
 from skcomplex.core.base import NumericDomain, VisualSpec, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.laws import RuleLaw
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import GroupElement
 
 
 class ForagerElement(Element):
@@ -2722,7 +2948,7 @@ class ForagerElement(Element):
 
 
 foragers = System(
-    components=[ForagerElement.group('foragers', 50, variable=True)],
+    elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
@@ -2732,7 +2958,7 @@ print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers',
 - An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
   parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
   population. Only the members of a group declared `variable=True` are created and removed during a run.
-- `Element.group(label, size, location=...)` places the agents at cell coordinates, network nodes, or positions, one
+- `GroupElement(label, element=..., size=..., location=...)` places the agents at cell coordinates, network nodes, or positions, one
   per agent or one shared, and agents without a location take random places.
 - The model gives the random generator `model.rng`, the other agents with `model.agents(name)` and
   `model.count(name)`, and empty cells.
@@ -2754,12 +2980,13 @@ print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers',
 ```python
 from skcomplex.core.base import parameter, role
 from skcomplex.core.components import Element
-from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.core.laws import RuleLaw
 from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import GroupElement
 
 
 class WalkerElement(Element):
@@ -2787,14 +3014,14 @@ class SpreadInteraction(BaseInteraction):
 
 counts = []
 road = System(
-    components=[
+    elements=[
         System(
             'road',
-            components=[WalkerElement.group('walkers', 5, location=[(10.0 * index, 0.5) for index in range(5)])],
+            elements=[GroupElement('walkers', element=WalkerElement, size=5, location=[(10.0 * index, 0.5) for index in range(5)])],
             interactions=[SpreadInteraction('spread', walkers='walkers')],
         ),
     ],
-    space=ContinuousSpace(50.0, 1.0, boundary='periodic'),
+    space=ContinuousSpace(extent=(50.0, 1.0), boundary='periodic'),
 )
 Simulation(road, random_state=0).run(until=5)
 print(counts)
@@ -2805,7 +3032,7 @@ print(counts)
 Economic and social models order each step into phases, match agents in markets, let institutions set policy, and let
 agents learn from their past.
 
-- `DiscreteTime(schedule=PhasesSchedule([...]))` lists the phases of a step. A `Phase(name, activation, repeat)` runs its agents
+- `DiscreteTime(schedule=PhasesScheduleSpec([...]))` lists the phases of a step. A `PhaseSpec(name, activation, repeat)` runs its agents
   `'random'`ly, `'sequential'`ly in order of creation, `'simultaneous'`ly, or `'by-type'`, for `repeat` rounds such as
   intraday rounds. In a simultaneous phase every rule reads the states of the start of the phase, and the writes apply
   at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the phase `'default'`,
@@ -2830,13 +3057,14 @@ agents learn from their past.
 import numpy as np
 from skcomplex.core.base import parameter, state
 from skcomplex.core.components import Element
-from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.core.laws import RuleLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.agents import Phase, PhasesSchedule
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.spaces import DiscreteTime, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.models.economics.realizations import CallAuction, InstitutionInteraction, MarketInteraction
+from skcomplex.core.elements import GroupElement
 
 
 class TraderElement(Element):
@@ -2868,15 +3096,15 @@ class ClerkInteraction(InstitutionInteraction):
 
 rng = np.random.default_rng(0)
 auction = System(
-    components=[
-        TraderElement.group('buyers', 20, value=rng.uniform(0.5, 2, 20), demand=1.0, money=2.0),
-        TraderElement.group('sellers', 20, value=rng.uniform(0, 1.5, 20), supply=1.0),
+    elements=[
+        GroupElement('buyers', element=TraderElement, size=20, values={'value': rng.uniform(0.5, 2, 20), 'demand': 1.0, 'money': 2.0}),
+        GroupElement('sellers', element=TraderElement, size=20, values={'value': rng.uniform(0, 1.5, 20), 'supply': 1.0}),
     ],
     interactions=[
         MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='trade'),
         ClerkInteraction('clerk', phase='trade'),
     ],
-    time=DiscreteTime(schedule=PhasesSchedule([Phase('quote'), Phase('trade', repeat=3)])),
+    time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade', repeat=3)])),
 )
 trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
 print(trajectory.values('auction.price')[1:], trajectory.values('clerk.traded')[-1], trajectory.values('clerk.fee')[-1])
@@ -2891,11 +3119,12 @@ like those of any system. Mesa still runs the steps, as the backend of agent sys
 ```python
 from skcomplex.core.base import parameter, state
 from skcomplex.core.components import Element
-from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.core.laws import RuleLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import GroupElement
 
 
 class CoinElement(Element):
@@ -2909,7 +3138,7 @@ class CoinElement(Element):
         agent.heads += float(model.rng.random() < agent.bias)
 
 
-coins = System('coins', components=[CoinElement.group('coins', 10)], time=DiscreteTime())
+coins = System('coins', components=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
 print(Simulation(coins, random_state=0).run(until=10).trajectory_.agents('coins', 10).values['heads'].sum())
 ```
 
@@ -2932,7 +3161,9 @@ one-character symbols, and `Module` gives a symbol parameters.
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.rewriting import Module, ProductionLaw, RewriteLaw, WordElement
+from skcomplex.core.specs import ModuleSpec
+from skcomplex.core.laws import ProductionLaw
+from skcomplex.core.elements import WordElement
 
 
 class AlgaeElement(WordElement):
@@ -2940,7 +3171,7 @@ class AlgaeElement(WordElement):
         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
 
 
-algae = System(components=[AlgaeElement('algae', axiom='A')])
+algae = System(elements=[AlgaeElement('algae', axiom='A')])
 trajectory = Simulation(algae).run(until=5).trajectory_
 print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
@@ -2953,7 +3184,9 @@ parameters written as expressions of them and of the parameters of the rewritten
 `update_parameters` change between generations.
 
 ```python
-from skcomplex.formalisms.rewriting import Module, ProductionLaw, RewriteLaw, WordElement
+from skcomplex.core.specs import ModuleSpec
+from skcomplex.core.laws import ProductionLaw
+from skcomplex.core.elements import WordElement
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
@@ -2970,7 +3203,7 @@ class ShrinkingElement(WordElement):
         return [RewriteLaw([shrink])]
 
 
-plant = System(components=[ShrinkingElement('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
+plant = System(elements=[ShrinkingElement('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
 print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
@@ -2987,12 +3220,16 @@ maps relative to it. Structures with a geometry report `<element>.length` and `<
 `bounds()` and `raster(resolution)`, a boolean grid that `box_counting_dimension` reads.
 
 ```python
-from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, WordElement
+from skcomplex.core.laws import ProductionLaw
+from skcomplex.core.elements import WordElement
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.engine.analysis import box_counting_dimension
-from skcomplex.formalisms.rewriting import Affine, PatchElement, Prototile, SubstitutionLaw, WordGeometry
+from skcomplex.analysis import box_counting_dimension
+from skcomplex.core.specs import AffineSpec, PrototileSpec
+from skcomplex.core.elements import PatchElement
+from skcomplex.core.laws import SubstitutionLaw
+from skcomplex.engine.runtime import WordGeometry
 
 
 class KochElement(WordElement):
@@ -3000,7 +3237,7 @@ class KochElement(WordElement):
         return [RewriteLaw([ProductionLaw('F', 'F+F--F+F')])]
 
 
-koch = System(components=[KochElement('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))])
+koch = System(elements=[KochElement('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))])
 curve = Simulation(koch).run(until=4).trajectory_.structure('koch', 4)
 print(len(curve.segments()), round(curve.length(), 6))
 
@@ -3013,7 +3250,7 @@ class CantorElement(PatchElement):
         return [RewriteLaw([SubstitutionLaw('interval', thirds)])]
 
 
-cantor = System(components=[CantorElement('cantor', prototiles=[interval])])
+cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
 trajectory = Simulation(cantor).run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
@@ -3030,13 +3267,13 @@ A `GraphProductionLaw` gives a left graph, an interface, and a right graph that 
 drawn from the random stream, and skips matches whose deleted nodes would leave dangling edges.
 
 ```python
-from skcomplex.formalisms.rewriting import RewriteLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 import networkx as nx
 
-from skcomplex.formalisms.rewriting import GraphProductionLaw, HostGraphElement
+from skcomplex.core.laws import GraphProductionLaw
+from skcomplex.core.elements import HostGraphElement
 
 interface = nx.Graph()
 interface.add_nodes_from('ab')
@@ -3048,7 +3285,7 @@ class RingElement(HostGraphElement):
         return [RewriteLaw([subdivide])]
 
 
-ring = System(components=[RingElement('ring', graph=nx.cycle_graph(4))])
+ring = System(elements=[RingElement('ring', graph=nx.cycle_graph(4))])
 print(Simulation(ring, random_state=0).run(until=3).trajectory_.values('ring.size').tolist())
 ```
 
@@ -3058,7 +3295,7 @@ A quantum system is a set of quantum subsystems whose state is one vector of the
 components `x`, `y`, `z` and the ladder operators `plus` and `minus` of spin `j`, `QubitElement` has the Pauli matrices,
 `ModeElement` has `annihilate`, `create`, and `number` truncated at `quanta`, and `SiteElement` is a particle on the sites of a
 lattice or a network with its `laplacian`, its `adjacency`, and the functions `projector` and `diagonal`. A group of
-subsystems, such as `SpinElement.lattice`, is the tensor product of its members' spaces in member order, and the initial
+subsystems, such as a `LatticeElement` of spins, is the tensor product of its members' spaces in member order, and the initial
 state of every subsystem is a basis label, an index, or a vector.
 
 ### Operators and laws
@@ -3079,12 +3316,13 @@ import numpy as np
 from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
-from skcomplex.formalisms.quantum import GeneratorLaw, expectation
+from skcomplex.core.laws import GeneratorLaw
 from skcomplex.core.base import BaseInteraction
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.realizations.quantum import SpinElement
+from skcomplex.core.elements import LatticeElement
 class CouplingInteraction(BaseInteraction):
     over: ClassVar[str] = 'neighbors'
     target: str = role()
@@ -3096,7 +3334,7 @@ class CouplingInteraction(BaseInteraction):
 
 
 chain = System(
-    components=[SpinElement.lattice('chain', LatticeSpace(6), initial=['up', 'down'] * 3)],
+    elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'initial': ['up', 'down'] * 3})],
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [expectation('sz', attrgetter('z'), group='chain')]
@@ -3117,7 +3355,7 @@ and `ground_state` diagonalise the Hamiltonian exactly, optionally in the sector
 notation.
 
 ```python
-from skcomplex.formalisms.quantum import spectrum
+from skcomplex.analysis import spectrum
 from skcomplex.models import create
 
 print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())
@@ -3173,13 +3411,13 @@ from skcomplex.core.system import System
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.space import ContinuousSpace
-from skcomplex.formalisms.particles import ParticleElement
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
+from skcomplex.core.elements import ParticleElement
 from skcomplex.models.physics.realizations.particles import SpringInteraction
 from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
-    components=[ParticleElement('a', x=[0.0, 0.0, 0.0]), ParticleElement('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
+    elements=[ParticleElement('a', x=[0.0, 0.0, 0.0]), ParticleElement('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
     interactions=[SpringInteraction('bond', first='a', second='b', k=4.0, length=1.0)],
     space=ContinuousSpace(n_dim=3),
 )
@@ -3196,9 +3434,9 @@ with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A c
 appears as two images, its modulus under `<path>/<state>/modulus` colored over the range and its phase under
 `<path>/<state>/phase` colored by a cyclic palette over `(-π, π]`, and a complex scalar as the series
 `<path>/<state>/real` and `<path>/<state>/imag`. A group can set its own visual with
-`ParticleElement.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual`, implements the hook `_log`
-for elements or `_log_agents` for agents, and is registered with `register_visual`, and an element type selects it with
-its `visual` class variable. `visual.prepare(element, problem)` prepares a visual for one element and sets its views
+`GroupElement(..., element=ParticleElement, visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual`, implements the hook `_log`
+for elements or `_log_agents` for agents, and is listed under its kind in `VISUALS`, and an element selects it with
+its `visual` argument. `visual.prepare(element, problem)` prepares a visual for one element and sets its views
 `views_`, and `visual.run(frame, recording)` logs the element at a frame.
 
 ### Layouts and blueprints
@@ -3251,7 +3489,7 @@ processes, and every scenario of a row and replicate shares its stream. Paramete
 compiled problem, so sweeps of thousands of runs compile once.
 
 ```python
-from skcomplex.engine.experiments import Experiment, GridDesign, LatinHypercubeDesign, Scenario, calibrate, sensitivity
+from skcomplex.experiments import Experiment, GridDesign, LatinHypercubeDesign, Scenario, calibrate, sensitivity
 
 ensemble = Experiment('sir', GridDesign(stochastic=[True], gamma=[0.1, 0.2]), replicates=10, until=60, random_state=0)
 print(ensemble.run().summary()[0]['I.n.mean'])
@@ -3272,7 +3510,7 @@ print([round(float(row['land/stock.n'])) for row in stocks.rows])
   covariance of the estimates with R², RMSE, MAE, and MAPE.
 
 ```python
-from skcomplex.engine.experiments import calibrate
+from skcomplex.experiments import calibrate
 
 import numpy as np
 
@@ -3289,15 +3527,15 @@ exactly where Maxima can, with `desolve` for one equation and `desolve_system` f
 coefficients.
 
 ```python
-from skcomplex.formalisms.particles import ParticleElement
-from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.elements import ParticleElement
+from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.engine.analysis import equations_of, solve_symbolically
+from skcomplex.analysis import equations_of, solve_symbolically
 from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
 
 oscillator = System(
-    components=[ParticleElement('p', x=1.0)],
+    elements=[ParticleElement('p', x=1.0)],
     interactions=[HarmonicPotentialInteraction('trap', target='p', k=4.0)],
     space=ContinuousSpace(n_dim=1),
 )
@@ -3308,7 +3546,7 @@ print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])
 
 ## Analysing dynamics and data
 
-`skcomplex.engine.analysis` measures complex dynamics in the same way for every field. Every measure takes a system, or plain
+`skcomplex.analysis` measures complex dynamics in the same way for every field. Every measure takes a system, or plain
 arrays from trajectories or measured data.
 
 **Stability and chaos.** `fixed_points`, `jacobian`, `stability`, `nullclines`, and `divergence` work on the symbolic
@@ -3316,7 +3554,7 @@ vector field of a flow or a map. `lyapunov_spectrum` integrates its tangent dyna
 `orbit_diagram` and `basin_stability` run experiments over parameters or initial conditions.
 
 ```python
-from skcomplex.engine.analysis import fixed_points, lyapunov_spectrum, orbit_diagram, stability
+from skcomplex.analysis import fixed_points, lyapunov_spectrum, orbit_diagram, stability
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 
@@ -3335,7 +3573,7 @@ import numpy as np
 
 import math
 
-from skcomplex.engine.analysis import stroboscopic
+from skcomplex.analysis import stroboscopic
 from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=200)
@@ -3352,7 +3590,7 @@ power-law tails.
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import detect_events, fit_power_law, gini
+from skcomplex.analysis import detect_events, fit_power_law, gini
 
 samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
 fit = fit_power_law(samples, bootstrap=20, random_state=0)
@@ -3374,7 +3612,7 @@ permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv par
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
+from skcomplex.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
 
 noise = np.random.default_rng(1).standard_normal(20_000)
 print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
@@ -3392,7 +3630,7 @@ import numpy as np
 
 import networkx as nx
 
-from skcomplex.engine.analysis import box_counting_dimension, label_clusters, summarize_network
+from skcomplex.analysis import box_counting_dimension, label_clusters, summarize_network
 
 clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
 print(clusters.spans(0), clusters.sizes.max())
@@ -3418,7 +3656,7 @@ new analysis under its kind.
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import analyses_for, data_kinds, fields_of, series_of, structure_factor
+from skcomplex.analysis import analyses_for, data_kinds, fields_of, series_of, structure_factor
 from skcomplex.models import run
 
 spins = run('ising', size=32, settings={'until': 20}).trajectory_
@@ -3437,7 +3675,7 @@ of networks, and the mean with a 90 percent band of ensembles. The gallery draws
 analysis of its own.
 
 ```python continuation
-from skcomplex.engine.analysis import signature_analysis
+from skcomplex.analysis import signature_analysis
 
 for signature in signature_analysis(predation):
     print(signature.kind.value, signature.title, signature.xscale, list(signature.values))
@@ -3460,7 +3698,7 @@ import numpy as np
 
 import math
 
-from skcomplex.engine.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
+from skcomplex.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
 
 rng = np.random.default_rng(0)
 print(round(renyi_entropy(np.full(8, 1 / 8), 2, probabilities=True), 3))
@@ -3487,7 +3725,7 @@ copies of the data whose variables are shuffled independently.
 ```python continuation
 import numpy as np
 
-from skcomplex.engine.analysis import o_information, partial_information, surrogate_test
+from skcomplex.analysis import o_information, partial_information, surrogate_test
 
 bits = rng.integers(0, 2, (5000, 2))
 xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
@@ -3508,7 +3746,7 @@ complexity, and entropy rate.
 ```python continuation
 import numpy as np
 
-from skcomplex.engine.analysis import closure, emergence_criteria, epsilon_machine
+from skcomplex.analysis import closure, emergence_criteria, epsilon_machine
 
 parity = rng.integers(0, 2, (5000, 4))
 parity[:, -1] = (parity[:, :-1].sum(axis=1) + np.arange(5000) // 100) % 2
@@ -3534,7 +3772,7 @@ laminarity, line lengths, trapping time, and line entropy of embedded series.
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import (
+from skcomplex.analysis import (
     correlation_dimension,
     delay_embedding,
     kaplan_yorke_dimension,
@@ -3575,7 +3813,7 @@ simulates `system_` from the last sample, and the DMD and reservoir surrogates c
 import numpy as np
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.engine.analysis import DMDSurrogate, ReservoirSurrogate, Series, SINDySurrogate
+from skcomplex.analysis import DMDSurrogate, ReservoirSurrogate, Series, SINDySurrogate
 from skcomplex.engine.compile import validate
 
 times = np.arange(0.0, 10.0, 0.01)
@@ -3608,7 +3846,7 @@ for systems whose tilted generators are too large to write down. `markov_state_m
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import (
+from skcomplex.analysis import (
     entropy_production,
     legendre_transform,
     spectral_gap,
@@ -3633,11 +3871,19 @@ import numpy as np
 from skcomplex.core.components import Element
 from skcomplex.core.system import System
 
-from skcomplex.engine.analysis import cloning, uncertainty_relation
+from skcomplex.analysis import cloning, uncertainty_relation
 from skcomplex.core.laws import JumpLaw
+from skcomplex.core.declarations import state
 
-CounterElement = Element.define('CounterElement', states={'n': 0.0}, laws=lambda s: [JumpLaw(1.0, {s.n: 1})])
-counter = System(components=[CounterElement('counter')])
+class CounterElement(Element):
+    """Counter element."""
+
+    n = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the counter element."""
+        return [JumpLaw(1.0, {s.n: 1})]
+counter = System(elements=[CounterElement('counter')])
 estimate = cloning(counter, 'counter.n', 0.5, population=200, until=10.0, random_state=0)
 print(round(estimate.scgf, 2), round(float(np.exp(0.5) - 1), 2))
 currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
@@ -3660,7 +3906,7 @@ macro state that carries more effective information than the micro states.
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import causal_emergence, effective_information, partition_coarse_grain
+from skcomplex.analysis import causal_emergence, effective_information, partition_coarse_grain
 
 noisy = np.zeros((8, 8))
 noisy[:7, :7], noisy[7, 7] = 1 / 7, 1.0
@@ -3680,7 +3926,7 @@ median total-variation distance between the values of one run over time and the 
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
+from skcomplex.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
 
 rng = np.random.default_rng(0)
 mixing = rng.standard_normal((100, 5000))
@@ -3705,7 +3951,7 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
+from skcomplex.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
 relation = dispersion_relation(brusselator((128,), b=1.9))
@@ -3729,7 +3975,7 @@ boxes, and `coarse_grain` turns agents into density or polarization fields for t
 import numpy as np
 from skcomplex.models import run
 
-from skcomplex.engine.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
+from skcomplex.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
 
 flock = snapshots_of(run('boids', settings={'until': 5}).trajectory_)
 print(polar_order(flock.velocities, vectors=True).shape)
@@ -3749,7 +3995,7 @@ sweep with the peak of the susceptibility, `fit_order_exponent` fits the order-p
 ```python
 import numpy as np
 
-from skcomplex.engine.analysis import avalanches, branching_ratio
+from skcomplex.analysis import avalanches, branching_ratio
 
 found = avalanches([0, 1, 3, 2, 0, 0, 4, 1, 0])
 print(found.sizes, found.durations)
@@ -3772,7 +4018,7 @@ model `network_structure_analysis` records a network with these measures.
 ```python
 import networkx as nx
 
-from skcomplex.engine.analysis import communities, motif_counts
+from skcomplex.analysis import communities, motif_counts
 
 club = nx.karate_club_graph()
 print(round(communities(club, random_state=0).modularity, 2), motif_counts(club)['triangle'])

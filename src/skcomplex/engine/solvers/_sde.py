@@ -9,22 +9,13 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ...core.base import (
-    NUMERIC_DOMAINS,
-    ElementKind,
-    Form,
-    LawKind,
-    NoiseKind,
-    OrderKind,
-    SolverError,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    Vector,
-)
-from ...core.problems import VectorFunction
+from ...core.errors import SolverError
+from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.types import Vector
+from ..problems import Form, NoiseKind, OrderKind, SupportSpec, VectorFunction, step_count
 from ._hybrid import Interpolant, advance_fixed_steps, is_hybrid, open_history, with_delays
-from ._stepper import Solver, register_solver, step_count
+from ._stepper import Solver
 
 
 class SDESolver(Solver):
@@ -153,7 +144,7 @@ class EulerMaruyamaSolver(SDESolver):
         >>> from skcomplex.engine.solvers import EulerMaruyamaSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[AssetElement('stock', price=100)],
+        ...         elements=[AssetElement('stock', price=100)],
         ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
@@ -162,26 +153,20 @@ class EulerMaruyamaSolver(SDESolver):
         True
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={
-            LawKind.JUMP,
-            LawKind.RATE,
-            LawKind.EQUATION,
-            LawKind.EVENT,
-            LawKind.BOUNDARY,
-            LawKind.TRANSFER,
-            LawKind.NOISE,
+            JumpLaw,
+            RateLaw, FluxLaw,
+            EquationLaw,
+            CrossingLaw,
+            BoundaryLaw,
+            TransferLaw,
+            NoiseLaw,
         },
-        domains=NUMERIC_DOMAINS,
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.SYSTEM,
-        },
+        
+        
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )
@@ -303,18 +288,12 @@ class MilsteinSolver(SDESolver):
         True
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
-        domains=NUMERIC_DOMAINS,
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.SYSTEM,
-        },
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+        
+        
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )
@@ -387,18 +366,12 @@ class HeunSolver(SDESolver):
         True
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
-        domains=NUMERIC_DOMAINS,
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.SYSTEM,
-        },
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+        
+        
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )
@@ -444,8 +417,3 @@ class HeunSolver(SDESolver):
         np.add.at(diffusion, problem.noise_rows, problem.diffusion(time, state, p) * noise)  # type: ignore[misc]
         predictor = state + drift * step + diffusion
         return state + (drift + problem.drift(end, predictor, p)) * step / 2 + diffusion  # type: ignore[misc]
-
-
-register_solver('euler-maruyama', EulerMaruyamaSolver, default=True)
-register_solver('milstein', MilsteinSolver)
-register_solver('heun', HeunSolver)

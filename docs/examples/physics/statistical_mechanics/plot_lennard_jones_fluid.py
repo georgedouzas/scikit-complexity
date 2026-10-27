@@ -14,8 +14,9 @@ potential minimum. The view shows 400 particles in a periodic box at density 0.5
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import radial_distribution
+from skcomplex.analysis import radial_distribution
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import VelocityVerletSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +24,7 @@ MODEL = 'lennard_jones_fluid'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, solver='velocity-verlet', dt=0.005, observers=[observer]).run(until=2.5)
+simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).run(until=2.5)
 
 # %%
 # Structure of a gas and a liquid

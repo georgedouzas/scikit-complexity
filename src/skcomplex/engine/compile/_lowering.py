@@ -6,9 +6,10 @@
 import numbers
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import Expression, SymbolicVector, ValidationError
+from ...core.errors import ValidationError
 
 SHIFT = 'shift_member'
 
@@ -43,7 +44,7 @@ def _to_components(value: object, owner: str) -> list[object] | None:
     """Return the components of a symbolic value, or `None` for a callable."""
     if _is_sympy(value):
         raise _sympy_error(value, owner)
-    if isinstance(value, SymbolicVector):
+    if isinstance(value, FreeModuleElement):
         return list(value)
     if isinstance(value, Expression | numbers.Number | np.number):
         return [value]

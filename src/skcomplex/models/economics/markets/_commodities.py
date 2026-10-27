@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
@@ -60,26 +61,25 @@ def _commodity_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-CommodityMarketElement = Element.define(
-    'CommodityMarketElement',
-    states={
-        'inventory': state(default=25.0, domain=NumericDomain.NONNEGATIVE, quantity='commodity'),
-        'capacity': state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='capacity'),
-    },
-    parameters={
-        'demand': parameter(default=100.0, domain=NumericDomain.POSITIVE),
-        'demand_step': parameter(default=10.0, domain=NumericDomain.REAL),
-        'step_time': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
-        'desired_coverage': parameter(default=0.25, domain=NumericDomain.POSITIVE),
-        'reference_price': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'supply_elasticity': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'demand_elasticity': parameter(default=0.25, domain=NumericDomain.NONNEGATIVE),
-        'expectation_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'construction_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'lifetime': parameter(default=15.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_commodity_laws,
-)
+class CommodityMarketElement(Element):
+    """Commodity market element."""
+
+    inventory = state(default=25.0, domain=NumericDomain.NONNEGATIVE, quantity='commodity')
+    capacity = state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='capacity')
+    demand = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    demand_step = parameter(default=10.0, domain=NumericDomain.REAL)
+    step_time = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    desired_coverage = parameter(default=0.25, domain=NumericDomain.POSITIVE)
+    reference_price = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    supply_elasticity = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    demand_elasticity = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
+    expectation_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    construction_delay = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    lifetime = parameter(default=15.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the commodity market element."""
+        return _commodity_laws(s)
 
 
 @register_model(
@@ -88,10 +88,10 @@ CommodityMarketElement = Element.define(
     references=('Bala et al. 2017',),
     defaults={'until': 60.0, 'dt': 0.25},
     observables=lambda system: [
-        observe_element('market', 'coverage', _coverage),
-        observe_element('market', 'price', _price),
-        observe_element('market', 'expected_price', _expected_price),
-        observe_element('market', 'capacity_orders', _capacity_orders),
+        ObservableSpec('coverage', _coverage, element='market'),
+        ObservableSpec('price', _price, element='market'),
+        ObservableSpec('expected_price', _expected_price, element='market'),
+        ObservableSpec('capacity_orders', _capacity_orders, element='market'),
     ],
 )
 def commodity_cycle(
@@ -184,4 +184,4 @@ def commodity_cycle(
         construction_delay=construction_delay,
         lifetime=lifetime,
     )
-    return System(components=[market])
+    return System(elements=[market])

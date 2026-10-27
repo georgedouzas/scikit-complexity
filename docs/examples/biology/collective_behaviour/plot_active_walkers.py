@@ -11,7 +11,7 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import fields_of, gini
+from skcomplex.analysis import fields_of, gini
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

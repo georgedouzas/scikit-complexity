@@ -10,21 +10,25 @@ from ....core.components import Element
 from ....core.laws import EquationLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-ScaleFactorElement = Element.define(
-    'ScaleFactorElement',
-    states={'a': state(default=1.0, domain=NumericDomain.POSITIVE, order=2)},
-    parameters={
-        'H0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'omega_matter': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
-        'omega_lambda': 0.7,
-    },
-    laws=lambda s: [
-        EquationLaw(
-            s.a**2 * derivative(s.a, 2) == -s.omega_matter * s.H0**2 / 2 + s.omega_lambda * s.H0**2 * s.a**3,
-        ),
-    ],
-)
+
+class ScaleFactorElement(Element):
+    """Scale factor element."""
+
+    a = state(default=1.0, domain=NumericDomain.POSITIVE, order=2)
+    H0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    omega_matter = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    omega_lambda = parameter(0.7)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the scale factor element."""
+        return [
+            EquationLaw(
+                s.a**2 * derivative(s.a, 2) == -s.omega_matter * s.H0**2 / 2 + s.omega_lambda * s.H0**2 * s.a**3,
+            ),
+        ]
 
 
 @register_model(
@@ -89,4 +93,4 @@ def friedmann_expansion(
         omega_matter=omega_matter,
         omega_lambda=omega_lambda,
     )
-    return System(components=[universe])
+    return System(elements=[universe])

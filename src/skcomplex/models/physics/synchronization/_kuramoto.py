@@ -12,38 +12,59 @@ from sage.all__sagemath_symbolics import cos, sin
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed, mean
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import GroupElement
 from ._utils import _order_parameter
 
-PhaseOscillatorElement = Element.define(
-    'PhaseOscillatorElement',
-    states={'theta': 0.0},
-    parameters={'omega': 1.0},
-    laws=lambda s: [RateLaw(s.theta, s.omega)],
-)
 
-DelayedCouplingInteraction = BaseInteraction.define(
-    'DelayedCouplingInteraction',
-    roles=['source', 'target'],
-    parameters={'K': 1.0, 'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [RateLaw(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))],
-)
+class PhaseOscillatorElement(Element):
+    """Phase oscillator element."""
 
-SitedOscillatorElement = Element.define(
-    'SitedOscillatorElement',
-    states={'theta': 0.0, 'x': state(default=0.0, vector=True)},
-    parameters={'omega': 0.0},
-    laws=lambda s: [RateLaw(s.theta, s.omega)],
-)
+    theta = state(0.0)
+    omega = parameter(1.0)
 
-PhaseLagInteraction = BaseInteraction.define(
-    'PhaseLagInteraction',
-    roles=['target'],
-    parameters={'K': 1.0, 'alpha': 0.0},
-    laws=lambda s: [RateLaw(s.target.theta, -s.K * sin(s.alpha))],
-)
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the phase oscillator element."""
+        return [RateLaw(s.theta, s.omega)]
+
+
+class DelayedCouplingInteraction(BaseInteraction):
+    """Delayed coupling interaction."""
+
+    source = role()
+    target = role()
+    K = parameter(1.0)
+    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the delayed coupling interaction."""
+        return [RateLaw(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))]
+
+
+class SitedOscillatorElement(Element):
+    """Sited oscillator element."""
+
+    theta = state(0.0)
+    x = state(default=0.0, vector=True)
+    omega = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the sited oscillator element."""
+        return [RateLaw(s.theta, s.omega)]
+
+
+class PhaseLagInteraction(BaseInteraction):
+    """Phase lag interaction."""
+
+    target = role()
+    K = parameter(1.0)
+    alpha = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the phase lag interaction."""
+        return [RateLaw(s.target.theta, -s.K * sin(s.alpha))]
 
 
 def _mean_field_rate(s: Symbols) -> Expression:
@@ -52,26 +73,34 @@ def _mean_field_rate(s: Symbols) -> Expression:
     return s.K * (mean(sin(s.source.theta)) * cos(shifted) - mean(cos(s.source.theta)) * sin(shifted))
 
 
-MeanFieldCouplingInteraction = BaseInteraction.define(
-    'MeanFieldCouplingInteraction',
-    roles=['target', 'source'],
-    parameters={'K': 1.0, 'alpha': 0.0},
-    laws=lambda s: [RateLaw(s.target.theta, _mean_field_rate(s))],
-)
+class MeanFieldCouplingInteraction(BaseInteraction):
+    """Mean field coupling interaction."""
 
-MeanFieldAmplitudeElement = Element.define(
-    'MeanFieldAmplitudeElement',
-    states={'x': 0.1, 'y': 0.0},
-    parameters={
-        'K': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
-        'Delta': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'omega': 0.0,
-    },
-    laws=lambda s: [
-        RateLaw(s.x, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.x - s.omega * s.y),
-        RateLaw(s.y, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.y + s.omega * s.x),
-    ],
-)
+    target = role()
+    source = role()
+    K = parameter(1.0)
+    alpha = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mean field coupling interaction."""
+        return [RateLaw(s.target.theta, _mean_field_rate(s))]
+
+
+class MeanFieldAmplitudeElement(Element):
+    """Mean field amplitude element."""
+
+    x = state(0.1)
+    y = state(0.0)
+    K = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    Delta = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    omega = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mean field amplitude element."""
+        return [
+            RateLaw(s.x, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.x - s.omega * s.y),
+            RateLaw(s.y, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.y + s.omega * s.x),
+        ]
 
 
 def _spread_phases(size: int, seed: int) -> list[float]:
@@ -215,7 +244,7 @@ def delayed_kuramoto(
         for target in range(n_oscillators)
         if source != target
     ]
-    return System(components=elements, interactions=interactions)
+    return System(elements=elements, interactions=interactions)
 
 
 @register_model(
@@ -258,15 +287,15 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
         (10, None)
     """
     rng = np.random.default_rng(seed)
-    oscillators = PhaseOscillatorElement.group(
+    oscillators = GroupElement(
         'oscillators',
-        n_oscillators,
-        theta=_spread_phases(n_oscillators, seed),
-        omega=rng.normal(0.0, sigma, n_oscillators),
+        element=PhaseOscillatorElement,
+        size=n_oscillators,
+        values={'theta': _spread_phases(n_oscillators, seed), 'omega': rng.normal(0.0, sigma, n_oscillators)},
     )
     coupling = MeanFieldCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)
     return System(
-        components=[oscillators],
+        elements=[oscillators],
         interactions=[coupling],
     )
 
@@ -324,18 +353,18 @@ def kuramoto_sakaguchi_chimera(
     rng = np.random.default_rng(seed)
     alpha, mu, nu = math.pi / 2 - beta, (1 + A) / 2, (1 - A) / 2
     populations = [
-        PhaseOscillatorElement.group(
+        GroupElement(
             'first',
-            n_oscillators,
-            theta=rng.normal(0.0, spread, n_oscillators),
-            omega=0.0,
+            element=PhaseOscillatorElement,
+            size=n_oscillators,
+            values={'theta': rng.normal(0.0, spread, n_oscillators), 'omega': 0.0},
             visual=VisualSpec('phase_ring', {'phase': 'theta'}),
         ),
-        PhaseOscillatorElement.group(
+        GroupElement(
             'second',
-            n_oscillators,
-            theta=_spread_phases(n_oscillators, seed + 1),
-            omega=0.0,
+            element=PhaseOscillatorElement,
+            size=n_oscillators,
+            values={'theta': _spread_phases(n_oscillators, seed + 1), 'omega': 0.0},
             visual=VisualSpec('phase_ring', {'phase': 'theta'}),
         ),
     ]
@@ -351,7 +380,7 @@ def kuramoto_sakaguchi_chimera(
         for source in ('first', 'second')
     ]
     return System(
-        components=populations,
+        elements=populations,
         interactions=interactions,
     )
 
@@ -403,16 +432,19 @@ def nonlocal_ring_chimera(
         3.5
     """
     weight = 1 / (2 * R)
-    ring = SitedOscillatorElement.group(
+    ring = GroupElement(
         'ring',
-        n_oscillators,
-        theta=_spread_phases(n_oscillators, seed),
-        omega=omega,
-        x=np.arange(n_oscillators, dtype=float).reshape(-1, 1),
+        element=SitedOscillatorElement,
+        size=n_oscillators,
+        values={
+            'theta': _spread_phases(n_oscillators, seed),
+            'omega': omega,
+            'x': np.arange(n_oscillators, dtype=float).reshape(-1, 1),
+        },
         visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
     )
     return System(
-        components=[ring],
+        elements=[ring],
         interactions=[
             PhaseCouplingInteraction(
                 'coupling',
@@ -470,4 +502,4 @@ def ott_antonsen(
         >>> ott_antonsen(K=3.0).elements[0].K
         3.0
     """
-    return System(components=[MeanFieldAmplitudeElement('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])
+    return System(elements=[MeanFieldAmplitudeElement('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])

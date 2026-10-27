@@ -10,11 +10,13 @@ import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols, UpdateLaw, shift_member
-from ....core.space import ContinuousTime, DiscreteTime, NetworkSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.elements import GroupElement
 
 
 class ContourCellElement(Element):
@@ -171,15 +173,18 @@ def closed_contour_cell_exchange(
         5
     """
     rng = np.random.default_rng(random_state)
-    cells = ContourCellElement.group(
+    cells = GroupElement(
         'cells',
-        n_cells,
-        x=rng.uniform(0.2, 0.8, n_cells),
-        r=r,
-        c=np.broadcast_to(np.asarray(c, dtype=float), n_cells).copy(),
-        p=np.broadcast_to(np.asarray(p, dtype=float), n_cells).copy(),
+        element=ContourCellElement,
+        size=n_cells,
+        values={
+            'x': rng.uniform(0.2, 0.8, n_cells),
+            'r': r,
+            'c': np.broadcast_to(np.asarray(c, dtype=float), n_cells).copy(),
+            'p': np.broadcast_to(np.asarray(p, dtype=float), n_cells).copy(),
+        },
     )
-    return System(components=[cells], time=DiscreteTime())
+    return System(elements=[cells], time=DiscreteTime())
 
 
 @register_model(
@@ -255,4 +260,4 @@ def nanotube_gap_junction_exchange(
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
     cells = FieldElement('cells', ExchangingCellElement, NetworkSpace(graph), values=values)
-    return System(components=[cells], time=ContinuousTime())
+    return System(elements=[cells], time=ContinuousTime())

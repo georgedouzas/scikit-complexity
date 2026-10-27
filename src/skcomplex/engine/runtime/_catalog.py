@@ -9,9 +9,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ...core.base import Registry, ValidationError
-from ...core.system import Observable, System
+from ...core.errors import ValidationError
+from ...core.specs import ObservableSpec
+from ...core.system import System
 from ..compile import compile_system
+from ..utils import Registry
 from ._simulations import Simulation
 
 type Factory = Callable[..., System]
@@ -60,7 +62,7 @@ class ModelEntry:
     tags: tuple[str, ...] = ()
     references: tuple[str, ...] = ()
     defaults: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-    observables: Callable[[System], Sequence[Observable]] | None = dataclasses.field(default=None, repr=False)
+    observables: Callable[[System], Sequence[ObservableSpec]] | None = dataclasses.field(default=None, repr=False)
     initial_state: Callable[..., Mapping[str, Any] | None] | None = dataclasses.field(default=None, repr=False)
 
     def initial_state_of(self, **parameters: Any) -> dict[str, Any]:  # noqa: ANN401
@@ -78,7 +80,7 @@ class ModelEntry:
             return {}
         return dict(self.initial_state(**{**self.parameters, **parameters}) or {})
 
-    def observables_of(self, system: System) -> list[Observable]:
+    def observables_of(self, system: System) -> list[ObservableSpec]:
         """Return the standard observables of a system of the model, which `run` records.
 
         Args:
@@ -143,7 +145,7 @@ def register_model(
     tags: Sequence[str] = (),
     references: Sequence[str] = (),
     defaults: Mapping[str, Any] | None = None,
-    observables: Callable[[System], Sequence[Observable]] | None = None,
+    observables: Callable[[System], Sequence[ObservableSpec]] | None = None,
     initial_state: Callable[..., Mapping[str, Any] | None] | None = None,
 ) -> Callable[[Factory], Factory]:
     """Return a decorator that registers a factory as a ready-made model.
@@ -189,7 +191,7 @@ def register_model(
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
-        ...     return System(components=[PopulationElement('a', n=n)])
+        ...     return System(elements=[PopulationElement('a', n=n)])
         >>> create('constant_population').components[0].n
         3.0
     """

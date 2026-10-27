@@ -11,11 +11,16 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import (
+    BoxNeighborhood,
+    LatticeSpace,
+    MooreNeighborhood,
+    VonNeumannNeighborhood,
+)
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 from ._codes import Wolfram, life
 
 type Array = npt.NDArray[np.float64]
@@ -66,7 +71,7 @@ class ElementaryCellElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.alive, Neighborhood.radius(), Wolfram(self.rule))]
+        return [LocalRuleLaw(s.alive, BoxNeighborhood(), Wolfram(self.rule))]
 
 
 class LifeCellElement(Element):
@@ -119,7 +124,7 @@ class LifeCellElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.alive, Neighborhood.moore(), life(self.born, self.survive))]
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), life(self.born, self.survive))]
 
 
 def _ant_rule(*values: Array) -> tuple[Array, Array]:
@@ -170,7 +175,7 @@ class AntCellElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw((s.color, s.ant), Neighborhood.von_neumann(center=True), _ant_rule, reads=(s.color, s.ant)),
+            LocalRuleLaw((s.color, s.ant), VonNeumannNeighborhood(center=True), _ant_rule, reads=(s.color, s.ant)),
         ]
 
 
@@ -210,7 +215,16 @@ def elementary_automaton(rule: int = 30, *, size: int = 101, initial: Sequence[f
     values = np.zeros(size) if initial is None else np.asarray(initial, dtype=float)
     if initial is None:
         values[size // 2] = 1.0
-    return System(components=[ElementaryCellElement.lattice('cells', LatticeSpace(size), alive=values, rule=rule)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=ElementaryCellElement,
+                space=LatticeSpace(size),
+                values={'alive': values, 'rule': rule},
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -261,7 +275,14 @@ def game_of_life(
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
     return System(
-        components=[LifeCellElement.lattice('cells', space, alive=values, born=tuple(born), survive=tuple(survive))],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=LifeCellElement,
+                space=space,
+                values={'alive': values, 'born': tuple(born), 'survive': tuple(survive)},
+            ),
+        ],
     )
 
 
@@ -292,4 +313,8 @@ def langtons_ant(shape: Sequence[int] = (80, 80), *, heading: int = 0) -> System
     """
     ant = np.full(tuple(shape), -1.0)
     ant[shape[0] // 2, shape[1] // 2] = heading
-    return System(components=[AntCellElement.lattice('cells', LatticeSpace(tuple(shape)), ant=ant)])
+    return System(
+        elements=[
+            LatticeElement('cells', element=AntCellElement, space=LatticeSpace(tuple(shape)), values={'ant': ant}),
+        ],
+    )

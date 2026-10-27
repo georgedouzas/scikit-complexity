@@ -12,12 +12,12 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import ValidationError
-from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ...core.errors import ValidationError
+from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import BaseVisual, register_visual
+from ._visuals import BaseVisual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
@@ -328,6 +328,3 @@ class BodiesVisual(BaseVisual):
         elif strips:
             bounds = _bounds_of(np.vstack([chain, *strips, marks]))
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds), series]
-
-
-register_visual('bodies', BodiesVisual)

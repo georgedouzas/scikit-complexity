@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.engine.analysis import dispersion_relation, fields_of
+from skcomplex.analysis import dispersion_relation, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.pattern_formation import (
     nonreciprocal_cahn_hilliard,

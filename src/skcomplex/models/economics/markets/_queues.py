@@ -7,10 +7,11 @@ from typing import ClassVar
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VariableKind, declarations_of, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 WASH = 0
 VALET = 1
@@ -41,7 +42,7 @@ class CarElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CarElement
-        >>> CarElement.group('cars', 1).size
+        >>> GroupElement('cars', element=CarElement, size=1).size
         1
     """
 
@@ -75,7 +76,7 @@ class WasherElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import WasherElement
-        >>> WasherElement.group('workers', 4).size
+        >>> GroupElement('workers', element=WasherElement, size=4).size
         4
     """
 
@@ -135,7 +136,7 @@ class TillElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import TillElement
-        >>> TillElement.group('till', 1).size
+        >>> GroupElement('till', element=TillElement, size=1).size
         1
     """
 
@@ -341,10 +342,10 @@ def car_wash(
         balk=float(balk),
     )
     return System(
-        components=[
-            WasherElement.group('workers', n_workers, variable=True),
-            CarElement.group('cars', n_cars, variable=True, work=wash_work),
-            TillElement.group('till', 1, variable=True),
+        elements=[
+            GroupElement('workers', element=WasherElement, size=n_workers, variable=True),
+            GroupElement('cars', element=CarElement, size=n_cars, values={'work': wash_work}, variable=True),
+            GroupElement('till', element=TillElement, size=1, variable=True),
         ],
         interactions=[operation],
     )

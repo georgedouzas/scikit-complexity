@@ -9,10 +9,12 @@ from scipy.special import expit
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -45,7 +47,7 @@ class CustomerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CustomerElement
-        >>> CustomerElement.group('customers', 10, s1=0.5, s2=0.5).size
+        >>> GroupElement('customers', element=CustomerElement, size=10, values={'s1': 0.5, 's2': 0.5}).size
         10
     """
 
@@ -81,7 +83,7 @@ class ProductElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ProductElement
-        >>> ProductElement.group('products', 4, shop=[0, 0, 1, 1]).size
+        >>> GroupElement('products', element=ProductElement, size=4, values={'shop': [0, 0, 1, 1]}).size
         4
     """
 
@@ -117,7 +119,7 @@ class ShopElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ShopElement
-        >>> ShopElement.group('shops', 2, share=0.5).size
+        >>> GroupElement('shops', element=ShopElement, size=2, values={'share': 0.5}).size
         2
     """
 
@@ -232,7 +234,7 @@ class PerishableTradeInteraction(BaseInteraction):
     tags=('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail'),
     references=('Bertin 2021', 'Bouchaud 2013'),
     defaults={'until': 300},
-    observables=lambda system: [Observable('m', group='shops', variable='share', reduce=_asymmetry)],
+    observables=lambda system: [ObservableSpec('m', group='shops', variable='share', reduce=_asymmetry)],
 )
 def perishable_goods_duopoly(
     customers: int = 200,
@@ -293,14 +295,20 @@ def perishable_goods_duopoly(
         tau_a=tau_a,
     )
     return System(
-        components=[
-            CustomerElement.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
-            ProductElement.group(
-                'products',
-                N_SHOPS * shelf,
-                shop=np.repeat(np.arange(N_SHOPS), shelf).astype(float),
+        elements=[
+            GroupElement(
+                'customers',
+                element=CustomerElement,
+                size=customers,
+                values={'s1': satisfaction[0], 's2': satisfaction[1]},
             ),
-            ShopElement.group('shops', N_SHOPS),
+            GroupElement(
+                'products',
+                element=ProductElement,
+                size=N_SHOPS * shelf,
+                values={'shop': np.repeat(np.arange(N_SHOPS), shelf).astype(float)},
+            ),
+            GroupElement('shops', element=ShopElement, size=N_SHOPS),
         ],
         interactions=[trade],
     )

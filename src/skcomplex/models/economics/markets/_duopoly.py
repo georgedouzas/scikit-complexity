@@ -9,10 +9,12 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 N_FIRMS = 2
 
@@ -37,7 +39,7 @@ class DuopolistElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import DuopolistElement
-        >>> DuopolistElement.group('firms', 2, output=[100.0, 100.0]).size
+        >>> GroupElement('firms', element=DuopolistElement, size=2, values={'output': [100.0, 100.0]}).size
         2
     """
 
@@ -124,8 +126,8 @@ class CournotAdjustmentInteraction(BaseInteraction):
     references=('Hamill and Gilbert 2016', 'Cournot 1838'),
     defaults={'until': 30},
     observables=lambda system: [
-        Observable('total', group='firms', reduce='sum', variable='output'),
-        Observable('price', _price),
+        ObservableSpec('total', group='firms', reduce='sum', variable='output'),
+        ObservableSpec('price', _price),
     ],
 )
 def cournot_duopoly(
@@ -166,8 +168,13 @@ def cournot_duopoly(
         >>> cournot_duopoly(error=0.01).interactions[0].error
         0.01
     """
-    firms = DuopolistElement.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
+    firms = GroupElement(
+        'firms',
+        element=DuopolistElement,
+        size=N_FIRMS,
+        values={'output': list(outputs), 'cost': list(costs)},
+    )
     return System(
-        components=[firms],
+        elements=[firms],
         interactions=[CournotAdjustmentInteraction('market', firms='firms', a=a, b=b, error=error)],
     )

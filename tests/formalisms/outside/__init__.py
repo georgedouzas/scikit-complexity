@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import ClassVar, cast
 
 import numpy as np
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import (
     BaseLaw,
@@ -16,8 +17,8 @@ from skcomplex.core.base import (
     LawKind,
     NumericDomain,
     OrderKind,
-    Requires,
-    Supports,
+    RequirementSpec,
+    SupportSpec,
     TimeKind,
     Trait,
     Vector,
@@ -26,13 +27,11 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import Element
 from skcomplex.core.laws import Symbols
-from skcomplex.core.problems import CompiledElement, Entry, Layout, Problem
 from skcomplex.core.system import System
 from skcomplex.engine.compile import BaseSystemCompiler
+from skcomplex.engine.problems import CompiledElement, Entry, Layout, Problem
 from skcomplex.engine.solvers import Solver
-from skcomplex.formalisms import Formalism, register
 
 DECAY = LawKind.register('DECAY', 'decay')
 DECAYING = Form.register('DECAYING', 'exponential decay')
@@ -53,7 +52,7 @@ class DecayLaw(BaseLaw):
     law_kind: ClassVar[LawKind] = DECAY
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires()
+    requires: ClassVar[RequirementSpec] = RequirementSpec()
 
     targets: Expression | tuple[Expression, ...]
     rate: object
@@ -141,7 +140,7 @@ class DecayCompiler(BaseSystemCompiler):
 class ExactDecaySolver(Solver):
     """Solver that advances every state by its exact exponential decay."""
 
-    supports: ClassVar[Supports] = Supports(
+    supports: ClassVar[SupportSpec] = SupportSpec(
         time={TimeKind.CONTINUOUS},
         laws={DECAY},
         domains={DomainKind.REAL},

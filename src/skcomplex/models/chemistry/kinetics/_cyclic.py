@@ -11,11 +11,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -67,7 +67,7 @@ class CyclicCellElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.level, Neighborhood.von_neumann(center=True), _advance_cyclically)]
+        return [LocalRuleLaw(s.level, VonNeumannNeighborhood(center=True), _advance_cyclically)]
 
 
 @register_model(
@@ -109,4 +109,13 @@ def cyclic_cellular_automaton(
     """
     levels = np.random.default_rng(random_state).integers(0, n, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[CyclicCellElement.lattice('cells', space, level=levels, n=n, threshold=threshold)])
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=CyclicCellElement,
+                space=space,
+                values={'level': levels, 'n': n, 'threshold': threshold},
+            ),
+        ],
+    )

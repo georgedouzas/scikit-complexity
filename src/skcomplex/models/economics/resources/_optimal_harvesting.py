@@ -8,9 +8,10 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import Observable, System
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.control import CollocationSolver
+from ....engine.solvers import CollocationSolver
 
 MAX_EFFORT = 1.0
 
@@ -105,7 +106,7 @@ class HarvestedResourceElement(Element):
         'dt': 0.2,
         'solver': CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal'),
     },
-    observables=lambda system: [Observable('catch', _catch)],
+    observables=lambda system: [ObservableSpec('catch', _catch)],
 )
 def optimal_harvesting(
     x: float = 1.0,
@@ -155,4 +156,4 @@ def optimal_harvesting(
         0.05
     """
     resource = HarvestedResourceElement('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
-    return System(components=[resource])
+    return System(elements=[resource])

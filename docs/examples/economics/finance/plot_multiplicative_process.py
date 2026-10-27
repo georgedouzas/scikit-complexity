@@ -15,7 +15,7 @@ with a power-law, Pareto tail, whose exponent is set by the floor alone.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import ccdf
+from skcomplex.analysis import ccdf
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe

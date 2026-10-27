@@ -10,14 +10,17 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
+from ....analysis import gini
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
-from ....engine.analysis import gini
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 
 MODES = ('hunter_gatherer', 'monetary')
 PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
@@ -36,14 +39,14 @@ def _living(fates: npt.ArrayLike) -> float:
     return float(np.sum(np.asarray(fates) == ALIVE))
 
 
-def _metaphoria_observables(system: System) -> list[Observable]:
+def _metaphoria_observables(system: System) -> list[ObservableSpec]:
     """Return the living population, the Gini coefficient of money, and the bank balance of a monetary economy."""
     observables = [
-        Observable('population', group='people', variable='fate', reduce=_living),
-        Observable('money_gini', group='people', variable='money', reduce=gini),
+        ObservableSpec('population', group='people', variable='fate', reduce=_living),
+        ObservableSpec('money_gini', group='people', variable='money', reduce=gini),
     ]
     if any(element.label == 'bank' for element in system.elements):
-        observables.append(Observable('bank_balance', _bank_balance, group='bank', reduce='sum'))
+        observables.append(ObservableSpec('bank_balance', _bank_balance, group='bank', reduce='sum'))
     return observables
 
 
@@ -253,7 +256,7 @@ class SettlerElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import SettlerElement
-        >>> SettlerElement.group('people', 3, variable=True).size
+        >>> GroupElement('people', element=SettlerElement, size=3, variable=True).size
         3
     """
 
@@ -417,7 +420,7 @@ class BusinessElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import BusinessElement
-        >>> BusinessElement.group('businesses', 2, variable=True).size
+        >>> GroupElement('businesses', element=BusinessElement, size=2, variable=True).size
         2
     """
 
@@ -535,7 +538,7 @@ class CentralBankElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import CentralBankElement
-        >>> CentralBankElement.group('bank', 1).size
+        >>> GroupElement('bank', element=CentralBankElement, size=1).size
         1
     """
 
@@ -880,38 +883,44 @@ def metaphoria(
     space = LatticeSpace(shape)
     sites = list(np.ndindex(*shape))
     capacity = rng.uniform(0.0, max_food, len(sites))
-    patches = PlotElement.group(
+    patches = GroupElement(
         'patches',
-        len(sites),
+        element=PlotElement,
+        size=len(sites),
+        values={
+            'food': capacity,
+            'capacity': capacity,
+            'resistance': rng.uniform(0.0, max_resistance, len(sites)),
+            'regrowth': regrowth,
+        },
         location=sites,
-        food=capacity,
-        capacity=capacity,
-        resistance=rng.uniform(0.0, max_resistance, len(sites)),
-        regrowth=regrowth,
     )
     cells = rng.integers(0, shape, size=(n_people, len(shape)))
     traits: dict[str, Any] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
-    people = SettlerElement.group(
+    people = GroupElement(
         'people',
-        n_people,
+        element=SettlerElement,
+        size=n_people,
+        values={
+            'age': rng.integers(15, 40, n_people).astype(float),
+            'need': need,
+            'labour': labour,
+            'monetary': float(mode == 'monetary'),
+            **traits,
+        },
         variable=True,
         location=[tuple(int(item) for item in cell) for cell in cells],
-        age=rng.integers(15, 40, n_people).astype(float),
-        need=need,
-        labour=labour,
-        monetary=float(mode == 'monetary'),
-        **traits,
     )
     firms = rng.integers(0, shape, size=(n_firms, len(shape)))
-    businesses = BusinessElement.group(
+    businesses = GroupElement(
         'businesses',
-        n_firms,
+        element=BusinessElement,
+        size=n_firms,
+        values={'interest': interest, 'repayment': repayment},
         variable=True,
         location=[tuple(int(item) for item in cell) for cell in firms],
-        interest=interest,
-        repayment=repayment,
     )
-    bank = CentralBankElement.group('bank', 1, location=(0,) * len(shape))
+    bank = GroupElement('bank', element=CentralBankElement, size=1, location=(0,) * len(shape))
     economy = [businesses, bank] if mode == 'monetary' else []
     exchange: list[BaseInteraction] = (
         [CommonsInteraction('commons', people='people')]
@@ -919,8 +928,8 @@ def metaphoria(
         else [LabourMarketInteraction('jobs'), FoodMarketInteraction('shops')]
     )
     return System(
-        components=[patches, people, *economy],
+        elements=[patches, people, *economy],
         interactions=[*exchange, CensusInteraction('census', people='people')],
         space=space,
-        time=DiscreteTime(schedule=PhasesSchedule([Phase(name) for name in PHASES])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
     )

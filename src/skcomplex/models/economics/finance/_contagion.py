@@ -11,10 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -66,7 +68,7 @@ class BankElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.finance import BankElement
-        >>> BankElement.group('banks', 3, h=[1.0, 0.0, 0.0]).size
+        >>> GroupElement('banks', element=BankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
         3
     """
 
@@ -161,7 +163,7 @@ class DebtRankCascadeInteraction(BaseInteraction):
     tags=('systemic risk', 'network', 'contagion', 'agents'),
     references=('Thurner et al. 2018', 'Battiston et al. 2012'),
     defaults={'until': 10},
-    observables=lambda system: [Observable('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
+    observables=lambda system: [ObservableSpec('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
 )
 def debtrank(
     liabilities: Sequence[Sequence[float]] | None = None,
@@ -218,8 +220,13 @@ def debtrank(
     h = np.zeros(size)
     h[list(distressed)] = psi
     status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-    banks = BankElement.group('banks', size, h=h, status=status, value=_economic_values(matrix))
+    banks = GroupElement(
+        'banks',
+        element=BankElement,
+        size=size,
+        values={'h': h, 'status': status, 'value': _economic_values(matrix)},
+    )
     return System(
-        components=[banks],
+        elements=[banks],
         interactions=[DebtRankCascadeInteraction('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
     )

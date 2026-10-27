@@ -8,23 +8,34 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import skfem
+
+from skcomplex.core.declarations import state
 
 from ....core.base import NumericDomain, parameter
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, IMEXEulerSolver, MeshSpace, laplacian
+from ....engine.solvers import IMEXEulerSolver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
-HeatElement = Element.define(
-    'HeatElement',
-    states={'u': 0.0},
-    parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
-)
+
+class HeatElement(Element):
+    """Heat element."""
+
+    u = state(0.0)
+    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the heat element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u))]
 
 
 @register_model(
@@ -71,7 +82,7 @@ def heat_diffusion(
     condition = ('fixed', 0.0) if boundary == 'fixed' else boundary
     space = LatticeSpace(shape, spacing=spacing)
     return System(
-        components=[FieldElement('plate', HeatElement, space, boundary={'u': condition}, values={'u': u, 'D': D})],
+        elements=[FieldElement('plate', HeatElement, space, boundary={'u': condition}, values={'u': u, 'D': D})],
     )
 
 
@@ -133,9 +144,10 @@ def heat_l_shape(
         >>> heat_l_shape(1).elements[0].prepare().size_
         21
     """
-    mesh = MeshSpace.l_shape(refine)
+    grid = skfem.MeshTri.init_lshaped().refined(refine)
+    mesh = MeshSpace(grid.p, grid.t)
     return System(
-        components=[
+        elements=[
             FieldElement(
                 'plate',
                 HeatElement,

@@ -7,18 +7,26 @@ import numpy as np
 
 from ....core.base import NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-FisherKPPElement = Element.define(
-    'FisherKPPElement',
-    states={'u': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE), 'r': 1.0},
-    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))],
-)
+
+class FisherKPPElement(Element):
+    """Fisher k p p element."""
+
+    u = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r = parameter(1.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the fisher k p p element."""
+        return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
 
 @register_model(
@@ -65,7 +73,7 @@ def fisher_kpp(
     u = (np.arange(length) < front * length).astype(float)
     space = LatticeSpace(length, spacing=spacing)
     return System(
-        components=[
+        elements=[
             FieldElement(
                 'line',
                 FisherKPPElement,

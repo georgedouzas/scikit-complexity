@@ -13,11 +13,14 @@ from sage.all__sagemath_symbolics import cos
 
 from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, state
 from ....core.components import Element
+from ....core.elements import ParticleElement
 from ....core.laws import RateLaw, derivative
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleElement
+from ....engine.solvers import RK4Solver
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 from ..realizations.particles import GravityInteraction
 
 FIGURE_EIGHT = {
@@ -46,28 +49,32 @@ def _primaries(mu: float, **_: float) -> list[list[float]]:
     return [[-mu, 0.0], [1 - mu, 0.0]]
 
 
-RotatingFrameBodyElement = Element.define(
-    'RotatingFrameBodyElement',
-    states={'x': state(default=0.5, order=2), 'y': state(default=0.0, order=2)},
-    parameters={'mu': parameter(default=0.01215, domain=NumericDomain.POSITIVE)},
-    laws=lambda s: [
-        RateLaw(
-            s.x,
-            2 * derivative(s.y, 1)
-            + s.x
-            - (1 - s.mu) * (s.x + s.mu) / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
-            - s.mu * (s.x - 1 + s.mu) / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
-        ),
-        RateLaw(
-            s.y,
-            -2 * derivative(s.x, 1)
-            + s.y
-            - (1 - s.mu) * s.y / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
-            - s.mu * s.y / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
-        ),
-    ],
-    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries}),
-)
+class RotatingFrameBodyElement(Element):
+    """Rotating frame body element."""
+
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
+    x = state(default=0.5, order=2)
+    y = state(default=0.0, order=2)
+    mu = parameter(default=0.01215, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rotating frame body element."""
+        return [
+            RateLaw(
+                s.x,
+                2 * derivative(s.y, 1)
+                + s.x
+                - (1 - s.mu) * (s.x + s.mu) / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
+                - s.mu * (s.x - 1 + s.mu) / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
+            ),
+            RateLaw(
+                s.y,
+                -2 * derivative(s.x, 1)
+                + s.y
+                - (1 - s.mu) * s.y / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
+                - s.mu * s.y / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
+            ),
+        ]
 
 
 def _preset(name: str) -> dict[str, Any]:
@@ -82,7 +89,7 @@ def _preset(name: str) -> dict[str, Any]:
     field='physics/celestial_mechanics',
     tags=('mechanics', 'ode', 'gravity'),
     references=('Kepler 1609', 'Newton 1687'),
-    defaults={'until': 6.0, 'dt': 0.01, 'solver': 'rk4'},
+    defaults={'until': 6.0, 'dt': 0.01, 'solver': RK4Solver()},
 )
 def two_body_orbit(
     eccentricity: float = 0.0,
@@ -117,7 +124,7 @@ def two_body_orbit(
     """
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
-        components=[
+        elements=[
             ParticleElement('star', m=mass),
             ParticleElement('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6),
         ],
@@ -189,7 +196,7 @@ def n_body(
         GravityInteraction(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
         for first, second in itertools.combinations(range(len(bodies)), 2)
     ]
-    return System(components=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+    return System(elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -243,15 +250,18 @@ def restricted_three_body(
         >>> restricted_three_body(mu=0.1).elements[0].mu
         0.1
     """
-    return System(components=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
+    return System(elements=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
 
 
-SitnikovBodyElement = Element.define(
-    'SitnikovBodyElement',
-    states={'z': state(default=0.5, order=2)},
-    parameters={'e': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))],
-)
+class SitnikovBodyElement(Element):
+    """Sitnikov body element."""
+
+    z = state(default=0.5, order=2)
+    e = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the sitnikov body element."""
+        return [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))]
 
 
 @register_model(
@@ -287,4 +297,4 @@ def sitnikov(z: float = 0.5, vz: float = 0.0, *, e: float = 0.0) -> System:
         >>> sitnikov(e=0.1).elements[0].e
         0.1
     """
-    return System(components=[SitnikovBodyElement('body', z=z, z_d1=vz, e=e)])
+    return System(elements=[SitnikovBodyElement('body', z=z, z_d1=vz, e=e)])

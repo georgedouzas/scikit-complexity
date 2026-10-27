@@ -242,4 +242,4 @@ def hormone_cascade_amplifier(
         )
         for upstream, label, rate in zip(upstreams, STAGES, alpha, strict=True)
     ]
-    return System(components=[g_protein, *stages], interactions=activations)
+    return System(elements=[g_protein, *stages], interactions=activations)

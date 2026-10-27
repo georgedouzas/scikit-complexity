@@ -10,23 +10,26 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 from ..realizations._institutions import InstitutionInteraction
 
 UNLIMITED = 1e9
 
 
-def _commons_observables(system: System) -> list[Observable]:
+def _commons_observables(system: System) -> list[ObservableSpec]:
     """Return the grass on the meadow, the size of the herd, and the mean quota of the herders."""
     del system
     return [
-        Observable('grass', group='meadow', variable='grass', reduce='sum'),
-        Observable('herd', group='cows', variable='energy', reduce='count'),
-        Observable('quota', group='herders', variable='quota', reduce='mean'),
+        ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
+        ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
+        ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
     ]
 
 
@@ -98,7 +101,7 @@ class PastureElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.resources import PastureElement
-        >>> PastureElement.group('meadow', 4, capacity=2.0).size
+        >>> GroupElement('meadow', element=PastureElement, size=4, values={'capacity': 2.0}).size
         4
     """
 
@@ -151,7 +154,7 @@ class CowElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.resources import CowElement
-        >>> CowElement.group('cows', 3, energy=4.0).size
+        >>> GroupElement('cows', element=CowElement, size=3, values={'energy': 4.0}).size
         3
     """
 
@@ -200,7 +203,7 @@ class HerderElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.resources import HerderElement
-        >>> HerderElement.group('herders', 5).size
+        >>> GroupElement('herders', element=HerderElement, size=5).size
         5
     """
 
@@ -445,35 +448,40 @@ def tragedy_of_the_commons(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    meadow = PastureElement.group(
+    meadow = GroupElement(
         'meadow',
-        len(cells),
+        element=PastureElement,
+        size=len(cells),
+        values={'grass': capacity, 'capacity': capacity, 'regrowth': regrowth},
         location=cells,
-        grass=capacity,
-        capacity=capacity,
-        regrowth=regrowth,
     )
-    herders = HerderElement.group(
+    herders = GroupElement(
         'herders',
-        n_herders,
+        element=HerderElement,
+        size=n_herders,
+        values={
+            'number': np.arange(n_herders, dtype=float),
+            'upkeep': upkeep,
+            'quota': UNLIMITED if quota is None else quota,
+        },
         location=[cells[0]] * n_herders,
-        number=np.arange(n_herders, dtype=float),
-        upkeep=upkeep,
-        quota=UNLIMITED if quota is None else quota,
     )
     n_cows = n_herders * cows
-    herd = CowElement.group(
+    herd = GroupElement(
         'cows',
-        n_cows,
+        element=CowElement,
+        size=n_cows,
+        values={'owner': np.repeat(np.arange(n_herders, dtype=float), cows)},
         variable=True,
         location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
-        owner=np.repeat(np.arange(n_herders, dtype=float), cows),
     )
     regulator = RegulatorInteraction('regulator', phase='herding', regulated=float(quota is not None))
     grazing = GrazingInteraction('grazing', cows='cows', meadow='meadow', herders='herders')
     return System(
-        components=[meadow, herd, herders],
+        elements=[meadow, herd, herders],
         interactions=[grazing, regulator],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('grazing'), Phase('growth'), Phase('herding')])),
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
+        ),
     )

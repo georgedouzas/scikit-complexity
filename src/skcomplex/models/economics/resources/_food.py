@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, lookup
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
@@ -59,42 +60,41 @@ def _rice_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-RiceSectorElement = Element.define(
-    'RiceSectorElement',
-    states={
-        'available_land': state(default=0.088, domain=NumericDomain.NONNEGATIVE, quantity='land'),
-        'rice_area': state(default=0.680647, domain=NumericDomain.NONNEGATIVE, quantity='land'),
-        'population': state(default=18.1024, domain=NumericDomain.NONNEGATIVE, quantity='people'),
-        'potential': state(default=6.0, domain=NumericDomain.NONNEGATIVE),
-        'soil_quality': state(default=0.99, domain=NumericDomain.NONNEGATIVE),
-        'practice': state(default=0.61, domain=NumericDomain.NONNEGATIVE),
-        'training': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'bio_fraction': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'cropping_intensity': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    parameters={
-        'conversion_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
-        'discard_rate': parameter(default=0.0085, domain=NumericDomain.NONNEGATIVE),
-        'growth_rate': parameter(default=0.021, domain=NumericDomain.REAL),
-        'consumption': parameter(default=80.0, domain=NumericDomain.NONNEGATIVE),
-        'milling_rate': parameter(default=0.65, domain=NumericDomain.NONNEGATIVE),
-        'subsidy': parameter(default=0.67, domain=NumericDomain.NONNEGATIVE),
-        'farmer_inputs': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
-        'research': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'potential_limit': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'research_time': parameter(default=20.0, domain=NumericDomain.POSITIVE),
-        'regeneration_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'degradation': parameter(default=0.002, domain=NumericDomain.NONNEGATIVE),
-        'learning_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-        'training_target': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'extension_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
-        'bio_target': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
-        'transition_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-        'intensity_target': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        'implementation_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=_rice_laws,
-)
+class RiceSectorElement(Element):
+    """Rice sector element."""
+
+    available_land = state(default=0.088, domain=NumericDomain.NONNEGATIVE, quantity='land')
+    rice_area = state(default=0.680647, domain=NumericDomain.NONNEGATIVE, quantity='land')
+    population = state(default=18.1024, domain=NumericDomain.NONNEGATIVE, quantity='people')
+    potential = state(default=6.0, domain=NumericDomain.NONNEGATIVE)
+    soil_quality = state(default=0.99, domain=NumericDomain.NONNEGATIVE)
+    practice = state(default=0.61, domain=NumericDomain.NONNEGATIVE)
+    training = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    bio_fraction = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    cropping_intensity = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    conversion_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
+    discard_rate = parameter(default=0.0085, domain=NumericDomain.NONNEGATIVE)
+    growth_rate = parameter(default=0.021, domain=NumericDomain.REAL)
+    consumption = parameter(default=80.0, domain=NumericDomain.NONNEGATIVE)
+    milling_rate = parameter(default=0.65, domain=NumericDomain.NONNEGATIVE)
+    subsidy = parameter(default=0.67, domain=NumericDomain.NONNEGATIVE)
+    farmer_inputs = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    research = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    potential_limit = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    research_time = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    regeneration_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    degradation = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
+    learning_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    training_target = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    extension_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    bio_target = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    transition_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    intensity_target = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    implementation_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the rice sector element."""
+        return _rice_laws(s)
 
 
 @register_model(
@@ -103,7 +103,7 @@ RiceSectorElement = Element.define(
     references=('Bala et al. 2017',),
     defaults={'until': 50.0, 'dt': 0.25},
     observables=lambda system: [
-        observe_element('rice', name, expression)
+        ObservableSpec(name, expression, element='rice')
         for name, expression in (
             ('input_ratio', _input_ratio),
             ('productivity', _productivity),
@@ -174,4 +174,4 @@ def food_security(
         training_target=training_target,
         intensity_target=intensity_target,
     )
-    return System(components=[sector])
+    return System(elements=[sector])

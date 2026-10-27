@@ -12,9 +12,11 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, count, mean, total, where
-from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -30,7 +32,7 @@ def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Gen
 
 def _magnetization() -> Observable:
     """Return the observable of the mean spin of the group `spins`."""
-    return Observable('magnetization', group='spins', variable='spin')
+    return ObservableSpec('magnetization', group='spins', variable='spin')
 
 
 class FullyConnectedSpinElement(Element):
@@ -155,16 +157,14 @@ def curie_weiss(
         10
     """
     spins = _initial_spins(n_spins, initial, random_state)
-    group = FullyConnectedSpinElement.lattice(
+    group = LatticeElement(
         'spins',
-        LatticeSpace(n_spins),
+        element=FullyConnectedSpinElement,
+        space=LatticeSpace(n_spins),
+        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature},
         visual=SPIN_IMAGE,
-        spin=spins,
-        J=J,
-        h=h,
-        temperature=temperature,
     )
-    return System(components=[group])
+    return System(elements=[group])
 
 
 @register_model(
@@ -218,14 +218,11 @@ def sherrington_kirkpatrick(
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_spins), (n_spins, n_spins)), 1)
     spins = _initial_spins(n_spins, 'random', rng)
-    group = FullyConnectedSpinElement.lattice(
+    group = LatticeElement(
         'spins',
-        LatticeSpace(n_spins),
+        element=FullyConnectedSpinElement,
+        space=LatticeSpace(n_spins),
+        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature, 'couplings': upper + upper.T},
         visual=SPIN_IMAGE,
-        spin=spins,
-        J=J,
-        h=h,
-        temperature=temperature,
-        couplings=upper + upper.T,
     )
-    return System(components=[group])
+    return System(elements=[group])

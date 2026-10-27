@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.engine.analysis import histogram
+from skcomplex.analysis import histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.criticality import hexagonal_forest_fire, manna_sandpile, sandpile
 

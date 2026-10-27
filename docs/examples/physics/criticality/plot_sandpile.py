@@ -15,7 +15,7 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import avalanches, histogram
+from skcomplex.analysis import avalanches, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

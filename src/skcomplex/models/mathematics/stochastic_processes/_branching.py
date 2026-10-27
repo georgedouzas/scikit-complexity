@@ -7,10 +7,11 @@ from typing import ClassVar
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 
 class IndividualElement(Element):
@@ -28,7 +29,7 @@ class IndividualElement(Element):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import IndividualElement
-        >>> group = IndividualElement.group('population', 10, m=1.5)
+        >>> group = GroupElement('population', element=IndividualElement, size=10, values={'m': 1.5})
         >>> group.label, group.element.__name__, group.size
         ('population', 'IndividualElement', 10)
     """
@@ -93,4 +94,8 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
         >>> galton_watson(5, m=1.2).elements[0].size
         5
     """
-    return System(components=[IndividualElement.group('population', n_individuals, variable=True, m=m)])
+    return System(
+        elements=[
+            GroupElement('population', element=IndividualElement, size=n_individuals, values={'m': m}, variable=True),
+        ],
+    )

@@ -12,11 +12,13 @@ from scipy.spatial import KDTree
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import ContinuousSpace
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import ContinuousSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -150,12 +152,12 @@ class BinaryCollisionsInteraction(BaseInteraction):
             agent.theta = float(heading)
 
 
-def _flocking_observables(system: System) -> list[Observable]:
+def _flocking_observables(system: System) -> list[ObservableSpec]:
     """Return the mean heading components and the polarization of the birds."""
     return [
-        Observable('mean_cos', _cosine, group='birds'),
-        Observable('mean_sin', _sine, group='birds'),
-        Observable('polarization', _polarization),
+        ObservableSpec('mean_cos', _cosine, group='birds'),
+        ObservableSpec('mean_sin', _sine, group='birds'),
+        ObservableSpec('polarization', _polarization),
     ]
 
 
@@ -220,11 +222,12 @@ def binary_collision_flocking(
         0.3
     """
     rng = np.random.default_rng(random_state)
-    birds = FlockerElement.group(
+    birds = GroupElement(
         'birds',
-        n_particles,
+        element=FlockerElement,
+        size=n_particles,
+        values={'theta': rng.uniform(0.0, 2 * math.pi, n_particles)},
         location=rng.uniform(0.0, size, (n_particles, 2)),
-        theta=rng.uniform(0.0, 2 * math.pi, n_particles),
     )
     collisions = BinaryCollisionsInteraction(
         'collisions',
@@ -236,7 +239,7 @@ def binary_collision_flocking(
         substeps=float(substeps),
     )
     return System(
-        components=[birds],
+        elements=[birds],
         interactions=[collisions],
-        space=ContinuousSpace(size, size, boundary='periodic'),
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

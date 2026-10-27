@@ -11,13 +11,14 @@ from sage.all__sagemath_symbolics import cos
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols, neighbors, where
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import SampleLaw, Symbols, neighbors, where
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
+from ...core.elements import LatticeElement
 
-NEAREST = Neighborhood.von_neumann()
+NEAREST = VonNeumannNeighborhood()
 
 
 class IsingSpinElement(Element):
@@ -78,7 +79,7 @@ class IsingSpinElement(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST, reduce='each')) - s.h * s.spin
-        return [SampleLaw(Energy(energy, NEAREST), MoveLaw.flip(s.spin), SamplerLaw(self.sampler, s.temperature))]
+        return [SampleLaw(EnergySpec(energy, NEAREST), MoveSpec.flip(s.spin), SamplerSpec(self.sampler, s.temperature))]
 
 
 class PottsSpinElement(Element):
@@ -142,9 +143,9 @@ class PottsSpinElement(Element):
         energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST, reduce='each'))
         return [
             SampleLaw(
-                Energy(energy, NEAREST),
-                MoveLaw.random_value(s.color, range(self.q)),
-                SamplerLaw(self.sampler, s.temperature),
+                EnergySpec(energy, NEAREST),
+                MoveSpec.random_value(s.color, range(self.q)),
+                SamplerSpec(self.sampler, s.temperature),
             ),
         ]
 
@@ -205,9 +206,9 @@ class XYSpinElement(Element):
         energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST, reduce='each'))
         return [
             SampleLaw(
-                Energy(energy, NEAREST),
-                MoveLaw.rotate(s.theta, self.width),
-                SamplerLaw('metropolis', s.temperature),
+                EnergySpec(energy, NEAREST),
+                MoveSpec.rotate(s.theta, self.width),
+                SamplerSpec('metropolis', s.temperature),
             ),
         ]
 
@@ -273,8 +274,13 @@ def ising(
     shape = _square(size)
     spins = np.ones(shape) if initial == 'up' else np.random.default_rng(random_state).choice([-1.0, 1.0], size=shape)
     space = LatticeSpace(shape)
-    group = IsingSpinElement.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
-    return System(components=[group])
+    group = LatticeElement(
+        'spins',
+        element=IsingSpinElement,
+        space=space,
+        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature, 'sampler': sampler},
+    )
+    return System(elements=[group])
 
 
 @register_model(
@@ -325,8 +331,13 @@ def potts(
     shape = _square(size)
     colors = np.random.default_rng(random_state).integers(0, q, size=shape).astype(float)
     space = LatticeSpace(shape)
-    group = PottsSpinElement.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
-    return System(components=[group])
+    group = LatticeElement(
+        'spins',
+        element=PottsSpinElement,
+        space=space,
+        values={'color': colors, 'J': J, 'temperature': temperature, 'q': q, 'sampler': sampler},
+    )
+    return System(elements=[group])
 
 
 @register_model(
@@ -373,5 +384,10 @@ def xy(
     shape = _square(size)
     angles = np.random.default_rng(random_state).uniform(0, 2 * np.pi, size=shape)
     space = LatticeSpace(shape)
-    group = XYSpinElement.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
-    return System(components=[group])
+    group = LatticeElement(
+        'spins',
+        element=XYSpinElement,
+        space=space,
+        values={'theta': angles, 'J': J, 'temperature': temperature, 'width': width},
+    )
+    return System(elements=[group])

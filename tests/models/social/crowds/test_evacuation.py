@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.formalisms.kinetics import KineticSolver
+from skcomplex.engine.solvers import KineticSolver
 
 from ...conftest import _trajectory
 

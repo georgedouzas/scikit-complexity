@@ -5,20 +5,31 @@
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-StommelBoxesElement = Element.define(
-    'StommelBoxesElement',
-    states={'T': 3.0, 'S': 0.0},
-    parameters={'eta1': 3.0, 'eta2': 1.2, 'eta3': 0.3},
-    laws=lambda s: [
-        RateLaw(s.T, s.eta1 - s.T * (1 + abs_symbolic(s.T - s.S))),
-        RateLaw(s.S, s.eta2 - s.S * (s.eta3 + abs_symbolic(s.T - s.S))),
-    ],
-)
+
+class StommelBoxesElement(Element):
+    """Stommel boxes element."""
+
+    T = state(3.0)
+    S = state(0.0)
+    eta1 = parameter(3.0)
+    eta2 = parameter(1.2)
+    eta3 = parameter(0.3)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the stommel boxes element."""
+        return [
+            RateLaw(s.T, s.eta1 - s.T * (1 + abs_symbolic(s.T - s.S))),
+            RateLaw(s.S, s.eta2 - s.S * (s.eta3 + abs_symbolic(s.T - s.S))),
+        ]
 
 
 @register_model(
@@ -67,4 +78,4 @@ def stommel(
         >>> stommel(eta2=1.0).elements[0].eta2
         1.0
     """
-    return System(components=[StommelBoxesElement('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])
+    return System(elements=[StommelBoxesElement('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])

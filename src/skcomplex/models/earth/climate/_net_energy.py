@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 
@@ -43,24 +44,23 @@ def _energy_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-EnergySectorElement = Element.define(
-    'EnergySectorElement',
-    states={
-        'reserve': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='energy'),
-        'capacity': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'population': state(default=1.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
-    },
-    parameters={
-        'reserve_size': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
-        'initial_eroi': parameter(default=20.0, domain=NumericDomain.POSITIVE),
-        'decline': parameter(default=3.0, domain=NumericDomain.POSITIVE),
-        'reinvestment': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'lifetime': parameter(default=20.0, domain=NumericDomain.POSITIVE),
-        'birth_rate': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
-        'death_rate': parameter(default=0.015, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_energy_laws,
-)
+class EnergySectorElement(Element):
+    """Energy sector element."""
+
+    reserve = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='energy')
+    capacity = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    population = state(default=1.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
+    reserve_size = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
+    initial_eroi = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    decline = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    reinvestment = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    lifetime = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    birth_rate = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    death_rate = parameter(default=0.015, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the energy sector element."""
+        return _energy_laws(s)
 
 
 @register_model(
@@ -69,10 +69,10 @@ EnergySectorElement = Element.define(
     references=('Mobus 2022',),
     defaults={'until': 250.0, 'dt': 1.0},
     observables=lambda system: [
-        observe_element('energy', 'eroi', _eroi),
-        observe_element('energy', 'gross_energy', _gross_energy),
-        observe_element('energy', 'extraction_cost', _extraction_cost),
-        observe_element('energy', 'net_per_capita', _net_per_capita),
+        ObservableSpec('eroi', _eroi, element='energy'),
+        ObservableSpec('gross_energy', _gross_energy, element='energy'),
+        ObservableSpec('extraction_cost', _extraction_cost, element='energy'),
+        ObservableSpec('net_per_capita', _net_per_capita, element='energy'),
     ],
 )
 def energy_return(
@@ -132,4 +132,4 @@ def energy_return(
         reinvestment=reinvestment,
         birth_rate=birth_rate,
     )
-    return System(components=[sector])
+    return System(elements=[sector])

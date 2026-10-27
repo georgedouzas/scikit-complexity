@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
+from skcomplex.analysis import entanglement_entropy, equations_of, ground_state, hamiltonian_of, purity, spectrum
 from skcomplex.core.base import AnalysisError, ParameterError
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import equations_of
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.quantum import entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.realizations.quantum import SpinElement
@@ -39,7 +39,7 @@ def test_spectrum_rejects_bad_requests():
     with pytest.raises(AnalysisError, match='eigenvalue'):
         spectrum(system, sector=(total_magnetization, 7.0))
     with pytest.raises(AnalysisError, match='quantum elements'):
-        spectrum(System(components=[PopulationElement('rabbits')]))
+        spectrum(System(elements=[PopulationElement('rabbits')]))
 
 
 def test_ground_state_is_stationary():
@@ -60,7 +60,7 @@ def test_ground_state_is_stationary():
 def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-    system = System(components=[SpinElement.group('pair', 2)])
+    system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
     trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
     assert np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2), atol=1e-12)
     assert np.allclose(entanglement_entropy(trajectory, ['pair']), 0, atol=1e-10)
@@ -75,7 +75,7 @@ def test_purity_of_pure_and_dephased_runs():
     opened = Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5).run(until=2.0).trajectory_
     assert np.all(np.diff(purity(opened)) <= 1e-10)
     assert purity(opened)[-1] < 1
-    rabbits = Simulation(System(components=[PopulationElement('rabbits')]), dt=1.0).run(until=1.0).trajectory_
+    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).run(until=1.0).trajectory_
     with pytest.raises(AnalysisError, match='not the trajectory'):
         purity(rabbits)
 

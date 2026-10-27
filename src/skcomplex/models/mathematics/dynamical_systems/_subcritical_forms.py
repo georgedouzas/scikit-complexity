@@ -3,11 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import state
+
 from ....core.base import Expression, NumericDomain, parameter
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
 
 
 def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:
@@ -18,18 +21,20 @@ def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:
     return real * s.x - imaginary * s.y, imaginary * s.x + real * s.y
 
 
-SubcriticalHopfElement = Element.define(
-    'SubcriticalHopfElement',
-    states={'x': 0.1, 'y': 0.0},
-    parameters={
-        'alpha': -0.1,
-        'omega': 1.0,
-        'q': 0.0,
-        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-        's': 0.0,
-    },
-    laws=lambda s: [RateLaw(s.x, _subcritical_hopf_rates(s)[0]), RateLaw(s.y, _subcritical_hopf_rates(s)[1])],
-)
+class SubcriticalHopfElement(Element):
+    """Subcritical hopf element."""
+
+    x = state(0.1)
+    y = state(0.0)
+    alpha = parameter(-0.1)
+    omega = parameter(1.0)
+    q = parameter(0.0)
+    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    s = parameter(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the subcritical hopf element."""
+        return [RateLaw(s.x, _subcritical_hopf_rates(s)[0]), RateLaw(s.y, _subcritical_hopf_rates(s)[1])]
 
 
 @register_model(
@@ -88,5 +93,5 @@ def subcritical_hopf_form(
         0.1
     """
     return System(
-        components=[SubcriticalHopfElement('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)],
+        elements=[SubcriticalHopfElement('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)],
     )

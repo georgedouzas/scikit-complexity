@@ -10,10 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -57,7 +59,7 @@ class StallElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import StallElement
-        >>> StallElement.group('stalls', 3, stall=[0, 1, 2]).size
+        >>> GroupElement('stalls', element=StallElement, size=3, values={'stall': [0, 1, 2]}).size
         3
     """
 
@@ -102,7 +104,7 @@ class ShopperElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import ShopperElement
-        >>> ShopperElement.group('shoppers', 5, wanted=3).size
+        >>> GroupElement('shoppers', element=ShopperElement, size=5, values={'wanted': 3}).size
         5
     """
 
@@ -155,8 +157,8 @@ class ShopperElement(Element):
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 10},
     observables=lambda system: [
-        Observable('items_left', _items_left, group='shoppers'),
-        Observable('spent', group='shoppers', variable='spent'),
+        ObservableSpec('items_left', _items_left, group='shoppers'),
+        ObservableSpec('spent', group='shoppers', variable='spent'),
     ],
 )
 def produce_market(
@@ -198,14 +200,13 @@ def produce_market(
     stocks = _random_masks(np.full(n_stalls, n_items_stocked), rng)
     markups = rng.integers(1, MAX_MARKUP + 1, n_stalls) / 100
     lists = _random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, n_shoppers), rng)
-    stalls = StallElement.group(
+    stalls = GroupElement(
         'stalls',
-        n_stalls,
-        stall=np.arange(n_stalls, dtype=float),
-        stock=stocks,
-        markup=markups,
+        element=StallElement,
+        size=n_stalls,
+        values={'stall': np.arange(n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
     )
-    shoppers = ShopperElement.group('shoppers', n_shoppers, wanted=lists)
+    shoppers = GroupElement('shoppers', element=ShopperElement, size=n_shoppers, values={'wanted': lists})
     return System(
-        components=[stalls, shoppers],
+        elements=[stalls, shoppers],
     )

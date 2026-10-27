@@ -138,7 +138,7 @@ def delayed_sirs(
         0.01
     """
     return System(
-        components=[
+        elements=[
             EpidemicCenterElement('first', x=first, a=a, recovery=recovery),
             EpidemicCenterElement('second', x=second, a=a, recovery=recovery),
         ],

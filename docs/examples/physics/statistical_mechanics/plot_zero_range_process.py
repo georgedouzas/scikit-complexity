@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import gammaln
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -25,7 +26,7 @@ MODEL = 'zero_range_process'
 
 system = create(MODEL, n_sites=50, density=3.0, b=4.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=12.0, observers=[observer], random_state=0, backend='numba').run(until=3000)
+simulation = Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend()).run(until=3000)
 
 # %%
 # Condensate and fluid

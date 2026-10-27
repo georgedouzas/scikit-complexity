@@ -11,11 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import NetworkSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -44,7 +45,7 @@ class NeuronElement(Element):
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import NeuronElement
-        >>> group = NeuronElement.group('neurons', 4, spin=1.0)
+        >>> group = GroupElement('neurons', element=NeuronElement, size=4, values={'spin': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('neurons', 'NeuronElement', 4)
     """
@@ -133,5 +134,10 @@ def hopfield(
     )
     size = stored.shape[1]
     spins = np.where(rng.random(size) < noise, -stored[0], stored[0])
-    neurons = NeuronElement.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
-    return System(components=[neurons], space=NetworkSpace(nx.complete_graph(size)))
+    neurons = GroupElement(
+        'neurons',
+        element=NeuronElement,
+        size=size,
+        values={'spin': spins, 'weights': _hebbian_weights(stored)},
+    )
+    return System(elements=[neurons], space=NetworkSpace(nx.complete_graph(size)))

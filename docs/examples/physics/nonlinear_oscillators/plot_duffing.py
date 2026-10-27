@@ -14,7 +14,7 @@ import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.analysis import stroboscopic
+from skcomplex.analysis import stroboscopic
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

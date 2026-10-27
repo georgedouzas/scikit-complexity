@@ -12,10 +12,11 @@ from sage.all__sagemath_symbolics import cos, sin, sqrt
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.space import ContinuousSpace
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ...core.elements import GroupElement
 
 
 class SwarmalatorElement(Element):
@@ -205,11 +206,11 @@ def swarmalators(
         -0.1
     """
     rng = np.random.default_rng(random_state)
-    units = SwarmalatorElement.group(
+    units = GroupElement(
         'units',
-        n_units,
-        x=rng.uniform(-1.0, 1.0, (n_units, 2)),
-        theta=rng.uniform(-np.pi, np.pi, n_units),
+        element=SwarmalatorElement,
+        size=n_units,
+        values={'x': rng.uniform(-1.0, 1.0, (n_units, 2)), 'theta': rng.uniform(-np.pi, np.pi, n_units)},
     )
     coupling = SwarmalatorCouplingInteraction(
         'coupling',
@@ -221,4 +222,4 @@ def swarmalators(
         K=K,
         n_units=n_units,
     )
-    return System(components=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))
+    return System(elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))

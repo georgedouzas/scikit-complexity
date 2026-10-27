@@ -8,17 +8,21 @@ from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-CapitalStockElement = Element.define(
-    'CapitalStockElement',
-    states={'K': state(default=100.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'investment_fraction': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
-        'output_per_capital': parameter(default=1 / 3, domain=NumericDomain.POSITIVE),
-        'lifetime': parameter(default=15.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [RateLaw(s.K, s.investment_fraction * s.output_per_capital * s.K - s.K / s.lifetime)],
-)
+
+class CapitalStockElement(Element):
+    """Capital stock element."""
+
+    K = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    investment_fraction = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    output_per_capital = parameter(default=1 / 3, domain=NumericDomain.POSITIVE)
+    lifetime = parameter(default=15.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the capital stock element."""
+        return [RateLaw(s.K, s.investment_fraction * s.output_per_capital * s.K - s.K / s.lifetime)]
 
 
 @register_model(
@@ -69,4 +73,4 @@ def capital_stock(
         output_per_capital=output_per_capital,
         lifetime=lifetime,
     )
-    return System(components=[economy])
+    return System(elements=[economy])

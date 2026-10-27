@@ -11,11 +11,14 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols, transfer
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
@@ -36,13 +39,13 @@ def _busy(agent: Any) -> float:  # noqa: ANN401
     return float(agent.task != IDLE)
 
 
-def _ridesharing_observables(system: System) -> list[Observable]:
+def _ridesharing_observables(system: System) -> list[ObservableSpec]:
     """Return the number of waiting riders, their mean waiting time, and the share of busy cabs."""
     del system
     return [
-        Observable('queue', group='riders', variable='waited', reduce='count'),
-        Observable('mean_wait', group='riders', variable='waited', reduce='mean'),
-        Observable('utilisation', _busy, group='cabs', reduce='mean'),
+        ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
+        ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
+        ObservableSpec('utilisation', _busy, group='cabs', reduce='mean'),
     ]
 
 
@@ -117,7 +120,7 @@ class RiderElement(Element):
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import RiderElement
-        >>> RiderElement.group('riders', 2, money=50.0).size
+        >>> GroupElement('riders', element=RiderElement, size=2, values={'money': 50.0}).size
         2
     """
 
@@ -192,7 +195,7 @@ class CabElement(Element):
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import CabElement
-        >>> CabElement.group('cabs', 3).size
+        >>> GroupElement('cabs', element=CabElement, size=3).size
         3
     """
 
@@ -417,26 +420,28 @@ def ridesharing(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers((width, height), size=(n_cabs + 1, 2))
-    riders = RiderElement.group(
+    riders = GroupElement(
         'riders',
-        1,
+        element=RiderElement,
+        size=1,
+        values={'destination_x': float(rng.integers(width)), 'destination_y': float(rng.integers(height))},
         variable=True,
         location=[(int(cells[0, 0]), int(cells[0, 1]))],
-        destination_x=float(rng.integers(width)),
-        destination_y=float(rng.integers(height)),
     )
-    cabs = CabElement.group(
+    cabs = GroupElement(
         'cabs',
-        n_cabs,
+        element=CabElement,
+        size=n_cabs,
+        values={'base_fare': base_fare, 'block_fare': block_fare},
         location=[(int(x), int(y)) for x, y in cells[1:]],
-        base_fare=base_fare,
-        block_fare=block_fare,
     )
     return System(
-        components=[riders, cabs],
+        elements=[riders, cabs],
         interactions=[
             DispatchInteraction('dispatch', riders='riders', cabs='cabs', demand=demand, width=width, height=height),
         ],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('arrival'), Phase('dispatch'), Phase('drive')])),
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
+        ),
     )

@@ -12,28 +12,25 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.elements import FieldElement
+from ....core.laws import FluxLaw, RateLaw, Symbols
+from ....core.laws.utils import divergence, gradient, inverse_laplacian, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import (
-    ETDRK4Solver,
-    FieldElement,
-    FluxLaw,
-    SSPRKSolver,
-    divergence,
-    gradient,
-    inverse_laplacian,
-    laplacian,
-)
+from ....engine.solvers import ETDRK4Solver, SSPRKSolver
 
 type Array = npt.NDArray[np.float64]
 
-KuramotoSivashinskyElement = Element.define(
-    'KuramotoSivashinskyElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
-)
+
+class KuramotoSivashinskyElement(Element):
+    """Kuramoto sivashinsky element."""
+
+    u = state(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the kuramoto sivashinsky element."""
+        return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
 
 
 @register_model(
@@ -75,7 +72,7 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
     space = LatticeSpace(modes, spacing=spacing)
     return System(
-        components=[
+        elements=[
             FieldElement('line', KuramotoSivashinskyElement, space, values=values, discretization='spectral'),
         ],
     )
@@ -187,18 +184,26 @@ class BoussinesqElement(Element):
         ]
 
 
-BurgersElement = Element.define(
-    'BurgersElement',
-    states={'u': 0.0},
-    laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
-)
+class BurgersElement(Element):
+    """Burgers element."""
 
-ShallowWaterElement = Element.define(
-    'ShallowWaterElement',
-    states={'h': state(default=1.0, domain=NumericDomain.POSITIVE), 'q': 0.0},
-    parameters={'g': 9.81},
-    laws=lambda s: [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)],
-)
+    u = state(0.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the burgers element."""
+        return [FluxLaw(s.u, s.u**2 / 2)]
+
+
+class ShallowWaterElement(Element):
+    """Shallow water element."""
+
+    h = state(default=1.0, domain=NumericDomain.POSITIVE)
+    q = state(0.0)
+    g = parameter(9.81)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the shallow water element."""
+        return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
 
 
 def _smooth_noise(shape: tuple[int, ...], modes: int, random_state: int | np.random.Generator | None) -> Array:
@@ -282,7 +287,7 @@ def incompressible_flow(
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
     symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
     field = FieldElement('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
-    return System(components=[field])
+    return System(elements=[field])
 
 
 @register_model(
@@ -421,7 +426,7 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
     values = {'u': mean + amplitude * np.sin(centers)}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldElement('line', BurgersElement, space, values=values, discretization='finite-volume')],
+        elements=[FieldElement('line', BurgersElement, space, values=values, discretization='finite-volume')],
     )
 
 
@@ -481,4 +486,4 @@ def shallow_water(
         values=values,
         discretization='finite-volume',
     )
-    return System(components=[field])
+    return System(elements=[field])

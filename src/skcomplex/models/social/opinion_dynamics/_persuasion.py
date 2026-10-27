@@ -11,11 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, NetworkSpace
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -40,7 +41,7 @@ class PersuaderElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import PersuaderElement
-        >>> group = PersuaderElement.group('people', 10, opinion=1.0)
+        >>> group = GroupElement('people', element=PersuaderElement, size=10, values={'opinion': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('people', 'PersuaderElement', 10)
     """
@@ -96,7 +97,7 @@ class CitizenElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import CitizenElement
-        >>> group = CitizenElement.group('citizens', 10, group_size=3)
+        >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'group_size': 3})
         >>> group.label, group.element.__name__, group.size
         ('citizens', 'CitizenElement', 10)
     """
@@ -181,7 +182,7 @@ class InfluenceeElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import InfluenceeElement
-        >>> group = InfluenceeElement.group('people', 4, opinion=-1.0)
+        >>> group = GroupElement('people', element=InfluenceeElement, size=4, values={'opinion': -1.0})
         >>> group.label, group.element.__name__, group.size
         ('people', 'InfluenceeElement', 4)
     """
@@ -293,8 +294,13 @@ def sznajd(
     """
     graph = nx.cycle_graph(50) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    people = PersuaderElement.group('people', size, opinion=_shares(size, share, random_state))
-    return System(components=[people], space=NetworkSpace(graph))
+    people = GroupElement(
+        'people',
+        element=PersuaderElement,
+        size=size,
+        values={'opinion': _shares(size, share, random_state)},
+    )
+    return System(elements=[people], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -334,13 +340,13 @@ def galam_majority(
         >>> galam_majority(30, random_state=0).elements[0].size
         30
     """
-    citizens = CitizenElement.group(
+    citizens = GroupElement(
         'citizens',
-        n_agents,
-        opinion=_shares(n_agents, share, random_state),
-        group_size=group_size,
+        element=CitizenElement,
+        size=n_agents,
+        values={'opinion': _shares(n_agents, share, random_state), 'group_size': group_size},
     )
-    return System(components=[citizens], interactions=[DiscussionsInteraction('talks', target='citizens')])
+    return System(elements=[citizens], interactions=[DiscussionsInteraction('talks', target='citizens')])
 
 
 @register_model(
@@ -390,18 +396,21 @@ def social_impact(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    people = InfluenceeElement.group(
+    people = GroupElement(
         'people',
-        size,
+        element=InfluenceeElement,
+        size=size,
+        values={
+            'opinion': 2 * _shares(size, share, rng) - 1,
+            'persuasiveness': rng.random(size),
+            'supportiveness': rng.random(size),
+            'exponent': exponent,
+            'noise': noise,
+        },
         location=[(column, row) for column in range(width) for row in range(height)],
-        opinion=2 * _shares(size, share, rng) - 1,
-        persuasiveness=rng.random(size),
-        supportiveness=rng.random(size),
-        exponent=exponent,
-        noise=noise,
     )
     return System(
-        components=[people],
+        elements=[people],
         interactions=[SocialImpactInteraction('impact', target='people')],
         space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

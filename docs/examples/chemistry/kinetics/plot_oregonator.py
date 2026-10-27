@@ -13,7 +13,7 @@ while bromous acid and the catalyst stay low, and spikes again once it falls bel
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import detect_events
+from skcomplex.analysis import detect_events
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver

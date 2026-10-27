@@ -11,11 +11,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace, Neighborhood
+from ....core.laws import LocalRuleLaw, Symbols
+from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRuleLaw
+from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 type Offset = tuple[int, int]
@@ -24,9 +24,9 @@ IMITATIONS = ('best', 'fermi')
 ORIGIN: Offset = (0, 0)
 MOORE: tuple[Offset, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 VON_NEUMANN: tuple[Offset, ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
-SQUARE = Neighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
+SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
 DIAMOND_RADIUS = 3
-DIAMOND = Neighborhood(
+DIAMOND = LatticeNeighborhood(
     tuple(
         (dx, dy)
         for dx in range(-DIAMOND_RADIUS, DIAMOND_RADIUS + 1)
@@ -266,15 +266,18 @@ def spatial_prisoners_dilemma(
         >>> spatial_prisoners_dilemma((10, 10)).elements[0].size
         100
     """
-    players = PrisonerElement.lattice(
+    players = LatticeElement(
         'players',
-        LatticeSpace(tuple(shape)),
-        strategy=_random_strategies(shape, share, random_state),
-        temptation=temptation,
-        noise=noise,
-        imitation=imitation,
+        element=PrisonerElement,
+        space=LatticeSpace(tuple(shape)),
+        values={
+            'strategy': _random_strategies(shape, share, random_state),
+            'temptation': temptation,
+            'noise': noise,
+            'imitation': imitation,
+        },
     )
-    return System(components=[players])
+    return System(elements=[players])
 
 
 @register_model(
@@ -319,11 +322,10 @@ def public_goods_game(
         100
     """
     strategies = _random_strategies(shape, share, random_state)
-    players = ContributorElement.lattice(
+    players = LatticeElement(
         'players',
-        LatticeSpace(tuple(shape)),
-        strategy=strategies,
-        synergy=synergy,
-        noise=noise,
+        element=ContributorElement,
+        space=LatticeSpace(tuple(shape)),
+        values={'strategy': strategies, 'synergy': synergy, 'noise': noise},
     )
-    return System(components=[players])
+    return System(elements=[players])

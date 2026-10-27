@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.analysis import loops
+from skcomplex.analysis import loops
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, run
 

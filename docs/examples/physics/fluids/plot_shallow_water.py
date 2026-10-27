@@ -19,8 +19,8 @@ import numpy as np
 from scipy.optimize import brentq
 
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'shallow_water'

@@ -5,78 +5,55 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from ...core.base import (
-    BaseElement,
-    BaseInteraction,
-    BaseLaw,
-    ElementKind,
-    Expression,
-    Registry,
-    SkcomplexError,
-    SymbolicVector,
-    Trait,
-    UnregisteredLawError,
-    ValidationError,
-    VariableKind,
-    components_of,
-    declarations_of,
-    has_trait,
-    is_registered,
-    law_classes,
-    symbol,
-    symbols_of,
-)
-from ...core.components import GroupElement
+from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
+
+from ...core.elements import BaseElement, GroupElement
+from ...core.errors import SkcomplexError, ValidationError
+from ...core.interactions import BaseInteraction
 from ...core.laws import (
+    BaseLaw,
     BoundaryLaw,
+    CrossingLaw,
     EquationLaw,
-    EventLaw,
+    ExtremalLaw,
     JumpLaw,
+    LocalRuleLaw,
+    MatchLaw,
     NoiseLaw,
     RateLaw,
+    RelaxationLaw,
+    RuleLaw,
+    SampleLaw,
+    TransferLaw,
     UpdateLaw,
-    values_of,
 )
-from ...core.problems import EdgeSearch, Entry
-from ...core.problems._kernels import PairSearch
-from ...core.space import BaseSpace
+from ...core.spaces import BaseSpace
 from ...core.system import System
+from ..problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
+from ..problems._kernels import PairSearch
 from ._declarations import Block, Declarations, is_interaction
+from ._laws import values_of
 from ._noise import ProcessKey, process_keys
 from ._observables import Observer, lowerable_observables
+from ._renewal_law import RenewalLaw
 from ._specs import KernelSpec, component_of, group_space, specs_of, target_references
+from ._topology import request_of
 from ._tree import Node
-
-type OwnerRule = Callable[[KernelSpec, BaseLaw, set[str]], str | None]
-
-OWNER_RULES = Registry[OwnerRule]('owner rule')
-
-
-def _check_registered(spec: KernelSpec, declared: object) -> None:
-    """Raise an error for a law of a class that neither the shared core nor a formalism registered."""
-    laws = declared if isinstance(declared, list | tuple) else []
-    for law in laws:
-        if isinstance(law, BaseLaw) and not is_registered(law):
-            error_msg = (
-                f'{spec.owner} returns a {type(law).__name__}, a law class that no formalism registered. A '
-                f'formalism must register {type(law).__name__} with `register(Formalism(..., laws=(...)))` before a '
-                'system holds its laws.'
-            )
-            raise UnregisteredLawError(error_msg)
 
 
 def _changed_target(spec: KernelSpec, law: BaseLaw) -> object:
     """Return the target of a law, or the first state a jump changes."""
     if isinstance(law, JumpLaw):
         return next(iter(law.changes))
-    if not law.targets:
+    if not law._get_targets():
         error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
         raise ValidationError(error_msg)
-    return law.targets[0]
+    return law._get_targets()[0]
 
 
 def _handle_uses(law: BaseLaw, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
@@ -102,9 +79,9 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
     """Return the processes, driven states, and read states of every target component of a noise law."""
     if not isinstance(law, NoiseLaw):
         return {}
-    targets = components_of(law.targets[0])
+    targets = components_of(law._get_targets()[0])
     values = (
-        components_of(law.value) if isinstance(law.value, SymbolicVector | list | tuple) else [law.value] * len(targets)
+        components_of(law.value) if isinstance(law.value, FreeModuleElement | list | tuple) else [law.value] * len(targets)
     )
     references = [spec.references.get(item) for item in targets]
     return {
@@ -121,7 +98,7 @@ def _component_kind(node: Node) -> ElementKind:
     if isinstance(node.component, GroupElement):
         parts = {'sites': ElementKind.SITE_GROUP, 'edges': ElementKind.EDGE_GROUP}
         parts['hyperedges'] = ElementKind.HYPEREDGE_GROUP
-        return parts.get(node.component.on or '', node.component.component_kind)
+        return parts.get(node.component.on or '', ElementKind.GROUP)
     return ElementKind.ELEMENT
 
 
@@ -147,7 +124,7 @@ def _records_of(
     for spec in specs_of(block, elements, declarations.time, observe.evaluate):
         component = cast('BaseElement | BaseInteraction', component_of(block.node))
         for law in declared_laws(spec, component):
-            items = [item for target in law.targets for item in components_of(target)]
+            items = [item for target in law._get_targets() for item in components_of(target)]
             references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
             targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
             owner = law_owner(spec, law, agents)
@@ -170,21 +147,35 @@ def _records_of(
     return records
 
 
-def register_owner(rule: OwnerRule) -> None:
-    """Register a rule that names the owner of the laws it knows, keeping it once.
+def renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
+    """Return the path of the element or group whose states a renewal law resets, or the law's component."""
+    targets = [item for target in (law.reset or {}) for item in components_of(target)]
+    reference = spec.references.get(targets[0]) if targets else None
+    return spec.owner if reference is None else reference.entry.name.rpartition('.')[0]
 
-    Args:
-        rule:
-            The function that takes a kernel spec, a law, and the paths of the agents, and returns the path of the
-            element or group the law belongs to, or `None` for a law it does not know.
-    """
-    OWNER_RULES.register(rule, rule)
+
+def _special_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
+    """Return the owner of a renewal, a rule, a matching, or a topology request, or `None` for another law."""
+    if isinstance(law, JumpLaw) and law.waiting is not None:
+        return renewal_group(spec, RenewalLaw(law.waiting, law.reset))
+    if isinstance(law, RenewalLaw):
+        return renewal_group(spec, law)
+    rule = law.rule if isinstance(law, MatchLaw) else law
+    if isinstance(rule, RuleLaw):
+        paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
+        return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
+    if request_of(law) is not None:
+        return spec.group or next(iter(spec.groups), spec.owner)
+    return None
 
 
 def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
-    """Return the path of the element or group whose state a law changes, or that a registered rule names.
+    """Return the path of the element or group a law belongs to.
 
-    Equations and events belong to their component.
+    A renewal belongs to the group whose states it resets, a rule or a matching to the first agent group among its
+    roles, a topology request to the group it changes, and a lattice law to the element or group whose sites it
+    updates. Flows, Monte Carlo samples, equations, and events belong to their component, and any other law to the
+    element or group whose state it changes.
 
     Args:
         spec:
@@ -204,13 +195,16 @@ def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
         ValidationError:
             The law changes no state of its component, or targets a symbol that is not a state.
     """
-    for key in OWNER_RULES.keys:
-        owner = OWNER_RULES.resolve(key)(spec, law, agents)
-        if owner is not None:
-            return owner
-    if isinstance(law, EquationLaw | EventLaw):
+    owner = _special_owner(spec, law, agents)
+    if owner is not None:
+        return owner
+    if isinstance(law, TransferLaw | SampleLaw | EquationLaw | CrossingLaw) or (
+        isinstance(law, RelaxationLaw) and not law._get_targets()
+    ):
         return spec.owner
-    return target_references(_changed_target(spec, law), spec)[0].entry.name.rpartition('.')[0]
+    lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | ExtremalLaw)
+    target = law._get_targets()[0] if lattice else _changed_target(spec, law)
+    return target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
 
 def kind_of(law: BaseLaw) -> type:
@@ -242,18 +236,14 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
             The laws as declared.
 
     Raises:
-        UnregisteredLawError:
-            A law is of a class that no formalism registered.
-
         ValidationError:
             `laws` returns something other than declarable laws, or laws its binding does not take.
     """
     declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
-    _check_registered(spec, declared)
-    if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
-        names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
-        error_msg = f'`laws` of {spec.owner} must return a list of {", ".join(names[:-1])}, or {names[-1]} laws.'
+    if not isinstance(declared, list | tuple) or not all(isinstance(law, BaseLaw) for law in declared):
+        error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
         raise ValidationError(error_msg)
+    declared = [law.check().prepare(spec.owner) for law in declared]
     if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
@@ -267,7 +257,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     checked = []
     for law in declared:
         try:
-            checked.append(law.prepare(spec.namespace, spec.owner))
+            checked.append(law.prepare(spec.owner))
         except ValidationError as error:
             error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
             raise ValidationError(error_msg) from error
@@ -340,7 +330,7 @@ class CensusRecord:
 
         processes:
             For a noise law, the Wiener process of every target component: `None` for an independent process,
-            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a `WienerProcess`.
+            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a `WienerProcessSpec`.
 
         driven:
             For a noise law, the state entry name and column of every target component.

@@ -152,7 +152,7 @@ def markov_source(transition: Matrix = CHAIN, *, symbol: int = 0) -> System:
         >>> markov_source().elements[0].transition
         ((0.9, 0.1), (0.4, 0.6))
     """
-    return System(components=[MarkovSourceElement('source', symbol=symbol, transition=transition)])
+    return System(elements=[MarkovSourceElement('source', symbol=symbol, transition=transition)])
 
 
 @register_model(
@@ -184,4 +184,4 @@ def hidden_markov_source(transition: Matrix = CHAIN, emission: Matrix = EMISSION
         >>> hidden_markov_source().elements[0].transition
         ((0.9, 0.1), (0.4, 0.6))
     """
-    return System(components=[HiddenMarkovSourceElement('source', transition=transition, emission=emission)])
+    return System(elements=[HiddenMarkovSourceElement('source', transition=transition, emission=emission)])

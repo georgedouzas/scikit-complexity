@@ -10,10 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -100,7 +101,7 @@ class StrategistElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.cooperation import StrategistElement
-        >>> group = StrategistElement.group('agents', 10, genome=[1.0] * 7)
+        >>> group = GroupElement('agents', element=StrategistElement, size=10, values={'genome': [1.0] * 7})
         >>> group.label, group.element.__name__, group.size
         ('agents', 'StrategistElement', 10)
     """
@@ -236,15 +237,14 @@ def prisoners_dilemma_tournament(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
     visual = VisualSpec('traits', {'color_by': 'fitness'})
-    agents = StrategistElement.group(
+    agents = GroupElement(
         'agents',
-        n_agents,
-        genome=genomes,
-        death=death,
-        mutation=mutation,
+        element=StrategistElement,
+        size=n_agents,
+        values={'genome': genomes, 'death': death, 'mutation': mutation},
         visual=visual,
     )
     return System(
-        components=[agents],
+        elements=[agents],
         interactions=[TournamentInteraction('tournament', target='agents', rounds=rounds)],
     )

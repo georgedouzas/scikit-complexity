@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import jv
 
+from skcomplex.analysis import spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.quantum import spectrum
 from skcomplex.models import create, describe, run
 
 MODEL = 'quantum_heisenberg'

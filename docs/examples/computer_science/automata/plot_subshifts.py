@@ -12,8 +12,8 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.space import LatticeSpace, Neighborhood
-from skcomplex.engine.analysis import Subshift, configuration_entropy
+from skcomplex.analysis import Subshift, configuration_entropy
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -34,7 +34,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 space = system.elements[0].space
 alive = simulation.trajectory_.values('cells.alive')
-golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
+golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
 admissible = all(golden.is_admissible(row.astype(int), space) for row in alive)
 lengths = np.arange(2, 31, 4)
 entropies = configuration_entropy(golden, [LatticeSpace(int(length), boundary='fixed') for length in lengths])

@@ -3,20 +3,30 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
 from ....core.laws import UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-SoilTemperatureElement = Element.define(
-    'SoilTemperatureElement',
-    states={'x': 0.3, 'y': 0.1},
-    parameters={'r': 3.8, 'epsilon': 0.1},
-    laws=lambda s: [
-        UpdateLaw(s.x, s.r * s.x * (1 - s.x) + s.epsilon * s.y),
-        UpdateLaw(s.y, s.epsilon * (s.x + s.y)),
-    ],
-)
+
+class SoilTemperatureElement(Element):
+    """Soil temperature element."""
+
+    x = state(0.3)
+    y = state(0.1)
+    r = parameter(3.8)
+    epsilon = parameter(0.1)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the soil temperature element."""
+        return [
+            UpdateLaw(s.x, s.r * s.x * (1 - s.x) + s.epsilon * s.y),
+            UpdateLaw(s.y, s.epsilon * (s.x + s.y)),
+        ]
 
 
 @register_model(
@@ -55,4 +65,4 @@ def soil_temperature(x: float = 0.3, y: float = 0.1, *, r: float = 3.8, epsilon:
         >>> soil_temperature(r=2.5).elements[0].r
         2.5
     """
-    return System(components=[SoilTemperatureElement('soil', x=x, y=y, r=r, epsilon=epsilon)])
+    return System(elements=[SoilTemperatureElement('soil', x=x, y=y, r=r, epsilon=epsilon)])

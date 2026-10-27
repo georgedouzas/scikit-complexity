@@ -12,7 +12,7 @@ Ice volume, carbon dioxide, and the deep ocean temperature drive each other arou
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import power_spectrum
+from skcomplex.analysis import power_spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

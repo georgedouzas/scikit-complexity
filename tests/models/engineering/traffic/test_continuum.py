@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.fields import SSPRKSolver
+from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.models.engineering.traffic import (
     kerner_konhauser,
     lighthill_whitham_richards,

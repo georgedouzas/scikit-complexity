@@ -4,9 +4,11 @@ import math
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import state
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.components import Element
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -24,7 +26,7 @@ from ...conftest import _correlated
 def test_euler_maruyama_without_noise_matches_ode():
     """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
     system = System(
-        components=[AssetElement('s', price=1.0)],
+        elements=[AssetElement('s', price=1.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='s', mu=1.0, sigma=0.0)],
     )
     problem = compile_system(system)
@@ -37,7 +39,7 @@ def test_euler_maruyama_without_noise_matches_ode():
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
     problem = compile_system(
-        System(components=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
+        System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
     )
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.prepare(problem, np.random.default_rng(0))
@@ -61,11 +63,15 @@ def test_euler_maruyama_same_seed_on_both_backends():
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)
 
 
-PairElement = Element.define(
-    'PairElement',
-    states={'x': 1.0, 'y': 1.0},
-    laws=lambda s: [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')],
-)
+class PairElement(Element):
+    """Pair element."""
+
+    x = state(1.0)
+    y = state(1.0)
+
+    def laws(self, s):
+        """Return the laws of the pair element."""
+        return [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')]
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -74,7 +80,7 @@ def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
     trajectory = (
         Simulation(
-            System(components=[PairElement('pair')]),
+            System(elements=[PairElement('pair')]),
             backend=backend,
             solver=stepper(dt=0.01),
             random_state=0,
@@ -89,7 +95,7 @@ def test_shared_process_keeps_difference(backend, stepper):
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_correlated_increments_reproduce_covariance(backend):
-    """Test that the frame increments of two states driven by a `WienerProcess` have its covariance within 0.1."""
+    """Test that the frame increments of two states driven by a `WienerProcessSpec` have its covariance within 0.1."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
     trajectory = (
         Simulation(_correlated(covariance), backend=backend, solver=EulerMaruyamaSolver(dt=1.0), random_state=0, dt=1.0)
@@ -103,15 +109,21 @@ def test_correlated_increments_reproduce_covariance(backend):
 def test_shared_stratonovich_process_has_exact_mean():
     """Test that `dX = s Y o dW`, `dY = s X o dW` on one process has the mean `(X0 + Y0) exp(s^2 / 2)` at time 1."""
     sigma = 0.5
-    CrossElement = Element.define(
-        'CrossElement',
-        states={'x': 1.0, 'y': 0.5},
-        laws=lambda s: [
-            NoiseLaw(s.x, sigma * s.y, convention='stratonovich', process='common'),
-            NoiseLaw(s.y, sigma * s.x, convention='stratonovich', process='common'),
-        ],
-    )
-    system = System(components=[CrossElement.group('crosses', 4000)])
+
+    class CrossElement(Element):
+        """Cross element."""
+
+        x = state(1.0)
+        y = state(0.5)
+
+        def laws(self, s):
+            """Return the laws of the cross element."""
+            return [
+                NoiseLaw(s.x, sigma * s.y, convention='stratonovich', process='common'),
+                NoiseLaw(s.y, sigma * s.x, convention='stratonovich', process='common'),
+            ]
+
+    system = System(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
     state = Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).run(until=1).state_
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)

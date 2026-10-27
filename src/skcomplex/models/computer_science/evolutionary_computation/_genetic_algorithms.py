@@ -10,10 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 type Integers = npt.NDArray[np.int64]
@@ -102,7 +103,7 @@ class StrategyElement(Element):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import StrategyElement
-        >>> StrategyElement.group('strategies', 3).get_params()['size']
+        >>> GroupElement('strategies', element=StrategyElement, size=3).get_params()['size']
         3
     """
 
@@ -276,6 +277,13 @@ def robby_ga(
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
     scores = evolution.score(actions, rng)
     return System(
-        components=[StrategyElement.group('strategies', n_strategies, actions=actions, score=scores)],
+        elements=[
+            GroupElement(
+                'strategies',
+                element=StrategyElement,
+                size=n_strategies,
+                values={'actions': actions, 'score': scores},
+            ),
+        ],
         interactions=[evolution],
     )

@@ -1,6 +1,8 @@
 """Particle realizations shared by the physics packages: named forces, pair potentials, and thermostats."""
 
 from ._particles import (
+    LAMMPS_FIXES,
+    LAMMPS_PAIRS,
     ConstantForceInteraction,
     GravityInteraction,
     HarmonicPotentialInteraction,
@@ -12,6 +14,8 @@ from ._particles import (
 )
 
 __all__: list[str] = [
+    'LAMMPS_FIXES',
+    'LAMMPS_PAIRS',
     'ConstantForceInteraction',
     'GravityInteraction',
     'HarmonicPotentialInteraction',

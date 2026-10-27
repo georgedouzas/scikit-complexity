@@ -1,12 +1,14 @@
 """Test the `_components` module of `skcomplex.formalisms.agents`."""
 
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import state
-from skcomplex.core.components import Element
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import RuleLaw
 from skcomplex.core.system import System
+from skcomplex.engine.backends import memory
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import RuleLaw, memory
 
 
 class SaverElement(Element):
@@ -29,7 +31,9 @@ class SaverElement(Element):
 def test_memory_window():
     """Agents remember the last values of the states their type lists."""
     trajectory = (
-        Simulation(System(components=[SaverElement.group('savers', 2)]), random_state=0).run(until=5).trajectory_
+        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=2)]), random_state=0)
+        .run(until=5)
+        .trajectory_
     )
     assert trajectory.agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]
 
@@ -44,4 +48,4 @@ def test_memory_of_unremembered_state_raises():
             return [RuleLaw(lambda agent, model: memory(agent, 'money'))]
 
     with pytest.raises(KeyError, match='remember'):
-        Simulation(System(components=[ForgetfulElement.group('agents', 1)])).run(until=1)
+        Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).run(until=1)

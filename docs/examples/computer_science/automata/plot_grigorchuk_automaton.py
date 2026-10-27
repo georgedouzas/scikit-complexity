@@ -13,9 +13,9 @@ neighbours inside the ball, so the random start freezes into clusters of agreein
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.spaces import CayleySpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.groups import CayleySpace
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import grigorchuk_group
 

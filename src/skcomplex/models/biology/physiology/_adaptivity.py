@@ -223,4 +223,4 @@ def adaptive_response_costs(
         width=width,
         period=period,
     )
-    return System(components=[organism])
+    return System(elements=[organism])

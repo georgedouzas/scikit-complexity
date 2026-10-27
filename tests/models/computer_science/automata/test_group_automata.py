@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.space import Memory, Neighborhood
-from skcomplex.engine.analysis import Subshift
+from skcomplex.analysis import Subshift
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from skcomplex.engine.runtime import Frame, Simulation
-from skcomplex.formalisms.groups import CayleyVisual
+from skcomplex.engine.viz import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
     baumslag_solitar_automaton,
@@ -40,7 +40,7 @@ def test_grigorchuk_automaton_runs_the_majority_rule():
     alive = simulation.trajectory_.values('cells.alive')
     assert space.size_ == 271
     assert space.ball_sizes_ == GRIGORCHUK_BALLS
-    assert _majority_holds(space, Memory(('1', 'a', 'b', 'c', 'd')), alive[0], alive[1])
+    assert _majority_holds(space, MemoryNeighborhood(('1', 'a', 'b', 'c', 'd')), alive[0], alive[1])
     assert (
         next(entry for entry in catalog() if entry.name == 'grigorchuk_automaton').field == 'computer_science/automata'
     )
@@ -80,7 +80,7 @@ def test_free_group_automaton_runs_the_majority_rule():
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_.values('cells.alive')
     assert space.size_ == 1457
-    assert _majority_holds(space, Memory(('1', 'a', 'a^-1', 'b', 'b^-1')), alive[0], alive[1])
+    assert _majority_holds(space, MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1')), alive[0], alive[1])
 
 
 @pytest.mark.parametrize(('factory', 'size'), [(heisenberg_automaton, 17), (baumslag_solitar_automaton, 17)])
@@ -90,14 +90,14 @@ def test_majority_automata_on_balls(factory, size):
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_.values('cells.alive')
     assert space.size_ == size
-    assert _majority_holds(space, Memory.generators(space.group), alive[0], alive[1])
+    assert _majority_holds(space, GeneratorNeighborhood(space.group.generators), alive[0], alive[1])
 
 
 def test_lamplighter_automaton_is_linear():
     """Test that the parity automaton on the lamplighter ball maps a sum of configurations to the sum of images."""
     system = lamplighter_automaton(radius=5)
     space = system.elements[0].space
-    table = space._index_table(Memory(('1', 'a', 'b')))
+    table = space._index_table(MemoryNeighborhood(('1', 'a', 'b')))
     interior = (table < space.size_).all(axis=1)
     rng = np.random.default_rng(0)
     first, second = rng.integers(2, size=(2, space.size_))
@@ -117,7 +117,7 @@ def test_subshifts_stay_admissible():
     """Test that the Markov chain on the golden mean shift never puts two ones side by side and fills about a fifth."""
     simulation = _run(subshifts(100), 30)
     space = simulation.system.elements[0].space
-    golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
+    golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
     alive = simulation.trajectory_.values('cells.alive')
     assert all(golden.is_admissible(row.astype(int), space) for row in alive)
     assert 0.1 < alive[-10:].mean() < 0.4

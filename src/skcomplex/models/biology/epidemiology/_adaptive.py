@@ -11,10 +11,10 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element, GroupElement
 from ....core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, bernoulli, neighbors, where
-from ....core.space import DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.topology import add_edge, remove_edge, rewire
+from ...core.elements import LatticeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
@@ -281,7 +281,7 @@ def _initial_stream(seed: int | None) -> np.random.Generator:
 
 def _random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
     """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
-    return NetworkSpace.erdos_renyi(n, k / (n - 1), seed=seed)
+    return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
 
 @register_model(
@@ -333,8 +333,10 @@ def quenched_mean_field_sis(
         >>> quenched_mean_field_sis(nx.cycle_graph(10)).elements[0].size
         10
     """
-    space = NetworkSpace(graph) if graph is not None else NetworkSpace.barabasi_albert(n, m, seed=seed)
-    return System(components=[CarrierElement.lattice('nodes', space, p=p, lam=lam)])
+    space = NetworkSpace(graph) if graph is not None else NetworkSpace(nx.barabasi_albert_graph(n, m, seed=seed))
+    return System(
+        elements=[LatticeElement('nodes', element=CarrierElement, space=space, values={'p': p, 'lam': lam})],
+    )
 
 
 @register_model(
@@ -414,7 +416,7 @@ def adaptive_sis(
         visual=HIDDEN,
     )
     rewiring = RewiringInteraction('rewiring', hosts='hosts', contacts='contacts', w=w)
-    return System(components=[hosts, contacts], interactions=[rewiring])
+    return System(elements=[hosts, contacts], interactions=[rewiring])
 
 
 @register_model(
@@ -500,7 +502,7 @@ def activity_driven_epidemics(
         visual=HIDDEN,
     )
     return System(
-        components=[hosts, contacts],
+        elements=[hosts, contacts],
         interactions=[ExpiryInteraction('expiry', hosts='hosts', contacts='contacts')],
         time=DiscreteTime(),
     )

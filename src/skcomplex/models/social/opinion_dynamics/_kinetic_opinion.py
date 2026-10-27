@@ -10,11 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import Element, GroupElement
-from ....core.laws import Symbols
-from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import EncounterLaw, Symbols
+from ....core.laws.utils import moment
+from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import EncounterLaw, moment
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
 
@@ -128,7 +129,7 @@ class OpinionLevelElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import OpinionLevelElement
-        >>> OpinionLevelElement.group('opinions', 7, f=1 / 7).size
+        >>> GroupElement('opinions', element=OpinionLevelElement, size=7, values={'f': 1 / 7}).size
         7
     """
 
@@ -193,7 +194,7 @@ def _levels_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
 
 
-def opinion_observables(levels: int) -> list[Observable]:
+def opinion_observables(levels: int) -> list[ObservableSpec]:
     """Return the mean opinion and the variance of the opinions of a distribution `opinions`.
 
     Args:
@@ -211,8 +212,8 @@ def opinion_observables(levels: int) -> list[Observable]:
     """
     opinions = opinion_grid(levels)
     return [
-        Observable('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
-        Observable('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
+        ObservableSpec('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
+        ObservableSpec('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
     ]
 
 
@@ -267,7 +268,7 @@ def kinetic_opinion(
     """
     initial = 1.0 + 0.1 * opinion_grid(levels)
     return System(
-        components=[
+        elements=[
             GroupElement(
                 'opinions',
                 element=OpinionLevelElement,

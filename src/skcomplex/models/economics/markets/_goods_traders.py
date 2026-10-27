@@ -11,11 +11,14 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import MatchLaw, RuleLaw, Symbols
+from ....core.laws.utils import matches
+from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ...core.elements import GroupElement
 from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
@@ -29,12 +32,12 @@ def _utility(agent: Any) -> float:  # noqa: ANN401
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _goods_observables(system: System) -> list[Observable]:
+def _goods_observables(system: System) -> list[ObservableSpec]:
     """Return the mean utility of the traders and the total of every good."""
     del system
     return [
-        Observable('utility', _utility, group='traders', reduce='mean'),
-        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        ObservableSpec('utility', _utility, group='traders', reduce='mean'),
+        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     ]
 
 
@@ -68,7 +71,7 @@ class GoodsTraderElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.markets import GoodsTraderElement
-        >>> GoodsTraderElement.group('traders', 4, sugar=5.0).size
+        >>> GroupElement('traders', element=GoodsTraderElement, size=4, values={'sugar': 5.0}).size
         4
     """
 
@@ -275,16 +278,16 @@ def goods_traders(
     holdings = rng.uniform(low, high, (n_traders, goods))
     values: dict[str, Any] = {GOODS[index]: holdings[:, index] for index in range(goods)}
     values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
-    traders = GoodsTraderElement.group(
+    traders = GroupElement(
         'traders',
-        n_traders,
+        element=GoodsTraderElement,
+        size=n_traders,
+        values={'mobility': mobility, **values},
         variable=True,
         location=locations,
-        mobility=mobility,
-        **values,
     )
     return System(
-        components=[traders],
+        elements=[traders],
         interactions=[
             ExchangeInteraction(
                 'exchange',
@@ -295,5 +298,5 @@ def goods_traders(
             ),
         ],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('move'), Phase('trade')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
     )

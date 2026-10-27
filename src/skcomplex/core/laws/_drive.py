@@ -1,0 +1,63 @@
+"""Define drive laws, which change a whole lattice state at once."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Callable
+from typing import Self
+
+from sage.all__sagemath_symbolics import Expression
+
+from ..errors import ValidationError
+from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ..specs import RequirementSpec
+from ._base import BaseLaw
+
+
+class DriveLaw(BaseLaw):
+    """Change of a whole lattice state at once, such as dropping a grain on a random site.
+
+    The function receives the state as an array of the lattice shape, keyword arguments for the parameters of the
+    element that it names, and `random`, the random generator of the simulation, and returns the new array.
+
+    Args:
+        target:
+            The symbol of a lattice state.
+
+        function:
+            The function `f(values, *, random, **parameters)`.
+
+        label:
+            The name of the law, or the empty string for a law without one.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws import DriveLaw
+        >>> DriveLaw(var('height'), lambda values, *, random: values + 1).check().prepare().targets_
+        (height,)
+    """
+
+    def __init__(self, target: Expression, function: Callable[..., object], *, label: str = '') -> None:
+        super().__init__(label)
+        self.target = target
+        self.function = function
+
+    def _get_targets(self) -> tuple[object, ...]:
+        """Return the lattice state the drive changes."""
+        return (self.target,)
+
+    def _get_requirements(self) -> RequirementSpec:
+        """Return what the drive requires of a system: discrete time on a lattice or a network."""
+        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+
+    def _check(self) -> Self:
+        """Raise an error for a function that cannot be called.
+
+        Returns:
+            law:
+                The law itself.
+        """
+        if not callable(self.function):
+            error_msg = f'The function of a drive must be callable, but it is {self.function!r}.'
+            raise ValidationError(error_msg)
+        return self

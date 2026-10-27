@@ -12,11 +12,13 @@ import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -74,7 +76,7 @@ class HouseholdElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.innovation import HouseholdElement
-        >>> HouseholdElement.group('households', 4, threshold=1.5).size
+        >>> GroupElement('households', element=HouseholdElement, size=4, values={'threshold': 1.5}).size
         4
     """
 
@@ -120,7 +122,7 @@ class HouseholdElement(Element):
     tags=('diffusion', 'adoption', 'network effect', 'agents'),
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 50},
-    observables=lambda system: [Observable('share', group='households', variable='phone')],
+    observables=lambda system: [ObservableSpec('share', group='households', variable='phone')],
 )
 def phone_adoption(
     shape: Sequence[int] = (30, 30),
@@ -175,17 +177,14 @@ def phone_adoption(
     incomes /= incomes.mean()
     owners = _seed_network(incomes, classes, (width, height), threshold, initial_share)
     locations = [(column, row) for column in range(width) for row in range(height)]
-    households = HouseholdElement.group(
+    households = GroupElement(
         'households',
-        len(locations),
+        element=HouseholdElement,
+        size=len(locations),
+        values={'income': incomes, 'phone': owners, 'social_class': classes, 'growth': growth, 'threshold': threshold},
         location=locations,
-        income=incomes,
-        phone=owners,
-        social_class=classes,
-        growth=growth,
-        threshold=threshold,
     )
     return System(
-        components=[households],
+        elements=[households],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

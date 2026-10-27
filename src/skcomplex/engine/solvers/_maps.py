@@ -8,10 +8,12 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.base import DomainKind, ElementKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
-from ...core.problems import Problem
+from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
+from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.types import Vector
+from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._hybrid import reject_hybrid
-from ._stepper import Solver, register_solver
+from ._stepper import Solver
 
 
 class IterationSolver(Solver):
@@ -27,7 +29,7 @@ class IterationSolver(Solver):
         >>> from skcomplex.engine.solvers import IterationSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[MarketElement('m', price=1)],
+        ...         elements=[MarketElement('m', price=1)],
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
@@ -36,19 +38,12 @@ class IterationSolver(Solver):
         [4.0]
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.DISCRETE},
-        space=set(SpaceKind.registered()),
-        laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
-        domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.EDGE_GROUP,
-            ElementKind.VARIABLE_GROUP,
-            ElementKind.SYSTEM,
-        },
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={DiscreteTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
+        
+        
         orders={OrderKind.INTEGER},
     )
 
@@ -110,6 +105,3 @@ class IterationSolver(Solver):
                 following = topology.apply(fired, float(step), following, p, self.rng_)
             state = self._bounded(float(step + 1), following, p)
         return state
-
-
-register_solver('iteration', IterationSolver, default=True)

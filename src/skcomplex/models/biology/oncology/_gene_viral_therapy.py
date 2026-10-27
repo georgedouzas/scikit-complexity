@@ -506,7 +506,7 @@ def tcr_gene_therapy(
         100000.0
     """
     site = TcrGeneTherapyElement('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -572,7 +572,7 @@ def sirna_tgf_beta(
         1000000.0
     """
     site = SirnaTgfBetaElement('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
-    return System(components=[site])
+    return System(elements=[site])
 
 
 @register_model(
@@ -615,7 +615,7 @@ def oncolytic_virus(AU: float = 0.1, AV: float = 1e-4, *, alpha: float = 1.0, r:
         >>> oncolytic_virus(alpha=1.5).elements[0].alpha
         1.5
     """
-    return System(components=[OncolyticVirusElement('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
+    return System(elements=[OncolyticVirusElement('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
 
 
 @register_model(
@@ -672,4 +672,4 @@ def oncolytic_virus_dendritic(
         >>> oncolytic_virus_dendritic(ud=0.0).elements[0].ud
         0.0
     """
-    return System(components=[OncolyticVirusDendriticElement('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])
+    return System(elements=[OncolyticVirusDendriticElement('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])

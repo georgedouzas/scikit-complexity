@@ -4,13 +4,16 @@ import math
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import BaseInteraction, role, state
-from skcomplex.core.components import Element
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws import MatchLaw, RuleLaw
+from skcomplex.core.laws.utils import matches
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import MatchLaw, Phase, PhasesSchedule, RuleLaw, matches
 from skcomplex.models.economics.realizations import (
     BilateralSearch,
     CallAuction,
@@ -67,13 +70,18 @@ def _zero_intelligence(n_traders, rng):
         def quote(self, agent, model):
             agent.ask = model.rng.uniform(agent.value, 200) if agent.supply > 0 else 200.0
 
-    buyers = BuyerElement.group('buyers', n_traders, value=values, demand=1.0, money=values)
-    sellers = SellerElement.group('sellers', n_traders, value=costs, supply=1.0)
+    buyers = GroupElement(
+        'buyers',
+        element=BuyerElement,
+        size=n_traders,
+        values={'value': values, 'demand': 1.0, 'money': values},
+    )
+    sellers = GroupElement('sellers', element=SellerElement, size=n_traders, values={'value': costs, 'supply': 1.0})
     market = MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='clear')
     system = System(
-        components=[buyers, sellers],
+        elements=[buyers, sellers],
         interactions=[market],
-        time=DiscreteTime(schedule=PhasesSchedule([Phase('quote'), Phase('clear')])),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('clear')])),
     )
     return values, costs, system
 
@@ -217,9 +225,9 @@ def test_order_book_is_a_pairing_of_the_matching_law():
     PAIRS.clear()
     EARLIEST.clear()
     system = System(
-        components=[
-            LimitTraderElement.group('buyers', 1, bid=10.0),
-            LimitTraderElement.group('sellers', 2, ask=10.0),
+        elements=[
+            GroupElement('buyers', element=LimitTraderElement, size=1, values={'bid': 10.0}),
+            GroupElement('sellers', element=LimitTraderElement, size=2, values={'ask': 10.0}),
         ],
         interactions=[BookInteraction('book', buyers='buyers', sellers='sellers')],
     )

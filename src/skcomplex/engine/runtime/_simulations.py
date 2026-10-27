@@ -10,12 +10,18 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ...core.base import BaseEstimator, Form, NumericDomain, ParameterError, SimulationError, ValidationError, Vector
-from ...core.problems import BaseBackend, BaseProblem, Entry, with_initial_state
-from ...core.system import Observable, System
+from ...core.errors import ParameterError, SimulationError, ValidationError
+from ...core.specs import ObservableSpec
+from ...core.system import System
+from ...core.types import Vector
+from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, compile_system, validate
-from ..solvers import AgentState, Solver, StructureState, resolve_solver
+from ..problems import BaseProblem, Entry, Form, contains, with_initial_state
+from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
+from ..utils import BaseEstimator
 from ._clocks import AsFastAsPossibleClock, BaseClock
 from ._conservation import InvariantObserver
 from ._frames import Frame
@@ -64,12 +70,14 @@ class Simulation(BaseEstimator):
             that change only parameters or initial values.
 
         solver:
-            `'auto'` for the default solver of the system's form, a registered solver name, or a stepper instance.
+            The solver, or `None` for the default solver of the system's form, `CoSimulationSolver` for a system that
+            runs as partitions.
             The default ODE solver is `ScipyODESolver` with `LSODA`, which switches to BDF methods while the system is
             stiff.
 
         backend:
-            The backend that compiles the system, `'auto'`, `'numpy'`, `'numba'`, or a backend instance.
+            The backend that compiles the system, or `None` for `NumbaBackend` on systems with at least 1000 members and
+            `NumpyBackend` on the others.
 
         dt:
             The simulated time between frames. It defaults to 1 for discrete maps and agent-based models. Otherwise
@@ -133,7 +141,7 @@ class Simulation(BaseEstimator):
         >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[PopulationElement('rabbits', n=10)],
+        ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
@@ -145,8 +153,8 @@ class Simulation(BaseEstimator):
         self,
         system: System | BaseProblem,
         *,
-        solver: str | Solver = 'auto',
-        backend: str | BaseBackend = 'auto',
+        solver: BaseSolver | None = None,
+        backend: BaseBackend | None = None,
         dt: float | None = None,
         clock: BaseClock | None = None,
         observers: Sequence[BaseObserver] = (),
@@ -154,7 +162,7 @@ class Simulation(BaseEstimator):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[Observable] = (),
+        observables: Sequence[ObservableSpec] = (),
         invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
     ) -> None:
@@ -178,10 +186,10 @@ class Simulation(BaseEstimator):
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else _default_dt(until)
         dt = default if self.dt is None else self.dt
-        if not NumericDomain.POSITIVE.contains(dt):
+        if not contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if stepwise and not NumericDomain.INTEGER.contains(dt):
+        if stepwise and not contains(ZZ, dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
@@ -220,7 +228,12 @@ class Simulation(BaseEstimator):
         self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
         self.dt_ = self._check_dt(self.problem_, until)
-        self.stepper_ = resolve_solver(self.problem_, self.solver)
+        if self.solver is not None:
+            self.stepper_ = self.solver
+        elif self.problem_.form == Form.COUPLED:
+            self.stepper_ = CoSimulationSolver()
+        else:
+            self.stepper_ = DEFAULT_SOLVERS[self.problem_.form]()
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
         self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
         initial_state = self.stepper_.initial_state_.copy()
@@ -337,7 +350,7 @@ class Simulation(BaseEstimator):
         """Raise an error when a state has left its domain."""
         for entry in self.problem_.states.entries:
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
-            if not entry.domain.contains(values):
+            if not contains(entry.domain, values):
                 error_msg = (
                     f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
                     f'{entry.domain.value} domain. Check the laws that change it.'
@@ -350,7 +363,7 @@ class Simulation(BaseEstimator):
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
             f'{entry.domain.value} domain.'
         )
-        if not entry.domain.contains(value):
+        if not contains(entry.domain, value):
             raise ValidationError(error_msg)
         try:
             return entry.encode(value)
@@ -428,7 +441,7 @@ class Simulation(BaseEstimator):
             >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.engine.runtime import Simulation
             >>> system = System(
-            ...     components=[PopulationElement('rabbits', n=10)],
+            ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> simulation = Simulation(system, dt=1.0).run(until=5)

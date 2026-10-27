@@ -8,8 +8,9 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from ...core.base import ConservationError, SimulationError, ValidationError, Vector
-from ...core.problems import BaseProblem, StockFlow
+from ...core.errors import ConservationError, SimulationError, ValidationError
+from ...core.types import Vector
+from ..problems import BaseProblem, StockFlow
 from ._frames import Frame
 from ._observers import BaseObserver
 
@@ -131,11 +132,15 @@ class InvariantObserver(BaseObserver):
             The value of every invariant at the first frame.
 
     Examples:
-        >>> from skcomplex.core.system import Observable, System
+        >>> from skcomplex.core.elements import GroupElement
+        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import InvariantObserver, Simulation
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> system = System(components=[PopulationElement.group('herd', 2, n=[2.0, 6.0])])
-        >>> total = Observable('total', group='herd', reduce='sum', variable='n')
+        >>> system = System(
+        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
+        ... )
+        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
         >>> monitor = InvariantObserver({'total': 1e-9})
         >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).run(3)
         >>> monitor.initial_

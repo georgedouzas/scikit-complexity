@@ -2,8 +2,8 @@
 
 import networkx as nx
 
+from skcomplex.analysis import as_graph
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import as_graph
 from skcomplex.engine.runtime import Simulation, Trajectory
 
 

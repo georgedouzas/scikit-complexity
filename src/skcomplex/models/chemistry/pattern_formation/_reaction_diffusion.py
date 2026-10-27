@@ -8,45 +8,74 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
+from skcomplex.core.declarations import parameter, state
+
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
-GrayScottElement = Element.define(
-    'GrayScottElement',
-    states={'u': 1.0, 'v': 0.0},
-    parameters={'Du': 0.16, 'Dv': 0.08, 'F': 0.035, 'k': 0.065},
-    laws=lambda s: [
-        RateLaw(s.u, s.Du * laplacian(s.u) - s.u * s.v**2 + s.F * (1 - s.u)),
-        RateLaw(s.v, s.Dv * laplacian(s.v) + s.u * s.v**2 - (s.F + s.k) * s.v),
-    ],
-)
 
-BrusselatorElement = Element.define(
-    'BrusselatorElement',
-    states={'u': 1.0, 'v': 3.0},
-    parameters={'a': 1.0, 'b': 3.0, 'Du': 1.0, 'Dv': 8.0},
-    laws=lambda s: [
-        RateLaw(s.u, s.Du * laplacian(s.u) + s.a - (s.b + 1) * s.u + s.u**2 * s.v),
-        RateLaw(s.v, s.Dv * laplacian(s.v) + s.b * s.u - s.u**2 * s.v),
-    ],
-)
+class GrayScottElement(Element):
+    """Gray scott element."""
 
-SchnakenbergElement = Element.define(
-    'SchnakenbergElement',
-    states={'u': 1.0, 'v': 0.9},
-    parameters={'a': 0.1, 'b': 0.9, 'Du': 1.0, 'Dv': 40.0},
-    laws=lambda s: [
-        RateLaw(s.u, s.Du * laplacian(s.u) + s.a - s.u + s.u**2 * s.v),
-        RateLaw(s.v, s.Dv * laplacian(s.v) + s.b - s.u**2 * s.v),
-    ],
-)
+    u = state(1.0)
+    v = state(0.0)
+    Du = parameter(0.16)
+    Dv = parameter(0.08)
+    F = parameter(0.035)
+    k = parameter(0.065)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the gray scott element."""
+        return [
+            RateLaw(s.u, s.Du * laplacian(s.u) - s.u * s.v**2 + s.F * (1 - s.u)),
+            RateLaw(s.v, s.Dv * laplacian(s.v) + s.u * s.v**2 - (s.F + s.k) * s.v),
+        ]
+
+
+class BrusselatorElement(Element):
+    """Brusselator element."""
+
+    u = state(1.0)
+    v = state(3.0)
+    a = parameter(1.0)
+    b = parameter(3.0)
+    Du = parameter(1.0)
+    Dv = parameter(8.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the brusselator element."""
+        return [
+            RateLaw(s.u, s.Du * laplacian(s.u) + s.a - (s.b + 1) * s.u + s.u**2 * s.v),
+            RateLaw(s.v, s.Dv * laplacian(s.v) + s.b * s.u - s.u**2 * s.v),
+        ]
+
+
+class SchnakenbergElement(Element):
+    """Schnakenberg element."""
+
+    u = state(1.0)
+    v = state(0.9)
+    a = parameter(0.1)
+    b = parameter(0.9)
+    Du = parameter(1.0)
+    Dv = parameter(40.0)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the schnakenberg element."""
+        return [
+            RateLaw(s.u, s.Du * laplacian(s.u) + s.a - s.u + s.u**2 * s.v),
+            RateLaw(s.v, s.Dv * laplacian(s.v) + s.b - s.u**2 * s.v),
+        ]
 
 
 def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
@@ -105,7 +134,7 @@ def gray_scott(
     u[middle], v[middle] = 0.5, 0.25
     noise = _noise(shape, 0.01, random_state)
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(components=[FieldElement('cells', GrayScottElement, LatticeSpace(shape), values=values)])
+    return System(elements=[FieldElement('cells', GrayScottElement, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -162,7 +191,7 @@ def brusselator(
         'Du': Du,
         'Dv': Dv,
     }
-    return System(components=[FieldElement('cells', BrusselatorElement, LatticeSpace(shape), values=values)])
+    return System(elements=[FieldElement('cells', BrusselatorElement, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -228,7 +257,7 @@ def schnakenberg(
         'Dv': Dv,
     }
     return System(
-        components=[
+        elements=[
             FieldElement('cells', SchnakenbergElement, LatticeSpace(shape, spacing=spacing), values=values),
         ],
     )

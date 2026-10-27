@@ -289,7 +289,7 @@ def rosenzweig_macarthur(
     prey = 1 / (1 - eta) if prey is None else prey
     predators = (1 - phi * prey) * (1 + eta * prey) if predators is None else predators
     return System(
-        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             RosenzweigMacArthurInteraction(
                 'predation',
@@ -349,7 +349,7 @@ def nicholson_bailey(
         3.0
     """
     return System(
-        components=[PopulationElement('hosts', n=hosts), PopulationElement('parasitoids', n=parasitoids)],
+        elements=[PopulationElement('hosts', n=hosts), PopulationElement('parasitoids', n=parasitoids)],
         interactions=[ParasitismInteraction('parasitism', host='hosts', parasitoid='parasitoids', k=k, a=a, c=c)],
     )
 
@@ -412,7 +412,7 @@ def lotka_volterra_with_harvesting(
         ['prey_harvest', 'predator_harvest']
     """
     return System(
-        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=r),
             PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
@@ -485,7 +485,7 @@ def stochastic_predator_prey(
         1000.0
     """
     return System(
-        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             PredatorPreyEventsInteraction(
                 'events',

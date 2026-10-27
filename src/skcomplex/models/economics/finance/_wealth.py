@@ -9,25 +9,30 @@ import networkx as nx
 
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import Element, GroupElement
+from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols, count, mean
-from ....core.space import NetworkSpace
-from ....core.system import Observable, System
+from ....core.laws.utils import laplacian
+from ....core.spaces import NetworkSpace
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, laplacian
+from ...core.base import BaseLaw
 
-SaverElement = Element.define(
-    'SaverElement',
-    states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
-    parameters={
-        'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'sigma': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'degree': parameter(default=1.0, domain=NumericDomain.POSITIVE),
-    },
-    laws=lambda s: [
-        RateLaw(s.W, s.J / s.degree * laplacian(s.W)),
-        NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich'),
-    ],
-)
+
+class SaverElement(Element):
+    """Saver element."""
+
+    W = state(default=1.0, domain=NumericDomain.POSITIVE)
+    J = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    sigma = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    degree = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the saver element."""
+        return [
+            RateLaw(s.W, s.J / s.degree * laplacian(s.W)),
+            NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich'),
+        ]
 
 
 def _mean_exchange(s: Symbols) -> Expression:
@@ -35,15 +40,16 @@ def _mean_exchange(s: Symbols) -> Expression:
     return s.J * count() / (count() - 1) * (mean(s.W) - s.W)
 
 
-MeanFieldSaverElement = Element.define(
-    'MeanFieldSaverElement',
-    states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
-    parameters={
-        'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
-        'sigma': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [RateLaw(s.W, _mean_exchange(s)), NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich')],
-)
+class MeanFieldSaverElement(Element):
+    """Mean field saver element."""
+
+    W = state(default=1.0, domain=NumericDomain.POSITIVE)
+    J = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    sigma = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the mean field saver element."""
+        return [RateLaw(s.W, _mean_exchange(s)), NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich')]
 
 
 @register_model(
@@ -51,7 +57,7 @@ MeanFieldSaverElement = Element.define(
     tags=('wealth', 'sde', 'network', 'pareto'),
     references=('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000'),
     defaults={'until': 1.0, 'dt': 0.1},
-    observables=lambda system: [Observable('mean_wealth', group='agents', variable='W')],
+    observables=lambda system: [ObservableSpec('mean_wealth', group='agents', variable='W')],
 )
 def bouchaud_mezard_wealth(
     n_agents: int = 20,
@@ -96,15 +102,14 @@ def bouchaud_mezard_wealth(
         1.0
     """
     if graph is None:
-        agents: FieldElement | GroupElement = MeanFieldSaverElement.group(
+        agents: FieldElement | GroupElement = GroupElement(
             'agents',
-            n_agents,
-            W=wealth,
-            J=J,
-            sigma=sigma,
+            element=MeanFieldSaverElement,
+            size=n_agents,
+            values={'W': wealth, 'J': J, 'sigma': sigma},
         )
     else:
         degree = 2 * nx.number_of_edges(graph) / nx.number_of_nodes(graph)
         values = {'W': wealth, 'J': J, 'sigma': sigma, 'degree': degree}
         agents = FieldElement('agents', SaverElement, NetworkSpace(graph), values=values)
-    return System(components=[agents])
+    return System(elements=[agents])

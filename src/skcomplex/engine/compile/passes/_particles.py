@@ -5,62 +5,13 @@
 
 from typing import cast
 
-from ....core.base import (
-    BaseInteraction,
-    BaseLaw,
-    Expression,
-    ValidationError,
-    VariableKind,
-    components_of,
-    declarations_of,
-)
-from ....core.laws import BoundaryLaw, Symbols, either, mod, where
-from ....core.problems import Source
-from ....core.problems._kernels import PairSearch
-from ....core.space import ContinuousSpace
+from ....core.laws import BaseLaw, BoundaryLaw
+from ....core.spaces import ContinuousSpace
+from ...problems import VariableKind, components_of, declarations_of, either, mod, where
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction
 from .._pipeline import BasePass
-from .._specs import KernelSpec, resolve_role
-from .._tree import Node
-
-
-def _space_period(node: Node) -> float | None:
-    """Return the side of the periodic box that a pair interaction measures minimum image distances in, or `None`."""
-    space = node.space
-    if not isinstance(space, ContinuousSpace) or not space.periodic_:
-        return None
-    if len(set(space.extent_)) > 1:
-        error_msg = (
-            f'Pair interaction {node.path} lives in the periodic box {space.extent_}, whose sides differ. Pair '
-            'searches measure minimum image distances in boxes with equal sides.'
-        )
-        raise ValidationError(error_msg)
-    return space.extent_[0]
-
-
-def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> KernelSpec:
-    """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
-    node = block.node
-    interaction: BaseInteraction = node.component
-    first, second = resolve_role(node, 'first', elements), resolve_role(node, 'second', elements)
-    position = getattr(type(interaction), 'position', 'x')
-    for bound in (first, second):
-        entry = bound.entries.get(position)
-        if entry is None or not entry.member_shape:
-            error_msg = f'Pair interaction {node.path} needs the vector state {position!r} in {bound.node.path}.'
-            raise ValidationError(error_msg)
-    parameters, references = block.namespace(Source.SINGLE)
-    first_namespace, first_references = first.namespace(Source.FIRST)
-    second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
-    references.update(first_references)
-    references.update(second_references)
-    period = getattr(interaction, 'period', None)
-    period = period if period is not None else _space_period(node)
-    pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
-    namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
-    paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
-    return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
+from .._specs import KernelSpec
 
 
 def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
@@ -86,12 +37,12 @@ def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
         velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
         for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
             if space.boundary == 'periodic':
-                laws.append(BoundaryLaw((position,), mod(position, side)))
+                laws.append(BoundaryLaw(position, mod(position, side)))
                 continue
             below, above = position < 0, position > side
-            laws.append(BoundaryLaw((position,), where(below, -position, where(above, 2 * side - position, position))))
+            laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
             if velocity is not None:
-                laws.append(BoundaryLaw((velocity,), where(either(below, above), -velocity, velocity)))
+                laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
     return laws
 
 
@@ -112,7 +63,3 @@ class BoundaryLawsPass(BasePass):
             (spec, [*laws, *_space_boundary_laws(block, spec)], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
-
-
-PASSES = (BoundaryLawsPass(),)
-BINDINGS = {'pairs': _pair_spec}

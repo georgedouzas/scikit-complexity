@@ -11,10 +11,11 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.laws import RuleLaw, Symbols
 from ....core.system import System
+from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -73,7 +74,7 @@ class IndividualElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import IndividualElement
-        >>> IndividualElement.group('population', 10, trait=0.0).size
+        >>> GroupElement('population', element=IndividualElement, size=10, values={'trait': 0.0}).size
         10
     """
 
@@ -369,7 +370,7 @@ class ClimberElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import ClimberElement
-        >>> ClimberElement.group('climbers', 10).size
+        >>> GroupElement('climbers', element=ClimberElement, size=10).size
         10
     """
 
@@ -456,13 +457,13 @@ def moran_process(
     traits = np.zeros(size)
     traits[:mutants] = 1.0
     return System(
-        components=[
-            IndividualElement.group(
+        elements=[
+            GroupElement(
                 'population',
-                size,
+                element=IndividualElement,
+                size=size,
+                values={'trait': traits, 'fitness': (1 + selection) ** traits},
                 variable=True,
-                trait=traits,
-                fitness=(1 + selection) ** traits,
             ),
         ],
         interactions=[MoranStepInteraction('moran', population='population', selection=selection, mutation=mutation)],
@@ -539,7 +540,16 @@ def tangled_nature(
     )
     visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
     return System(
-        components=[IndividualElement.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
+        elements=[
+            GroupElement(
+                ORGANISMS,
+                element=IndividualElement,
+                size=organisms,
+                values={'trait': genome},
+                variable=True,
+                visual=visual,
+            ),
+        ],
         interactions=[step],
     )
 
@@ -587,13 +597,13 @@ def adaptive_climbing(
     """
     fitness = _random_fitness(0, seed)
     return System(
-        components=[
-            IndividualElement.group(
+        elements=[
+            GroupElement(
                 'population',
-                size,
+                element=IndividualElement,
+                size=size,
+                values={'trait': 0.0, 'fitness': fitness},
                 variable=True,
-                trait=0.0,
-                fitness=fitness,
                 visual=VisualSpec('agents', {'color_by': 'fitness'}),
             ),
         ],
@@ -647,14 +657,17 @@ def nk_landscape(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2**n, size=climbers)
     fitness = [_nk_fitness(int(genome), n, k, seed) for genome in genomes]
-    group = ClimberElement.group(
+    group = GroupElement(
         'climbers',
-        climbers,
+        element=ClimberElement,
+        size=climbers,
+        values={
+            'genome': genomes.astype(float),
+            'fitness': np.asarray(fitness),
+            'n': float(n),
+            'k': float(k),
+            'seed': float(seed),
+        },
         variable=True,
-        genome=genomes.astype(float),
-        fitness=np.asarray(fitness),
-        n=float(n),
-        k=float(k),
-        seed=float(seed),
     )
-    return System(components=[group])
+    return System(elements=[group])

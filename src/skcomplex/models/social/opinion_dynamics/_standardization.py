@@ -11,10 +11,12 @@ from scipy.special import expit
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.laws import RuleLaw, Symbols
+from ....core.specs import ObservableSpec
+from ....core.system import System
+from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, RuleLaw
+from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -49,7 +51,9 @@ class ComplexAgentElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import ComplexAgentElement
-        >>> ComplexAgentElement.group('agents', 10, configuration=5.0, spin=0.0).size
+        >>> GroupElement(
+        ...     'agents', element=ComplexAgentElement, size=10, values={'configuration': 5.0, 'spin': 0.0}
+        ... ).size
         10
     """
 
@@ -168,8 +172,8 @@ class StandardizationInteraction(BaseInteraction):
     references=('Bertin 2021', 'Bertin and Jensen 2019'),
     defaults={'until': 1000},
     observables=lambda system: [
-        Observable('q', group='agents', variable='spin', reduce=_standardization),
-        Observable('m', group='agents', variable='spin', reduce='mean'),
+        ObservableSpec('q', group='agents', variable='spin', reduce=_standardization),
+        ObservableSpec('m', group='agents', variable='spin', reduce='mean'),
     ],
 )
 def standardized_agents(
@@ -227,8 +231,13 @@ def standardized_agents(
     configurations = np.where(marked, rng.integers(MARKED, size=agents), rng.integers(MARKED, H + MARKED, size=agents))
     configurations = configurations.astype(float)
     return System(
-        components=[
-            ComplexAgentElement.group('agents', agents, configuration=configurations, spin=_spins_of(configurations)),
+        elements=[
+            GroupElement(
+                'agents',
+                element=ComplexAgentElement,
+                size=agents,
+                values={'configuration': configurations, 'spin': _spins_of(configurations)},
+            ),
         ],
         interactions=[StandardizationInteraction('standardization', agents='agents', K=K, J=J, T=T, H=H)],
     )

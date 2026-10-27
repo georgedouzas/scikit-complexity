@@ -17,7 +17,7 @@ bright spots, and new bands leave every meeting point in the opposite directions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import dispersion_relation
+from skcomplex.analysis import dispersion_relation
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver

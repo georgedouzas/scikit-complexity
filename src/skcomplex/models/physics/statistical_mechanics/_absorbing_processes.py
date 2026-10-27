@@ -130,4 +130,4 @@ def absorbing_birth_death(
         volume=volume,
         epsilon=epsilon,
     )
-    return System(components=[particles])
+    return System(elements=[particles])

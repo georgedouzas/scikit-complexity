@@ -6,11 +6,64 @@
 from collections.abc import Mapping
 from typing import ClassVar
 
-from ...core.base import DomainKind, ElementKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.problems import BaseBackend, Draws, Kernel, Lowering, ReductionSchedule, Reference, register_backend
-from ...core.problems._backends import adding_function, assigning_function, concatenating_function, with_reductions
-from ...core.problems._kernels import jump_channels, lower_noise
+from ...core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    DestructionLaw,
+    DissipatorLaw,
+    DriveLaw,
+    EmissionLaw,
+    EncounterLaw,
+    EquationLaw,
+    ExtremalLaw,
+    FluxLaw,
+    FractionalNoiseLaw,
+    GeneratorLaw,
+    GraphProductionLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    MatchLaw,
+    NoiseLaw,
+    ProductionLaw,
+    ProliferationLaw,
+    RateLaw,
+    RelaxationLaw,
+    RuleLaw,
+    SampleLaw,
+    SubstitutionLaw,
+    TransferLaw,
+    TransitionLaw,
+    UpdateLaw,
+)
+from ...core.spaces import (
+    CayleySpace,
+    ContinuousSpace,
+    ContinuousTime,
+    DiscreteTime,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    StaticTime,
+)
+from ..problems import (
+    Draws,
+    Form,
+    Kernel,
+    NoiseKind,
+    OrderKind,
+    ReductionSchedule,
+    Reference,
+    SupportSpec,
+)
+from ..problems._kernels import jump_channels, lower_noise
+from ._base import (
+    BaseBackend,
+    Lowering,
+    adding_function,
+    assigning_function,
+    concatenating_function,
+    with_reductions,
+)
 
 
 class NumpyBackend(BaseBackend):
@@ -21,16 +74,16 @@ class NumpyBackend(BaseBackend):
         >>> from skcomplex.engine.backends import NumpyBackend
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> compile_system(System(components=[PopulationElement('a')]), backend=NumpyBackend()).backend
+        >>> compile_system(System(elements=[PopulationElement('a')]), backend=NumpyBackend()).backend
         'numpy'
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time=set(TimeKind),
-        space=set(SpaceKind.registered()),
-        laws=set(LawKind.registered()),
-        domains=set(DomainKind),
-        components=set(ElementKind),
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime, DiscreteTime, StaticTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+        laws={BoundaryLaw, CrossingLaw, DestructionLaw, DissipatorLaw, DriveLaw, EmissionLaw, EncounterLaw, EquationLaw, ExtremalLaw, FluxLaw, FractionalNoiseLaw, GeneratorLaw, GraphProductionLaw, JumpLaw, LocalRuleLaw, MatchLaw, NoiseLaw, ProductionLaw, ProliferationLaw, RateLaw, RelaxationLaw, RuleLaw, SampleLaw, SubstitutionLaw, TransferLaw, TransitionLaw, UpdateLaw},
+        
+        
         noise=set(NoiseKind),
         orders=set(OrderKind),
     )
@@ -82,6 +135,3 @@ class NumpyBackend(BaseBackend):
         if form == Form.DISCRETE:
             lowering.update = assigning_function(kernels.get(UpdateLaw, []))
         return with_reductions(lowering, reductions, kernels)
-
-
-register_backend(NumpyBackend)

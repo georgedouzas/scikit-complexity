@@ -2,30 +2,40 @@
 
 import numpy as np
 import pytest
-
 from skcomplex.core.components import Element
+from skcomplex.core.declarations import parameter, state
+
+from skcomplex.analysis import structure_factor
+from skcomplex.core.elements import FieldElement
 from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import structure_factor
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
-from skcomplex.formalisms.fields import FieldElement, laplacian
-
-ConservedElement = Element.define(
-    'ConservedElement',
-    states={'rho': 0.0},
-    parameters={'a': 0.5},
-    laws=lambda s: [NoiseLaw(s.rho, s.a, conserved=True)],
-)
 
 
-DiffusingElement = Element.define(
-    'DiffusingElement',
-    states={'rho': 0.0},
-    parameters={'D': 1.0, 'T': 0.5},
-    laws=lambda s: [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, (2 * s.T) ** 0.5, conserved=True)],
-)
+class ConservedElement(Element):
+    """Conserved element."""
+
+    rho = state(0.0)
+    a = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the conserved element."""
+        return [NoiseLaw(s.rho, s.a, conserved=True)]
+
+
+class DiffusingElement(Element):
+    """Diffusing element."""
+
+    rho = state(0.0)
+    D = parameter(1.0)
+    T = parameter(0.5)
+
+    def laws(self, s):
+        """Return the laws of the diffusing element."""
+        return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, (2 * s.T) ** 0.5, conserved=True)]
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -42,7 +52,7 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
         boundary={'rho': boundary},
     )
     trajectory = (
-        Simulation(System(components=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
+        Simulation(System(elements=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
         .run(until=10)
         .trajectory_
     )
@@ -54,7 +64,7 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
 def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldElement('f', ConservedElement, LatticeSpace((16, 16), spacing=0.5))
-    trajectory = Simulation(System(components=[field]), solver=EulerMaruyamaSolver(dt=0.05), random_state=0, dt=4.0)
+    trajectory = Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.05), random_state=0, dt=4.0)
     sites = trajectory.run(until=4).trajectory_.values('f.rho')[-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
@@ -64,7 +74,7 @@ def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
     field = FieldElement('f', DiffusingElement, LatticeSpace((16, 16)))
     trajectory = (
-        Simulation(System(components=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
+        Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
         .run(until=1000)
         .trajectory_
     )

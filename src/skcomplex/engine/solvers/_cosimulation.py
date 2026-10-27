@@ -8,27 +8,46 @@ from collections.abc import Mapping
 from typing import Any, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import ZZ
 from sklearn.base import clone
 
-from ...core.base import (
-    DomainKind,
-    ElementKind,
-    Form,
-    LawKind,
-    NoiseKind,
-    NumericDomain,
-    OrderKind,
-    SolverError,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    ValidationError,
-    Vector,
+from ...core.errors import SolverError, ValidationError
+from ...core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    EmissionLaw,
+    EquationLaw,
+    FluxLaw,
+    GraphProductionLaw,
+    JumpLaw,
+    LocalRuleLaw,
+    MatchLaw,
+    NoiseLaw,
+    ProductionLaw,
+    RateLaw,
+    RuleLaw,
+    SampleLaw,
+    SubstitutionLaw,
+    TransferLaw,
+    TransitionLaw,
+    UpdateLaw,
 )
-from ...core.problems import Partition, Problem
+from ...core.spaces import (
+    CayleySpace,
+    ContinuousSpace,
+    ContinuousTime,
+    DiscreteTime,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+)
+from ...core.types import Vector
 from ..compile import held_reductions_of, partition_system
+from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
+from ._base import BaseSolver
+from ._defaults import DEFAULT_SOLVERS
 from ._snapshots import AgentState
-from ._stepper import Solver, register_solver, resolve_solver
+from ._stepper import Solver
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
 TOLERANCE = 1e-9
@@ -46,8 +65,7 @@ class CoSimulationSolver(Solver):
 
     Args:
         solvers:
-            A mapping from partition name to a solver name or instance, with the default solver of each form for the
-            others.
+            The solver of a partition by its name, with the default solver of its form for the others.
 
         sync_dt:
             The time between synchronisation points, which must divide the frame duration, or `None` for one
@@ -69,15 +87,15 @@ class CoSimulationSolver(Solver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(
-        ...     components=[
+        ...     elements=[
         ...         System(
         ...             'a',
-        ...             components=[PopulationElement('x', n=1)],
+        ...             elements=[PopulationElement('x', n=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
         ...         System(
         ...             'b',
-        ...             components=[PopulationElement('y', n=1)],
+        ...             elements=[PopulationElement('y', n=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],
@@ -87,33 +105,27 @@ class CoSimulationSolver(Solver):
         ['a', 'b']
     """
 
-    supports: ClassVar[Supports] = Supports(
-        time={TimeKind.CONTINUOUS, TimeKind.DISCRETE},
-        space=set(SpaceKind.registered()),
+    supports: ClassVar[SupportSpec] = SupportSpec(
+        time={ContinuousTime, DiscreteTime},
+        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={
-            LawKind.RATE,
-            LawKind.NOISE,
-            LawKind.EQUATION,
-            LawKind.JUMP,
-            LawKind.EVENT,
-            LawKind.UPDATE,
-            LawKind.TRANSITION,
-            LawKind.RULE,
-            LawKind.LOCAL_RULE,
-            LawKind.REWRITE,
-            LawKind.SAMPLE,
-            LawKind.MATCH,
-            LawKind.TRANSFER,
-            LawKind.BOUNDARY,
+            RateLaw, FluxLaw,
+            NoiseLaw,
+            EquationLaw,
+            JumpLaw,
+            CrossingLaw,
+            UpdateLaw,
+            TransitionLaw, EmissionLaw,
+            RuleLaw,
+            LocalRuleLaw,
+            ProductionLaw, SubstitutionLaw, GraphProductionLaw,
+            SampleLaw,
+            MatchLaw,
+            TransferLaw,
+            BoundaryLaw,
         },
-        domains=set(DomainKind),
-        components={
-            ElementKind.ELEMENT,
-            ElementKind.GROUP,
-            ElementKind.VARIABLE_GROUP,
-            ElementKind.SITE_GROUP,
-            ElementKind.SYSTEM,
-        },
+        
+        
         noise=set(NoiseKind),
         orders=set(OrderKind),
     )
@@ -122,7 +134,7 @@ class CoSimulationSolver(Solver):
 
     def __init__(
         self,
-        solvers: Mapping[str, str | Solver] | None = None,
+        solvers: Mapping[str, BaseSolver] | None = None,
         sync_dt: float | None = None,
         scheme: str = 'gauss-seidel',
         split: bool = False,
@@ -166,8 +178,8 @@ class CoSimulationSolver(Solver):
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
-            solver = given.get(partition.name, 'auto')
-            stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
+            solver = given.get(partition.name)
+            stepper = clone(solver) if solver is not None else DEFAULT_SOLVERS[partition.problem.form]()
             stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
         self._held = [
@@ -187,7 +199,7 @@ class CoSimulationSolver(Solver):
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
-        if stepwise and not NumericDomain.INTEGER.contains(round(interval, 9)):
+        if stepwise and not contains(ZZ, round(interval, 9)):
             error_msg = f'sync_dt = {interval!r} must be a whole number of steps for discrete and agent partitions.'
             raise ValidationError(error_msg)
         return [
@@ -300,6 +312,3 @@ class CoSimulationSolver(Solver):
         for partition in self.problem_.partitions:
             problem = partition.problem
             self.steppers_[partition.name].run(0.0, problem.initial_state, problem.initial_parameters, 0.0, final=True)
-
-
-register_solver('co-simulation', CoSimulationSolver, default=True)

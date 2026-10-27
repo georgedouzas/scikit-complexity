@@ -7,9 +7,9 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.problems import Problem
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, observables_of, validate
+from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
@@ -92,7 +92,7 @@ def test_create_matches_components():
     """Test that a model created by name runs like the same model built from its components."""
     created = create('lotka_volterra', a=0.2)
     built = System(
-        components=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
+        elements=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),
             PredationInteraction('predation', predator='predators', prey='prey', a=0.2, b=0.1),

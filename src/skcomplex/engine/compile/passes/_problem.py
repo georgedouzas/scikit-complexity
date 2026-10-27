@@ -7,10 +7,18 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....core.base import Form, VariableKind, VisualSpec, declarations_of
-from ....core.components import GroupElement
-from ....core.problems import CompiledElement, CompiledInteraction, Layout, Problem, ReductionSchedule
-from ....core.problems._problem import _MarkovMatrix
+from ....core.specs import VisualSpec
+from ...problems import (
+    CompiledElement,
+    CompiledInteraction,
+    Form,
+    Layout,
+    Problem,
+    ReductionSchedule,
+    VariableKind,
+    declarations_of,
+)
+from ...problems._problem import _MarkovMatrix
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._pipeline import BasePass
@@ -125,15 +133,13 @@ def _problem_of(compilation: Compilation) -> Problem:
 
 
 def visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
-    if isinstance(node.component, GroupElement):
-        if node.component.visual is not None:
-            return node.component.visual
-        prepared = 'default_visual_' in vars(node.component)
-        default: VisualSpec = (node.component if prepared else node.component.prepare()).default_visual_
-        return default
-    declared: VisualSpec = node.component_type.visual
-    return declared
+    """Return the visual of an element or a group: its own visual when it sets one, and its default otherwise."""
+    element = node.component
+    if element.visual is not None:
+        return element.visual
+    prepared = 'default_visual_' in vars(element)
+    default: VisualSpec = (element if prepared else element.check().prepare(node.space)).default_visual_
+    return default
 
 
 class ProblemPass(BasePass):

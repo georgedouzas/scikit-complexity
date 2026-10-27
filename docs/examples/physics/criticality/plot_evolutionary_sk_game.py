@@ -16,7 +16,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import avalanches, ergodicity_distance, fit_power_law, histogram
+from skcomplex.analysis import avalanches, ergodicity_distance, fit_power_law, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

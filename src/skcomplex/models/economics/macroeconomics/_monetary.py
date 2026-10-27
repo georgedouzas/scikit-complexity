@@ -3,30 +3,33 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-HouseholdsElement = Element.define(
-    'HouseholdsElement',
-    states={'deposits': state(default=60.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
-)
 
-FirmsElement = Element.define(
-    'FirmsElement',
-    states={
-        'deposits': state(default=20.0, domain=NumericDomain.NONNEGATIVE, quantity='money'),
-        'loans': state(default=50.0, domain=NumericDomain.NONNEGATIVE),
-        'sales': state(default=40.0, domain=NumericDomain.NONNEGATIVE),
-    },
-)
+class HouseholdsElement(Element):
+    """Households element."""
 
-MonetaryBankElement = Element.define(
-    'MonetaryBankElement',
-    states={'deposits': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
-)
+    deposits = state(default=60.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
+
+
+class FirmsElement(Element):
+    """Firms element."""
+
+    deposits = state(default=20.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
+    loans = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    sales = state(default=40.0, domain=NumericDomain.NONNEGATIVE)
+
+
+class MonetaryBankElement(Element):
+    """Monetary bank element."""
+
+    deposits = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
 
 
 def _circuit(s: Symbols) -> list[BaseLaw]:
@@ -47,21 +50,24 @@ def _circuit(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-CircuitInteraction = BaseInteraction.define(
-    'CircuitInteraction',
-    roles=['households', 'firms', 'bank'],
-    parameters={
-        'alpha_income': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
-        'alpha_wealth': parameter(default=0.4, domain=NumericDomain.NONNEGATIVE),
-        'wage_share': parameter(default=0.7, domain=NumericDomain.NONNEGATIVE),
-        'interest': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
-        'payout': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
-        'distribution': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
-        'credit': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
-        'repayment': parameter(default=0.08, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=_circuit,
-)
+class CircuitInteraction(BaseInteraction):
+    """Circuit interaction."""
+
+    households = role()
+    firms = role()
+    bank = role()
+    alpha_income = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    alpha_wealth = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    wage_share = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
+    interest = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    payout = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    distribution = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    credit = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    repayment = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the circuit interaction."""
+        return _circuit(s)
 
 
 @register_model(
@@ -150,7 +156,7 @@ def stock_flow_consistent_economy(
         ['households', 'firms', 'bank']
     """
     return System(
-        components=[
+        elements=[
             HouseholdsElement('households', deposits=household_deposits),
             FirmsElement('firms', deposits=firm_deposits, loans=loans, sales=sales),
             MonetaryBankElement('bank', deposits=bank_deposits),

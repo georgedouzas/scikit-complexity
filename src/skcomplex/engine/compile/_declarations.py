@@ -7,31 +7,31 @@ import itertools
 import re
 from dataclasses import dataclass, field
 from functools import cached_property
+from types import SimpleNamespace
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import I
+from sage.all__sagemath_symbolics import CC, RR, Expression, I
+from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import (
-    BaseInteraction,
-    Expression,
-    LabelError,
-    NumericDomain,
-    SymbolicVector,
-    ValidationError,
+from ...core.elements import Element, GroupElement
+from ...core.errors import LabelError, ValidationError
+from ...core.interactions import BaseInteraction
+from ...core.spaces import NetworkSpace
+from ...core.specs import WienerProcessSpec
+from ...core.types import Vector
+from ..problems import (
+    Entry,
+    Reference,
+    Source,
     Variable,
     VariableKind,
-    Vector,
     components_of,
     declarations_of,
     domain_of,
     symbol,
     vector,
 )
-from ...core.components import Element, GroupElement, WienerProcess
-from ...core.laws import Symbols
-from ...core.problems import Entry, Reference, Source
-from ...core.space import NetworkSpace
 from ._tree import Node, coerce_value, noise_processes, shape_of
 
 ACTIVE = '_active'
@@ -90,7 +90,7 @@ def is_interaction(node: Node) -> bool:
 
 
 def member_count(blocks: list['Block']) -> int:
-    """Return the number of members of the groups of a system, leaving out agents, which `'auto'` picks a backend by.
+    """Return the number of members of the groups of a system, leaving out agents, which chooses a default backend.
 
     Args:
         blocks:
@@ -108,7 +108,7 @@ class Block:
     """Variables of a component with the symbols of one member and the components they stand for."""
 
     node: Node
-    symbols: dict[str, Expression | SymbolicVector] = field(default_factory=dict)
+    symbols: dict[str, Expression | FreeModuleElement] = field(default_factory=dict)
     entries: dict[str, Entry] = field(default_factory=dict)
     references: dict[Expression, Reference] = field(default_factory=dict)
     per: set[str] = field(default_factory=set)
@@ -118,19 +118,19 @@ class Block:
         """Number of members, 1 for a single element or an interaction."""
         return self.node.members or 1
 
-    def _namespace(self, mapping: dict[Expression, Expression]) -> Symbols:
+    def _namespace(self, mapping: dict[Expression, Expression]) -> SimpleNamespace:
         """Return the namespace of the block's variables in renamed symbols, with tuples for per-entry parameters."""
         symbols: dict[str, Any] = {}
         for name, value in self.symbols.items():
-            if not isinstance(value, SymbolicVector):
+            if not isinstance(value, FreeModuleElement):
                 symbols[name] = _renamed(value, mapping)
             elif name in self.per:
                 symbols[name] = tuple(_renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(_renamed(item, mapping) for item in value)
-        return Symbols(**symbols)
+        return SimpleNamespace(**symbols)
 
-    def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[Expression, Reference]]:
+    def namespace(self, source: Source, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
         """Return the namespace of the block's symbols and their references for one way of reading them.
 
         Args:
@@ -151,7 +151,7 @@ class Block:
         }
         return self._namespace(mapping), references
 
-    def member_namespace(self, index: int) -> tuple[Symbols, dict[Expression, Reference]]:
+    def member_namespace(self, index: int) -> tuple[SimpleNamespace, dict[Expression, Reference]]:
         """Return the namespace of one member of a group, read like a single element, and the references of its symbols.
 
         Args:
@@ -220,14 +220,14 @@ class Declarations:
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
-        is_complex = declaration.domain is NumericDomain.COMPLEX
-        entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex)
+        is_complex = declaration.domain is CC
+        entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex, declaration.period)
         entries.append(entry)
         self.ends[is_state] += entry.size
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         names = [f'{base}_{index}' for index in range(member_shape[0])] if member_shape else [base]
         columns = [f'{item}_{part}' for item in names for part in ('re', 'im')] if is_complex else names
-        domain = NumericDomain.REAL if is_complex else declaration.domain
+        domain = RR if is_complex else declaration.domain
         components = [symbol(item, domain) for item in columns]
         values_of = (
             [real + I * imaginary for real, imaginary in itertools.batched(components, 2)] if is_complex else components
@@ -249,7 +249,7 @@ class Declarations:
         block.symbols = {MEMBERS: members, **block.symbols}
         self.agents[members] = (node.path, '')
         for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
-            if declaration.vector or declaration.domain is NumericDomain.COMPLEX:
+            if declaration.vector or declaration.domain is CC:
                 continue
             item = symbol(f'{variable}_{base}', declaration.domain)
             block.symbols[variable] = item
@@ -264,11 +264,11 @@ class Declarations:
         node = block.node
         rows = node.members or 1
         name = f'{node.path}.{variable}'
-        entry = Entry(name, self.ends[False], (rows,), NumericDomain.REAL, rows)
+        entry = Entry(name, self.ends[False], (rows,), RR, rows)
         self.parameters.append(entry)
         self.initial_parameters.append(np.asarray(values, dtype=float))
         self.ends[False] += entry.size
-        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', NumericDomain.REAL)
+        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', RR)
         block.symbols[variable] = item
         block.entries[variable] = entry
         block.references[item] = Reference(entry, False, 0)
@@ -290,7 +290,7 @@ class Declarations:
         self,
         name: str,
         initial: Vector,
-        domain: NumericDomain,
+        domain: object,
         shape: tuple[int, ...] = (),
         members: int | None = None,
     ) -> Entry:
@@ -323,9 +323,9 @@ class Declarations:
         return entry
 
     @property
-    def wieners(self) -> dict[str, WienerProcess]:
+    def wieners(self) -> dict[str, WienerProcessSpec]:
         """Wiener processes that the noise roles of interactions bind, by path."""
-        return {path: cast('WienerProcess', block.node.component) for path, block in self.processes.items()}
+        return {path: cast('WienerProcessSpec', block.node.component) for path, block in self.processes.items()}
 
     @cached_property
     def capacity(self) -> dict[str, Block]:

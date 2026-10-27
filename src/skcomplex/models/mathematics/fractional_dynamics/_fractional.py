@@ -5,12 +5,11 @@
 
 from functools import cache
 
-from ....core.base import state
+from ....core.base import parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms import fractional  # noqa: F401 - registers the fractional form that these models compile to
 
 
 def _published(element_type: type[Element]) -> type[Element]:
@@ -42,11 +41,10 @@ def relaxation_type(order: float) -> type[Element]:
         'FractionalRelaxation_0p5'
     """
     return _published(
-        Element.define(
+        type(
             _type_name('FractionalRelaxation', order),
-            states={'x': state(1.0, order=order)},
-            parameters={'lam': 1.0},
-            laws=lambda s: [RateLaw(s.x, -s.lam * s.x)],
+            (Element,),
+            {'x': state(1.0, order=order), 'lam': parameter(1.0), 'laws': lambda self, s: [RateLaw(s.x, -s.lam * s.x)]},
         ),
     )
 
@@ -69,11 +67,16 @@ def oscillator_type(order: float) -> type[Element]:
         'FractionalOscillator_0p8'
     """
     return _published(
-        Element.define(
+        type(
             _type_name('FractionalOscillator', order),
-            states={'x': state(1.0, order=order), 'v': state(0.0, order=order)},
-            parameters={'omega': 1.0, 'gamma': 0.0},
-            laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)],
+            (Element,),
+            {
+                'x': state(1.0, order=order),
+                'v': state(0.0, order=order),
+                'omega': parameter(1.0),
+                'gamma': parameter(0.0),
+                'laws': lambda self, s: [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)],
+            },
         ),
     )
 
@@ -96,11 +99,15 @@ def van_der_pol_type(order: float) -> type[Element]:
         'FractionalVanDerPol_0p9'
     """
     return _published(
-        Element.define(
+        type(
             _type_name('FractionalVanDerPol', order),
-            states={'x': state(2.0, order=order), 'y': state(0.0, order=order)},
-            parameters={'mu': 1.0},
-            laws=lambda s: [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)],
+            (Element,),
+            {
+                'x': state(2.0, order=order),
+                'y': state(0.0, order=order),
+                'mu': parameter(1.0),
+                'laws': lambda self, s: [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)],
+            },
         ),
     )
 
@@ -123,15 +130,22 @@ def lorenz_type(order: float) -> type[Element]:
         'FractionalLorenz_0p99'
     """
     return _published(
-        Element.define(
+        type(
             _type_name('FractionalLorenz', order),
-            states={'x': state(1.0, order=order), 'y': state(1.0, order=order), 'z': state(1.0, order=order)},
-            parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},
-            laws=lambda s: [
-                RateLaw(s.x, s.sigma * (s.y - s.x)),
-                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-                RateLaw(s.z, s.x * s.y - s.beta * s.z),
-            ],
+            (Element,),
+            {
+                'x': state(1.0, order=order),
+                'y': state(1.0, order=order),
+                'z': state(1.0, order=order),
+                'sigma': parameter(10.0),
+                'rho': parameter(28.0),
+                'beta': parameter(8 / 3),
+                'laws': lambda self, s: [
+                    RateLaw(s.x, s.sigma * (s.y - s.x)),
+                    RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+                    RateLaw(s.z, s.x * s.y - s.beta * s.z),
+                ],
+            },
         ),
     )
 
@@ -167,7 +181,7 @@ def fractional_relaxation(x: float = 1.0, *, order: float = 0.6, lam: float = 1.
         >>> fractional_relaxation(order=0.5).elements[0].lam
         1.0
     """
-    return System(components=[relaxation_type(float(order))('relaxation', x=x, lam=lam)])
+    return System(elements=[relaxation_type(float(order))('relaxation', x=x, lam=lam)])
 
 
 @register_model(
@@ -214,7 +228,7 @@ def fractional_oscillator(
         >>> fractional_oscillator(order=0.9).elements[0].omega
         1.0
     """
-    return System(components=[oscillator_type(float(order))('oscillator', x=x, v=v, omega=omega, gamma=gamma)])
+    return System(elements=[oscillator_type(float(order))('oscillator', x=x, v=v, omega=omega, gamma=gamma)])
 
 
 @register_model(
@@ -251,7 +265,7 @@ def fractional_van_der_pol(x: float = 2.0, y: float = 0.0, *, order: float = 0.9
         >>> fractional_van_der_pol(mu=2.0).elements[0].mu
         2.0
     """
-    return System(components=[van_der_pol_type(float(order))('oscillator', x=x, y=y, mu=mu)])
+    return System(elements=[van_der_pol_type(float(order))('oscillator', x=x, y=y, mu=mu)])
 
 
 @register_model(
@@ -308,4 +322,4 @@ def fractional_lorenz(
         20.0
     """
     flow = lorenz_type(float(order))('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)
-    return System(components=[flow])
+    return System(elements=[flow])

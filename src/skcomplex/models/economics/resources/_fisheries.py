@@ -6,7 +6,8 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Sink, Source, Symbols, TransferLaw, where
-from ....core.system import System, observe_element
+from ....core.specs import ObservableSpec
+from ....core.system import System
 from ....engine.runtime import register_model
 
 TONNES_PER_MILLION_KG = 1e3
@@ -104,9 +105,10 @@ def _filled_stages(
     return {**stages, 'spawners': spawners}
 
 
-HilsaElement = Element.define(
+HilsaElement = type(
     'HilsaElement',
-    states={
+    (Element,),
+    {
         'eggs': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
         'larvae': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
         'juveniles': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
@@ -114,8 +116,6 @@ HilsaElement = Element.define(
         'adults': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
         'migrants': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
         'spawners': state(default=375.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-    },
-    parameters={
         'female_fraction': parameter(default=FEMALE_FRACTION, domain=NumericDomain.NONNEGATIVE),
         'eggs_per_nest': parameter(default=2e5, domain=NumericDomain.NONNEGATIVE),
         'max_nests': parameter(default=MAX_NESTS, domain=NumericDomain.NONNEGATIVE),
@@ -126,8 +126,8 @@ HilsaElement = Element.define(
         'adult_harvest': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
         'weight_per_adult': parameter(default=0.82, domain=NumericDomain.NONNEGATIVE),
         'weight_per_juvenile': parameter(default=0.09, domain=NumericDomain.NONNEGATIVE),
+        'laws': lambda self, s: _hilsa_laws(s),
     },
-    laws=_hilsa_laws,
 )
 
 
@@ -137,9 +137,9 @@ HilsaElement = Element.define(
     references=('Bala et al. 2017',),
     defaults={'until': 120.0, 'dt': 0.5},
     observables=lambda system: [
-        observe_element('hilsa', 'nests', _nests),
-        observe_element('hilsa', 'adult_weight', _adult_weight),
-        observe_element('hilsa', 'juvenile_weight', _juvenile_weight),
+        ObservableSpec('nests', _nests, element='hilsa'),
+        ObservableSpec('adult_weight', _adult_weight, element='hilsa'),
+        ObservableSpec('juvenile_weight', _juvenile_weight, element='hilsa'),
     ],
 )
 def hilsa_fishery(
@@ -199,4 +199,4 @@ def hilsa_fishery(
         migration_loss=migration_loss,
     )
     hilsa.set_params(**_filled_stages(spawners, eggs_per_nest, juvenile_harvest, adult_harvest, migration_loss))
-    return System(components=[hilsa])
+    return System(elements=[hilsa])

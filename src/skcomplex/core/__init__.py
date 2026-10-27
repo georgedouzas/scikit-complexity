@@ -1,1 +1,1 @@
-"""What a system is: its vocabulary, space and time, laws, components, interactions, and the system itself."""
+"""What a system is: elements, interactions, laws, space and the system itself."""

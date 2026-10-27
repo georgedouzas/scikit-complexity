@@ -7,30 +7,35 @@ import numpy as np
 
 from ....core.base import NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw
-from ....core.space import LatticeSpace
+from ....core.laws.utils import advection, laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldElement, advection, laplacian
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
-ArbitrageDensityElement = Element.define(
-    'ArbitrageDensityElement',
-    states={'rho': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={
-        'D': parameter(default=0.5, domain=NumericDomain.POSITIVE),
-        'A_x': parameter(default=0.0, domain=NumericDomain.REAL),
-        'E': parameter(default=0.5, domain=NumericDomain.REAL),
-        'A_t': parameter(default=0.0, domain=NumericDomain.REAL),
-    },
-    laws=lambda s: [
-        RateLaw(
-            s.rho,
-            s.D * laplacian(s.rho)
-            - advection(s.rho, [2 * s.D * (s.A_x + s.E * s.t)])
-            + (s.D * (s.A_x + s.E * s.t) ** 2 + s.A_t) * s.rho,
-        ),
-    ],
-)
+
+class ArbitrageDensityElement(Element):
+    """Arbitrage density element."""
+
+    rho = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    A_x = parameter(default=0.0, domain=NumericDomain.REAL)
+    E = parameter(default=0.5, domain=NumericDomain.REAL)
+    A_t = parameter(default=0.0, domain=NumericDomain.REAL)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the arbitrage density element."""
+        return [
+            RateLaw(
+                s.rho,
+                s.D * laplacian(s.rho)
+                - advection(s.rho, [2 * s.D * (s.A_x + s.E * s.t)])
+                + (s.D * (s.A_x + s.E * s.t) ** 2 + s.A_t) * s.rho,
+            ),
+        ]
 
 
 @register_model(
@@ -88,4 +93,4 @@ def arbitrage_traders(
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
     market = FieldElement('market', ArbitrageDensityElement, line, values=values)
-    return System(components=[market])
+    return System(elements=[market])

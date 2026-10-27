@@ -3,40 +3,55 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from skcomplex.core.declarations import role
+
 from ....core.base import BaseInteraction, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, TransferLaw, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
+from ...core.base import BaseLaw
+from ...core.laws import Symbols
 
 INFLOW_START = 5.0
 
-TubElement = Element.define(
-    'TubElement',
-    states={'water': state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')},
-    parameters={
-        'inflow': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-        'outflow': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
-    },
-    laws=lambda s: [
-        TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
-        TransferLaw(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
-    ],
-)
 
-StageElement = Element.define(
-    'StageElement',
-    states={'m': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    parameters={'feed': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.m, s.feed)],
-)
+class TubElement(Element):
+    """Tub element."""
 
-PassageInteraction = BaseInteraction.define(
-    'PassageInteraction',
-    roles=['source', 'target'],
-    parameters={'rate': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)},
-    laws=lambda s: [RateLaw(s.source.m, -s.rate * s.source.m), RateLaw(s.target.m, s.rate * s.source.m)],
-)
+    water = state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')
+    inflow = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    outflow = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the tub element."""
+        return [
+            TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
+            TransferLaw(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
+        ]
+
+
+class StageElement(Element):
+    """Stage element."""
+
+    m = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    feed = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the stage element."""
+        return [RateLaw(s.m, s.feed)]
+
+
+class PassageInteraction(BaseInteraction):
+    """Passage interaction."""
+
+    source = role()
+    target = role()
+    rate = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the laws of the passage interaction."""
+        return [RateLaw(s.source.m, -s.rate * s.source.m), RateLaw(s.target.m, s.rate * s.source.m)]
 
 
 @register_model(
@@ -71,7 +86,7 @@ def bathtub(water: float = 50.0, *, inflow: float = 5.0, outflow: float = 5.0) -
         >>> bathtub(water=20.0).elements[0].water
         20.0
     """
-    return System(components=[TubElement('tub', water=water, inflow=inflow, outflow=outflow)])
+    return System(elements=[TubElement('tub', water=water, inflow=inflow, outflow=outflow)])
 
 
 @register_model(
@@ -128,4 +143,4 @@ def cascade_classifier(
         PassageInteraction(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
         for index in range(1, n_stages + 1)
     ]
-    return System(components=[StageElement('fine'), *stages, StageElement('coarse')], interactions=interactions)
+    return System(elements=[StageElement('fine'), *stages, StageElement('coarse')], interactions=interactions)

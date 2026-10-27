@@ -15,8 +15,8 @@ comes to rest in a few seconds.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.analysis import linearize
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import linearize
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe

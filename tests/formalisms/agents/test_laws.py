@@ -1,12 +1,13 @@
 """Test the laws of agents: matchings and their random pairing."""
 
 import numpy as np
+from skcomplex.core.components import Element, GroupElement
 
 from skcomplex.core.base import BaseInteraction, state
-from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.laws import MatchLaw, RuleLaw
+from skcomplex.core.laws.utils import matches, random_pairing
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import MatchLaw, RuleLaw, matches, random_pairing
 
 
 class TraderElement(Element):
@@ -32,7 +33,7 @@ class ExchangeInteraction(BaseInteraction):
 def test_random_matching_pairs_every_member_at_most_once():
     """Test that 50 buyers and 30 sellers form 30 pairs every step, with no member in two pairs."""
     system = System(
-        components=[
+        elements=[
             GroupElement('buyers', element=TraderElement, size=50, variable=True),
             GroupElement('sellers', element=TraderElement, size=30, variable=True),
         ],

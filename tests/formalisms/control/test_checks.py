@@ -1,15 +1,15 @@
 """Test the checks of the optimal control solvers against the system they run."""
 
 import pytest
+from skcomplex.core.components import Element
 
 from skcomplex.core.base import SolverError, state
-from skcomplex.core.components import Element
 from skcomplex.core.laws import UpdateLaw
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
+from skcomplex.engine.solvers import CollocationSolver, PontryaginSolver
 
 
 class TankElement(Element):
@@ -29,15 +29,15 @@ def _level(s):
 
 def test_objective_issues_under_discrete_time():
     """Test that a collocation run with an objective on a system under discrete time raises a named error."""
-    system = System(components=[TankElement('tank')], time=DiscreteTime())
+    system = System(elements=[TankElement('tank')], time=DiscreteTime())
     with pytest.raises(SolverError, match='objective of CollocationSolver needs static or continuous time'):
         Simulation(system, solver=CollocationSolver(_level)).run(until=1.0)
 
 
 def test_objective_issues_name_the_subsystem_of_discrete_time():
     """Test that the issue of a subsystem under discrete time names the subsystem."""
-    child = System('reservoir', components=[TankElement('tank')], time=DiscreteTime())
-    issues = validate(System(components=[child]), solver=PontryaginSolver(_level)).errors
+    child = System('reservoir', elements=[TankElement('tank')], time=DiscreteTime())
+    issues = validate(System(elements=[child]), solver=PontryaginSolver(_level)).errors
     issue = next(issue for issue in issues if issue.code == 'objective-time')
     assert issue.path == 'reservoir'
     assert issue.error is SolverError

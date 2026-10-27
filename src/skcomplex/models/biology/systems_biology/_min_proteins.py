@@ -10,12 +10,13 @@ from scipy.optimize import brentq
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
+from ....core.elements import FieldElement
 from ....core.laws import RateLaw, Symbols
-from ....core.space import LatticeSpace
+from ....core.laws.utils import laplacian
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ....formalisms.fields import FieldElement, laplacian
 
 
 class MinSkeletonElement(Element):
@@ -184,4 +185,4 @@ def min_protein_skeleton(
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise
     space = LatticeSpace(n_sites, spacing=length / n_sites)
-    return System(components=[FieldElement('cell', MinSkeletonElement, space, values=values)])
+    return System(elements=[FieldElement('cell', MinSkeletonElement, space, values=values)])

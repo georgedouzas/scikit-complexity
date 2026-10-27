@@ -6,8 +6,8 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
-from ....core.components import WienerProcess
 from ....core.laws import NoiseLaw, RateLaw, Symbols
+from ....core.specs import WienerProcessSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
@@ -15,14 +15,14 @@ from ._assets import AssetElement
 
 
 class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
-    """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a `WienerProcess`.
+    """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a `WienerProcessSpec`.
 
     Args:
         label:
             The label of the interaction.
 
         index:
-            The process of the `WienerProcess`.
+            The process of the `WienerProcessSpec`.
 
         **values:
             The values of the declared variables, by name:
@@ -40,15 +40,15 @@ class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
                 The volatility.
 
     Examples:
-        >>> from skcomplex.core.components import WienerProcess
+        >>> from skcomplex.core.specs import WienerProcessSpec
         >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
-        >>> market = WienerProcess('market', dimension=2)
+        >>> market = WienerProcessSpec('market', dimension=2)
         >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market=market, index=1).index
         1
     """
 
     target: str = role()
-    market: WienerProcess = role(noise=True)
+    market: WienerProcessSpec = role(noise=True)
     mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
     sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
@@ -92,7 +92,7 @@ def correlated_geometric_brownian_motion(
 ) -> System:
     """Return two assets whose prices follow geometric Brownian motions driven by correlated Wiener processes.
 
-    A `WienerProcess` of dimension 2 with the covariance `[[1, rho], [rho, 1]]` drives the two prices, so their log
+    A `WienerProcessSpec` of dimension 2 with the covariance `[[1, rho], [rho, 1]]` drives the two prices, so their log
     returns over a short time have the correlation `rho`.
 
     Args:
@@ -118,9 +118,9 @@ def correlated_geometric_brownian_motion(
         [[1.0, 0.5], [0.5, 1.0]]
     """
     labels = ('first', 'second')
-    market = WienerProcess('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]])
+    market = WienerProcessSpec('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]])
     return System(
-        components=[AssetElement(label, price=price) for label, price in zip(labels, prices, strict=True)],
+        elements=[AssetElement(label, price=price) for label, price in zip(labels, prices, strict=True)],
         interactions=[
             CorrelatedGeometricBrownianMotionInteraction(
                 f'{label}_motion',

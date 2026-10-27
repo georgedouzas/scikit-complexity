@@ -2,34 +2,64 @@
 
 import numpy as np
 import pytest
+from skcomplex.core.components import Element, GroupElement
+from skcomplex.core.declarations import parameter
 
 from skcomplex.core.base import NumericDomain, SolverError, ValidationError, state
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
-from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.elements import LatticeElement
+from skcomplex.core.laws import (
+    DriveLaw,
+    LocalRuleLaw,
+    OuterTotalistic,
+    RelaxationLaw,
+    SampleLaw,
+    Table,
+    Totalistic,
+    neighbors,
+)
+from skcomplex.core.spaces import (
+    BoxNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    MooreNeighborhood,
+    VonNeumannNeighborhood,
+)
+from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.lattices import DriveLaw, Energy, LocalRuleLaw, MoveLaw, RelaxationLaw, SampleLaw, SamplerLaw
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
 from skcomplex.models.physics.criticality import forest_fire
 from skcomplex.models.physics.statistical_mechanics import ising, xy
 
-ShiftElement = Element.define(
-    'ShiftElement',
-    states={'value': 0.0},
-    laws=lambda s: [LocalRuleLaw(s.value, Neighborhood(((-1,),)), lambda left: left)],
-)
+
+class ShiftElement(Element):
+    """Shift element."""
+
+    value = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the shift element."""
+        return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left)]
 
 
 def _shift(schedule):
     """Return a ring of five cells whose rule copies the left neighbour on a schedule."""
-    CopyElement = Element.define(
-        'CopyElement',
-        states={'value': 0.0},
-        laws=lambda s: [LocalRuleLaw(s.value, Neighborhood(((-1,),)), lambda left: left, schedule=schedule)],
+
+    class CopyElement(Element):
+        """Copy element."""
+
+        value = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the copy element."""
+            return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left, schedule=schedule)]
+
+    return System(
+        elements=[
+            LatticeElement('ring', element=CopyElement, space=LatticeSpace(6), values={'value': [1, 2, 3, 4, 5, 6]}),
+        ],
     )
-    return System(components=[CopyElement.lattice('ring', LatticeSpace(6), value=[1, 2, 3, 4, 5, 6])])
 
 
 def _rule_30(n_steps, size):
@@ -45,37 +75,56 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).prepare().run(0, Neighborhood.moore())
+    neighbours = LatticeSpace((10, 10)).prepare().run(0, MooreNeighborhood())
     assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
-    assert LatticeSpace((5,), boundary='fixed').prepare().run(0, Neighborhood.radius()).tolist() == [0, 1]
-    assert LatticeSpace((5,), boundary='reflecting').prepare().run(0, Neighborhood.radius(2))[:2].tolist() == [1, 0]
-    EdgeElement = Element.define(
-        'EdgeElement',
-        states={'value': 0.0},
-        laws=lambda s: [LocalRuleLaw(s.value, Neighborhood(((-1,),)), lambda left: left)],
-    )
+    assert LatticeSpace((5,), boundary='fixed').prepare().run(0, BoxNeighborhood()).tolist() == [0, 1]
+    assert LatticeSpace((5,), boundary='reflecting').prepare().run(0, BoxNeighborhood(2))[:2].tolist() == [1, 0]
+
+    class EdgeElement(Element):
+        """Edge element."""
+
+        value = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the edge element."""
+            return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left)]
+
     fixed = System(
-        components=[EdgeElement.lattice('cells', LatticeSpace(3, boundary='fixed', fill=9), value=[1, 2, 3])],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=EdgeElement,
+                space=LatticeSpace(3, boundary='fixed', fill=9),
+                values={'value': [1, 2, 3]},
+            ),
+        ],
     )
     assert Simulation(fixed, dt=1).run(until=1).state_.tolist() == [9, 1, 2]
     mirror = System(
-        components=[EdgeElement.lattice('cells', LatticeSpace(3, boundary='reflecting'), value=[1, 2, 3])],
+        elements=[
+            LatticeElement(
+                'cells',
+                element=EdgeElement,
+                space=LatticeSpace(3, boundary='reflecting'),
+                values={'value': [1, 2, 3]},
+            ),
+        ],
     )
     assert Simulation(mirror, dt=1).run(until=1).state_.tolist() == [1, 1, 2]
 
 
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
-    assert Neighborhood.moore(center=True).offsets[0] == (0, 0)
-    assert len(Neighborhood.moore(2).offsets) == 24
-    assert len(Neighborhood.von_neumann(2).offsets) == 12
-    assert len(Neighborhood.moore(n_dim=3).offsets) == 26
+    assert MooreNeighborhood(center=True).offsets[0] == (0, 0)
+    assert len(MooreNeighborhood(2).offsets) == 24
+    assert len(VonNeumannNeighborhood(2).offsets) == 12
+    assert len(MooreNeighborhood(n_dim=3).offsets) == 26
     with pytest.raises(ValueError, match='same number of dimensions'):
-        Neighborhood(((0, 1), (1,))).check()
+        LatticeNeighborhood(((0, 1), (1,))).check()
 
 
 def test_rule_30_matches_published_pattern():
@@ -104,32 +153,55 @@ def test_lookup_rules_agree_across_backends(backend):
 
 def test_table_and_totalistic_rules():
     """Test that tables, totalistic, and outer totalistic rules give their documented next values."""
-    ParityElement = Element.define(
-        'ParityElement',
-        states={'bit': 0.0},
-        laws=lambda s: [LocalRuleLaw(s.bit, Neighborhood.radius(), Totalistic({1: 1, 3: 1}))],
-    )
-    ring = System(components=[ParityElement.lattice('ring', LatticeSpace(5), bit=[0, 1, 0, 0, 0])])
-    assert Simulation(ring, dt=1).run(until=1).state_.tolist() == [1, 1, 1, 0, 0]
-    SwapElement = Element.define(
-        'SwapElement',
-        states={'bit': 0.0},
-        laws=lambda s: [LocalRuleLaw(s.bit, Neighborhood(((0,),)), Table({(0,): 1, (1,): 0}))],
-    )
-    flip = System(components=[SwapElement.lattice('ring', LatticeSpace(3), bit=[0, 1, 0])])
-    assert Simulation(flip, dt=1).run(until=1).state_.tolist() == [1, 0, 1]
-    CountElement = Element.define(
-        'CountElement',
-        states={'bit': 0.0},
-        laws=lambda s: [
-            LocalRuleLaw(
-                s.bit,
-                Neighborhood(((-1,), (1,))),
-                OuterTotalistic(lambda center, total: (center + total) % 2),
-            ),
+
+    class ParityElement(Element):
+        """Parity element."""
+
+        bit = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the parity element."""
+            return [LocalRuleLaw(s.bit, BoxNeighborhood(), Totalistic({1: 1, 3: 1}))]
+
+    ring = System(
+        elements=[
+            LatticeElement('ring', element=ParityElement, space=LatticeSpace(5), values={'bit': [0, 1, 0, 0, 0]}),
         ],
     )
-    count = System(components=[CountElement.lattice('ring', LatticeSpace(4), bit=[1, 0, 0, 0])])
+    assert Simulation(ring, dt=1).run(until=1).state_.tolist() == [1, 1, 1, 0, 0]
+
+    class SwapElement(Element):
+        """Swap element."""
+
+        bit = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the swap element."""
+            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((0,),)), Table({(0,): 1, (1,): 0}))]
+
+    flip = System(
+        elements=[LatticeElement('ring', element=SwapElement, space=LatticeSpace(3), values={'bit': [0, 1, 0]})],
+    )
+    assert Simulation(flip, dt=1).run(until=1).state_.tolist() == [1, 0, 1]
+
+    class CountElement(Element):
+        """Count element."""
+
+        bit = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the count element."""
+            return [
+                LocalRuleLaw(
+                    s.bit,
+                    LatticeNeighborhood(((-1,), (1,))),
+                    OuterTotalistic(lambda center, total: (center + total) % 2),
+                ),
+            ]
+
+    count = System(
+        elements=[LatticeElement('ring', element=CountElement, space=LatticeSpace(4), values={'bit': [1, 0, 0, 0]})],
+    )
     assert Simulation(count, dt=1).run(until=1).state_.tolist() == [1, 1, 0, 1]
 
 
@@ -155,21 +227,26 @@ def test_checkerboard_schedule_updates_sublattices_in_turn():
 
 def test_checkerboard_needs_bipartite_neighbourhood():
     """Test that a checkerboard schedule on a Moore neighbourhood is rejected."""
-    CellElement = Element.define(
-        'CellElement',
-        states={'alive': 0.0},
-        laws=lambda s: [
-            LocalRuleLaw(s.alive, Neighborhood.moore(), lambda *values: values[0], schedule='checkerboard'),
-        ],
-    )
+
+    class CellElement(Element):
+        """Cell element."""
+
+        alive = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the cell element."""
+            return [
+                LocalRuleLaw(s.alive, MooreNeighborhood(), lambda *values: values[0], schedule='checkerboard'),
+            ]
+
     with pytest.raises(ValidationError, match='random-sequential'):
-        compile_system(System(components=[CellElement.lattice('cells', LatticeSpace((4, 4)))]))
+        compile_system(System(elements=[LatticeElement('cells', element=CellElement, space=LatticeSpace((4, 4)))]))
 
 
 def test_unknown_schedule_is_rejected():
     """Test that an unknown schedule names the known ones."""
     with pytest.raises(ValueError, match='synchronous'):
-        LocalRuleLaw(None, Neighborhood.radius(), lambda *values: values[0], schedule='parallel').check()
+        LocalRuleLaw(None, BoxNeighborhood(), lambda *values: values[0], schedule='parallel').check()
 
 
 def test_forest_fire_is_reproducible():
@@ -183,13 +260,21 @@ def test_forest_fire_is_reproducible():
 
 def test_rule_reads_parameters_by_keyword():
     """Test that a function rule receives the parameters it names, which change live."""
-    GrowthElement = Element.define(
-        'GrowthElement',
-        states={'value': 0.0},
-        parameters={'rate': 1.0},
-        laws=lambda s: [LocalRuleLaw(s.value, Neighborhood(((0,),)), lambda value, *, rate: value + rate)],
-    )
-    simulation = Simulation(System(components=[GrowthElement.lattice('cells', LatticeSpace(2))]), dt=1).run(until=2)
+
+    class GrowthElement(Element):
+        """Growth element."""
+
+        value = state(0.0)
+        rate = parameter(1.0)
+
+        def laws(self, s):
+            """Return the laws of the growth element."""
+            return [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value, *, rate: value + rate)]
+
+    simulation = Simulation(
+        System(elements=[LatticeElement('cells', element=GrowthElement, space=LatticeSpace(2))]),
+        dt=1,
+    ).run(until=2)
     assert simulation.state_.tolist() == [2.0, 2.0]
     simulation.update_parameters({'cells.rate': 5.0})
     assert simulation.parameters_.tolist() == [5.0, 5.0]
@@ -197,27 +282,34 @@ def test_rule_reads_parameters_by_keyword():
 
 def test_relaxation_records_avalanches():
     """Test that a relaxation records the size, duration, and area of a toppling avalanche."""
-    PileElement = Element.define(
-        'PileElement',
-        states={'height': 0.0},
-        laws=lambda s: [
-            RelaxationLaw(
-                drive=[DriveLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
-                relax=[
-                    LocalRuleLaw(
-                        s.height,
-                        Neighborhood.radius(),
-                        lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
-                    ),
-                ],
-                stable=lambda height: bool((height < 2).all()),
-                activity=lambda height: height >= 2,
-            ),
-        ],
-    )
+
+    class PileElement(Element):
+        """Pile element."""
+
+        height = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the pile element."""
+            return [
+                RelaxationLaw(
+                    drive=[DriveLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
+                    relax=[
+                        LocalRuleLaw(
+                            s.height,
+                            BoxNeighborhood(),
+                            lambda left, height, right: height - 2 * (height >= 2) + (left >= 2) + (right >= 2),
+                        ),
+                    ],
+                    stable=lambda height: bool((height < 2).all()),
+                    activity=lambda height: height >= 2,
+                ),
+            ]
+
     space = LatticeSpace(5, boundary='fixed')
     trajectory = Simulation(
-        System(components=[PileElement.lattice('pile', space, height=[1, 1, 1, 1, 1])]),
+        System(
+            elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]})],
+        ),
         dt=1,
     ).run(1)
     (record,) = trajectory.trajectory_.events
@@ -228,64 +320,91 @@ def test_relaxation_records_avalanches():
 
 def test_relaxation_without_end_raises():
     """Test that a relaxation that never becomes stable raises an error after its largest number of iterations."""
-    RestlessElement = Element.define(
-        'RestlessElement',
-        states={'value': 0.0},
-        laws=lambda s: [
-            RelaxationLaw(
-                [],
-                [LocalRuleLaw(s.value, Neighborhood(((0,),)), lambda value: value + 1)],
-                lambda _: False,
-                10,
-            ),
-        ],
-    )
+
+    class RestlessElement(Element):
+        """Restless element."""
+
+        value = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the restless element."""
+            return [
+                RelaxationLaw(
+                    [],
+                    [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1)],
+                    lambda _: False,
+                    10,
+                ),
+            ]
+
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
-        Simulation(System(components=[RestlessElement.lattice('cells', LatticeSpace(2))]), dt=1).run(until=1)
+        Simulation(
+            System(elements=[LatticeElement('cells', element=RestlessElement, space=LatticeSpace(2))]),
+            dt=1,
+        ).run(until=1)
 
 
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
     with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a lattice'):
-        compile_system(System(components=[GroupElement('cells', element=ShiftElement, size=3)]))
+        compile_system(System(elements=[GroupElement('cells', element=ShiftElement, size=3)]))
 
 
 def test_monte_carlo_energy_change_is_symbolic():
     """Test that a flip move of an Ising energy changes the energy by `2 J s sum(neighbours)`."""
-    nearest = Neighborhood.von_neumann()
-    SpinElement = Element.define(
-        'SpinElement',
-        states={'spin': state(1.0, domain=NumericDomain.INTEGER)},
-        parameters={'J': 1.0, 'temperature': 1.0},
-        laws=lambda s: [
-            SampleLaw(
-                Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
-                MoveLaw.flip(s.spin),
-            ),
-        ],
+    nearest = VonNeumannNeighborhood()
+
+    class SpinElement(Element):
+        """Spin element."""
+
+        spin = state(1.0, domain=NumericDomain.INTEGER)
+        J = parameter(1.0)
+        temperature = parameter(1.0)
+
+        def laws(self, s):
+            """Return the laws of the spin element."""
+            return [
+                SampleLaw(
+                    EnergySpec(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
+                    MoveSpec.flip(s.spin),
+                ),
+            ]
+
+    problem = compile_system(
+        System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((4, 4)))]),
     )
-    problem = compile_system(System(components=[SpinElement.lattice('spins', LatticeSpace((4, 4)))]))
     sampling = problem.lattice[0]
     change = sampling.delta(0.0, np.ones(3), *np.ones((4, 3)), -np.ones(3), 1.0, 1.0)[0]
     assert np.allclose(change, 8.0)
-    assert isinstance(sampling.sampler, SamplerLaw)
+    assert isinstance(sampling.sampler, SamplerSpec)
     assert sampling.sampler.kind == 'metropolis'
 
 
 def test_monte_carlo_needs_one_energy_and_move():
     """Test that two Monte Carlo laws of one component are rejected."""
-    nearest = Neighborhood.von_neumann()
-    LonelyElement = Element.define(
-        'LonelyElement',
-        states={'spin': 1.0},
-        parameters={'temperature': 1.0},
-        laws=lambda s: [
-            SampleLaw(Energy(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest), MoveLaw.flip(s.spin)),
-            SampleLaw(Energy(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest), MoveLaw.flip(s.spin)),
-        ],
-    )
+    nearest = VonNeumannNeighborhood()
+
+    class LonelyElement(Element):
+        """Lonely element."""
+
+        spin = state(1.0)
+        temperature = parameter(1.0)
+
+        def laws(self, s):
+            """Return the laws of the lonely element."""
+            return [
+                SampleLaw(
+                    EnergySpec(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
+                    MoveSpec.flip(s.spin),
+                ),
+                SampleLaw(
+                    EnergySpec(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
+                    MoveSpec.flip(s.spin),
+                ),
+            ]
+
     with pytest.raises(ValidationError, match='one energy, one move'):
-        compile_system(System(components=[LonelyElement.lattice('spins', LatticeSpace((4, 4)))]))
+        compile_system(System(elements=[LatticeElement('spins', element=LonelyElement, space=LatticeSpace((4, 4)))]))
 
 
 @pytest.mark.parametrize('sampler', ['metropolis', 'glauber', 'heat-bath'])
@@ -328,22 +447,26 @@ def _pile(activity, evaluated):
         following[tuple(random.integers(size) for size in heights.shape)] += 1
         return following
 
-    PileElement = Element.define(
-        'PileElement',
-        states={'height': state(0.0)},
-        laws=lambda s: [
-            RelaxationLaw(
-                drive=[DriveLaw(s.height, drop)],
-                relax=[LocalRuleLaw(s.height, Neighborhood.von_neumann(center=True), topple)],
-                stable=lambda heights: bool((heights < 4).all()),
-                activity=activity,
-                label='avalanche',
-            ),
-        ],
-    )
+    class PileElement(Element):
+        """Pile element."""
+
+        height = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the pile element."""
+            return [
+                RelaxationLaw(
+                    drive=[DriveLaw(s.height, drop)],
+                    relax=[LocalRuleLaw(s.height, VonNeumannNeighborhood(center=True), topple)],
+                    stable=lambda heights: bool((heights < 4).all()),
+                    activity=activity,
+                    label='avalanche',
+                ),
+            ]
+
     heights = np.random.default_rng(0).integers(0, 4, size=(32, 32)).astype(float)
     space = LatticeSpace((32, 32), boundary='fixed')
-    return System(components=[PileElement.lattice('pile', space, height=heights)])
+    return System(elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': heights})])
 
 
 def test_relaxation_over_active_sites_matches_the_full_update():

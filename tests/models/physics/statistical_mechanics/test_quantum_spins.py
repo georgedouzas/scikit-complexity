@@ -5,10 +5,11 @@ import pytest
 import rerun.blueprint as rrb
 from scipy.special import jv
 
+from skcomplex.analysis import purity, spectrum
 from skcomplex.core.base import ValidationError
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
-from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver, purity, spectrum
+from skcomplex.engine.solvers import LindbladSolver
+from skcomplex.engine.viz import ExpectationVisual, RerunObserver, default_blueprint
 from skcomplex.models import create, run
 
 

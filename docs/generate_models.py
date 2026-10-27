@@ -12,7 +12,7 @@ from gallery_tools import Example, build_from_environment, find_examples
 from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import equations_of
+from skcomplex.analysis import equations_of
 from skcomplex.models import catalog, create, describe
 
 DOCS = Path(str(files('gallery_tools'))).parent
@@ -232,7 +232,7 @@ def _component_types(system: System) -> list[type]:
 
 
 def _class_source(kind: type) -> str:
-    """Return the source of a component type, a class statement or an assignment of `define`."""
+    """Return the source of an element or interaction type, its class statement or the assignment that builds it."""
     try:
         return inspect.getsource(kind)
     except (OSError, TypeError):

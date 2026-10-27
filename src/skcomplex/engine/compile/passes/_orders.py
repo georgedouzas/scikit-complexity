@@ -7,32 +7,25 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, matrix
+from sage.all__sagemath_symbolics import SR, Expression, matrix
+from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.base import (
-    BaseLaw,
-    Expression,
-    SymbolicVector,
-    Trait,
-    ValidationError,
-    VariableKind,
-    components_of,
-    declarations_of,
-    has_trait,
-    symbol,
-    vector,
-)
-from ....core.laws import BoundaryLaw, Call, EquationLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw
-from ....core.laws._laws import RenewalLaw
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import Call
+from ...problems import VariableKind, components_of, declarations_of, symbol, vector
 from .._compilation import BlockLaws, Compilation
 from .._complex import split_law
 from .._declarations import Block, Declarations, is_interaction
+from .._laws import KERNEL_FREE_LAWS, replaced
 from .._lowering import calls_of
 from .._pipeline import BasePass
+from .._renewal_law import RenewalLaw
 from .._specs import KernelSpec, state_name
 
 EQUATION_UNKNOWNS = 6
@@ -65,7 +58,7 @@ def _substitute(
     When `highest` is given, derivatives of a state's own order become placeholders that map to the symbol of the
     state's highest derivative, which an equation solves for.
     """
-    if isinstance(value, SymbolicVector):
+    if isinstance(value, FreeModuleElement):
         return vector(_substitute(item, spec, orders, owner, highest) for item in value)
     if not isinstance(value, Expression):
         return value
@@ -103,7 +96,7 @@ def _substitute(
 
 def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> RateLaw | NoiseLaw:
     """Return a rate or noise law that targets the highest derivative of its state, after checking its order."""
-    items = components_of(law.targets[0])
+    items = components_of(law._get_targets()[0])
     references = [spec.references.get(item) for item in items]
     declared = {orders.orders.get(reference.entry.name, 1) for reference in references if reference is not None}
     order = max(declared, default=1)
@@ -117,8 +110,8 @@ def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> Rat
     if order == 1:
         return law
     tops = [_companion_symbol(spec, item, f'_d{order - 1}') for item in items]
-    target = vector(tops) if isinstance(law.targets[0], SymbolicVector) else tops[0]
-    return replace(law, targets=(target,))
+    target = vector(tops) if isinstance(law._get_targets()[0], FreeModuleElement) else tops[0]
+    return replaced(law, target=target)
 
 
 def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[BaseLaw]:
@@ -127,12 +120,12 @@ def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[Bas
     for variable, entry in block.entries.items():
         names = [variable, *(f'{variable}_d{index}' for index in range(1, orders.orders.get(entry.name, 1)))]
         laws += [
-            RateLaw((getattr(spec.namespace, lower),), getattr(spec.namespace, upper))
+            RateLaw(getattr(spec.namespace, lower), getattr(spec.namespace, upper))
             for lower, upper in itertools.pairwise(names)
         ]
         shifted = [variable, *(f'{variable}_lag{index}' for index in range(1, orders.lags.get(entry.name, 0) + 1))]
         laws += [
-            UpdateLaw((getattr(spec.namespace, older),), getattr(spec.namespace, newer))
+            UpdateLaw(getattr(spec.namespace, older), getattr(spec.namespace, newer))
             for newer, older in itertools.pairwise(shifted)
         ]
     return laws
@@ -140,13 +133,13 @@ def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[Bas
 
 def _relation(spec: KernelSpec, law: EquationLaw, orders: _Orders) -> _Relation:
     """Return an equation law as a relation in placeholders of the highest derivatives it contains."""
-    description = f'the equation {law.lhs} == {law.rhs} of {spec.owner}'
+    description = f'the equation {law.lhs_} == {law.rhs_} of {spec.owner}'
     if spec.pairs is not None:
         error_msg = f'Pair interaction {spec.owner} returns {description}. Pair interactions take only rate laws.'
         raise ValidationError(error_msg)
     highest: dict[Expression, Expression] = {}
-    lhs = _substitute(SR(law.lhs), spec, orders, f'In {description}, it', highest)
-    rhs = _substitute(SR(law.rhs), spec, orders, f'In {description}, it', highest)
+    lhs = _substitute(SR(law.lhs_), spec, orders, f'In {description}, it', highest)
+    rhs = _substitute(SR(law.rhs_), spec, orders, f'In {description}, it', highest)
     if not highest:
         error_msg = f'{description[0].upper()}{description[1:]} contains no highest derivative of a state to solve for.'
         raise ValidationError(error_msg)
@@ -158,21 +151,21 @@ def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _Orders) -> object:
     owner = f'A {type(law).__name__} of {spec.owner}'
     if isinstance(law, JumpLaw):
         return JumpLaw(_substitute(law.rate, spec, orders, owner), law.changes)
-    if isinstance(law, EventLaw | RenewalLaw):
+    if isinstance(law, CrossingLaw | RenewalLaw):
         reset = {
             _substitute(SR(target), spec, orders, owner): _substitute(SR(value), spec, orders, owner)
             for target, value in (law.reset or {}).items()
         }
         reset_value = reset if law.reset is not None else None
         if isinstance(law, RenewalLaw):
-            return replace(law, waiting=_substitute(SR(law.waiting), spec, orders, owner), reset=reset_value)
-        return replace(law, guard=_substitute(SR(law.guard), spec, orders, owner), reset=reset_value)
+            return replaced(law, waiting=_substitute(SR(law.waiting), spec, orders, owner), reset=reset_value)
+        return replaced(law, guard=_substitute(SR(law.guard), spec, orders, owner), reset=reset_value)
     if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return law
     value = _substitute(law.value, spec, orders, owner)
     if isinstance(law, RateLaw | NoiseLaw):
-        return _retarget(replace(law, value=value), spec, orders)
-    return type(law)(law.targets, value)
+        return _retarget(replaced(law, value=value), spec, orders)
+    return replaced(law, value=value)
 
 
 def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _Orders) -> list[Any]:
@@ -181,7 +174,7 @@ def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _O
         return laws
     result: list[Any] = []
     for law in laws:
-        if has_trait(law, Trait.KERNEL_FREE):
+        if isinstance(law, KERNEL_FREE_LAWS):
             result.append(law)
         elif isinstance(law, EquationLaw):
             result.append(_relation(spec, law, orders))
@@ -242,7 +235,7 @@ def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[Ke
     references = {key: value for relation in relations for key, value in relation.spec.references.items()}
     rows = max(relation.spec.rows for relation in relations)
     owner = ', '.join(dict.fromkeys(relation.spec.owner for relation in relations))
-    merged = KernelSpec(owner, Symbols(), references, rows)
+    merged = KernelSpec(owner, SimpleNamespace(), references, rows)
     laws: list[BaseLaw]
     if len(unknowns) <= EQUATION_UNKNOWNS:
         system = matrix(SR, coefficients)
@@ -250,11 +243,11 @@ def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[Ke
             error_msg = f'The highest derivatives of {descriptions} cannot be solved for: the system is singular.'
             raise ValidationError(error_msg)
         solution = system.solve_right(vector([SR(item) for item in right]), check=False)
-        laws = [RateLaw((highest[item],), value) for item, value in zip(unknowns, solution, strict=True)]
+        laws = [RateLaw(highest[item], value) for item, value in zip(unknowns, solution, strict=True)]
     else:
         entries = [entry for row in coefficients for entry in row] + right
         laws = [
-            RateLaw((highest[item],), Call(_numeric_solution(rows, len(unknowns), index), tuple(entries)))
+            RateLaw(highest[item], Call(_numeric_solution(rows, len(unknowns), index), tuple(entries)))
             for index, item in enumerate(unknowns)
         ]
     return [*kept, (merged, laws)]

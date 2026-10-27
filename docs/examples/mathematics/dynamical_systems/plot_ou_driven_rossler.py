@@ -19,6 +19,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -48,7 +49,7 @@ simulation = Simulation(
     solver=solver,
     observers=[observer],
     random_state=0,
-    backend='numba',
+    backend=NumbaBackend(),
 ).run(until=600)
 points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyz'])[500:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.05, colors=[255, 170, 40]), static=True)
@@ -62,7 +63,7 @@ observer.recording_.flush()
 # controls, the diagram that Cestnik and Martens reconstruct from such data. The control should be Gaussian with the
 # standard deviation 0.15.
 
-long = Simulation(create(MODEL, rho=1.5), dt=0.1, solver=solver, random_state=1, backend='numba').run(until=3000)
+long = Simulation(create(MODEL, rho=1.5), dt=0.1, solver=solver, random_state=1, backend=NumbaBackend()).run(until=3000)
 x, eta = long.trajectory_.values('rossler.x'), long.trajectory_.values('rossler.eta')
 peaks = find_peaks(x)[0]
 fig, (diagram, density) = plt.subplots(1, 2, figsize=(10, 4))
@@ -70,7 +71,9 @@ diagram.plot(eta[peaks], x[peaks], '.', markersize=3, alpha=0.5, label='noisy co
 for control in np.linspace(-0.3, 0.3, 13):
     fixed = create(MODEL, eta=control, tau=1e9, rho=0.0)
     held = (
-        Simulation(fixed, dt=0.1, solver=solver, backend='numba').run(until=800).trajectory_.values('rossler.x')[3000:]
+        Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend())
+        .run(until=800)
+        .trajectory_.values('rossler.x')[3000:]
     )
     maxima = held[find_peaks(held)[0]]
     diagram.plot(np.full(maxima.size, control), maxima, 'k.', markersize=3)

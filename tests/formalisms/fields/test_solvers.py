@@ -5,28 +5,27 @@ import warnings
 
 import numpy as np
 import pytest
+import skfem
+from skcomplex.core.components import Element
+from skcomplex.core.declarations import parameter, state
 
 from skcomplex.core.base import SolverError, ValidationError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.space import LatticeSpace
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws import FluxLaw, RateLaw
+from skcomplex.core.laws.utils import inverse_laplacian, laplacian
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame, Simulation
-from skcomplex.engine.viz import RerunObserver, resolve_visual
-from skcomplex.formalisms.fields import (
+from skcomplex.engine.solvers import (
     CrankNicolsonSolver,
     ETDRK4Solver,
-    FieldElement,
-    FluxLaw,
     IMEX2Solver,
     IMEXEulerSolver,
-    MeshSpace,
     SplitOperator,
     SSPRKSolver,
-    inverse_laplacian,
-    laplacian,
 )
+from skcomplex.engine.viz import RerunObserver, resolve_visual
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.physics.fluids import (
     burgers,
@@ -38,11 +37,15 @@ from skcomplex.models.physics.fluids import (
 from skcomplex.models.physics.heat import harmonic, heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
 
-HeatElement = Element.define(
-    'HeatElement',
-    states={'u': 0.0},
-    laws=lambda s: [RateLaw(s.u, laplacian(s.u))],
-)
+
+class HeatElement(Element):
+    """Heat element."""
+
+    u = state(0.0)
+
+    def laws(self, s):
+        """Return the laws of the heat element."""
+        return [RateLaw(s.u, laplacian(s.u))]
 
 
 def _diffused(discretization):
@@ -59,7 +62,7 @@ def _diffused(discretization):
         values={'u': initial},
         discretization=discretization,
     )
-    values = Simulation(System(components=[rod]), dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).run(until=0.1).state_
+    values = Simulation(System(elements=[rod]), dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).run(until=0.1).state_
     return np.abs(values - exact).max()
 
 
@@ -122,7 +125,7 @@ def test_steppers_need_linear_terms():
         Simulation(logistic_growth(), solver=IMEXEulerSolver()).run(until=1)
     with pytest.raises(SolverError, match='spectral'):
         Simulation(
-            System(components=[FieldElement('rod', HeatElement, LatticeSpace(8))]),
+            System(elements=[FieldElement('rod', HeatElement, LatticeSpace(8))]),
             dt=1,
             solver=ETDRK4Solver(),
         ).run(until=1)
@@ -143,11 +146,16 @@ def test_burgers_shock_is_conservative():
 @pytest.mark.parametrize('riemann', ['rusanov', 'godunov'])
 def test_numerical_fluxes_conserve(riemann):
     """Test that the Rusanov and Godunov fluxes conserve the total of a shock without overshoots."""
-    ShockElement = Element.define(
-        'ShockElement',
-        states={'u': 0.0},
-        laws=lambda s: [FluxLaw(s.u, s.u**2 / 2, riemann=riemann)],
-    )
+
+    class ShockElement(Element):
+        """Shock element."""
+
+        u = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the shock element."""
+            return [FluxLaw(s.u, s.u**2 / 2, riemann=riemann)]
+
     initial = 1.5 + np.sin((np.arange(100) + 0.5) * 2 * math.pi / 100)
     line = FieldElement(
         'line',
@@ -156,7 +164,7 @@ def test_numerical_fluxes_conserve(riemann):
         values={'u': initial},
         discretization='finite-volume',
     )
-    values = Simulation(System(components=[line]), dt=2.0, solver=SSPRKSolver()).run(until=2.0).state_
+    values = Simulation(System(elements=[line]), dt=2.0, solver=SSPRKSolver()).run(until=2.0).state_
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
@@ -171,13 +179,18 @@ def test_dam_break_conserves_water():
 
 def test_fluxes_need_finite_volume_field():
     """Test that flux laws on a finite-difference field are rejected."""
-    ShockElement = Element.define(
-        'ShockElement',
-        states={'u': 0.0},
-        laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
-    )
+
+    class ShockElement(Element):
+        """Shock element."""
+
+        u = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the shock element."""
+            return [FluxLaw(s.u, s.u**2 / 2)]
+
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(components=[FieldElement('line', ShockElement, LatticeSpace(10))]))
+        compile_system(System(elements=[FieldElement('line', ShockElement, LatticeSpace(10))]))
 
 
 def test_l_shaped_steady_state_converges_at_second_order():
@@ -185,7 +198,7 @@ def test_l_shaped_steady_state_converges_at_second_order():
     errors = []
     for refine in (2, 3, 4, 5):
         simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEulerSolver(dt=10.0)).run(until=500)
-        nodes = MeshSpace.l_shape(refine).prepare().positions_
+        nodes = skfem.MeshTri.init_lshaped().refined(refine).p.T
         away = np.hypot(nodes[:, 0], nodes[:, 1]) > 0.25
         errors.append(np.abs(simulation.state_ - harmonic(nodes[:, 0], nodes[:, 1]))[away].max())
     ratios = np.asarray(errors[:-1]) / np.asarray(errors[1:])
@@ -241,18 +254,23 @@ def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
     rod = FieldElement('rod', HeatElement, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
-        compile_system(System(components=[rod]))
+        compile_system(System(elements=[rod]))
 
 
 def test_poisson_needs_spectral_field():
     """Test that solving a Poisson equation on a finite-difference field is rejected."""
-    PotentialElement = Element.define(
-        'PotentialElement',
-        states={'u': 0.0},
-        laws=lambda s: [RateLaw(s.u, inverse_laplacian(s.u))],
-    )
+
+    class PotentialElement(Element):
+        """Potential element."""
+
+        u = state(0.0)
+
+        def laws(self, s):
+            """Return the laws of the potential element."""
+            return [RateLaw(s.u, inverse_laplacian(s.u))]
+
     with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(components=[FieldElement('rod', PotentialElement, LatticeSpace(8))]))
+        compile_system(System(elements=[FieldElement('rod', PotentialElement, LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
@@ -291,18 +309,23 @@ def test_viscous_burgers_respects_diffusive_limit():
     n = 200
     spacing = 2 * math.pi / n
     initial = 1.5 + np.sin((np.arange(n) + 0.5) * spacing)
-    ViscousElement = Element.define(
-        'ViscousElement',
-        states={'u': 0.0},
-        parameters={'nu': 0.5},
-        laws=_viscous_burgers_laws,
-    )
+
+    class ViscousElement(Element):
+        """Viscous element."""
+
+        u = state(0.0)
+        nu = parameter(0.5)
+
+        def laws(self, s):
+            """Return the laws of the viscous element."""
+            return _viscous_burgers_laws(s)
+
     space = LatticeSpace(n, spacing=spacing)
     field = FieldElement('line', ViscousElement, space, values={'u': initial}, discretization='finite-volume')
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (
-            Simulation(System(components=[field]), solver=SSPRKSolver(), dt=0.05)
+            Simulation(System(elements=[field]), solver=SSPRKSolver(), dt=0.05)
             .run(until=0.5)
             .trajectory_.values('line.u')
         )
