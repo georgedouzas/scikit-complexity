@@ -38,6 +38,7 @@ KERNEL_FREE_LAWS = (
     DriveLaw,
     RelaxationLaw,
     ExtremalLaw,
+    SampleLaw,
     FluxLaw,
 )
 """Laws that their own passes lower, which no numeric kernel is written for."""

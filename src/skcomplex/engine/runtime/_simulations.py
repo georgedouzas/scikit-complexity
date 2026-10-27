@@ -353,7 +353,7 @@ class Simulation(BaseEstimator):
             if not contains(entry.domain, values):
                 error_msg = (
                     f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
-                    f'{entry.domain.value} domain. Check the laws that change it.'
+                    f'domain {entry.domain}. Check the laws that change it.'
                 )
                 raise ValidationError(error_msg)
 
@@ -361,7 +361,7 @@ class Simulation(BaseEstimator):
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
-            f'{entry.domain.value} domain.'
+            f'domain {entry.domain}.'
         )
         if not contains(entry.domain, value):
             raise ValidationError(error_msg)

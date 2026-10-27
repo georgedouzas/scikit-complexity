@@ -32,20 +32,14 @@ from ..problems import numpy_function, symbol
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
-type Sites = BaseSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'
 type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
-def _shape_of(space: Sites) -> tuple[int, ...]:
-    """Return the lattice shape of a lattice, or the number of nodes of a network as a one-dimensional shape."""
-    return space.shape_
-
-
 def _index_table(
-    space: Sites,
+    space: BaseSpace,
     neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
     owner: str,
 ) -> Indices:
@@ -62,8 +56,8 @@ def _center_columns(neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | 
     if isinstance(neighborhood, AdjacencyNeighborhood):
         return int(neighborhood.center)
     if isinstance(neighborhood, MemoryNeighborhood):
-        return sum(element.strip() in {'', '1'} for element in neighborhood.elements)
-    return sum(not any(offset) for offset in neighborhood.offsets)
+        return sum(element.strip() in {'', '1'} for element in neighborhood.check().prepare().elements_)
+    return sum(not any(offset) for offset in neighborhood.check().prepare().offsets_)
 
 
 def _degrees_of(
@@ -109,7 +103,7 @@ def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
 
 
 def _check_checkerboard(
-    space: Sites,
+    space: BaseSpace,
     neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
     owner: str,
 ) -> LatticeSpace:
@@ -124,7 +118,7 @@ def _check_checkerboard(
             'updates the classes of a proper coloring of the neighbour graph in turn.'
         )
         raise ValidationError(error_msg)
-    odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
+    odd = all(sum(offset) % 2 for offset in neighborhood.check().prepare().offsets_)
     even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
     if not (odd and even):
         error_msg = (
@@ -258,12 +252,12 @@ class LatticeState:
 
     name: str
     start: int
-    space: Sites
+    space: BaseSpace
 
     @functools.cached_property
     def shape(self) -> tuple[int, ...]:
         """Shape of the sites of the group."""
-        return _shape_of(self.space)
+        return self.space.shape_
 
     @functools.cached_property
     def size(self) -> int:
@@ -397,7 +391,7 @@ def _extremal_loop(
 
 def _schedule_classes(
     schedule: str,
-    space: Sites,
+    space: BaseSpace,
     neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
     table: Indices,
     owner: str,
@@ -466,7 +460,7 @@ class CompiledRule:
     classes: tuple[Indices, ...] = ()
 
     @property
-    def space(self) -> Sites:
+    def space(self) -> BaseSpace:
         """Lattice or network of the rule."""
         return self.targets[0].space
 
@@ -1320,7 +1314,7 @@ def compile_extremal(law: ExtremalLaw, context: LatticeContext) -> CompiledExtre
     """
     owner = f'The extremal law of {context.owner}'
     targets = tuple(context.state(item, 'An extremal law') for item in law._get_targets())
-    key = context.state(law.key_state, 'An extremal law')
+    key = context.state(law._get_key(), 'An extremal law')
     if len({id(state.space) for state in (*targets, key)}) > 1:
         error_msg = f'{owner} reads and updates states of different lattices.'
         raise ValidationError(error_msg)

@@ -342,7 +342,7 @@ def _edge_search(
             raise RoleError(error_msg)
         sources, targets = space.edges_[layer]
         size = space.size_
-    elif space is not None and space.space_kind == LatticeSpace and edges is None and layer is None:
+    elif isinstance(space, LatticeSpace) and edges is None and layer is None:
         size = int(space.size_ or 0)
         pairs = np.array(space.check().prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()

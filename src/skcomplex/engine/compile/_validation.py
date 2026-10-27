@@ -147,7 +147,7 @@ def _binding_issues(nodes: list[Node]) -> list[Issue]:
         target = next(iter(members), None)
         space = target.space if target is not None else node.space
         offered = (
-            getattr(space, 'space_kind', None) in {LatticeSpace, NetworkSpace}
+            isinstance(space, LatticeSpace | NetworkSpace)
             if over == 'neighbors'
             else bool(
                 getattr(space, 'hyperedges', ()),
