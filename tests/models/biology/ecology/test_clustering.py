@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.biology.ecology import neutral_clustering
@@ -32,7 +33,7 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
             system,
             dt=2.0,
             random_state=seed,
-            backend='numba',
+            backend=NumbaBackend(),
             observables=describe('neutral_clustering').observables_of(system),
         )
         .run(until=10)
@@ -53,7 +54,7 @@ def test_neutral_clustering_hops_slow_but_keep_the_clustering():
             system,
             dt=5.0,
             random_state=seed,
-            backend='numba',
+            backend=NumbaBackend(),
             observables=describe('neutral_clustering').observables_of(system),
         )
         .run(until=until)

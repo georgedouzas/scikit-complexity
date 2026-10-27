@@ -11,6 +11,7 @@ import pytest
 from skcomplex.core.errors import RegistryError
 from skcomplex.models import catalog, create, describe, scan_listings
 
+
 def _loaded(code: str) -> list[str]:
     """Return the model subfields a fresh interpreter loads to run some code."""
     probe = (

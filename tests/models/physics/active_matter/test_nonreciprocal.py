@@ -2,12 +2,13 @@
 
 import numpy as np
 
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.models import run
 
 
 def _species_headings(coupling):
     """Return the mean headings of species A and B of a nonreciprocal Vicsek run, one complex number per frame."""
-    trajectory = run('nonreciprocal_vicsek', J_ab=coupling[0], J_ba=coupling[1], settings={'backend': 'numba'})
+    trajectory = run('nonreciprocal_vicsek', J_ab=coupling[0], J_ba=coupling[1], settings={'backend': NumbaBackend()})
     return trajectory.trajectory_.values('heading_a'), trajectory.trajectory_.values('heading_b')
 
 

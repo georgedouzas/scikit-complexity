@@ -4,7 +4,7 @@ from typing import Any
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
-from skcomplex.engine.solvers import ScipyODESolver, BaseSolver
+from skcomplex.engine.solvers import BaseSolver, ScipyODESolver
 from skcomplex.models import create
 
 TOLERANCE = 0.1

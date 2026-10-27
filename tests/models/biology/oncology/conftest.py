@@ -2,7 +2,7 @@
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
-from skcomplex.engine.solvers import ScipyODESolver, BaseSolver
+from skcomplex.engine.solvers import BaseSolver, ScipyODESolver
 
 PRECISE = ScipyODESolver(rtol=1e-9, atol=1e-12)
 STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
