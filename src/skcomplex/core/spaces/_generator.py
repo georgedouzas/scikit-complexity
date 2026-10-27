@@ -40,7 +40,7 @@ class GeneratorNeighborhood(MemoryNeighborhood):
         inverses: bool = True,
         label: str = 'neighborhood',
     ) -> None:
-        super().__init__(label)
+        super().__init__((), label=label)
         self.generators = generators
         self.center = center
         self.inverses = inverses
