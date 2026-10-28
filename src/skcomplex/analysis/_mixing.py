@@ -5,7 +5,6 @@
 
 from typing import Self
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
@@ -14,41 +13,6 @@ from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
-
-
-def _shifts(ndim: int, *, diagonal: bool) -> list[tuple[int, ...]]:
-    """Return the offsets of the neighbours of a cell, with or without corners."""
-    offsets = np.stack(np.meshgrid(*([[-1, 0, 1]] * ndim), indexing='ij'), axis=-1).reshape(-1, ndim)
-    steps = np.abs(offsets).sum(axis=1)
-    keep = (steps > 0) if diagonal else (steps == 1)
-    return [tuple(int(item) for item in offset) for offset in offsets[keep]]
-
-
-def _grid_pairs(grid: npt.NDArray[np.float64], *, diagonal: bool) -> tuple[Array, Array]:
-    """Return the states of every cell paired with every neighbour on a periodic grid."""
-    pairs = [
-        (grid, np.roll(grid, shift, axis=tuple(range(grid.ndim)))) for shift in _shifts(grid.ndim, diagonal=diagonal)
-    ]
-    return np.concatenate([first.ravel() for first, _ in pairs]), np.concatenate(
-        [second.ravel() for _, second in pairs],
-    )
-
-
-def _graph_pairs(graph: nx.Graph, attribute: str) -> tuple[Array, Array]:
-    """Return the states of both ends of every edge, both ways."""
-    states = nx.get_node_attributes(graph, attribute)
-    if len(states) < graph.number_of_nodes():
-        error_msg = f'Some nodes have no attribute {attribute!r}. Set it on every node.'
-        raise AnalysisError(error_msg)
-    ends = np.asarray([(states[first], states[second]) for first, second in graph.edges()], dtype=float).reshape(-1, 2)
-    return np.concatenate([ends[:, 0], ends[:, 1]]), np.concatenate([ends[:, 1], ends[:, 0]])
-
-
-def _pairs(data: npt.ArrayLike | nx.Graph, attribute: str, *, diagonal: bool) -> tuple[Array, Array]:
-    """Return the states of every agent and of each of its neighbours, on a grid or a network."""
-    if isinstance(data, nx.Graph):
-        return _graph_pairs(data, attribute)
-    return _grid_pairs(np.asarray(data, dtype=float), diagonal=diagonal)
 
 
 class MixingAnalysis(BaseAnalysis):

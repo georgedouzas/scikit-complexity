@@ -32,84 +32,6 @@ HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
 
 
-def _degrees(graph: nx.Graph) -> npt.NDArray[np.int64]:
-    """Return the degree of every node, in node order."""
-    return np.asarray([degree for _, degree in graph.degree()], dtype=int)
-
-
-def _degree_exponent(graph: nx.Graph) -> float:
-    """Return the fitted exponent of a heavy-tailed degree distribution, or `nan` for a small or narrow one."""
-    values = _degrees(graph)
-    if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
-        return float('nan')
-    fit = FitAnalysis(discrete=True, bootstrap=0, candidates=FIT_CANDIDATES, compare_with=())
-    return fit.check().prepare(values[values > 0]).run().exponent_
-
-
-def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:
-    """Return the size, mean degree, clustering, path length, diameter, and components of a network."""
-    undirected = graph.to_undirected()
-    components = sorted((len(component) for component in nx.connected_components(undirected)), reverse=True)
-    largest = undirected.subgraph(max(nx.connected_components(undirected), key=len)) if components else undirected
-    return {
-        'nodes': graph.number_of_nodes(),
-        'edges': graph.number_of_edges(),
-        'mean_degree': float(np.mean(_degrees(undirected))) if graph.number_of_nodes() else 0.0,
-        'clustering': float(nx.average_clustering(undirected)) if graph.number_of_nodes() else 0.0,
-        'path_length': float(nx.average_shortest_path_length(largest)) if largest.number_of_nodes() > 1 else 0.0,
-        'diameter': int(nx.diameter(largest)) if largest.number_of_nodes() > 1 else 0,
-        'components': components,
-    }
-
-
-def _assortativity(graph: nx.Graph, attribute: str | None, *, numeric: bool) -> float:
-    """Return the assortativity of a network by degree, or by a categorical or numeric node attribute."""
-    if attribute is None:
-        return float(nx.degree_assortativity_coefficient(graph))
-    if numeric:
-        return float(nx.numeric_assortativity_coefficient(graph, attribute))
-    return float(nx.attribute_assortativity_coefficient(graph, attribute))
-
-
-def _centrality(graph: nx.Graph, measure: str) -> dict[object, float]:
-    """Return the degree, betweenness, closeness, eigenvector, or PageRank centrality of every node."""
-    functions = {
-        'degree': nx.degree_centrality,
-        'betweenness': nx.betweenness_centrality,
-        'closeness': nx.closeness_centrality,
-        'eigenvector': nx.eigenvector_centrality_numpy,
-        'pagerank': nx.pagerank,
-    }
-    return dict(functions[measure](graph))
-
-
-def _neighbor_degree(graph: nx.Graph) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
-    """Return the distinct degrees and the mean degree of the neighbours of the nodes of every degree."""
-    connectivity = nx.average_degree_connectivity(graph)
-    ordered = sorted(connectivity)
-    return np.asarray(ordered, dtype=np.int64), np.asarray([connectivity[degree] for degree in ordered], dtype=float)
-
-
-def _communities(
-    graph: nx.Graph,
-    method: str,
-    reference: Sequence[object] | str | None,
-    random_state: int | None,
-) -> tuple[npt.NDArray[np.int64], float, float | None]:
-    """Return the community of every node, the modularity, and the agreement with a reference partition."""
-    if method == 'louvain':
-        partition = nx.community.louvain_communities(graph, seed=random_state)
-    else:
-        partition = list(nx.community.label_propagation_communities(graph.to_undirected()))
-    membership = {node: index for index, members in enumerate(partition) for node in members}
-    labels = np.asarray([membership[node] for node in graph.nodes()], dtype=np.int64)
-    modularity = float(nx.community.modularity(graph, partition))
-    if reference is None:
-        return labels, modularity, None
-    truth = [graph.nodes[node][reference] for node in graph.nodes()] if isinstance(reference, str) else reference
-    return labels, modularity, float(normalized_mutual_info_score(list(truth), labels))
-
-
 class NetworkAnalysis(BaseAnalysis):
     """Measures of the network of every frame of a trajectory, or of a graph, of one kind.
 
@@ -246,7 +168,7 @@ class NetworkAnalysis(BaseAnalysis):
 
     def _run_summary(self) -> Self:
         """Compute the summary measures of every frame."""
-        rows = [_summary(graph) for graph in self.graphs_]
+        rows = [self._summary(graph) for graph in self.graphs_]
         self.nodes_ = np.asarray([row['nodes'] for row in rows], dtype=int)
         self.edges_ = np.asarray([row['edges'] for row in rows], dtype=int)
         self.mean_degree_ = np.asarray([row['mean_degree'] for row in rows], dtype=float)
@@ -262,24 +184,105 @@ class NetworkAnalysis(BaseAnalysis):
         if self.kind == 'summary':
             return self._run_summary()
         if self.kind == 'degrees':
-            self.degrees_ = [_degrees(graph) for graph in graphs]
+            self.degrees_ = [self._degrees(graph) for graph in graphs]
             self.moments_ = np.asarray(
                 [[float(np.mean(values.astype(float) ** order)) for order in self.orders] for values in self.degrees_],
             )
-            self.exponent_ = np.asarray([_degree_exponent(graph) for graph in graphs])
+            self.exponent_ = np.asarray([self._degree_exponent(graph) for graph in graphs])
         elif self.kind == 'assortativity':
             self.assortativity_ = np.asarray(
-                [_assortativity(graph, self.attribute, numeric=self.numeric) for graph in graphs],
+                [self._assortativity(graph, self.attribute, numeric=self.numeric) for graph in graphs],
             )
         elif self.kind == 'centrality':
-            self.centrality_ = [_centrality(graph, self.measure) for graph in graphs]
+            self.centrality_ = [self._centrality(graph, self.measure) for graph in graphs]
         elif self.kind == 'neighbor-degree':
-            pairs = [_neighbor_degree(graph) for graph in graphs]
+            pairs = [self._neighbor_degree(graph) for graph in graphs]
             self.distinct_degrees_ = [degrees for degrees, _ in pairs]
             self.neighbor_degree_ = [connectivity for _, connectivity in pairs]
         else:
-            found = [_communities(graph, self.method, self.reference, self.random_state) for graph in graphs]
+            found = [self._communities(graph, self.method, self.reference, self.random_state) for graph in graphs]
             self.labels_ = [labels for labels, _, _ in found]
             self.modularity_ = np.asarray([modularity for _, modularity, _ in found])
             self.agreement_ = None if self.reference is None else np.asarray([agreement for _, _, agreement in found])
         return self
+
+    @staticmethod
+    def _degrees(graph: nx.Graph) -> npt.NDArray[np.int64]:
+        """Return the degree of every node, in node order."""
+        return np.asarray([degree for _, degree in graph.degree()], dtype=int)
+
+    @staticmethod
+    def _degree_exponent(graph: nx.Graph) -> float:
+        """Return the fitted exponent of a heavy-tailed degree distribution, or `nan` for a small or narrow one."""
+        values = NetworkAnalysis._degrees(graph)
+        if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
+            return float('nan')
+        fit = FitAnalysis(discrete=True, bootstrap=0, candidates=FIT_CANDIDATES, compare_with=())
+        return fit.check().prepare(values[values > 0]).run().exponent_
+
+    @staticmethod
+    def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:
+        """Return the size, mean degree, clustering, path length, diameter, and components of a network."""
+        undirected = graph.to_undirected()
+        components = sorted((len(component) for component in nx.connected_components(undirected)), reverse=True)
+        largest = undirected.subgraph(max(nx.connected_components(undirected), key=len)) if components else undirected
+        return {
+            'nodes': graph.number_of_nodes(),
+            'edges': graph.number_of_edges(),
+            'mean_degree': float(np.mean(NetworkAnalysis._degrees(undirected))) if graph.number_of_nodes() else 0.0,
+            'clustering': float(nx.average_clustering(undirected)) if graph.number_of_nodes() else 0.0,
+            'path_length': float(nx.average_shortest_path_length(largest)) if largest.number_of_nodes() > 1 else 0.0,
+            'diameter': int(nx.diameter(largest)) if largest.number_of_nodes() > 1 else 0,
+            'components': components,
+        }
+
+    @staticmethod
+    def _assortativity(graph: nx.Graph, attribute: str | None, *, numeric: bool) -> float:
+        """Return the assortativity of a network by degree, or by a categorical or numeric node attribute."""
+        if attribute is None:
+            return float(nx.degree_assortativity_coefficient(graph))
+        if numeric:
+            return float(nx.numeric_assortativity_coefficient(graph, attribute))
+        return float(nx.attribute_assortativity_coefficient(graph, attribute))
+
+    @staticmethod
+    def _centrality(graph: nx.Graph, measure: str) -> dict[object, float]:
+        """Return the degree, betweenness, closeness, eigenvector, or PageRank centrality of every node."""
+        functions = {
+            'degree': nx.degree_centrality,
+            'betweenness': nx.betweenness_centrality,
+            'closeness': nx.closeness_centrality,
+            'eigenvector': nx.eigenvector_centrality_numpy,
+            'pagerank': nx.pagerank,
+        }
+        return dict(functions[measure](graph))
+
+    @staticmethod
+    def _neighbor_degree(graph: nx.Graph) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
+        """Return the distinct degrees and the mean degree of the neighbours of the nodes of every degree."""
+        connectivity = nx.average_degree_connectivity(graph)
+        ordered = sorted(connectivity)
+        return np.asarray(ordered, dtype=np.int64), np.asarray(
+            [connectivity[degree] for degree in ordered],
+            dtype=float,
+        )
+
+    @staticmethod
+    def _communities(
+        graph: nx.Graph,
+        method: str,
+        reference: Sequence[object] | str | None,
+        random_state: int | None,
+    ) -> tuple[npt.NDArray[np.int64], float, float | None]:
+        """Return the community of every node, the modularity, and the agreement with a reference partition."""
+        if method == 'louvain':
+            partition = nx.community.louvain_communities(graph, seed=random_state)
+        else:
+            partition = list(nx.community.label_propagation_communities(graph.to_undirected()))
+        membership = {node: index for index, members in enumerate(partition) for node in members}
+        labels = np.asarray([membership[node] for node in graph.nodes()], dtype=np.int64)
+        modularity = float(nx.community.modularity(graph, partition))
+        if reference is None:
+            return labels, modularity, None
+        truth = [graph.nodes[node][reference] for node in graph.nodes()] if isinstance(reference, str) else reference
+        return labels, modularity, float(normalized_mutual_info_score(list(truth), labels))

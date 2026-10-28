@@ -16,9 +16,9 @@ from ._correlation import CorrelationAnalysis
 from ._distribution import DistributionAnalysis
 from ._fluctuations import FluctuationAnalysis
 from ._kinds import DataKind
-from ._neighbors import _nearest_neighbor_distances
-from ._networks import _degrees, _summary
-from ._order import _milling_order, _polar_order
+from ._neighbors import NeighborAnalysis
+from ._networks import NetworkAnalysis
+from ._order import OrderAnalysis
 from ._spectrum import SpectrumAnalysis
 
 type Array = npt.NDArray[np.float64]
@@ -168,13 +168,13 @@ class SignatureAnalysis(BaseAnalysis):
         """Return the polar order over time, and the milling order of agents with velocities in a plane."""
         snapshots = self.snapshots_
         if snapshots.velocities is not None:
-            polar = _polar_order(snapshots.velocities, vectors=True)
+            polar = OrderAnalysis._polar_order(snapshots.velocities, vectors=True)
         else:
-            polar = _polar_order(np.asarray(snapshots.headings))
+            polar = OrderAnalysis._polar_order(np.asarray(snapshots.headings))
         curves = {'polar order': (snapshots.times, polar)}
         planar = snapshots.positions is not None and snapshots.positions.shape[-1] == PLANE
         if snapshots.velocities is not None and snapshots.positions is not None and planar:
-            milling = _milling_order(snapshots.positions, snapshots.velocities)
+            milling = OrderAnalysis._milling_order(snapshots.positions, snapshots.velocities)
             curves['milling order'] = (snapshots.times, milling)
         values = {name: float(curve[1][-1]) for name, curve in curves.items()}
         return Signature(DataKind.AGENTS, 'Order over time', 'time', 'order', curves, values)
@@ -182,7 +182,7 @@ class SignatureAnalysis(BaseAnalysis):
     @staticmethod
     def _get_neighbor_signature(positions: Array, box: Array | None) -> Signature:
         """Return the survival function of nearest-neighbour distances, with the Poisson law of a plane in a box."""
-        distances = _nearest_neighbor_distances(positions, None if box is None else box.tolist())
+        distances = NeighborAnalysis._nearest_neighbor_distances(positions, None if box is None else box.tolist())
         observed = DistributionAnalysis._ccdf(distances)
         curves = {'agents': observed}
         if box is not None and box.size == PLANE:
@@ -207,8 +207,8 @@ class SignatureAnalysis(BaseAnalysis):
     def _get_network_signature(self) -> Signature:
         """Return the degree distribution of the last network with its moments, clustering, and path length."""
         graph = self.graphs_[-1]
-        values = _degrees(graph).astype(float)
-        summary = _summary(graph)
+        values = NetworkAnalysis._degrees(graph).astype(float)
+        summary = NetworkAnalysis._summary(graph)
         stated = {
             'mean degree': float(values.mean()),
             'second moment': float(np.mean(values**2)),

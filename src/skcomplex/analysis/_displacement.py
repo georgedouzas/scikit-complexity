@@ -19,23 +19,6 @@ type Array = npt.NDArray[np.float64]
 FIT_POINTS = 20
 
 
-def _particle_axes(positions: npt.ArrayLike) -> Array:
-    """Return positions as frames by particles by dimensions."""
-    array = BaseAnalysis._read_real(positions, 'positions')
-    return array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
-
-
-def _fit_lags(lags: Array, fit_range: tuple[float, float] | None) -> npt.NDArray[np.intp]:
-    """Return the indices of about 20 lags spaced logarithmically within the fit range."""
-    low, high = (lags[0], lags[-1] / 4) if fit_range is None else fit_range
-    inside = np.flatnonzero((lags >= low) & (lags <= high))
-    if inside.size < 2:  # noqa: PLR2004
-        error_msg = f'The fit range {fit_range} holds fewer than 2 lags. Widen it within {lags[0]} to {lags[-1]}.'
-        raise AnalysisError(error_msg)
-    chosen = np.unique(np.geomspace(1, inside.size, FIT_POINTS).astype(int) - 1)
-    return inside[chosen]
-
-
 class DisplacementAnalysis(BaseAnalysis):
     """Mean squared displacement of particles over all lags, its scaling exponent, and the diffusion coefficient.
 
@@ -115,9 +98,9 @@ class DisplacementAnalysis(BaseAnalysis):
             if positions is None:
                 error_msg = f'The agents of {self.group or "the first group"} have no positions. Use agents in a space.'
                 raise AnalysisError(error_msg)
-            self.positions_ = _particle_axes(positions)
+            self.positions_ = self._particle_axes(positions)
             return self
-        self.positions_ = _particle_axes(source)
+        self.positions_ = self._particle_axes(source)
         return self
 
     def _run(self) -> Self:
@@ -125,7 +108,7 @@ class DisplacementAnalysis(BaseAnalysis):
         array = self.positions_
         msd = np.mean([tidynamics.msd(array[:, particle]) for particle in range(array.shape[1])], axis=0)[1:]
         all_lags = np.arange(1, array.shape[0], dtype=np.float64) * self.dt
-        chosen = _fit_lags(all_lags, self.fit_range)
+        chosen = self._fit_lags(all_lags, self.fit_range)
         self.exponent_ = float(np.polyfit(np.log(all_lags[chosen]), np.log(msd[chosen]), 1)[0])
         slope = float(np.polyfit(all_lags[chosen], msd[chosen], 1)[0])
         self.diffusion_ = slope / (2 * array.shape[2])
@@ -135,3 +118,20 @@ class DisplacementAnalysis(BaseAnalysis):
         steps = np.asarray(self.lags, dtype=int)
         self.lags_, self.msd_ = steps * self.dt, msd[steps - 1]
         return self
+
+    @staticmethod
+    def _particle_axes(positions: npt.ArrayLike) -> Array:
+        """Return positions as frames by particles by dimensions."""
+        array = BaseAnalysis._read_real(positions, 'positions')
+        return array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
+
+    @staticmethod
+    def _fit_lags(lags: Array, fit_range: tuple[float, float] | None) -> npt.NDArray[np.intp]:
+        """Return the indices of about 20 lags spaced logarithmically within the fit range."""
+        low, high = (lags[0], lags[-1] / 4) if fit_range is None else fit_range
+        inside = np.flatnonzero((lags >= low) & (lags <= high))
+        if inside.size < 2:  # noqa: PLR2004
+            error_msg = f'The fit range {fit_range} holds fewer than 2 lags. Widen it within {lags[0]} to {lags[-1]}.'
+            raise AnalysisError(error_msg)
+        chosen = np.unique(np.geomspace(1, inside.size, FIT_POINTS).astype(int) - 1)
+        return inside[chosen]
