@@ -16,6 +16,17 @@ the field's shared realizations when several packages use it.
 - **WHEN** a user runs `PolarOrderAnalysis` from `skcomplex.models.physics.active_matter` on a Vicsek trajectory
 - **THEN** it equals the alignment analysis of kind `mean-vector` on the headings of the flock
 
+### Requirement: Specialized code moves to the model library
+When a library package is generalised, its specialized code that still means something in a field, such as a field's
+measure, a field's naming, or a composite of general operations, SHALL move to the model library as realizations of the
+general classes, and SHALL NOT be removed. The model library SHALL serve as worked examples of how to extend the library
+packages by subclassing their bases and general classes.
+
+#### Scenario: Crackling noise kept
+- **WHEN** the avalanche analysis dissolves into the general event analysis
+- **THEN** the crackling-noise relation stays available as a realization of the criticality models, with the same
+  values as before
+
 ## MODIFIED Requirements
 
 ### Requirement: Specific realizations live in the model library
