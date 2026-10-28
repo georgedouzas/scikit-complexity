@@ -113,7 +113,7 @@ from ._sparse_identification import SparseIdentificationAnalysis
 from ._spatial import Clusters, box_counting_dimension, correlation_function, label_clusters
 from ._stability import Dynamics, Stability, divergence, dynamics_of, fixed_points, jacobian, nullclines, stability
 from ._statistics import PowerLawFit, ccdf, fit_power_law, gini, hill, histogram
-from ._surrogates import SurrogateTest, surrogate_test
+from ._surrogates import SurrogateTestAnalysis
 from ._symbolic import equations_of, solve_symbolically
 
 __all__: list[str] = [
@@ -185,7 +185,7 @@ __all__: list[str] = [
     'StateSpace',
     'StructureFactor',
     'Subshift',
-    'SurrogateTest',
+    'SurrogateTestAnalysis',
     'Sweep',
     'aging_collapse',
     'analyses_for',
@@ -284,6 +284,5 @@ __all__: list[str] = [
     'stability',
     'stroboscopic',
     'structure_factor',
-    'surrogate_test',
     'two_time_correlation',
 ]

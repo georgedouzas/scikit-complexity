@@ -3741,26 +3741,23 @@ They take the `'plugin'` estimator of `dit` for symbols, `'gaussian'` for the cl
 `'knn'` for chains of `ennemi` estimates. `PartialInformationAnalysis` splits what two sources of symbols tell about a
 target into redundant, unique, and synergistic parts with a redundancy measure of `dit`. `LocalInformationAnalysis`
 returns the entropy, the mutual information, or the transfer entropy at every sample, and their means equal the global
-measures. `surrogate_test` compares any of these measures with its values on copies of the data whose variables are
-shuffled independently.
+measures. `SurrogateTestAnalysis` compares the attribute of any of these analyses with its values on copies of the
+data whose variables are shuffled independently.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.analysis import InformationAnalysis, PartialInformationAnalysis, surrogate_test
-
-
-def o_information(data):
-    return InformationAnalysis('o-information').check().prepare(data).run().information_
-
+from skcomplex.analysis import InformationAnalysis, PartialInformationAnalysis, SurrogateTestAnalysis
 
 bits = rng.integers(0, 2, (5000, 2))
 xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
-print(round(o_information(xor), 2))
+print(round(InformationAnalysis('o-information').check().prepare(xor).run().information_, 2))
 gate = np.column_stack([bits, bits[:, 0] & bits[:, 1]])
 parts = PartialInformationAnalysis().check().prepare(gate).run()
 print(round(parts.redundancy_, 2), round(parts.synergy_, 2))
-print(surrogate_test(o_information, xor, n=19, alternative='less', random_state=0).p_value)
+measure = InformationAnalysis('o-information')
+test = SurrogateTestAnalysis(measure, 'information_', n=19, alternative='less', random_state=0)
+print(test.check().prepare(xor).run().p_value_)
 ```
 
 The kind `'criteria'` of `EmergenceAnalysis` computes the criteria of Rosas et al. (2020) for a macro feature of micro
