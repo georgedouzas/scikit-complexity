@@ -1,7 +1,10 @@
 """Test the `specs` module of `skcomplex`."""
 
 import dataclasses
+import importlib
+import inspect
 import pickle  # nosec B403: the tests pickle and load only objects they create
+import pkgutil
 from typing import Annotated
 
 import networkx as nx
@@ -20,6 +23,8 @@ from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import RewritingError, RoleError, ValidationError
+from skcomplex.experiments import Experiment
+from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import (
     AffineSpec,
     BaseSpec,
@@ -37,6 +42,7 @@ from skcomplex.specs import (
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
+    ScenarioSpec,
     ScheduleSpec,
     StateSpec,
     TopologyRequestSpec,
@@ -358,6 +364,25 @@ def test_specs_are_frozen_records():
         StateSpec().order = 2
 
 
+def test_no_package_outside_the_specs_defines_a_dataclass():
+    """Test that no module of the core, the engine, analysis, or experiments defines a dataclass."""
+    defined = []
+    for package in ('core', 'engine', 'analysis', 'experiments'):
+        loaded = importlib.import_module(f'skcomplex.{package}')
+        names = [loaded.__name__] + [
+            module.name for module in pkgutil.walk_packages(loaded.__path__, f'{loaded.__name__}.')
+        ]
+        for name in names:
+            try:
+                module = importlib.import_module(name)
+            except ImportError:
+                continue
+            for value in vars(module).values():
+                if inspect.isclass(value) and value.__module__ == module.__name__ and dataclasses.is_dataclass(value):
+                    defined.append(f'{module.__name__}.{value.__qualname__}')
+    assert defined == []
+
+
 def test_requirement_and_visual_specs_hold_their_fields():
     """Test that an empty requirement accepts any time and space and a visual keeps its options."""
     assert RequirementSpec() == RequirementSpec(time=(), space=())
@@ -589,18 +614,10 @@ def test_observable_module_function_pickles():
     observables = [ObservableSpec('total', _total)]
     restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
     expected = (
-        Simulation(_two_populations(), dt=0.5, observables=observables)
-        .check()
-        .run(until=1)
-        .trajectory_
-        .values('total')
+        Simulation(_two_populations(), dt=0.5, observables=observables).check().run(until=1).trajectory_.values('total')
     )
     values = (
-        Simulation(_two_populations(), dt=0.5, observables=restored)
-        .check()
-        .run(until=1)
-        .trajectory_
-        .values('total')
+        Simulation(_two_populations(), dt=0.5, observables=restored).check().run(until=1).trajectory_.values('total')
     )
     assert np.allclose(values, expected)
 
@@ -660,3 +677,36 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
     observed = ObservableSpec('smoothed', _smoothed_population, element='rabbits')
     with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
         Simulation(System(elements=[PopulationElement('rabbits', n=2.0)]), observables=[observed]).check().run(until=1)
+
+
+def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():
+    """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
+    scenarios = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
+    experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
+    result = experiment.check().prepare().run().result_
+    baseline, quota = result.series('land/stock.n')
+    times = result.runs[0].times
+    assert np.array_equal(baseline[times <= 50], quota[times <= 50])
+    assert quota[-1] > baseline[-1]
+    assert result.runs[0].seed == result.runs[1].seed
+
+
+def test_scenario_spec_keeps_the_initial_value_before_its_first_change():
+    """Test that a parameter keeps its initial value before its first change and the last due change after it."""
+    schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
+    scenarios = [ScenarioSpec('baseline'), ScenarioSpec('late', schedule=schedule)]
+    experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
+    result = experiment.check().prepare().run().result_
+    baseline, late = result.series('land/stock.n')
+    times = result.runs[0].times
+    assert np.array_equal(baseline[times <= 20], late[times <= 20])
+    assert not np.array_equal(baseline[times > 21], late[times > 21])
+
+
+def test_scenario_spec_is_a_frozen_spec():
+    """Test that a scenario is a frozen spec whose default is the baseline."""
+    scenario = ScenarioSpec()
+    assert isinstance(scenario, BaseSpec)
+    assert scenario.check().name == 'baseline'
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        scenario.name = 'quota'

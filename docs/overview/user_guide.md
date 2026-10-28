@@ -3861,22 +3861,24 @@ Open both files with `rerun lotka_volterra.rrd lotka_volterra.rbl` to see the la
 ## Experiments
 
 Complex systems are studied through many runs. `Experiment` runs a model, a factory of systems or a system, over a
-design of factory arguments and dotted paths, scenarios, and replicates. Every design row and replicate gets
-its own random stream spawned from `random_state` in a fixed order, so results are the same serially, on threads, or on
-processes, and every scenario of a row and replicate shares its stream. Parameter and initial-state overrides reuse one
-compiled problem, so sweeps of thousands of runs compile once. An experiment is an estimator: `check` validates its
-settings, `prepare` resolves the model and the runs, and `run` executes them and keeps the results in `result_`.
+design of factory arguments and dotted paths, scenarios declared as `ScenarioSpec`, and replicates. Every design row
+and replicate gets its own random stream spawned from `random_state` in a fixed order, so results are the same
+serially, on threads, or on processes, and every scenario of a row and replicate shares its stream. Parameter and
+initial-state overrides reuse one compiled problem, so sweeps of thousands of runs compile once. An experiment is an
+estimator: `check` validates its settings, `prepare` resolves the model and the runs, and `run` executes them and
+keeps the results in `result_`.
 
 ```python
-from skcomplex.experiments import Experiment, GridDesign, Scenario
+from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.economics.resources import harvesting
+from skcomplex.specs import ScenarioSpec
 
 bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
 ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()
 print(round(float(ensemble.result_.summary()[0]['I.n.mean']), 1))
 
-policies = [Scenario('baseline'), Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
+policies = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
 stocks = Experiment(harvesting, scenarios=policies, until=80, outputs=['land/stock.n']).check().check().prepare().run()
 print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 ```

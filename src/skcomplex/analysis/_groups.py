@@ -3,101 +3,124 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
-from dataclasses import dataclass, field
-from typing import Any
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbolic
 
+from ..base import BaseConfig
 from ..core.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
+from ..engine.problems._reduction_kernel import ReductionKernel
 from ..specs import EntrySpec, ProblemSpec
 
 
-@dataclass
-class _Expansion:
-    """Symbols of every group member and the explicit value of every reduction, built for one problem."""
+class _Expansion(BaseConfig):
+    """Symbols of every group member and the explicit value of every reduction of one problem.
 
-    problem: ProblemSpec
-    parameter_values: npt.NDArray[np.float64]
-    symbols: dict[tuple[str, int, int], Expression] = field(default_factory=dict)
-    values: dict[Expression, float] = field(default_factory=dict)
-    shared: dict[tuple[Expression, int | None], Expression] = field(default_factory=dict)
+    It prepares on a compiled problem and runs on the names of the groups of one owner and one member, returning the
+    substitution that writes the equations of that member out.
 
-    @functools.cached_property
-    def by_index(self) -> dict[tuple[bool, int], Expression]:
-        """Symbols of single components by their flat index, so element sets find their elements."""
-        found = {}
-        for is_state, layout in ((True, self.problem.states), (False, self.problem.parameters)):
+    Args:
+        parameter_values:
+            The parameter vector whose values the member parameters take.
+    """
+
+    def __init__(self, parameter_values: npt.NDArray[np.float64] | None = None) -> None:
+        self.parameter_values = parameter_values
+
+    def _prepare(self, context: ProblemSpec) -> Self:
+        """Keep the problem, start the symbols and values of its members, and find the symbols of single components."""
+        self.problem_ = context
+        self.symbols_: dict[tuple[str, int, int], Expression] = {}
+        self.values_: dict[Expression, float] = {}
+        self.shared_: dict[tuple[Expression, int | None], Expression] = {}
+        self.by_index_: dict[tuple[bool, int], Expression] = {}
+        for is_state, layout in ((True, context.states), (False, context.parameters)):
             for entry in layout.entries:
-                if entry.members is None and entry.name in self.problem.symbols:
-                    for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
-                        found[(is_state, entry.start + column)] = item
-        return found
+                if entry.members is None and entry.name in context.symbols:
+                    for column, item in enumerate(components_of(context.symbols[entry.name])):
+                        self.by_index_[(is_state, entry.start + column)] = item
+        return self
 
-    def member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
+    def _run(self, inputs: tuple[set[str], int]) -> dict[Expression, Expression]:
+        """Return the substitution of one member: its symbols for those of the named groups, and every reduction.
+
+        Every reduction is written as an explicit sum read by the member, and the values of new member parameters are
+        kept in `values_`.
+        """
+        entry_names, member = inputs
+        mapping = self._member_map(entry_names, member)
+        mapping.update(
+            {
+                reduction.symbol: self._value(reduction, member if reduction.weights is not None else None)
+                for reduction in self.problem_.reductions
+            },
+        )
+        return mapping
+
+    def _member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""
         key = (entry.name, column, member)
-        if key not in self.symbols:
-            generic = components_of(self.problem.symbols[entry.name])[column]
-            self.symbols[key] = symbol(f'{generic}__{member}', domain_of(generic))
-            if self.problem.parameters.has(entry.name):
-                self.values[self.symbols[key]] = float(
+        if key not in self.symbols_:
+            generic = components_of(self.problem_.symbols[entry.name])[column]
+            self.symbols_[key] = symbol(f'{generic}__{member}', domain_of(generic))
+            if self.problem_.parameters.has(entry.name):
+                self.values_[self.symbols_[key]] = float(
                     self.parameter_values[entry.start + member * entry.columns + column],
                 )
-        return self.symbols[key]
+        return self.symbols_[key]
 
-    def member_map(self, entry_names: set[str], member: int) -> dict[Expression, Expression]:
+    def _member_map(self, entry_names: set[str], member: int) -> dict[Expression, Expression]:
         """Return the substitution of the generic symbols of groups by the symbols of one member."""
         mapping = {}
-        for layout in (self.problem.states, self.problem.parameters):
+        for layout in (self.problem_.states, self.problem_.parameters):
             for entry in layout.entries:
-                if entry.members is None or entry.name not in self.problem.symbols:
+                if entry.members is None or entry.name not in self.problem_.symbols:
                     continue
                 if entry.name not in entry_names:
                     continue
-                for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
-                    mapping[item] = self.member_symbol(entry, column, member)
+                for column, item in enumerate(components_of(self.problem_.symbols[entry.name])):
+                    mapping[item] = self._member_symbol(entry, column, member)
         return mapping
 
-    def _read_symbol(self, reduction: Any, item: Expression, member: int) -> Expression:  # noqa: ANN401
+    def _read_symbol(self, reduction: ReductionKernel, item: Expression, member: int) -> Expression:
         """Return what one symbol of a reduction stands for at one reduced member."""
         read = reduction.reads[item]
-        nested = next((other for other in self.problem.reductions if other.symbol == item), None)
+        nested = next((other for other in self.problem_.reductions if other.symbol == item), None)
         if nested is not None:
-            return self.value(nested, member if nested.weights is not None else None)
+            return self._value(nested, member if nested.weights is not None else None)
         if not read.per_member:
             return item
         if read.entry is None:
-            return self.by_index[(read.is_state, int(np.asarray(read.index)[member]))]
-        return self.member_symbol(read.entry, read.column, member)
+            return self.by_index_[(read.is_state, int(np.asarray(read.index)[member]))]
+        return self._member_symbol(read.entry, read.column, member)
 
-    def value(self, reduction: Any, reader: int | None) -> Expression:  # noqa: ANN401
+    def _value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
         """Return a reduction as an explicit expression of the member symbols, for one reader with weights."""
         key = (reduction.symbol, reader)
-        if key in self.shared:
-            return self.shared[key]
+        if key in self.shared_:
+            return self.shared_[key]
         terms, selected = [], []
         for member in range(reduction.size):
             mapping = {item: self._read_symbol(reduction, item, member) for item in reduction.reads}
             terms.append(SR(reduction.argument).subs(mapping))
             condition = SR(reduction.condition).subs(mapping) if reduction.condition is not None else None
             selected.append(condition)
-        self.shared[key] = self._reduce(reduction, terms, selected, reader)
-        return self.shared[key]
+        self.shared_[key] = self._reduce(reduction, terms, selected, reader)
+        return self.shared_[key]
 
     @staticmethod
-    def _chosen(term: Expression, condition: Expression | None, otherwise: Any) -> Expression:  # noqa: ANN401
+    def _chosen(term: Expression, condition: Expression | None, otherwise: object) -> Expression:
         """Return a member's term where its condition holds and another value elsewhere."""
         return term if condition is None else where(condition, term, otherwise)
 
     @staticmethod
     def _reduce(
-        reduction: Any,  # noqa: ANN401
+        reduction: ReductionKernel,
         terms: list[Expression],
-        selected: list[Any],
+        selected: list[Expression | None],
         reader: int | None,
     ) -> Expression:
         """Return the explicit value of a reduction from the terms and conditions of its members."""

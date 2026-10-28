@@ -1,17 +1,22 @@
-"""Define scenarios, named overrides and scheduled changes that experiments compare."""
+"""Define the scenario spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
-from typing import Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from sklearn.base import BaseEstimator
+from ._base_spec import BaseSpec
 
-from ..core.system import System
+if TYPE_CHECKING:
+    from ..core.system import System
 
 
-class Scenario(BaseEstimator):
+@dataclass(frozen=True)
+class ScenarioSpec(BaseSpec):
     """Named variant of a model: overrides before the run, parameter changes at given times, or another system.
 
     Every scenario of an experiment runs with the same random streams per design row and replicate, so scenarios differ
@@ -32,19 +37,12 @@ class Scenario(BaseEstimator):
             A system that replaces the model's system, for structural changes, or `None`.
 
     Examples:
-        >>> from skcomplex.experiments import Scenario
-        >>> Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)]).schedule
+        >>> from skcomplex.specs import ScenarioSpec
+        >>> ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)]).schedule
         [(50.0, 'harvest.effort', 0.025)]
     """
 
-    def __init__(
-        self,
-        name: str = 'baseline',
-        overrides: Mapping[str, Any] | None = None,
-        schedule: Sequence[tuple[float, str, Any]] = (),
-        system: System | None = None,
-    ) -> None:
-        self.name = name
-        self.overrides = overrides
-        self.schedule = schedule
-        self.system = system
+    name: str = 'baseline'
+    overrides: Mapping[str, object] | None = None
+    schedule: Sequence[tuple[float, str, object]] = ()
+    system: System | None = None

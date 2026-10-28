@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import itertools
 from collections.abc import Callable, Sequence
 from typing import Any, Self, cast
@@ -471,7 +472,10 @@ class AutomatonAnalysis(BaseAnalysis):
 
     @staticmethod
     def _is_pre_injective(
-        automaton: AutomatonProtocol, window: Sequence[int] | None = None, *, method: str = 'auto',
+        automaton: AutomatonProtocol,
+        window: Sequence[int] | None = None,
+        *,
+        method: str = 'auto',
     ) -> bool:
         """Check whether two configurations that differ only inside a window never have the same image."""
         sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
@@ -556,8 +560,19 @@ class AutomatonAnalysis(BaseAnalysis):
             if isinstance(inner, MemoryNeighborhood)
             else LatticeNeighborhood(tuple(composite))
         )
-        rule = _ComposedRuleSpec(first.local_map(), second.local_map(), tuple(columns), first.states).evaluate
+        composed = _ComposedRuleSpec(first.local_map(), second.local_map(), tuple(columns), first.states)
+        rule = functools.partial(AutomatonAnalysis._composed_rule, composed)
         return type(first)(first.space, reach, rule, first.states)
+
+    @staticmethod
+    def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike) -> IntArray:
+        """Return the value of the second rule of a composition on the values of the first rule around every cell."""
+        cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
+        inner = [
+            composed.first[AutomatonAnalysis._codes(cells[..., list(columns)], composed.states)]
+            for columns in composed.columns
+        ]
+        return composed.second[AutomatonAnalysis._codes(np.stack(inner, axis=-1), composed.states)]
 
     @staticmethod
     def _difference_pattern(
