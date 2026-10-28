@@ -1,4 +1,4 @@
-"""Test the `_learning` module of `skcomplex.models.social.realizations`."""
+"""Test the `_imitation` module of `skcomplex.models.social.cooperation`."""
 
 from typing import Annotated
 
@@ -10,7 +10,7 @@ from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.social.realizations import imitate
+from skcomplex.models.social.cooperation import imitate
 
 
 class ImitatorElement(Element):

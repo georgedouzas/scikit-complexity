@@ -373,7 +373,6 @@ forbidden_modules = [
     "skcomplex.models.economics.realizations",
     "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
-    "skcomplex.models.social.realizations",
 ]
 
 [[tool.importlinter.contracts]]
@@ -384,7 +383,6 @@ forbidden_modules = [
     "skcomplex.models.earth.realizations",
     "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
-    "skcomplex.models.social.realizations",
 ]
 
 [[tool.importlinter.contracts]]
@@ -395,7 +393,6 @@ forbidden_modules = [
     "skcomplex.models.earth.realizations",
     "skcomplex.models.economics.realizations",
     "skcomplex.models.physics.realizations",
-    "skcomplex.models.social.realizations",
 ]
 
 [[tool.importlinter.contracts]]
@@ -406,7 +403,6 @@ forbidden_modules = [
     "skcomplex.models.earth.realizations",
     "skcomplex.models.economics.realizations",
     "skcomplex.models.engineering.realizations",
-    "skcomplex.models.social.realizations",
 ]
 
 [[tool.importlinter.contracts]]

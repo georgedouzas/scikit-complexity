@@ -1,4 +1,4 @@
-"""Learning blocks of agent rules: imitation of the best-scoring neighbour."""
+"""Imitation of the best-scoring neighbour, a learning block of agent rules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

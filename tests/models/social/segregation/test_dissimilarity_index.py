@@ -1,9 +1,9 @@
-"""Test the `_dissimilarity_index` module of `skcomplex.models.social.realizations`."""
+"""Test the `_dissimilarity_index` module of `skcomplex.models.social.segregation`."""
 
 import numpy as np
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.models.social.realizations import DissimilarityIndexAnalysis
+from skcomplex.models.social.segregation import DissimilarityIndexAnalysis
 
 
 def test_dissimilarity_index_equals_the_total_variation():

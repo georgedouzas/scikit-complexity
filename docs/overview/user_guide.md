@@ -3371,7 +3371,7 @@ agents learn from their past.
   declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations`, `heuristics` has adaptive,
   trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past performance, and
   `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
-  `skcomplex.models.social.realizations`, copies the best neighbour.
+  `skcomplex.models.social.cooperation`, copies the best neighbour.
 
 ```python
 from typing import Annotated, ClassVar

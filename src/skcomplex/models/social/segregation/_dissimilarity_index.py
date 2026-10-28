@@ -30,7 +30,7 @@ class DissimilarityIndexAnalysis(DistributionAnalysis):
             The dissimilarity index.
 
     Examples:
-        >>> from skcomplex.models.social.realizations import DissimilarityIndexAnalysis
+        >>> from skcomplex.models.social.segregation import DissimilarityIndexAnalysis
         >>> DissimilarityIndexAnalysis().check().prepare([[0, 0], [0, 0], [1, 1], [1, 1]]).run().distance_
         1.0
     """
