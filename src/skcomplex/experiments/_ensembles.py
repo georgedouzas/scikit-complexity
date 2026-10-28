@@ -89,7 +89,7 @@ def _member_values(
     return by_label
 
 
-def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
     """Return a system whose single elements become groups of members of the same types and labels.
 
     Every member starts from the values of its element, except the dotted paths given in `values`, which take one
@@ -117,9 +117,9 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.experiments._ensembles import replicate
+        >>> from skcomplex.experiments._ensembles import _replicate
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
-        >>> ensemble = replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
+        >>> ensemble = _replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
         >>> group = ensemble.elements[0]
         >>> group.label, group.element.__name__, group.size
         ('map', 'LogisticMapElement', 4)
