@@ -13,7 +13,7 @@ by short bursts in which it rises to values of order one and falls back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import detect_events, histogram
+from skcomplex.analysis import DistributionAnalysis, detect_events
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -43,7 +43,8 @@ durations = np.concatenate(
         for index in range(values.shape[1])
     ],
 )
-edges, density = histogram(durations[durations >= 0.5], bins=12, log=True)
+histogram = DistributionAnalysis('histogram', bins=12, log=True).check().prepare(durations[durations >= 0.5]).run()
+edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 
 fig, (laminar, logarithm) = plt.subplots(1, 2, figsize=(10, 4))

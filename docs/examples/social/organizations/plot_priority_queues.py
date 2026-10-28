@@ -16,7 +16,7 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fit_power_law
+from skcomplex.analysis import FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -36,7 +36,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 # before it bends down past the cutoff.
 
 waits = simulation.trajectory_.values('execution.wait')[1:]
-fit = fit_power_law(waits, discrete=True, xmin=2, xmax=300, bootstrap=0)
+fit = FitAnalysis(discrete=True, minimum=2, maximum=300, bootstrap=0).check().prepare(waits).run()
 edges = np.unique(np.logspace(0, np.log10(waits.max() + 1), 20).astype(int))
 counts, _ = np.histogram(waits, edges)
 density = counts / np.diff(edges) / len(waits)
@@ -44,8 +44,8 @@ centres = np.sqrt(edges[:-1] * edges[1:])
 shown = density > 0
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.loglog(centres[shown], density[shown], 'o', label=f'{len(waits)} executed tasks')
-guide = density[1] * (centres[1] / centres[1:]) ** fit.alpha
-ax.loglog(centres[1:], guide, '--', color='gray', label=f'power law, fitted exponent {fit.alpha:.2f}')
+guide = density[1] * (centres[1] / centres[1:]) ** fit.exponent_
+ax.loglog(centres[1:], guide, '--', color='gray', label=f'power law, fitted exponent {fit.exponent_:.2f}')
 ax.axvline(1000, color='C3', linewidth=1, label='cutoff 1 / (1 - greed)')
 ax.set_xlabel('waiting time (steps)')
 ax.set_ylabel('probability')

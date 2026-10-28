@@ -1,45 +1,34 @@
-"""Test Binder cumulants, their crossings, and finite-size scaling collapse on the Ising and percolation transitions."""
+"""Test finite-size scaling collapse on the Ising and percolation transitions."""
 
 import math
 
 import numpy as np
 import pytest
 
-from skcomplex.analysis import (
-    binder_crossings,
-    binder_cumulant,
-    order_parameter_sweep,
-    scaling_collapse,
-    spanning_probability,
-)
+from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, scaling_collapse
 from skcomplex.core.errors import AnalysisError
 
-from .conftest import ISING_SIZES, ISING_TEMPERATURES
+from .conftest import ISING_TEMPERATURES
 
 CRITICAL = 2 / math.log(1 + math.sqrt(2))
 PERCOLATION = 0.5927
 
 
+def _spanning(grids: list[np.ndarray]) -> float:
+    """Return the share of grids with a cluster joining the opposite edges of their first axis."""
+    return ClusterAnalysis('spanning').check().prepare(grids).run().probability_
+
+
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
     """Return the susceptibility of every size at every temperature."""
     return {
-        side: order_parameter_sweep(
-            ISING_TEMPERATURES,
-            samples,
-            side**2,
-            temperatures=ISING_TEMPERATURES,
-        ).susceptibility
+        side: BinderAnalysis('sweep', parameters=ISING_TEMPERATURES, size=side**2, temperatures=ISING_TEMPERATURES)
+        .check()
+        .prepare(np.column_stack(samples))
+        .run()
+        .susceptibility_
         for side, samples in magnetizations.items()
     }
-
-
-def test_binder_crossings_ising_critical_point(ising_magnetizations):
-    """Test that the Binder cumulants of Ising lattices of sides 16, 32, and 64 cross within 1 percent of T_c."""
-    cumulants = {side: [binder_cumulant(samples) for samples in ising_magnetizations[side]] for side in ISING_SIZES}
-    crossings = binder_crossings(ISING_TEMPERATURES, cumulants)
-    np.testing.assert_allclose(crossings, CRITICAL, rtol=0.01)
-    with pytest.raises(AnalysisError, match='at least 2 sizes'):
-        binder_crossings(ISING_TEMPERATURES, {16: cumulants[16]})
 
 
 def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
@@ -61,7 +50,7 @@ def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
     probabilities = np.linspace(0.56, 0.62, 13)
     spanning = {
         side: np.asarray(
-            [spanning_probability([rng.random((side, side)) < p for _ in range(600)]) for p in probabilities],
+            [_spanning([rng.random((side, side)) < p for _ in range(600)]) for p in probabilities],
         )
         for side in (16, 32, 64)
     }

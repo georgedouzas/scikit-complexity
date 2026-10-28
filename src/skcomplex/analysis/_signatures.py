@@ -13,12 +13,12 @@ from ..engine.runtime import Trajectory
 from ..experiments import ExperimentResult
 from ._adapters import Snapshots, data_kinds, ensemble_of, fields_of, networks_of, path_of, series_of, snapshots_of
 from ._agents import milling_order, nearest_neighbor_distances, polar_order
+from ._distribution import _ccdf
 from ._fields import correlation_length, structure_factor
 from ._fluctuations import fano_factor
 from ._kinds import DataKind
 from ._networks import degrees, summarize_network
 from ._series import autocorrelation_time, power_spectrum
-from ._statistics import ccdf
 
 type Array = npt.NDArray[np.float64]
 type Curve = tuple[Array, Array]
@@ -111,7 +111,7 @@ def _path_signature(trajectory: Trajectory) -> Signature:
     jumps = np.abs(np.diff(frames, axis=0)).sum(axis=1)
     values = {'Fano factor of jumps per frame': fano_factor(jumps)} if jumps.mean() > 0 else {}
     values['jumps'] = float(states.shape[0] - 1)
-    curves = {'P(waiting time >= t)': ccdf(waiting)} if waiting.size else {}
+    curves = {'P(waiting time >= t)': _ccdf(waiting)} if waiting.size else {}
     return Signature(
         DataKind.PATH,
         'Waiting times between jumps',
@@ -163,7 +163,7 @@ def _order_signature(snapshots: Snapshots) -> Signature:
 def _neighbor_signature(positions: Array, box: Array | None) -> Signature:
     """Return the survival function of nearest-neighbour distances, with the Poisson law of a plane in a box."""
     distances = nearest_neighbor_distances(positions, None if box is None else box.tolist())
-    observed = ccdf(distances)
+    observed = _ccdf(distances)
     curves = {'agents': observed}
     if box is not None and box.size == PLANE:
         density = positions.shape[0] / np.prod(box)
@@ -198,7 +198,7 @@ def _network_signature(trajectory: Trajectory) -> Signature:
         'mean path length': summary.path_length,
     }
     positive = values[values > 0]
-    curves = {'P(degree >= k)': ccdf(positive)} if positive.size else {}
+    curves = {'P(degree >= k)': _ccdf(positive)} if positive.size else {}
     return Signature(
         DataKind.NETWORK,
         'Degree distribution',

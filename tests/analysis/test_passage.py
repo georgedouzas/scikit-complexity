@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import (
+    FitAnalysis,
     first_passage_times,
-    fit_power_law,
     hitting_probabilities,
     laminar_durations,
     return_times,
@@ -63,7 +63,8 @@ def test_return_times_on_two_domains():
     rng = np.random.default_rng(1)
     walk = np.cumsum(rng.choice([-1, 1], 2_000_000))
     returns = return_times(walk) / 2
-    assert fit_power_law(returns, xmin=10, discrete=True, bootstrap=0).alpha == pytest.approx(1.5, abs=0.1)
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(returns).run()
+    assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
     size = 2_000_000
     values = np.empty(size)
     values[0] = 0.5
@@ -71,7 +72,8 @@ def test_return_times_on_two_domains():
     for t in range(1, size):
         values[t] = max(factors[t] * values[t - 1] * (1 - values[t - 1]), 1e-12)
     durations = laminar_durations(values, 1e-3)
-    assert fit_power_law(durations, xmin=10, discrete=True, bootstrap=0).alpha == pytest.approx(1.5, abs=0.1)
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(durations).run()
+    assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
 
 
 def test_hitting_probabilities_fixation_of_a_mutant():

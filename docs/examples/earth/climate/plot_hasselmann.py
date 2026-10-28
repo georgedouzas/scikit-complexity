@@ -12,7 +12,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import autocorrelation, histogram
+from skcomplex.analysis import DistributionAnalysis, autocorrelation
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -36,7 +36,8 @@ lam, sigma = 0.5, 0.3
 run = Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=2000).trajectory_
 anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
-edges, density = histogram(anomaly, bins=40)
+histogram = DistributionAnalysis('histogram', bins=40).check().prepare(anomaly).run()
+edges, density = histogram.edges_, histogram.density_
 variance = sigma**2 / (2 * lam)
 grid = np.linspace(edges[0], edges[-1], 200)
 fig, (memory, distribution) = plt.subplots(1, 2, figsize=(10, 4))

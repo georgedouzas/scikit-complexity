@@ -1,4 +1,4 @@
-"""Locate transitions by finite-size scaling: Binder cumulants, their crossings, and scaling collapse."""
+"""Locate transitions by finite-size scaling collapse."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,70 +42,6 @@ def _quality(scaled: list[tuple[Array, Array]]) -> float:
         return float('inf')
     scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
     return float(joined.mean() / scale)
-
-
-@analysis(DataKind.FIELD)
-def binder_cumulant(samples: npt.ArrayLike) -> float:
-    """Return the Binder cumulant `1 - <m^4> / (3 <m^2>^2)` of samples of an order parameter.
-
-    Args:
-        samples:
-            The samples of the order parameter.
-
-    Returns:
-        cumulant:
-            2/3 deep in an ordered phase and 0 for Gaussian fluctuations about 0.
-
-    Examples:
-        >>> from skcomplex.analysis import binder_cumulant
-        >>> round(binder_cumulant([1.0, -1.0, 1.0]), 4)
-        0.6667
-    """
-    array = np.asarray(samples, dtype=float)
-    return float(1 - np.mean(array**4) / (3 * np.mean(array**2) ** 2))
-
-
-@analysis(DataKind.ENSEMBLE)
-def binder_crossings(parameters: npt.ArrayLike, cumulants: Mapping[int, npt.ArrayLike]) -> Array:
-    """Return where the Binder cumulants of consecutive sizes cross, by linear interpolation of their difference.
-
-    Args:
-        parameters:
-            The control parameter values, such as temperatures, shared by every size.
-
-        cumulants:
-            The cumulants at every parameter for every size.
-
-    Returns:
-        crossings:
-            The first crossing of every pair of consecutive sizes, `nan` where they do not cross.
-
-    Raises:
-        AnalysisError:
-            Fewer than 2 sizes are given.
-
-    Examples:
-        >>> from skcomplex.analysis import binder_crossings
-        >>> binder_crossings([1.0, 2.0, 3.0], {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}).tolist()
-        [2.0]
-    """
-    sizes = sorted(cumulants)
-    if len(sizes) < MIN_SIZES:
-        error_msg = f'Crossings need at least {MIN_SIZES} sizes, not {len(sizes)}.'
-        raise AnalysisError(error_msg)
-    grid = np.asarray(parameters, dtype=float)
-    crossings = []
-    for small, large in itertools.pairwise(sizes):
-        difference = np.asarray(cumulants[large], dtype=float) - np.asarray(cumulants[small], dtype=float)
-        changes = np.flatnonzero(np.sign(difference[:-1]) * np.sign(difference[1:]) <= 0)
-        if not changes.size:
-            crossings.append(np.nan)
-            continue
-        index = int(changes[0])
-        left, right = difference[index], difference[index + 1]
-        share = left / (left - right) if left != right else 0.0
-        crossings.append(grid[index] + share * (grid[index + 1] - grid[index]))
-    return np.asarray(crossings, dtype=float)
 
 
 @dataclass(frozen=True)

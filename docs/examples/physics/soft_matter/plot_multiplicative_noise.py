@@ -16,7 +16,7 @@ equilibrium, they spread evenly. The view shows eight particles in the Itô sens
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import histogram
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -42,7 +42,13 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
     system_n = create(MODEL, n_particles=800, L=10.0, convention=noise)
     run = Simulation(system_n, solver=solver, dt=0.1, random_state=1).run(until=300)
-    edges, density = histogram(run.trajectory_.values('particles.x')[1500::20].ravel(), bins=25)
+    histogram = (
+        DistributionAnalysis('histogram', bins=25)
+        .check()
+        .prepare(run.trajectory_.values('particles.x')[1500::20].ravel())
+        .run()
+    )
+    edges, density = histogram.edges_, histogram.density_
     ax.stairs(density, edges, color=color, label=f'{noise}')
     expected = sigma**-power
     ax.plot(grid, expected / np.trapezoid(expected, grid), '--', color=color, label=f'1 / sigma^{power}')

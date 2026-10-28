@@ -5,6 +5,7 @@
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -12,10 +13,33 @@ from scipy import stats
 from scipy.spatial import cKDTree
 
 from ..core.errors import AnalysisError
-from ._extremes import GoodnessOfFit
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
+
+
+@dataclass(frozen=True)
+class GoodnessOfFit:
+    """Test of samples against a named law with fitted parameters.
+
+    Args:
+        law:
+            The name of the law.
+
+        parameters:
+            The fitted and fixed parameters of the law.
+
+        statistic:
+            The Kolmogorov-Smirnov statistic.
+
+        p_value:
+            The p-value. Values below the significance level reject the law.
+    """
+
+    law: str
+    parameters: dict[str, float]
+    statistic: float
+    p_value: float
 
 
 def _unit_vectors(headings: npt.ArrayLike, *, vectors: bool) -> Array:

@@ -149,7 +149,7 @@ def test_analyses_for_lattice_model():
     """Test that an Ising system lists field analyses and no agent analysis."""
     found = analyses_for(create('ising', size=16))
     fields = {item.name for item in found if item.kind == DataKind.FIELD}
-    assert {'structure_factor', 'correlation_length', 'cluster_sizes', 'binder_cumulant'} <= fields
+    assert {'structure_factor', 'correlation_length'} <= fields
     assert all(item.kind != DataKind.AGENTS for item in found)
     assert all(item.adapter == 'fields_of' for item in found if item.kind == DataKind.FIELD)
 
