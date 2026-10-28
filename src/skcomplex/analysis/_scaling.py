@@ -30,83 +30,6 @@ RADII = 30
 PAIR_SAMPLE = 200_000
 
 
-def _fluctuation(
-    values: npt.ArrayLike,
-    scales: npt.ArrayLike | None = None,
-    order: int = 1,
-    *,
-    method: str = 'dfa',
-) -> tuple[Array, Array, float]:
-    """Return the window sizes, the fluctuations, and the exponent of a series by DFA or by the rescaled range."""
-    array = BaseAnalysis._read_real(values, 'values')
-    if array.size < MIN_FLUCTUATION_VALUES:
-        error_msg = (
-            f'A fluctuation analysis needs at least {MIN_FLUCTUATION_VALUES} values, not {array.size}. '
-            'Pass a longer series.'
-        )
-        raise AnalysisError(error_msg)
-    sizes = None if scales is None else np.asarray(scales, dtype=int)
-    if method == 'rs':
-        exponent, (log_scales, log_values, _) = nolds.hurst_rs(array, nvals=sizes, fit='poly', debug_data=True)
-    else:
-        exponent, (log_scales, log_values, _) = nolds.dfa(
-            array,
-            nvals=sizes,
-            order=order,
-            fit_exp='poly',
-            debug_data=True,
-        )
-    return np.exp(log_scales), np.exp(log_values), float(exponent)
-
-
-def _box_counting(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -> tuple[Array, Array, float]:
-    """Return the box sides, the box counts, and the box-counting dimension of a set of cells."""
-    grid = np.asarray(occupied, dtype=bool)
-    sides = 2 ** np.arange(int(np.log2(min(grid.shape) // 8)) + 1) if sizes is None else np.asarray(sizes, dtype=int)
-    counts = []
-    for side in sides:
-        trimmed = grid[tuple(slice(0, size - size % side) for size in grid.shape)]
-        shape = [item for size in trimmed.shape for item in (size // side, side)]
-        boxes = trimmed.reshape(shape).any(axis=tuple(range(1, 2 * grid.ndim, 2)))
-        counts.append(boxes.sum())
-    dimension = float(-np.polyfit(np.log(sides), np.log(counts), 1)[0])
-    return np.asarray(sides, dtype=float), np.asarray(counts, dtype=float), dimension
-
-
-def _pair_distances(points: Array, rng: np.random.Generator) -> Array:
-    """Return the distances of a random sample of pairs of distinct points."""
-    first = rng.integers(0, points.shape[0], PAIR_SAMPLE)
-    second = rng.integers(0, points.shape[0], PAIR_SAMPLE)
-    distinct = first != second
-    return np.linalg.norm(points[first[distinct]] - points[second[distinct]], axis=1)
-
-
-def _correlation_dimension(
-    points: npt.ArrayLike,
-    radii: npt.ArrayLike | None = None,
-    *,
-    fit_sums: tuple[float, float] = (1e-4, 1e-2),
-    random_state: int | None = 0,
-) -> tuple[Array, Array, float, tuple[float, float]]:
-    """Return the radii, the correlation sums, the Grassberger-Procaccia dimension, and the fit range of points."""
-    array = np.asarray(points, dtype=float)
-    array = array.reshape(array.shape[0], -1)
-    size = array.shape[0]
-    if radii is None:
-        distances = _pair_distances(array, np.random.default_rng(random_state))
-        low, high = np.quantile(distances, [fit_sums[0] / 10, 0.5])
-        radii = np.geomspace(max(low, 1e-12), high, RADII)
-    grid = np.asarray(radii, dtype=float)
-    tree = cKDTree(array)
-    sums = (tree.count_neighbors(tree, grid) - size) / (size * (size - 1))
-    inside = np.flatnonzero((sums >= fit_sums[0]) & (sums <= fit_sums[1]))
-    if inside.size < 2:  # noqa: PLR2004
-        error_msg = f'Fewer than 2 radii have correlation sums within {fit_sums}. Give more radii or points.'
-        raise AnalysisError(error_msg)
-    slope = float(np.polyfit(np.log(grid[inside]), np.log(sums[inside]), 1)[0])
-    return grid, sums, slope, (float(grid[inside[0]]), float(grid[inside[-1]]))
-
-
 class ScalingAnalysis(BaseAnalysis):
     """Scaling exponent of every series of a source, or fractal dimension of a set of cells or points, of one kind.
 
@@ -227,9 +150,9 @@ class ScalingAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the exponents of the series, or the dimension of the cells or points."""
         if self.kind == 'box-counting':
-            self.scales_, self.counts_, self.exponent_ = _box_counting(self.values_, self.scales)
+            self.scales_, self.counts_, self.exponent_ = self._box_counting(self.values_, self.scales)
         elif self.kind == 'correlation-dimension':
-            self.scales_, self.sums_, self.exponent_, self.fit_range_ = _correlation_dimension(
+            self.scales_, self.sums_, self.exponent_, self.fit_range_ = self._correlation_dimension(
                 self.values_,
                 self.scales,
                 fit_sums=self.fit_sums,
@@ -237,8 +160,87 @@ class ScalingAnalysis(BaseAnalysis):
             )
         else:
             method = 'rs' if self.kind == 'rescaled-range' else 'dfa'
-            curves = [_fluctuation(column, self.scales, self.order, method=method) for column in self.values_.T]
+            curves = [self._fluctuation(column, self.scales, self.order, method=method) for column in self.values_.T]
             self.scales_ = curves[0][0]
             self.fluctuations_ = np.asarray([fluctuations for _, fluctuations, _ in curves])
             self.exponent_ = np.asarray([exponent for _, _, exponent in curves])
         return self
+
+    @staticmethod
+    def _fluctuation(
+        values: npt.ArrayLike,
+        scales: npt.ArrayLike | None = None,
+        order: int = 1,
+        *,
+        method: str = 'dfa',
+    ) -> tuple[Array, Array, float]:
+        """Return the window sizes, the fluctuations, and the exponent of a series by DFA or by the rescaled range."""
+        array = BaseAnalysis._read_real(values, 'values')
+        if array.size < MIN_FLUCTUATION_VALUES:
+            error_msg = (
+                f'A fluctuation analysis needs at least {MIN_FLUCTUATION_VALUES} values, not {array.size}. '
+                'Pass a longer series.'
+            )
+            raise AnalysisError(error_msg)
+        sizes = None if scales is None else np.asarray(scales, dtype=int)
+        if method == 'rs':
+            exponent, (log_scales, log_values, _) = nolds.hurst_rs(array, nvals=sizes, fit='poly', debug_data=True)
+        else:
+            exponent, (log_scales, log_values, _) = nolds.dfa(
+                array,
+                nvals=sizes,
+                order=order,
+                fit_exp='poly',
+                debug_data=True,
+            )
+        return np.exp(log_scales), np.exp(log_values), float(exponent)
+
+    @staticmethod
+    def _box_counting(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -> tuple[Array, Array, float]:
+        """Return the box sides, the box counts, and the box-counting dimension of a set of cells."""
+        grid = np.asarray(occupied, dtype=bool)
+        sides = (
+            2 ** np.arange(int(np.log2(min(grid.shape) // 8)) + 1) if sizes is None else np.asarray(sizes, dtype=int)
+        )
+        counts = []
+        for side in sides:
+            trimmed = grid[tuple(slice(0, size - size % side) for size in grid.shape)]
+            shape = [item for size in trimmed.shape for item in (size // side, side)]
+            boxes = trimmed.reshape(shape).any(axis=tuple(range(1, 2 * grid.ndim, 2)))
+            counts.append(boxes.sum())
+        dimension = float(-np.polyfit(np.log(sides), np.log(counts), 1)[0])
+        return np.asarray(sides, dtype=float), np.asarray(counts, dtype=float), dimension
+
+    @staticmethod
+    def _pair_distances(points: Array, rng: np.random.Generator) -> Array:
+        """Return the distances of a random sample of pairs of distinct points."""
+        first = rng.integers(0, points.shape[0], PAIR_SAMPLE)
+        second = rng.integers(0, points.shape[0], PAIR_SAMPLE)
+        distinct = first != second
+        return np.linalg.norm(points[first[distinct]] - points[second[distinct]], axis=1)
+
+    @staticmethod
+    def _correlation_dimension(
+        points: npt.ArrayLike,
+        radii: npt.ArrayLike | None = None,
+        *,
+        fit_sums: tuple[float, float] = (1e-4, 1e-2),
+        random_state: int | None = 0,
+    ) -> tuple[Array, Array, float, tuple[float, float]]:
+        """Return the radii, the correlation sums, the Grassberger-Procaccia dimension, and the fit range of points."""
+        array = np.asarray(points, dtype=float)
+        array = array.reshape(array.shape[0], -1)
+        size = array.shape[0]
+        if radii is None:
+            distances = ScalingAnalysis._pair_distances(array, np.random.default_rng(random_state))
+            low, high = np.quantile(distances, [fit_sums[0] / 10, 0.5])
+            radii = np.geomspace(max(low, 1e-12), high, RADII)
+        grid = np.asarray(radii, dtype=float)
+        tree = cKDTree(array)
+        sums = (tree.count_neighbors(tree, grid) - size) / (size * (size - 1))
+        inside = np.flatnonzero((sums >= fit_sums[0]) & (sums <= fit_sums[1]))
+        if inside.size < 2:  # noqa: PLR2004
+            error_msg = f'Fewer than 2 radii have correlation sums within {fit_sums}. Give more radii or points.'
+            raise AnalysisError(error_msg)
+        slope = float(np.polyfit(np.log(grid[inside]), np.log(sums[inside]), 1)[0])
+        return grid, sums, slope, (float(grid[inside[0]]), float(grid[inside[-1]]))

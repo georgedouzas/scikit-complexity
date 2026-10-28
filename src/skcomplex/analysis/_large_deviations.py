@@ -41,19 +41,6 @@ DATA_KINDS = {
 }
 
 
-def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
-    """Return the increment of a time-additive observable over one segment of a clone."""
-    if callable(observable):
-        return float(observable(trajectory))
-    values = np.asarray(trajectory.values(observable), dtype=float)
-    return float(np.sum(values[-1] - values[0]))
-
-
-def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
-    """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid."""
-    return np.max(np.outer(values, tilts) - function[None, :], axis=1)
-
-
 class LargeDeviationAnalysis(BaseAnalysis):
     """Large deviations of a time-additive observable or of an order parameter, of one kind.
 
@@ -305,7 +292,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
                 start = replace(problem, initial_state=states[index].copy())
                 seed = int(rng.integers(2**31 - 1))
                 simulation = Simulation(start, random_state=seed, **settings).run(until=self.interval)  # type: ignore[arg-type]
-                increments[index] = _increment(observable, simulation.trajectory_)
+                increments[index] = self._increment(observable, simulation.trajectory_)
                 states[index] = np.asarray(simulation.trajectory_.states)[-1]
             logs = tilt * increments
             log_growth += float(special.logsumexp(logs) - np.log(population))
@@ -367,5 +354,18 @@ class LargeDeviationAnalysis(BaseAnalysis):
             self.effective_population_ = np.asarray([effective for _, effective in estimates])
         if self.values is not None:
             self.values_ = np.atleast_1d(np.asarray(self.values, dtype=float))
-            self.rate_function_ = _legendre_transform(self.tilts_, self.scgf_, self.values_)
+            self.rate_function_ = self._legendre_transform(self.tilts_, self.scgf_, self.values_)
         return self
+
+    @staticmethod
+    def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
+        """Return the increment of a time-additive observable over one segment of a clone."""
+        if callable(observable):
+            return float(observable(trajectory))
+        values = np.asarray(trajectory.values(observable), dtype=float)
+        return float(np.sum(values[-1] - values[0]))
+
+    @staticmethod
+    def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
+        """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid."""
+        return np.max(np.outer(values, tilts) - function[None, :], axis=1)

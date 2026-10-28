@@ -12,14 +12,14 @@ from ..core.errors import AnalysisError
 from ..engine.problems import Form
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Signature, Source
-from ._correlation import _autocorrelation_time, _correlation_length
-from ._distribution import _ccdf
-from ._fluctuations import _fano_factor
+from ._correlation import CorrelationAnalysis
+from ._distribution import DistributionAnalysis
+from ._fluctuations import FluctuationAnalysis
 from ._kinds import DataKind
 from ._neighbors import _nearest_neighbor_distances
 from ._networks import _degrees, _summary
 from ._order import _milling_order, _polar_order
-from ._spectrum import _power_spectrum, _structure_factor
+from ._spectrum import SpectrumAnalysis
 
 type Array = npt.NDArray[np.float64]
 SERIES_COLUMNS = 3
@@ -108,10 +108,10 @@ class SignatureAnalysis(BaseAnalysis):
             return Signature(DataKind.SERIES, 'Return map', 'x(t)', 'x(t + 1)', curves, points=True)
         curves = {}
         for label, column in zip(labels, columns.T, strict=True):
-            frequencies, density = _power_spectrum(column, dt)
+            frequencies, density = SpectrumAnalysis._power_spectrum(column, dt)
             keep = (frequencies > 0) & (density > 0)
             curves[label] = (frequencies[keep], density[keep])
-        values = {f'autocorrelation time of {labels[0]}': _autocorrelation_time(columns[:, 0], dt)}
+        values = {f'autocorrelation time of {labels[0]}': CorrelationAnalysis._autocorrelation_time(columns[:, 0], dt)}
         return Signature(
             DataKind.SERIES,
             'Power spectrum',
@@ -126,9 +126,13 @@ class SignatureAnalysis(BaseAnalysis):
     def _get_path_signature(self) -> Signature:
         """Return the survival function of the waiting times between jumps and the Fano factor of jump counts."""
         waiting = np.diff(self.path_.times)
-        values = {'Fano factor of jumps per frame': _fano_factor(self.jumps_)} if self.jumps_.mean() > 0 else {}
+        values = (
+            {'Fano factor of jumps per frame': FluctuationAnalysis._fano_factor(self.jumps_)}
+            if self.jumps_.mean() > 0
+            else {}
+        )
         values['jumps'] = float(self.path_.times.size - 1)
-        curves = {'P(waiting time >= t)': _ccdf(waiting)} if waiting.size else {}
+        curves = {'P(waiting time >= t)': DistributionAnalysis._ccdf(waiting)} if waiting.size else {}
         return Signature(
             DataKind.PATH,
             'Waiting times between jumps',
@@ -142,12 +146,12 @@ class SignatureAnalysis(BaseAnalysis):
     def _get_field_signature(self) -> Signature:
         """Return the structure factor of the last frame with its peak wavelength or its correlation length."""
         last = self.frames_[-1]
-        wavenumbers, power = _structure_factor(last[None])
+        wavenumbers, power = SpectrumAnalysis._structure_factor(last[None])
         peak = int(np.argmax(power))
         values = (
             {'peak wavelength': float(2 * np.pi / wavenumbers[peak])}
             if 0 < peak < power.size - 1
-            else {'correlation length': _correlation_length(last[None], 'moment', 1.0)}
+            else {'correlation length': CorrelationAnalysis._correlation_length(last[None], 'moment', 1.0)}
         )
         return Signature(
             DataKind.FIELD,
@@ -179,7 +183,7 @@ class SignatureAnalysis(BaseAnalysis):
     def _get_neighbor_signature(positions: Array, box: Array | None) -> Signature:
         """Return the survival function of nearest-neighbour distances, with the Poisson law of a plane in a box."""
         distances = _nearest_neighbor_distances(positions, None if box is None else box.tolist())
-        observed = _ccdf(distances)
+        observed = DistributionAnalysis._ccdf(distances)
         curves = {'agents': observed}
         if box is not None and box.size == PLANE:
             density = positions.shape[0] / np.prod(box)
@@ -212,7 +216,7 @@ class SignatureAnalysis(BaseAnalysis):
             'mean path length': summary['path_length'],
         }
         positive = values[values > 0]
-        curves = {'P(degree >= k)': _ccdf(positive)} if positive.size else {}
+        curves = {'P(degree >= k)': DistributionAnalysis._ccdf(positive)} if positive.size else {}
         return Signature(
             DataKind.NETWORK,
             'Degree distribution',

@@ -27,38 +27,6 @@ MIN_SIZES = 2
 REPLICAS = 2
 
 
-def _cumulants(samples: Array) -> Array:
-    """Return the Binder cumulant `1 - <m^4> / (3 <m^2>^2)` of every column of samples."""
-    return np.asarray([1 - np.mean(column**4) / (3 * np.mean(column**2) ** 2) for column in samples.T])
-
-
-def _refined_peak(grid: Array, values: Array) -> float:
-    """Return the abscissa of the vertex of the parabola through the largest value and its neighbours."""
-    index = int(np.argmax(values))
-    if index in (0, values.size - 1):
-        return float(grid[index])
-    coefficients = np.polyfit(grid[index - 1 : index + 2], values[index - 1 : index + 2], 2)
-    if coefficients[0] >= 0:
-        return float(grid[index])
-    return float(-coefficients[1] / (2 * coefficients[0]))
-
-
-def _crossings(grid: Array, cumulants: Array) -> Array:
-    """Return the first crossing of the cumulants of every pair of consecutive columns, `nan` without one."""
-    crossings = []
-    for small, large in itertools.pairwise(cumulants.T):
-        difference = large - small
-        changes = np.flatnonzero(np.sign(difference[:-1]) * np.sign(difference[1:]) <= 0)
-        if not changes.size:
-            crossings.append(np.nan)
-            continue
-        index = int(changes[0])
-        left, right = difference[index], difference[index + 1]
-        share = left / (left - right) if left != right else 0.0
-        crossings.append(grid[index] + share * (grid[index + 1] - grid[index]))
-    return np.asarray(crossings, dtype=float)
-
-
 class BinderAnalysis(BaseAnalysis):
     """Transition of an order parameter from its samples, of one kind.
 
@@ -180,14 +148,14 @@ class BinderAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the cumulants, their crossings, the sweep, or the overlap."""
         if self.kind == 'cumulant':
-            self.cumulant_ = _cumulants(self.values_)
+            self.cumulant_ = self._cumulants(self.values_)
         elif self.kind == 'crossings':
             if self.values_.shape[1] < MIN_SIZES:
                 error_msg = (
                     f'Crossings need at least {MIN_SIZES} sizes, not {self.values_.shape[1]}. Give one series per size.'
                 )
                 raise AnalysisError(error_msg)
-            self.crossings_ = _crossings(np.asarray(self.parameters, dtype=float), self.values_)
+            self.crossings_ = self._crossings(np.asarray(self.parameters, dtype=float), self.values_)
         elif self.kind == 'sweep':
             absolute = np.abs(self.values_)
             self.parameters_ = np.asarray(self.parameters, dtype=float)
@@ -197,11 +165,43 @@ class BinderAnalysis(BaseAnalysis):
             )
             if self.temperatures is not None:
                 self.susceptibility_ = self.susceptibility_ / np.asarray(self.temperatures, dtype=float)
-            self.cumulant_ = _cumulants(absolute)
-            self.peak_ = _refined_peak(self.parameters_, self.susceptibility_)
+            self.cumulant_ = self._cumulants(absolute)
+            self.peak_ = self._refined_peak(self.parameters_, self.susceptibility_)
         else:
             product = self.values_[0] * self.values_[1]
             self.overlap_ = (
                 float(product.mean()) if product.ndim == 1 else product.reshape(product.shape[0], -1).mean(axis=1)
             )
         return self
+
+    @staticmethod
+    def _cumulants(samples: Array) -> Array:
+        """Return the Binder cumulant `1 - <m^4> / (3 <m^2>^2)` of every column of samples."""
+        return np.asarray([1 - np.mean(column**4) / (3 * np.mean(column**2) ** 2) for column in samples.T])
+
+    @staticmethod
+    def _refined_peak(grid: Array, values: Array) -> float:
+        """Return the abscissa of the vertex of the parabola through the largest value and its neighbours."""
+        index = int(np.argmax(values))
+        if index in (0, values.size - 1):
+            return float(grid[index])
+        coefficients = np.polyfit(grid[index - 1 : index + 2], values[index - 1 : index + 2], 2)
+        if coefficients[0] >= 0:
+            return float(grid[index])
+        return float(-coefficients[1] / (2 * coefficients[0]))
+
+    @staticmethod
+    def _crossings(grid: Array, cumulants: Array) -> Array:
+        """Return the first crossing of the cumulants of every pair of consecutive columns, `nan` without one."""
+        crossings = []
+        for small, large in itertools.pairwise(cumulants.T):
+            difference = large - small
+            changes = np.flatnonzero(np.sign(difference[:-1]) * np.sign(difference[1:]) <= 0)
+            if not changes.size:
+                crossings.append(np.nan)
+                continue
+            index = int(changes[0])
+            left, right = difference[index], difference[index + 1]
+            share = left / (left - right) if left != right else 0.0
+            crossings.append(grid[index] + share * (grid[index + 1] - grid[index]))
+        return np.asarray(crossings, dtype=float)

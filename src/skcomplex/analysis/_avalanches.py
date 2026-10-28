@@ -34,23 +34,6 @@ class _Relaxation(Protocol):
     area: int
 
 
-def _records(source: object) -> list[_Relaxation]:
-    """Return the relaxation records of a source, or nothing when it holds activity values."""
-    if isinstance(source, np.ndarray) or not isinstance(source, Sequence):
-        return []
-    records = [item for item in source if isinstance(item, _Relaxation)]
-    return records if records and len(records) == len(source) else []
-
-
-def _mean_shape(shapes: list[Array]) -> Array:
-    """Return the mean profile of avalanches of one duration, scaled by the mean height, on a grid of 0 to 1."""
-    profiles = np.asarray(shapes, dtype=float)
-    grid = np.linspace(0, 1, SHAPE_GRID)
-    steps = np.linspace(0, 1, profiles.shape[1])
-    mean = profiles.mean(axis=0)
-    return np.interp(grid, steps, mean / mean.mean())
-
-
 class AvalancheAnalysis(BaseAnalysis):
     """Avalanches of an activity series or of the relaxations of a lattice, of one kind.
 
@@ -204,7 +187,7 @@ class AvalancheAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source | Sequence[_Relaxation]) -> Self:
         """Read the relaxation records, or the activity of the source and its avalanches."""
-        records = _records(source)
+        records = self._records(source)
         if records:
             if self.kind == 'branching':
                 error_msg = 'The branching ratio is measured on an activity series, not on relaxation records.'
@@ -236,7 +219,7 @@ class AvalancheAnalysis(BaseAnalysis):
         if self.size_exponent is not None and self.duration_exponent is not None:
             self.predicted_ = float((self.duration_exponent - 1) / (self.size_exponent - 1))
         self.mean_shapes_ = {
-            int(duration): _mean_shape([shape for shape in self.shapes_ if shape.size == duration])
+            int(duration): self._mean_shape([shape for shape in self.shapes_ if shape.size == duration])
             for duration in self.durations
             if any(shape.size == duration for shape in self.shapes_)
         }
@@ -264,3 +247,20 @@ class AvalancheAnalysis(BaseAnalysis):
             result = mrestimator.fit(coefficients, fitfunc=mrestimator.f_exponential_offset, numboot=0)
             self.branching_ratio_ = float(result.mre)
         return self
+
+    @staticmethod
+    def _records(source: object) -> list[_Relaxation]:
+        """Return the relaxation records of a source, or nothing when it holds activity values."""
+        if isinstance(source, np.ndarray) or not isinstance(source, Sequence):
+            return []
+        records = [item for item in source if isinstance(item, _Relaxation)]
+        return records if records and len(records) == len(source) else []
+
+    @staticmethod
+    def _mean_shape(shapes: list[Array]) -> Array:
+        """Return the mean profile of avalanches of one duration, scaled by the mean height, on a grid of 0 to 1."""
+        profiles = np.asarray(shapes, dtype=float)
+        grid = np.linspace(0, 1, SHAPE_GRID)
+        steps = np.linspace(0, 1, profiles.shape[1])
+        mean = profiles.mean(axis=0)
+        return np.interp(grid, steps, mean / mean.mean())
