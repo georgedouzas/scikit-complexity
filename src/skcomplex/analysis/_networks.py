@@ -13,8 +13,6 @@ import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
 from ..core.errors import AnalysisError
-from ..core.spaces import NetworkSpace
-from ..engine.problems import NetworkSnapshot
 from ._base import BaseAnalysis, Source
 from ._fit import FitAnalysis
 from ._kinds import DataKind
@@ -34,34 +32,6 @@ SETTINGS = {
 MIN_FIT_NODES = 50
 HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
-
-
-def as_graph(network: object) -> nx.Graph:
-    """Return the NetworkX graph of a graph, a network space, or a snapshot of a changing network.
-
-    Args:
-        network:
-            A NetworkX graph, a network space, or a network snapshot, whose nodes are its node rows.
-
-    Returns:
-        graph:
-            The graph.
-
-    Raises:
-        AnalysisError:
-            The object is neither.
-    """
-    if isinstance(network, NetworkSpace):
-        return network.graph
-    if isinstance(network, nx.Graph):
-        return network
-    if isinstance(network, NetworkSnapshot):
-        graph = nx.Graph()
-        graph.add_nodes_from(network.nodes.tolist())
-        graph.add_edges_from(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
-        return graph
-    error_msg = f'A network is a NetworkX graph, a network space, or a snapshot, not {type(network).__name__}.'
-    raise AnalysisError(error_msg)
 
 
 def _degrees(graph: nx.Graph) -> npt.NDArray[np.int64]:

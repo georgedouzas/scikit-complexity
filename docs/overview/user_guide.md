@@ -834,7 +834,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.analysis import mittag_leffler
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.base import state
 from skcomplex.engine.solvers import L1Solver
 
@@ -846,8 +846,10 @@ class RelaxingElement(Element):
     def laws(self, s):
         """Return the laws of the relaxing element."""
         return [RateLaw(s.x, -s.x)]
-relaxing = Simulation(System(elements=[RelaxingElement('a')]), solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
-exact = mittag_leffler(0.6, 1.0, -(20.0**0.6))
+system = System(elements=[RelaxingElement('a')])
+relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
+solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.x'].rhs()
+exact = solution.subs({solution.variables()[0]: 20.0})
 print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
 ```
 
@@ -858,10 +860,9 @@ time is not continuous (`fractional-time`), a chosen solver or backend that does
 (`solver-unsupported`). Solvers and backends declare the kinds of order they integrate in the `orders` field of their
 `SupportSpec`, `'integer'` or `'fractional'`. The NumPy and Numba backends run the fractional form.
 
-`mittag_leffler(alpha, beta, z)` evaluates the two-parameter Mittag-Leffler function. It sums the power series in
-arbitrary precision with Sage for moderate arguments and takes the asymptotic expansion for large ones.
 `SymbolicAnalysis('solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`,
-written with the symbolic function `mittag_leffler`, and `SymbolicAnalysis('equations')` writes a Caputo derivative as
+written with the symbolic function `mittag_leffler`, which evaluates numerically: it sums the power series in arbitrary
+precision with Sage for moderate arguments and takes the asymptotic expansion for large ones, and `SymbolicAnalysis('equations')` writes a Caputo derivative as
 `caputo(x(t), t, alpha)`.
 
 The order belongs to the element type, so a sweep over orders builds one system per order. The library has these
@@ -3681,39 +3682,38 @@ snapshots, a network, or an ensemble of runs. The same `SpectrumAnalysis` serves
 field, and the same `AvalancheAnalysis` serves a sandpile and an earthquake model. Every analysis takes plain arrays or graphs,
 so it works on measured data as well.
 
-The adapters `series_of`, `path_of`, `fields_of`, `snapshots_of`, `networks_of`, and `ensemble_of` extract each kind from
-a trajectory or an experiment result. `snapshots_of` unwraps positions across periodic sides, so displacements never
-jump across the box, and `path_of` keeps only the frames where a discrete state changed. `data_kinds` names the kinds an
-object holds, and `analyses_for` lists the registered analyses that apply to a trajectory, a system, an experiment
-result, or an array, with the adapter that feeds each and how it reads the object. The `analysis` decorator registers a
-new analysis under its kind.
+An analysis prepared on a trajectory extracts its kind of data itself: named series of states, reporters, or observables,
+the jump path of a discrete state, the frames of a lattice, the agents of a group with their positions unwrapped across
+periodic sides, or the network of every frame. An ensemble of runs is one row per run and one column per common time,
+as `ExperimentResult.ensemble` returns it. `DiscoveryAnalysis`, prepared on a trajectory, a system, or an array, keeps
+the data kinds the object holds in `kinds_`, and its run lists in `analyses_` the analyses of the library that apply
+to it under each kind, with how they read it in `readings_`.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, analyses_for, data_kinds, series_of
+from skcomplex.analysis import DiscoveryAnalysis, SpectrumAnalysis
 from skcomplex.models import run
 
 spins = run('ising', size=32, settings={'until': 20}).trajectory_
-print([kind.value for kind in data_kinds(spins)])
+print(DiscoveryAnalysis().check().prepare(spins).kinds_)
 print(SpectrumAnalysis('structure-factor').check().prepare(spins).run().wavenumbers_[:3].round(3))
-predation = run('lotka_volterra', settings={'until': 20.0}).trajectory_
-print(series_of(predation).labels)
-print(sorted({item.name for item in analyses_for(np.zeros((16, 16)))})[:4])
+discovery = DiscoveryAnalysis().check().prepare(np.zeros((16, 16))).run()
+print(discovery.readings_['series'], len(discovery.analyses_['field']) > 0)
 ```
 
-`signature_analysis` computes one default analysis per kind of data, with its curves, axis labels, title, and measured
-values: the power spectrum and the autocorrelation time of series, or the return map of a map, the waiting times and
-the Fano factor of jump paths, the structure factor of the last frame of fields with its correlation length or peak
-wavelength, the polar and milling orders of moving agents or their nearest-neighbour distances, the degree distribution
-of networks, and the mean with a 90 percent band of ensembles. The gallery draws it for every example that names no
-analysis of its own.
+`SignatureAnalysis` computes one default analysis per kind of data of a trajectory, with its curves, axis labels, title,
+and measured values: the power spectrum and the autocorrelation time of series, or the return map of a map, the waiting
+times and the Fano factor of jump paths, the structure factor of the last frame of fields with its correlation length or
+peak wavelength, the polar and milling orders of moving agents or their nearest-neighbour distances, and the degree
+distribution of networks. The gallery draws it for every example that names no analysis of its own.
 
-```python continuation
-from skcomplex.analysis import signature_analysis
+```python
+from skcomplex.analysis import SignatureAnalysis
 
-for signature in signature_analysis(predation):
-    print(signature.kind.value, signature.title, signature.xscale, list(signature.values))
+predation = run('lotka_volterra', settings={'until': 20.0}).trajectory_
+for signature in SignatureAnalysis().check().prepare(predation).run().signatures_:
+    print(signature.kind, signature.title, signature.xscale, list(signature.values))
 ```
 
 ### Complexity and information
@@ -3722,9 +3722,9 @@ for signature in signature_analysis(predation):
 entropy of a distribution. The kinds `'sample'`, `'approximate'`, `'multiscale'`, and `'spectral'` come from `antropy`
 and measure the regularity of a series. The kind `'permutation'` reads ordinal patterns of series with a delay, or of
 two-dimensional fields in a window, in its Shannon, Rényi, or Tsallis `measure`. Discrete states such as spins have
-many equal values, which `ties='random'` ranks at random. `ensemble_entropy` follows the entropy of an ensemble and its
-divergence from a reference law frame by frame, as in the H-theorem, and `complexity_entropy` places data on Rosso's
-complexity-entropy plane between its bounding curves with `ordpy`. The kind `'active-storage'` of
+many equal values, which `ties='random'` ranks at random. The kind `'ensemble'` follows the entropy of an ensemble and
+its divergence from a `reference` law frame by frame, as in the H-theorem, and `ComplexityAnalysis` places data on
+Rosso's complexity-entropy plane between its bounding curves with `ordpy`. The kind `'active-storage'` of
 `InformationAnalysis` measures the information the past of a series holds about its next value, and the kind
 `'transfer'` estimates the flow from every series to every other by plug-in counts of symbols or by the
 nearest-neighbour estimator of `ennemi` on continuous values.
@@ -3734,15 +3734,15 @@ import numpy as np
 
 import math
 
-from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, complexity_entropy
+from skcomplex.analysis import ComplexityAnalysis, EntropyAnalysis, InformationAnalysis
 
 rng = np.random.default_rng(0)
 renyi = EntropyAnalysis('renyi', order=2, probabilities=True).check().prepare(np.full(8, 1 / 8)).run()
 print(renyi.entropy_.round(3))
 sample = EntropyAnalysis('sample', dimension=2).check().prepare(rng.standard_normal(2000)).run()
 print(sample.entropy_.round(1))
-plane = complexity_entropy(rng.standard_normal(20_000), 4)
-print(round(plane.entropy, 2), round(plane.complexity, 2))
+plane = ComplexityAnalysis(dimension=4).check().prepare(rng.standard_normal(20_000)).run()
+print(plane.entropy_.round(2), plane.complexity_.round(2))
 x = rng.standard_normal(5000)
 y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
 transfer = InformationAnalysis('transfer', estimator='knn', base=math.e).check().prepare(np.column_stack([x, y])).run()
@@ -3837,40 +3837,38 @@ print(round(RecurrenceAnalysis().check().prepare(sine).run().determinism_, 2))
 
 ### Surrogates fitted to data
 
-`DMDSurrogate`, `SINDySurrogate`, and `ReservoirSurrogate` are estimators: they take their settings when built,
-`prepare` them to one or more trajectories or series sampled at a uniform step, and `run(steps)` forecasts the variables
-over that many samples after the last sample. `prepare` sets `system_`, a `System` of one surrogate element, which
-`validate` checks and `Simulation` runs like a hand-written system, and `training_error_` and `validation_error_`, the
-relative errors of the fit on the training samples and on the end of every series held out by `validation`. A forecast
-simulates `system_` from the last sample, and the DMD and reservoir surrogates compute it directly.
+`ModeDecompositionAnalysis`, `SparseIdentificationAnalysis`, and `ReservoirAnalysis` learn a system from data: they
+prepare on one or more trajectories or arrays sampled at a uniform step `dt`, and their run sets `system_`, a `System` of
+one surrogate element, which `validate` checks and `Simulation` runs like a hand-written system, `training_error_` and
+`validation_error_`, the relative errors of the fit on the training samples and on the end of every series held out by
+`validation`, and `forecast_`, the variables over `horizon` samples after the last one.
 
-- `DMDSurrogate` fits dynamic mode decomposition with PyDMD and sets the continuous eigenvalues `ln(mu) / dt` in
-  `eigenvalues_`, the modes, their amplitudes, and a surrogate under continuous time with the matrix rate law
-  `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
+- `ModeDecompositionAnalysis` fits dynamic mode decomposition with PyDMD and sets the continuous eigenvalues
+  `ln(mu) / dt` in `eigenvalues_`, the modes, their amplitudes, and a surrogate under continuous time with the matrix
+  rate law `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
   variables to observables first, which is extended DMD.
-- `SINDySurrogate` fits sparse identification of nonlinear dynamics with PySINDy and sets the monomials of the
-  variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
+- `SparseIdentificationAnalysis` fits sparse identification of nonlinear dynamics with PySINDy and sets the monomials of
+  the variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
   symbolic rate law per variable.
-- `ReservoirSurrogate` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout
+- `ReservoirAnalysis` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout
   of the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of
   the reservoir as states, and starts at the last sample, so a run of `system_` is the autonomous forecast.
 
 ```python
 import numpy as np
-from skcomplex.engine.runtime import Simulation
 
-from skcomplex.analysis import DMDSurrogate, ReservoirSurrogate, Series, SINDySurrogate
+from skcomplex.analysis import ModeDecompositionAnalysis, ReservoirAnalysis, SparseIdentificationAnalysis
 from skcomplex.engine.compile import validate
 
 times = np.arange(0.0, 10.0, 0.01)
-spiral = Series(times, np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-decomposition = DMDSurrogate().prepare(spiral)
+spiral = np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)])
+decomposition = ModeDecompositionAnalysis(['x', 'y'], dt=0.01).check().prepare(spiral).run()
 print(np.sort(decomposition.eigenvalues_.imag).round(3), validate(decomposition.system_).ok)
-sparse = SINDySurrogate(degree=1, threshold=0.05).prepare(spiral)
-print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.run(50).shape)
-reservoir = ReservoirSurrogate().prepare(spiral)
-forecast = Simulation(reservoir.system_).run(until=50).trajectory_
-print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrogate.x')[1:], reservoir.run(50)[:, 0]))
+sparse = SparseIdentificationAnalysis(['x', 'y'], degree=1, threshold=0.05, horizon=50, dt=0.01)
+sparse = sparse.check().prepare(spiral).run()
+print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.forecast_.shape)
+reservoir = ReservoirAnalysis(['x', 'y'], horizon=50).check().prepare(spiral).run()
+print(type(reservoir.system_.time).__name__, reservoir.forecast_.shape)
 ```
 
 ### Stochastic processes
@@ -3964,7 +3962,7 @@ print(found.macro_matrix_.tolist())
 ```
 
 `ErgodicityAnalysis` of kind `'breaking'`, `'metric'`, or `'distance'` diagnoses whether the runs of an ensemble, one
-row per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the
+row per run such as `ExperimentResult.ensemble` returns, explore the same states. The ergodicity-breaking parameter is the
 variance of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays
 near 1 for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the
 running time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. The ergodicity distance
@@ -4021,8 +4019,8 @@ print(BinderAnalysis('cumulant').check().prepare(samples).run().cumulant_.round(
 `OrderAnalysis` measures the polar, nematic, milling, and phase order of every frame. `FluctuationAnalysis` with the
 kinds `'kinetic-temperature'` and `'maxwell-boltzmann'` compares velocities with the Maxwell-Boltzmann law of their
 dimension. `NeighborAnalysis` describes point patterns in open or periodic boxes by their nearest-neighbour
-`'distances'`, their `'clark-evans'` ratio, and their `'radial-distribution'`, and `coarse_grain` turns agents into
-density or polarization fields for the field analyses. `NeighborAnalysis('like-share')` and
+`'distances'`, their `'clark-evans'` ratio, and their `'radial-distribution'`, and `CoarseGrainAnalysis` turns agents
+into density or polarization fields for the field analyses. `NeighborAnalysis('like-share')` and
 `DomainAnalysis('interface-density')` measure segregation on grids and networks, and `MixingAnalysis` gives the
 dissimilarity index of two groups across units.
 
@@ -4030,13 +4028,13 @@ dissimilarity index of two groups across units.
 import numpy as np
 from skcomplex.models import run
 
-from skcomplex.analysis import NeighborAnalysis, OrderAnalysis, coarse_grain
+from skcomplex.analysis import CoarseGrainAnalysis, NeighborAnalysis, OrderAnalysis
 
 flock = run('boids', settings={'until': 5}).trajectory_
 print(OrderAnalysis('polar').check().prepare(flock).run().order_.shape)
 positions = np.random.default_rng(4).random((1000, 2))
 ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(positions).run().ratio_
-print(ratio.round(1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
+print(ratio.round(1), CoarseGrainAnalysis([8, 8], box=[1.0, 1.0]).check().prepare(positions).run().field_.sum())
 ```
 
 ### Criticality

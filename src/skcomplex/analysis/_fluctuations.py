@@ -101,7 +101,7 @@ class FluctuationAnalysis(BaseAnalysis):
       law of their dimension, a chi law of `d` degrees of freedom.
 
     An array of velocities holds one snapshot, one row per agent, or one snapshot per frame along its first axis. An
-    array of a density field is one grid, such as `coarse_grain` returns, or a stack of grids.
+    array of a density field is one grid, such as `CoarseGrainAnalysis` keeps, or a stack of grids.
 
     Args:
         kind:

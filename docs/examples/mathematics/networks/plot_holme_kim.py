@@ -15,7 +15,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import as_graph
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -52,12 +51,12 @@ triads = np.linspace(0.0, 1.0, 6)
 clustering = []
 for triad in triads:
     run = Simulation(create(MODEL, n_nodes=1004, triad=triad), dt=500.0, random_state=1).run(until=1000)
-    clustering.append(nx.average_clustering(as_graph(run.trajectory_.network(-1))))
+    clustering.append(nx.average_clustering(run.trajectory_.network(-1).graph()))
 baseline = Simulation(create('barabasi_albert', n_nodes=1003, edges=3), dt=500.0, random_state=1).run(until=1000)
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(triads, clustering, 'o-', label='Holme-Kim')
 axis.axhline(
-    nx.average_clustering(as_graph(baseline.trajectory_.network(-1))),
+    nx.average_clustering(baseline.trajectory_.network(-1).graph()),
     color='k',
     ls='--',
     label='Barabási-Albert',

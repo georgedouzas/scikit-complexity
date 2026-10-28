@@ -1,65 +1,32 @@
-"""Measure the regularity and complexity of series: sample, multiscale, and spectral entropies and their planes."""
+"""Place series and fields on the complexity-entropy plane of their ordinal patterns."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 import ordpy
 
 from ..core.errors import AnalysisError
-from ._entropy import _break_ties, _shannon
-from ._information import _kl_divergence
-from ._kinds import DataKind, analysis
-
-type Array = npt.NDArray[np.float64]
+from ._base import BaseAnalysis, Source
+from ._entropy import TIES, _break_ties
+from ._kinds import DataKind
 
 
-@dataclass(frozen=True)
-class ComplexityEntropy:
-    """Position of data on the complexity-entropy plane of ordinal patterns, with the bounds of the plane.
+class ComplexityAnalysis(BaseAnalysis):
+    """Place of every series of a source, or of every frame of a field, on Rosso's complexity-entropy plane.
 
-    Args:
-        entropy:
-            The normalized permutation entropy.
-
-        complexity:
-            The statistical complexity, the entropy times the Jensen-Shannon divergence from uniform patterns.
-
-        minimum:
-            The curve of least complexity, one row of entropy and complexity per point.
-
-        maximum:
-            The curve of largest complexity, one row of entropy and complexity per point.
-    """
-
-    entropy: float
-    complexity: float
-    minimum: Array
-    maximum: Array
-
-
-@analysis(DataKind.SERIES)
-def complexity_entropy(
-    values: npt.ArrayLike,
-    order: int | tuple[int, int] = 6,
-    *,
-    delay: int = 1,
-    ties: str = 'order',
-    random_state: int | None = None,
-) -> ComplexityEntropy:
-    """Return the place of a series or a two-dimensional field on Rosso's complexity-entropy plane.
-
-    Noise has entropy near 1 and complexity near 0, regular series both near 0, and chaos lies in between with high
-    complexity.
+    The entropy is the normalized permutation entropy of the ordinal patterns, and the complexity is that entropy times
+    the Jensen-Shannon divergence of the patterns from uniform ones, computed with `ordpy`. Noise has entropy near 1 and
+    complexity near 0, regular series both near 0, and chaos lies in between with high complexity.
 
     Args:
-        values:
-            The series, or a two-dimensional field when `order` is a window.
+        variables:
+            The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
 
-        order:
+        dimension:
             The length of the patterns of a series, or the window `(columns, rows)` of the patterns of a field.
 
         delay:
@@ -71,80 +38,95 @@ def complexity_entropy(
         random_state:
             The seed of the random ranks of equal values.
 
-    Returns:
-        plane:
-            The entropy, the complexity, and the curves of least and largest complexity.
+    Attributes:
+        values_:
+            The series, one per column, or the frames of the field.
+
+        labels_:
+            The label of every series, or of the field.
+
+        entropy_:
+            The normalized permutation entropy of every series or frame.
+
+        complexity_:
+            The statistical complexity of every series or frame.
+
+        minimum_:
+            The curve of least complexity, one row of entropy and complexity per point.
+
+        maximum_:
+            The curve of largest complexity, one row of entropy and complexity per point.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import complexity_entropy
-        >>> plane = complexity_entropy(np.random.default_rng(0).standard_normal(50_000), 4)
-        >>> round(plane.entropy, 2), round(plane.complexity, 2)
-        (1.0, 0.0)
-    """
-    dx, dy = (order, 1) if isinstance(order, int) else order
-    array = _break_ties(values, ties, random_state)
-    entropy, complexity = ordpy.complexity_entropy(array, dx=dx, dy=dy, taux=delay, tauy=delay)
-    minimum = np.asarray(ordpy.minimum_complexity_entropy(dx=dx, dy=dy), dtype=float)
-    maximum = np.asarray(ordpy.maximum_complexity_entropy(dx=dx, dy=dy), dtype=float)
-    return ComplexityEntropy(float(entropy), float(complexity), minimum, maximum)
-
-
-@dataclass(frozen=True)
-class EnsembleEntropy:
-    """Entropy of the distribution of an ensemble over outcomes at every frame, and its divergence from a law.
-
-    Args:
-        entropy:
-            The Shannon entropy in bits of the histogram of every frame.
-
-        divergence:
-            The Kullback-Leibler divergence in bits of the histogram of every frame from the reference law.
-
-        error:
-            The expected divergence of a sample of the reference law of the ensemble's size, `(k - 1) / (2 n ln 2)`
-            for `k` outcomes and `n` runs, below which a divergence is sampling noise.
+        >>> from skcomplex.analysis import ComplexityAnalysis
+        >>> noise = np.random.default_rng(0).standard_normal(50_000)
+        >>> plane = ComplexityAnalysis(dimension=4).check().prepare(noise).run()
+        >>> plane.entropy_.round(2).tolist(), plane.complexity_.round(2).tolist()
+        ([1.0], [0.0])
     """
 
-    entropy: Array
-    divergence: Array
-    error: float
+    def __init__(
+        self,
+        variables: Sequence[str] | None = None,
+        *,
+        dimension: int | tuple[int, int] = 6,
+        delay: int = 1,
+        ties: str = 'order',
+        random_state: int | None = None,
+    ) -> None:
+        self.variables = variables
+        self.dimension = dimension
+        self.delay = delay
+        self.ties = ties
+        self.random_state = random_state
 
+    def _check(self) -> Self:
+        """Validate the ties, the pattern length or window, and the delay."""
+        if self.ties not in TIES:
+            error_msg = f'{type(self).__name__} has ties={self.ties!r}. Use one of {", ".join(TIES)}.'
+            raise AnalysisError(error_msg)
+        sizes = self.dimension if isinstance(self.dimension, tuple) else (self.dimension,)
+        if any(int(size) < 1 for size in sizes) or self.delay < 1:
+            error_msg = (
+                f'{type(self).__name__} has dimension={self.dimension!r} and delay={self.delay!r}. Use 1 or more.'
+            )
+            raise AnalysisError(error_msg)
+        return self
 
-@analysis(DataKind.ENSEMBLE)
-def ensemble_entropy(samples: npt.ArrayLike, reference: npt.ArrayLike) -> EnsembleEntropy:
-    """Return the entropy of an ensemble at every frame and its divergence from a reference law, as in the H-theorem.
+    def _get_data_kind(self) -> DataKind:
+        """Return the field kind for windows of a field, and the series kind otherwise."""
+        return DataKind.FIELD if isinstance(self.dimension, tuple) else DataKind.SERIES
 
-    Args:
-        samples:
-            One row per run and one column per frame of integer outcomes from 0 to the number of outcomes minus 1.
+    def _prepare(self, source: Source) -> Self:
+        """Read the series of the source as columns, or the frames of a field for windows."""
+        if self._get_data_kind() == DataKind.FIELD:
+            name = self.variables[0] if self.variables else None
+            frames = self._read_fields(source, name)
+            self.values_ = frames[None] if frames.ndim == 2 else frames  # noqa: PLR2004
+            self.labels_ = [name or 'field']
+            return self
+        series = self._read_series(source, self.variables)
+        self.values_ = series.values
+        self.labels_ = series.labels
+        return self
 
-        reference:
-            The probability of every outcome under the reference law, such as the stationary law.
-
-    Returns:
-        entropy:
-            The entropy, the divergence, and the sampling error of the divergence.
-
-    Raises:
-        AnalysisError:
-            An outcome lies outside the reference law.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import ensemble_entropy
-        >>> runs = np.random.default_rng(0).integers(0, 2, (10_000, 3))
-        >>> bool(ensemble_entropy(runs, [0.5, 0.5]).divergence.max() < 0.001)
-        True
-    """
-    array = np.asarray(samples, dtype=np.int64)
-    law = np.asarray(reference, dtype=float)
-    if array.min() < 0 or array.max() >= law.size:
-        error_msg = f'Outcomes must lie between 0 and {law.size - 1}, the outcomes of the reference law.'
-        raise AnalysisError(error_msg)
-    histograms = [np.bincount(frame, minlength=law.size) / frame.size for frame in array.T]
-    return EnsembleEntropy(
-        np.asarray([_shannon(histogram, probabilities=True) for histogram in histograms]),
-        np.asarray([_kl_divergence(histogram, law) for histogram in histograms]),
-        float((np.count_nonzero(law) - 1) / (2 * array.shape[0] * np.log(2))),
-    )
+    def _run(self) -> Self:
+        """Compute the place of every series or frame on the plane, and the bounds of the plane."""
+        dx, dy = (self.dimension, 1) if isinstance(self.dimension, int) else self.dimension
+        items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
+        places = [
+            ordpy.complexity_entropy(
+                _break_ties(item, self.ties, self.random_state),
+                dx=dx,
+                dy=dy,
+                taux=self.delay,
+                tauy=self.delay,
+            )
+            for item in items
+        ]
+        self.entropy_ = np.asarray([entropy for entropy, _ in places], dtype=float)
+        self.complexity_ = np.asarray([complexity for _, complexity in places], dtype=float)
+        self.minimum_ = np.asarray(ordpy.minimum_complexity_entropy(dx=dx, dy=dy), dtype=float)
+        self.maximum_ = np.asarray(ordpy.maximum_complexity_entropy(dx=dx, dy=dy), dtype=float)
+        return self
