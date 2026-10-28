@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..types import AnyArray
-from ._base_structure_spec import BaseStructureSpec
+from ....specs import BaseStructureSpec
+from ....types import AnyArray
 from ._prototile_spec import PrototileSpec
 
 
@@ -32,8 +32,8 @@ class PatchStructureSpec(BaseStructureSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.specs import PatchStructureSpec
-        >>> from skcomplex.specs import PrototileSpec
+        >>> from skcomplex.models.mathematics.fractals import PatchStructureSpec
+        >>> from skcomplex.models.mathematics.fractals import PrototileSpec
         >>> interval = PrototileSpec('interval', [(0, 0), (1, 0)])
         >>> patch = PatchStructureSpec((interval,), np.array([0]), np.eye(3)[None], 0)
         >>> patch.length()

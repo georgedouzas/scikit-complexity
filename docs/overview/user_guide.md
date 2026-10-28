@@ -1529,7 +1529,7 @@ visuals are parts of the engine, beside those of every other kind.
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
 | lattices | `LocalRuleLaw`, `DriveLaw`, `RelaxationLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
-| rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | a system compiler, `RewritingSolver` |
+| rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
 | quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
@@ -3519,11 +3519,11 @@ A word or a patch rewrites itself by the rewriting laws it returns from `_get_la
 Strings are words of one-character symbols, and `ModuleSpec` gives a symbol parameters.
 
 ```python
-from skcomplex.core.elements import WordElement
-from skcomplex.core.laws import ProductionLaw
+from skcomplex.models.mathematics.fractals import WordElement
+from skcomplex.models.mathematics.fractals import ProductionLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.compile import RewritingCompiler
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 
 class AlgaeElement(WordElement):
@@ -3549,12 +3549,13 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.elements import WordElement
-from skcomplex.core.laws import ProductionLaw
-from skcomplex.specs import ModuleSpec, ParameterSpec
+from skcomplex.models.mathematics.fractals import WordElement
+from skcomplex.models.mathematics.fractals import ProductionLaw
+from skcomplex.specs import ParameterSpec
+from skcomplex.models.mathematics.fractals import ModuleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.compile import RewritingCompiler
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 x = var('x')
 
@@ -3587,12 +3588,12 @@ frame, and give `bounds()` and `raster(resolution)`, a boolean grid that `Scalin
 
 ```python
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.core.elements import PatchElement, WordElement
-from skcomplex.core.laws import ProductionLaw, SubstitutionLaw
-from skcomplex.specs import AffineSpec, GeometrySpec, PrototileSpec
+from skcomplex.models.mathematics.fractals import PatchElement, WordElement
+from skcomplex.models.mathematics.fractals import ProductionLaw, SubstitutionLaw
+from skcomplex.models.mathematics.fractals import AffineSpec, GeometrySpec, PrototileSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.compile import RewritingCompiler
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 
 class KochElement(WordElement):

@@ -6,11 +6,12 @@
 import numbers
 from typing import Self
 
-from ...errors import RewritingError
-from ...specs import Letters, ModuleSpec, RequirementSpec
-from ..spaces import DiscreteTime
-from ._base import BaseLaw
-from .utils import parse_word
+from ....core.laws import BaseLaw
+from ....core.spaces import DiscreteTime
+from ....specs import RequirementSpec
+from ._module_spec import Letters, ModuleSpec
+from ._rewriting_error import RewritingError
+from ._words import parse_word
 
 
 class ProductionLaw(BaseLaw):
@@ -46,7 +47,7 @@ class ProductionLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
 
     Examples:
-        >>> from skcomplex.core.laws import ProductionLaw
+        >>> from skcomplex.models.mathematics.fractals import ProductionLaw
         >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().run({})]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """

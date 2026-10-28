@@ -9,8 +9,8 @@ from typing import Self
 
 import numpy as np
 
-from ..errors import RewritingError
-from ._base_spec import BaseSpec
+from ....specs import BaseSpec
+from ._rewriting_error import RewritingError
 
 
 @dataclass(frozen=True)
@@ -25,7 +25,7 @@ class PrototileSpec(BaseSpec):
             The vertices in the plane, two for a segment and at least three for a polygon.
 
     Examples:
-        >>> from skcomplex.specs import PrototileSpec
+        >>> from skcomplex.models.mathematics.fractals import PrototileSpec
         >>> len(PrototileSpec('interval', [(0, 0), (1, 0)]).check().vertices)
         2
     """

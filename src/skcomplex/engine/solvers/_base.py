@@ -101,6 +101,15 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
         raise NotImplementedError
 
     @classmethod
+    def _is_stepwise(cls) -> bool:
+        """Return whether the solver advances in whole steps, so frames are a positive integer number of steps apart.
+
+        The solvers of discrete maps, agents, lattices, and Monte Carlo sampling are stepwise through their forms; a
+        solver of a form defined outside the engine, such as rewriting, says so here.
+        """
+        return False
+
+    @classmethod
     def _is_implicit(cls) -> bool:
         """Return whether the solver treats diffusion implicitly, so explicit stability limits do not apply."""
         return False
@@ -130,8 +139,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
         form = self._get_form()
         if problem.form != form and problem.form not in self._get_forms():
             error_msg = (
-                f'{type(self).__name__} solves the {form.value} form, but the problem has the '
-                f'{problem.form.value} form.'
+                f'{type(self).__name__} solves the {form} form, but the problem has the '
+                f'{problem.form} form.'
             )
             raise SolverError(error_msg)
         self.problem_ = problem

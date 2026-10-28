@@ -3,10 +3,11 @@
 import pytest
 
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PassCompiler, QuantumCompiler, RewritingCompiler
+from skcomplex.engine.compile import PassCompiler, QuantumCompiler
 from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.errors import NotCheckedError, SolverError, ValidationError
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 from skcomplex.models.physics.common.quantum import QubitElement
 from skcomplex.specs import ObservableSpec, ProblemSpec, ValidationReportSpec
 

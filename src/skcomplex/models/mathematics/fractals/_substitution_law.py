@@ -6,10 +6,11 @@
 from collections.abc import Sequence
 from typing import Self
 
-from ...errors import RewritingError
-from ...specs import AffineSpec, RequirementSpec
-from ..spaces import DiscreteTime
-from ._base import BaseLaw
+from ....core.laws import BaseLaw
+from ....core.spaces import DiscreteTime
+from ....specs import RequirementSpec
+from ._affine_spec import AffineSpec
+from ._rewriting_error import RewritingError
 
 
 class SubstitutionLaw(BaseLaw):
@@ -28,8 +29,8 @@ class SubstitutionLaw(BaseLaw):
             The name of the law, or the empty string for a law without one.
 
     Examples:
-        >>> from skcomplex.core.laws import SubstitutionLaw
-        >>> from skcomplex.specs import AffineSpec
+        >>> from skcomplex.models.mathematics.fractals import SubstitutionLaw
+        >>> from skcomplex.models.mathematics.fractals import AffineSpec
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).check().pieces)
         1
     """

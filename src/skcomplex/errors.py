@@ -32,10 +32,6 @@ class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 
 
-class RewritingError(ValidationError):
-    """A rewriting system is malformed, or a generation would exceed its maximum size."""
-
-
 class SpaceError(ValidationError):
     """A vector variable has no space to take its dimension from."""
 

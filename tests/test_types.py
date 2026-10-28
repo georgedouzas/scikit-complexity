@@ -10,7 +10,6 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 import skcomplex
-from skcomplex.specs import Letters, ModuleSpec
 from skcomplex.types import Process, Target
 
 
@@ -19,10 +18,9 @@ def test_targets_are_symbolic_expressions_or_vectors():
     assert typing.get_args(Target.__value__) == (Expression, FreeModuleElement)
 
 
-def test_processes_and_letters_name_their_alternatives():
-    """Test that a process may be nothing, and letters may be modules or sequences of them."""
+def test_processes_may_be_nothing():
+    """Test that a process may be nothing."""
     assert type(None) in typing.get_args(Process.__value__)
-    assert ModuleSpec in typing.get_args(Letters.__value__)
 
 
 def test_no_module_outside_the_types_defines_a_kind_or_a_protocol():

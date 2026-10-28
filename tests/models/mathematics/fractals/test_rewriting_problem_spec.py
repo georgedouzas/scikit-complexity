@@ -1,6 +1,7 @@
 """Test the `RewritingProblemSpec` class."""
 
-from skcomplex.specs import BaseProblemSpec, ProblemSpec, RewritingProblemSpec
+from skcomplex.models.mathematics.fractals import RewritingProblemSpec
+from skcomplex.specs import BaseProblemSpec, ProblemSpec
 
 
 def test_rewriting_problem_is_a_base_problem_and_not_the_compilers():

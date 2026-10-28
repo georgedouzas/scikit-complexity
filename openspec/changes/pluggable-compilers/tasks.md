@@ -10,7 +10,7 @@
 
 ## 3. Rewriting in the models library
 
-- [ ] 3.1 Move word and patch rewriting into `skcomplex.models.mathematics.fractals`:
+- [x] 3.1 Move word and patch rewriting into `skcomplex.models.mathematics.fractals`:
   - the elements, laws, and word utilities;
   - the module, prototile, affine, and geometry specs, and the structures;
   - the kernels, compiler, solver, problem spec, and visual;

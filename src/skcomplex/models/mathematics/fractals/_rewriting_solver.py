@@ -7,11 +7,13 @@ from typing import Any
 
 import numpy as np
 
-from ...core.laws import ProductionLaw, SubstitutionLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import RewritingProblemSpec, RunStateSpec, StructureStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
-from ._base import BaseSolver
+from ....core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ....engine.solvers import BaseSolver
+from ....specs import RunStateSpec, StructureStateSpec, SupportSpec
+from ....types import Array, OrderKind
+from ._production_law import ProductionLaw
+from ._rewriting_problem_spec import REWRITING, RewritingProblemSpec
+from ._substitution_law import SubstitutionLaw
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
@@ -24,14 +26,14 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> from skcomplex.core.spaces import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.core.laws import ProductionLaw
-        >>> from skcomplex.engine.solvers import RewritingSolver
-        >>> from skcomplex.core.elements import WordElement
+        >>> from skcomplex.models.mathematics.fractals import ProductionLaw
+        >>> from skcomplex.models.mathematics.fractals import RewritingSolver
+        >>> from skcomplex.models.mathematics.fractals import WordElement
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> from skcomplex.engine.compile import RewritingCompiler
+        >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
         >>> compiler = RewritingCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver()).check()
         >>> trajectory = simulation.run(until=5).trajectory_
@@ -50,9 +52,14 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         )
 
     @classmethod
-    def _get_form(cls) -> FormKind:
+    def _get_form(cls) -> str:
         """Return the form the solver solves."""
-        return FormKind.REWRITING
+        return REWRITING
+
+    @classmethod
+    def _is_stepwise(cls) -> bool:
+        """Return that the solver rewrites once per whole generation."""
+        return True
 
     def _prepare(self, problem: RewritingProblemSpec) -> None:
         """Prepare the structures at generation 0.

@@ -1,4 +1,4 @@
-"""Test the `_quadratic` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `quadratic` module of `skcomplex.models.mathematics.fractals`."""
 
 import numpy as np
 

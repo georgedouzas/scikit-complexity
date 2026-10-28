@@ -503,7 +503,7 @@ class SymbolicAnalysis(BaseAnalysis):
     def _check_solvable(problem: ProblemSpec) -> None:
         """Raise an error when a problem is not of the ODE or fractional form, or has callable laws or groups."""
         if problem.form not in {FormKind.ODE, FormKind.FRACTIONAL}:
-            error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form.value}.'
+            error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form}.'
             raise AnalysisError(error_msg)
         if problem.has_callables:
             error_msg = 'The system has a callable law, which has no symbolic form.'

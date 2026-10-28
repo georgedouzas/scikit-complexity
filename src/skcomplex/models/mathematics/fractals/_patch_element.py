@@ -6,9 +6,12 @@
 from collections.abc import Sequence
 from typing import Annotated, Self
 
-from ...errors import RewritingError
-from ...specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
-from ._element import Element
+from ....core.elements import Element
+from ....specs import StateSpec, VisualSpec
+from ._affine_spec import AffineSpec
+from ._geometry_visual import GeometryVisual
+from ._prototile_spec import PrototileSpec
+from ._rewriting_error import RewritingError
 
 
 class PatchElement(Element):
@@ -40,8 +43,8 @@ class PatchElement(Element):
             How the patch is drawn, or `None` for `default_visual_`.
 
     Examples:
-        >>> from skcomplex.core.elements import PatchElement
-        >>> from skcomplex.specs import PrototileSpec
+        >>> from skcomplex.models.mathematics.fractals import PatchElement
+        >>> from skcomplex.models.mathematics.fractals import PrototileSpec
         >>> PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])]).check().filled
         False
     """
@@ -93,5 +96,5 @@ class PatchElement(Element):
             element:
                 The element itself.
         """
-        self.default_visual_ = VisualSpec('geometry')
+        self.default_visual_ = VisualSpec(GeometryVisual)
         return self

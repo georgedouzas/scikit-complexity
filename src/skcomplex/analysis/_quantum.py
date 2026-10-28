@@ -207,7 +207,7 @@ class QuantumAnalysis(BaseAnalysis):
         problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=QuantumCompiler())
         if not isinstance(problem, QuantumProblemSpec):
             error_msg = (
-                f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
+                f'The system compiles to the {problem.form} form, but the analysis needs quantum elements.'
             )
             raise AnalysisError(error_msg)
         return problem

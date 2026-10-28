@@ -12,13 +12,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import PatchElement, WordElement
-from ....core.laws import ProductionLaw, SubstitutionLaw
 from ....core.system import System
-from ....engine.compile import RewritingCompiler
 from ....errors import ValidationError
-from ....specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
+from ....specs import ParameterSpec, VisualSpec
 from ..._catalog import register_model
+from ._affine_spec import AffineSpec
+from ._geometry_spec import GeometrySpec
+from ._patch_element import PatchElement
+from ._production_law import ProductionLaw
+from ._prototile_spec import PrototileSpec
+from ._rewriting_compiler import RewritingCompiler
+from ._substitution_law import SubstitutionLaw
+from ._word_element import WordElement
 
 SHAPES = ('triangle', 'carpet')
 

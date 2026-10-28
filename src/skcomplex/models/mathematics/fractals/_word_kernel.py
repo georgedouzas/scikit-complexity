@@ -12,26 +12,15 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...core.elements import WordElement
-from ...core.laws import ProductionLaw
-from ...core.laws.utils import parse_word
-from ...errors import RewritingError
-from ...specs import (
-    TURTLE_SYMBOLS,
-    BaseProblemSpec,
-    BaseStructureSpec,
-    GeometrySpec,
-    ModuleSpec,
-    ParametersSpec,
-    RunStateSpec,
-    WordStructureSpec,
-)
-from ...specs._group_spec import _GroupSpec
-from ...specs._successor_spec import _SuccessorSpec
-from ...types import Arrays
-from .._utils import symbols_of
-from ._base import BaseKernel
-from ._expression_printer import ExpressionPrinter
+from ....engine._utils import symbols_of
+from ....engine.problems import BaseKernel, ExpressionPrinter
+from ....specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, RunStateSpec
+from ....types import Arrays
+from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
+from ._group_spec import _GroupSpec
+from ._module_spec import ModuleSpec
+from ._production_law import ProductionLaw
+from ._rewriting_error import RewritingError
 from ._rewriting_loops import (
     _ACTION_CODES,
     DRAW,
@@ -48,6 +37,10 @@ from ._rewriting_loops import (
     _neighbors,
     _walk_word,
 )
+from ._successor_spec import _SuccessorSpec
+from ._word_element import WordElement
+from ._word_structure_spec import WordStructureSpec
+from ._words import parse_word
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 

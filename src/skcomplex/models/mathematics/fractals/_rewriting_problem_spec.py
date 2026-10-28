@@ -8,14 +8,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from ._base_problem_spec import BaseProblemSpec
+from ....specs import BaseProblemSpec
 
 if TYPE_CHECKING:
-    from ..engine.problems._patch_kernel import PatchKernel
-    from ..engine.problems._word_kernel import WordKernel
+    from ._patch_kernel import PatchKernel
+    from ._word_kernel import WordKernel
 
 type Compiled = WordKernel | PatchKernel
 
+
+REWRITING = 'rewriting system'
+"""Form of the problems of rewriting systems, which the rewriting compiler sets and the rewriting solver solves."""
 
 @dataclass(frozen=True)
 class RewritingProblemSpec(BaseProblemSpec):

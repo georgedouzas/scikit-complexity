@@ -1,4 +1,4 @@
-"""Test the `_chaos_game` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `chaos_game` module of `skcomplex.models.mathematics.fractals`."""
 
 import numpy as np
 import pytest

@@ -143,5 +143,5 @@ class ModelEntry:
     def formalism(self) -> str:
         """Mathematical form of the model with its default parameters, inferred by compiling it once."""
         if self.name not in _FORMALISMS:
-            _FORMALISMS[self.name] = compile_system(self.factory(), compiler=self.defaults.get('compiler')).form.value
+            _FORMALISMS[self.name] = str(compile_system(self.factory(), compiler=self.defaults.get('compiler')).form)
         return _FORMALISMS[self.name]

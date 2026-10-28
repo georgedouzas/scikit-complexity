@@ -11,29 +11,22 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 
-from ....core.elements import Element, GroupElement, PatchElement, WordElement
-from ....core.laws import ProductionLaw, SubstitutionLaw
+from ....core.elements import Element, GroupElement
 from ....core.system import System
-from ....errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ....specs import (
-    BaseProblemSpec,
-    CompiledElementSpec,
-    EntrySpec,
-    IssueSpec,
-    LayoutSpec,
-    NodeSpec,
-    ParametersSpec,
-    RewritingProblemSpec,
-)
-from ....specs._rewriting_problem_spec import Compiled
-from ....types import FormKind, VariableKind
-from ..._utils import declarations_of, symbol
-from ...problems._patch_kernel import PatchKernel
-from ...problems._word_kernel import WordKernel
-from .._base import BaseCompiler
-from ._flatten import FlattenPass
-from ._layout import LayoutPass
-from ._problem import ProblemPass
+from ....engine._utils import declarations_of, symbol
+from ....engine.compile import BaseCompiler, FlattenPass, LayoutPass, ProblemPass
+from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
+from ....specs import BaseProblemSpec, CompiledElementSpec, EntrySpec, IssueSpec, LayoutSpec, NodeSpec, ParametersSpec
+from ....types import VariableKind
+from ._patch_element import PatchElement
+from ._patch_kernel import PatchKernel
+from ._production_law import ProductionLaw
+from ._rewriting_error import RewritingError
+from ._rewriting_problem_spec import REWRITING, Compiled, RewritingProblemSpec
+from ._rewriting_solver import RewritingSolver
+from ._substitution_law import SubstitutionLaw
+from ._word_element import WordElement
+from ._word_kernel import WordKernel
 
 _LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw}
 
@@ -54,7 +47,7 @@ class RewritingCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.compile import RewritingCompiler
+        >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
         >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
@@ -95,6 +88,20 @@ class RewritingCompiler(BaseCompiler):
         """
         del initial_state
         return self._compile_rewriting(self.system_)
+
+    def _get_solver(self, problem: BaseProblemSpec) -> RewritingSolver:
+        """Return the rewriting solver, which runs every problem the compiler builds.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            solver:
+                A rewriting solver.
+        """
+        del problem
+        return RewritingSolver()
 
     @staticmethod
     def _is_rewriting(system: System) -> bool:
@@ -222,14 +229,14 @@ class RewritingCompiler(BaseCompiler):
             >>> from skcomplex.core.spaces import DiscreteTime
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.core.laws import ProductionLaw
-            >>> from skcomplex.core.elements import WordElement
+            >>> from skcomplex.models.mathematics.fractals import ProductionLaw
+            >>> from skcomplex.models.mathematics.fractals import WordElement
             >>> class AlgaeElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
             >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
             >>> problem = compile_system(system, compiler=RewritingCompiler())
-            >>> problem.form.value, problem.states.names
+            >>> problem.form, problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
         """
         nodes = FlattenPass._flatten_system(system)
@@ -279,7 +286,7 @@ class RewritingCompiler(BaseCompiler):
                 states.append(EntrySpec(f'{item.path}.{name}', len(states), (), NN))
             initial += item.counts(item._initial(initial_parameters))  # type: ignore[arg-type]
         return RewritingProblemSpec(
-            form=FormKind.REWRITING,
+            form=REWRITING,
             states=LayoutSpec(tuple(states)),
             parameters=LayoutSpec(tuple(entries)),
             initial_state=np.asarray(initial, dtype=float),

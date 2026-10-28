@@ -10,11 +10,12 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class VisualSpec(BaseSpec):
-    """Name of a registered visual and the options it is built with.
+    """Visual of an element and the options it is built with.
 
     Args:
         kind:
-            The name of a visual registered in the visualization layer.
+            The name of a visual of the engine, such as `'points'`, or a visual class, such as one a model package
+            defines on `BaseVisual`.
 
         options:
             The keyword arguments of the visual.
@@ -25,5 +26,5 @@ class VisualSpec(BaseSpec):
         'points'
     """
 
-    kind: str = 'scalars'
+    kind: str | type = 'scalars'
     options: dict[str, object] = field(default_factory=dict)

@@ -22,23 +22,19 @@ from skcomplex.core.spaces import ContinuousTime, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
-from skcomplex.errors import RewritingError, RoleError, ValidationError
+from skcomplex.errors import RoleError, ValidationError
 from skcomplex.experiments import Experiment
 from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import (
-    AffineSpec,
     BaseSpec,
     EnergySpec,
-    GeometrySpec,
     HilbertSpec,
     LayerSpec,
-    ModuleSpec,
     MoveSpec,
     ObservableSpec,
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    PrototileSpec,
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
@@ -454,23 +450,6 @@ def test_monte_carlo_specs_check_their_kinds():
 def test_hilbert_spec_checks_its_space(spec, message):
     """Test that a Hilbert space needs a positive dimension, square operators, basis states, and its display."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
-
-
-@pytest.mark.parametrize(
-    'spec',
-    [
-        ModuleSpec(''),
-        PrototileSpec('point', [(0, 0)]),
-        AffineSpec(translation=(1, 0, 0)),
-        AffineSpec(matrix=np.eye(2)),
-        GeometrySpec(symbols={'X': 'jump'}),
-        GeometrySpec(dimension=4),
-    ],
-)
-def test_rewriting_specs_raise_rewriting_errors(spec):
-    """Test that modules, prototiles, affine maps, and geometries reject invalid fields with a rewriting error."""
-    with pytest.raises(RewritingError):
         spec.check()
 
 

@@ -18,6 +18,7 @@ import rerun.blueprint as rrb
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 MODEL = 'cantor_set'
 
@@ -31,8 +32,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
+
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), observers=[observer]).check().run(8)
+simulation = Simulation(create(MODEL), observers=[observer], compiler=RewritingCompiler()).check().run(8)
 trajectory = simulation.trajectory_
 stack = np.zeros((490, 729, 3), dtype=np.uint8)
 for generation in range(7):

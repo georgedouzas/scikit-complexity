@@ -168,7 +168,7 @@ class BaseAnalysis(BaseConfig, ABC):
             return problem
         error_msg = (
             f'{purpose} reads the problem of the general compiler, but the system compiles to a '
-            f'{type(problem).__name__} of the {problem.form.value} form.'
+            f'{type(problem).__name__} of the {problem.form} form.'
         )
         raise ValidationError(error_msg)
 

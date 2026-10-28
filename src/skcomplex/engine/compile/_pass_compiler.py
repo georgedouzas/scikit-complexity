@@ -74,7 +74,6 @@ from .passes._layout import LayoutPass
 from .passes._noise import NoisePass
 from .passes._quantum_compiler import QuantumCompiler
 from .passes._reduction_lowering import ReductionLowering
-from .passes._rewriting_compiler import RewritingCompiler
 
 _COVARIANCE_TOLERANCE = 1e-12
 _PROBABILITY_TOLERANCE = 1e-9
@@ -402,8 +401,6 @@ class PassCompiler(BaseCompiler):
             return None, [self._issue_of(error, system.label, 'structure', fix)]
         if QuantumCompiler._contains_quantum(system):
             return compilation, [self._compiler_issue(system, 'QuantumCompiler')]
-        if RewritingCompiler._is_rewriting(system):
-            return compilation, [self._compiler_issue(system, 'RewritingCompiler')]
         held = _held_observables(system, cast('list[NodeSpec]', compilation.nodes))
         if held:
             tree, paths = _with_held_observables(system, held)

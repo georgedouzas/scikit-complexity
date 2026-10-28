@@ -28,7 +28,6 @@ from ._images import ImageVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
 from ._quantum import ExpectationVisual
-from ._rewriting import GeometryVisual
 from ._rings import PhaseRingVisual
 from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
@@ -49,7 +48,6 @@ _VISUALS: dict[str, type[BaseVisual]] = {
     'bodies': BodiesVisual,
     'cayley': CayleyVisual,
     'expectations': ExpectationVisual,
-    'geometry': GeometryVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
     'mesh': MeshVisual,
@@ -228,7 +226,8 @@ class RerunObserver(BaseObserver):
     def _visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
         """Return the visual the spec of an element names, built with the options of the spec."""
         spec = element.visual
-        return _VISUALS[spec.kind](**dict(spec.options), path=element.path, recording=self.recording_)
+        visual = _VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
+        return visual(**dict(spec.options), path=element.path, recording=self.recording_)
 
     def _agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group: its declared agents visual, or the histogram visual without a space."""

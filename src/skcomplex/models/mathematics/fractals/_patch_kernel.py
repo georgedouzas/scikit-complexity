@@ -9,11 +9,12 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from ...core.elements import PatchElement
-from ...core.laws import SubstitutionLaw
-from ...errors import RewritingError
-from ...specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, PatchStructureSpec, RunStateSpec
-from ._base import BaseKernel
+from ....engine.problems import BaseKernel
+from ....specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, RunStateSpec
+from ._patch_element import PatchElement
+from ._patch_structure_spec import PatchStructureSpec
+from ._rewriting_error import RewritingError
+from ._substitution_law import SubstitutionLaw
 from ._word_kernel import IDENTIFIER
 
 

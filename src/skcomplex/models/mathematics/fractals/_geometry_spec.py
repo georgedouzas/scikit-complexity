@@ -7,8 +7,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Self
 
-from ..errors import RewritingError
-from ._base_spec import BaseSpec
+from ....specs import BaseSpec
+from ._rewriting_error import RewritingError
 
 TURTLE_SYMBOLS = {
     'F': 'draw',
@@ -56,7 +56,7 @@ class GeometrySpec(BaseSpec):
             The initial heading in degrees in two dimensions, measured from the x axis.
 
     Examples:
-        >>> from skcomplex.specs import GeometrySpec
+        >>> from skcomplex.models.mathematics.fractals import GeometrySpec
         >>> GeometrySpec(angle=60.0, contraction=1 / 3).check().angle
         60.0
     """

@@ -155,7 +155,7 @@ class SectionAnalysis(BaseAnalysis):
         """Compile the flow of the section."""
         problem = self._compiled_problem(self._read_system(source), 'A section')
         if problem.form not in {FormKind.ODE, FormKind.SDE}:
-            error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
+            error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form}.'
             raise AnalysisError(error_msg)
         if self.kind == 'poincare' and (
             not problem.states.has(self.state) or problem.states.entry(self.state).size != 1

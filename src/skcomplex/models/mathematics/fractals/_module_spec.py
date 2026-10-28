@@ -7,8 +7,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Self
 
-from ..errors import RewritingError
-from ._base_spec import BaseSpec
+from ....specs import BaseSpec
+from ._rewriting_error import RewritingError
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class ModuleSpec(BaseSpec):
             The parameters, numbers in a word and symbols or expressions in a production.
 
     Examples:
-        >>> from skcomplex.specs import ModuleSpec
+        >>> from skcomplex.models.mathematics.fractals import ModuleSpec
         >>> ModuleSpec('F', (0.5,)).check().parameters
         (0.5,)
     """

@@ -304,7 +304,7 @@ class StabilityAnalysis(BaseAnalysis):
         problem = BaseAnalysis._compiled_problem(system, 'Linear stability')
         if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
             error_msg = (
-                f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form.value}.'
+                f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form}.'
             )
             raise AnalysisError(error_msg)
         if problem.has_callables or problem.has_group_sums:

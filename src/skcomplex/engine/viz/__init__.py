@@ -10,7 +10,6 @@ from ._meshes import MeshVisual
 from ._points import PointsVisual
 from ._quantum import ExpectationVisual
 from ._rerun import RerunObserver
-from ._rewriting import GeometryVisual
 from ._rings import PhaseRingVisual
 from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
@@ -21,7 +20,6 @@ __all__: list[str] = [
     'BodiesVisual',
     'CayleyVisual',
     'ExpectationVisual',
-    'GeometryVisual',
     'HistogramVisual',
     'ImageVisual',
     'MeshVisual',

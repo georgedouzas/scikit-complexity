@@ -30,7 +30,6 @@ from ._pontryagin import PontryaginSolver
 from ._quantum import QuantumSolver
 from ._quantum_trajectories import QuantumTrajectoriesSolver
 from ._renewal import RenewalSolver
-from ._rewriting import RewritingSolver
 from ._rk4 import RK4Solver
 from ._scipy_ode import ScipyODESolver
 from ._sde import SDESolver
@@ -74,7 +73,6 @@ __all__: list[str] = [
     'QuantumTrajectoriesSolver',
     'RK4Solver',
     'RenewalSolver',
-    'RewritingSolver',
     'SDESolver',
     'SSPRKSolver',
     'ScipyODESolver',

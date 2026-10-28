@@ -20,13 +20,11 @@ from ._jump import JumpLaw
 from ._local_rule import LocalRuleLaw
 from ._match import MatchLaw
 from ._noise import NoiseLaw
-from ._production import ProductionLaw
 from ._proliferation import ProliferationLaw
 from ._rate import RateLaw
 from ._relaxation import RelaxationLaw
 from ._rule import RuleLaw
 from ._sample import SampleLaw
-from ._substitution import SubstitutionLaw
 from ._transfer import Sink, Source, TransferLaw
 from ._transition import TransitionLaw
 from ._update import UpdateLaw
@@ -49,7 +47,6 @@ __all__: list[str] = [
     'LocalRuleLaw',
     'MatchLaw',
     'NoiseLaw',
-    'ProductionLaw',
     'ProliferationLaw',
     'RateLaw',
     'RelaxationLaw',
@@ -57,7 +54,6 @@ __all__: list[str] = [
     'SampleLaw',
     'Sink',
     'Source',
-    'SubstitutionLaw',
     'TransferLaw',
     'TransitionLaw',
     'UpdateLaw',

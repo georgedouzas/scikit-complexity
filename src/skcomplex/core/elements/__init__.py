@@ -6,8 +6,6 @@ from ._field import FieldElement
 from ._group import GroupElement
 from ._lattice import LatticeElement
 from ._particle import ParticleElement
-from ._patch import PatchElement
-from ._word import WordElement
 
 __all__: list[str] = [
     'BaseElement',
@@ -16,6 +14,4 @@ __all__: list[str] = [
     'GroupElement',
     'LatticeElement',
     'ParticleElement',
-    'PatchElement',
-    'WordElement',
 ]

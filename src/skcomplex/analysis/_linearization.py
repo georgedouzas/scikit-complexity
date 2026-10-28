@@ -141,7 +141,7 @@ class LinearizationAnalysis(BaseAnalysis):
         problem = self._compiled_problem(self._read_system(source), 'Linearization')
         if problem.form != FormKind.ODE:
             error_msg = (
-                f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form.value}.'
+                f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form}.'
             )
             raise ValidationError(error_msg)
         self.problem_ = problem

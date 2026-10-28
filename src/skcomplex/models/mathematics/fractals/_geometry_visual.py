@@ -9,17 +9,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.elements import PatchElement, WordElement
-from ...specs import (
-    BaseProblemSpec,
-    BaseStructureSpec,
-    CompiledAgentsSpec,
-    CompiledElementSpec,
-    FrameSpec,
-    PatchStructureSpec,
-    WordStructureSpec,
-)
-from ._base import BaseVisual
+from ....engine.viz import BaseVisual
+from ....specs import BaseProblemSpec, BaseStructureSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ._patch_structure_spec import PatchStructureSpec
+from ._word_structure_spec import WordStructureSpec
 
 MARGIN = 0.03
 _RESOLUTION = 512
@@ -48,7 +41,7 @@ class GeometryVisual(BaseVisual):
             The Rerun recording to log to, or `None` for the active recording of the thread.
 
     Examples:
-        >>> from skcomplex.engine.viz import GeometryVisual
+        >>> from skcomplex.models.mathematics.fractals import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True)
     """
@@ -115,18 +108,18 @@ class GeometryVisual(BaseVisual):
                 otherwise, followed by the time series view.
 
         Examples:
-            >>> from skcomplex.core.elements import WordElement
-            >>> from skcomplex.core.laws import ProductionLaw
+            >>> from skcomplex.models.mathematics.fractals import WordElement
+            >>> from skcomplex.models.mathematics.fractals import ProductionLaw
             >>> from skcomplex.core.spaces import DiscreteTime
-            >>> from skcomplex.specs import GeometrySpec
+            >>> from skcomplex.models.mathematics.fractals import GeometrySpec
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.engine.viz import GeometryVisual
+            >>> from skcomplex.models.mathematics.fractals import GeometryVisual
             >>> class KochElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
-            >>> from skcomplex.engine.compile import RewritingCompiler
+            >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
             >>> problem = compile_system(System(elements=[koch], time=DiscreteTime()), compiler=RewritingCompiler())
             >>> views = GeometryVisual(path=problem.elements[0].path).check().prepare(problem).views_
             >>> [type(view).__name__ for view in views]
@@ -136,7 +129,7 @@ class GeometryVisual(BaseVisual):
         path = element.path
         series = rrb.TimeSeriesView(origin=f'{path}/counts', name=f'{path} counts')
         component = element.element
-        geometry = component.geometry if isinstance(component, WordElement) else None
+        geometry = getattr(component, 'geometry', None)
         if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]
         bounds = self._bounds_of(element) if isinstance(element, CompiledElementSpec) else None
@@ -154,7 +147,7 @@ class GeometryVisual(BaseVisual):
         if declared is not None:
             xmin, ymin, xmax, ymax = (float(item) for item in declared)
             return (xmin, ymin, xmax, ymax)
-        if not isinstance(component, PatchElement) or not component.prototiles:
+        if not getattr(component, 'prototiles', None):
             return None
         tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
         names = [prototile.name for prototile in component.prototiles]

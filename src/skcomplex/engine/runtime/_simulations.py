@@ -43,6 +43,7 @@ _DEFAULT_DT = 0.01
 _MAX_FRAMES = 1000
 _FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
+_STEPWISE_FORMS = frozenset({FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO})
 
 
 class Simulation(BaseConfig):
@@ -183,16 +184,14 @@ class Simulation(BaseConfig):
     def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
         forms = {problem.form, *(item.form for item in self._partition_problems(problem))}
-        stepwise = bool(
-            forms & {FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO, FormKind.REWRITING},
-        )
+        stepwise = bool(forms & _STEPWISE_FORMS) or self.stepper_._is_stepwise()
         default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt
         if not EntrySpec._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
         if stepwise and not EntrySpec._contains(ZZ, dt):
-            error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
+            error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form}.'
             raise ValidationError(error_msg)
         return float(dt)
 

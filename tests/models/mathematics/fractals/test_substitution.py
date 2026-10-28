@@ -1,15 +1,15 @@
-"""Test the `_substitution` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `substitution` module of `skcomplex.models.mathematics.fractals`."""
 
 import numpy as np
 import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.engine.compile import RewritingCompiler
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import GeometryVisual, RerunObserver
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.errors import ValidationError
 from skcomplex.models import create, describe, run
+from skcomplex.models.mathematics.fractals import GeometryVisual, RewritingCompiler
 
 
 def test_koch_curve():

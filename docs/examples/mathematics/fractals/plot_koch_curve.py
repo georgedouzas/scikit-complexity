@@ -17,6 +17,7 @@ import rerun.blueprint as rrb
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 MODEL = 'koch_curve'
 
@@ -31,7 +32,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), observers=[observer]).check().run(5)
+simulation = Simulation(create(MODEL), observers=[observer], compiler=RewritingCompiler()).check().run(5)
 trajectory = simulation.trajectory_
 segments = trajectory.structure('koch', 5).segments()
 observer.recording_.log(
@@ -39,6 +40,7 @@ observer.recording_.log(
     rr.LineStrips2D(segments * [1, -1], radii=0.004, colors=[120, 200, 255]),
     static=True,
 )
+
 observer.recording_.flush()
 
 # %%

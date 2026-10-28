@@ -1,10 +1,14 @@
-"""Test the `_patch` module of `skcomplex.core.elements`."""
+"""Test the `patch_element` module of `skcomplex.models.mathematics.fractals`."""
 
 import pytest
 
-from skcomplex.core.elements import PatchElement
-from skcomplex.errors import RewritingError
-from skcomplex.specs import AffineSpec, PrototileSpec
+from skcomplex.models.mathematics.fractals import (
+    AffineSpec,
+    GeometryVisual,
+    PatchElement,
+    PrototileSpec,
+    RewritingError,
+)
 
 INTERVAL = PrototileSpec('interval', [(0, 0), (1, 0)])
 
@@ -26,4 +30,4 @@ def test_patch_checks_its_prototiles_and_tiles(patch, message):
 def test_patch_is_drawn_as_its_geometry():
     """Test that a prepared patch is drawn as the geometry of its tiles, as outlines by default."""
     patch = PatchElement('cantor', [('interval', AffineSpec())], prototiles=[INTERVAL]).check().prepare()
-    assert (patch.default_visual_.kind, patch.filled) == ('geometry', False)
+    assert (patch.default_visual_.kind, patch.filled) == (GeometryVisual, False)

@@ -10,7 +10,6 @@ from ._lower_fields import LowerFieldsPass
 from ._mask_requests import MaskRequestsPass
 from ._quantum_compiler import DEFAULT_MAX_DIMENSION, QuantumCompiler
 from ._request_jumps import RequestJumpsPass
-from ._rewriting_compiler import RewritingCompiler
 from ._split_requests import SplitRequestsPass
 from ._topology_functions import TopologyFunctionsPass
 from ._topology_problem import TopologyProblemPass
@@ -28,7 +27,6 @@ __all__: list[str] = [
     'MaskRequestsPass',
     'QuantumCompiler',
     'RequestJumpsPass',
-    'RewritingCompiler',
     'SplitRequestsPass',
     'TopologyFunctionsPass',
     'TopologyProblemPass',

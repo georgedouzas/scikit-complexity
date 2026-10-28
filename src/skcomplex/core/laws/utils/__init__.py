@@ -26,7 +26,6 @@ from ._reductions import (
     variance,
 )
 from ._signals import pulse, pulse_train, ramp, series, step
-from ._words import parse_word
 
 __all__: list[str] = [
     'NEIGHBOR_REDUCTIONS',
@@ -61,7 +60,6 @@ __all__: list[str] = [
     'neighbors',
     'normal',
     'operator_product',
-    'parse_word',
     'partial',
     'pulse',
     'pulse_train',
