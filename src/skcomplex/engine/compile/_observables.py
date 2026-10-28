@@ -39,7 +39,7 @@ from ..problems._compiled_reduction import CompiledReduction
 from ..problems._reads import Read
 from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
-from ._flows import TransferPass
+from ._flows import TransferLowering
 from ._tree import Node
 
 type AgentsOf = Callable[[str], list[Any] | None]
@@ -601,9 +601,10 @@ class ObservableEvaluator:
         for delay in transfer_network.delays:
             expression = SR(expression).subs({delay.call: delay.output})
             references.update(delay.references)
-        if TransferPass._delay_calls(expression):
+        delays = TransferLowering._delay_calls(expression)
+        if delays:
             error_msg = (
-                f'ObservableSpec {path} reads {TransferPass._delay_calls(expression)[0]}, a delay that no law of the '
+                f'ObservableSpec {path} reads {delays[0]}, a delay that no law of the '
                 'system uses. Observe a delay that a law of the same element reads.'
             )
             raise ValidationError(error_msg)

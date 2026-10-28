@@ -7,8 +7,7 @@ from typing import cast
 
 from .._base import BasePass
 from .._compilation import BlockLaws
-from .._declarations import Declarations
-from .._flows import TransferPass
+from .._flows import TransferLowering
 
 
 class LowerFlowsPass(BasePass):
@@ -25,7 +24,6 @@ class LowerFlowsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the flows and their delays."""
         compilation = self.compilation_
-        flows = cast('TransferPass', compilation.flows)
+        flows = cast('TransferLowering', compilation.flows)
         lowered = cast('BlockLaws', compilation.lowered)
-        declarations = cast('Declarations', compilation.layout)
-        compilation.transfer_network = flows.lower([(spec, laws) for spec, laws, _ in lowered], declarations)
+        compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

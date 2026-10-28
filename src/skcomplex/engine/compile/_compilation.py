@@ -24,7 +24,7 @@ from ._diffusive_limit import DiffusiveLimit
 from ._draw_lowering import DrawLowering
 from ._field_splitting import LinearTerm
 from ._field_volumes import FiniteVolume
-from ._flows import TransferPass
+from ._flows import TransferLowering
 from ._jacobians import ExactJacobian
 from ._kernel_spec import KernelSpec
 from ._matrix_law import MatrixLaw
@@ -234,7 +234,7 @@ class Compilation:
     symmetries: tuple[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]], ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
     encounters: tuple[CompiledEncounter, ...] | None = None
-    flows: TransferPass | None = None
+    flows: TransferLowering | None = None
     transfer_network: TransferNetwork | None = None
     rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None

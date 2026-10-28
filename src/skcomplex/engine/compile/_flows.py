@@ -6,8 +6,8 @@
 import re
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Any, Protocol
+from dataclasses import dataclass, replace
+from typing import Any, Self, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -26,95 +26,138 @@ from ...core.laws import (
     UpdateLaw,
 )
 from ...core.laws.utils import delay_parts
-from ...core.types import Vector
-from ..problems import Entry, LoopTerm, Reference, TransferNetwork, symbol, symbols_of
+from ..problems import LoopTerm, Reference, TransferNetwork, VariableKind, declarations_of, symbol, symbols_of
 from ..problems import Source as Read
 from ..problems._transfer_network import _CompiledDelay, _CompiledFlow, _Recorded
-from ._base import BasePass
+from ._base import BaseLowering, BasePass
+from ._block import Block
+from ._declarations import Declarations
+from ._kernel_spec import KernelSpec
 
 _BOUNDARY_PREFIX = '__boundary'
 
 
-class _Declared(Protocol):
-    """Declarations of a compilation as the transfer pass extends them with hidden states."""
-
-    time: Expression
-    states: list[Entry]
-    parameters: list[Entry]
-    initial_states: list[Vector]
-    initial_parameters: list[Vector]
-
-    def declare_state(
-        self,
-        name: str,
-        initial: Vector,
-        domain: object,
-        shape: tuple[int, ...] = (),
-        members: int | None = None,
-    ) -> Entry:
-        """Add a hidden state after every state declared so far and return its entry."""
-        ...
-
-
-class _Spec(Protocol):
-    """Kernel spec of a component as the transfer pass reads it."""
-
-    owner: str
-    references: dict[Expression, Reference]
-    rows: int
-
-
-@dataclass
+@dataclass(frozen=True)
 class _Record:
     """Recorded expression of a spec, rewritten as later passes substitute hidden states."""
 
     path: str
     expression: Expression
-    spec: _Spec
+    spec: KernelSpec
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Born:
     """Transfer of a spec with the amount it moves and its compiled holders."""
 
-    spec: _Spec
+    spec: KernelSpec
     flow: _CompiledFlow
     amount: Expression
     sign: int
 
 
-class TransferPass:
-    """Pass of a compilation that expands flows and delays, and checks conserved quantities.
+class TransferLowering(BaseLowering):
+    """Lowering of flows and delays, which checks that conserved quantities change only through flows.
 
-    Args:
-        quantities:
+    `prepare(compilation)` reads the quantity of every tagged state, and `run(laws)` takes the laws of every kernel spec
+    and returns them with their flows expanded into laws of other kinds. A later pass finishes the lowering on the laws
+    of every spec after their complex states and Markov laws are lowered: it checks the conserved quantities and lowers
+    the flows and the delays into the transfer network of the system.
+
+    Attributes:
+        quantities_:
             The quantity of every tagged state by entry name.
+
+        born_:
+            The expanded flow of every law a flow became, by the identity of the law.
+
+        flows_:
+            The expanded flows, in the order they were expanded.
+
+        records_:
+            The recorded expressions of the flows, rewritten as later steps substitute hidden states.
+
+        delays_:
+            The delays and smoothings lowered to hidden states.
+
+        terms_:
+            The flows and rates of every spec, with their sources and sinks, for the loop terms.
     """
 
-    def __init__(self, quantities: Mapping[str, str]) -> None:
-        self.quantities = quantities
-        self._born: dict[int, _Born] = {}
-        self._flows: list[_Born] = []
-        self._records: list[_Record] = []
-        self._delays: list[_CompiledDelay] = []
-        self._terms: list[tuple[_Spec, str, str, Expression, str | None, str | None]] = []
+    quantities_: dict[str, str]
+    born_: dict[int, _Born]
+    flows_: list[_Born]
+    records_: list[_Record]
+    delays_: list[_CompiledDelay]
+    terms_: list[tuple[KernelSpec, str, str, Expression, str | None, str | None]]
 
-    def _quantity_of(self, target: object, spec: _Spec) -> tuple[str, str | None]:
+    def _prepare(self, context: object) -> Self:
+        """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
+
+        Args:
+            context:
+                The compilation.
+
+        Returns:
+            self:
+                The prepared lowering.
+        """
+        super()._prepare(context)
+        self.quantities_ = self._quantities_of(cast('Declarations', self.compilation_.layout).blocks)
+        self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
+        return self
+
+    def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+        """Return the laws of every kernel spec with flows expanded into laws of the other kinds.
+
+        Args:
+            inputs:
+                The laws of every kernel spec.
+
+        Returns:
+            laws:
+                The expanded laws of every kernel spec.
+
+        Raises:
+            LabelError:
+                Two flows of a component share a label.
+
+            ConservationError:
+                A flow connects holders of different quantities.
+        """
+        return [
+            (spec, self._expand(spec, list(laws)))
+            for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
+        ]
+
+    @staticmethod
+    def _quantities_of(blocks: Mapping[str, Block]) -> dict[str, str]:
+        """Return the quantity of every state tagged with one, by entry name."""
+        quantities = {}
+        for block in blocks.values():
+            if block.node.is_agent:
+                continue
+            for variable, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items():
+                if declaration.quantity is not None:
+                    quantities[block.entries[variable].name] = declaration.quantity
+        return quantities
+
+    def _quantity_of(self, target: object, spec: KernelSpec) -> tuple[str, str | None]:
         """Return the state name and the quantity of a law target."""
         reference = spec.references.get(target)
         name = reference.entry.name if reference is not None else str(target)
-        return name, self.quantities.get(name)
+        return name, self.quantities_.get(name)
 
     def _expand_flow(
         self,
-        spec: _Spec,
+        spec: KernelSpec,
         flow: TransferLaw,
         label: str,
     ) -> list[BaseLaw]:
         """Return the rate or jump laws of a flow, after recording it."""
         source, source_label = self._holder(flow.source, spec.references, spec.owner)
         sink, sink_label = self._holder(flow.sink, spec.references, spec.owner)
-        tags = {self.quantities.get(name) for name in (source, sink) if name is not None}
+        tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
         if len(tags) > 1:
             error_msg = (
                 f'The flow {spec.owner}.{label} moves a quantity from {source_label} to {sink_label}, which hold '
@@ -133,13 +176,13 @@ class TransferPass:
             laws = [RateLaw(item, sign * amount) for item, sign in holders]
         sign = 1 if source is None else -1 if sink is None else 0
         born = _Born(spec, compiled, amount, sign)
-        self._flows.append(born)
-        self._born.update({id(law): born for law in laws})
-        self._records.append(_Record(path, amount, spec))
-        self._terms.append((spec, 'flow', path, amount, source, sink))
+        self.flows_.append(born)
+        self.born_.update({id(law): born for law in laws})
+        self.records_.append(_Record(path, amount, spec))
+        self.terms_.append((spec, 'flow', path, amount, source, sink))
         return laws
 
-    def expand(self, spec: _Spec, laws: list[BaseLaw]) -> list[BaseLaw]:
+    def _expand(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with flows expanded into laws of the other kinds.
 
         Args:
@@ -174,13 +217,13 @@ class TransferPass:
                 and isinstance(law._get_targets()[0], Expression)
             ):
                 target, _ = self._quantity_of(law._get_targets()[0], spec)
-                self._terms.append((spec, 'rate', target, law.value, None, None))
+                self.terms_.append((spec, 'rate', target, law.value, None, None))
             expanded.append(law)
         return expanded
 
-    def _check_conserved(self, spec: _Spec, law: BaseLaw) -> None:
+    def _check_conserved(self, spec: KernelSpec, law: BaseLaw) -> None:
         """Raise an error for a law outside flows that changes a state tagged with a quantity."""
-        if id(law) in self._born:
+        if id(law) in self.born_:
             return
         targets: list[tuple[object, object]] = []
         if isinstance(law, RateLaw | NoiseLaw) and isinstance(law._get_targets()[0], Expression):
@@ -202,11 +245,11 @@ class TransferPass:
                 )
                 raise ConservationError(error_msg)
 
-    def _to_updates(self, specs: list[tuple[_Spec, list[BaseLaw]]]) -> None:
+    def _to_updates(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> None:
         """Rewrite the rate laws of flows of a discrete system as increments of the update laws of their states."""
-        increments: dict[tuple[Any, ...], list[tuple[_Spec, Expression, Expression]]] = defaultdict(list)
+        increments: dict[tuple[Any, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
-            for law in [law for law in laws if id(law) in self._born and isinstance(law, RateLaw)]:
+            for law in [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]:
                 laws.remove(law)
                 target: Any = law._get_targets()[0]
                 reference = spec.references[target]
@@ -233,13 +276,13 @@ class TransferPass:
 
     def _accumulate(
         self,
-        specs: list[tuple[_Spec, list[BaseLaw]]],
-        declarations: _Declared,
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+        declarations: Declarations,
         discrete: bool,
     ) -> dict[str, str]:
         """Add a hidden state per quantity that accumulates the net inflow from the environment."""
         boundary: dict[str, list[_Born]] = defaultdict(list)
-        for born in self._flows:
+        for born in self.flows_:
             if born.sign and born.flow.quantity is not None:
                 boundary[born.flow.quantity].append(born)
         laws_of = {id(spec): laws for spec, laws in specs}
@@ -266,14 +309,14 @@ class TransferPass:
     def _add_boundary(self, laws: list[BaseLaw], born: _Born, accumulator: Expression) -> None:
         """Add the inflow of a boundary flow to the accumulator of its quantity, as a rate or a jump increment."""
         for index, law in enumerate(laws):
-            if isinstance(law, JumpLaw) and self._born.get(id(law)) is born:
+            if isinstance(law, JumpLaw) and self.born_.get(id(law)) is born:
                 laws[index] = JumpLaw(law.rate, {**law.changes, accumulator: born.sign * born.amount})
                 return
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
-    def _expand_delays(self, spec: _Spec, laws: list[BaseLaw], declarations: _Declared, discrete: bool) -> None:
+    def _expand_delays(self, spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations, discrete: bool) -> None:
         """Replace the delays and smoothings in a spec's rate laws and records by hidden states with their own laws."""
-        records = [record for record in self._records if record.spec is spec]
+        records = [record for record in self.records_ if record.spec is spec]
         counter = 0
         while True:
             values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
@@ -304,22 +347,23 @@ class TransferPass:
                 spec.references[stage] = Reference(entry, True, column, Read.SINGLE)
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
-            self._delays.append(_CompiledDelay(call, output, {stage: spec.references[stage] for stage in stages}))
+            self.delays_.append(_CompiledDelay(call, output, {stage: spec.references[stage] for stage in stages}))
             laws[:] = [self._substituted_law(law, mapping) for law in laws]
             laws.extend(self._delay_laws(kind, stages, value, time))
-            for record in records:
-                record.expression = SR(record.expression).subs(mapping)
+            self.records_ = [
+                replace(record, expression=SR(record.expression).subs(mapping)) if record.spec is spec else record
+                for record in self.records_
+            ]
+            records = [record for record in self.records_ if record.spec is spec]
             counter += 1
 
-    def lower(self, specs: list[tuple[_Spec, list[BaseLaw]]], declarations: _Declared) -> TransferNetwork:
+    def _lower_flows(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> TransferNetwork:
         """Check the conserved quantities and lower flows and delays into the laws of every spec, in place.
 
         Args:
             specs:
-                The kernel specs with their expanded laws, which the pass changes in place.
-
-            declarations:
-                The declarations, which the pass extends with hidden states.
+                The kernel specs with their expanded laws, which the lowering changes in place, extending the layout of
+                the compilation with hidden states.
 
         Returns:
             transfer_network:
@@ -332,31 +376,32 @@ class TransferPass:
             ValidationError:
                 A delay reads a group or belongs to a discrete system.
         """
+        declarations = cast('Declarations', self.compilation_.layout)
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
-        discrete = any(isinstance(law, UpdateLaw) and id(law) not in self._born for _, laws in specs for law in laws)
+        discrete = any(isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws)
         if discrete:
             self._to_updates(specs)
         boundary = self._accumulate(specs, declarations, discrete)
         for spec, laws in specs:
             self._expand_delays(spec, laws, declarations, discrete)
         quantities: dict[str, list[str]] = defaultdict(list)
-        for name, quantity in self.quantities.items():
+        for name, quantity in self.quantities_.items():
             quantities[quantity].append(name)
         return TransferNetwork(
             quantities={quantity: tuple(names) for quantity, names in quantities.items()},
-            flows=tuple(born.flow for born in self._flows),
+            flows=tuple(born.flow for born in self.flows_),
             recorded=tuple(
-                _Recorded(record.path, record.expression, dict(record.spec.references)) for record in self._records
+                _Recorded(record.path, record.expression, dict(record.spec.references)) for record in self.records_
             ),
             boundary=boundary,
             terms=tuple(
                 LoopTerm(kind, path, expression, dict(spec.references), source, sink)
-                for spec, kind, path, expression, source, sink in self._terms
+                for spec, kind, path, expression, source, sink in self.terms_
             ),
             discrete=discrete,
-            delays=tuple(self._delays),
+            delays=tuple(self.delays_),
         )
 
     @staticmethod
@@ -372,16 +417,16 @@ class TransferPass:
         if not mapping:
             return law
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            return BasePass._replaced(law, value=TransferPass._substituted(law.value, mapping))
+            return BasePass._replaced(law, value=TransferLowering._substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
-            return JumpLaw(TransferPass._substituted(law.rate, mapping), law.changes)
+            return JumpLaw(TransferLowering._substituted(law.rate, mapping), law.changes)
         if isinstance(law, CrossingLaw):
             reset = (
                 None
                 if law.reset is None
-                else {key: TransferPass._substituted(item, mapping) for key, item in law.reset.items()}
+                else {key: TransferLowering._substituted(item, mapping) for key, item in law.reset.items()}
             )
-            return BasePass._replaced(law, guard=TransferPass._substituted(law.guard, mapping), reset=reset)
+            return BasePass._replaced(law, guard=TransferLowering._substituted(law.guard, mapping), reset=reset)
         return law
 
     @staticmethod
@@ -397,7 +442,7 @@ class TransferPass:
     def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
         """Return the rate laws of the hidden states of a delay or a smoothing."""
         each = time / len(stages)
-        if TransferPass._delay_parts(kind)[0]:
+        if TransferLowering._delay_parts(kind)[0]:
             inflows = [value, *(stage / each for stage in stages[:-1])]
             return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
         inputs = [value, *stages[:-1]]
@@ -421,7 +466,10 @@ class TransferPass:
         return reference.entry.name, reference.entry.name
 
     @staticmethod
-    def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -> tuple[list[BaseLaw] | None, int]:
+    def _update_of(
+        key: tuple[Any, ...],
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+    ) -> tuple[list[BaseLaw] | None, int]:
         """Return the laws holding the update law of a state component and its index, or `None`."""
         for spec, laws in specs:
             for index, law in enumerate(laws):
@@ -438,7 +486,7 @@ class TransferPass:
         return None, 0
 
     @staticmethod
-    def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
+    def _merge_references(host: KernelSpec, spec: KernelSpec, value: Expression) -> None:
         """Add the references of an expression's symbols from one spec to another, which lowers it."""
         for item in symbols_of([value]):
             reference = spec.references.get(item)
@@ -462,7 +510,7 @@ class TransferPass:
         labels.add(label)
 
     @staticmethod
-    def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
+    def _initial(item: Expression, spec: KernelSpec, declarations: Declarations) -> float:
         """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
@@ -491,7 +539,7 @@ class TransferPass:
             if item.operator() is None:
                 continue
             name = getattr(item.operator(), 'name', lambda: '')()
-            if delay_parts(name) is not None and not TransferPass._delay_calls(item.operands()[0]):
+            if delay_parts(name) is not None and not TransferLowering._delay_calls(item.operands()[0]):
                 found.append(item)
             stack.extend(item.operands())
         return found
