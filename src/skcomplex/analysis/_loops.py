@@ -1,4 +1,4 @@
-"""Derive the feedback loops of a system of stocks and flows, their dominance, and its transaction-flow matrices."""
+"""Derive the feedback loops of a system with a transfer network, their dominance, and its transaction-flow matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ..core.errors import AnalysisError
 from ..core.laws.utils import delay_parts
 from ..engine.compile import compiled_problem
-from ..engine.problems import LoopTerm, Problem, StockFlow, numpy_function, symbols_of
+from ..engine.problems import LoopTerm, Problem, TransferNetwork, numpy_function, symbols_of
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
@@ -41,14 +41,14 @@ class _Loop:
     gain: float
 
 
-def _stock_flow(problem: Problem) -> StockFlow:
-    """Return the stock-flow description of a problem, or raise an error for problems without one."""
-    if problem.stock_flow is None:
+def _transfer_network(problem: Problem) -> TransferNetwork:
+    """Return the transfer network of a problem, or raise an error for problems without one."""
+    if problem.transfer_network is None:
         error_msg = (
-            'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
+            'The problem has no transfer network. Compile the system as one partition with compile_system.'
         )
         raise AnalysisError(error_msg)
-    return problem.stock_flow
+    return problem.transfer_network
 
 
 def _without_delays(expression: Expression) -> Expression:
@@ -77,10 +77,10 @@ class _Graph:
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        stock_flow = _stock_flow(problem)
+        transfer_network = _transfer_network(problem)
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
-        for term in stock_flow.terms:
+        for term in transfer_network.terms:
             self._add(term)
 
     def _node_of(self, item: Expression, term: LoopTerm) -> str | None:
@@ -149,7 +149,7 @@ def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tupl
 
 
 class LoopAnalysis(BaseAnalysis):
-    """Feedback loops of a system of stocks and flows, their dominance along a trajectory, or its flow matrix.
+    """Feedback loops of a system with a transfer network, their dominance along a trajectory, or its flow matrix.
 
     The kinds read a system or a trajectory:
 
@@ -255,7 +255,7 @@ class LoopAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
         self.problem_ = compiled_problem(system_of(source), 'The feedback loop analysis')
-        _stock_flow(self.problem_)
+        _transfer_network(self.problem_)
         return self
 
     def _set_loops(self, found: list[_Loop]) -> None:
@@ -301,8 +301,8 @@ class LoopAnalysis(BaseAnalysis):
 
     def _run_flow_matrix(self, trajectory: Trajectory) -> None:
         """Set the transaction-flow matrix of one frame."""
-        stock_flow = _stock_flow(self.problem_)
-        flows = [flow for flow in stock_flow.flows if self.quantity is None or flow.quantity == self.quantity]
+        transfer_network = _transfer_network(self.problem_)
+        flows = [flow for flow in transfer_network.flows if self.quantity is None or flow.quantity == self.quantity]
         holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
         values = np.zeros((len(flows), len(holders)))
         for row, flow in enumerate(flows):

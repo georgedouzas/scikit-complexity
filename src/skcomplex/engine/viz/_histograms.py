@@ -1,4 +1,4 @@
-"""Draw the traits of agents and the states of groups without a space as histograms and statistics."""
+"""Draw the variables of agents and the states of groups without a space as histograms and statistics."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +24,7 @@ _STATISTICS = ('mean', 'std', 'distinct')
 _NUMERIC_KINDS = frozenset('biuf')
 
 
-class TraitsVisual(AgentsVisual):
+class HistogramVisual(AgentsVisual):
     """Visual that logs the traits of agents, or the states of a group, without a space as histograms and statistics.
 
     For every trait of the agents, a number per agent is taken: the value of a numeric trait, the total of a row of
@@ -62,8 +62,8 @@ class TraitsVisual(AgentsVisual):
             The range of the histogram of every trait logged so far, by entity path.
 
     Examples:
-        >>> from skcomplex.engine.viz import TraitsVisual
-        >>> TraitsVisual(color_by='fitness').bins
+        >>> from skcomplex.engine.viz import HistogramVisual
+        >>> HistogramVisual(color_by='fitness').bins
         20
     """
 

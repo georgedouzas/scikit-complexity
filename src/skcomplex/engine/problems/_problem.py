@@ -25,7 +25,7 @@ from ...core.types import Vector
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._kinds import Form
 from ._layouts import Layout
-from ._quantities import StockFlow
+from ._quantities import TransferNetwork
 from ._reductions import CompiledReduction
 from ._variables import Variable, VariableKind, declarations_of
 
@@ -587,7 +587,7 @@ class BaseProblem:
         matrices:
             The transition and emission matrices of the Markov laws, checked when their parameters change.
 
-        stock_flow:
+        transfer_network:
             The quantities, flows, objectives, and feedback terms of the system, or `None` without them.
 
         topology:
@@ -620,7 +620,7 @@ class BaseProblem:
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
     matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
-    stock_flow: StockFlow | None = field(default=None, repr=False)
+    transfer_network: TransferNetwork | None = field(default=None, repr=False)
     topology: _TopologyChanges | None = field(default=None, repr=False)
 
     @property
@@ -857,7 +857,7 @@ class Problem(BaseProblem):
             The order of the Caputo derivative that the drift gives for every state component of a problem of the
             fractional form, 1 for the ordinary states, and empty for the other forms.
 
-        stock_flow:
+        transfer_network:
             The quantities, flows, objectives, and feedback terms of the system, or `None` for partitioned and Mesa
             problems.
 

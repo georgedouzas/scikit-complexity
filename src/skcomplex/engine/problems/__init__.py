@@ -33,7 +33,7 @@ from ._problem import (
     RenewalRecord,
     VectorFunction,
 )
-from ._quantities import LoopTerm, StockFlow
+from ._quantities import LoopTerm, TransferNetwork
 from ._reductions import ReductionSchedule
 from ._steps import step_count
 from ._support import SupportSpec
@@ -78,8 +78,8 @@ __all__: list[str] = [
     'Reference',
     'RenewalRecord',
     'Source',
-    'StockFlow',
     'SupportSpec',
+    'TransferNetwork',
     'Variable',
     'VariableKind',
     'VectorFunction',

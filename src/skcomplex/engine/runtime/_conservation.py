@@ -10,7 +10,7 @@ import numpy as np
 
 from ...core.errors import ConservationError, SimulationError, ValidationError
 from ...core.types import Vector
-from ..problems import BaseProblem, StockFlow
+from ..problems import BaseProblem, TransferNetwork
 from ._frames import Frame
 from ._observers import BaseObserver
 
@@ -20,7 +20,7 @@ class ConservationObserver(BaseObserver):
 
     The total of a quantity is the sum of the states that hold it. The monitor compares its change since the first
     frame with the accumulated net inflow from the environment, which the compiler integrates as a hidden state, and
-    raises an error when they differ by more than the tolerance, such as after a boundary law clips a stock.
+    raises an error when they differ by more than the tolerance, such as after a boundary law clips a state.
 
     Args:
         rtol:
@@ -33,7 +33,7 @@ class ConservationObserver(BaseObserver):
         problem_:
             The compiled problem of the run.
 
-        stock_flow_:
+        transfer_network_:
             The quantities of the problem, with the states that hold them and their flows with the environment.
 
         totals_:
@@ -62,10 +62,10 @@ class ConservationObserver(BaseObserver):
         """Return the total of every quantity minus its accumulated inflow from the environment."""
         layout = self.problem_.states
         totals = {}
-        for quantity, names in self.stock_flow_.quantities.items():
+        for quantity, names in self.transfer_network_.quantities.items():
             total = sum(float(np.sum(layout.read(state, name))) for name in names)
             self.totals_[quantity] = total
-            boundary = self.stock_flow_.boundary.get(quantity)
+            boundary = self.transfer_network_.boundary.get(quantity)
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
@@ -78,14 +78,14 @@ class ConservationObserver(BaseObserver):
 
         Raises:
             SimulationError:
-                The problem has no stock-flow description, such as a partitioned problem.
+                The problem has no transfer network, such as a partitioned problem.
         """
-        stock_flow = problem.stock_flow
-        if stock_flow is None:
-            error_msg = 'The conservation monitor needs a problem compiled as one partition with its stock flows.'
+        transfer_network = problem.transfer_network
+        if transfer_network is None:
+            error_msg = 'The conservation monitor needs a problem compiled as one partition with its transfer network.'
             raise SimulationError(error_msg)
         self.problem_ = problem
-        self.stock_flow_: StockFlow = stock_flow
+        self.transfer_network_: TransferNetwork = transfer_network
         self.totals_: dict[str, float] = {}
         self.initial_: dict[str, float] | None = None
         self.scale_: dict[str, float] = {}

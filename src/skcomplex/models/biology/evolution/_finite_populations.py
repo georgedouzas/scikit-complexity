@@ -572,7 +572,7 @@ def tangled_nature(
         length=length,
         seed=seed,
     )
-    visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
+    visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
     return System(
         elements=[
             GroupElement(

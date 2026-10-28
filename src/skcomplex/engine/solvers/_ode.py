@@ -458,7 +458,7 @@ class ScipyODESolver(Solver):
         """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
 
         The integrator restarts where a boundary law first changes the state. When that happens at once after a restart,
-        the state rests on the boundary while the drift pushes it out, as for a clipped stock under a constant inflow,
+        the state rests on the boundary while the drift pushes it out, as for a clipped state under a constant inflow,
         so the step runs to its end and the boundary projects the state there instead.
         """
         segment = self._next_segment(p)

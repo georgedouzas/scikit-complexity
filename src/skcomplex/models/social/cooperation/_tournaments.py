@@ -250,7 +250,7 @@ def prisoners_dilemma_tournament(
         10
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
-    visual = VisualSpec('traits', {'color_by': 'fitness'})
+    visual = VisualSpec('histograms', {'color_by': 'fitness'})
     agents = GroupElement(
         'agents',
         element=StrategistElement,

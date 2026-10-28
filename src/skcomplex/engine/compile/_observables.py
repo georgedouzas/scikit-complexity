@@ -44,7 +44,7 @@ from ..problems._reads import Read
 from ..problems._reductions import CompiledReduction
 from ._complex import _is_zero, _split_complex
 from ._declarations import Block, Declarations
-from ._flows import StockFlowPass
+from ._flows import TransferPass
 from ._specs import Observed
 from ._tree import Node
 
@@ -576,8 +576,8 @@ class ObservableEvaluator:
         problems = (self.problem, *(partition.problem for partition in self.problem.partitions))
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
-        stock_flow = self.problem.stock_flow
-        for recorded in stock_flow.recorded if stock_flow is not None else ():
+        transfer_network = self.problem.transfer_network
+        for recorded in transfer_network.recorded if transfer_network is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
         return self
 
@@ -664,17 +664,17 @@ class ObservableEvaluator:
         path: str,
         expression: Any,  # noqa: ANN401
     ) -> tuple[Any, dict[Expression, Callable[[Vector, Vector], Any]]]:
-        """Return an expression with the delays of the laws read from their hidden stocks, and the stocks' readers."""
-        stock_flow = self.problem.stock_flow
-        if stock_flow is None or not isinstance(expression, Expression):
+        """Return an expression with the delays of the laws read from their hidden states, and the hidden states' readers."""
+        transfer_network = self.problem.transfer_network
+        if transfer_network is None or not isinstance(expression, Expression):
             return expression, {}
         references: dict[Expression, Reference] = {}
-        for delay in stock_flow.delays:
+        for delay in transfer_network.delays:
             expression = SR(expression).subs({delay.call: delay.output})
             references.update(delay.references)
-        if StockFlowPass._delay_calls(expression):
+        if TransferPass._delay_calls(expression):
             error_msg = (
-                f'ObservableSpec {path} reads {StockFlowPass._delay_calls(expression)[0]}, a delay that no law of the '
+                f'ObservableSpec {path} reads {TransferPass._delay_calls(expression)[0]}, a delay that no law of the '
                 'system uses. Observe a delay that a law of the same element reads.'
             )
             raise ValidationError(error_msg)

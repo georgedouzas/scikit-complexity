@@ -33,7 +33,7 @@ class _Recorded:
 
 @dataclass(frozen=True)
 class _CompiledDelay:
-    """Delay or smoothing of a compiled system, its call in the laws and its output read from hidden stocks."""
+    """Delay or smoothing of a compiled system, its call in the laws and its output read from hidden states."""
 
     call: Expression
     output: Expression
@@ -73,7 +73,7 @@ class LoopTerm:
 
 
 @dataclass(frozen=True)
-class StockFlow:
+class TransferNetwork:
     """Quantities, flows, and recorded values of a compiled system.
 
     Args:
@@ -97,7 +97,7 @@ class StockFlow:
             Whether flow amounts are per step rather than rates.
 
         delays:
-            The delays and smoothings of the laws, in the order the compiler replaced them by hidden stocks.
+            The delays and smoothings of the laws, in the order the compiler replaced them by hidden states.
     """
 
     quantities: Mapping[str, tuple[str, ...]]

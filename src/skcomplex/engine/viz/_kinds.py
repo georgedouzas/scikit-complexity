@@ -8,6 +8,7 @@ from ..problems import BaseProblem, CompiledAgents
 from ._agents import AgentsVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
+from ._histograms import HistogramVisual
 from ._images import ImageVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
@@ -16,7 +17,6 @@ from ._rewriting import GeometryVisual
 from ._rings import PhaseRingVisual
 from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
-from ._traits import TraitsVisual
 from ._visuals import BaseVisual
 
 VISUALS: dict[str, type[BaseVisual]] = {
@@ -25,13 +25,13 @@ VISUALS: dict[str, type[BaseVisual]] = {
     'cayley': CayleyVisual,
     'expectations': ExpectationVisual,
     'geometry': GeometryVisual,
+    'histograms': HistogramVisual,
     'image': ImageVisual,
     'mesh': MeshVisual,
     'phase_ring': PhaseRingVisual,
     'points': PointsVisual,
     'scalars': ScalarsVisual,
     'sites': SiteVisual,
-    'traits': TraitsVisual,
 }
 
 
@@ -56,7 +56,7 @@ def resolve_visual(spec: VisualSpec) -> BaseVisual:
 
 
 def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisual:
-    """Return the visual of an agent group: its declared agents visual, or the traits visual without a space.
+    """Return the visual of an agent group: its declared agents visual, or the histogram visual without a space.
 
     Args:
         agents:
@@ -75,11 +75,11 @@ def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisu
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('moran_process'))
         >>> type(agents_visual_of(problem.agents[0], problem)).__name__
-        'TraitsVisual'
+        'HistogramVisual'
     """
     visual = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
     if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
-        return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
+        return HistogramVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual

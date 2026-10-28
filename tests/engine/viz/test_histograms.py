@@ -1,4 +1,4 @@
-"""Test the visual of the traits of agents and of the states of groups without a space."""
+"""Test the histogram visual of the variables of agents and of the states of groups without a space."""
 
 from typing import Annotated
 
@@ -14,7 +14,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentSnapshot
-from skcomplex.engine.viz import AgentsVisual, RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
+from skcomplex.engine.viz import AgentsVisual, HistogramVisual, RerunObserver, agents_visual_of, default_blueprint
 from skcomplex.models import create
 
 
@@ -50,14 +50,14 @@ def _views(blueprint):
 def test_traits_visual_is_the_default_of_agents_without_space():
     """Test that agents without a space take the traits visual, and agents in a space keep the agents visual."""
     problem = compile_system(create('moran_process'))
-    assert isinstance(agents_visual_of(problem.agents[0], problem), TraitsVisual)
+    assert isinstance(agents_visual_of(problem.agents[0], problem), HistogramVisual)
     problem = compile_system(create('bonabeau_hierarchies', random_state=0))
-    assert not isinstance(agents_visual_of(problem.agents[0], problem), TraitsVisual)
+    assert not isinstance(agents_visual_of(problem.agents[0], problem), HistogramVisual)
 
 
 def test_traits_visual_logs_histogram_and_statistics(log_agents):
     """Test that a numeric trait logs a histogram, its mean, and its standard deviation."""
-    visual, logs = TraitsVisual(color_by='fitness'), Logs()
+    visual, logs = HistogramVisual(color_by='fitness'), Logs()
     snapshot = AgentSnapshot(np.arange(4), {'fitness': np.array([1.0, 1.0, 2.0, 4.0])})
     log_agents(visual, logs, 'population', [snapshot])
     histogram = logs.of('population/fitness/histogram')[0]
@@ -68,7 +68,7 @@ def test_traits_visual_logs_histogram_and_statistics(log_agents):
 
 def test_traits_visual_counts_collections(log_agents):
     """Test that a trait holding collections, such as the vocabularies of the naming game, logs their sizes."""
-    visual, logs = TraitsVisual(), Logs()
+    visual, logs = HistogramVisual(), Logs()
     words = np.empty(3, dtype=object)
     words[:] = [['a'], ['a', 'b'], ['a', 'b', 'c']]
     log_agents(visual, logs, 'namers', [AgentSnapshot(np.arange(3), {'words': words})])
@@ -96,7 +96,7 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
 
 def test_traits_visual_counts_distinct_integer_values(log_agents):
     """Test that an integer trait such as a genome label logs its number of distinct values."""
-    visual, logs = TraitsVisual(), Logs()
+    visual, logs = HistogramVisual(), Logs()
     snapshot = AgentSnapshot(np.arange(5), {'trait': np.array([3.0, 3.0, 17.0, 200.0, 17.0])})
     log_agents(visual, logs, 'organisms', [snapshot])
     assert logs.of('organisms/trait/distinct')[0].scalars.as_arrow_array().to_pylist() == [3.0]
@@ -104,7 +104,7 @@ def test_traits_visual_counts_distinct_integer_values(log_agents):
 
 def test_traits_visual_logs_each_agent_of_small_groups(log_agents):
     """Test that a group of at most ten agents logs every agent's trait as its own series, and larger ones do not."""
-    visual, logs = TraitsVisual(), Logs()
+    visual, logs = HistogramVisual(), Logs()
     log_agents(visual, logs, 'trials', [AgentSnapshot(np.arange(3), {'successes': np.array([1.0, 2.0, 0.0])})])
     assert logs.of('trials/successes/agents')[0].scalars.as_arrow_array().to_pylist() == [1.0, 2.0, 0.0]
     log_agents(visual, logs, 'crowd', [AgentSnapshot(np.arange(11), {'successes': np.ones(11)})])
@@ -114,20 +114,20 @@ def test_traits_visual_logs_each_agent_of_small_groups(log_agents):
 def test_traits_visual_shows_chosen_statistics_first():
     """Test that the first view shows the chosen statistics of the colored trait."""
     problem = compile_system(create('tangled_nature', organisms=20))
-    view = TraitsVisual(color_by='trait', shown=('distinct',)).prepare(problem.agents[0], problem).views_[0]
+    view = HistogramVisual(color_by='trait', shown=('distinct',)).prepare(problem.agents[0], problem).views_[0]
     assert view.contents == ['+ /organisms/trait/distinct']
 
 
 def test_traits_visual_can_show_the_histogram_first():
     """Test that a traits visual can put the histogram of its trait before its time series."""
     problem = compile_system(create('deffuant'))
-    views = TraitsVisual(color_by='opinion', histogram_first=True).prepare(problem.agents[0], problem).views_
+    views = HistogramVisual(color_by='opinion', histogram_first=True).prepare(problem.agents[0], problem).views_
     assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
 
 
 def test_traits_visual_totals_rows_of_numbers(log_agents):
     """Test that a trait holding a row of numbers per agent, such as an inventory of known words, logs its total."""
-    visual, logs = TraitsVisual(), Logs()
+    visual, logs = HistogramVisual(), Logs()
     words = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]])
     log_agents(visual, logs, 'namers', [AgentSnapshot(np.arange(3), {'words': words})])
     assert logs.of('namers/words/mean')[0].scalars.as_arrow_array().to_pylist() == [2.0]
@@ -145,7 +145,7 @@ def test_charbonneau_traffic_has_a_space_time_view():
     """Test that the cars of Charbonneau's traffic model keep the agents visual and get a space-time view."""
     problem = compile_system(create('charbonneau_traffic'))
     visual = agents_visual_of(problem.agents[0], problem)
-    assert not isinstance(visual, TraitsVisual)
+    assert not isinstance(visual, HistogramVisual)
     views = visual.prepare(problem.agents[0], problem).views_
     assert (type(views[0]).__name__, str(views[0].origin)) == ('TimeSeriesView', 'cars/x')
 
@@ -171,7 +171,7 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
             return [UpdateLaw(s.x, s.x + uniform('step', -1, 1))]
 
     walker = WalkerElement
-    visual = VisualSpec('traits', {'color_by': 'x', 'histogram_first': True})
+    visual = VisualSpec('histograms', {'color_by': 'x', 'histogram_first': True})
     system = System(elements=[GroupElement('walkers', element=walker, size=50, visual=visual)])
     views = [type(view).__name__ for view in _views(default_blueprint(compile_system(system)))]
     assert views[:2] == ['BarChartView', 'TimeSeriesView']

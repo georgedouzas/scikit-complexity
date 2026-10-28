@@ -48,7 +48,7 @@ def test_third_order_delay_follows_the_erlang_step_response():
 
 @pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
-    """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
+    """Test that delays and smoothings add one hidden state per stage that tends to the step."""
     trajectory = Simulation(System(elements=[DelayedElement('d', kind=kind)]), dt=1).run(80).trajectory_
     hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages

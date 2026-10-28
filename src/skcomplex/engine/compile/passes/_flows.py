@@ -1,4 +1,4 @@
-"""Compile the flows of stocks, conserved quantities, and system-dynamics delays of components."""
+"""Compile the transfers of conserved quantities between states, and the delays of components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,10 +7,10 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, cast
 
-from ...problems import Problem, StockFlow, VariableKind, declarations_of
+from ...problems import Problem, TransferNetwork, VariableKind, declarations_of
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
-from .._flows import StockFlowPass
+from .._flows import TransferPass
 from .._pipeline import BasePass
 
 
@@ -28,7 +28,7 @@ class ExpandFlowsPass(BasePass):
                 The compilation state.
         """
         declarations = cast('Declarations', compilation.layout)
-        flows = StockFlowPass(self._quantities_of(declarations.blocks))
+        flows = TransferPass(self._quantities_of(declarations.blocks))
         compilation.collected = [
             (spec, flows.expand(spec, list(laws)), block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
@@ -61,7 +61,7 @@ class LowerFlowsPass(BasePass):
     """Pass that checks the conserved quantities and lowers flows and delays into the laws of every spec, in place."""
 
     reads = ('lowered', 'layout', 'flows')
-    writes = ('lowered', 'stock_flow')
+    writes = ('lowered', 'transfer_network')
 
     def _run(self, compilation: Compilation) -> None:
         """Lower the flows and their delays.
@@ -70,20 +70,20 @@ class LowerFlowsPass(BasePass):
             compilation:
                 The compilation state.
         """
-        flows = cast('StockFlowPass', compilation.facts['flows'])
+        flows = cast('TransferPass', compilation.facts['flows'])
         lowered = cast('BlockLaws', compilation.lowered)
         declarations = cast('Declarations', compilation.layout)
-        compilation.facts['stock_flow'] = flows.lower([(spec, laws) for spec, laws, _ in lowered], declarations)
+        compilation.facts['transfer_network'] = flows.lower([(spec, laws) for spec, laws, _ in lowered], declarations)
 
 
 class FlowsProblemPass(BasePass):
-    """Pass that adds the quantities, flows, and records of the stock and flow structure to the problem."""
+    """Pass that adds the quantities, flows, and records of the transfer network to the problem."""
 
-    reads = ('problem', 'stock_flow')
+    reads = ('problem', 'transfer_network')
     writes = ('problem',)
 
     def _run(self, compilation: Compilation) -> None:
-        """Add the stock and flow structure to the problem.
+        """Add the transfer network to the problem.
 
         Args:
             compilation:
@@ -91,5 +91,5 @@ class FlowsProblemPass(BasePass):
         """
         compilation.problem = replace(
             cast('Problem', compilation.problem),
-            stock_flow=cast('StockFlow', compilation.facts['stock_flow']),
+            transfer_network=cast('TransferNetwork', compilation.facts['transfer_network']),
         )
