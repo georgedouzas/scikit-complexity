@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...core.errors import PipelineError
 from ...core.laws import BaseLaw
 from ...core.laws.utils import Call
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 from ._compilation import Compilation
 from ._issue import Issue
 

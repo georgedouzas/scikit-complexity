@@ -305,7 +305,7 @@ class EntropyAnalysis(BaseAnalysis):
         self.error_ = float((np.count_nonzero(law) - 1) / (2 * self.values_.shape[0] * np.log(2)))
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the entropy of every series or frame, or of every frame of an ensemble."""
         if self.kind == 'ensemble':
             return self._run_ensemble()

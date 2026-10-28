@@ -18,10 +18,10 @@ from ...core.specs import ObservableSpec
 from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
+from ..base import BaseEstimator
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..problems import BaseProblem, Entry, Form, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
-from ..utils import BaseEstimator
 from ._clocks import AsFastAsPossibleClock, BaseClock
 from ._conservation import InvariantObserver
 from ._frames import Frame

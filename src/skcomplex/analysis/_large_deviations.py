@@ -335,7 +335,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
         self.mean_ = float(np.sum(self.weights_ * self.observations_))
         self.effective_size_ = float(1 / np.sum(self.weights_**2))
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the estimate of the kind, and the rate function at the values."""
         if self.kind == 'histogram':
             self._run_histogram()

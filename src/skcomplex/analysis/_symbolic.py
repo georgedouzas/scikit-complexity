@@ -192,7 +192,7 @@ class SymbolicAnalysis(BaseAnalysis):
         self.problem_ = compiled_problem(problem, PURPOSES[self.kind])
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Derive the equations, their solution, the Hamiltonian, or the boundary flows."""
         if self.kind == 'equations':
             self.equations_ = self._equations_of_problem(self.problem_)

@@ -179,7 +179,7 @@ class NeighborAnalysis(BaseAnalysis):
         self.box_ = box
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the neighbour statistic of every frame."""
         if self.kind == 'like-share':
             shares = [

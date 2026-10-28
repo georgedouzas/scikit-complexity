@@ -255,7 +255,7 @@ class LyapunovAnalysis(BaseAnalysis):
             exponents = _flow_spectrum(f, jac, start, values, count, dt, steps, skip)
         return np.sort(np.asarray(exponents))[::-1]
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the spectrum with its dimension and entropy, or the largest exponent of every series."""
         if self.kind == 'largest':
             self.largest_exponent_ = np.asarray(

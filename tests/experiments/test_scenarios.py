@@ -13,7 +13,7 @@ def test_policy_changes_at_scheduled_time():
     """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
     scenarios = [Scenario('baseline'), Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
     experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.prepare().run().result_
+    result = experiment.check().prepare().run().result_
     baseline, quota = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 50], quota[times <= 50])
@@ -26,7 +26,7 @@ def test_schedule_keeps_the_initial_value_before_its_first_change():
     schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
     scenarios = [Scenario('baseline'), Scenario('late', schedule=schedule)]
     experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.prepare().run().result_
+    result = experiment.check().prepare().run().result_
     baseline, late = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 20], late[times <= 20])

@@ -15,9 +15,9 @@ from typing import Self
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
-from ..core.errors import AnalysisError, NotCheckedError, ValidationError
+from ..core.base import BaseConfig
+from ..core.errors import AnalysisError, ValidationError
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system, observables_of
@@ -181,7 +181,7 @@ class Signature:
     points: bool = False
 
 
-class BaseAnalysis(BaseEstimator, ABC):
+class BaseAnalysis(BaseConfig, ABC):
     """Base of every analysis: it stores its settings, checks them, prepares on a source, and runs.
 
     A child stores its settings in `__init__` and implements four hooks that the verbs call:
@@ -209,7 +209,7 @@ class BaseAnalysis(BaseEstimator, ABC):
         ...         self.series_ = self._read_series(source, self.variables)
         ...         return self
         ...
-        ...     def _run(self):
+        ...     def _run(self, inputs):
         ...         self.mean_ = self.series_.values.mean(axis=0)
         ...         return self
         >>> MeanAnalysis().check().prepare(np.array([1.0, 2.0, 3.0])).run().mean_.tolist()
@@ -260,7 +260,7 @@ class BaseAnalysis(BaseEstimator, ABC):
         """Read the data of the analysis from a source and set the attributes that end in `_`."""
 
     @abstractmethod
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the results of the analysis and set them as attributes that end in `_`."""
 
     @staticmethod
@@ -694,22 +694,7 @@ class BaseAnalysis(BaseEstimator, ABC):
             raise self._get_missing_error(source, 'network')
         return [space.graph] * len(source.times)
 
-    def check(self) -> Self:
-        """Validate the settings of the analysis and mark it as checked.
-
-        Returns:
-            analysis:
-                The analysis itself.
-
-        Raises:
-            AnalysisError:
-                A setting is invalid, named in the message.
-        """
-        self._check()
-        self._checked = True
-        return self
-
-    def prepare(self, source: Source) -> Self:
+    def prepare(self, source: Source = None) -> Self:
         """Read the data of the checked analysis from a source.
 
         Args:
@@ -724,14 +709,19 @@ class BaseAnalysis(BaseEstimator, ABC):
             NotCheckedError:
                 The analysis was not checked with `check`.
         """
-        if not getattr(self, '_checked', False):
-            raise NotCheckedError()
-        self._prepare(source)
+        super().prepare(source)
         self._prepared = True
         return self
 
-    def run(self) -> Self:
-        """Compute the results of the prepared analysis.
+    def run(self, inputs: object = None, final: bool = False) -> Self:
+        """Compute the results of the prepared analysis from the data it read.
+
+        Args:
+            inputs:
+                Nothing: an analysis computes from the source it was prepared on.
+
+            final:
+                Whether this is the last call.
 
         Returns:
             analysis:
@@ -744,7 +734,7 @@ class BaseAnalysis(BaseEstimator, ABC):
         if not getattr(self, '_prepared', False):
             error_msg = f'{type(self).__name__} must be prepared with a source before it runs. Call `prepare(source)`.'
             raise AnalysisError(error_msg)
-        return self._run()
+        return super().run(inputs, final)
 
     @staticmethod
     @cache

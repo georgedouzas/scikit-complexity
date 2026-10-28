@@ -266,7 +266,7 @@ class InformationAnalysis(BaseAnalysis):
         ]
         return whole - np.asarray(parts, dtype=float)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the information of every pair of series, of every series, or of all series together."""
         columns = self.symbols_
         if self.kind in PAIRWISE:

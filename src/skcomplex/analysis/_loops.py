@@ -367,7 +367,7 @@ class LoopAnalysis(BaseAnalysis):
         self.holders_ = tuple(holders)
         self.matrix_ = values
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Derive the loops, their dominance, or the flow matrix."""
         if self.kind == 'loops':
             self._run_loops()

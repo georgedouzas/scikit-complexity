@@ -285,7 +285,7 @@ class EmergenceAnalysis(BaseAnalysis):
         self.micro_uncertainty_ = self._conditional_entropy(future, self._lagged(x, self.history)) / scale
         self.gap_ = self.macro_uncertainty_ - self.micro_uncertainty_
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the emergence of the kind."""
         if self.kind == 'effective-information':
             information, determinism, degeneracy, states = self._effective_information(self.matrix_)

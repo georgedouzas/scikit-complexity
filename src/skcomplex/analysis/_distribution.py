@@ -221,7 +221,7 @@ class DistributionAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the description of the samples."""
         if self.kind == 'histogram':
             self.edges_, self.density_ = self._histogram(self.values_, self.bins, log=self.log)

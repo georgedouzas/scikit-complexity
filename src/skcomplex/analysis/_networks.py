@@ -178,7 +178,7 @@ class NetworkAnalysis(BaseAnalysis):
         self.components_ = [row['components'] for row in rows]
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the measure of every frame."""
         graphs = self.graphs_
         if self.kind == 'summary':

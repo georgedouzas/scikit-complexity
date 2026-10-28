@@ -131,7 +131,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         joint = self._log_probabilities(np.column_stack([x, y]), self.estimator)
         return joint - self._log_probabilities(x, self.estimator) - self._log_probabilities(y, self.estimator)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the local information of every series or of every pair of series."""
         columns = self.values_.T
         if self.kind == 'entropy':
