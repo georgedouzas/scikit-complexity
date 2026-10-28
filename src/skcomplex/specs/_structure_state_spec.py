@@ -16,7 +16,7 @@ class StructureStateSpec(BaseSpec):
 
     Args:
         structures:
-            A mapping from element path to its structure, such as a word, a patch, or a host graph.
+            A mapping from element path to its structure, such as a word or a patch.
 
         reporters:
             A mapping from dotted reporter name, such as `<path>.length`, to its value.

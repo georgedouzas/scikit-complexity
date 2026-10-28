@@ -4,15 +4,14 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Annotated
 
-import networkx as nx
 import numpy as np
 import pytest
 import shapely
 
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.core.elements import HostGraphElement, PatchElement, WordElement
+from skcomplex.core.elements import PatchElement, WordElement
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, SubstitutionLaw
+from skcomplex.core.laws import BaseLaw, ProductionLaw, SubstitutionLaw
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import RewritingCompiler, compile_system
@@ -108,37 +107,11 @@ class RuledPatchElement(PatchElement):
         return list(self.rules)
 
 
-class RuledHostGraphElement(HostGraphElement):
-    """Host graph rewritten by the rules it takes."""
-
-    def __init__(
-        self,
-        label: str,
-        graph: Annotated[nx.Graph | None, StateSpec(domain=None)] = None,
-        *,
-        max_size: int = 1_000_000,
-        rules: Sequence[BaseLaw] = (),
-    ) -> None:
-        super().__init__(label, graph, max_size=max_size)
-        self.rules = rules
-
-    def _get_laws(self, s):
-        """Return the rules."""
-        return list(self.rules)
-
-
 def _fibonacci():
     """Return the L-system of the algae of Lindenmayer."""
     return System(
         elements=[RuledWordElement('word', axiom='A', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
     )
-
-
-def _subdivision():
-    """Return the production that replaces an edge by a path of two edges."""
-    interface = nx.Graph()
-    interface.add_nodes_from('ab')
-    return GraphProductionLaw(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
 
 
 def test_generations_as_steps():
@@ -521,68 +494,6 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
         compile_system(System(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])]))
     with pytest.raises(RewritingError, match='at least one prototile'):
         compile_system(System(elements=[RuledPatchElement('empty')]))
-
-
-def test_edge_subdivision():
-    """Test that subdividing every edge of a 4-cycle three times gives a 32-cycle."""
-    system = System(elements=[RuledHostGraphElement('graph', graph=nx.cycle_graph(4), rules=[_subdivision()])])
-    trajectory = Simulation(system, random_state=0).check().run(until=3).trajectory_
-    assert trajectory.values('graph.size').tolist() == [4, 8, 16, 32]
-    assert nx.is_isomorphic(trajectory.structure('graph', 3).graph, nx.cycle_graph(32))
-
-
-def test_dangling_edge():
-    """Test that a match whose deleted node keeps an edge outside the match is not applied, and the others are."""
-    host = nx.Graph()
-    host.add_node('hub', label='X')
-    host.add_node('leaf', label='X')
-    host.add_node('other', label='Y')
-    host.add_edge('hub', 'other')
-    left = nx.Graph()
-    left.add_node('v', label='X')
-    production = GraphProductionLaw(left, nx.Graph(), nx.Graph())
-    trajectory = (
-        Simulation(System(elements=[RuledHostGraphElement('graph', graph=host, rules=[production])])).check()
-        .run(until=1)
-        .trajectory_
-    )
-    assert sorted(trajectory.structure('graph', 1).graph.nodes) == ['hub', 'other']
-    assert trajectory.values('graph.X').tolist() == [2, 1]
-
-
-def test_graph_rewriting_is_reproducible():
-    """Test that a seeded run orders matches reproducibly, and that directed graphs and labels are matched."""
-    host = nx.DiGraph()
-    host.add_edges_from([(0, 1), (1, 2), (2, 0)], label='e')
-    left = nx.DiGraph()
-    left.add_edge('a', 'b', label='e')
-    interface = nx.DiGraph()
-    interface.add_nodes_from('ab')
-    right = nx.DiGraph()
-    right.add_node('c', label='new')
-    right.add_edges_from([('a', 'c'), ('c', 'b')], label='f')
-    system = System(
-        elements=[RuledHostGraphElement('graph', graph=host, rules=[GraphProductionLaw(left, interface, right)])],
-    )
-    first = Simulation(system, random_state=1).check().run(until=2).trajectory_
-    second = Simulation(system, random_state=1).check().run(until=2).trajectory_
-    assert first.values('graph.new').tolist() == [0, 3, 3]
-    assert nx.utils.graphs_equal(first.structure('graph', 2).graph, second.structure('graph', 2).graph)
-    with pytest.raises(RewritingError, match='not nodes of both'):
-        compile_system(
-            System(
-                elements=[RuledHostGraphElement('graph', graph=host, rules=[GraphProductionLaw(left, right, right)])],
-            ),
-        )
-
-
-def test_graph_size_guard():
-    """Test that a host graph that would exceed its maximum size raises the rewriting error."""
-    system = System(
-        elements=[RuledHostGraphElement('graph', graph=nx.cycle_graph(4), max_size=10, rules=[_subdivision()])],
-    )
-    with pytest.raises(RewritingError, match='would reach 16 nodes at generation 2'):
-        Simulation(system).check().run(until=3)
 
 
 def test_rewriting_compiler_claims_rewriting_systems():

@@ -32,7 +32,6 @@ from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
 from ._frame_spec import FrameSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
-from ._graph_structure_spec import GraphStructureSpec
 from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
 from ._issue_spec import IssueSpec
@@ -151,7 +150,6 @@ __all__ = [
     'FractionalStateSpec',
     'FrameSpec',
     'GeometrySpec',
-    'GraphStructureSpec',
     'HeadingSpec',
     'HilbertSpec',
     'IssueSpec',

@@ -1,4 +1,4 @@
-"""Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
+"""Pass that compiles a system of words or patches into a problem of the rewriting form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 
-from ....core.elements import Element, GroupElement, HostGraphElement, PatchElement, WordElement
-from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
+from ....core.elements import Element, GroupElement, PatchElement, WordElement
+from ....core.laws import ProductionLaw, SubstitutionLaw
 from ....core.system import System
 from ....errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ....specs import (
@@ -28,7 +28,6 @@ from ....specs import (
 from ....specs._rewriting_problem_spec import Compiled
 from ....types import FormKind, VariableKind
 from ..._utils import declarations_of, symbol
-from ...problems._graph_kernel import GraphKernel
 from ...problems._patch_kernel import PatchKernel
 from ...problems._word_kernel import WordKernel
 from .._base import BaseCompiler
@@ -36,20 +35,20 @@ from ._flatten import FlattenPass
 from ._layout import LayoutPass
 from ._problem import ProblemPass
 
-_LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
+_LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw}
 
 
-_PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw, GraphProductionLaw)
+_PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw)
 
 
-_STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling', HostGraphElement: 'graph'}
+_STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling'}
 
 
-type Production = ProductionLaw | SubstitutionLaw | GraphProductionLaw
+type Production = ProductionLaw | SubstitutionLaw
 
 
 class RewritingCompiler(BaseCompiler):
-    """Compiler of a system of words, patches, or host graphs into a problem of the rewriting form.
+    """Compiler of a system of words or patches into a problem of the rewriting form.
 
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 
@@ -62,7 +61,7 @@ class RewritingCompiler(BaseCompiler):
     """
 
     def _claims(self, system: System) -> bool:
-        """Check whether a system holds a word, a patch, or a host graph.
+        """Check whether a system holds a word or a patch.
 
         Args:
             system:
@@ -110,7 +109,7 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _is_rewriting(system: System) -> bool:
-        """Check whether a system holds a word, a patch, or a host graph.
+        """Check whether a system holds a word or a patch.
 
         Args:
             system:
@@ -131,13 +130,13 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
-        """Return the checked productions, substitutions, or graph productions of a word, a patch, or a host graph."""
+        """Return the checked productions or substitutions of a word or a patch."""
         laws = node.component.run(namespace)
         wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
-                f'{node.path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word, a patch, or a host graph '
-                'changes by its productions only. Return ProductionLaw, SubstitutionLaw, or GraphProductionLaw laws.'
+                f'{node.path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word or a patch '
+                'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
         return [law.check() for law in laws]
@@ -179,7 +178,7 @@ class RewritingCompiler(BaseCompiler):
         element = node.component
         kind = RewritingCompiler._structure_of(type(element))
         if kind is None:
-            error_msg = f'{node.path} holds no sequence, tiling, or graph that rewriting laws rewrite.'
+            error_msg = f'{node.path} holds no sequence or tiling that rewriting laws rewrite.'
             raise ValidationError(error_msg)
         expected = _LAWS_OF[kind]
         wrong = [law for law in laws if not isinstance(law, expected)]
@@ -196,14 +195,12 @@ class RewritingCompiler(BaseCompiler):
                 parameters,
                 values,
             ).check()
-        if kind == 'tiling':
-            return PatchKernel(
-                node.path,
-                element,
-                [law for law in laws if isinstance(law, SubstitutionLaw)],
-                parameters,
-            ).check()
-        return GraphKernel(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)]).check()
+        return PatchKernel(
+            node.path,
+            element,
+            [law for law in laws if isinstance(law, SubstitutionLaw)],
+            parameters,
+        ).check()
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:
@@ -214,7 +211,7 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _compile_rewriting(system: System) -> 'RewritingProblemSpec':
-        """Compile a system of words, patches, or host graphs, each rewritten by the rewriting laws it returns.
+        """Compile a system of words or patches, each rewritten by the rewriting laws it returns.
 
         Args:
             system:
@@ -229,8 +226,8 @@ class RewritingCompiler(BaseCompiler):
                 The system has elements or interactions that do not take part in rewriting.
 
             RewritingError:
-                A rewritten element returns a law that is not a rewriting law, or a production, substitution, or graph
-                production is malformed.
+                A rewritten element returns a law that is not a rewriting law, or a production or a substitution is
+                malformed.
 
         Examples:
             >>> from skcomplex.core.spaces import DiscreteTime
@@ -257,7 +254,7 @@ class RewritingCompiler(BaseCompiler):
                 raise RewritingError(error_msg)
             if node.path not in elements:
                 error_msg = (
-                    f'{node.path} takes no part in rewriting, but its system holds words, patches, or host graphs. A '
+                    f'{node.path} takes no part in rewriting, but its system holds words or patches. A '
                     'rewriting system holds only rewritten elements, which rewrite themselves by their laws.'
                 )
                 raise IncompatibleLawsError(error_msg)

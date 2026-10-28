@@ -50,7 +50,7 @@ class FrameSpec(BaseSpec):
             The events, relaxations, and renewals since the previous frame, in order.
 
         structures:
-            A mapping from the path of a rewritten element to its word, patch, or host graph at this frame.
+            A mapping from the path of a rewritten element to its word or patch at this frame.
     """
 
     step: int

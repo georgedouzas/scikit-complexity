@@ -62,8 +62,8 @@ def test_koch_curve_in_rerun(tmp_path):
     assert str(view.origin) == 'koch'
 
 
-def test_filled_and_graph_visuals(tmp_path):
-    """Test that a filled patch, outlines, and a host graph are logged."""
+def test_filled_and_outlined_visuals(tmp_path):
+    """Test that a filled patch and its outlines are logged."""
     for name, options in [('sierpinski_substitution', {}), ('sierpinski_substitution', {'filled': False})]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
         Simulation(create(name, **options), observers=[observer]).check().run(until=3)

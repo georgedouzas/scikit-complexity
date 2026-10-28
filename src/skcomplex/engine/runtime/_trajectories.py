@@ -271,7 +271,7 @@ class Trajectory:
         return topology.read_network(self.parameters[frame], nodes, layer)
 
     def structure(self, path: str, frame: int) -> Any:  # noqa: ANN401
-        """Return the word, patch, or host graph of a rewritten element at a frame.
+        """Return the word or patch of a rewritten element at a frame.
 
         Args:
             path:

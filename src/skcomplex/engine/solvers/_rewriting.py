@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
+from ...core.laws import ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...specs import RewritingProblemSpec, RunStateSpec, StructureStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
@@ -18,7 +18,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
 
     The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
-    sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
+    sizes. Stochastic productions draw from the simulation's random stream.
 
     Examples:
         >>> from skcomplex.core.spaces import DiscreteTime
@@ -42,7 +42,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         return SupportSpec(
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={ProductionLaw, SubstitutionLaw, GraphProductionLaw},
+            laws={ProductionLaw, SubstitutionLaw},
             orders={OrderKind.INTEGER},
         )
 

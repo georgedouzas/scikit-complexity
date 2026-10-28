@@ -4,7 +4,6 @@ from ._base import BaseElement
 from ._element import Element
 from ._field import FieldElement
 from ._group import GroupElement
-from ._host_graph import HostGraphElement
 from ._lattice import LatticeElement
 from ._particle import ParticleElement
 from ._patch import PatchElement
@@ -15,7 +14,6 @@ __all__: list[str] = [
     'Element',
     'FieldElement',
     'GroupElement',
-    'HostGraphElement',
     'LatticeElement',
     'ParticleElement',
     'PatchElement',

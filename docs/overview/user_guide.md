@@ -1529,7 +1529,7 @@ visuals are parts of the engine, beside those of every other kind.
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
 | lattices | `LocalRuleLaw`, `DriveLaw`, `RelaxationLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
-| rewriting | `ProductionLaw`, `SubstitutionLaw`, `GraphProductionLaw`, `WordElement`, `PatchElement`, `HostGraphElement` | a system compiler, `RewritingSolver` |
+| rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | a system compiler, `RewritingSolver` |
 | quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
@@ -3505,16 +3505,14 @@ print(int(Simulation(coins, random_state=0).check().run(until=10).trajectory_.ag
 ## Rewriting systems
 
 A rewriting system grows by replacing its parts in parallel: a `WordElement` by string productions in the style of
-L-systems, a `PatchElement` of tiles by affine substitutions, and a `HostGraphElement` by double-pushout graph
-productions. It
-compiles to the rewriting form, every step is one generation, and `run(until=n)` records the generations `0` to `n`.
-The structure lives next to the state vector, whose states are the count of every symbol, prototile, or node label
-that is a word, and the size `<element>.size`. `Trajectory.structure(path, frame)` returns the recorded structure,
+L-systems, and a `PatchElement` of tiles by affine substitutions. It compiles to the rewriting form, every step is one
+generation, and `run(until=n)` records the generations `0` to `n`. The structure lives next to the state vector, whose
+states are the count of every symbol or prototile that is a word, and the size `<element>.size`. `Trajectory.structure(path, frame)` returns the recorded structure,
 which later generations do not change.
 
 ### Words and productions
 
-A word, a patch, or a host graph rewrites itself by the rewriting laws it returns from `_get_laws`: a
+A word or a patch rewrites itself by the rewriting laws it returns from `_get_laws`: a
 `ProductionLaw` for every rule of a word, and every generation applies all the productions of an element at once.
 Strings are words of one-character symbols, and `ModuleSpec` gives a symbol parameters.
 
@@ -3618,35 +3616,7 @@ print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).check().prepare(g
 ```
 
 The `geometry` visual logs segments and outlines as line strips, a patch with `filled=True` as an image of its raster,
-and a host graph as graph nodes and edges, in the bounds the element declares or that its first tiles give.
-
-### Graph rewriting
-
-A `GraphProductionLaw` gives a left graph, an interface, and a right graph that share nodes by name, and matches by
-their `label` attributes. Every generation applies it at a maximal set of parallel independent matches, chosen in an
-order drawn from the random stream, and skips matches whose deleted nodes would leave dangling edges.
-
-```python
-import networkx as nx
-
-from skcomplex.core.elements import HostGraphElement
-from skcomplex.core.laws import GraphProductionLaw
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-
-interface = nx.Graph()
-interface.add_nodes_from('ab')
-subdivide = GraphProductionLaw(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
-
-
-class RingElement(HostGraphElement):
-    def _get_laws(self, s):
-        return [subdivide]
-
-
-ring = System(elements=[RingElement('ring', graph=nx.cycle_graph(4))])
-print(Simulation(ring, random_state=0).check().run(until=3).trajectory_.values('ring.size').tolist())
-```
+in the bounds the element declares or that its first tiles give.
 
 ## Quantum systems
 

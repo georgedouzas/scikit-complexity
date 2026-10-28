@@ -1,9 +1,8 @@
-"""Draw the words, patches, and host graphs of rewriting systems as Rerun archetypes."""
+"""Draw the words and patches of rewriting systems as Rerun archetypes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -17,7 +16,6 @@ from ...specs import (
     CompiledAgentsSpec,
     CompiledElementSpec,
     FrameSpec,
-    GraphStructureSpec,
     PatchStructureSpec,
     WordStructureSpec,
 )
@@ -33,8 +31,8 @@ class GeometryVisual(BaseVisual):
     """Visual that logs the structure of a rewritten element at every frame, in a frame fixed across generations.
 
     Word segments, segment tiles, and polygon outlines are one batch of line strips, colored by branch depth or by
-    prototile. A filled patch is an image of its raster instead. A host graph is logged as graph nodes and edges. The
-    counts of symbols, prototiles, or labels are logged as series under `<path>/counts/<state>`.
+    prototile. A filled patch is an image of its raster instead. The counts of symbols or prototiles are logged as
+    series under `<path>/counts/<state>`.
 
     Args:
         filled:
@@ -90,14 +88,6 @@ class GeometryVisual(BaseVisual):
         structure = frame.structures.get(element.path)
         if structure is None:
             return
-        if isinstance(structure, GraphStructureSpec):
-            nodes = [str(node) for node in structure.graph.nodes]
-            labels = [str(label) for _, label in structure.graph.nodes(data='label', default='')]
-            recording.log(element.path, rr.GraphNodes(nodes, labels=labels))
-            edges = [(str(first), str(second)) for first, second in structure.graph.edges]
-            kind: Literal['directed', 'undirected'] = 'directed' if structure.graph.is_directed() else 'undirected'
-            recording.log(element.path, rr.GraphEdges(edges, graph_type=kind))
-            return
         if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
             grid = structure.raster(self.resolution, self._bounds_of(element))
             pixels = np.where(grid[..., None], _FILL, _BACKGROUND).astype(np.uint8)
@@ -121,7 +111,7 @@ class GeometryVisual(BaseVisual):
 
         Returns:
             views:
-                A graph view for a host graph, a 3D view for a word geometry in three dimensions, or a 2D view
+                A 3D view for a word geometry in three dimensions, or a 2D view
                 otherwise, followed by the time series view.
 
         Examples:
@@ -145,8 +135,6 @@ class GeometryVisual(BaseVisual):
         path = element.path
         series = rrb.TimeSeriesView(origin=f'{path}/counts', name=f'{path} counts')
         component = element.element
-        if not isinstance(component, WordElement | PatchElement):
-            return [rrb.GraphView(origin=path, name=path), series]
         geometry = component.geometry if isinstance(component, WordElement) else None
         if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]

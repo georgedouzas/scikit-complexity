@@ -11,11 +11,10 @@ from typing import TYPE_CHECKING
 from ._base_problem_spec import BaseProblemSpec
 
 if TYPE_CHECKING:
-    from ..engine.problems._graph_kernel import GraphKernel
     from ..engine.problems._patch_kernel import PatchKernel
     from ..engine.problems._word_kernel import WordKernel
 
-type Compiled = WordKernel | PatchKernel | GraphKernel
+type Compiled = WordKernel | PatchKernel
 
 
 @dataclass(frozen=True)
@@ -24,7 +23,7 @@ class RewritingProblemSpec(BaseProblemSpec):
 
     Args:
         rewriting:
-            The compiled rewriting systems of the words, patches, and host graphs.
+            The compiled rewriting systems of the words and patches.
     """
 
     rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
