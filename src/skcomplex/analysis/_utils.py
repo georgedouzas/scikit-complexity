@@ -1,14 +1,93 @@
-"""Share the input checks of the analysis functions."""
+"""Share the input checks of the analyses: real values, sample columns, kinds with their settings, and systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import BaseEstimator
 
-from ..core.errors import ValidationError
+from ..core.errors import AnalysisError, ValidationError
+from ..core.system import System
+from ..engine.problems import BaseProblem
+from ..engine.runtime import Trajectory
+
+
+def _is_default(value: object, default: object) -> bool:
+    """Check whether a setting holds its default, comparing arrays by their values."""
+    if value is default:
+        return True
+    if value is None or default is None:
+        return False
+    try:
+        return bool(np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object)))
+    except (TypeError, ValueError):
+        return False
+
+
+def check_kind(analysis: BaseEstimator, kinds: tuple[str, ...], settings: Mapping[str, set[str]]) -> None:
+    """Raise an error for an unknown kind, or for a setting changed from its default that the kind does not read.
+
+    Args:
+        analysis:
+            The analysis, whose `kind` setting picks one of the kinds.
+
+        kinds:
+            The kinds the analysis takes.
+
+        settings:
+            The settings every kind reads, besides `kind`.
+
+    Raises:
+        AnalysisError:
+            The kind is unknown, or a changed setting is not read by the kind.
+    """
+    name = type(analysis).__name__
+    params = analysis.get_params()
+    kind = params['kind']
+    if kind not in kinds:
+        error_msg = f'{name} has kind={kind!r}. Use one of {", ".join(kinds)}.'
+        raise AnalysisError(error_msg)
+    signature = inspect.signature(type(analysis).__init__).parameters
+    read = settings[kind] | {'kind'}
+    ignored = [
+        key for key, value in params.items() if key not in read and not _is_default(value, signature[key].default)
+    ]
+    if ignored:
+        error_msg = (
+            f'{name} of kind {kind!r} does not read {", ".join(ignored)}. It reads '
+            f'{", ".join(sorted(settings[kind])) or "no other setting"}.'
+        )
+        raise AnalysisError(error_msg)
+
+
+def system_of(source: object) -> System | BaseProblem:
+    """Return the system or the problem of a source: the problem of a trajectory, and a system or a problem as it is.
+
+    Args:
+        source:
+            A system, a problem compiled from one, or a trajectory.
+
+    Returns:
+        system:
+            The system, or the problem.
+
+    Raises:
+        AnalysisError:
+            The source is not a system, a problem, or a trajectory.
+    """
+    if isinstance(source, Trajectory):
+        return source.problem
+    if isinstance(source, System | BaseProblem):
+        return source
+    error_msg = (
+        f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
+    )
+    raise AnalysisError(error_msg)
 
 
 def real_array(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:

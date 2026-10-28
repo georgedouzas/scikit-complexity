@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....analysis import linearize, lqr
+from ....analysis import LinearizationAnalysis
 from ....core.elements import Element
 from ....core.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
@@ -272,8 +272,8 @@ def lqr_oscillator(
     """Return a harmonic oscillator that a linear-quadratic regulator brings to rest.
 
     The gain `K` of the regulator minimises `∫ (q (x^2 + x'^2) + r force^2) dt` for the linearisation of the
-    oscillator, which `lqr` computes from the Riccati equation, and the state feedback sets `force = -K (x, x')`. A
-    smaller weight `r` of the force gives a larger gain and a faster return to rest.
+    oscillator, which `LinearizationAnalysis` computes from the Riccati equation, and the state feedback sets
+    `force = -K (x, x')`. A smaller weight `r` of the force gives a larger gain and a faster return to rest.
 
     Args:
         x:
@@ -302,9 +302,10 @@ def lqr_oscillator(
         [2.317, 3.825]
     """
     oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
-    model = linearize(System(elements=[oscillator]), controls=['oscillator.force'])
-    gain = lqr(model.A, model.B, q * np.eye(len(model.states)), [[r]])
-    states = tuple(name.removeprefix('oscillator.') for name in model.states)
+    model = LinearizationAnalysis(['oscillator.force'], state_weights=q * np.eye(2), control_weights=[[r]])
+    model.check().prepare(System(elements=[oscillator])).run()
+    gain = model.gain_
+    states = tuple(name.removeprefix('oscillator.') for name in model.states_)
     regulator = StateFeedbackInteraction(
         'regulator',
         plant='oscillator',

@@ -6,20 +6,7 @@ from sage.all__sagemath_gap import PermutationGroup
 from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
-from skcomplex.analysis import (
-    Automaton,
-    LinearAutomaton,
-    Subshift,
-    compose,
-    configuration_entropy,
-    difference_pattern,
-    garden_of_eden,
-    inverse,
-    is_injective,
-    is_pre_injective,
-    is_surjective,
-    spatial_entropy_rates,
-)
+from skcomplex.analysis import Automaton, AutomatonAnalysis, EntropyAnalysis, LinearAutomaton, Subshift
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
@@ -33,6 +20,11 @@ from skcomplex.core.spaces import (
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2
+
+
+def _automaton(kind, source, **settings):
+    """Return the automaton analysis of a model for one kind, run."""
+    return AutomatonAnalysis(kind, **settings).check().prepare(source).run()
 
 
 def _elementary(number, size):
@@ -50,39 +42,38 @@ def _cycle(size):
 def test_life_is_not_surjective_with_a_garden_of_eden():
     """Test that Life on a 6 x 6 torus is not surjective and that the found configuration has no preimage."""
     life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), LIFE)
-    assert not is_surjective(life, method='sat')
-    eden = garden_of_eden(life, random_state=0)
+    assert not _automaton('surjective', life, method='sat').surjective_
+    eden = _automaton('garden-of-eden', life, random_state=0).pattern_
     assert eden is not None
-    assert garden_of_eden(life, window=range(36), tries=1, random_state=0) is not None
+    assert _automaton('garden-of-eden', life, window=range(36), tries=1, random_state=0).pattern_ is not None
 
 
 def test_enumeration_and_sat_agree():
     """Test that enumeration and SAT decide injectivity and pre-injectivity alike on small rings."""
     for number in (15, 30, 90, 170, 204):
         automaton = _elementary(number, 8)
-        assert is_injective(automaton, method='enumeration') == is_injective(automaton, method='sat'), number
+        enumerated = _automaton('injective', automaton, method='enumeration').injective_
+        assert enumerated == _automaton('injective', automaton, method='sat').injective_, number
         window = [2, 3]
-        assert is_pre_injective(automaton, window, method='enumeration') == is_pre_injective(
-            automaton,
-            window,
-            method='sat',
-        ), number
+        enumerated = _automaton('pre-injective', automaton, window=window, method='enumeration').pre_injective_
+        assert enumerated == _automaton('pre-injective', automaton, window=window, method='sat').pre_injective_, number
 
 
 def test_enumeration_limit_raises():
     """Test that enumeration of too many configurations raises an error that names the SAT method."""
     with pytest.raises(AnalysisError, match='SAT method'):
-        is_injective(_elementary(30, 40), method='enumeration')
+        _automaton('injective', _elementary(30, 40), method='enumeration')
 
 
 def test_inverse_of_the_shift_is_the_opposite_shift():
     """Test that the inverse of the shift reads the other neighbour, and that their composition is the identity."""
     shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
-    back = inverse(shift, max_radius=1)
+    back = _automaton('inverse', shift, max_radius=1).inverse_
     configuration = np.random.default_rng(0).integers(2, size=8)
     np.testing.assert_array_equal(back.step(configuration), np.roll(configuration, 1))
-    np.testing.assert_array_equal(compose(shift, back).step(configuration), configuration)
-    assert inverse(_elementary(30, 8)) is None
+    composition = _automaton('compose', shift, second=back).composition_
+    np.testing.assert_array_equal(composition.step(configuration), configuration)
+    assert _automaton('inverse', _elementary(30, 8)).inverse_ is None
 
 
 def test_inverse_on_a_group_space():
@@ -90,7 +81,7 @@ def test_inverse_on_a_group_space():
     space = _cycle(6)
     rotation = Automaton(space, MemoryNeighborhood(('a',)), Table({(1,): 1}))
     configuration = np.array([1, 0, 0, 1, 1, 0])
-    back = inverse(rotation, max_radius=1)
+    back = _automaton('inverse', rotation, max_radius=1).inverse_
     np.testing.assert_array_equal(back.step(rotation.step(configuration)), configuration)
 
 
@@ -101,8 +92,8 @@ def test_laplacian_over_gf2_matches_its_circulant():
     column = np.zeros(5, dtype=int)
     column[[1, 4]] = 1
     expected = matrix(GF(2), circulant(column).tolist()).is_invertible()
-    assert laplacian.is_invertible() == expected
-    assert laplacian.is_surjective() == expected
+    assert _automaton('injective', laplacian).injective_ == expected
+    assert _automaton('surjective', laplacian).surjective_ == expected
     configuration = np.array([1, 0, 0, 1, 0])
     neighbours = space.prepare()._index_table(MemoryNeighborhood(('a^-1', 'a')))
     np.testing.assert_array_equal(laplacian.step(configuration), configuration[neighbours].sum(axis=1) % 2)
@@ -111,12 +102,12 @@ def test_laplacian_over_gf2_matches_its_circulant():
 def test_linear_automaton_on_the_integers():
     """Test that rule 90 is surjective but not invertible on Z, and the identity plus shift over QQ likewise."""
     rule90 = LinearAutomaton(LatticeSpace(7), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
-    assert rule90.is_surjective(infinite=True)
-    assert rule90.is_pre_injective(infinite=True)
-    assert not rule90.is_invertible(infinite=True)
+    assert _automaton('surjective', rule90, infinite=True).surjective_
+    assert _automaton('pre-injective', rule90, infinite=True).pre_injective_
+    assert not _automaton('injective', rule90, infinite=True).injective_
     shift = LinearAutomaton(LatticeSpace(7), LatticeNeighborhood(((1,),)), (2,), 'QQ')
-    assert shift.is_invertible(infinite=True)
-    assert shift.is_invertible()
+    assert _automaton('injective', shift, infinite=True).injective_
+    assert _automaton('injective', shift).injective_
 
 
 def test_golden_mean_shift_counts_follow_fibonacci():
@@ -124,7 +115,8 @@ def test_golden_mean_shift_counts_follow_fibonacci():
     golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
     counts = [golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 11)]
     assert counts == [2, 3, 5, 8, 13, 21, 34, 55, 89, 144]
-    entropies = configuration_entropy(golden, [LatticeSpace(length, boundary='fixed') for length in (10, 16, 22)])
+    windows = [LatticeSpace(length, boundary='fixed') for length in (10, 16, 22)]
+    entropies = _automaton('entropy', golden, windows=windows).entropy_
     assert np.all(np.diff(entropies) < 0)
     assert entropies[-1] == pytest.approx(np.log2(GOLDEN_RATIO), abs=0.02)
 
@@ -143,9 +135,9 @@ def test_golden_mean_shift_samples_admissible_configurations():
 def test_configuration_entropy_of_an_automaton_image():
     """Test that the image of a surjective rule has full entropy and that of the majority rule less."""
     windows = [LatticeSpace(12, boundary='fixed')]
-    assert configuration_entropy(_elementary(90, 12), windows)[0] == pytest.approx(1.0)
+    assert _automaton('entropy', _elementary(90, 12), windows=windows).entropy_[0] == pytest.approx(1.0)
     majority = Automaton(LatticeSpace(12), BoxNeighborhood(), Totalistic({2: 1, 3: 1}))
-    assert configuration_entropy(majority, windows)[0] < 0.9
+    assert _automaton('entropy', majority, windows=windows).entropy_[0] < 0.9
 
 
 def test_spatial_entropy_rate_does_not_increase():
@@ -156,7 +148,7 @@ def test_spatial_entropy_rate_does_not_increase():
     """
     rule = _elementary(18, 20000)
     runs = rule.run(np.random.default_rng(0).integers(2, size=20000), 20)
-    rates = spatial_entropy_rates(runs, 6)
+    rates = EntropyAnalysis('rate', dimension=6).check().prepare(runs.T).run().entropy_
     assert np.diff(rates).max() < 0.03
     assert rates[-1] < rates[0] - 0.2
 
@@ -164,8 +156,17 @@ def test_spatial_entropy_rate_does_not_increase():
 def test_difference_pattern_spreads_at_the_speed_of_light():
     """Test that a flip under rule 30 spreads at most one cell per step on each side."""
     rule = _elementary(30, 41)
-    differences = difference_pattern(rule, np.zeros(41, dtype=int), 20, 10)
+    differences = _automaton('difference', rule, configuration=np.zeros(41, dtype=int), site=20, steps=10).differences_
     widths = differences.sum(axis=1)
     assert widths[0] == 1
     assert (widths <= 2 * np.arange(11) + 1).all()
     assert widths[-1] > 5
+
+
+def test_kind_reads_its_model():
+    """Test that a subshift is rejected by a decision, and a setting another kind reads by the check."""
+    golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+    with pytest.raises(AnalysisError, match='reads a Automaton or a LinearAutomaton'):
+        AutomatonAnalysis().check().prepare(golden)
+    with pytest.raises(AnalysisError, match='does not read tries'):
+        AutomatonAnalysis(tries=3).check()

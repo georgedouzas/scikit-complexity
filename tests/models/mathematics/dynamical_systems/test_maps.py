@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.models import run
 from skcomplex.models.mathematics.dynamical_systems import (
     baker_map,
@@ -62,7 +62,7 @@ def test_baker_map_leaves_a_gap_when_it_contracts():
 
 def test_towel_map_is_hyperchaotic():
     """Test that Rössler's towel map has two positive Lyapunov exponents."""
-    exponents = lyapunov_spectrum(towel_map(), until=5000)
+    exponents = LyapunovAnalysis(until=5000).check().prepare(towel_map()).run().exponents_
     assert exponents[1] > 0.1
     assert exponents[2] < 0
 

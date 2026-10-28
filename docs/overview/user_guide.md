@@ -313,8 +313,9 @@ print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumElement, 'theta_d1'
 - Difference equations keep past values with `lags`. `lag(x, j)` reads the value `j` steps before the current one, and
   an update law gives the next value, so `UpdateLaw(s.x, s.x + lag(s.x, 1))` with one lag is the Fibonacci recurrence.
 
-`equations_of` returns these equations in the order they were written, and `solve_symbolically` takes the initial
-values of every derivative and returns a solution only when it has a closed form.
+`SymbolicAnalysis('equations')` returns these equations in the order they were written, and
+`SymbolicAnalysis('solve')` takes the initial values of every derivative and returns a solution only when it has a
+closed form.
 
 ## Composing systems
 
@@ -859,8 +860,9 @@ time is not continuous (`fractional-time`), a chosen solver or backend that does
 
 `mittag_leffler(alpha, beta, z)` evaluates the two-parameter Mittag-Leffler function. It sums the power series in
 arbitrary precision with Sage for moderate arguments and takes the asymptotic expansion for large ones.
-`solve_symbolically` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`, written
-with the symbolic function `mittag_leffler`, and `equations_of` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
+`SymbolicAnalysis('solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`,
+written with the symbolic function `mittag_leffler`, and `SymbolicAnalysis('equations')` writes a Caputo derivative as
+`caputo(x(t), t, alpha)`.
 
 The order belongs to the element type, so a sweep over orders builds one system per order. The library has these
 models ready in fractional dynamics, each with the order as an argument: `fractional_relaxation`,
@@ -1011,20 +1013,21 @@ print(round(float(trajectory.values('crowd.birth_rate')[-1]), 3))
 ```
 
 A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
-`conservation(system)` returns the net inflow of every quantity from the environment, after checking that the internal
-flows cancel. The compiler accumulates that inflow in the hidden state `__boundary.<quantity>`, and the observer
-`ConservationObserver` checks at every frame that each total changed only by it. `flow_matrix(trajectory, frame)` is
-the transaction-flow matrix of a frame, one row per flow and one column per holder, whose rows sum to zero.
+`SymbolicAnalysis('conservation')` returns the net inflow of every quantity from the environment, after checking that
+the internal flows cancel. The compiler accumulates that inflow in the hidden state `__boundary.<quantity>`, and the
+observer `ConservationObserver` checks at every frame that each total changed only by it.
+`LoopAnalysis('flow-matrix', frame=frame)` gives the transaction-flow matrix of a frame of a trajectory, one row per
+flow and one column per holder, whose rows sum to zero.
 
 ```python continuation
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.analysis import conservation, flow_matrix
+from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.engine.runtime import ConservationObserver
 
-print(conservation(crowd))
+print(SymbolicAnalysis('conservation').check().prepare(crowd).run().inflows_)
 monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).run(until=10).trajectory_
-print(flow_matrix(monitored, -1).values.sum(axis=1))
+print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(axis=1))
 ```
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order, hidden stocks in series whose
@@ -1033,16 +1036,18 @@ outflow it returns, and with `conserved=False` an information smoothing. It adds
 equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
 realizations in `skcomplex.models.engineering.processes`.
 
-`loops(system)` derives the signed dependency graph of states and flows from the laws, and lists its
-feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
+`LoopAnalysis('loops')` derives the signed dependency graph of states and flows of a system from the laws, and lists
+its feedback loops with their polarity, and `LoopAnalysis('dominance')` ranks the loops by their gains at every frame
+of a trajectory.
 
 ```python continuation
-from skcomplex.analysis import loop_dominance, loops
+from skcomplex.analysis import LoopAnalysis
 
-for loop in loops(crowd).loops:
-    print(loop.polarity, ' -> '.join(loop.nodes))
-dominance = loop_dominance(trajectory)
-print(dominance.loops[int(dominance.dominant[-1])].polarity)
+analysis = LoopAnalysis().check().prepare(crowd).run()
+for nodes, polarity in zip(analysis.loops_, analysis.polarities_, strict=True):
+    print(polarity, ' -> '.join(nodes))
+dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
+print(dominance.polarities_[int(dominance.dominant_[-1])])
 ```
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
@@ -1206,10 +1211,11 @@ them.
 
 ### Linear analysis
 
-`linearize(system, controls, outputs, at)` returns the state-space matrices `A`, `B`, `C`, and `D` of a system under
-continuous time near an operating point, from its symbolic Jacobians, with the controls named by their adaptive
-parameters. `controllability(A, B)` and `observability(A, C)` return the ranks of the Kalman matrices, and
-`lqr(A, B, Q, R)` returns the gain of the linear-quadratic regulator from SciPy's solution of the Riccati equation.
+`LinearizationAnalysis(controls, outputs, at)` finds the state-space matrices `A_`, `B_`, `C_`, and `D_` of a system
+under continuous time near an operating point, from its symbolic Jacobians, with the controls named by their adaptive
+parameters. Its `controllability_` and `observability_` are the ranks of the Kalman matrices, and with the weights
+`state_weights` and `control_weights` its `gain_` is the gain of the linear-quadratic regulator from SciPy's solution
+of the Riccati equation.
 
 ```python
 from skcomplex.core.base import parameter
@@ -1217,7 +1223,7 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 
-from skcomplex.analysis import controllability, linearize, lqr, observability
+from skcomplex.analysis import LinearizationAnalysis
 from skcomplex.core.declarations import state
 
 class CartElement(Element):
@@ -1230,9 +1236,10 @@ class CartElement(Element):
     def laws(self, s):
         """Return the laws of the cart element."""
         return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
-model = linearize(System(elements=[CartElement('cart')]), outputs=['cart.x'])
-print(controllability(model.A, model.B), observability(model.A, model.C))
-print(lqr(model.A, model.B, [[1, 0], [0, 1]], [[1]]).round(3))
+model = LinearizationAnalysis(outputs=['cart.x'], state_weights=[[1, 0], [0, 1]], control_weights=[[1]])
+model.check().prepare(System(elements=[CartElement('cart')])).run()
+print(model.controllability_, model.observability_)
+print(model.gain_.round(3))
 ```
 
 The library models with optimal controls are `optimal_harvesting` in resources, `optimal_consumption` in
@@ -1506,7 +1513,7 @@ print(run('sir').trajectory_.values('I.n').max().round())
 The models are examples of the core interface, not a separate one, so each is also the pattern for a model of your
 own. The page of every field, under Models in the documentation, shows each model's factory, its component types with
 their states, parameters, and laws as written, and, for differential equations and maps, its equations as
-`equations_of` returns them. A model of your own follows the same steps: declare the component types, write a factory
+`SymbolicAnalysis('equations')` returns them. A model of your own follows the same steps: declare the component types, write a factory
 that returns the system, and register it with `register_model`.
 
 ```python
@@ -1827,7 +1834,7 @@ jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
-`dynamics_of`, `fixed_points`, `stability`, and `jacobian` of `skcomplex.analysis` expand a group of at most 64
+`StabilityAnalysis` and the other analyses of the vector field of `skcomplex.analysis` expand a group of at most 64
 members into one equation per member, with every reduction written as an explicit sum, so the fixed points of
 replicator dynamics are derived symbolically. A larger group raises an error that states the limit.
 
@@ -2610,27 +2617,29 @@ print(ball.ball_sizes_, quotient.size_)
 **Theory of automata.** `skcomplex.analysis` decides the properties the theory studies on finite universes, where
 they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
 not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` is the map on configurations of a
-local rule, with `step` and `run`.
+local rule, with `step` and `run`, and `AutomatonAnalysis` prepares on it.
 
-- `is_injective` and `is_surjective`, which agree on a finite universe, enumerate the configurations of small
-  universes and solve a SAT encoding with PySAT on larger ones. `is_pre_injective(automaton, window)` asks whether two
-  configurations that differ only inside a window can share their image.
-- `garden_of_eden(automaton, window)` returns a pattern without a preimage, by enumeration or by SAT on random
-  patterns.
-- `inverse(automaton, max_radius)` finds the rule of the inverse of a reversible automaton with the smallest memory,
-  and `compose(first, second)` gives the automaton of their composition.
+- The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
+  universes and solve a SAT encoding with PySAT on larger ones. `'pre-injective'` asks whether two configurations that
+  differ only inside a `window` can share their image.
+- `'garden-of-eden'` finds a pattern without a preimage, by enumeration or by SAT on random patterns.
+- `'inverse'` finds the rule of the inverse of a reversible automaton with the smallest memory up to `max_radius`, and
+  `'compose'` gives the automaton of its composition with a `second` one.
 
 ```python
 from skcomplex.core.laws import OuterTotalistic
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
+from skcomplex.analysis import Automaton, AutomatonAnalysis
 from skcomplex.core.laws import Table
 
 life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
-print(is_surjective(life), garden_of_eden(life, random_state=0) is not None)
+print(AutomatonAnalysis('surjective').check().prepare(life).run().surjective_)
+print(AutomatonAnalysis('garden-of-eden', random_state=0).check().prepare(life).run().pattern_ is not None)
 shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
-print(compose(shift, inverse(shift)).step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
+back = AutomatonAnalysis('inverse').check().prepare(shift).run().inverse_
+composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_
+print(composition.step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
 ```
 
 **Linear automata and subshifts.** `LinearAutomaton(space, neighborhood, coefficients, field)` is the element
@@ -2639,20 +2648,23 @@ injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `inf
 decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
 `Subshift(neighborhood, forbidden)` holds the configurations without forbidden patterns: it checks configurations,
 counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves.
-`configuration_entropy` gives `log |X_F| / |F|` along windows `F`, `spatial_entropy_rates` the entropy rate of every
-frame of a run, which never increases under an automaton, and `difference_pattern` the cells where two runs differ
-after one cell changes.
+`AutomatonAnalysis('entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`, and
+`AutomatonAnalysis('difference')` the cells where two runs differ after one cell changes.
+`EntropyAnalysis('rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
+increases under an automaton.
 
 ```python
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.analysis import LinearAutomaton, Subshift, configuration_entropy
+from skcomplex.analysis import AutomatonAnalysis, LinearAutomaton, Subshift
 
 laplacian = LinearAutomaton(LatticeSpace(5), LatticeNeighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
 golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-print(laplacian.is_invertible(), laplacian.is_surjective(infinite=True))
+print(AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_)
+print(AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_)
 print([golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 8)])
-print(configuration_entropy(golden, [LatticeSpace(24, boundary='fixed')]).round(3))
+windows = [LatticeSpace(24, boundary='fixed')]
+print(AutomatonAnalysis('entropy', windows=windows).check().prepare(golden).run().entropy_.round(3))
 ```
 
 The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
@@ -3349,16 +3361,17 @@ state for a closed system and a density matrix for an open one. Its solvers hand
 the Schrödinger equation, `lindblad`, the default, for the master equation, and `quantum_trajectories` for quantum
 jumps drawn from the run's random stream. `expectation` makes observables of operators, one value per member for a
 group, and every quantum run also records its `energy`, and its `purity` when it is open. Groups on a lattice stream
-the space-time image of their local expectations to Rerun. The quantum formalism also holds its analyses: `spectrum`
-and `ground_state` diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator,
-`purity` and `entanglement_entropy` read trajectories, and `hamiltonian_of` prints the Hamiltonian in operator
-notation.
+the space-time image of their local expectations to Rerun. `QuantumAnalysis` analyses quantum systems: its kinds
+`'spectrum'` and `'ground-state'` diagonalise the Hamiltonian exactly, optionally in the sector of a conserved
+diagonal operator, and `'purity'` and `'entanglement'` read trajectories. `SymbolicAnalysis('hamiltonian')` prints the
+Hamiltonian in operator notation.
 
 ```python
-from skcomplex.analysis import spectrum
+from skcomplex.analysis import QuantumAnalysis
 from skcomplex.models import create
 
-print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())
+spectrum = QuantumAnalysis(n_states=2).check().prepare(create('quantum_heisenberg', n_sites=4)).run()
+print(spectrum.energies_.round(6).tolist())
 ```
 
 ## Co-simulation
@@ -3536,16 +3549,16 @@ print(SensitivityAnalysis('oat', 'population.n').check().prepare(sweep.result_).
 
 ## Analysing symbolically
 
-`equations_of` returns the equations of a system as Sage relations, and `solve_symbolically` solves an ODE system
-exactly where Maxima can, with `desolve` for one equation and `desolve_system` for linear systems with constant
-coefficients.
+`SymbolicAnalysis('equations')` returns the equations of a system as Sage relations, and `SymbolicAnalysis('solve')`
+solves an ODE system exactly where Maxima can, with `desolve` for one equation and `desolve_system` for linear systems
+with constant coefficients.
 
 ```python
 from skcomplex.core.elements import ParticleElement
 from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 from skcomplex.core.system import System
 
-from skcomplex.analysis import equations_of, solve_symbolically
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
 
 oscillator = System(
@@ -3553,8 +3566,8 @@ oscillator = System(
     interactions=[HarmonicPotentialInteraction('trap', target='p', k=4.0)],
     space=ContinuousSpace(n_dim=1),
 )
-print(equations_of(oscillator)['p.v[0]'])
-print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])
+print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.v[0]'])
+print(SymbolicAnalysis('solve', use_initial_state=True).check().prepare(oscillator).run().solutions_['p.x[0]'])
 ```
 
 
@@ -3563,35 +3576,36 @@ print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])
 `skcomplex.analysis` measures complex dynamics in the same way for every field. Every measure takes a system, or plain
 arrays from trajectories or measured data.
 
-**Stability and chaos.** `fixed_points`, `jacobian`, `stability`, `nullclines`, and `divergence` work on the symbolic
-vector field of a flow or a map. `lyapunov_spectrum` integrates its tangent dynamics compiled with Numba, and
-`orbit_diagram` and `basin_stability` run experiments over parameters or initial conditions.
+**Stability and chaos.** `StabilityAnalysis` finds the fixed points, Jacobian, stability, nullclines, and divergence of
+the symbolic vector field of a flow or a map. `LyapunovAnalysis` integrates its tangent dynamics compiled with Numba,
+and the experiments `OrbitDiagramExperiment` and `BasinStabilityExperiment` run a model over parameters or initial
+conditions.
 
 ```python
-from skcomplex.analysis import fixed_points, lyapunov_spectrum, orbit_diagram, stability
+from skcomplex.analysis import LyapunovAnalysis, StabilityAnalysis
+from skcomplex.experiments import OrbitDiagramExperiment
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 
-predation = lotka_volterra()
-print([stability(predation, point).classification for point in fixed_points(predation)])
-print(lyapunov_spectrum(lorenz(), until=200).round(2))
-diagram = orbit_diagram(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
-print(diagram.periods())
+print(StabilityAnalysis().check().prepare(lotka_volterra()).run().classifications_)
+print(LyapunovAnalysis(until=200).check().prepare(lorenz()).run().exponents_.round(2))
+diagram = OrbitDiagramExperiment(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
+print(diagram.check().prepare().run().periods_)
 ```
 
-**Sections.** `poincare_section` returns the states where a state crosses a value in a direction, located like an
-event, and `stroboscopic` samples a periodically forced system once per period.
+**Sections.** `SectionAnalysis('poincare')` finds the states where a state crosses a value in a direction, located
+like an event, and `SectionAnalysis('stroboscopic')` samples a periodically forced system once per period.
 
 ```python
 import numpy as np
 
 import math
 
-from skcomplex.analysis import stroboscopic
+from skcomplex.analysis import SectionAnalysis
 from skcomplex.models.physics.nonlinear_oscillators import duffing
 
-section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=200)
-print(len(np.unique(np.round(section.states, 4), axis=0)))
+section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200).check().prepare(duffing()).run()
+print(len(np.unique(np.round(section.states_, 4), axis=0)))
 ```
 
 **Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law`, `hill`, and `gini` describe
@@ -3793,10 +3807,10 @@ print(len(machine.histories_), round(machine.statistical_complexity_, 2))
 
 `embed` builds delay coordinates of a series, with the delay at the first minimum of the auto mutual information and the
 dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
-set with a k-d tree, so it serves embedded series and agent positions alike. `kaplan_yorke_dimension` and
-`kolmogorov_sinai_entropy` follow from a Lyapunov spectrum, `largest_lyapunov_exponent` estimates the largest exponent
-from one series with Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or `'ulam'`
-estimates the invariant density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
+set with a k-d tree, so it serves embedded series and agent positions alike. The Kaplan-Yorke dimension and the
+Kolmogorov-Sinai entropy of `LyapunovAnalysis` follow from a Lyapunov spectrum, `LyapunovAnalysis('largest')` estimates
+the largest exponent from one series with Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or
+`'ulam'` estimates the invariant density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
 laminarity, line lengths, trapping time, and line entropy of embedded series.
 
 ```python
@@ -3804,15 +3818,15 @@ import numpy as np
 
 from skcomplex.analysis import (
     ErgodicityAnalysis,
+    LyapunovAnalysis,
     correlation_dimension,
     delay_embedding,
-    kaplan_yorke_dimension,
     recurrence_quantification,
 )
 
 points = np.random.default_rng(1).random((3000, 2))
 print(round(correlation_dimension(points).dimension, 1))
-print(round(kaplan_yorke_dimension([0.906, 0.0, -14.572]), 2))
+print(round(LyapunovAnalysis().check().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2))
 chain = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 21), samples=200)
 print(chain.check().prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3])
 sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)

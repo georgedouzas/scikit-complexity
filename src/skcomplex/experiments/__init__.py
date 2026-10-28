@@ -8,6 +8,7 @@ from ._grid import GridDesign
 from ._latin_hypercube import LatinHypercubeDesign
 from ._morris import MorrisDesign
 from ._one_at_a_time import OneAtATimeDesign
+from ._orbit_diagram import OrbitDiagramExperiment
 from ._random import RandomDesign
 from ._results import ExperimentResult
 from ._rows import RowsDesign
@@ -27,6 +28,7 @@ __all__: list[str] = [
     'LatinHypercubeDesign',
     'MorrisDesign',
     'OneAtATimeDesign',
+    'OrbitDiagramExperiment',
     'RandomDesign',
     'RowsDesign',
     'SaltelliDesign',

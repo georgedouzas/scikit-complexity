@@ -1,6 +1,4 @@
-"""Test delay embeddings, fractal dimensions, Lyapunov-derived invariants, and recurrences."""
-
-import math
+"""Test delay embeddings, fractal dimensions, and recurrences."""
 
 import numpy as np
 import pytest
@@ -11,15 +9,10 @@ from skcomplex.analysis import (
     correlation_dimension,
     delay_embedding,
     embed,
-    kaplan_yorke_dimension,
-    kolmogorov_sinai_entropy,
-    largest_lyapunov_exponent,
-    lyapunov_spectrum,
     recurrence_matrix,
     recurrence_quantification,
 )
 from skcomplex.core.errors import AnalysisError
-from skcomplex.models.mathematics.dynamical_systems import henon_map, logistic_map, lorenz
 
 
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
@@ -84,40 +77,6 @@ def test_correlation_dimension_of_attractors_and_agents():
         correlation_dimension(agents, [10.0, 20.0])
 
 
-def test_kolmogorov_sinai_entropy_of_a_map_and_a_flow():
-    """Test that the logistic map at r = 4 gives ln 2 and the Lorenz flow 0.906."""
-    logistic = lyapunov_spectrum(logistic_map(r=4.0, x=0.3), until=20_000, dt=1)
-    flow = lyapunov_spectrum(lorenz(), until=500)
-    assert kolmogorov_sinai_entropy(logistic) == pytest.approx(math.log(2), abs=0.01)
-    assert kolmogorov_sinai_entropy(flow) == pytest.approx(0.906, abs=0.05)
-
-
-def test_kaplan_yorke_dimension_of_a_map_and_a_flow():
-    """Test that the Hénon map gives 1.26 and the Lorenz flow 2.06."""
-    henon = lyapunov_spectrum(henon_map(), until=20_000, dt=1)
-    flow = lyapunov_spectrum(lorenz(), until=500)
-    assert kaplan_yorke_dimension(henon) == pytest.approx(1.26, abs=0.02)
-    assert kaplan_yorke_dimension(flow) == pytest.approx(2.06, abs=0.03)
-    assert kaplan_yorke_dimension([-1.0, -2.0]) == 0
-    assert kaplan_yorke_dimension([0.5, 0.0]) == 2
-
-
-@pytest.mark.slow
-def test_largest_lyapunov_exponent_from_data():
-    """Test the largest exponents of the logistic map at r = 4 and of the Lorenz x from recorded series."""
-    logistic = largest_lyapunov_exponent(_logistic(4.0, 10_000), dimension=2, trajectory_length=4, min_separation=10)
-    assert logistic == pytest.approx(math.log(2), abs=0.1)
-    series = _lorenz_states(28.0, 0.05, 300.0)[:6000, 0]
-    flow = largest_lyapunov_exponent(
-        series,
-        0.05,
-        dimension=5,
-        delay=2,
-        trajectory_length=60,
-        min_separation=30,
-        skip=10,
-    )
-    assert flow == pytest.approx(0.906, abs=0.15)
 
 
 def test_recurrence_quantification_order_and_noise():

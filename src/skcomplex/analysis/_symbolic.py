@@ -4,20 +4,38 @@
 # License: MIT
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Any
+from typing import Any, Self
 
 from sage.all__sagemath_symbolics import SR, Expression, desolve, desolve_laplace, desolve_system, diff, function
 from sage.symbolic.function_factory import function as formal_function
 
-from ..core.errors import AnalysisError
-from ..core.system import System
+from ..core.errors import AnalysisError, ConservationError
 from ..engine.compile import compile_system, compiled_problem
-from ..engine.problems import Form, Problem, components_of
+from ..engine.problems import BaseProblem, Form, Problem, components_of
 from ._assumptions import declare_domains
+from ._base import BaseAnalysis, Source
 from ._fractional import mittag_leffler
+from ._kinds import DataKind
+from ._loops import _stock_flow
+from ._quantum import _quantum_problem
+from ._utils import check_kind, system_of
 
+KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
+SETTINGS: dict[str, set[str]] = {
+    'equations': set(),
+    'solve': {'use_initial_state'},
+    'hamiltonian': set(),
+    'conservation': set(),
+}
+"""Settings every kind reads, besides `kind`."""
+PURPOSES = {
+    'equations': 'The equations of a system',
+    'solve': 'Symbolic solving',
+    'conservation': 'The conservation analysis',
+}
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
 CAPUTO = formal_function('caputo', nargs=3)
 
@@ -227,90 +245,8 @@ def _fractional_solution(problem: Problem, *, use_initial_state: bool) -> dict[s
     return {unknown.name: unknown.function == start * MITTAG_LEFFLER(order, 1, rate * problem.time**order)}
 
 
-def equations_of(system: System) -> dict[str, Expression]:
-    """Return the symbolic equations of a system, one per state component.
-
-    Each state component is a function of time `t`. Continuous forms give its time derivative, the drift for
-    stochastic systems, and discrete maps give its value at `t + 1`. States of higher order give their highest
-    derivative, `diff(x(t), t, k)`, with their companions written as derivatives, and lagged states read their past
-    values as `x(t - j)`. Every equation is a Sage relation. The equations
-    of a group hold for every member and are named with the member index `i`. Components driven by a callable law or by
-    a sum over members or pairs are left out.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        equations:
-            A mapping from state component name to its equation.
-
-    Raises:
-        AnalysisError:
-            The system is a jump process or a quantum system.
-
-    Examples:
-        >>> from skcomplex.analysis import equations_of
-        >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
-        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-        ... )
-        >>> equations_of(system)['rabbits.n']
-        diff(n_rabbits(t), t) == -r_growth*(n_rabbits(t)/K_growth - 1)*n_rabbits(t)
-    """
-    problem = compile_system(system)
-    if problem.form == Form.QUANTUM:
-        error_msg = (
-            'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` of '
-            '`skcomplex.analysis`.'
-        )
-        raise AnalysisError(error_msg)
-    return _equations_of_problem(compiled_problem(problem, 'The equations of a system'))
-
-
-def solve_symbolically(system: System, *, use_initial_state: bool = False) -> dict[str, Expression]:
-    """Solve the equations of an ODE system exactly as functions of time, with Maxima through Sage.
-
-    One equation of order 1 or 2 is solved with `desolve`, one of higher order with `desolve_laplace`, and several with
-    `desolve_system` after reduction to first order, which solves linear systems with constant coefficients. A result
-    that still contains unevaluated transforms, integrals, or the unknown functions is not a solution, and raises the
-    error. Parameters give Maxima their sign from their domain, or from their value when their domain is real. One
-    linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written with the symbolic
-    function `mittag_leffler(alpha, beta, z)`, whose numeric value comes from `mittag_leffler`.
-
-    Args:
-        system:
-            The system.
-
-        use_initial_state:
-            Whether to use the initial state of the system, with the initial values of every derivative of states of
-            higher order, as initial conditions at `t = 0`. Without them, the solution keeps its integration
-            constants.
-
-    Returns:
-        solutions:
-            A mapping from state component name to its solution, a relation `f(t) == solution`. States of higher order
-            appear once, without their derivatives.
-
-    Raises:
-        AnalysisError:
-            The system is not an ODE or a linear fractional relaxation, has a callable law or groups, has equations
-            Maxima cannot solve, or needs the sign of a parameter.
-
-    Examples:
-        >>> from skcomplex.analysis import solve_symbolically
-        >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=2)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
-        ... )
-        >>> solve_symbolically(system, use_initial_state=True)['a.n']
-        n_a(t) == 2*e^(r_g*t)
-    """
-    problem = compiled_problem(system, 'Symbolic solving')
+def _solve(problem: Problem, *, use_initial_state: bool) -> dict[str, Expression]:
+    """Return the exact solution of the equations of a problem as functions of time, with Maxima through Sage."""
     _check_solvable(problem)
     if problem.form == Form.FRACTIONAL:
         return _fractional_solution(problem, use_initial_state=use_initial_state)
@@ -363,3 +299,137 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         )
         raise AnalysisError(error_msg)
     return solutions
+
+
+def _conservation(problem: Problem) -> dict[str, Expression]:
+    """Return the net inflow from the environment of every quantity, after checking that internal flows cancel."""
+    stock_flow = _stock_flow(problem)
+    amounts = {record.path: record.expression for record in stock_flow.recorded}
+    net: dict[str, Expression] = defaultdict(lambda: SR(0))
+    boundary: dict[str, Expression] = defaultdict(lambda: SR(0))
+    for flow in stock_flow.flows:
+        if flow.quantity is None:
+            continue
+        amount = SR(amounts[flow.path])
+        net[flow.quantity] += (flow.sink is not None) * amount - (flow.source is not None) * amount
+        boundary[flow.quantity] += (flow.source is None) * amount - (flow.sink is None) * amount
+    for quantity, value in net.items():
+        if not bool((value - boundary[quantity]).simplify_full().is_trivial_zero()):
+            error_msg = f'The internal flows of {quantity!r} do not cancel: the total changes by {value}.'
+            raise ConservationError(error_msg)
+    return {quantity: boundary[quantity] for quantity in stock_flow.quantities if quantity in boundary} | {
+        quantity: SR(0) for quantity in stock_flow.quantities if quantity not in boundary
+    }
+
+
+class SymbolicAnalysis(BaseAnalysis):
+    """Symbolic form of a system: its equations, their exact solution, its Hamiltonian, or its boundary flows.
+
+    The kinds read the equations of a system:
+
+    - `'equations'`: one equation per state component, a Sage relation. Each state component is a function of time
+      `t`. Continuous forms give its time derivative, the drift for stochastic systems, and discrete maps give its
+      value at `t + 1`. States of higher order give their highest derivative, `diff(x(t), t, k)`, with their
+      companions written as derivatives, and lagged states read their past values as `x(t - j)`. The equations of a
+      group hold for every member and are named with the member index `i`. Components driven by a callable law or by
+      a sum over members or pairs are left out.
+    - `'solve'`: the exact solution of the equations of an ODE system as functions of time, with Maxima through Sage.
+      One equation of order 1 or 2 is solved with `desolve`, one of higher order with `desolve_laplace`, and several
+      with `desolve_system` after reduction to first order, which solves linear systems with constant coefficients.
+      A result that still contains unevaluated transforms, integrals, or the unknown functions is not a solution, and
+      raises the error. Parameters give Maxima their sign from their domain, or from their value when their domain is
+      real. One linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written
+      with the symbolic function `mittag_leffler(alpha, beta, z)`.
+    - `'hamiltonian'`: the Hamiltonian of a quantum system, the sum of the operators of its generator laws, whose
+      subsystems are the symbols of the states of the elements, named `<state>_<path>`, and whose parameters are
+      named `<parameter>_<path>`.
+    - `'conservation'`: the net inflow from the environment of every quantity of a system of stocks and flows, after
+      checking that its internal flows cancel, so the total changes only through the boundary.
+
+    Args:
+        kind:
+            The symbolic form to derive, one of the kinds above.
+
+        use_initial_state:
+            Whether `'solve'` uses the initial state of the system, with the initial values of every derivative of
+            states of higher order, as initial conditions at `t = 0`. Without them, the solution keeps its integration
+            constants.
+
+    Attributes:
+        problem_:
+            The compiled problem.
+
+        equations_:
+            A mapping from state component name to its equation.
+
+        solutions_:
+            A mapping from state component name to its solution, a relation `f(t) == solution`. States of higher order
+            appear once, without their derivatives.
+
+        hamiltonian_:
+            The Hamiltonian, a Sage expression of local operators.
+
+        inflows_:
+            The symbolic rate, or amount per step, at which each quantity enters the system from the environment.
+
+    Raises:
+        AnalysisError:
+            The system has no form of the kind, Maxima cannot solve its equations, or needs the sign of a parameter.
+
+        ConservationError:
+            The internal flows of a quantity do not cancel.
+
+    Examples:
+        >>> from skcomplex.analysis import SymbolicAnalysis
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> system = System(
+        ...     elements=[PopulationElement('a', n=2)],
+        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
+        ... )
+        >>> SymbolicAnalysis().check().prepare(system).run().equations_['a.n']
+        diff(n_a(t), t) == r_g*n_a(t)
+        >>> SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.n']
+        n_a(t) == 2*e^(r_g*t)
+    """
+
+    def __init__(self, kind: str = 'equations', *, use_initial_state: bool = False) -> None:
+        self.kind = kind
+        self.use_initial_state = use_initial_state
+
+    def _check(self) -> Self:
+        """Validate the kind and that the kind reads every changed setting."""
+        check_kind(self, KINDS, SETTINGS)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the system kind."""
+        return DataKind.SYSTEM
+
+    def _prepare(self, source: Source) -> Self:
+        """Compile the system of the source, checking that it has the form of the kind."""
+        system = system_of(source)
+        problem = system if isinstance(system, BaseProblem) else compile_system(system)
+        if self.kind == 'hamiltonian':
+            self.problem_ = _quantum_problem(problem)
+            return self
+        if self.kind == 'equations' and problem.form == Form.QUANTUM:
+            error_msg = (
+                'A quantum system has an operator Hamiltonian, not state equations. Use '
+                "`SymbolicAnalysis('hamiltonian')`."
+            )
+            raise AnalysisError(error_msg)
+        self.problem_ = compiled_problem(problem, PURPOSES[self.kind])
+        return self
+
+    def _run(self) -> Self:
+        """Derive the equations, their solution, the Hamiltonian, or the boundary flows."""
+        if self.kind == 'equations':
+            self.equations_ = _equations_of_problem(self.problem_)
+        elif self.kind == 'solve':
+            self.solutions_ = _solve(self.problem_, use_initial_state=self.use_initial_state)
+        elif self.kind == 'hamiltonian':
+            self.hamiltonian_ = self.problem_.hamiltonian_operator
+        else:
+            self.inflows_ = _conservation(self.problem_)
+        return self

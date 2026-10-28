@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import purity
+from skcomplex.analysis import QuantumAnalysis
 from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
@@ -42,6 +42,6 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     trajectory = Simulation(system, dt=0.5, observers=[observer]).run(until=2.0).trajectory_
     traces = np.trace(trajectory.values('schrodinger.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
-    assert np.all(np.diff(purity(trajectory)) <= 1e-10)
+    assert np.all(np.diff(QuantumAnalysis('purity').check().prepare(trajectory).run().purity_) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
         create('schrodinger', gamma=0.5)

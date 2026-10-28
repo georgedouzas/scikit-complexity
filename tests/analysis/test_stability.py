@@ -1,4 +1,4 @@
-"""Test fixed points, Jacobians, stability, nullclines, and divergence."""
+"""Test the stability analysis: fixed points, Jacobians, stability, nullclines, and divergence."""
 
 from typing import Annotated
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.analysis import divergence, fixed_points, jacobian, nullclines, stability
+from skcomplex.analysis import StabilityAnalysis
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
@@ -20,54 +20,59 @@ from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 
+def _stability(source, **settings):
+    """Return the stability analysis of a source, run."""
+    return StabilityAnalysis(**settings).check().prepare(source).run()
+
+
 def test_lotka_volterra_centre():
     """Test that the predator-prey interior point is `(d / b, r / a)` with purely imaginary eigenvalues, a centre."""
     system = lotka_volterra()
-    points = fixed_points(system)
+    analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
-    interior = next(point for point in points if point['prey.n'] != 0)
+    index = next(index for index, point in enumerate(analysis.fixed_points_) if point['prey.n'] != 0)
+    interior = analysis.fixed_points_[index]
     assert bool(interior['prey.n'] == d / b)
     assert bool(interior['predators.n'] == r / a)
-    result = stability(system, interior)
-    assert result.classification == 'centre'
-    assert abs(result.eigenvalues.real).max() < 1e-9
-    assert stability(system, {'prey.n': 0, 'predators.n': 0}).classification == 'saddle'
+    assert analysis.classifications_[index] == 'centre'
+    assert abs(analysis.eigenvalues_[index].real).max() < 1e-9
+    assert _stability(system, points=[{'prey.n': 0, 'predators.n': 0}]).classifications_ == ['saddle']
 
 
 def test_logistic_map_fixed_point_is_stable():
     """Test that the logistic map's fixed point `1 - 1 / r` is stable at r = 2.5 and 0 is unstable."""
-    system = logistic_map(r=2.5)
+    analysis = _stability(logistic_map(r=2.5))
     classes = {
-        round(float(point['map.x'].subs({SR.var('r_map'): 2.5})), 9): stability(system, point).classification
-        for point in fixed_points(system)
+        round(float(point['map.x'].subs({SR.var('r_map'): 2.5})), 9): classification
+        for point, classification in zip(analysis.fixed_points_, analysis.classifications_, strict=True)
     }
     assert classes == {0.6: 'stable', 0.0: 'unstable'}
 
 
 def test_parameters_substitute_before_solving():
     """Test that parameter values given by path give numeric fixed points."""
-    points = fixed_points(lorenz(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3})
+    points = _stability(lorenz(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points_
     assert sorted(round(float(point['lorenz.z']), 6) for point in points) == [0.0, 27.0, 27.0]
 
 
 def test_volume_preservation():
     """Test that the frictionless harmonic oscillator has divergence 0 and Lorenz contracts volumes."""
-    assert divergence(harmonic_oscillator()) == 0
+    assert _stability(harmonic_oscillator()).divergence_ == 0
     sigma, beta = SR.var('sigma_lorenz'), SR.var('beta_lorenz')
-    assert bool(divergence(lorenz()) == -sigma - beta - 1)
+    assert bool(_stability(lorenz()).divergence_ == -sigma - beta - 1)
 
 
 def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
-    system = lotka_volterra()
-    assert jacobian(system).dimensions() == (2, 2)
-    assert set(nullclines(system)) == {'prey.n', 'predators.n'}
+    analysis = _stability(lotka_volterra())
+    assert analysis.jacobian_.dimensions() == (2, 2)
+    assert set(analysis.nullclines_) == {'prey.n', 'predators.n'}
 
 
 def test_jump_process_has_no_vector_field():
     """Test that stochastic jump systems are rejected."""
     with pytest.raises(AnalysisError, match='jump process'):
-        jacobian(sir(stochastic=True))
+        _stability(sir(stochastic=True))
 
 
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
@@ -120,11 +125,12 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
 
 def test_hawks_and_doves_as_group():
     """Test that hawks and doves, two members of a group, have the stable fixed point with `V / C` hawks."""
-    system = _hawks_and_doves()
-    interior = next(point for point in fixed_points(system) if point['population.x[0]'] not in {0, 1})
+    analysis = _stability(_hawks_and_doves())
+    index = next(index for index, point in enumerate(analysis.fixed_points_) if point['population.x[0]'] not in {0, 1})
+    interior = analysis.fixed_points_[index]
     assert float(interior['population.x[0]']) == pytest.approx(2 / 3)
     assert float(interior['population.x[1]']) == pytest.approx(1 / 3)
-    assert stability(system, interior).classification == 'stable node'
+    assert analysis.classifications_[index] == 'stable node'
 
 
 def test_group_above_limit():
@@ -149,4 +155,11 @@ def test_group_above_limit():
 
     system = System(elements=[GroupElement('group', element=MemberElement, size=1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
-        jacobian(system)
+        _stability(system)
+
+
+def test_points_are_the_given_points():
+    """Test that given points replace the fixed points found by solving."""
+    analysis = _stability(lotka_volterra(), points=[{'prey.n': 0, 'predators.n': 0}])
+    assert analysis.fixed_points_ == [{'prey.n': 0, 'predators.n': 0}]
+    assert len(analysis.eigenvalues_) == 1

@@ -15,8 +15,9 @@ from ..core.specs import ObservableSpec
 from ..core.system import System
 from ..engine.compile import compile_system
 from ..engine.problems import BaseProblem, contains
-from ..engine.runtime import MODELS
+from ..engine.runtime import MODELS, Simulation, Trajectory
 from ..engine.utils import BaseEstimator
+from ._ensembles import _replicate
 
 type Source = str | Callable[..., System] | System
 type Factory = Callable[..., System] | System
@@ -130,6 +131,24 @@ class BaseExperiment(BaseEstimator, ABC):
             return source, {}
         error_msg = f'A model source is a registered model name, a factory, or a system, not {source!r}.'
         raise ValidationError(error_msg)
+
+    @staticmethod
+    def _run_replicated(
+        source: Source,
+        values: Mapping[str, Sequence[object]],
+        until: float | None,
+        dt: float | None,
+        random_state: int | None,
+    ) -> tuple[Trajectory, System]:
+        """Return one run of a source's system replicated once per value of every path, and the original system."""
+        factory, defaults = BaseExperiment._resolve_source(source)
+        system = factory if isinstance(factory, System) else factory()
+        size = len(next(iter(values.values())))
+        options = {key: value for key, value in defaults.items() if key in ('solver', 'backend')}
+        step = dt if dt is not None else defaults.get('dt', 1.0)
+        end = until if until is not None else defaults.get('until', 10.0)
+        simulation = Simulation(_replicate(system, size, values), dt=step, random_state=random_state, **options)
+        return simulation.run(until=end).trajectory_, system
 
     @staticmethod
     def _compile(

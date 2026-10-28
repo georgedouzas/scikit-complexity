@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import loops
+from skcomplex.analysis import LoopAnalysis
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, run
 
@@ -44,7 +44,7 @@ simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observe
 # two balancing loops of depreciation. Starting runs from several splits of the same 100 units shows that the
 # symmetric split is unstable, and whoever starts ahead wins.
 
-polarities = [loop.polarity for loop in loops(create(MODEL)).loops]
+polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_

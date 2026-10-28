@@ -11,7 +11,7 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import LinearAutomaton
+from skcomplex.analysis import AutomatonAnalysis, LinearAutomaton
 from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -35,9 +35,10 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 alive = simulation.trajectory_.values('cells.alive')
 quotient = CayleySpace(lamplighter(), quotient=3).prepare()
 parity = LinearAutomaton(quotient, MemoryNeighborhood(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
+invertible = AutomatonAnalysis('injective').check().prepare(parity).run().injective_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')
 ax.set_ylabel('number of ones')
-ax.set_title(f'Invertible on the quotient of {quotient.size_} elements: {parity.is_invertible()}')
+ax.set_title(f'Invertible on the quotient of {quotient.size_} elements: {invertible}')
 plt.show()
