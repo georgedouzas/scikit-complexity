@@ -105,7 +105,7 @@ class ScalarsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ScalarsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('lotka_volterra'))
-            >>> view = ScalarsVisual().prepare(problem.elements[0], problem).views_[0]
+            >>> view = ScalarsVisual(path=problem.elements[0].path).check().prepare(problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')
         """

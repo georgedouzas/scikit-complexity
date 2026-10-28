@@ -132,11 +132,11 @@ class RerunObserver(BaseObserver):
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).run(until=1)
+        >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).check().run(until=1)
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = Simulation(system, dt=0.1, observers=[observer]).run(until=1)
+        >>> _ = Simulation(system, dt=0.1, observers=[observer]).check().run(until=1)
         >>> path.with_suffix('.rbl').exists()
         True
 
@@ -145,7 +145,7 @@ class RerunObserver(BaseObserver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
-        >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
+        >>> observer = RerunObserver(blueprint='default', primary='cells/v').check().prepare(problem)
         >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
         ['cells/v', 'cells/u']
     """
@@ -202,8 +202,8 @@ class RerunObserver(BaseObserver):
         self.recording_ = rr.RecordingStream(self.application_id)
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._visual_of(element).prepare(problem) for element in problem.elements),
-            *(self._agents_visual_of(group, problem).prepare(problem) for group in agents),
+            *(self._visual_of(element).check().prepare(problem) for element in problem.elements),
+            *(self._agents_visual_of(group, problem).check().prepare(problem) for group in agents),
         ]
         spatial, series = self._ordered_views(problem)
         rows = [spatial, series] if self.primary is None else self._with_primary(spatial, series, self.primary)
@@ -336,7 +336,7 @@ class RerunObserver(BaseObserver):
         self.recording_.set_time('step', sequence=frame.step)
         self.recording_.set_time('sim_time', duration=frame.time)
         for visual in self.visuals_:
-            visual.run(frame, self.recording_)
+            visual.run(frame)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
         owners = {element.path for element in frame.problem.elements}

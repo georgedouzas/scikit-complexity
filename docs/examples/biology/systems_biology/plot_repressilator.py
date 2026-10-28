@@ -22,7 +22,7 @@ MODEL = 'repressilator'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=300)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=300)
 
 # %%
 # Deterministic and noisy oscillations
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=300)
 # process of single molecules should still oscillate, with irregular amplitudes and periods.
 
 deterministic = simulation.trajectory_
-noisy = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=0).run(until=300).trajectory_
+noisy = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=0).check().run(until=300).trajectory_
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):

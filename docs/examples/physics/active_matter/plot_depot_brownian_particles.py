@@ -25,7 +25,7 @@ MODEL = 'depot_brownian_particles'
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=20)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().run(until=20)
 
 # %%
 # Bifurcation to active motion
@@ -38,7 +38,11 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 intakes = np.linspace(0.5, 12, 12)
 speeds = []
 for intake in intakes:
-    run = Simulation(create(MODEL, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1).run(until=40)
+    run = (
+        Simulation(create(MODEL, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1)
+        .check()
+        .run(until=40)
+    )
     speeds.append(np.linalg.norm(run.trajectory_.values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)
 fig, ax = plt.subplots(figsize=(7, 4))

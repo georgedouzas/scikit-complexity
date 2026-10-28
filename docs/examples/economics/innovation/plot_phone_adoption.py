@@ -30,7 +30,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(model_system),
-).run(until=18)
+).check().run(until=18)
 
 # %%
 # Adoption against affordability
@@ -41,7 +41,7 @@ simulation = Simulation(
 
 model_system = create(MODEL, random_state=0)
 trajectory = (
-    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system)).check()
     .run(until=YEARS)
     .trajectory_
 )

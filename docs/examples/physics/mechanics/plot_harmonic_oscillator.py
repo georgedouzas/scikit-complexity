@@ -21,7 +21,7 @@ MODEL = 'harmonic_oscillator'
 
 system = create(MODEL, x=1.0, v=0.0, k=1.0, mass=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=20)
 
 # %%
 # Exact solution and energy

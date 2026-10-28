@@ -28,7 +28,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=400)
+).check().run(until=400)
 
 # %%
 # Hidden order and the gauge transformation
@@ -49,7 +49,7 @@ for temperature in temperatures:
         dt=10,
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
-    ).run(until=1000)
+    ).check().run(until=1000)
     overlaps.append(np.abs(trajectory.trajectory_.values('overlap')[-30:]).mean())
     magnetizations.append(np.abs(trajectory.trajectory_.values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))

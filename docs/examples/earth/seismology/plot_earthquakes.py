@@ -22,7 +22,7 @@ MODEL = 'earthquakes'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=250, observers=[observer]).run(until=50000)
+simulation = Simulation(system, dt=250, observers=[observer]).check().run(until=50000)
 
 # %%
 # Gutenberg-Richter law

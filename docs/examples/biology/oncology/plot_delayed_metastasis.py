@@ -20,7 +20,7 @@ MODEL = 'delayed_metastasis'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=6)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=6)
 
 # %%
 # Takeover at both sites

@@ -6,17 +6,18 @@
 import time
 from typing import Self
 
-from ..base import BaseEstimator
+from ...core.base import BaseConfig
 from ..problems import BaseProblem
 from ._frames import Frame
 
 
-class BaseObserver(BaseEstimator):
+class BaseObserver(BaseConfig):
     """Base class of objects that receive the frames of a simulation.
 
-    An observer follows the common API of the engine. A simulation calls `prepare(problem)` with the compiled problem
-    before the first frame, `run(frame)` with every frame, and `run(final=True)` without a frame once the run stops,
-    which releases what preparing acquired. Subclasses override any of the hooks `_prepare`, `_run`, and `_release`.
+    An observer follows the common API of the engine. A simulation checks it, calls `prepare(problem)` with the
+    compiled problem before the first frame, `run(frame)` with every frame, and `run(final=True)` without a frame once
+    the run stops, which releases what preparing acquired. Subclasses override any of the hooks `_prepare`, `_run`,
+    and `_release`.
 
     Examples:
         >>> from skcomplex.core.system import System
@@ -28,8 +29,8 @@ class BaseObserver(BaseEstimator):
         ...
         ...     def _run(self, frame=None):
         ...         self.count_ += frame is not None
-        >>> observer = CountingObserver()
-        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).run(until=3)
+        >>> observer = CountingObserver().check()
+        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).check().run(until=3)
         >>> observer.count_
         4
     """
@@ -41,7 +42,7 @@ class BaseObserver(BaseEstimator):
         """React to a frame, or to the end of the run without one; do nothing by default."""
 
     def prepare(self, problem: BaseProblem) -> Self:
-        """Check the settings and prepare the observer for a run of a compiled problem.
+        """Prepare the checked observer for a run of a compiled problem.
 
         Args:
             problem:
@@ -71,12 +72,12 @@ class BaseObserver(BaseEstimator):
         return self
 
 
-class BaseClock(BaseEstimator):
+class BaseClock(BaseConfig):
     """Base class of clocks, which decide how long to wait between frames.
 
-    A clock follows the common API of the engine. It is prepared at the start of a run with `prepare()`, which marks
-    the wall time, and `run(elapsed)` waits until a frame that is `elapsed` simulated time units after the start is due.
-    Subclasses implement `_run`.
+    A clock follows the common API of the engine. It is checked and prepared at the start of a run with `prepare()`,
+    which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed` simulated time units after the
+    start is due. Subclasses implement `_run`.
 
     Attributes:
         started_:
@@ -86,7 +87,7 @@ class BaseClock(BaseEstimator):
             The largest delay of a frame behind its due time, in seconds.
     """
 
-    def _prepare(self) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Mark the wall time at which the run starts."""
         self.started_ = time.perf_counter()
         self.max_lag_ = 0.0
@@ -100,7 +101,7 @@ class BaseClock(BaseEstimator):
         """
 
     def prepare(self) -> Self:
-        """Check the settings and mark the wall time at which the run starts.
+        """Mark the wall time at which the run of the checked clock starts.
 
         Returns:
             self:

@@ -58,7 +58,7 @@ def _traders(kind):
 def test_invariant_observer_passes_when_the_laws_conserve_the_invariant():
     """Test that a run whose laws only move wealth between traders keeps the total wealth invariant."""
     observer = InvariantObserver({'total_wealth': 1e-9})
-    simulation = Simulation(_traders(TraderElement), observables=[TOTAL_WEALTH], observers=[observer])
+    simulation = Simulation(_traders(TraderElement), observables=[TOTAL_WEALTH], observers=[observer]).check()
     trajectory = simulation.run(5).trajectory_
     np.testing.assert_allclose(trajectory.values('total_wealth'), 40.0)
     assert observer.initial_ == {'total_wealth': 40.0}
@@ -70,7 +70,7 @@ def test_simulation_invariants_name_the_observable_and_the_first_breaking_frame(
         _traders(PrinterElement),
         observables=[TOTAL_WEALTH],
         invariants={'total_wealth': 1e-9},
-    )
+    ).check()
     with pytest.raises(ConservationError, match=r'invariant total_wealth changed from 40 to 44 at frame 1,'):
         simulation.run(5)
 
@@ -78,7 +78,7 @@ def test_simulation_invariants_name_the_observable_and_the_first_breaking_frame(
 def test_invariant_observer_rejects_an_invariant_without_its_observable():
     """Test that an invariant naming no observable of the run raises a validation error that names it."""
     with pytest.raises(ValidationError, match='total_wealth'):
-        Simulation(_traders(TraderElement), invariants={'total_wealth': 1e-9}).run(2)
+        Simulation(_traders(TraderElement), invariants={'total_wealth': 1e-9}).check().run(2)
 
 
 def test_invariant_observer_checks_continuous_runs():
@@ -103,7 +103,7 @@ def test_invariant_observer_checks_continuous_runs():
 
     level = ObservableSpec('level', group='tank', variable='a', reduce='sum')
     system = System(elements=[TankElement('tank')])
-    simulation = Simulation(system, dt=0.5, observables=[level], invariants={'level': 0.1})
+    simulation = Simulation(system, dt=0.5, observables=[level], invariants={'level': 0.1}).check()
     with pytest.raises(ConservationError, match=r'invariant level .* at frame 1'):
         simulation.run(2)
 

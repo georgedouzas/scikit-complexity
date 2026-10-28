@@ -190,7 +190,8 @@ class SiteVisual(BaseVisual):
             ...     elements=[LatticeElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)))]
             ... )
             >>> problem = compile_system(system)
-            >>> [type(view).__name__ for view in SiteVisual().prepare(problem.elements[0], problem).views_]
+            >>> views = SiteVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> [type(view).__name__ for view in views]
             ['GraphView']
         """
         if not isinstance(element, CompiledElement):

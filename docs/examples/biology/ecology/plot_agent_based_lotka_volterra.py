@@ -21,7 +21,7 @@ MODEL = 'agent_based_lotka_volterra'
 
 system = create(MODEL, prey=300, predators=60, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=200)
 
 # %%
 # Cycles out of phase

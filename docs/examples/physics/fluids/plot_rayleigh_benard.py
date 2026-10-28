@@ -19,16 +19,15 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'rayleigh_benard'
 
 system = create(MODEL, Ra=2000.0)
-blueprint = default_blueprint(system, primary='flow/theta')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='flow/theta', interval=1)
 solver = ETDRK4Solver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).run(until=10)
+simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).check().run(until=10)
 
 # %%
 # Onset of convection
@@ -41,7 +40,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).ru
 rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
-    run = Simulation(create(MODEL, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).run(until=10)
+    run = Simulation(create(MODEL, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).check().run(until=10)
     amplitudes.append(np.abs(run.trajectory_.values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')

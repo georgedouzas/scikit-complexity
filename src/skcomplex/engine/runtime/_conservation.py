@@ -46,7 +46,7 @@ class ConservationObserver(BaseObserver):
         >>> from skcomplex.engine.runtime import ConservationObserver, Simulation
         >>> from skcomplex.models import create
         >>> monitor = ConservationObserver()
-        >>> _ = Simulation(create('bathtub'), dt=1, observers=[monitor]).run(10)
+        >>> _ = Simulation(create('bathtub'), dt=1, observers=[monitor]).check().run(10)
         >>> round(monitor.totals_['water'], 6)
         25.0
     """

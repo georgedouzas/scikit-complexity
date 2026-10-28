@@ -21,7 +21,7 @@ MODEL = 'bak_sneppen'
 
 system = create(MODEL, size=200)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10, observers=[observer], random_state=0).run(until=2000)
+simulation = Simulation(system, dt=10, observers=[observer], random_state=0).check().run(until=2000)
 
 # %%
 # The gap and the distribution of fitnesses

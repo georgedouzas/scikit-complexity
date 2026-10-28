@@ -12,9 +12,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.base import BaseConfig
 from ...core.errors import ValidationError
 from ...core.spaces import BaseSpace, NetworkSpace
-from ..base import BaseEstimator
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -72,7 +72,7 @@ _PHASE_PALETTE = (
 )
 
 
-class BaseVisual(BaseEstimator):
+class BaseVisual(BaseConfig):
     """Base class of visuals, which log the state of one element or agent group to a Rerun recording.
 
     A visual follows the common API of the engine. `prepare(problem)` finds the element or agent group of the problem
@@ -110,7 +110,7 @@ class BaseVisual(BaseEstimator):
         >>> from skcomplex.engine.viz import ScalarsVisual
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('lotka_volterra'))
-        >>> visual = ScalarsVisual(path='prey').prepare(problem)
+        >>> visual = ScalarsVisual(path='prey').check().prepare(problem)
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')
     """
@@ -150,7 +150,7 @@ class BaseVisual(BaseEstimator):
         self._log(self.recording_, self.element_, frame)
 
     def prepare(self, problem: BaseProblem) -> Self:
-        """Check the settings and prepare the visual for the element at its path in a compiled problem.
+        """Prepare the checked visual for the element at its path in a compiled problem.
 
         Args:
             problem:

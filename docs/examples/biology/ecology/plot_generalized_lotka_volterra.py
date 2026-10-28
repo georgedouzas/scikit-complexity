@@ -21,7 +21,7 @@ MODEL = 'generalized_lotka_volterra'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=30)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=30)
 
 # %%
 # Coexistence at the interior fixed point

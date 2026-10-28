@@ -35,7 +35,7 @@ simulation = Simulation(
     observers=[observer],
     schedule={'coupling.K': coupling_at},
     observables=describe(MODEL).observables_of(system),
-).run(until=14)
+).check().run(until=14)
 
 # %%
 # Decay rate against the width of the frequencies
@@ -48,7 +48,11 @@ widths = [0.5, 1.25, 1.5, 2.0]
 fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
     model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
-    run = Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system)).run(until=20)
+    run = (
+        Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=20)
+    )
     times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('amplitude'))
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]
     if width > 1:

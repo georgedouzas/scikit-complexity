@@ -22,7 +22,7 @@ MODEL = 'site_percolation'
 
 system = create(MODEL, shape=(128, 128), p=0.6, random_state=2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=299)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=299)
 
 # %%
 # Spanning probability and finite-size scaling
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 
 def spans(side, p, seed):
     """Return whether the fire lit along the top row of a lattice reaches its bottom row."""
-    run = Simulation(create(MODEL, shape=(side, side), p=p, random_state=seed), dt=1).run(until=4 * side)
+    run = Simulation(create(MODEL, shape=(side, side), p=p, random_state=seed), dt=1).check().run(until=4 * side)
     return bool((run.trajectory_.values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
 
 

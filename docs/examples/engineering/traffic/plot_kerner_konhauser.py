@@ -22,7 +22,7 @@ MODEL = 'kerner_konhauser'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=[observer]).check().run(until=100)
 
 # %%
 # Growth of the cluster

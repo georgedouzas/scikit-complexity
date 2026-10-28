@@ -25,7 +25,7 @@ MODEL = 'cucker_smale_flocking'
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = RK4Solver(dt=0.05)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=20)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().run(until=20)
 
 # %%
 # Unconditional flocking
@@ -37,7 +37,11 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
-    run = Simulation(create(MODEL, beta=beta, random_state=1), solver=solver, dt=0.5, random_state=1).run(until=60)
+    run = (
+        Simulation(create(MODEL, beta=beta, random_state=1), solver=solver, dt=0.5, random_state=1)
+        .check()
+        .run(until=60)
+    )
     velocities = run.trajectory_.values('birds.v')
     spread = np.sqrt(np.mean(np.sum((velocities - velocities.mean(axis=1, keepdims=True)) ** 2, axis=-1), axis=1))
     ax.semilogy(run.trajectory_.times, spread, color=color, label=f'beta = {beta}')

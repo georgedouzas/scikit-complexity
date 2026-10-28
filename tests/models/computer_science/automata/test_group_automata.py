@@ -22,7 +22,7 @@ from .conftest import GRIGORCHUK_BALLS
 
 def _run(system, until):
     """Return a simulation of a system."""
-    return Simulation(system, dt=1, random_state=0).run(until=until)
+    return Simulation(system, dt=1, random_state=0).check().run(until=until)
 
 
 def _majority_holds(space, memory, before, after):
@@ -60,11 +60,11 @@ def test_grigorchuk_automaton_in_the_viewer():
             """Keep a logged entity."""
             logged.append((static, archetype))
 
-    visual = CayleyVisual(low=0, high=1).prepare(problem.elements[0], problem)
+    visual = CayleyVisual(low=0, high=1, path=problem.elements[0].path, recording=Recording()).check().prepare(problem)
     trajectory = simulation.trajectory_
     for index in (0, len(trajectory.times) - 1):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)
-        visual.run(frame, Recording())
+        visual.run(frame)
     nodes = [archetype for static, archetype in logged if not static]
     positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())
     assert positions.shape == (271, 2)

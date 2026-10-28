@@ -14,16 +14,16 @@ from skcomplex.models.biology.ecology import PopulationElement
 def test_conservation_observer_keeps_the_totals():
     """Test that the conservation observer tracks the total of every quantity of a balanced run."""
     observer = ConservationObserver()
-    Simulation(create('bathtub'), dt=1, observers=[observer]).run(10)
+    Simulation(create('bathtub'), dt=1, observers=[observer]).check().run(10)
     assert observer.totals_['water'] == pytest.approx(25.0)
     assert observer.initial_ is not None
 
 
 def test_conservation_observer_needs_a_transfer_network():
     """Test that a problem without a transfer network, such as a partitioned one, cannot be monitored."""
-    problem = Simulation(System(elements=[PopulationElement('a')])).prepare().problem_
+    problem = Simulation(System(elements=[PopulationElement('a')])).check().prepare().problem_
     with pytest.raises(SimulationError, match='transfer network'):
-        ConservationObserver().prepare(replace(problem, transfer_network=None))
+        ConservationObserver().check().prepare(replace(problem, transfer_network=None))
 
 
 @pytest.mark.parametrize('settings', [{'rtol': -1.0}, {'atol': 'small'}])

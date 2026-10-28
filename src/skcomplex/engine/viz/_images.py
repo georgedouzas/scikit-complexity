@@ -178,10 +178,12 @@ class ImageVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ImageVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
-            >>> [str(view.origin) for view in ImageVisual().prepare(problem.elements[0], problem).views_]
+            >>> views = ImageVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
             >>> problem = compile_system(create('elementary_automaton'))
-            >>> [str(view.origin) for view in ImageVisual().prepare(problem.elements[0], problem).views_]
+            >>> views = ImageVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']
         """
         if not isinstance(element, CompiledElement):

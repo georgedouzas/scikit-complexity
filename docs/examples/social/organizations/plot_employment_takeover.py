@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'employment_takeover'
 
 system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=default_blueprint(system, primary='cells/colour'))
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/colour')
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=50)
 
 # %%
 # A frozen state

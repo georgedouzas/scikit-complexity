@@ -21,7 +21,7 @@ MODEL = 'sis'
 
 system = create(MODEL, stochastic=True)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).check().run(until=100)
 
 # %%
 # Logistic growth of the infected

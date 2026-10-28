@@ -14,15 +14,14 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'gray_scott'
 
 system = create(MODEL, random_state=0)
-blueprint = default_blueprint(system, primary='cells/v')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[observer]).run(until=10000)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/v', interval=2)
+simulation = Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[observer]).check().run(until=10000)
 
 # %%
 # Final pattern and its radial power spectrum

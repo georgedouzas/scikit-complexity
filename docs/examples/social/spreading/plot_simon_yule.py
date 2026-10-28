@@ -22,7 +22,7 @@ MODEL = 'simon_yule'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=100)
 
 # %%
 # Zipf's law and vocabulary growth

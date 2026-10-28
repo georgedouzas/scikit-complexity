@@ -21,7 +21,7 @@ MODEL = 'lq_radiosensitizer'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=0.25, observers=[observer]).check().run(until=40)
 
 # %%
 # Surviving fractions
@@ -38,7 +38,7 @@ survival = [event.after[cells] / event.before[cells] for event in trajectory.eve
 predicted = [
     np.exp(-(1 + ap * event.before[sensitizer]) * (alpha * dose + beta * dose**2)) for event in trajectory.events
 ]
-alone = Simulation(create(MODEL, Us=0.0), dt=0.25).run(until=40).trajectory_
+alone = Simulation(create(MODEL, Us=0.0), dt=0.25).check().run(until=40).trajectory_
 
 
 def total(run):
