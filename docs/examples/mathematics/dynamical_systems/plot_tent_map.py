@@ -20,7 +20,7 @@ from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'tent_map'
 
@@ -47,7 +47,7 @@ simulation = Simulation(create(MODEL), dt=1, observers=[observer]).run(until=200
 slopes = np.linspace(1.0, 2.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        MODEL,
+        describe(MODEL).factory,
         'map.mu',
         slopes,
         'map.x',
