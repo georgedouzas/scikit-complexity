@@ -50,7 +50,7 @@ heuristics.__doc__ = """Forecasting heuristics of Anufriev and Hommes, functions
 - `fundamental(history, fundamental, reversion)` gives `F + v (x(t) - F)`.
 
 Examples:
-    >>> from skcomplex.models.economics.realizations import heuristics
+    >>> from skcomplex.models.economics.realizations.learning import heuristics
     >>> heuristics.trend([1.0, 2.0], strength=0.5)
     2.5
 """
@@ -71,7 +71,7 @@ def logit_probabilities(utilities: npt.ArrayLike, intensity: float) -> Array:
             One probability per option.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import logit_probabilities
+        >>> from skcomplex.models.economics.realizations.learning import logit_probabilities
         >>> logit_probabilities([0.0, 0.0], 1.0).tolist()
         [0.5, 0.5]
     """
@@ -101,7 +101,7 @@ def logit_choice(utilities: npt.ArrayLike, intensity: float, rng: np.random.Gene
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.economics.realizations import logit_choice
+        >>> from skcomplex.models.economics.realizations.learning import logit_choice
         >>> logit_choice([0.0, 100.0], 10.0, np.random.default_rng(0))
         1
     """
@@ -181,7 +181,7 @@ def evolve(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.economics.realizations import evolve
+        >>> from skcomplex.models.economics.realizations.learning import evolve
         >>> genomes = np.array([[0, 0, 0, 0], [1, 1, 1, 1]])
         >>> evolve(genomes, [0.0, 1.0], np.random.default_rng(0), select='truncation', mutation=0.0).tolist()
         [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]

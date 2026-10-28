@@ -21,7 +21,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
+from ._exchange import cobb_douglas, neighbor_pairing, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 

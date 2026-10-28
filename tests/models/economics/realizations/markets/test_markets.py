@@ -1,4 +1,4 @@
-"""Test the `_markets` module of `skcomplex.models.economics.realizations`."""
+"""Test the `_markets` module of `skcomplex.models.economics.realizations.markets`."""
 
 import math
 from typing import Annotated
@@ -14,7 +14,7 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.realizations import (
+from skcomplex.models.economics.realizations.markets import (
     BilateralSearch,
     CallAuction,
     DeferredAcceptance,
@@ -26,7 +26,7 @@ from skcomplex.models.economics.realizations import (
     Walrasian,
 )
 
-from .conftest import TraderElement
+from ..conftest import TraderElement
 
 
 def _orders(limits, budgets=None):

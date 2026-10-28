@@ -3353,24 +3353,25 @@ agents learn from their past.
   writes apply at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
-- `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from `skcomplex.models.economics.realizations`,
-  matches two groups. Buyers state their limit `bid` and
+- `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from
+  `skcomplex.models.economics.realizations.markets`, matches two groups. Buyers state their limit `bid` and
   `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearch`, `SampleAndSwitch` (partner
   choice with switching), `RationedQueue`, `Walrasian` (tâtonnement), `OrderBook` (price-time priority), `CallAuction`
   (one uniform price), and `DeferredAcceptance` (stable matching by the `matching` library). Every trade moves
   `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
   `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
-- An `InstitutionInteraction` acts once per round of its phase with its method `act`. It reads `model.observable(name)`,
-  reporters through `model.history(name, window)`, and agents, and it sets parameters of any element or interaction with
-  `model.set_parameter(name, value)`. Rules see the change at once, and the trajectory records it. A subclass that
-  declares its own parameters takes them as annotated arguments of its `__init__` next to `rule` and `phase`.
+- An `InstitutionInteraction`, from `skcomplex.models.economics.realizations.institutions`, acts once per round of its
+  phase with its method `act`. It reads `model.observable(name)`, reporters through `model.history(name, window)`, and
+  agents, and it sets parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the
+  change at once, and the trajectory records it. A subclass that declares its own parameters takes them as annotated
+  arguments of its `__init__` next to `rule` and `phase`.
 - Elements and interactions declare the values they publish in the class variable `reports` and publish them with
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `memory(agent, state, window)`, from `skcomplex.engine.solvers`, returns the past values of a state
-  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations`, `heuristics` has adaptive,
-  trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past performance, and
-  `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
+  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations.learning`, `heuristics` has
+  adaptive, trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past
+  performance, and `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
   `skcomplex.models.social.cooperation`, copies the best neighbour.
 
 ```python
@@ -3384,7 +3385,8 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.realizations import CallAuction, InstitutionInteraction, MarketInteraction
+from skcomplex.models.economics.realizations.institutions import InstitutionInteraction
+from skcomplex.models.economics.realizations.markets import CallAuction, MarketInteraction
 
 
 class TraderElement(Element):

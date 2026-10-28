@@ -19,7 +19,7 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpe
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._institutions import InstitutionInteraction
+from ..realizations.institutions import InstitutionInteraction
 
 type Array = npt.NDArray[np.float64]
 

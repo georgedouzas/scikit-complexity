@@ -7,8 +7,8 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from .....core.interactions import Interaction
+from .....core.laws import BaseLaw, RuleLaw
 
 
 class InstitutionInteraction(Interaction):
@@ -34,7 +34,7 @@ class InstitutionInteraction(Interaction):
             The values of the declared variables, by name.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import InstitutionInteraction
+        >>> from skcomplex.models.economics.realizations.institutions import InstitutionInteraction
         >>> InstitutionInteraction('regulator', rule=lambda model: None).phase is None
         True
     """

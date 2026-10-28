@@ -17,8 +17,8 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSp
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._institutions import InstitutionInteraction
-from ..realizations._markets import CallAuction, MarketInteraction, OrderBook, Trade
+from ..realizations.institutions import InstitutionInteraction
+from ..realizations.markets import CallAuction, MarketInteraction, OrderBook, Trade
 
 PROTOCOLS = ('order_book', 'call_auction')
 

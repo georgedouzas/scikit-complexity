@@ -1,11 +1,11 @@
-"""Test the `_learning` module of `skcomplex.models.economics.realizations`."""
+"""Test the `_learning` module of `skcomplex.models.economics.realizations.learning`."""
 
 import math
 
 import numpy as np
 import pytest
 
-from skcomplex.models.economics.realizations import (
+from skcomplex.models.economics.realizations.learning import (
     evolve,
     heuristics,
     logit_choice,

@@ -15,9 +15,9 @@ from typing import Annotated, Any, ClassVar, Self
 import numpy as np
 from matching.games import HospitalResident
 
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import RoleSpec
+from .....core.interactions import Interaction
+from .....core.laws import BaseLaw, RuleLaw
+from .....core.specs import RoleSpec
 
 type Preference = Callable[[Any, Any], float]
 
@@ -204,7 +204,7 @@ class BilateralSearch(Protocol):
             The price of a trade, `'midpoint'`, `'bid'`, or `'ask'`.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import BilateralSearch
+        >>> from skcomplex.models.economics.realizations.markets import BilateralSearch
         >>> BilateralSearch(tries=3).tries
         3
     """
@@ -255,7 +255,7 @@ class SampleAndSwitch(Protocol):
             The name of the buyer state that holds the id of its partner.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import SampleAndSwitch
+        >>> from skcomplex.models.economics.realizations.markets import SampleAndSwitch
         >>> SampleAndSwitch(sample=2, intensity=4.0).intensity
         4.0
     """
@@ -300,7 +300,7 @@ class RationedQueue(Protocol):
             The order of the queue, `'random'`, `'bid'`, or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import RationedQueue
+        >>> from skcomplex.models.economics.realizations.markets import RationedQueue
         >>> RationedQueue(order='bid').order
         'bid'
     """
@@ -370,7 +370,7 @@ class Walrasian(Protocol):
             The relative excess demand at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import Walrasian
+        >>> from skcomplex.models.economics.realizations.markets import Walrasian
         >>> Walrasian(adjustment=0.05).iterations
         500
     """
@@ -432,7 +432,7 @@ class OrderBook(Protocol):
             The order of arrival, `'random'` or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import OrderBook
+        >>> from skcomplex.models.economics.realizations.markets import OrderBook
         >>> OrderBook().arrival
         'random'
     """
@@ -482,7 +482,7 @@ class CallAuction(Protocol):
     price is the midpoint of the last paired bid and ask, and every paired buyer and seller trades at it.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import CallAuction
+        >>> from skcomplex.models.economics.realizations.markets import CallAuction
         >>> CallAuction()
         CallAuction()
     """
@@ -549,7 +549,7 @@ class DeferredAcceptance(Protocol):
             The price of a match, `'ask'`, `'bid'`, or `'midpoint'`.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import DeferredAcceptance
+        >>> from skcomplex.models.economics.realizations.markets import DeferredAcceptance
         >>> DeferredAcceptance(pricing='bid').pricing
         'bid'
     """
@@ -683,7 +683,7 @@ class MarketInteraction(Interaction):
                 The path of the group of sellers.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import MarketInteraction, OrderBook
+        >>> from skcomplex.models.economics.realizations.markets import MarketInteraction, OrderBook
         >>> MarketInteraction('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
         ('price', 'volume', 'unmatched')
     """
@@ -825,7 +825,7 @@ def total_surplus(trades: Sequence[Trade], value: Callable[[Any], float], cost: 
             The total surplus.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import Trade, total_surplus
+        >>> from skcomplex.models.economics.realizations.markets import Trade, total_surplus
         >>> total_surplus([Trade('b', 's', 2.0, 5.0)], lambda buyer: 7.0, lambda seller: 4.0)
         6.0
     """

@@ -1,4 +1,4 @@
-"""Test the `_institutions` module of `skcomplex.models.economics.realizations`."""
+"""Test the `_institutions` module of `skcomplex.models.economics.realizations.institutions`."""
 
 import pytest
 
@@ -7,11 +7,11 @@ from skcomplex.core.errors import SimulationError
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.realizations import (
+from skcomplex.models.economics.realizations.institutions import (
     InstitutionInteraction,
 )
 
-from .conftest import TraderElement
+from ..conftest import TraderElement
 
 
 def _report_total(model):

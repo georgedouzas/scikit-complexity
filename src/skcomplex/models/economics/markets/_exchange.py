@@ -32,7 +32,7 @@ def cobb_douglas(agent: Any, goods: Sequence[str], weights: Sequence[str]) -> fl
 
     Examples:
         >>> from types import SimpleNamespace
-        >>> from skcomplex.models.economics.realizations import cobb_douglas
+        >>> from skcomplex.models.economics.markets import cobb_douglas
         >>> agent = SimpleNamespace(x=4.0, y=1.0, a=0.5, b=0.5)
         >>> round(cobb_douglas(agent, ('x', 'y'), ('a', 'b')), 6)
         0.693147
@@ -70,7 +70,7 @@ def marginal_rate(agent: Any, good: str, numeraire: str, weights: tuple[str, str
 
     Examples:
         >>> from types import SimpleNamespace
-        >>> from skcomplex.models.economics.realizations import marginal_rate
+        >>> from skcomplex.models.economics.markets import marginal_rate
         >>> agent = SimpleNamespace(x=2.0, y=6.0, a=0.5, b=0.5)
         >>> marginal_rate(agent, 'x', 'y', ('a', 'b'))
         3.0
@@ -153,7 +153,7 @@ def trade_goods(
 
     Examples:
         >>> from types import SimpleNamespace
-        >>> from skcomplex.models.economics.realizations import trade_goods
+        >>> from skcomplex.models.economics.markets import trade_goods
         >>> first = SimpleNamespace(x=9.0, y=1.0, a=0.5, b=0.5)
         >>> second = SimpleNamespace(x=1.0, y=9.0, a=0.5, b=0.5)
         >>> trades = trade_goods(first, second, ('x', 'y'), ('a', 'b'), quantity=0.5)
@@ -204,7 +204,7 @@ def neighbor_pairing(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.economics.realizations import neighbor_pairing
+        >>> from skcomplex.models.economics.markets import neighbor_pairing
         >>> neighbor_pairing([], [], np.random.default_rng(0), 1)
         []
     """
