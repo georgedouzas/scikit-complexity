@@ -26,7 +26,7 @@ class ValidationReport:
     Examples:
         >>> from skcomplex.engine.compile import PassCompiler
         >>> from skcomplex.core.system import System
-        >>> PassCompiler().prepare(System()).report_.ok
+        >>> PassCompiler().check().prepare(System()).report_.ok
         True
     """
 

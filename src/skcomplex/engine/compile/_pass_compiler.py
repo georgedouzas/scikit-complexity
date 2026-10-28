@@ -72,10 +72,10 @@ from ._plan import _Plan
 from ._topology import Topology
 from ._tree import Node, _declared_times
 from .passes._compile_encounters import CompileEncountersPass
-from .passes._conserved_noise import _conserved_issues
+from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import _PASSES
-from .passes._fractional_form import _order_issues
-from .passes._lattices import _schedule_issues
+from .passes._fractional_form import FractionalFormPass
+from .passes._lattices import LatticeProblemPass
 from .passes._noise import NoisePass
 from .passes._quantum_compiler import QuantumCompiler
 from .passes._rewriting_compiler import RewritingCompiler
@@ -412,9 +412,9 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._law_issues(records, _declared_times(system))
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
-        issues += _schedule_issues(compilation)
-        issues += _conserved_issues(compilation)
-        issues += _order_issues(compilation)
+        issues += LatticeProblemPass._schedule_issues(compilation)
+        issues += ConservedNoisePass._conserved_issues(compilation)
+        issues += FractionalFormPass._order_issues(compilation)
         issues += PassCompiler._probability_issues(compilation)
         issues += PassCompiler._request_issues(compilation)
         if solver is not None:

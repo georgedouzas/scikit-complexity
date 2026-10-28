@@ -362,11 +362,10 @@ def test_held_observable_reduces_element_group():
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
 
 
-def test_subsystem_partitions_reject_reductions_of_agents():
-    """Test that compiling one partition per subsystem names the reduction of agents that it cannot hold."""
-    compiler = PassCompiler(partition='subsystems').check().prepare(harvesting())
-    with pytest.raises(ValidationError, match='only a co-simulation computes'):
-        compiler.run()
+def test_subsystem_partitions_hold_reductions_of_agents():
+    """Test that compiling one partition per subsystem holds the reductions of agents that laws read."""
+    problem = PassCompiler(partition='subsystems').check().prepare(harvesting()).run()
+    assert [partition.name for partition in problem.partitions] == ['land', 'village']
 
 
 def test_agent_rules_read_other_partitions():

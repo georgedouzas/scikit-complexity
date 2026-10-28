@@ -32,7 +32,8 @@ class ReductionsPass(BasePass):
         reductions = ReductionLowering().check().prepare(compilation)
         specs, apart = cast('Laws', compilation.drawn), cast('Laws', compilation.drawn_apart)
         lowered = reductions.run([*specs, *apart])
-        events = reductions.run([(spec, [event]) for spec, event in cast('list[tuple[KernelSpec, CrossingLaw]]', compilation.events)])
+        crossings = cast('list[tuple[KernelSpec, CrossingLaw]]', compilation.events)
+        events = reductions.run([(spec, [event]) for spec, event in crossings])
         compilation.events = [(spec, cast('CrossingLaw', laws[0])) for spec, laws in events]
         for spec, _ in lowered:
             self._prune_foreign(spec, declarations)
