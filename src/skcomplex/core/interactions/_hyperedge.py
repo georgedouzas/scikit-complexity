@@ -3,6 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from types import SimpleNamespace
+
+from ..base import BasePart
 from ._base import BaseInteraction
 
 
@@ -27,7 +33,7 @@ class HyperedgeInteraction(BaseInteraction):
         'voters'
     """
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the interaction for one hyperedge, none by default.
 
         Args:

@@ -3,7 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Self
 
 from .base import BasePart
@@ -66,7 +69,7 @@ class System(BasePart):
         *,
         elements: Sequence[BaseElement] = (),
         interactions: Sequence[BaseInteraction] = (),
-        systems: Sequence['System'] = (),
+        systems: Sequence[System] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
     ) -> None:
@@ -115,7 +118,7 @@ class System(BasePart):
             part.prepare()
         return self
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of every part, each for the namespace of its label.
 
         Args:

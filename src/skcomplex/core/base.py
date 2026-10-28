@@ -3,9 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 import functools
 import inspect
 from abc import abstractmethod
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Self
 
 from ..base import BaseConfig
@@ -104,7 +108,7 @@ class BasePart(BaseConfig):
         return self
 
     @abstractmethod
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the part contributes for a namespace of symbols: a law contributes itself."""
 
     def _run(self, inputs: object) -> object:

@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator
 from .errors import NotCheckedError
 
 
-class BaseConfig(BaseEstimator, ABC):
+class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
     """Root of every configurable class of the library: it stores its settings and speaks three verbs.
 
     The constructor of a child stores every setting unmodified under its own name, as in scikit-learn, so
@@ -40,11 +40,11 @@ class BaseConfig(BaseEstimator, ABC):
         """Validate the settings, raising a named error for one the object cannot take; accept every setting here."""
         return self
 
-    def _prepare(self, context: object) -> object:
+    def _prepare(self, context: ContextT | None) -> object:
         """Prepare the object against what it serves and set its attributes that end in `_`; derive nothing here."""
         return self
 
-    def _run(self, inputs: object) -> object:
+    def _run(self, inputs: InputT | None) -> object:
         """Perform the action of the object on its input; do nothing here."""
         return None
 
@@ -76,7 +76,7 @@ class BaseConfig(BaseEstimator, ABC):
         self._checked = True
         return self
 
-    def prepare(self, context: object = None) -> Self:
+    def prepare(self, context: ContextT | None = None) -> Self:
         """Prepare the checked object against the one thing it serves, setting its attributes that end in `_`.
 
         Args:
@@ -96,7 +96,7 @@ class BaseConfig(BaseEstimator, ABC):
         self._prepare(context)
         return self
 
-    def run(self, inputs: object = None, final: bool = False) -> object:
+    def run(self, inputs: InputT | None = None, final: bool = False) -> object:
         """Perform the one action of the checked object on its one input.
 
         Args:

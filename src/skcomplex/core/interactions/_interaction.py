@@ -3,6 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from types import SimpleNamespace
+
+from ..base import BasePart
 from ._base import BaseInteraction
 
 
@@ -38,7 +44,7 @@ class Interaction(BaseInteraction):
         PredationInteraction(label='predation', predator='foxes', prey='rabbits')
     """
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the interaction for a namespace of symbols, none by default.
 
         Args:

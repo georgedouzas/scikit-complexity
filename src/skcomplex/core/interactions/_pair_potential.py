@@ -3,13 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from abc import abstractmethod
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ...specs import ParameterSpec, RoleSpec
+from ..base import BasePart
 from ..laws import RateLaw
 from ._pair import PairInteraction
 
@@ -71,7 +76,7 @@ class PairPotentialInteraction(PairInteraction):
     def _get_pair_energy(self, namespace: object, r: Expression) -> Expression:
         """Return the potential energy of one pair at the distance `r` as a symbolic expression."""
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the velocity changes of both particles of a pair from the derivative of the pair energy.
 
         Args:
