@@ -16,7 +16,7 @@ from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.system import System
 from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
-from ...specs import BaseProblemSpec, IssueSpec, ObservableSpec, ValidationReportSpec
+from ...specs import BaseProblemSpec, IssueSpec, KernelSpec, ObservableSpec, ReferenceSpec, ValidationReportSpec
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import _AUTO_MEMBERS
 
@@ -447,15 +447,23 @@ class BaseLowering(BaseConfig):
     The constructor stores what the lowering reads, `prepare(compilation)` sets the prepared attributes the lowering
     gathers, and `run(laws)` returns the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
 
+    A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
+    `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
+    every field of the compilation.
+
     Attributes:
         compilation_:
             The compilation the lowering serves.
+
+        added_:
+            The spec and the references the lowering added to it, by the identity of the spec.
     """
 
     compilation_: 'Compilation'
+    added_: dict[int, tuple[KernelSpec, dict[Expression, ReferenceSpec]]]
 
     def _prepare(self, context: object) -> Self:
-        """Take the compilation the lowering serves.
+        """Take the compilation the lowering serves, with no reference added yet.
 
         Args:
             context:
@@ -466,7 +474,26 @@ class BaseLowering(BaseConfig):
                 The prepared lowering.
         """
         self.compilation_ = cast('Compilation', context)
+        self.added_ = {}
         return self
+
+    def _add_reference(self, spec: KernelSpec, item: Expression, reference: ReferenceSpec) -> None:
+        """Note the reference of a symbol the lowering adds to a spec, which `_apply_references` gives the spec."""
+        self.added_.setdefault(id(spec), (spec, {}))[1][item] = reference
+
+    def _reference_of(self, item: object, spec: KernelSpec) -> ReferenceSpec | None:
+        """Return the reference of a symbol of a spec, the references the lowering added included, or `None`."""
+        _, added = self.added_.get(id(spec), (spec, {}))
+        return added[item] if item in added else spec.references.get(item)
+
+    def _apply_references(self) -> None:
+        """Replace every spec the lowering added references to by a copy that holds them, in the compilation."""
+        replaced = {
+            key: dataclasses.replace(spec, references={**spec.references, **added})
+            for key, (spec, added) in self.added_.items()
+        }
+        self.added_ = {}
+        self.compilation_._replace_specs(replaced)
 
     def _run(self, inputs: object) -> list[BaseLaw]:
         """Return laws lowered.

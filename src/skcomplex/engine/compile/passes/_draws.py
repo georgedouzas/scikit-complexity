@@ -26,4 +26,5 @@ class DrawsPass(BasePass):
         compilation = self.compilation_
         drawing = DrawLowering().check().prepare(compilation)
         compilation.drawn = drawing.run(cast('Laws', compilation.drawn))
+        drawing._apply_references()
         compilation.drawing = drawing

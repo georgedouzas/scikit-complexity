@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -62,7 +63,7 @@ class KernelSpec(BaseSpec):
 
     owner: str
     namespace: SimpleNamespace
-    references: dict[Expression, ReferenceSpec]
+    references: Mapping[Expression, ReferenceSpec]
     rows: int
     pairs: Search | None = None
     roles: dict[str, str | tuple[str, ...]] = field(default_factory=dict)

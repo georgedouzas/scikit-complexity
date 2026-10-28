@@ -3,13 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
 from ._base_spec import BaseSpec
 from ._draw_spec import DrawSpec
-from ._reference_spec import ReferenceSpec
+from ._kernel_spec import KernelSpec
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,6 @@ class _RequestSpec(BaseSpec):
     normal: bool
     rows: int
     slot: Expression
-    references: dict[Expression, ReferenceSpec]
+    spec: KernelSpec
     draw: DrawSpec | None = None
-    slots: dict[str, Expression] = field(default_factory=dict)
+    slots: Mapping[str, Expression] = field(default_factory=dict)

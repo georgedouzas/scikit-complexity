@@ -26,11 +26,11 @@ class MemberLowering(BaseLowering):
     """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
 
     `prepare(compilation)` reads the time of the compilation, and `run(laws)` returns the laws with every member offset
-    read replaced by a symbol that reads the offset member, whose reference it adds to the spec.
+    read replaced by a symbol that reads the offset member, whose reference it notes for the spec.
 
     Args:
         spec:
-            The kernel spec of the component, whose references receive the offset reads.
+            The kernel spec of the component, which `_apply_references` replaces by a copy with the offset reads.
 
     Attributes:
         time_:
@@ -113,12 +113,10 @@ class MemberLowering(BaseLowering):
         reference = self.spec.references[base]
         target = symbol(f'{base}__shift{len(self.shifted_)}', domain_of(base))
         read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
-        self.spec.references[target] = ReferenceSpec(
-            reference.entry,
-            reference.is_state,
-            reference.column,
-            ReadKind.NEIGHBOR,
-            read,
+        self._add_reference(
+            self.spec,
+            target,
+            ReferenceSpec(reference.entry, reference.is_state, reference.column, ReadKind.NEIGHBOR, read),
         )
         self.shifted_[target] = key
         return target

@@ -4,6 +4,7 @@
 # License: MIT
 
 import operator
+from dataclasses import replace
 from typing import cast
 
 import numpy as np
@@ -39,10 +40,12 @@ class DelaysPass(BasePass):
         """Lower the delays of the ordered laws and take their events aside."""
         compilation = self.compilation_
         compilation.delays, compilation.placeholders, compilation.events = [], {}, []
-        compilation.delayed = [
-            (spec, self._with_delays(spec, laws, compilation))
-            for spec, laws in cast('Laws', compilation.ordered)
-        ]
+        compilation.delayed = []
+        for spec, laws in cast('Laws', compilation.ordered):
+            references: dict[Expression, ReferenceSpec] = {}
+            compilation.delayed.append((spec, self._with_delays(spec, laws, compilation, references)))
+            if references:
+                compilation._replace_specs({id(spec): replace(spec, references={**spec.references, **references})})
 
     @staticmethod
     def _delay_minimum(
@@ -75,10 +78,16 @@ class DelaysPass(BasePass):
         value: object,
         spec: KernelSpec,
         compilation: Compilation,
+        references: dict[Expression, ReferenceSpec],
     ) -> object:
-        """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history."""
+        """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history.
+
+        The reference of every hidden parameter is added to `references`, which the spec receives after its laws.
+        A component, or one element of its element sets, that delays one state by one delay twice reads one hidden
+        parameter.
+        """
         if isinstance(value, FreeModuleElement):
-            return vector(DelaysPass._substitute_delays(item, spec, compilation) for item in value)
+            return vector(DelaysPass._substitute_delays(item, spec, compilation, references) for item in value)
         if not isinstance(value, Expression):
             return value
         replacements = {}
@@ -90,9 +99,12 @@ class DelaysPass(BasePass):
             if reference is None or not reference.is_state or reference.source not in read:
                 error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
                 raise ValidationError(error_msg)
-            key = (id(spec), reference.entry.name, reference.column, str(tau))
+            key = (spec.owner, spec.set_index, reference.entry.name, reference.column, str(tau))
             if key in compilation.placeholders:
-                replacements[call] = compilation.placeholders[key]
+                placeholder = compilation.placeholders[key]
+                hidden = next(delay['entry'] for delay in compilation.delays if delay['symbol'] is placeholder)
+                references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
+                replacements[call] = placeholder
                 continue
             declarations = cast('DeclarationsSpec', compilation.layout)
             entry = reference.entry
@@ -115,7 +127,7 @@ class DelaysPass(BasePass):
             declarations = LayoutPass._with_entry(declarations, hidden, values, is_state=False)
             compilation.layout = declarations
             placeholder = symbol(f'_delayed_{index}')
-            spec.references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
+            references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
             compilation.delays.append(
                 {
                     'entry': hidden,
@@ -141,14 +153,18 @@ class DelaysPass(BasePass):
         spec: KernelSpec,
         laws: list[BaseLaw],
         compilation: Compilation,
+        references: dict[Expression, ReferenceSpec],
     ) -> list[BaseLaw]:
-        """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation."""
+        """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation.
+
+        The references of the hidden parameters are added to `references`.
+        """
         result: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, CrossingLaw):
-                guard = DelaysPass._substitute_delays(SR(law.guard), spec, compilation)
+                guard = DelaysPass._substitute_delays(SR(law.guard), spec, compilation, references)
                 reset = {
-                    target: DelaysPass._substitute_delays(SR(value), spec, compilation)
+                    target: DelaysPass._substitute_delays(SR(value), spec, compilation, references)
                     for target, value in (law.reset or {}).items()
                 }
                 compilation.events.append(
@@ -156,12 +172,13 @@ class DelaysPass(BasePass):
                 )
             elif isinstance(law, JumpLaw):
                 result.append(
-                    JumpLaw(DelaysPass._substitute_delays(law.rate, spec, compilation), law.changes),
+                    JumpLaw(DelaysPass._substitute_delays(law.rate, spec, compilation, references), law.changes),
                 )
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 result.append(
                     BasePass._replaced(
-                        law, value=DelaysPass._substitute_delays(law.value, spec, compilation),
+                        law,
+                        value=DelaysPass._substitute_delays(law.value, spec, compilation, references),
                     ),
                 )
             else:

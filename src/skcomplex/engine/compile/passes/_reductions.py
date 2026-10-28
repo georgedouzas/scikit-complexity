@@ -34,17 +34,16 @@ class ReductionsPass(BasePass):
         lowered = reductions.run([*specs, *apart])
         crossings = cast('list[tuple[KernelSpec, CrossingLaw]]', compilation.events)
         events = reductions.run([(spec, [event]) for spec, event in crossings])
-        pruned = {id(spec): self._pruned(spec, declarations) for spec, _ in lowered}
-        compilation.events = [(pruned.get(id(spec), spec), cast('CrossingLaw', laws[0])) for spec, laws in events]
-        lowered = [(pruned[id(spec)], laws) for spec, laws in lowered]
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.delays = [
-            {**delay, 'spec': pruned.get(id(delay['spec']), delay['spec'])} for delay in compilation.delays or []
-        ]
-        compilation.renewals = [
-            replace(renewal, spec=pruned.get(id(renewal.spec), renewal.spec)) for renewal in compilation.renewals or []
-        ]
+        compilation.events = [(spec, cast('CrossingLaw', laws[0])) for spec, laws in events]
+        reductions._apply_references()
+        compilation._replace_specs(
+            {
+                id(spec): self._pruned(spec, declarations)
+                for spec, _ in [*compilation.reduced, *compilation.reduced_apart]
+            },
+        )
         compilation.reductions = ReductionScheduleSpec(
             tuple(reductions.found_.values()),
             reductions.parameters_,

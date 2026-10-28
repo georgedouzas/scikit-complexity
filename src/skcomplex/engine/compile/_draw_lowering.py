@@ -41,7 +41,8 @@ class DrawLowering(BaseLowering):
 
     `prepare(compilation)` reads where the parameters end and the time symbol, and `run(laws)` takes the laws of every
     kernel spec, replaces every draw of their update laws by a drawn value, and places the drawn values after the
-    parameters, by component path, draw name, and member index.
+    parameters, by component path, draw name, and member index. `_apply_references()` then gives every spec the
+    references of its drawn values.
 
     Attributes:
         offset_:
@@ -95,20 +96,14 @@ class DrawLowering(BaseLowering):
                 One draw name has two declarations in a component.
         """
         lowered = [
-            (spec, self._lower(spec.owner, spec.rows, laws, spec.references))
-            for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
+            (spec, self._lower(spec, laws)) for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
         ]
         self._allocate()
         return lowered
 
-    def _slots(
-        self,
-        owner: str,
-        rows: int,
-        laws: list[BaseLaw],
-        references: dict[Expression, ReferenceSpec],
-    ) -> dict[str, Any]:
+    def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Any]:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
+        owner = spec.owner
         declared: dict[str, DrawSpec] = {}
         for law in laws:
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
@@ -132,31 +127,20 @@ class DrawLowering(BaseLowering):
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
-            request = _RequestSpec(owner, name, draw.kind in _NORMAL_KINDS, rows, slot, references, sampled, slots)
+            request = _RequestSpec(owner, name, draw.kind in _NORMAL_KINDS, spec.rows, slot, spec, sampled, slots)
             self.requests_.append(request)
         return slots
 
-    def _lower(
-        self,
-        owner: str,
-        rows: int,
-        laws: list[BaseLaw],
-        references: dict[Expression, ReferenceSpec],
-    ) -> list[BaseLaw]:
+    def _lower(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with every draw of its update laws replaced by a drawn value.
 
         Args:
-            owner:
-                The path of the component.
-
-            rows:
-                The number of evaluation rows, one value of every draw per row.
+            spec:
+                The kernel spec of the component, with one value of every draw per evaluation row, which receives
+                the references of the drawn values when the lowering applies them.
 
             laws:
                 The laws of the component.
-
-            references:
-                The references of the component's symbols, which receive the references of the drawn values.
 
         Returns:
             laws:
@@ -166,7 +150,7 @@ class DrawLowering(BaseLowering):
             ValidationError:
                 One draw name has two declarations in the component.
         """
-        slots = self._slots(owner, rows, laws, references)
+        slots = self._slots(spec, laws)
         if not slots:
             return laws
         lowered: list[BaseLaw] = []
@@ -182,7 +166,8 @@ class DrawLowering(BaseLowering):
     def _allocate(self) -> None:
         """Place the drawn values after the parameters, by component path, draw name, and member index.
 
-        The draws taken at every step are kept in `draws_`, which stays `None` when no update law draws.
+        The reference of every drawn value is noted for the spec of its component, and the draws taken at every step
+        are kept in `draws_`, which stays `None` when no update law draws.
         """
         if not self.requests_:
             return
@@ -194,7 +179,7 @@ class DrawLowering(BaseLowering):
             members = request.rows if grouped else None
             entry = EntrySpec(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
             source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
-            request.references[request.slot] = ReferenceSpec(entry, False, 0, source)
+            self._add_reference(request.spec, request.slot, ReferenceSpec(entry, False, 0, source))
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
@@ -202,7 +187,7 @@ class DrawLowering(BaseLowering):
         position = self.offset_ + len(flags)
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request, self.time_)))
+                sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
         self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
 
@@ -238,11 +223,9 @@ class DrawLowering(BaseLowering):
             found = draws_in(expression)
         return expression
 
-    @staticmethod
-    def _sampler(
-        request: _RequestSpec, time: Expression,
-    ) -> Callable[[float, Array, Array, np.random.Generator], Array]:
+    def _sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
+        time = self.time_
         draw = cast('DrawSpec', request.draw)
         if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
             error_msg = (
@@ -253,7 +236,7 @@ class DrawLowering(BaseLowering):
             raise ValidationError(error_msg)
         arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
-        readers = [request.references.get(item) for item in symbols]
+        readers = [self._reference_of(item, request.spec) for item in symbols]
         if any(reader is None or reader.source not in {ReadKind.SINGLE, ReadKind.MEMBER} for reader in readers):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
