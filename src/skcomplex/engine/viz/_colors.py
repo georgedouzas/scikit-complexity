@@ -87,7 +87,7 @@ def palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.viz import palette_colors
+        >>> from skcomplex.engine.viz._colors import palette_colors
         >>> palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
         (2, 3)
     """
@@ -116,7 +116,7 @@ def colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.N
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.viz import colors_of
+        >>> from skcomplex.engine.viz._colors import colors_of
         >>> colors_of(np.array([0.0, 1.0]), 0.0, 1.0).shape
         (2, 3)
     """

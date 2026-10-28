@@ -67,7 +67,7 @@ def test_signature_analysis_of_a_network():
 
 def test_signature_analysis_of_an_ensemble():
     """Test that an ensemble gives the mean and the 5 to 95 percent band over runs."""
-    result = Experiment('hasselmann', replicates=50, until=2.0, random_state=0).run()
+    result = Experiment('hasselmann', replicates=50, until=2.0, random_state=0).prepare().run().result_
     (signature,) = signature_analysis(result)
     _, low, high = signature.band
     _, mean = signature.curves['mean']

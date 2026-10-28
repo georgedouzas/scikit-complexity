@@ -1,4 +1,4 @@
-"""Hold the results of experiments as tidy rows, kept series, and summaries across replicates."""
+"""Hold the results of experiments as tidy rows, kept series, ensembles, and summaries across replicates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,14 +6,13 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 
 @dataclass(frozen=True)
-class RunResult:
+class _RunResult:
     """Result of one run of an experiment.
 
     Args:
@@ -39,21 +38,22 @@ class RunResult:
             The kept series by path.
 
         scalars:
-            The scalar outputs by name: the last value of every kept scalar series and the values of output functions.
+            The scalar outputs by name: the last value of every kept scalar series, the values of output functions,
+            and the results of the analyses.
     """
 
     index: int
-    row: dict[str, Any]
+    row: dict[str, object]
     scenario: str
     replicate: int
     seed: int
     times: npt.NDArray[np.float64]
-    series: dict[str, npt.NDArray[Any]]
-    scalars: dict[str, Any]
+    series: dict[str, npt.NDArray[np.generic]]
+    scalars: dict[str, object]
 
 
 class ExperimentResult:
-    """Results of an experiment: one row per run, the kept series, and summaries across replicates.
+    """Results of an experiment: one row per run, the kept series, ensembles, and summaries across replicates.
 
     Args:
         runs:
@@ -62,23 +62,23 @@ class ExperimentResult:
     Examples:
         >>> from skcomplex.experiments import Experiment, GridDesign
         >>> from skcomplex.models.biology.epidemiology import sir
-        >>> result = Experiment('sir', GridDesign(gamma=[0.1, 0.2]), until=10).run()
-        >>> [row['gamma'] for row in result.rows]
+        >>> experiment = Experiment('sir', GridDesign(), {'gamma': [0.1, 0.2]}, until=10).prepare().run()
+        >>> [row['gamma'] for row in experiment.result_.rows]
         [0.1, 0.2]
     """
 
-    def __init__(self, runs: Sequence[RunResult]) -> None:
+    def __init__(self, runs: Sequence[_RunResult]) -> None:
         self.runs = list(runs)
 
     @property
-    def rows(self) -> list[dict[str, Any]]:
+    def rows(self) -> list[dict[str, object]]:
         """One row per run with its design values, scenario, replicate, seed, and scalar outputs."""
         return [
             {**run.row, 'scenario': run.scenario, 'replicate': run.replicate, 'seed': run.seed, **run.scalars}
             for run in self.runs
         ]
 
-    def column(self, name: str) -> npt.NDArray[Any]:
+    def column(self, name: str) -> npt.NDArray[np.generic]:
         """Return one column of the rows.
 
         Args:
@@ -91,7 +91,7 @@ class ExperimentResult:
         """
         return np.asarray([row[name] for row in self.rows])
 
-    def series(self, name: str) -> npt.NDArray[Any]:
+    def series(self, name: str) -> npt.NDArray[np.generic]:
         """Return a kept series of every run, stacked when all runs have the same number of frames.
 
         Args:
@@ -109,8 +109,46 @@ class ExperimentResult:
         array[:] = values
         return array
 
-    def summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, Any]]:
-        """Return the mean, standard deviation, and quantiles of every scalar output per design row and scenario.
+    def ensemble(
+        self,
+        name: str,
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
+        """Return a kept series of every run interpolated on the times of the shortest run, with the seeds of the runs.
+
+        Args:
+            name:
+                The path of the kept series.
+
+        Returns:
+            times:
+                The common times.
+
+            values:
+                One row per run and one column per common time.
+
+            seeds:
+                The seed of the run of every row.
+
+        Examples:
+            >>> from skcomplex.experiments import Experiment
+            >>> from skcomplex.models.biology.epidemiology import sir
+            >>> result = Experiment('sir', replicates=3, until=10, random_state=0).prepare().run().result_
+            >>> times, values, seeds = result.ensemble('I.n')
+            >>> values.shape == (3, times.size), seeds.tolist()
+            (True, [0, 1, 2])
+        """
+        times = min((np.asarray(run.times, dtype=float) for run in self.runs), key=len)
+        values = np.asarray(
+            [
+                np.interp(times, np.asarray(run.times, dtype=float), np.asarray(run.series[name], dtype=float))
+                for run in self.runs
+            ],
+        )
+        seeds = np.asarray([run.seed for run in self.runs], dtype=np.int64)
+        return times, values, seeds
+
+    def summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, object]]:
+        """Return the mean, standard deviation, and quantiles of every numeric scalar output per row and scenario.
 
         Args:
             quantiles:
@@ -121,14 +159,17 @@ class ExperimentResult:
                 One row per design row and scenario, with `<output>.mean`, `<output>.std`, and `<output>.q<quantile>`
                 columns and the number of replicates as `runs`.
         """
-        groups: dict[tuple[Any, ...], list[RunResult]] = defaultdict(list)
+        groups: dict[tuple[object, ...], list[_RunResult]] = defaultdict(list)
         for run in self.runs:
             groups[(tuple(run.row.items()), run.scenario)].append(run)
         summary = []
         for (row, scenario), runs in groups.items():
-            entry: dict[str, Any] = {**dict(row), 'scenario': scenario, 'runs': len(runs)}
+            entry: dict[str, object] = {**dict(row), 'scenario': scenario, 'runs': len(runs)}  # type: ignore[call-overload]
             for name in runs[0].scalars:
-                values = np.asarray([run.scalars[name] for run in runs], dtype=float)
+                values = np.asarray([run.scalars[name] for run in runs])
+                if values.ndim != 1 or not np.issubdtype(values.dtype, np.number):
+                    continue
+                values = values.astype(float)
                 entry[f'{name}.mean'] = float(values.mean())
                 entry[f'{name}.std'] = float(values.std(ddof=1)) if values.size > 1 else 0.0
                 for quantile in quantiles:
@@ -136,7 +177,7 @@ class ExperimentResult:
             summary.append(entry)
         return summary
 
-    def to_frame(self) -> Any:  # noqa: ANN401
+    def to_frame(self) -> object:
         """Return the rows as a pandas data frame.
 
         Returns:

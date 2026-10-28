@@ -87,7 +87,9 @@ def surrogate_test(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import o_information, surrogate_test
+        >>> from skcomplex.analysis import InformationAnalysis, surrogate_test
+        >>> def o_information(data):
+        ...     return InformationAnalysis('o-information').check().prepare(data).run().information_
         >>> bit = np.random.default_rng(0).integers(0, 2, 500)
         >>> test = surrogate_test(o_information, np.column_stack([bit, bit, bit]), n=19, random_state=0)
         >>> round(test.value, 1), test.p_value

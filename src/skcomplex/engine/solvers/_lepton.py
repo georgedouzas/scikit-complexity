@@ -70,7 +70,7 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
 
     Examples:
         >>> from skcomplex.engine.problems import symbol
-        >>> from skcomplex.engine.solvers import lepton_expression
+        >>> from skcomplex.engine.solvers._lepton import lepton_expression
         >>> x = symbol('x')
         >>> lepton_expression(4 * (x**-12 - x**-6), x)
         '-4/r^6 + 4/r^12'

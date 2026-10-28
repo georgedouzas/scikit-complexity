@@ -11,12 +11,12 @@ from skcomplex.analysis import (
     ANALYSES,
     AnalysisEntry,
     DataKind,
+    MarkovAnalysis,
     analyses_for,
     analysis,
     data_kinds,
     ensemble_of,
     fields_of,
-    markov_state_model,
     networks_of,
     path_of,
     series_of,
@@ -68,8 +68,8 @@ def test_analyses_for_arrays_without_a_simulation():
     """Test that every listed analysis of a measured series runs on the array alone."""
     values = np.random.default_rng(0).standard_normal(2000)
     found = {item.name for item in analyses_for(values)}
-    assert {'autocorrelation', 'sample_entropy', 'hurst_exponent'} <= found
-    assert ANALYSES.resolve('sample_entropy').function(values) > 1
+    assert {'autocorrelation', 'hurst_exponent'} <= found
+    assert 0 < ANALYSES.resolve('hurst_exponent').function(values) < 1
 
 
 def test_series_of_an_ode():
@@ -137,7 +137,7 @@ def test_networks_of_a_network_space():
 
 def test_ensemble_of_replicates():
     """Test that 200 replicates of an Ornstein-Uhlenbeck process give one row per run with its seed."""
-    result = Experiment('hasselmann', replicates=200, until=2.0, random_state=0).run()
+    result = Experiment('hasselmann', replicates=200, until=2.0, random_state=0).prepare().run().result_
     name = next(iter(result.runs[0].series))
     ensemble = ensemble_of(result, name)
     assert ensemble.values.shape == (200, ensemble.times.size)
@@ -155,10 +155,10 @@ def test_analyses_for_lattice_model():
 
 
 def test_analyses_for_agent_model():
-    """Test that a flocking trajectory lists polarization, neighbour statistics, and displacement as agent analyses."""
+    """Test that a flocking trajectory lists coarse-graining as an agent analysis."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
     agents = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.AGENTS}
-    assert {'polar_order', 'nearest_neighbor_distances', 'mean_squared_displacement'} <= agents
+    assert 'coarse_grain' in agents
 
 
 def test_analyses_for_plain_array():
@@ -171,13 +171,13 @@ def test_analyses_for_plain_array():
 
 
 def test_analyses_for_jump_path_in_the_default_install():
-    """Test that a jump path lists the Markov state model, which runs in the default install."""
+    """Test that a jump path has the path kind and gives a Markov state model, which runs in the default install."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 30.0, 'random_state': 0}).trajectory_
-    names = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.PATH}
-    assert 'markov_state_model' in names
+    assert DataKind.PATH in data_kinds(trajectory)
     path = path_of(trajectory)
     states = np.asarray(path.states, dtype=int) % 3
-    assert markov_state_model(np.tile(states, 20)).transition_matrix.shape[0] >= 2
+    model = MarkovAnalysis('state-model').check().prepare(np.tile(states, 20)).run()
+    assert model.transition_matrix_.shape[0] >= 2
 
 
 def test_analysis_registers_a_new_analysis():

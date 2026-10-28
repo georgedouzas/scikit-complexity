@@ -3,22 +3,34 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import math
-from typing import Any
+from collections.abc import Sequence
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ._kinds import DataKind, analysis
-from ._multivariate import _check_estimator, _row_codes
-from ._utils import real_array, sample_columns
+from ..core.errors import AnalysisError
+from ._base import BaseAnalysis, Source
+from ._information import _row_codes
+from ._kinds import DataKind
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
-LOCAL_ESTIMATORS = ('plugin', 'gaussian')
+type Columns = npt.NDArray[np.generic]
+KINDS = ('entropy', 'mutual', 'transfer')
+ESTIMATORS = ('plugin', 'gaussian')
+SETTINGS = {
+    'entropy': {'estimator', 'base'},
+    'mutual': {'estimator', 'base'},
+    'transfer': {'history', 'lag', 'estimator', 'base'},
+}
+"""Settings every kind reads, besides `kind` and `variables`."""
 
 
-def _log_probabilities(columns: npt.NDArray[Any], estimator: str) -> Array:
+def _log_probabilities(columns: Columns, estimator: str) -> Array:
     """Return the logarithm of the probability, or of the fitted Gaussian density, of every row in nats."""
     if estimator == 'plugin':
         codes = _row_codes(columns)
@@ -30,137 +42,152 @@ def _log_probabilities(columns: npt.NDArray[Any], estimator: str) -> Array:
     return np.asarray(density.logpdf(values), dtype=float).reshape(-1)
 
 
-@analysis(DataKind.SERIES)
-def local_entropy(values: npt.ArrayLike, *, estimator: str = 'plugin', base: float = 2.0) -> Array:
-    """Return the local entropy `-log p(x)` of every sample, whose mean is the entropy.
-
-    Args:
-        values:
-            A series, or one row per sample and one column per variable, symbols for the plug-in estimator.
-
-        estimator:
-            `'plugin'` for the frequencies of symbols, or `'gaussian'` for the density of a fitted Gaussian.
-
-        base:
-            The base of the logarithm, 2 for bits.
-
-    Returns:
-        entropies:
-            One local entropy per sample.
-
-    Raises:
-        AnalysisError:
-            The estimator is unknown.
-
-    Examples:
-        >>> from skcomplex.analysis import local_entropy
-        >>> local_entropy([0, 0, 0, 1]).round(3).tolist()
-        [0.415, 0.415, 0.415, 2.0]
-    """
-    _check_estimator(estimator, LOCAL_ESTIMATORS)
-    return -_log_probabilities(sample_columns(values), estimator) / math.log(base)
-
-
-@analysis(DataKind.SERIES)
-def local_mutual_information(
-    first: npt.ArrayLike,
-    second: npt.ArrayLike,
-    *,
-    estimator: str = 'plugin',
-    base: float = 2.0,
-) -> Array:
-    """Return the local mutual information `log p(x, y) / (p(x) p(y))` of every sample, whose mean is the global one.
-
-    Args:
-        first:
-            The first series, or one row per sample and one column per variable.
-
-        second:
-            The second series, aligned with the first.
-
-        estimator:
-            `'plugin'` for the frequencies of symbols, or `'gaussian'` for the densities of a fitted Gaussian.
-
-        base:
-            The base of the logarithm, 2 for bits.
-
-    Returns:
-        information:
-            One local mutual information per sample, negative where the variables mislead about each other.
-
-    Raises:
-        AnalysisError:
-            The estimator is unknown.
-
-    Examples:
-        >>> from skcomplex.analysis import local_mutual_information
-        >>> local_mutual_information([0, 0, 1, 1], [0, 0, 1, 0]).round(3).tolist()
-        [0.415, 0.415, 1.0, -0.585]
-    """
-    _check_estimator(estimator, LOCAL_ESTIMATORS)
-    x, y = sample_columns(first), sample_columns(second)
-    joint = _log_probabilities(np.column_stack([x, y]), estimator)
-    return (joint - _log_probabilities(x, estimator) - _log_probabilities(y, estimator)) / math.log(base)
-
-
-@analysis(DataKind.SERIES)
-def local_transfer_entropy(
-    source: npt.ArrayLike,
-    target: npt.ArrayLike,
-    *,
-    history: int = 1,
-    lag: int = 1,
-    estimator: str = 'plugin',
-    base: float = 2.0,
-) -> Array:
-    """Return the local transfer entropy from a source to a target at every time, whose mean is the global one.
-
-    It is `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` at every time from `max(history, lag)` on.
-
-    Args:
-        source:
-            The source series.
-
-        target:
-            The target series, aligned with the source.
-
-        history:
-            The number of past target values conditioned on.
-
-        lag:
-            The delay of the source.
-
-        estimator:
-            `'plugin'` for the frequencies of symbols, or `'gaussian'` for the densities of a fitted Gaussian.
-
-        base:
-            The base of the logarithm, 2 for bits.
-
-    Returns:
-        transfer:
-            One local transfer entropy per time from `max(history, lag)` on.
-
-    Raises:
-        AnalysisError:
-            The estimator is unknown.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import local_transfer_entropy
-        >>> x = np.random.default_rng(0).integers(0, 2, 10000)
-        >>> round(float(local_transfer_entropy(x, np.roll(x, 1)).mean()), 1)
-        1.0
-    """
-    _check_estimator(estimator, LOCAL_ESTIMATORS)
-    x, y = np.asarray(source).ravel(), np.asarray(target).ravel()
+def _local_transfer_entropy(x: Columns, y: Columns, history: int, lag: int, estimator: str) -> Array:
+    """Return `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` in nats at every time from `max(history, lag)` on."""
     start = max(history, lag)
     future = y[start:, None]
     past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
     driver = x[start - lag : x.size - lag, None]
-    terms = (
+    return (
         _log_probabilities(np.column_stack([future, past, driver]), estimator)
         - _log_probabilities(np.column_stack([past, driver]), estimator)
         - _log_probabilities(np.column_stack([future, past]), estimator)
         + _log_probabilities(past, estimator)
     )
-    return terms / math.log(base)
+
+
+class LocalInformationAnalysis(BaseAnalysis):
+    """Information of the series of a source sample by sample, whose mean over the samples is the global measure.
+
+    The kinds measure every series or every pair of series:
+
+    - `'entropy'`: the local entropy `-log p(x)` of every sample of every series.
+    - `'mutual'`: the local mutual information `log p(x, y) / (p(x) p(y))` of every sample of every pair of series,
+      negative where the series mislead about each other.
+    - `'transfer'`: the local transfer entropy `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` from every series
+      to every series at every time from `max(history, lag)` on.
+
+    The probabilities are the frequencies of symbols, or the densities of a fitted Gaussian.
+
+    Args:
+        kind:
+            The local information to compute, one of the kinds above.
+
+        variables:
+            The variables of a trajectory to read, or `None` for every scalar series.
+
+        history:
+            The number of past target values of the transfer entropy.
+
+        lag:
+            The delay of the source of the transfer entropy.
+
+        estimator:
+            `'plugin'` for the frequencies of symbols, or `'gaussian'` for the densities of a fitted Gaussian.
+
+        base:
+            The base of the logarithm, 2 for bits.
+
+    Attributes:
+        values_:
+            The series, one per column.
+
+        labels_:
+            The label of every series.
+
+        information_:
+            One row of local entropies per series for `'entropy'`, and for `'mutual'` and `'transfer'` one row of
+            local values from the series of every first index to the series of every second index, `nan` from a series
+            to itself.
+
+    Examples:
+        >>> from skcomplex.analysis import LocalInformationAnalysis
+        >>> local = LocalInformationAnalysis('mutual').check().prepare([[0, 0], [0, 0], [1, 1], [1, 0]]).run()
+        >>> local.information_[0, 1].round(3).tolist()
+        [0.415, 0.415, 1.0, -0.585]
+    """
+
+    def __init__(
+        self,
+        kind: str = 'entropy',
+        variables: Sequence[str] | None = None,
+        *,
+        history: int = 1,
+        lag: int = 1,
+        estimator: str = 'plugin',
+        base: float = 2.0,
+    ) -> None:
+        self.kind = kind
+        self.variables = variables
+        self.history = history
+        self.lag = lag
+        self.estimator = estimator
+        self.base = base
+
+    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
+            raise AnalysisError(error_msg)
+
+    def _check_ignored(self) -> None:
+        """Raise an error for a setting changed from its default that the kind does not read."""
+        defaults = {
+            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
+        }
+        read = SETTINGS[self.kind] | {'kind', 'variables'}
+        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _check(self) -> Self:
+        """Validate the kind, the estimator, the numeric settings, and that the kind reads every changed setting."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_choice('estimator', self.estimator, ESTIMATORS)
+        self._check_ignored()
+        if self.history < 1 or self.lag < 1 or self.base <= 0:
+            error_msg = (
+                f'{type(self).__name__} has history={self.history!r}, lag={self.lag!r}, and base={self.base!r}. Use '
+                'a history and a lag of 1 or more and a positive base.'
+            )
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the series kind."""
+        return DataKind.SERIES
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the series of the source as columns."""
+        series = self._read_series(source, self.variables)
+        self.values_ = series.values
+        self.labels_ = series.labels
+        return self
+
+    def _compute_pair(self, first: Columns, second: Columns, *, same: bool) -> Array:
+        """Return the local mutual information or the local transfer entropy from one series to another in nats."""
+        if same:
+            size = first.size - max(self.history, self.lag) if self.kind == 'transfer' else first.size
+            return np.full(size, np.nan)
+        if self.kind == 'transfer':
+            return _local_transfer_entropy(first, second, self.history, self.lag, self.estimator)
+        x, y = first[:, None], second[:, None]
+        joint = _log_probabilities(np.column_stack([x, y]), self.estimator)
+        return joint - _log_probabilities(x, self.estimator) - _log_probabilities(y, self.estimator)
+
+    def _run(self) -> Self:
+        """Compute the local information of every series or of every pair of series."""
+        columns = self.values_.T
+        if self.kind == 'entropy':
+            local = [-_log_probabilities(column[:, None], self.estimator) for column in columns]
+        else:
+            local = [
+                [self._compute_pair(first, second, same=row == column) for column, second in enumerate(columns)]
+                for row, first in enumerate(columns)
+            ]
+        self.information_ = np.asarray(local, dtype=float) / math.log(self.base)
+        return self

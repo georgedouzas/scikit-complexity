@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....analysis import assortativity, centrality, communities, motif_zscores, summarize_network
+from ....analysis import MotifAnalysis, NetworkAnalysis
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
@@ -219,10 +219,15 @@ def network_structure_analysis(
         34
     """
     network = _planted_partition(random_state) if graph is None else graph
-    found = communities(network, reference=_reference(network, reference), random_state=random_state)
-    summary = summarize_network(network)
+    found = (
+        NetworkAnalysis('communities', reference=_reference(network, reference), random_state=random_state)
+        .check()
+        .prepare(network)
+        .run()
+    )
+    summary = NetworkAnalysis('summary').check().prepare(network).run()
     clustering = nx.clustering(network)
-    betweenness = centrality(network, 'betweenness')
+    betweenness = NetworkAnalysis('centrality', measure='betweenness').check().prepare(network).run().centrality_[0]
     nodes = list(network.nodes())
     group = GroupElement(
         'nodes',
@@ -232,21 +237,20 @@ def network_structure_analysis(
             'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
             'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
             'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
-            'community': found.labels.astype(float),
+            'community': found.labels_[0].astype(float),
         },
         location=nodes,
     )
-    zscore = (
-        motif_zscores(network, samples=null_samples, random_state=random_state).zscores['triangle']
-        if null_samples
-        else 0.0
-    )
+    zscore = 0.0
+    if null_samples:
+        motifs = MotifAnalysis('z-scores', samples=null_samples, random_state=random_state)
+        zscore = motifs.check().prepare(network).run().z_scores_[0]['triangle']
     measures = NetworkMeasuresElement(
         'measures',
-        path_length=summary.path_length,
-        assortativity=float(assortativity(network)),
-        modularity=found.modularity,
-        agreement=0.0 if found.agreement is None else found.agreement,
+        path_length=float(summary.path_length_[0]),
+        assortativity=float(NetworkAnalysis('assortativity').check().prepare(network).run().assortativity_[0]),
+        modularity=float(found.modularity_[0]),
+        agreement=0.0 if found.agreement_ is None else float(found.agreement_[0]),
         triangle_zscore=zscore,
     )
     return System(elements=[group, measures], space=NetworkSpace(network))

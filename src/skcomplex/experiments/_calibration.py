@@ -4,8 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -13,67 +12,19 @@ from scipy.optimize import least_squares, minimize
 
 from ..core.errors import ValidationError
 from ..engine.runtime import Simulation
-from ._sources import Source, _problem, resolve_source, with_values
+from ._base import BaseExperiment, Source
 
+type Array = npt.NDArray[np.float64]
 LOSSES = ('squares', 'likelihood')
 
 
-@dataclass(frozen=True)
-class CalibrationResult:
-    """Parameters fitted to data, with their uncertainty and the quality of the fit.
-
-    Args:
-        estimates:
-            The fitted value of every parameter.
-
-        covariance:
-            The covariance of the estimates from the Jacobian of the residuals, or `None` when it is singular.
-
-        r2:
-            The coefficient of determination over all data points.
-
-        rmse:
-            The root mean squared error.
-
-        mae:
-            The mean absolute error.
-
-        mape:
-            The mean absolute percentage error, over data points that are not zero.
-
-        simulated:
-            The simulated values at the data times, by path.
-
-        success:
-            Whether the optimiser converged.
-    """
-
-    estimates: dict[str, float]
-    covariance: npt.NDArray[np.float64] | None
-    r2: float
-    rmse: float
-    mae: float
-    mape: float
-    simulated: dict[str, npt.NDArray[np.float64]]
-    success: bool
-
-
-def calibrate(
-    source: Source,
-    data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]],
-    bounds: Mapping[str, tuple[float, float]],
-    *,
-    initial: Mapping[str, float] | None = None,
-    loss: str = 'squares',
-    replicates: int = 1,
-    dt: float | None = None,
-    random_state: int | None = None,
-    **arguments: Any,  # noqa: ANN401
-) -> CalibrationResult:
-    """Fit parameters, given by dotted path, so that a model reproduces observed time series.
+class CalibrationExperiment(BaseExperiment):
+    """Fit of parameters, given by dotted path, so that a model reproduces observed time series, with SciPy.
 
     Every evaluation runs the model to the last data time and interpolates its states or observables at the data
     times. Stochastic models average `replicates` runs with fixed streams, so the loss is smooth in the parameters.
+    Least squares use `scipy.optimize.least_squares`, and the Gaussian likelihood with an unknown variance uses
+    `scipy.optimize.minimize`.
 
     Args:
         source:
@@ -100,97 +51,149 @@ def calibrate(
         random_state:
             The seed of the runs.
 
-        **arguments:
-            Factory arguments of the model.
+        arguments:
+            The factory arguments of the model, or `None`.
 
-    Returns:
-        result:
-            The estimates, their covariance, the fit statistics, and the simulated values at the data times.
+    Attributes:
+        estimates_:
+            The fitted value of every parameter.
 
-    Raises:
-        ValidationError:
-            The loss is unknown or there are no data.
+        covariance_:
+            The covariance of the estimates from the Jacobian of the residuals, or `None` when it is singular.
+
+        r2_:
+            The coefficient of determination over all data points.
+
+        rmse_:
+            The root mean squared error.
+
+        mae_:
+            The mean absolute error.
+
+        mape_:
+            The mean absolute percentage error, over data points that are not zero.
+
+        simulated_:
+            The simulated values at the data times, by path.
+
+        success_:
+            Whether the optimiser converged.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.experiments import calibrate
+        >>> from skcomplex.experiments import CalibrationExperiment
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
-        >>> result = calibrate('logistic_growth', {'population.n': (times, values)},
-        ...                    {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)})
-        >>> round(result.estimates['growth.r'], 2), round(result.estimates['growth.K'])
+        >>> bounds = {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)}
+        >>> calibration = CalibrationExperiment('logistic_growth', {'population.n': (times, values)}, bounds)
+        >>> estimates = calibration.check().prepare().run().estimates_
+        >>> round(estimates['growth.r'], 2), round(estimates['growth.K'])
         (0.5, 100)
     """
-    if loss not in LOSSES:
-        error_msg = f'Unknown loss {loss!r}. Use one of {", ".join(LOSSES)}.'
-        raise ValidationError(error_msg)
-    if not data:
-        error_msg = 'Calibration needs at least one observed series.'
-        raise ValidationError(error_msg)
-    factory, defaults = resolve_source(source)
-    problem = _problem(factory, arguments, None, source if isinstance(source, str) else None)
-    names = list(bounds)
-    series = {
-        path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
-        for path, (times, values) in data.items()
-    }
-    until = max(float(times.max()) for times, _ in series.values())
-    settings: dict[str, Any] = {'dt': dt if dt is not None else defaults.get('dt')}
-    settings = {key: value for key, value in settings.items() if value is not None}
-    if 'solver' in defaults:
-        settings['solver'] = defaults['solver']
-    seeds = np.random.SeedSequence(random_state).spawn(replicates)
 
-    def simulate(values: Sequence[float]) -> dict[str, npt.NDArray[np.float64]]:
-        candidate = with_values(problem, dict(zip(names, map(float, values), strict=True)))
+    def __init__(
+        self,
+        source: Source,
+        data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]],
+        bounds: Mapping[str, tuple[float, float]],
+        *,
+        initial: Mapping[str, float] | None = None,
+        loss: str = 'squares',
+        replicates: int = 1,
+        dt: float | None = None,
+        random_state: int | None = None,
+        arguments: Mapping[str, object] | None = None,
+    ) -> None:
+        self.source = source
+        self.data = data
+        self.bounds = bounds
+        self.initial = initial
+        self.loss = loss
+        self.replicates = replicates
+        self.dt = dt
+        self.random_state = random_state
+        self.arguments = arguments
+
+    def _check(self) -> None:
+        """Raise an error for an unknown loss, no data, or replicates that are not a positive integer."""
+        if self.loss not in LOSSES:
+            error_msg = f'Unknown loss {self.loss!r}. Use one of {", ".join(LOSSES)}.'
+            raise ValidationError(error_msg)
+        if not self.data:
+            error_msg = 'Calibration needs at least one observed series.'
+            raise ValidationError(error_msg)
+        if isinstance(self.replicates, bool) or not isinstance(self.replicates, int) or self.replicates < 1:
+            error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self) -> None:
+        """Compile the model, read the data, and set the run settings and the random streams."""
+        factory, defaults = self._resolve_source(self.source)
+        named = self.source if isinstance(self.source, str) else None
+        self.problem_ = self._compile(factory, self.arguments or {}, None, named)
+        self.series_ = {
+            path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
+            for path, (times, values) in self.data.items()
+        }
+        dt = self.dt if self.dt is not None else defaults.get('dt')
+        self.settings_ = {'dt': dt} if dt is not None else {}
+        if 'solver' in defaults:
+            self.settings_['solver'] = defaults['solver']
+        self.seeds_ = np.random.SeedSequence(self.random_state).spawn(self.replicates)
+
+    def _simulate(self, values: Sequence[float]) -> dict[str, Array]:
+        """Return the simulated series at the data times, averaged over the replicates, for parameter values."""
+        candidate = self._with_values(self.problem_, dict(zip(self.bounds, map(float, values), strict=True)))
+        until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
-        for seed in seeds:
-            trajectory = (
-                Simulation(candidate, random_state=np.random.default_rng(seed), **settings).run(until).trajectory_
-            )
+        for seed in self.seeds_:
+            simulation = Simulation(candidate, random_state=np.random.default_rng(seed), **self.settings_)
+            trajectory = simulation.run(until).trajectory_
             runs.append(
                 {
                     path: np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
-                    for path, (times, _) in series.items()
+                    for path, (times, _) in self.series_.items()
                 },
             )
-        return {path: np.mean([run[path] for run in runs], axis=0) for path in series}
+        return {path: np.mean([run[path] for run in runs], axis=0) for path in self.series_}
 
-    def residuals(values: Sequence[float]) -> npt.NDArray[np.float64]:
-        simulated = simulate(values)
-        return np.concatenate([simulated[path] - observed for path, (_, observed) in series.items()])
+    def _residuals(self, values: Sequence[float]) -> Array:
+        """Return the simulated minus the observed values of every series, concatenated."""
+        simulated = self._simulate(values)
+        return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series_.items()])
 
-    start = np.asarray([(initial or {}).get(name, sum(bounds[name]) / 2) for name in names], dtype=float)
-    low = np.asarray([bounds[name][0] for name in names], dtype=float)
-    high = np.asarray([bounds[name][1] for name in names], dtype=float)
-    if loss == 'squares':
-        fit = least_squares(residuals, start, bounds=(low, high), x_scale='jac')
-        estimate, success, jacobian = fit.x, bool(fit.success), fit.jac
-    else:
-        count = sum(observed.size for _, observed in series.values())
-        fit = minimize(
-            lambda values: 0.5 * count * np.log(np.sum(residuals(values) ** 2)),
-            start,
-            bounds=list(zip(low, high, strict=True)),
-        )
-        estimate, success = fit.x, bool(fit.success)
-        jacobian = least_squares(residuals, estimate, bounds=(low, high), max_nfev=1).jac
-    final = residuals(estimate)
-    observed = np.concatenate([values for _, values in series.values()])
-    dof = max(observed.size - len(names), 1)
-    try:
-        covariance = np.linalg.inv(jacobian.T @ jacobian) * float(np.sum(final**2)) / dof
-    except np.linalg.LinAlgError:
-        covariance = None
-    nonzero = observed != 0
-    return CalibrationResult(
-        estimates=dict(zip(names, map(float, estimate), strict=True)),
-        covariance=covariance,
-        r2=float(1 - np.sum(final**2) / np.sum((observed - observed.mean()) ** 2)),
-        rmse=float(np.sqrt(np.mean(final**2))),
-        mae=float(np.mean(np.abs(final))),
-        mape=float(100 * np.mean(np.abs(final[nonzero] / observed[nonzero]))) if nonzero.any() else float('nan'),
-        simulated=simulate(estimate),
-        success=success,
-    )
+    def _run(self) -> Self:
+        """Fit the parameters and set the estimates, their covariance, and the fit statistics."""
+        names = list(self.bounds)
+        start = np.asarray([(self.initial or {}).get(name, sum(self.bounds[name]) / 2) for name in names], dtype=float)
+        low = np.asarray([self.bounds[name][0] for name in names], dtype=float)
+        high = np.asarray([self.bounds[name][1] for name in names], dtype=float)
+        if self.loss == 'squares':
+            fit = least_squares(self._residuals, start, bounds=(low, high), x_scale='jac')
+            estimate, jacobian = fit.x, fit.jac
+        else:
+            count = sum(observed.size for _, observed in self.series_.values())
+            fit = minimize(
+                lambda values: 0.5 * count * np.log(np.sum(self._residuals(values) ** 2)),
+                start,
+                bounds=list(zip(low, high, strict=True)),
+            )
+            estimate = fit.x
+            jacobian = least_squares(self._residuals, estimate, bounds=(low, high), max_nfev=1).jac
+        final = self._residuals(estimate)
+        observed = np.concatenate([values for _, values in self.series_.values()])
+        dof = max(observed.size - len(names), 1)
+        try:
+            self.covariance_ = np.linalg.inv(jacobian.T @ jacobian) * float(np.sum(final**2)) / dof
+        except np.linalg.LinAlgError:
+            self.covariance_ = None
+        nonzero = observed != 0
+        self.estimates_ = dict(zip(names, map(float, estimate), strict=True))
+        self.r2_ = float(1 - np.sum(final**2) / np.sum((observed - observed.mean()) ** 2))
+        self.rmse_ = float(np.sqrt(np.mean(final**2)))
+        self.mae_ = float(np.mean(np.abs(final)))
+        self.mape_ = float(100 * np.mean(np.abs(final[nonzero] / observed[nonzero]))) if nonzero.any() else np.nan
+        self.simulated_ = self._simulate(estimate)
+        self.success_ = bool(fit.success)
+        return self

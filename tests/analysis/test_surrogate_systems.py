@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import DMDSurrogate, Series
+from skcomplex.analysis import ModeDecompositionAnalysis
 
 
-def _series(labels):
-    """Return decaying series of the given variables, sampled every 0.1."""
-    times = np.arange(0.0, 3.0, 0.1)
-    rates = np.arange(1, len(labels) + 1)
-    return Series(times, np.exp(-np.outer(times, rates)), labels)
+def _fit(labels, dt=0.1):
+    """Return the mode decomposition of decaying series of the given variables, sampled every `dt`."""
+    times = np.arange(30) * dt
+    values = np.exp(-np.outer(times, np.arange(1, len(labels) + 1)))
+    return ModeDecompositionAnalysis(labels, dt=dt).check().prepare(values).run()
 
 
 @pytest.mark.parametrize(
@@ -25,11 +25,9 @@ def _series(labels):
 )
 def test_surrogate_names_states_after_variables(labels, states):
     """Test that the states take the last part of every label, or the whole label where those clash."""
-    assert DMDSurrogate().prepare(_series(labels)).states_ == states
+    assert _fit(labels).states_ == states
 
 
 def test_surrogate_accepts_steps_with_rounding_noise():
     """Test that steps equal up to rounding count as uniform."""
-    times = np.arange(30) * 0.1
-    decomposition = DMDSurrogate().prepare(Series(times, np.exp(-times)[:, None], ['x']))
-    assert decomposition.dt_ == pytest.approx(0.1)
+    assert _fit(['x']).dt_ == pytest.approx(0.1)

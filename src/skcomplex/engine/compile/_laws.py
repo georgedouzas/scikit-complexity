@@ -73,7 +73,7 @@ def values_of(law: BaseLaw, *, include: Collection[str] | None = None, exclude: 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import JumpLaw
-        >>> from skcomplex.engine.compile import values_of
+        >>> from skcomplex.engine.compile._laws import values_of
         >>> s, i = var('s'), var('i')
         >>> values_of(JumpLaw(0.1 * s * i, {s: -1, i: 1}), include=('rate',))
         [0.1*i*s]
@@ -115,7 +115,7 @@ def replaced[L: BaseLaw](law: L, **changes: object) -> L:
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.engine.compile import replaced
+        >>> from skcomplex.engine.compile._laws import replaced
         >>> x = var('x')
         >>> replaced(RateLaw(x, -x), value=-2 * x).value
         -2*x

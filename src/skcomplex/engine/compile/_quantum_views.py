@@ -39,7 +39,7 @@ def hilbert_state(element_type: type) -> str | None:
         >>> from sage.all__sagemath_symbolics import CC
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.engine.compile import hilbert_state
+        >>> from skcomplex.engine.compile._quantum_views import hilbert_state
         >>> class QubitElement(Element):
         ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
         ...         super().__init__(label)

@@ -141,7 +141,7 @@ def _mean_error(system, particles, solution, replicates):
         outputs=[error],
         random_state=0,
     )
-    return float(np.mean(experiment.run().column('error')))
+    return float(np.mean(experiment.prepare().run().result_.column('error')))
 
 
 def test_particles_converge_to_the_ode_solution():

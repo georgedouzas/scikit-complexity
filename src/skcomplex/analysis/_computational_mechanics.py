@@ -4,14 +4,16 @@
 # License: MIT
 
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Sequence
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
 from ..core.errors import AnalysisError
-from ._kinds import DataKind, analysis
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 type Counts = npt.NDArray[np.int64]
@@ -103,54 +105,15 @@ def _transitions(state: list[History], counts: dict[History, Counts], index: dic
     return [found.most_common(1)[0][0] if found else -1 for found in reached]
 
 
-@dataclass(frozen=True)
-class EpsilonMachine:
-    """Epsilon-machine of a discrete series: its causal states and the labelled transitions between them.
-
-    Args:
-        alphabet:
-            The distinct symbols, whose positions are the codes of the histories and of the columns.
-
-        histories:
-            The histories of every causal state, as codes of their symbols, oldest first.
-
-        transitions:
-            The state reached from every state on every symbol, -1 for symbols a state never emits.
-
-        probabilities:
-            The probability of every symbol from every state.
-
-        stationary:
-            The fraction of time spent in every state.
-    """
-
-    alphabet: npt.NDArray[np.generic]
-    histories: tuple[tuple[History, ...], ...]
-    transitions: Counts
-    probabilities: Array
-    stationary: Array
-
-    @property
-    def statistical_complexity(self) -> float:
-        """Entropy of the stationary distribution of the causal states in bits."""
-        return float(stats.entropy(self.stationary, base=2))
-
-    @property
-    def entropy_rate(self) -> float:
-        """Mean entropy of the next symbol given the causal state in bits."""
-        return float(self.stationary @ stats.entropy(self.probabilities, base=2, axis=1))
-
-
-@analysis(DataKind.SERIES)
-def epsilon_machine(symbols: npt.ArrayLike, max_length: int = 3, *, significance: float = 0.001) -> EpsilonMachine:
-    """Return the ε-machine of a discrete series reconstructed by causal-state splitting (CSSR).
+class EpsilonMachineAnalysis(BaseAnalysis):
+    """Epsilon-machine of a discrete series reconstructed by causal-state splitting (CSSR).
 
     Histories up to `max_length` symbols join the state whose law of the next symbol they share by a chi-square
     test, and states are then split until their transitions are deterministic.
 
     Args:
-        symbols:
-            The series of symbols.
+        variables:
+            The variable of a trajectory to read, a list of one name, or `None` for the only scalar series.
 
         max_length:
             The longest history, kept well below the logarithm of the series length in the alphabet size.
@@ -158,36 +121,100 @@ def epsilon_machine(symbols: npt.ArrayLike, max_length: int = 3, *, significance
         significance:
             The significance level of the test that splits a history from a state.
 
-    Returns:
-        machine:
-            The causal states, their transitions, and their stationary distribution.
+    Attributes:
+        values_:
+            The series of symbols.
 
-    Raises:
-        AnalysisError:
-            The longest history is shorter than one symbol, or not shorter than the series.
+        labels_:
+            The label of the series.
+
+        alphabet_:
+            The distinct symbols, whose positions are the codes of the histories and of the columns.
+
+        histories_:
+            The histories of every causal state, as codes of their symbols, oldest first.
+
+        transitions_:
+            The state reached from every state on every symbol, -1 for symbols a state never emits.
+
+        probabilities_:
+            The probability of every symbol from every state.
+
+        stationary_:
+            The fraction of time spent in every state.
+
+        statistical_complexity_:
+            The entropy of the stationary distribution of the causal states in bits.
+
+        entropy_rate_:
+            The mean entropy of the next symbol given the causal state in bits.
 
     Examples:
-        >>> from skcomplex.analysis import epsilon_machine
-        >>> machine = epsilon_machine([0, 0, 1] * 300, 3)
-        >>> len(machine.histories), round(machine.statistical_complexity, 3), round(machine.entropy_rate, 3)
+        >>> from skcomplex.analysis import EpsilonMachineAnalysis
+        >>> machine = EpsilonMachineAnalysis(max_length=3).check().prepare([0, 0, 1] * 300).run()
+        >>> len(machine.histories_), round(machine.statistical_complexity_, 3), round(machine.entropy_rate_, 3)
         (3, 1.585, 0.0)
     """
-    alphabet, codes = np.unique(np.asarray(symbols).ravel(), return_inverse=True)
-    if not 1 <= max_length < codes.size:
-        error_msg = f'The longest history must be between 1 and the series length {codes.size} less one.'
-        raise AnalysisError(error_msg)
-    codes = codes.astype(np.int64)
-    size = alphabet.size
-    counts = [_history_counts(codes, length, size) for length in range(max_length + 1)]
-    states = _determinize(_homogenize(counts, size, significance), counts[max_length])
-    index = {history: number for number, state in enumerate(states) for history in state}
-    pooled = np.asarray([_pooled(state, counts) for state in states], dtype=float)
-    transitions = np.asarray([_transitions(state, counts[max_length], index) for state in states], dtype=np.int64)
-    totals = pooled.sum(axis=1)
-    return EpsilonMachine(
-        alphabet=alphabet,
-        histories=tuple(tuple(state) for state in states),
-        transitions=transitions,
-        probabilities=pooled / totals[:, None],
-        stationary=totals / totals.sum(),
-    )
+
+    def __init__(
+        self,
+        variables: Sequence[str] | None = None,
+        *,
+        max_length: int = 3,
+        significance: float = 0.001,
+    ) -> None:
+        self.variables = variables
+        self.max_length = max_length
+        self.significance = significance
+
+    def _check(self) -> Self:
+        """Validate the longest history and the significance level."""
+        if self.max_length < 1 or not 0 < self.significance < 1:
+            error_msg = (
+                f'{type(self).__name__} has max_length={self.max_length!r} and significance={self.significance!r}. '
+                'Use a longest history of 1 or more and a significance between 0 and 1.'
+            )
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the series kind."""
+        return DataKind.SERIES
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the one series of symbols of the source."""
+        series = self._read_series(source, self.variables)
+        if series.values.shape[1] != 1:
+            error_msg = (
+                f'{type(self).__name__} reads one series of symbols, but the source has {series.values.shape[1]}. '
+                'Select one with `variables`.'
+            )
+            raise AnalysisError(error_msg)
+        self.values_ = series.values[:, 0]
+        self.labels_ = series.labels
+        return self
+
+    def _run(self) -> Self:
+        """Reconstruct the causal states, their transitions, and their stationary distribution."""
+        alphabet, codes = np.unique(self.values_, return_inverse=True)
+        if not self.max_length < codes.size:
+            error_msg = f'The longest history must be shorter than the series of length {codes.size}. Lower max_length.'
+            raise AnalysisError(error_msg)
+        codes = codes.astype(np.int64)
+        size = alphabet.size
+        counts = [_history_counts(codes, length, size) for length in range(self.max_length + 1)]
+        states = _determinize(_homogenize(counts, size, self.significance), counts[self.max_length])
+        index = {history: number for number, state in enumerate(states) for history in state}
+        pooled = np.asarray([_pooled(state, counts) for state in states], dtype=float)
+        totals = pooled.sum(axis=1)
+        self.alphabet_ = alphabet
+        self.histories_ = tuple(tuple(state) for state in states)
+        self.transitions_ = np.asarray(
+            [_transitions(state, counts[self.max_length], index) for state in states],
+            dtype=np.int64,
+        )
+        self.probabilities_ = pooled / totals[:, None]
+        self.stationary_ = totals / totals.sum()
+        self.statistical_complexity_ = float(stats.entropy(self.stationary_, base=2))
+        self.entropy_rate_ = float(self.stationary_ @ stats.entropy(self.probabilities_, base=2, axis=1))
+        return self

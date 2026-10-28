@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 from ..core.errors import AnalysisError
 from ..core.laws.utils import OuterTotalistic, Table, Totalistic
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ._information import entropy_rate
+from ._entropy import _entropy_rate
 from ._kinds import DataKind, analysis
 from ._lazy import module
 
@@ -696,7 +696,7 @@ def spatial_entropy_rates(
         [0.0, 0.0]
     """
     rows = np.atleast_2d(np.asarray(configurations))
-    return np.asarray([entropy_rate(row, max_m, base=base) for row in rows])
+    return np.asarray([_entropy_rate(row, max_m, base=base) for row in rows])
 
 
 @dataclass(frozen=True)

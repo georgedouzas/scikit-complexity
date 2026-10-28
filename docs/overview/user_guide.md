@@ -3486,38 +3486,52 @@ Complex systems are studied through many runs. `Experiment` runs a model, a regi
 over a design of factory arguments and dotted paths, scenarios, and replicates. Every design row and replicate gets
 its own random stream spawned from `random_state` in a fixed order, so results are the same serially, on threads, or on
 processes, and every scenario of a row and replicate shares its stream. Parameter and initial-state overrides reuse one
-compiled problem, so sweeps of thousands of runs compile once.
+compiled problem, so sweeps of thousands of runs compile once. An experiment is an estimator: `check` validates its
+settings, `prepare` resolves the model and the runs, and `run` executes them and keeps the results in `result_`.
 
 ```python
-from skcomplex.experiments import Experiment, GridDesign, LatinHypercubeDesign, Scenario, calibrate, sensitivity
+from skcomplex.experiments import Experiment, GridDesign, Scenario
+from skcomplex.models.biology.epidemiology import sir
+from skcomplex.models.economics.resources import harvesting
 
-ensemble = Experiment('sir', GridDesign(stochastic=[True], gamma=[0.1, 0.2]), replicates=10, until=60, random_state=0)
-print(ensemble.run().summary()[0]['I.n.mean'])
+bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
+ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().prepare().run()
+print(ensemble.result_.summary()[0]['I.n.mean'])
 
 policies = [Scenario('baseline'), Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-stocks = Experiment('harvesting', scenarios=policies, until=80, outputs=['land/stock.n']).run()
-print([round(float(row['land/stock.n'])) for row in stocks.rows])
+stocks = Experiment(harvesting, scenarios=policies, until=80, outputs=['land/stock.n']).check().prepare().run()
+print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 ```
 
-- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. `prepare` sets their
-  rows in `rows_` and `run` returns them. They cross with `product` and concatenate with `concat`, and their bounds are
-  pairs or SciPy distributions.
-- `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars. Results
-  give one row per run, `series`, `summary` with means, standard deviations, and quantiles across replicates, and
-  `to_frame` for pandas.
-- `sensitivity` ranks parameters one at a time, by Morris screening, or by Sobol indices with SALib.
-- `calibrate` fits dotted paths to observed series by least squares or a Gaussian likelihood, and reports the
-  covariance of the estimates with R², RMSE, MAE, and MAPE.
+- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, `RowsDesign`, and the designs of
+  sensitivity analysis `OneAtATimeDesign`, `MorrisDesign`, and `SaltelliDesign`. A design stores its settings, such as
+  `SobolDesign(n=64)`, and prepares on the `bounds` of the experiment: a pair or a SciPy distribution per name for a
+  sampled design, a sequence of values per name for a grid, and nothing for a rows design. `prepare` sets their rows in
+  `rows_` and `run` returns them.
+- `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars.
+  `analyses` are unprepared analyses: every run clones each one, prepares it on its trajectory, runs it, and keeps what
+  its `run` sets as columns such as `entropyanalysis.entropy`. Results give one row per run, `series`, `ensemble` with
+  one row per run on common times and the seeds of the runs, `summary` with means, standard deviations, and quantiles
+  across replicates, and `to_frame` for pandas.
+- `SensitivityAnalysis` prepares on the result of an experiment and ranks its inputs one at a time, by Morris screening,
+  or by Sobol indices with SALib.
+- `CalibrationExperiment` fits dotted paths to observed series by least squares or a Gaussian likelihood, and keeps the
+  estimates and their covariance with R², RMSE, MAE, and MAPE.
 
 ```python
-from skcomplex.experiments import calibrate
+from skcomplex.experiments import CalibrationExperiment, Experiment, OneAtATimeDesign, SensitivityAnalysis
+from skcomplex.models.biology.ecology import logistic_growth
 
 import numpy as np
 
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
-fit = calibrate('logistic_growth', {'population.n': (times, observed)}, {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)})
-print(round(fit.estimates['growth.r'], 2), round(fit.r2, 4))
+bounds = {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)}
+fit = CalibrationExperiment(logistic_growth, {'population.n': (times, observed)}, bounds).check().prepare().run()
+print(round(fit.estimates_['growth.r'], 2), round(fit.r2_, 4))
+
+sweep = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n']).prepare().run()
+print(SensitivityAnalysis('oat', 'population.n').check().prepare(sweep.result_).run().ranking_)
 ```
 
 ## Analysing symbolically
@@ -3599,44 +3613,47 @@ print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
 ```
 
 **Time series and information.** `autocorrelation`, `autocorrelation_time`, `power_spectrum`,
-`mean_squared_displacement`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
-diffusion. The mean squared displacement comes from `tidynamics` over all lags of unwrapped positions, with its exponent
-and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
+`DisplacementAnalysis`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
+diffusion. The mean squared displacement of `DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped
+positions, with its exponent and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
-The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation. `symbolize`,
-`ordinal_patterns`, `shannon_entropy`, `block_entropy`, `entropy_rate`, `excess_entropy`, `mutual_information`,
-`transfer_entropy`, `permutation_entropy`, and `lempel_ziv_complexity` measure structure and information flow, as in
-Lindgren's information theory of complex systems. Ordinal patterns are coded by the lexicographic rank of their
-permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv parsing comes from `antropy`.
+The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation.
+`InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
+Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
+permutation, and Lempel-Ziv entropies by its `kind`. Its setting `symbols` turns real series into symbols first: bins of
+equal width, equally populated bins, or ordinal patterns, coded by the lexicographic rank of their permutation with
+`ordpy`, with a delay and of any length. The Lempel-Ziv parsing comes from `antropy`.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, hurst_exponent
 
 noise = np.random.default_rng(1).standard_normal(20_000)
 print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
-print(round(entropy_rate([0, 0, 1, 1] * 200, 4), 3), round(excess_entropy([0, 0, 1, 1] * 200, 4), 3))
+for kind in ('rate', 'excess'):
+    print(EntropyAnalysis(kind, dimension=4).check().prepare([0, 0, 1, 1] * 200).run().entropy_.round(3))
 driver = np.random.default_rng(2).integers(0, 2, 5000)
-print(round(transfer_entropy(driver, np.roll(driver, 1)), 2))
+transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([driver, np.roll(driver, 1)])).run()
+print(round(transfer.information_[0, 1], 2))
 ```
 
 **Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `correlation_function` gives
-radially averaged correlations, and `box_counting_dimension` measures fractals. `degrees`, `summarize_network`, and
-`centrality` measure NetworkX graphs and network spaces.
+radially averaged correlations, and `box_counting_dimension` measures fractals. `NetworkAnalysis` measures the
+degrees, the summary, and the centralities of NetworkX graphs and of the networks of trajectories.
 
 ```python
 import numpy as np
 
 import networkx as nx
 
-from skcomplex.analysis import box_counting_dimension, label_clusters, summarize_network
+from skcomplex.analysis import NetworkAnalysis, box_counting_dimension, label_clusters
 
 clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
 print(clusters.spans(0), clusters.sizes.max())
 rows, columns = np.indices((512, 512))
 print(round(box_counting_dimension((rows & columns) == columns), 2))
-print(summarize_network(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).diameter)
+print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
 ```
 
 ### Kinds of data and signatures
@@ -3683,14 +3700,15 @@ for signature in signature_analysis(predation):
 
 ### Complexity and information
 
-`renyi_entropy` and `tsallis_entropy` generalize the Shannon entropy of a distribution, and `ensemble_entropy` follows
-the entropy of an ensemble and its divergence from a reference law frame by frame, as in the H-theorem.
-`sample_entropy`, `approximate_entropy`, `multiscale_entropy`, and `spectral_entropy` come from `antropy` and measure the
-regularity of a series. `permutation_entropy` reads ordinal patterns of series with a delay, or of two-dimensional
-fields in a window, in its Shannon, Rényi, or Tsallis form, and `complexity_entropy` places data on Rosso's
-complexity-entropy plane between its bounding curves with `ordpy`. Discrete states such as spins have many equal values,
-which `break_ties` ranks at random. `active_information_storage` measures the information the past of a series holds
-about its next value, and `transfer_entropy` estimates the flow between series by plug-in counts of symbols or by the
+`EntropyAnalysis` measures every entropy by its `kind`. The kinds `'renyi'` and `'tsallis'` generalize the Shannon
+entropy of a distribution. The kinds `'sample'`, `'approximate'`, `'multiscale'`, and `'spectral'` come from `antropy`
+and measure the regularity of a series. The kind `'permutation'` reads ordinal patterns of series with a delay, or of
+two-dimensional fields in a window, in its Shannon, Rényi, or Tsallis `measure`. Discrete states such as spins have
+many equal values, which `ties='random'` ranks at random. `ensemble_entropy` follows the entropy of an ensemble and its
+divergence from a reference law frame by frame, as in the H-theorem, and `complexity_entropy` places data on Rosso's
+complexity-entropy plane between its bounding curves with `ordpy`. The kind `'active-storage'` of
+`InformationAnalysis` measures the information the past of a series holds about its next value, and the kind
+`'transfer'` estimates the flow from every series to every other by plug-in counts of symbols or by the
 nearest-neighbour estimator of `ennemi` on continuous values.
 
 ```python
@@ -3698,93 +3716,105 @@ import numpy as np
 
 import math
 
-from skcomplex.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, complexity_entropy
 
 rng = np.random.default_rng(0)
-print(round(renyi_entropy(np.full(8, 1 / 8), 2, probabilities=True), 3))
-print(round(sample_entropy(rng.standard_normal(2000)), 1))
+renyi = EntropyAnalysis('renyi', order=2, probabilities=True).check().prepare(np.full(8, 1 / 8)).run()
+print(renyi.entropy_.round(3))
+sample = EntropyAnalysis('sample', dimension=2).check().prepare(rng.standard_normal(2000)).run()
+print(sample.entropy_.round(1))
 plane = complexity_entropy(rng.standard_normal(20_000), 4)
 print(round(plane.entropy, 2), round(plane.complexity, 2))
 x = rng.standard_normal(5000)
 y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
-print(transfer_entropy(x, y, estimator='knn', base=math.e) > transfer_entropy(y, x, estimator='knn', base=math.e))
+transfer = InformationAnalysis('transfer', estimator='knn', base=math.e).check().prepare(np.column_stack([x, y])).run()
+print(transfer.information_[0, 1] > transfer.information_[1, 0])
 ```
 
 ### Higher-order information and emergence
 
-The measures of many variables take one row per sample and one column per variable. `total_correlation` counts the
-information shared at any order, `dual_total_correlation` the information shared by two or more variables, and
-`o_information`, their difference, is positive when the variables are redundant and negative when they are synergistic.
-`o_information_gradients` gives the share of every variable. They take the `'plugin'` estimator of `dit` for symbols,
-`'gaussian'` for the closed form of a fitted Gaussian, or `'knn'` for chains of `ennemi` estimates. `partial_information`
-splits what two sources of symbols tell about a target into redundant, unique, and synergistic parts with a redundancy
-measure of `dit`. `local_entropy`, `local_mutual_information`, and `local_transfer_entropy` return the value at every
-sample, and their means equal the global measures. `surrogate_test` compares any of these measures with its values on
-copies of the data whose variables are shuffled independently.
+The measures of many variables take one row per sample and one column per variable. Among the kinds of
+`InformationAnalysis`, `'total-correlation'` counts the information shared at any order, `'dual-total-correlation'` the
+information shared by two or more variables, and `'o-information'`, their difference, is positive when the variables
+are redundant and negative when they are synergistic. `'o-information-gradients'` gives the share of every variable.
+They take the `'plugin'` estimator of `dit` for symbols, `'gaussian'` for the closed form of a fitted Gaussian, or
+`'knn'` for chains of `ennemi` estimates. `PartialInformationAnalysis` splits what two sources of symbols tell about a
+target into redundant, unique, and synergistic parts with a redundancy measure of `dit`. `LocalInformationAnalysis`
+returns the entropy, the mutual information, or the transfer entropy at every sample, and their means equal the global
+measures. `surrogate_test` compares any of these measures with its values on copies of the data whose variables are
+shuffled independently.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.analysis import o_information, partial_information, surrogate_test
+from skcomplex.analysis import InformationAnalysis, PartialInformationAnalysis, surrogate_test
+
+
+def o_information(data):
+    return InformationAnalysis('o-information').check().prepare(data).run().information_
+
 
 bits = rng.integers(0, 2, (5000, 2))
 xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
 print(round(o_information(xor), 2))
-parts = partial_information(bits[:, 0], bits[:, 1], bits[:, 0] & bits[:, 1])
-print(round(parts.redundancy, 2), round(parts.synergy, 2))
+gate = np.column_stack([bits, bits[:, 0] & bits[:, 1]])
+parts = PartialInformationAnalysis().check().prepare(gate).run()
+print(round(parts.redundancy_, 2), round(parts.synergy_, 2))
 print(surrogate_test(o_information, xor, n=19, alternative='less', random_state=0).p_value)
 ```
 
-`emergence_criteria` computes the criteria of Rosas et al. (2020) for a macro feature of micro variables: Ψ is positive
-when the feature predicts its own future beyond what each micro variable predicts, Δ is positive when it predicts a micro
-variable beyond the micro variables, and Γ is zero for a feature decoupled from every micro variable. `closure` takes a
-partition of micro states, as a label per state or a function of the micro series, and compares how well the macro past
-and the micro past predict the macro future. A gap of zero means the coarse-graining is closed. `epsilon_machine`
-reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
+The kind `'criteria'` of `EmergenceAnalysis` computes the criteria of Rosas et al. (2020) for a macro feature of micro
+variables, given by `partition`: Ψ is positive when the feature predicts its own future beyond what each micro variable
+predicts, Δ is positive when it predicts a micro variable beyond the micro variables, and Γ is zero for a feature
+decoupled from every micro variable. The kind `'closure'` takes a partition of micro states, as a label per state or a
+function of the micro series, and compares how well the macro past and the micro past predict the macro future. A gap
+of zero means the coarse-graining is closed. `EpsilonMachineAnalysis` reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
 complexity, and entropy rate.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.analysis import closure, emergence_criteria, epsilon_machine
+from skcomplex.analysis import EmergenceAnalysis, EpsilonMachineAnalysis
 
 parity = rng.integers(0, 2, (5000, 4))
 parity[:, -1] = (parity[:, :-1].sum(axis=1) + np.arange(5000) // 100) % 2
-print(emergence_criteria(parity, parity.sum(axis=1) % 2).psi > 0.5)
-print(round(closure(rng.integers(0, 4, 5000), [0, 0, 1, 1]).gap, 2))
+criteria = EmergenceAnalysis('criteria', partition=lambda micro: micro.sum(axis=1) % 2).check().prepare(parity).run()
+print(criteria.psi_ > 0.5)
+closure = EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).check().prepare(rng.integers(0, 4, 5000)).run()
+print(round(closure.gap_, 2))
 golden = [1]
 for _ in range(20_000):
     golden.append(1 if golden[-1] == 0 else int(rng.random() < 0.5))
-machine = epsilon_machine(golden, 4)
-print(len(machine.histories), round(machine.statistical_complexity, 2))
+machine = EpsilonMachineAnalysis(max_length=4).check().prepare(golden).run()
+print(len(machine.histories_), round(machine.statistical_complexity_, 2))
 ```
 
 ### Invariants of dynamics
 
-`embed` builds delay coordinates of a series, with the delay at the first minimum of `auto_mutual_information` and the
+`embed` builds delay coordinates of a series, with the delay at the first minimum of the auto mutual information and the
 dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
 set with a k-d tree, so it serves embedded series and agent positions alike. `kaplan_yorke_dimension` and
 `kolmogorov_sinai_entropy` follow from a Lyapunov spectrum, `largest_lyapunov_exponent` estimates the largest exponent
-from one series with Rosenstein's method of `nolds`, and `invariant_density` and `ulam_chain` estimate the invariant
-density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
+from one series with Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or `'ulam'`
+estimates the invariant density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
 laminarity, line lengths, trapping time, and line entropy of embedded series.
 
 ```python
 import numpy as np
 
 from skcomplex.analysis import (
+    ErgodicityAnalysis,
     correlation_dimension,
     delay_embedding,
     kaplan_yorke_dimension,
     recurrence_quantification,
-    ulam_chain,
 )
 
 points = np.random.default_rng(1).random((3000, 2))
 print(round(correlation_dimension(points).dimension, 1))
 print(round(kaplan_yorke_dimension([0.906, 0.0, -14.572]), 2))
-chain = ulam_chain(lambda x: 4 * x * (1 - x), np.linspace(0, 1, 21), 200)
-print(chain.density.round(1)[:3])
+chain = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 21), samples=200)
+print(chain.check().prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3])
 sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)
 print(round(recurrence_quantification(sine).determinism, 2))
 ```
@@ -3829,36 +3859,34 @@ print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrog
 
 ### Stochastic processes
 
-`first_passage_times`, `hitting_probabilities`, `return_times`, and `laminar_durations` measure passages and returns of
-paths. `transition_matrix`, `stationary_distribution`, `spectral_gap`, `relaxation_times`, and `detailed_balance` read
-transition and rate matrices or estimate them from paths. `fano_factor`, `event_counts`, `relative_fluctuations`, and
-`kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
-`langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility, and
-`uncertainty_relation` checks the thermodynamic uncertainty relation: the squared relative fluctuation of a current
-times the entropy produced is at least 2. `tilted_generating_function`, `block_generating_function`,
-`legendre_transform`, `histogram_rate_function`, and `reweight` give large deviations, and `cloning` estimates the scaled
-cumulant generating function of a model by cloning a population of its trajectories through the simulation's steppers,
-for systems whose tilted generators are too large to write down. `markov_state_model`, `implied_timescales`, `committor`, and
-`mean_first_passage_time` estimate Markov state models with `deeptime`. `two_time_correlation`, `aging_collapse`,
-`collapse_distributions`, `response`, and `fluctuation_dissipation_ratio` measure aging, and `fit_extreme_values`,
+`PassageAnalysis` measures first passages, absorption, and returns of paths, and the committor and mean first-passage
+time of a transition matrix, by its `kind`, and `laminar_durations` measures laminar phases. `MarkovAnalysis` estimates
+transition matrices from paths, reads transition and rate matrices with `matrix`, and gives their stationary laws,
+spectral gaps, and relaxation times, and Markov state models and implied timescales with `deeptime`. `FluctuationAnalysis`
+with the kinds `'fano'` and `'relative'` and `event_counts` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and
+diffusion of a series with `kramersmoyal`. `IrreversibilityAnalysis` measures entropy production from rates, jump paths,
+Langevin paths, or transition counts, tests detailed balance and the fluctuation theorem, and checks the thermodynamic
+uncertainty relation: the squared relative fluctuation of a current times the entropy produced is at least 2. It also
+gives the response to a field and the fluctuation-dissipation ratio. `LargeDeviationAnalysis` gives the scaled cumulant
+generating function from a tilted generator, from blocks of one run, or by cloning a population of trajectories of a
+model through the simulation's steppers, for systems whose tilted generators are too large to write down, and its
+Legendre transform at `values`. It also gives rate functions from histograms at several sizes and reweights samples.
+`two_time_correlation`, `aging_collapse`, and `collapse_distributions` measure aging, and `fit_extreme_values`,
 `record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import (
-    entropy_production,
-    legendre_transform,
-    spectral_gap,
-    stationary_distribution,
-    tilted_generating_function,
-)
+from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis, MarkovAnalysis
 
 ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
-print(stationary_distribution(ring, rates=True).round(2), round(entropy_production(ring), 4))
-print(round(spectral_gap([[0.9, 0.1], [0.2, 0.8]]), 2))
-tilts = np.linspace(-3, 3, 601)
-print(round(float(legendre_transform(tilts, tilted_generating_function([[2.0]], [[1.0]], tilts), 3.0)[0]), 3))
+stationary = MarkovAnalysis('stationary', matrix='rate').check().prepare(ring).run().stationary_
+production = IrreversibilityAnalysis().check().prepare(ring).run().entropy_production_
+print(stationary.round(2), round(production, 4))
+gap = MarkovAnalysis('spectral-gap', matrix='transition').check().prepare([[0.9, 0.1], [0.2, 0.8]]).run()
+print(round(gap.spectral_gap_, 2))
+tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=np.linspace(-3, 3, 601), values=3.0)
+print(round(float(tilted.check().prepare([[2.0]]).run().rate_function_[0]), 3))
 ```
 
 Cloning advances every clone of a population by an interval, weights it by `exp(s A)` for the increment `A` of a
@@ -3871,7 +3899,7 @@ import numpy as np
 from skcomplex.core.components import Element
 from skcomplex.core.system import System
 
-from skcomplex.analysis import cloning, uncertainty_relation
+from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.declarations import state
 
@@ -3884,64 +3912,69 @@ class CounterElement(Element):
         """Return the laws of the counter element."""
         return [JumpLaw(1.0, {s.n: 1})]
 counter = System(elements=[CounterElement('counter')])
-estimate = cloning(counter, 'counter.n', 0.5, population=200, until=10.0, random_state=0)
-print(round(estimate.scgf, 2), round(float(np.exp(0.5) - 1), 2))
+cloning = LargeDeviationAnalysis(
+    'cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
+)
+print(cloning.check().prepare(counter).run().scgf_.round(2), round(float(np.exp(0.5) - 1), 2))
 currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
-print(uncertainty_relation(currents, entropy_production=10.0, random_state=0).holds)
+relation = IrreversibilityAnalysis('uncertainty-relation', entropy=10.0, random_state=0)
+print(relation.check().prepare(currents).run().holds_)
 ```
 
 ### Emergence and ergodicity
 
-`partition_coarse_grain` maps micro states to macro states by a partition, an integer label per state or a function of
-the state. It maps every frame of a discrete trajectory, or sums the transitions of a transition matrix within every
-block with `matrix=True`, weighting the states of a block uniformly or by the stationary distribution.
-`effective_information` measures how much a transition matrix constrains the next state: it is the mutual information
-in bits between a uniform intervention on the current state and the next state, and it equals the determinism of the
-matrix minus its degeneracy. Rows with no observed transition are left out with an `UnobservedStatesWarning` that names
-their states. `causal_emergence` reports the gain in effective information of a partition over the micro states, and
-without a partition it searches for one, greedily by merging the pair of blocks with the largest gain, or exhaustively
-for at most 10 states. In the chain of Hoel, Albantakis, and Tononi, seven noisy states merge into one deterministic
+`EmergenceAnalysis` reads a transition matrix for its kinds `'effective-information'` and `'causal'`. The effective
+information measures how much a transition matrix constrains the next state: it is the mutual information in bits
+between a uniform intervention on the current state and the next state, and it equals the determinism of the matrix
+minus its degeneracy. Rows with no observed transition are left out with an `UnobservedStatesWarning` that names their
+states. The kind `'causal'` reports the gain in effective information of a partition over the micro states, and without
+a partition it searches for one, greedily by merging the pair of blocks with the largest gain, or exhaustively for at
+most 10 states. The partition is an integer label per state or a function of the array of states, and the macro matrix
+sums the transitions within every block, weighting the states of a block uniformly or by the stationary distribution. In the chain of Hoel, Albantakis, and Tononi, seven noisy states merge into one deterministic
 macro state that carries more effective information than the micro states.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import causal_emergence, effective_information, partition_coarse_grain
+from skcomplex.analysis import EmergenceAnalysis
 
 noisy = np.zeros((8, 8))
 noisy[:7, :7], noisy[7, 7] = 1 / 7, 1.0
-print(round(effective_information(noisy).information, 3))
-found = causal_emergence(noisy)
-print(found.partition.tolist(), round(found.macro.information, 3), round(found.gain, 3))
-print(partition_coarse_grain(noisy, found.partition, matrix=True).tolist())
+print(round(EmergenceAnalysis('effective-information').check().prepare(noisy).run().information_, 3))
+found = EmergenceAnalysis('causal').check().prepare(noisy).run()
+print(found.partition_.tolist(), round(found.macro_information_, 3), round(found.gain_, 3))
+print(found.macro_matrix_.tolist())
 ```
 
-`ergodicity_breaking`, `fluctuation_metric`, and `ergodicity_distance` diagnose whether the runs of an ensemble, one row
-per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the variance
-of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays near 1
-for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the running
-time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. `ergodicity_distance` is the
-median total-variation distance between the values of one run over time and the values of the whole ensemble.
+`ErgodicityAnalysis` of kind `'breaking'`, `'metric'`, or `'distance'` diagnoses whether the runs of an ensemble, one
+row per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the
+variance of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays
+near 1 for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the
+running time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. The ergodicity distance
+is the median total-variation distance between the values of one run over time and the values of the whole ensemble.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
+from skcomplex.analysis import ErgodicityAnalysis
 
 rng = np.random.default_rng(0)
 mixing = rng.standard_normal((100, 5000))
 frozen = rng.choice([-1.0, 1.0], size=(100, 1)) + 0.1 * rng.standard_normal((100, 5000))
-print(ergodicity_breaking(mixing) < 0.01, ergodicity_breaking(frozen) > 0.9)
-print(round(fluctuation_metric(mixing).exponent, 1), abs(round(fluctuation_metric(frozen).exponent, 1)))
-print(ergodicity_distance(mixing) < 0.1, round(ergodicity_distance(frozen), 1))
+for runs in (mixing, frozen):
+    breaking = ErgodicityAnalysis('breaking').check().prepare(runs).run().ergodicity_breaking_
+    metric = ErgodicityAnalysis('metric').check().prepare(runs).run().exponent_
+    distance = ErgodicityAnalysis('distance').check().prepare(runs).run().ergodicity_distance_
+    print(round(breaking, 2), round(metric, 1), round(distance, 1))
 ```
 
 ### Fields and lattices
 
 `structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`
-fits its Ornstein-Zernike form or the decay of the correlation function. `domain_size` and `domain_growth` measure
-coarsening, `pattern_wavelength` the wavelength and orientation of patterns, and `number_fluctuations` the giant number
-fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
+fits its Ornstein-Zernike form or the decay of the correlation function. `DomainAnalysis` measures coarsening with
+the kinds `'size'` and `'growth'`, the wavelength and orientation of patterns with `'wavelength'`, and the interfaces
+between domains with `'interface-density'`, and `FluctuationAnalysis('number')` the giant number fluctuations of
+density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
 and components of graphs, and `binder_cumulant`, `binder_crossings`, and `scaling_collapse` locate transitions by
 finite-size scaling. `dispersion_relation` predicts patterns from a field model's laws before running it: it
 linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
@@ -3951,36 +3984,39 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
+from skcomplex.analysis import DomainAnalysis, binder_cumulant, dispersion_relation, percolation
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
 relation = dispersion_relation(brusselator((128,), b=1.9))
 print(relation.band.min().round(2), relation.band.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
-print(pattern_wavelength(stripes).wavelength)
+print(DomainAnalysis('wavelength').check().prepare(stripes).run().wavelength_)
 print(percolation(np.random.default_rng(2).random((128, 128)) < 0.7).spanning)
 print(round(binder_cumulant(np.random.default_rng(3).standard_normal(10_000)), 1))
 ```
 
 ### Agents
 
-`polar_order`, `nematic_order`, `milling_order`, and `phase_order` measure collective order. `kinetic_temperature` and
-`maxwell_boltzmann_test` compare velocities with the Maxwell-Boltzmann law of their dimension.
-`nearest_neighbor_distances`, `clark_evans_ratio`, and `radial_distribution` describe point patterns in open or periodic
-boxes, and `coarse_grain` turns agents into density or polarization fields for the field analyses.
-`like_neighbor_share`, `interface_density`, and `dissimilarity_index` measure segregation on grids and networks.
+`OrderAnalysis` measures the polar, nematic, milling, and phase order of every frame. `FluctuationAnalysis` with the
+kinds `'kinetic-temperature'` and `'maxwell-boltzmann'` compares velocities with the Maxwell-Boltzmann law of their
+dimension. `NeighborAnalysis` describes point patterns in open or periodic boxes by their nearest-neighbour
+`'distances'`, their `'clark-evans'` ratio, and their `'radial-distribution'`, and `coarse_grain` turns agents into
+density or polarization fields for the field analyses. `NeighborAnalysis('like-share')` and
+`DomainAnalysis('interface-density')` measure segregation on grids and networks, and `MixingAnalysis` gives the
+dissimilarity index of two groups across units.
 
 ```python
 import numpy as np
 from skcomplex.models import run
 
-from skcomplex.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
+from skcomplex.analysis import NeighborAnalysis, OrderAnalysis, coarse_grain
 
-flock = snapshots_of(run('boids', settings={'until': 5}).trajectory_)
-print(polar_order(flock.velocities, vectors=True).shape)
+flock = run('boids', settings={'until': 5}).trajectory_
+print(OrderAnalysis('polar').check().prepare(flock).run().order_.shape)
 positions = np.random.default_rng(4).random((1000, 2))
-print(round(clark_evans_ratio(positions, [1.0, 1.0]), 1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
+ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(positions).run().ratio_
+print(ratio.round(1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
 ```
 
 ### Criticality
@@ -4009,17 +4045,19 @@ print(round(branching_ratio(activity), 1))
 
 ### Networks
 
-`degree_moments`, `assortativity`, `neighbor_degree`, and `communities` measure degrees, mixing, and communities, the
-last by Louvain modularity maximization or label propagation with its agreement with a reference partition.
-`motif_counts` and `motif_zscores` count motifs of three and four nodes and score them against degree-preserving edge
-switches or the configuration model, and `network_frames` measures every frame of an evolving network. The library
+`NetworkAnalysis` measures the network of a graph or of every frame of a trajectory by its `kind`: the
+`'degrees'` with their moments and tail exponent, the `'assortativity'`, the `'centrality'`, the `'neighbor-degree'`,
+the `'summary'`, and the `'communities'` by Louvain modularity maximization or label propagation with their agreement
+with a reference partition. `MotifAnalysis` counts motifs of three and four nodes and scores them against
+degree-preserving edge switches or the configuration model. The library
 model `network_structure_analysis` records a network with these measures.
 
 ```python
 import networkx as nx
 
-from skcomplex.analysis import communities, motif_counts
+from skcomplex.analysis import MotifAnalysis, NetworkAnalysis
 
 club = nx.karate_club_graph()
-print(round(communities(club, random_state=0).modularity, 2), motif_counts(club)['triangle'])
+communities = NetworkAnalysis('communities', random_state=0).check().prepare(club).run()
+print(communities.modularity_.round(2), MotifAnalysis().check().prepare(club).run().counts_[0]['triangle'])
 ```

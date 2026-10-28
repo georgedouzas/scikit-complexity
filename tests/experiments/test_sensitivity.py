@@ -7,11 +7,10 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.experiments import (
-    sensitivity,
-)
+from skcomplex.experiments import Experiment, MorrisDesign, OneAtATimeDesign, SaltelliDesign, SensitivityAnalysis
 
 
 class PointElement(Element):
@@ -43,18 +42,34 @@ def test_sobol_indices_of_ishigami():
     system = System(elements=[PointElement('p')])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
     observables = [ObservableSpec('y', _ishigami)]
-    result = sensitivity(system, bounds, 'y', method='sobol', n=2048, until=0, random_state=0, observables=observables)
+    design = SaltelliDesign(n=2048, random_state=0)
+    experiment = Experiment(system, design, bounds, until=0, outputs=['y'], observables=observables, random_state=0)
+    result = experiment.prepare().run().result_
+    analysis = SensitivityAnalysis('sobol', 'y', random_state=0).check().prepare(result).run()
     expected = {'p.x1': 0.3139, 'p.x2': 0.4424, 'p.x3': 0.0}
     for name, value in expected.items():
-        assert result.indices[name]['S1'] == pytest.approx(value, abs=0.05)
-    assert result.ranking()[0] == 'p.x1'
-    assert result.indices['p.x1']['ST'] == pytest.approx(0.5576, abs=0.05)
+        assert analysis.first_order_[name] == pytest.approx(value, abs=0.05)
+    assert analysis.total_order_['p.x1'] == pytest.approx(0.5576, abs=0.05)
+    assert analysis.ranking_[0] == 'p.x1'
 
 
-def test_morris_and_one_at_a_time_rank_parameters():
+@pytest.mark.parametrize(
+    ('design', 'method'),
+    [(MorrisDesign(n=10, random_state=0), 'morris'), (OneAtATimeDesign(), 'oat')],
+    ids=['morris', 'oat'],
+)
+def test_morris_and_one_at_a_time_rank_parameters(design, method):
     """Test that Morris screening and one-at-a-time effects rank the carrying capacity first for the final size."""
     bounds = {'growth.r': (0.5, 1.0), 'growth.K': (50.0, 150.0)}
-    morris = sensitivity('logistic_growth', bounds, 'population.n', method='morris', n=10, until=20, random_state=0)
-    oat = sensitivity('logistic_growth', bounds, 'population.n', method='oat', until=20)
-    assert morris.ranking()[0] == 'growth.K'
-    assert oat.ranking()[0] == 'growth.K'
+    experiment = Experiment('logistic_growth', design, bounds, until=20, outputs=['population.n'], random_state=0)
+    result = experiment.prepare().run().result_
+    analysis = SensitivityAnalysis(method, 'population.n', random_state=0).check().prepare(result).run()
+    assert analysis.ranking_[0] == 'growth.K'
+
+
+def test_sensitivity_check_rejects_an_unknown_method_and_a_missing_output():
+    """Test that an unknown method or a missing output build and fail the check with a named error."""
+    with pytest.raises(AnalysisError, match='Unknown sensitivity method'):
+        SensitivityAnalysis('fast', 'y').check()
+    with pytest.raises(AnalysisError, match='output = None'):
+        SensitivityAnalysis('sobol').check()

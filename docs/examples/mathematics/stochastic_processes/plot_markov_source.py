@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import block_entropies, epsilon_machine
+from skcomplex.analysis import EntropyAnalysis, EpsilonMachineAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -40,7 +40,8 @@ simulation = Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[o
 # symbol of the past holds all the memory of the source.
 
 symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).run(100000).trajectory_
-entropies = block_entropies(symbols.values('source.symbol').astype(int), 8)
+blocks = EntropyAnalysis('block', dimension=8).check().prepare(symbols.values('source.symbol').astype(int)).run()
+entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
 fig, (sequence, rates) = plt.subplots(1, 2, figsize=(10, 4))
@@ -64,14 +65,15 @@ plt.show()
 # so the ε-machine should have two causal states, one per symbol, visited 80 and 20 percent of the time. Its
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
-machine = epsilon_machine(symbols.values('source.symbol').astype(int), 3)
-labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
+source = symbols.values('source.symbol').astype(int)
+machine = EpsilonMachineAnalysis(max_length=3).check().prepare(source).run()
+labels = [f'last symbol {state[0][-1]}' for state in machine.histories_]
 fig, occupancy = plt.subplots(figsize=(5, 4))
-occupancy.bar(labels, machine.stationary)
+occupancy.bar(labels, machine.stationary_)
 occupancy.set_ylabel('fraction of time')
 occupancy.set_title(
-    f'{len(machine.histories)} causal states, $C_\\mu$ = {machine.statistical_complexity:.3f} bits, '
-    f'$h_\\mu$ = {machine.entropy_rate:.3f} bits',
+    f'{len(machine.histories_)} causal states, $C_\\mu$ = {machine.statistical_complexity_:.3f} bits, '
+    f'$h_\\mu$ = {machine.entropy_rate_:.3f} bits',
     fontsize=10,
 )
 fig.tight_layout()

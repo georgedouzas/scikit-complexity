@@ -1,4 +1,4 @@
-"""Test two-time correlations, aging collapses, responses, and fluctuation-dissipation ratios."""
+"""Test two-time correlations and aging collapses."""
 
 import numpy as np
 import pytest
@@ -7,8 +7,6 @@ from skcomplex.analysis import (
     aging_collapse,
     collapse_distributions,
     fields_of,
-    fluctuation_dissipation_ratio,
-    response,
     two_time_correlation,
 )
 from skcomplex.core.errors import AnalysisError
@@ -45,15 +43,12 @@ def _trap_renewals(rng: np.random.Generator, walkers: int, horizon: float) -> li
 
 
 def test_two_time_correlation_equilibrium_has_no_aging():
-    """Test that an equilibrium Ornstein-Uhlenbeck ensemble decays as exp(-tau) at both waiting times, with ratio 1."""
+    """Test that an equilibrium Ornstein-Uhlenbeck ensemble decays as exp(-tau) at both waiting times."""
     rng = np.random.default_rng(0)
     lags = np.arange(31)
     unperturbed = _ornstein_uhlenbeck(rng, 1031, 0.0, 1000)
     correlation = two_time_correlation(unperturbed, [100, 1000], lags)
     np.testing.assert_allclose(correlation, np.exp(-lags * STEP)[None, :].repeat(2, axis=0), atol=0.03)
-    perturbed = _ornstein_uhlenbeck(np.random.default_rng(0), 1031, 0.1, 1000)
-    susceptibility = response(perturbed[:, 1000:], unperturbed[:, 1000:], 0.1)
-    assert fluctuation_dissipation_ratio(correlation[1], susceptibility, 1.0) == pytest.approx(1, abs=0.1)
 
 
 @pytest.mark.slow

@@ -16,7 +16,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import avalanches, ergodicity_distance, fit_power_law, histogram
+from skcomplex.analysis import ErgodicityAnalysis, avalanches, fit_power_law, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -63,7 +63,8 @@ for scale in scales:
         .mean(axis=1)[150:]
         for run in range(4)
     ]
-    coefficients.append(ergodicity_distance(np.asarray(runs)))
+    distance = ErgodicityAnalysis('distance').check().prepare(np.asarray(runs)).run()
+    coefficients.append(distance.ergodicity_distance_)
 
 fig, (spread, cascades, edge) = plt.subplots(1, 3, figsize=(14, 4))
 spread.hist(temperatures[0], bins=20, range=(0, 2), density=True, alpha=0.5, label='initial')

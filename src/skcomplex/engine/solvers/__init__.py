@@ -11,7 +11,7 @@ from ._jumps import GillespieSolver, RenewalSolver
 from ._kinetics import KineticSolver
 from ._lammps import LammpsFix, LammpsSolver
 from ._lattices import LatticeSolver, MonteCarloSolver
-from ._lepton import LeptonPrinter, lepton_expression
+from ._lepton import LeptonPrinter
 from ._maps import IterationSolver
 from ._memory import memory
 from ._mesa import AgentView, MesaSolver, ModelView
@@ -71,6 +71,5 @@ __all__: list[str] = [
     'UnitarySolver',
     'VelocityVerletSolver',
     'fractional_gaussian_noise',
-    'lepton_expression',
     'memory',
 ]
