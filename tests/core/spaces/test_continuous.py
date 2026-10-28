@@ -62,7 +62,7 @@ def test_reflecting_box_reverses_crossing_particle():
         elements=[ParticleElement('p', x=[0.9], v=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
-    trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.2).check().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.9)
     assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0)
 
@@ -73,7 +73,7 @@ def test_periodic_box_wraps_leaving_particle():
         elements=[ParticleElement('p', x=[0.9], v=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.2).check().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.1)
     assert trajectory.values('p.v')[-1, 0] == pytest.approx(1.0)
 
@@ -85,6 +85,6 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
         elements=[ParticleElement('p', x=[0.5], v=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
-    trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=5.0).check().run(until=5).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
     assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0, abs=1e-6)

@@ -21,7 +21,7 @@ MODEL = 'continuous_androgen_suppression'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer]).run(until=900)
+simulation = Simulation(system, dt=5.0, observers=[observer]).check().run(until=900)
 
 # %%
 # Androgen and relapse

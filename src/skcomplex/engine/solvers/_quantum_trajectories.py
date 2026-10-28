@@ -63,7 +63,9 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
         >>> solver = QuantumTrajectoriesSolver()
-        >>> simulation = Simulation(system, solver=solver, dt=1.0, random_state=0, observables=z).run(until=20.0)
+        >>> simulation = Simulation(
+        ...     system, solver=solver, dt=1.0, random_state=0, observables=z,
+        ... ).check().run(until=20.0)
         >>> float(simulation.trajectory_.values('q.z')[-1])
         -1.0
     """

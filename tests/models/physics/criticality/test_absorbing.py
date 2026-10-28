@@ -11,7 +11,12 @@ def _stationary_density(energy):
     """Return the late mean activity of the directed percolation field at a fixed energy."""
     system = directed_percolation_langevin((16, 16), energy=energy)
     trajectory = (
-        Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
+
+            Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+            .check()
+            .run(until=40)
+            .trajectory_
+
     )
     return float(np.asarray(trajectory.values('neurons.rho'))[-10:].mean())
 

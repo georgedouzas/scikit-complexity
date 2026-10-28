@@ -182,7 +182,7 @@ class SectionAnalysis(BaseAnalysis):
         event = CompiledEvent(SECTION, guard, None, int(self.direction), False)
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
-            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)
+            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state).check()
             .run(self.until)
             .trajectory_
         )
@@ -201,7 +201,7 @@ class SectionAnalysis(BaseAnalysis):
         period = float(self.period)  # type: ignore[arg-type]
         transient = int(self.transient if self.transient is not None else 100)
         until = period * (transient + self.n_points - 1)
-        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state)
+        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check()
         trajectory = simulation.run(until).trajectory_
         return trajectory.times[transient:], trajectory.states[transient:]
 

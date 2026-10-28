@@ -24,6 +24,6 @@ def test_identical_rossler_oscillators_synchronize_with_strong_coupling(k, synch
 @pytest.mark.parametrize(('kappa', 'synchronized'), [(0.45, True), (0.1, False)])
 def test_aggregate_averaging_synchronizes_chaotic_maps(kappa, synchronized):
     """Test that logistic maps synchronize above the coupling `3 / 8` and stay apart well below it."""
-    trajectory = Simulation(aggregate_averaging_synchronization(kappa=kappa), dt=1).run(until=100).trajectory_
+    trajectory = Simulation(aggregate_averaging_synchronization(kappa=kappa), dt=1).check().run(until=100).trajectory_
     first, second = _series(trajectory, 'first.x', 'second.x')
     assert (np.abs(first - second)[-20:].max() < 1e-9) == synchronized

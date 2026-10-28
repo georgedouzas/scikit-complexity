@@ -15,7 +15,7 @@ from skcomplex.models import create, describe
 
 def _run(system: System, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:
     """Return the trajectory of a system run with a frame duration and a random state."""
-    return Simulation(system, dt=dt, random_state=random_state).run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=random_state).check().run(until=until).trajectory_
 
 
 def _trajectory(
@@ -29,7 +29,12 @@ def _trajectory(
     system = create(name, **options)
     observables = describe(name).observables_of(system)
     return (
-        Simulation(system, dt=dt, observables=observables, solver=solver, random_state=0).run(until=until).trajectory_
+
+            Simulation(system, dt=dt, observables=observables, solver=solver, random_state=0)
+            .check()
+            .run(until=until)
+            .trajectory_
+
     )
 
 
@@ -41,7 +46,7 @@ def _observables(system: System, model: str | None) -> list[ObservableSpec]:
 def _run_monitored(system: System, dt: float, until: float, model: str | None = None) -> Trajectory:
     """Return the trajectory of a system under a conservation monitor, which raises on any leak."""
     observables = _observables(system, model)
-    simulation = Simulation(system, dt=dt, observers=[ConservationObserver()], observables=observables)
+    simulation = Simulation(system, dt=dt, observers=[ConservationObserver()], observables=observables).check()
     return simulation.run(until=until).trajectory_
 
 
@@ -54,12 +59,12 @@ def _series(name: str, until: float, **arguments: Any) -> Trajectory:  # noqa: A
     """Return the trajectory of a model run with frames at every step."""
     system = create(name, **arguments)
     observables = describe(name).observables_of(system)
-    return Simulation(system, dt=1, random_state=0, observables=observables).run(until).trajectory_
+    return Simulation(system, dt=1, random_state=0, observables=observables).check().run(until).trajectory_
 
 
 def _run_seeded(system: System, until: float, dt: float, model: str | None = None) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state."""
-    simulation = Simulation(system, dt=dt, random_state=0, observables=_observables(system, model))
+    simulation = Simulation(system, dt=dt, random_state=0, observables=_observables(system, model)).check()
     return simulation.run(until=until).trajectory_
 
 

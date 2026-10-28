@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_barterers=100, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=30)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=30)
 
 # %%
 # The contract curve of the Edgeworth box
@@ -54,7 +54,7 @@ rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
     edgeworth = create(MODEL, chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
-    final = Simulation(edgeworth, random_state=0).run(until=2).trajectory_.agents('barterers', 2).values
+    final = Simulation(edgeworth, random_state=0).check().run(until=2).trajectory_.agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)
     box.scatter(x, y, color='C0', label=label[0])

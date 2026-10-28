@@ -23,7 +23,7 @@ MODEL = 'potts'
 
 system = create(MODEL, size=256, q=5, temperature=0.6, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=100)
 
 # %%
 # Energy through the transition
@@ -48,7 +48,7 @@ for q, color in ((3, 'tab:blue'), (8, 'tab:orange')):
     measured = []
     for ratio in ratios:
         system_q = create(MODEL, size=40, q=q, temperature=ratio * critical, random_state=1)
-        run = Simulation(system_q, dt=1, random_state=1).run(until=1000)
+        run = Simulation(system_q, dt=1, random_state=1).check().run(until=1000)
         measured.append(energy(run.trajectory_.values('spins.color')[300:], 40).mean())
     ax.plot(ratios, measured, 'o-', color=color, label=f'q = {q}')
     ax.plot(1.0, -(1 + 1 / np.sqrt(q)), '*', color=color, markersize=14, markeredgecolor='black')

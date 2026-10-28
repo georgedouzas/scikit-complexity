@@ -31,7 +31,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL)
-simulation = Simulation(system, observers=[observer], dt=0.1, observables=describe(MODEL).observables_of(system)).run(
+simulation = Simulation(
+    system, observers=[observer], dt=0.1, observables=describe(MODEL).observables_of(system),
+).check().run(
     until=10,
 )
 
@@ -46,7 +48,11 @@ simulation = Simulation(system, observers=[observer], dt=0.1, observables=descri
 def final_density(activation):
     """Return the tumour density after 20 time units for an initial immune activation."""
     model_system = create(MODEL, activation=activation)
-    run = Simulation(model_system, dt=20.0, observables=describe(MODEL).observables_of(model_system)).run(until=20)
+    run = (
+        Simulation(model_system, dt=20.0, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=20)
+    )
     return run.trajectory_.values('tumour_density')[-1]
 
 

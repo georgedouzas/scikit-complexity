@@ -25,7 +25,9 @@ MODEL = 'standard_map'
 
 def orbits(K, starts, until):
     """Return the angle and the unwrapped momentum of the orbits from several starting points."""
-    runs = [Simulation(create(MODEL, theta=theta, p=p, K=K), dt=1).run(until=until).trajectory_ for theta, p in starts]
+    runs = [Simulation(
+        create(MODEL, theta=theta, p=p, K=K), dt=1,
+    ).check().run(until=until).trajectory_ for theta, p in starts]
     return np.array([run.values('map.theta') for run in runs]), np.array([run.values('map.p') for run in runs])
 
 
@@ -48,7 +50,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).run(until=1000)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=1000)
 rng = np.random.default_rng(0)
 starts = np.column_stack([np.linspace(0.1, 2 * np.pi - 0.1, 40), np.linspace(0.05, 2 * np.pi - 0.05, 40)])
 theta, p = orbits(1.2, starts, until=400)

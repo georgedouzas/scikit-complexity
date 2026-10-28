@@ -39,7 +39,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(create(MODEL, stochastic=True), dt=1.0, observers=[observer], random_state=0).run(until=160)
+simulation = (
+    Simulation(create(MODEL, stochastic=True), dt=1.0, observers=[observer], random_state=0)
+    .check()
+    .run(until=160)
+)
 
 # %%
 # Final size of the epidemic

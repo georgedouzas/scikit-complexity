@@ -19,8 +19,8 @@ from ..compile.passes._quantum_problem import QuantumProblem
 from ..compile.passes._quantum_term import QuantumTerm
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
+from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
-from ._visuals import BaseVisual
 
 
 class ExpectationVisual(ImageVisual):

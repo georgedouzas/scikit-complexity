@@ -30,7 +30,7 @@ simulation = Simulation(
     solver=entry.defaults['solver'],
     observers=[observer],
     observables=entry.observables_of(system),
-).run(until=30)
+).check().run(until=30)
 
 # %%
 # Treated against untreated
@@ -40,7 +40,12 @@ simulation = Simulation(
 # infusion tapers off.
 
 untreated = (
-    Simulation(System(components=[TumourImmuneChemotherapyElement('patient')]), dt=0.25).run(until=30).trajectory_
+
+        Simulation(System(components=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
+        .check()
+        .run(until=30)
+        .trajectory_
+
 )
 trajectory = simulation.trajectory_
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))

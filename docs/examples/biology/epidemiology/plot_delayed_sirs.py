@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, first=0.01, second=0.0, recovery=6, e=0.005)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=200)
 
 # %%
 # Recurrent and locked outbreaks

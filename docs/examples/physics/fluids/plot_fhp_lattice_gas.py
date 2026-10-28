@@ -23,7 +23,7 @@ MODEL = 'fhp_lattice_gas'
 
 system = create(MODEL, shape=(64, 64))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=120)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=120)
 
 # %%
 # Conservation and the spreading disc

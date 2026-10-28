@@ -34,7 +34,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
+        >>> trajectory = Simulation(system, solver=RewritingSolver()).check().run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """

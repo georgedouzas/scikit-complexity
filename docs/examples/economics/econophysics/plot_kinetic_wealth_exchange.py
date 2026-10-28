@@ -38,7 +38,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(model_system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 
 # %%
 # Stationary distributions
@@ -53,7 +53,7 @@ def final_wealth(**options):
     """Return the final wealth of every agent of a run."""
     model_system = create(MODEL, n_agents=500, **options)
     trajectory = (
-        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system)).check()
         .run(until=STEPS)
         .trajectory_
     )

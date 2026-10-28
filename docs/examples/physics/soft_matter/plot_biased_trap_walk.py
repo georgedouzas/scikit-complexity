@@ -28,7 +28,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=1495)
+).check().run(until=1495)
 
 # %%
 # Subdiffusive displacement
@@ -41,7 +41,10 @@ simulation = Simulation(
 fig, (scaling, spread) = plt.subplots(1, 2, figsize=(10, 4))
 for alpha in (0.3, 0.5, 0.7):
     model_system = create(MODEL, n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
-    run = Simulation(model_system, dt=10, random_state=0, observables=describe(MODEL).observables_of(model_system))
+    run = (
+        Simulation(model_system, dt=10, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        .check()
+    )
     trajectory = run.run(until=3000).trajectory_
     times, position = trajectory.times[1:], trajectory.values('position')[1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')

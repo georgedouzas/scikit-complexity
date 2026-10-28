@@ -19,7 +19,7 @@ MODEL = 'van_der_pol'
 
 system = create(MODEL, x=0.1, v=0.0, mu=3.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=50)
 
 # %%
 # Attraction to the limit cycle
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for x, v in [(0.1, 0.0), (4.0, 6.0), (-3.0, -8.0)]:
-    run = Simulation(create(MODEL, x=x, v=v, mu=3.0), dt=0.02).run(until=30)
+    run = Simulation(create(MODEL, x=x, v=v, mu=3.0), dt=0.02).check().run(until=30)
     ax.plot(
         run.trajectory_.values('oscillator.x'),
         run.trajectory_.values('oscillator.x_d1'),

@@ -10,7 +10,7 @@ from skcomplex.models.physics.fluids import discrete_velocity_boltzmann, wave_br
 
 def test_wave_breaking_steepens_after_the_breaking_time():
     """Test that the wave number stays smooth before the breaking time, steepens after it, and is conserved."""
-    trajectory = Simulation(wave_breaking(), dt=0.5, solver=SSPRKSolver()).run(until=12).trajectory_
+    trajectory = Simulation(wave_breaking(), dt=0.5, solver=SSPRKSolver()).check().run(until=12).trajectory_
     numbers = trajectory.values('train.k')
     jumps = np.abs(np.diff(numbers, axis=1)).max(axis=1)
     centers = (np.arange(200) + 0.5) * 2 * np.pi / 200
@@ -23,7 +23,12 @@ def test_wave_breaking_steepens_after_the_breaking_time():
 
 def test_discrete_velocity_boltzmann_conserves_mass_and_relaxes():
     """Test that the Carleman gas conserves its mass and relaxes to equal densities of both velocities."""
-    trajectory = Simulation(discrete_velocity_boltzmann(), dt=0.1, solver=SSPRKSolver()).run(until=5).trajectory_
+    trajectory = (
+        Simulation(discrete_velocity_boltzmann(), dt=0.1, solver=SSPRKSolver())
+        .check()
+        .run(until=5)
+        .trajectory_
+    )
     right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
     assert (right + left).sum(axis=1) == pytest.approx(np.full(len(right), (right + left)[0].sum()))
     assert np.abs(right - left).max(axis=1)[-1] < 0.05 * np.abs(right - left).max(axis=1)[0]

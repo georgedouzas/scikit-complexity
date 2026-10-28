@@ -28,7 +28,7 @@ def cascade(bank):
     """Return the trajectory of the cascade from the default of one bank."""
     system = create(MODEL, n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
     return (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).check()
         .run(until=ROUNDS)
         .trajectory_
     )
@@ -54,7 +54,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=ROUNDS)
+).check().run(until=ROUNDS)
 
 # %%
 # DebtRank of every bank

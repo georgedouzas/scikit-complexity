@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).run(30)
+simulation = Simulation(create(MODEL, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).check().run(30)
 
 # %%
 # Attractors reached from one start

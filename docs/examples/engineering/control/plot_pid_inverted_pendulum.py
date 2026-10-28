@@ -29,7 +29,7 @@ simulation = Simulation(
     solver=entry.defaults['solver'],
     observers=[observer],
     observables=entry.observables_of(system),
-).run(until=5)
+).check().run(until=5)
 
 # %%
 # The closed loop near upright

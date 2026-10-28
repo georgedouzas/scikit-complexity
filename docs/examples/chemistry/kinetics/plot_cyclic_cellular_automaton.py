@@ -21,7 +21,7 @@ MODEL = 'cyclic_cellular_automaton'
 
 system = create(MODEL, shape=(128, 128), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=300)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=300)
 
 # %%
 # Self-organization into spirals

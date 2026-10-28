@@ -9,7 +9,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, wrap_angle
 from ..runtime import Frame
-from ._visuals import _UPWARD, BaseVisual
+from ._base import _UPWARD, BaseVisual
 
 _PHASE_MARGIN = 0.1
 _HEIGHT_SHARE = 0.6
@@ -33,15 +33,30 @@ class PhaseRingVisual(BaseVisual):
             The name of a scalar state or of the first coordinate of a vector state that holds the position of every
             member, or `None` for the member index.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Examples:
         >>> from skcomplex.engine.viz import PhaseRingVisual
         >>> PhaseRingVisual('theta').phase
         'theta'
     """
 
-    def __init__(self, phase: str, position: str | None = None) -> None:
+    def __init__(
+        self,
+        phase: str,
+        position: str | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
+    ) -> None:
         self.phase = phase
         self.position = position
+        self.path = path
+        self.recording = recording
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the wrapped phases of the members against their positions, and the other states as time series.

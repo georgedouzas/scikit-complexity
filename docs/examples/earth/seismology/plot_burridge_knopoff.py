@@ -17,7 +17,7 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'burridge_knopoff'
@@ -26,9 +26,9 @@ system = create(MODEL)
 observer = RerunObserver(
     MODEL,
     save_path=f'{MODEL}.rrd',
-    blueprint=default_blueprint(system, primary='fault/space_time/v'),
+    blueprint='default', primary='fault/space_time/v',
 )
-simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).run(until=2000)
+simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).check().run(until=2000)
 
 # %%
 # Stick and slip

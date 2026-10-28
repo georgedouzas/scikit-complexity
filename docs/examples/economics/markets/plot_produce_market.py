@@ -30,7 +30,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=N_STALLS)
+).check().run(until=N_STALLS)
 
 # %%
 # Items left on the lists
@@ -58,7 +58,7 @@ fig, (left, spent) = plt.subplots(1, 2, figsize=(10, 4))
 for index, stocked in enumerate((3, 6, 9)):
     system = create(MODEL, n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, n_items_stocked=stocked, random_state=0)
     trajectory = (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).check()
         .run(until=N_STALLS)
         .trajectory_
     )

@@ -144,7 +144,7 @@ class FollowingElement(Element):
 
 def _trajectory(system, until, dt, **settings):
     """Return the trajectory of a system run with a seed."""
-    return Simulation(system, dt=dt, random_state=0, **settings).run(until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, **settings).check().run(until).trajectory_
 
 
 def _member_times(trajectory, label, member):
@@ -189,7 +189,14 @@ def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
     problem = compile_system(System(elements=[CounterElement('c')]))
     counts = [
-        Simulation(problem, dt=1000, random_state=seed).run(1000).trajectory_.values('c.n')[-1] for seed in range(100)
+        (
+            Simulation(problem, dt=1000, random_state=seed)
+            .check()
+            .run(1000)
+            .trajectory_
+            .values('c.n')[-1]
+        )
+        for seed in range(100)
     ]
     assert abs(np.mean(counts) - 1000) < 2 * np.std(counts) / np.sqrt(len(counts))
 
@@ -235,7 +242,7 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
         dt=1,
         observers=[observer],
         random_state=0,
-    ).run(5)
+    ).check().run(5)
     assert logged.count(('ticks.renewals', 'Scalars')) == 6
     assert ('renewals/ticks', 'TextLog') in logged
 
@@ -300,6 +307,6 @@ def test_stepper_rejects_renewals_it_does_not_fire():
 
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
-    simulation = Simulation(System(elements=[CounterElement('c')]), random_state=0).run(1)
+    simulation = Simulation(System(elements=[CounterElement('c')]), random_state=0).check().run(1)
     assert simulation.problem_.form == Form.RENEWAL
     assert isinstance(simulation.stepper_, RenewalSolver)

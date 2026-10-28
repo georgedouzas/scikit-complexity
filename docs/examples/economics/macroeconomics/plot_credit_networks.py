@@ -41,7 +41,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(model_system),
-).run(until=100)
+).check().run(until=100)
 
 # %%
 # Switching intensity and concentration
@@ -56,7 +56,7 @@ herfindahl, spread = [], []
 for intensity in intensities:
     model_system = create(MODEL, intensity=intensity, random_state=0)
     trajectory = (
-        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system)).check()
         .run(100)
         .trajectory_
     )

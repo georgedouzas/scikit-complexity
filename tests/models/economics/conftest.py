@@ -12,7 +12,7 @@ from skcomplex.engine.runtime import Simulation, Trajectory
 
 def _run(system: System, until: float, **settings: Any) -> Trajectory:  # noqa: ANN401
     """Return the trajectory of a system run with a fixed random state."""
-    return Simulation(system, random_state=0, **settings).run(until=until).trajectory_
+    return Simulation(system, random_state=0, **settings).check().run(until=until).trajectory_
 
 
 def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, npt.NDArray[Any]]:
@@ -27,5 +27,5 @@ def _run_observed(
     invariants: Mapping[str, float] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a model run with a fixed random state."""
-    simulation = Simulation(system, random_state=0, observables=observables, invariants=invariants)
+    simulation = Simulation(system, random_state=0, observables=observables, invariants=invariants).check()
     return simulation.run(until=until).trajectory_

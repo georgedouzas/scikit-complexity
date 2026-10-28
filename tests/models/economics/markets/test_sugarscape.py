@@ -7,7 +7,7 @@ from skcomplex.models.economics.markets._sugarscape import gini
 
 def test_sugarscape_carrying_capacity_and_inequality():
     """The population falls to a stable carrying capacity and the wealth becomes unequal."""
-    trajectory = Simulation(sugarscape(30, 30, n_foragers=200), random_state=0).run(until=80).trajectory_
+    trajectory = Simulation(sugarscape(30, 30, n_foragers=200), random_state=0).check().run(until=80).trajectory_
     population, inequality = trajectory.values('census.population'), trajectory.values('census.gini')
     assert population[-1] < 200
     assert abs(population[-1] - population[-20]) <= 0.05 * population[-1]

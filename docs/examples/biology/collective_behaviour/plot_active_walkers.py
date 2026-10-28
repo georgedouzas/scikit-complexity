@@ -20,7 +20,7 @@ MODEL = 'active_walkers'
 
 system = create(MODEL, size=30, n_walkers=20, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=300)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=300)
 
 # %%
 # Trails concentrate the wear

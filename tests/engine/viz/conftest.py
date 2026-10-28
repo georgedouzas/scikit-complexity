@@ -29,10 +29,10 @@ def log_agents() -> Callable[..., BaseVisual]:
         space: BaseSpace | None = None,
     ) -> BaseVisual:
         """Fit a visual to agents with the traits of the first snapshot, log every snapshot, and return the visual."""
-        prepared = replace(problem, agent_space=space)
         values = dict(snapshots[0].values)
         agents = replace(problem.agents[0], path=path, states=tuple(values), values=values)
-        visual.prepare(agents, prepared)
+        prepared = replace(problem, agent_space=space, agents=(agents,))
+        visual.set_params(path=path, recording=recording).check().prepare(prepared)
         for step, snapshot in enumerate(snapshots):
             frame = Frame(
                 step,
@@ -42,7 +42,7 @@ def log_agents() -> Callable[..., BaseVisual]:
                 prepared,
                 {path: snapshot},
             )
-            visual.run(frame, recording)
+            visual.run(frame)
         return visual
 
     return log

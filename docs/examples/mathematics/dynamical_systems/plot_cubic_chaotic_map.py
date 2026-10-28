@@ -28,7 +28,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+simulation = Simulation(
+    system, dt=1, observers=[observer], observables=describe(MODEL).observables_of(system),
+).check().run(
     until=250,
 )
 

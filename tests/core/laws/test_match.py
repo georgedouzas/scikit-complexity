@@ -64,7 +64,7 @@ def test_random_matching_pairs_every_member_at_most_once():
         ],
         interactions=[ExchangeInteraction('market')],
     )
-    trajectory = Simulation(system, random_state=0).run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).check().run(until=1).trajectory_
     sellers = np.asarray(trajectory.agents('sellers', 1).values['paired'])
     buyers = np.asarray(trajectory.agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30

@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, graph=lattice, share=0.5, random_state=2)
-simulation = Simulation(system, observers=[observer], random_state=2).run(until=3)
+simulation = Simulation(system, observers=[observer], random_state=2).check().run(until=3)
 
 # %%
 # Consensus and the exit probability
@@ -46,7 +46,7 @@ simulation = Simulation(system, observers=[observer], random_state=2).run(until=
 
 def run(share, seed):
     """Return the share of opinion 1 after every step of a run."""
-    trajectory = Simulation(create(MODEL, graph=lattice, share=share, random_state=seed), random_state=seed)
+    trajectory = Simulation(create(MODEL, graph=lattice, share=share, random_state=seed), random_state=seed).check()
     trajectory = trajectory.run(until=STEPS).trajectory_
     return np.array([trajectory.agents('people', frame).values['opinion'].mean() for frame in range(STEPS + 1)])
 

@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).run(until=300)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().run(until=300)
 
 # %%
 # Degree tails
@@ -48,7 +48,11 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ru
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for randomness in (1.0, 0.5, 0.1):
-    run = Simulation(create(MODEL, n_nodes=3004, randomness=randomness), dt=1000.0, random_state=0).run(until=3000)
+    run = (
+        Simulation(create(MODEL, n_nodes=3004, randomness=randomness), dt=1000.0, random_state=0)
+        .check()
+        .run(until=3000)
+    )
     snapshot = run.trajectory_.network(-1)
     ccdf = (
         DistributionAnalysis('ccdf')

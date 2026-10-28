@@ -21,7 +21,7 @@ MODEL = 'skipper_log_kill'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=42)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=42)
 
 # %%
 # Logarithmic steps

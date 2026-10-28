@@ -23,7 +23,7 @@ MODEL = 'diffusion_limited_aggregation'
 
 system = create(MODEL, n_walkers=800, size=101, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10, observers=[observer], random_state=0).run(until=2990)
+simulation = Simulation(system, dt=10, observers=[observer], random_state=0).check().run(until=2990)
 
 # %%
 # Fractal dimension from the mass-radius relation

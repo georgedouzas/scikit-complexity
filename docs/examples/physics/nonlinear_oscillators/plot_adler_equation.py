@@ -20,7 +20,7 @@ MODEL = 'adler_equation'
 
 system = create(MODEL, phi=0.0, detuning=0.5, epsilon=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
 
 # %%
 # Locking and phase slips
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 detunings = np.linspace(0.0, 3.0, 25)
 rates = []
 for detuning in detunings:
-    run = Simulation(create(MODEL, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).run(until=400)
+    run = Simulation(create(MODEL, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).check().run(until=400)
     phase = np.unwrap(np.ravel(run.trajectory_.values('difference.phi')))
     times = np.asarray(run.trajectory_.times)
     half = times > 200

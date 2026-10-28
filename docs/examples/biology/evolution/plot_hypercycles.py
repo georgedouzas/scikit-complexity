@@ -22,7 +22,7 @@ MODEL = 'hypercycles'
 
 system = create(MODEL, molecules=6, alpha=0.01, topology='cycle')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=290)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=290)
 
 # %%
 # Cycle against complete network
@@ -33,7 +33,13 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=290)
 
 ring = simulation.trajectory_
 complete = (
-    Simulation(create(MODEL, molecules=10, topology='complete'), dt=0.5).run(until=200).trajectory_.values('soup.x')
+
+        Simulation(create(MODEL, molecules=10, topology='complete'), dt=0.5)
+        .check()
+        .run(until=200)
+        .trajectory_
+        .values('soup.x')
+
 )
 fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4))
 left.semilogy(ring.times, ring.values('soup.x'))

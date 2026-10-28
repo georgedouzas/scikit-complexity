@@ -41,7 +41,7 @@ simulation = Simulation(
     schedule=schedule,
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=END)
+).check().run(until=END)
 
 # %%
 # Order parameters against the temperature
