@@ -79,7 +79,8 @@ from ..problems import (
 from ..problems._edge_rows import EdgeRows
 from ..problems._metric_search import MetricSearch
 from . import _numba_neighbours, _numba_stencils
-from ._base import _AUTO_MEMBERS, BaseBackend, Lowering
+from ._base import _AUTO_MEMBERS, BaseBackend
+from ._lowering import Lowering
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_source import _Source
 

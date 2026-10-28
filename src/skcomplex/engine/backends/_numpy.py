@@ -55,7 +55,8 @@ from ..problems import (
     Reference,
     SupportSpec,
 )
-from ._base import _FUNCTION_KINDS, BaseBackend, Lowering
+from ._base import BaseBackend
+from ._lowering import _FUNCTION_KINDS, Lowering
 
 
 class NumpyBackend(BaseBackend):

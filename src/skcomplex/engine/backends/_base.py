@@ -4,91 +4,23 @@
 # License: MIT
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.types import Indices, Vector
+from ...core.types import Vector
 from ..problems import Form, SupportSpec
-from ..problems._accelerated import Accelerated
 from ..problems._draws import Draws
 from ..problems._kernel import Kernel
-from ..problems._problem import VectorFunction, _JumpChannels
+from ..problems._problem import VectorFunction
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
 from ..problems._source import Source
-from ..problems._wiener_block import WienerBlock
 from ..utils import BaseEstimator
+from ._lowering import Lowering
 
 _AUTO_MEMBERS = 1000
-_FUNCTION_KINDS: dict[str, type] = {
-    'drift': RateLaw,
-    'diffusion': NoiseLaw,
-    'propensities': JumpLaw,
-    'update': UpdateLaw,
-    'boundary': BoundaryLaw,
-}
-
-
-@dataclass
-class Lowering:
-    """Numeric functions of a form produced by a backend.
-
-    Args:
-        drift:
-            The drift function, or `None`.
-
-        diffusion:
-            The function that returns every Wiener process amplitude, or `None`.
-
-        noise_rows:
-            The state index each noise amplitude drives.
-
-        noise_columns:
-            The Wiener process each noise amplitude draws.
-
-        n_processes:
-            The number of Wiener processes.
-
-        noise_blocks:
-            The blocks of correlated processes with their covariance factors.
-
-        propensities:
-            The function that returns every jump channel rate, or `None`.
-
-        jumps:
-            The channels of every jump law.
-
-        update:
-            The next-state function of a discrete map, or `None`.
-
-        boundary:
-            The function that applies the boundary laws, or `None`.
-
-        accelerated:
-            The compiled stepper loops, or `None` when the backend has none.
-
-        backends:
-            The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
-    """
-
-    drift: VectorFunction | None = None
-    diffusion: VectorFunction | None = None
-    noise_rows: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    noise_columns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    n_processes: int = 0
-    noise_blocks: tuple[WienerBlock, ...] = ()
-    propensities: VectorFunction | None = None
-    jumps: tuple[_JumpChannels, ...] = ()
-    update: VectorFunction | None = None
-    boundary: VectorFunction | None = None
-    accelerated: Accelerated | None = None
-    backends: dict[str, str] = field(default_factory=dict)
-
-
 class BaseBackend(BaseEstimator):
     """Base class of backends, which turn kernels into the numeric functions of a form.
 
