@@ -7,7 +7,7 @@ import pytest
 from scipy import stats
 
 from skcomplex import experiments
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.experiments import BaseDesign, BaseExperiment, RandomDesign
 from skcomplex.models.biology.ecology import lotka_volterra
@@ -72,3 +72,26 @@ def test_replicate_checks_paths_and_rows():
         BaseExperiment._replicate(logistic_map(), 3, {'map.z': [1, 2, 3]})
     with pytest.raises(ValidationError, match='one row per member'):
         BaseExperiment._replicate(logistic_map(), 3, {'map.r': [3.5, 3.6]})
+
+
+@pytest.mark.parametrize(
+    'experiment',
+    [
+        lambda: experiments.Experiment('sir', until=1),
+        lambda: experiments.CalibrationExperiment('logistic_growth', {'population.n': ([0.0], [1.0])}, {}),
+        lambda: experiments.OrbitDiagramExperiment('logistic_map', 'map.r', [3.0], 'map.x', transient=1, keep=1),
+    ],
+)
+def test_model_name_as_a_source_raises_a_named_error(experiment):
+    """Test that an experiment of a model name raises an error that says to pass a system or a factory."""
+    with pytest.raises(ExperimentError, match=r"not the model name '\w+'\. Pass the model's factory"):
+        experiment().check()
+
+
+def test_model_of_the_library_runs_from_its_factory_or_a_created_system():
+    """Test that a library model runs as an experiment from its factory or from a system the models library creates."""
+    from skcomplex.models import create  # noqa: PLC0415
+
+    for source in (logistic_map, create('logistic_map')):
+        diagram = experiments.OrbitDiagramExperiment(source, 'map.r', [2.9], 'map.x', transient=1000, keep=4, dt=1)
+        assert diagram.check().prepare().run().periods_.tolist() == [1]

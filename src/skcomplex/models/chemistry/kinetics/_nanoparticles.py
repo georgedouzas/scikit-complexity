@@ -6,8 +6,8 @@
 from collections.abc import Sequence
 
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
+from ..._catalog import register_model
 from ._reactions import BindingInteraction, DissociationInteraction, SpeciesElement
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')

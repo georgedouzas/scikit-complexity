@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import where
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 
 
 def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[BaseLaw]:

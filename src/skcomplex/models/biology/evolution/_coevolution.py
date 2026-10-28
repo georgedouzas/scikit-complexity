@@ -18,7 +18,7 @@ from ....core.laws import BaseLaw, ExtremalLaw
 from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

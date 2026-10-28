@@ -15,7 +15,7 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ..common.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
 

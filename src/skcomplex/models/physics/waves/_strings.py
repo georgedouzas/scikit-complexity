@@ -18,8 +18,8 @@ from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
+from ..._catalog import register_model
 from ..common.particles import SpringInteraction
 
 

@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 from ._particles import ActiveParticleElement
 
 HEADINGS = VisualSpec(

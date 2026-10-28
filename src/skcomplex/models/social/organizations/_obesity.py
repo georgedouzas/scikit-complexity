@@ -18,8 +18,8 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

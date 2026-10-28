@@ -13,7 +13,7 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 class PolyaUrnElement(Element):

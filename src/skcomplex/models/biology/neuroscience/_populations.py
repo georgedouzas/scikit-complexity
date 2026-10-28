@@ -18,7 +18,7 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import mean, total
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 def _sigmoid(x: Expression, gain: Expression, threshold: Expression) -> Expression:

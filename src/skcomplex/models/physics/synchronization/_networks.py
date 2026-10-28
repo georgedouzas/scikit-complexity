@@ -19,7 +19,7 @@ from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._kuramoto import PhaseOscillatorElement
 from ._utils import _order_parameter
 

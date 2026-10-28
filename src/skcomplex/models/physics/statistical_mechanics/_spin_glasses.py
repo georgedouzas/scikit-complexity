@@ -19,7 +19,7 @@ from ....core.laws.utils import neighbors
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._fully_connected_spins import SPIN_IMAGE
 
 type Couplings = npt.NDArray[np.floating]

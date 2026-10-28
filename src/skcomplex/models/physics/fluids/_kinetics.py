@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import SSPRKSolver
+from ..._catalog import register_model
 
 
 class WaveNumberElement(Element):

@@ -20,7 +20,7 @@ from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

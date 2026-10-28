@@ -17,7 +17,7 @@ from ....core.laws.utils import neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.specs import ParameterSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 SMALLEST_TOTAL = 1e-12

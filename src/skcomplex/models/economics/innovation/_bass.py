@@ -13,7 +13,7 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, TransferLaw
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 def _adoption(s: SimpleNamespace) -> list[BaseLaw]:

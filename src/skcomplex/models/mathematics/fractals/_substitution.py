@@ -17,7 +17,7 @@ from ....core.errors import ValidationError
 from ....core.laws import ProductionLaw, SubstitutionLaw
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 SHAPES = ('triangle', 'carpet')
 

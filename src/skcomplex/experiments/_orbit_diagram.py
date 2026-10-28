@@ -27,7 +27,7 @@ class OrbitDiagramExperiment(BaseExperiment):
 
     Args:
         source:
-            A registered model name, a factory, or a system.
+            A factory of systems, or a system, such as one that `skcomplex.models.create` returns.
 
         parameter:
             The dotted path or factory argument to sweep.
@@ -45,7 +45,7 @@ class OrbitDiagramExperiment(BaseExperiment):
             The number of frames kept after the transient.
 
         dt:
-            The time between frames, or `None` for the model's default, 1 for maps.
+            The time between frames, or `None` for the default of the simulation, 1 for maps.
 
         decimals:
             The decimals the kept values are rounded to before counting the period of every orbit.
@@ -69,7 +69,7 @@ class OrbitDiagramExperiment(BaseExperiment):
     Examples:
         >>> from skcomplex.experiments import OrbitDiagramExperiment
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
-        >>> diagram = OrbitDiagramExperiment('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
+        >>> diagram = OrbitDiagramExperiment(logistic_map, 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
         >>> diagram.check().prepare().run().periods_.tolist()
         [1, 2]
     """
@@ -102,7 +102,8 @@ class OrbitDiagramExperiment(BaseExperiment):
         self.vectorized = vectorized
 
     def _check(self) -> None:
-        """Raise an error for no values or a number of kept frames that is not a positive integer."""
+        """Raise an error for a model name as the source, no values, or a bad number of kept frames."""
+        self._check_source(self.source)
         if not len(self.values):
             error_msg = 'An orbit diagram needs at least one value of the parameter.'
             raise ValidationError(error_msg)

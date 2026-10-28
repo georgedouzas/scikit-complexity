@@ -20,7 +20,7 @@ from ....core.laws.utils import neighbors, total, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

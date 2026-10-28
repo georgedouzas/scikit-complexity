@@ -18,8 +18,8 @@ from ....core.laws.utils import laplacian, local_operator
 from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
+from ..._catalog import register_model
 from ..common.quantum import SiteElement, site_space
 
 

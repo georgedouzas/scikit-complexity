@@ -20,8 +20,8 @@ from ....core.laws.utils import pulse_train, where
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 from ..common.particles import LangevinThermostatInteraction
 from ._brownian import DoubleWellElement
 

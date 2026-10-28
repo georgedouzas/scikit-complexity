@@ -21,8 +21,8 @@ from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 
 MODES = ('hunter_gatherer', 'monetary')
 PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')

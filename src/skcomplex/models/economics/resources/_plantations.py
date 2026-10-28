@@ -14,7 +14,7 @@ from ....core.laws import BaseLaw, RateLaw, Sink, TransferLaw
 from ....core.laws.utils import lookup, where
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.02),

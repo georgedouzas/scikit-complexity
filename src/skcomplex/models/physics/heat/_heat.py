@@ -19,8 +19,8 @@ from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import IMEXEulerSolver
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

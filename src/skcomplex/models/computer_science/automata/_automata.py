@@ -17,7 +17,7 @@ from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
 from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._codes import Wolfram, life
 
 type Array = npt.NDArray[np.float64]

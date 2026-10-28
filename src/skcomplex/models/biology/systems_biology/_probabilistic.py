@@ -17,7 +17,7 @@ from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._boolean import _pattern
 
 type Candidates = Sequence[tuple[Sequence[int], float]]

@@ -4,7 +4,6 @@ from ._base import BaseCompiler, BaseLowering, BasePass
 from ._compilation import Compilation
 from ._compile import compile_system
 from ._issue import Issue
-from ._kinetic_distributions import distribution_from, members_from
 from ._observables import ObservableEvaluator
 from ._pass_compiler import PassCompiler
 from ._validation_report import ValidationReport
@@ -27,6 +26,4 @@ __all__: list[str] = [
     'ValidationReport',
     'ValidationWarning',
     'compile_system',
-    'distribution_from',
-    'members_from',
 ]

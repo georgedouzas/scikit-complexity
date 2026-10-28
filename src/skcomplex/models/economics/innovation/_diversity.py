@@ -15,7 +15,7 @@ from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import where
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 def _new_entities(previous: Expression, current: Expression, r: Expression) -> Expression:

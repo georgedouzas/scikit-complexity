@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLa
 from ....core.laws.utils import bernoulli, normal
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 
 
 class PersistentWalkerElement(Element):

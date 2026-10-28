@@ -19,7 +19,7 @@ from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 SMALLEST_DEGREE = 1e-9
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})

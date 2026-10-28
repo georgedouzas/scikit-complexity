@@ -119,8 +119,7 @@ def test_analyses_of_stochastic_sir_replicates():
 
 def test_analyses_of_one_class_are_numbered():
     """Test that two analyses of one class get numbered column prefixes."""
-    experiment = Experiment('sir', analyses=[PeakAnalysis('I.n'), PeakAnalysis('S.n')], until=10)
-    experiment.check().prepare().run()
+    experiment = Experiment(sir, analyses=[PeakAnalysis('I.n'), PeakAnalysis('S.n')], until=10).check().prepare().run()
     row = experiment.result_.rows[0]
     assert row['peakanalysis-1.peak'] > 0
     assert row['peakanalysis-2.peak'] == experiment.result_.series('S.n')[0].max()
@@ -210,18 +209,18 @@ def test_summary_across_replicates():
 def test_zero_replicates_are_rejected():
     """Test that an experiment of zero replicates builds and fails its check with an error naming the replicates."""
     with pytest.raises(ValidationError, match='replicates = 0'):
-        Experiment('sir', replicates=0).check()
+        Experiment(sir, replicates=0).check()
 
 
 def test_bounds_without_design_are_rejected():
     """Test that bounds without a design fail the check."""
     with pytest.raises(ValidationError, match='need a design'):
-        Experiment('sir', bounds={'gamma': [0.1]}).check()
+        Experiment(sir, bounds={'gamma': [0.1]}).check()
 
 
 def test_unknown_path_is_rejected():
     """Test that an override of a path that is neither a state nor a parameter names the available paths."""
-    experiment = Experiment('logistic_growth', GridDesign(), {'growth.rate': [1.0]}, until=1).check().prepare()
+    experiment = Experiment(logistic_growth, GridDesign(), {'growth.rate': [1.0]}, until=1).check().prepare()
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         experiment.run()
 

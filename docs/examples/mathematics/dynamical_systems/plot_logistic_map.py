@@ -20,7 +20,7 @@ from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'logistic_map'
 
@@ -47,7 +47,7 @@ simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).check(
 rates = np.linspace(2.8, 4.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        MODEL,
+        describe(MODEL).factory,
         'map.r',
         rates,
         'map.x',
