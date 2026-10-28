@@ -12,7 +12,7 @@ from scipy.spatial import cKDTree
 
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
-from ._information import _auto_mutual_information
+from ._information import InformationAnalysis
 from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
@@ -22,48 +22,6 @@ SETTINGS = {
     'false-nearest-neighbors': {'delay', 'max_delay', 'max_dimension', 'bins', 'ratio', 'escape'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
-
-
-def _first_minimum(values: Array) -> int:
-    """Return the index of the first local minimum, or of the global minimum without one."""
-    falls = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] < values[2:]))
-    return int(falls[0] + 1) if falls.size else int(values.argmin())
-
-
-def _delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Array:
-    """Return the delay vectors `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})` of a series, one per row."""
-    array = np.asarray(values, dtype=float)
-    size = array.size - (dimension - 1) * delay
-    if size < 1:
-        error_msg = (
-            f'A series of {array.size} values has no delay vector of dimension {dimension} and delay {delay}. '
-            'Use a longer series, or a smaller dimension or delay.'
-        )
-        raise AnalysisError(error_msg)
-    return np.column_stack([array[index * delay : index * delay + size] for index in range(dimension)])
-
-
-def _false_nearest_neighbors(
-    values: npt.ArrayLike,
-    delay: int = 1,
-    max_dimension: int = 10,
-    *,
-    ratio: float = 10.0,
-    escape: float = 2.0,
-) -> Array:
-    """Return Kennel's fraction of false nearest neighbours of the delay embeddings of dimensions 1 to the largest."""
-    array = np.asarray(values, dtype=float)
-    spread = array.std()
-    fractions = []
-    for dimension in range(1, max_dimension + 1):
-        points = _delay_embedding(array, dimension, delay)
-        size = array.size - dimension * delay
-        distances, neighbours = cKDTree(points[:size]).query(points[:size], k=2)
-        distance, neighbour = np.maximum(distances[:, 1], 1e-300), neighbours[:, 1]
-        step = np.abs(array[np.arange(size) + dimension * delay] - array[neighbour + dimension * delay])
-        false = (step / distance > ratio) | (np.sqrt(distance**2 + step**2) / spread > escape)
-        fractions.append(false.mean())
-    return np.asarray(fractions)
 
 
 class EmbeddingAnalysis(BaseAnalysis):
@@ -205,10 +163,10 @@ class EmbeddingAnalysis(BaseAnalysis):
         self.false_neighbors_ = None
         self.delay_ = self.delay
         if self.delay is None:
-            self.mutual_information_ = _auto_mutual_information(array, self.max_delay, self.bins)
-            self.delay_ = _first_minimum(self.mutual_information_)
+            self.mutual_information_ = self._auto_mutual_information(array, self.max_delay, self.bins)
+            self.delay_ = self._first_minimum(self.mutual_information_)
         if self.kind == 'false-nearest-neighbors':
-            self.false_neighbors_ = _false_nearest_neighbors(
+            self.false_neighbors_ = self._false_nearest_neighbors(
                 array,
                 self.delay_,
                 self.max_dimension,
@@ -218,7 +176,7 @@ class EmbeddingAnalysis(BaseAnalysis):
             return self
         self.dimension_ = self.dimension
         if self.dimension is None:
-            self.false_neighbors_ = _false_nearest_neighbors(array, self.delay_, self.max_dimension)
+            self.false_neighbors_ = self._false_nearest_neighbors(array, self.delay_, self.max_dimension)
             below = np.flatnonzero(self.false_neighbors_ < self.threshold)
             if not below.size:
                 error_msg = (
@@ -227,5 +185,53 @@ class EmbeddingAnalysis(BaseAnalysis):
                 )
                 raise AnalysisError(error_msg)
             self.dimension_ = int(below[0] + 1)
-        self.points_ = _delay_embedding(array, self.dimension_, self.delay_)
+        self.points_ = self._delay_embedding(array, self.dimension_, self.delay_)
         return self
+
+    @staticmethod
+    def _first_minimum(values: Array) -> int:
+        """Return the index of the first local minimum, or of the global minimum without one."""
+        falls = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] < values[2:]))
+        return int(falls[0] + 1) if falls.size else int(values.argmin())
+
+    @staticmethod
+    def _delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Array:
+        """Return the delay vectors `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})` of a series, one per row."""
+        array = np.asarray(values, dtype=float)
+        size = array.size - (dimension - 1) * delay
+        if size < 1:
+            error_msg = (
+                f'A series of {array.size} values has no delay vector of dimension {dimension} and delay {delay}. '
+                'Use a longer series, or a smaller dimension or delay.'
+            )
+            raise AnalysisError(error_msg)
+        return np.column_stack([array[index * delay : index * delay + size] for index in range(dimension)])
+
+    @staticmethod
+    def _false_nearest_neighbors(
+        values: npt.ArrayLike,
+        delay: int = 1,
+        max_dimension: int = 10,
+        *,
+        ratio: float = 10.0,
+        escape: float = 2.0,
+    ) -> Array:
+        """Return Kennel's share of false nearest neighbours of the delay embeddings of dimension 1 to the largest."""
+        array = np.asarray(values, dtype=float)
+        spread = array.std()
+        fractions = []
+        for dimension in range(1, max_dimension + 1):
+            points = EmbeddingAnalysis._delay_embedding(array, dimension, delay)
+            size = array.size - dimension * delay
+            distances, neighbours = cKDTree(points[:size]).query(points[:size], k=2)
+            distance, neighbour = np.maximum(distances[:, 1], 1e-300), neighbours[:, 1]
+            step = np.abs(array[np.arange(size) + dimension * delay] - array[neighbour + dimension * delay])
+            false = (step / distance > ratio) | (np.sqrt(distance**2 + step**2) / spread > escape)
+            fractions.append(false.mean())
+        return np.asarray(fractions)
+
+    @staticmethod
+    def _auto_mutual_information(values: npt.ArrayLike, max_delay: int = 100, bins: int = 16) -> Array:
+        """Return the mutual information in bits of a series in `bins` equally populated bins with itself delayed."""
+        symbols = InformationAnalysis._symbolize(values, 'quantiles', bins)
+        return InformationAnalysis._delayed_information(symbols, max_delay, base=2.0)

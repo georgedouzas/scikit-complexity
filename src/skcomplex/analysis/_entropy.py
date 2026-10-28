@@ -53,106 +53,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 
-def _probabilities(items: Sequence[Hashable]) -> Array:
-    """Return the empirical probabilities of distinct items."""
-    counts = np.asarray(list(Counter(items).values()), dtype=float)
-    return counts / counts.sum()
-
-
-def _distribution(values: npt.ArrayLike, *, probabilities: bool) -> Array:
-    """Return the nonzero probabilities of symbols, or of a probability vector."""
-    p = np.asarray(values, dtype=float) if probabilities else _probabilities(list(np.asarray(values).ravel()))
-    return p[p > 0]
-
-
-def _shannon(values: npt.ArrayLike, *, base: float = 2.0, probabilities: bool = False) -> float:
-    """Return the Shannon entropy of symbols, or of a probability vector."""
-    return float(stats.entropy(_distribution(values, probabilities=probabilities), base=base))
-
-
-def _renyi(values: npt.ArrayLike, order: float, *, base: float = 2.0, probabilities: bool = False) -> float:
-    """Return the Rényi entropy `log(Σ p^a) / (1 - a)`, the Shannon entropy at order 1 and `-log max p` at `inf`."""
-    p = _distribution(values, probabilities=probabilities)
-    if order == 1:
-        return _shannon(p, base=base, probabilities=True)
-    if math.isinf(order):
-        return float(-np.log(p.max()) / np.log(base))
-    return float(np.log(np.sum(p**order)) / (1 - order) / np.log(base))
-
-
-def _tsallis(values: npt.ArrayLike, index: float, *, probabilities: bool = False) -> float:
-    """Return the Tsallis entropy `(1 - Σ p^q) / (q - 1)`, the Shannon entropy in nats at index 1."""
-    p = _distribution(values, probabilities=probabilities)
-    if index == 1:
-        return _shannon(p, base=math.e, probabilities=True)
-    return float((1 - np.sum(p**index)) / (index - 1))
-
-
-def _block_entropy(symbols: npt.ArrayLike, m: int, *, base: float = 2.0) -> float:
-    """Return the entropy of the blocks of `m` consecutive symbols, or of square patches of side `m` of a lattice."""
-    array = np.asarray(symbols)
-    if m == 0:
-        return 0.0
-    windows = np.lib.stride_tricks.sliding_window_view(array, (m,) * array.ndim)
-    blocks = windows.reshape(-1, m**array.ndim)
-    return _shannon(_probabilities([block.tobytes() for block in blocks]), base=base, probabilities=True)
-
-
-def _block_entropies(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> Array:
-    """Return the block entropies `S_0` to `S_max_m`."""
-    return np.asarray([_block_entropy(symbols, m, base=base) for m in range(max_m + 1)])
-
-
-def _entropy_rate(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> float:
-    """Return the entropy rate, the limit of `S_m - S_{m-1}`, estimated at the largest block length."""
-    entropies = _block_entropies(symbols, max_m, base=base)
-    return float(max(entropies[-1] - entropies[-2], 0.0))
-
-
-def _excess_entropy(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> float:
-    """Return the excess entropy `S_m - m s` at the largest block length."""
-    entropies = _block_entropies(symbols, max_m, base=base)
-    return float(entropies[-1] - max_m * max(entropies[-1] - entropies[-2], 0.0))
-
-
-def _break_ties(values: npt.ArrayLike, ties: str, random_state: int | None) -> Array:
-    """Return values with ties kept in order, or broken by random offsets below a quarter of the smallest gap."""
-    array = np.asarray(values, dtype=float)
-    if ties == 'order':
-        return array
-    gaps = np.diff(np.unique(array))
-    scale = gaps.min() / 4 if gaps.size else 1.0
-    return array + np.random.default_rng(random_state).uniform(0, scale, array.shape)
-
-
-def _measure_of(probabilities: Array, measure: str, order: float) -> float:
-    """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy, of probabilities."""
-    if measure == 'renyi':
-        return _renyi(probabilities, order, probabilities=True)
-    if measure == 'tsallis':
-        return _tsallis(probabilities, order, probabilities=True)
-    return _shannon(probabilities, probabilities=True)
-
-
-def _largest_measure(outcomes: int, measure: str, order: float) -> float:
-    """Return the entropy of the uniform law on a number of outcomes."""
-    if measure == 'tsallis':
-        return _tsallis(np.full(outcomes, 1 / outcomes), order, probabilities=True)
-    return math.log2(outcomes)
-
-
-def _tolerance(array: Array, tolerance: float) -> float:
-    """Return the tolerance as a fraction of the standard deviation of a series."""
-    return float(tolerance * array.std())
-
-
-def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
-    """Return the sample entropy `-ln(A / B)` of a series, with the tolerance a fraction of its deviation."""
-    array = np.ascontiguousarray(values, dtype=float)
-    radius = _tolerance(array, tolerance)
-    return float(BaseAnalysis._import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0
-
-
 class EntropyAnalysis(BaseAnalysis):
     """Entropy of every series of a source, or of every frame of a field, of one kind.
 
@@ -340,10 +240,10 @@ class EntropyAnalysis(BaseAnalysis):
     def _compute_distribution(self, values: npt.NDArray[np.generic]) -> float:
         """Return the Shannon, Rényi, or Tsallis entropy of symbols or of a probability vector."""
         if self.kind == 'renyi':
-            return _renyi(values, self.order, base=self.base, probabilities=self.probabilities)
+            return self._renyi(values, self.order, base=self.base, probabilities=self.probabilities)
         if self.kind == 'tsallis':
-            return _tsallis(values, self.order, probabilities=self.probabilities)
-        return _shannon(values, base=self.base, probabilities=self.probabilities)
+            return self._tsallis(values, self.order, probabilities=self.probabilities)
+        return self._shannon(values, base=self.base, probabilities=self.probabilities)
 
     def _compute(self, values: npt.NDArray[np.generic]) -> float | Array:
         """Return the entropy of one series or one frame."""
@@ -363,19 +263,19 @@ class EntropyAnalysis(BaseAnalysis):
         """Return the block entropies, the entropy rate, or the excess entropy of symbols."""
         max_m = int(self.dimension)  # type: ignore[arg-type]
         if self.kind == 'block':
-            return _block_entropies(symbols, max_m, base=self.base)
+            return self._block_entropies(symbols, max_m, base=self.base)
         if self.kind == 'rate':
-            return _entropy_rate(symbols, max_m, base=self.base)
-        return _excess_entropy(symbols, max_m, base=self.base)
+            return self._entropy_rate(symbols, max_m, base=self.base)
+        return self._excess_entropy(symbols, max_m, base=self.base)
 
     def _compute_permutation(self, values: npt.NDArray[np.generic]) -> float:
         """Return the entropy of the ordinal patterns of a series or of the windows of a field."""
         dx, dy = (self.dimension, 1) if isinstance(self.dimension, int) else self.dimension
-        array = _break_ties(values, self.ties, self.random_state)
+        array = self._break_ties(values, self.ties, self.random_state)
         _, probabilities = ordpy.ordinal_distribution(array, dx=dx, dy=dy, taux=self.delay, tauy=self.delay)
-        value = _measure_of(probabilities, self.measure, self.order)
+        value = self._measure_of(probabilities, self.measure, self.order)
         if self.normalize:
-            value /= _largest_measure(math.factorial(dx * dy), self.measure, self.order)
+            value /= self._largest_measure(math.factorial(dx * dy), self.measure, self.order)
         return float(abs(value))
 
     def _compute_regularity(self, array: Array) -> float | Array:
@@ -383,11 +283,11 @@ class EntropyAnalysis(BaseAnalysis):
         antropy = self._import('antropy')
         dimension = int(self.dimension)  # type: ignore[arg-type]
         if self.kind == 'sample':
-            return _sample(array, dimension, self.tolerance)
+            return self._sample(array, dimension, self.tolerance)
         if self.kind == 'approximate':
-            return float(antropy.app_entropy(array, order=dimension, tolerance=_tolerance(array, self.tolerance)))
+            return float(antropy.app_entropy(array, order=dimension, tolerance=self._tolerance(array, self.tolerance)))
         if self.kind == 'multiscale':
-            radius = _tolerance(array, self.tolerance)
+            radius = self._tolerance(array, self.tolerance)
             entropies = []
             for scale in self.scales:
                 count = array.size // scale
@@ -400,7 +300,7 @@ class EntropyAnalysis(BaseAnalysis):
         """Compute the entropy of every frame of an ensemble and its divergence from the reference law."""
         law = np.asarray(self.reference, dtype=float)
         histograms = [np.bincount(frame, minlength=law.size) / frame.size for frame in self.values_.T]
-        self.entropy_ = np.asarray([_shannon(histogram, probabilities=True) for histogram in histograms])
+        self.entropy_ = np.asarray([self._shannon(histogram, probabilities=True) for histogram in histograms])
         self.divergence_ = np.asarray([stats.entropy(histogram, law, base=2) for histogram in histograms])
         self.error_ = float((np.count_nonzero(law) - 1) / (2 * self.values_.shape[0] * np.log(2)))
         return self
@@ -412,3 +312,111 @@ class EntropyAnalysis(BaseAnalysis):
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
         self.entropy_ = np.asarray([self._compute(item) for item in items], dtype=float)
         return self
+
+    @staticmethod
+    def _probabilities(items: Sequence[Hashable]) -> Array:
+        """Return the empirical probabilities of distinct items."""
+        counts = np.asarray(list(Counter(items).values()), dtype=float)
+        return counts / counts.sum()
+
+    @staticmethod
+    def _distribution(values: npt.ArrayLike, *, probabilities: bool) -> Array:
+        """Return the nonzero probabilities of symbols, or of a probability vector."""
+        p = (
+            np.asarray(values, dtype=float)
+            if probabilities
+            else EntropyAnalysis._probabilities(list(np.asarray(values).ravel()))
+        )
+        return p[p > 0]
+
+    @staticmethod
+    def _shannon(values: npt.ArrayLike, *, base: float = 2.0, probabilities: bool = False) -> float:
+        """Return the Shannon entropy of symbols, or of a probability vector."""
+        return float(stats.entropy(EntropyAnalysis._distribution(values, probabilities=probabilities), base=base))
+
+    @staticmethod
+    def _renyi(values: npt.ArrayLike, order: float, *, base: float = 2.0, probabilities: bool = False) -> float:
+        """Return the Rényi entropy `log(Σ p^a) / (1 - a)`, the Shannon entropy at order 1 and `-log max p` at `inf`."""
+        p = EntropyAnalysis._distribution(values, probabilities=probabilities)
+        if order == 1:
+            return EntropyAnalysis._shannon(p, base=base, probabilities=True)
+        if math.isinf(order):
+            return float(-np.log(p.max()) / np.log(base))
+        return float(np.log(np.sum(p**order)) / (1 - order) / np.log(base))
+
+    @staticmethod
+    def _tsallis(values: npt.ArrayLike, index: float, *, probabilities: bool = False) -> float:
+        """Return the Tsallis entropy `(1 - Σ p^q) / (q - 1)`, the Shannon entropy in nats at index 1."""
+        p = EntropyAnalysis._distribution(values, probabilities=probabilities)
+        if index == 1:
+            return EntropyAnalysis._shannon(p, base=math.e, probabilities=True)
+        return float((1 - np.sum(p**index)) / (index - 1))
+
+    @staticmethod
+    def _block_entropy(symbols: npt.ArrayLike, m: int, *, base: float = 2.0) -> float:
+        """Return the entropy of the blocks of `m` consecutive symbols, or of square patches of side `m` of lattices."""
+        array = np.asarray(symbols)
+        if m == 0:
+            return 0.0
+        windows = np.lib.stride_tricks.sliding_window_view(array, (m,) * array.ndim)
+        blocks = windows.reshape(-1, m**array.ndim)
+        return EntropyAnalysis._shannon(
+            EntropyAnalysis._probabilities([block.tobytes() for block in blocks]),
+            base=base,
+            probabilities=True,
+        )
+
+    @staticmethod
+    def _block_entropies(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> Array:
+        """Return the block entropies `S_0` to `S_max_m`."""
+        return np.asarray([EntropyAnalysis._block_entropy(symbols, m, base=base) for m in range(max_m + 1)])
+
+    @staticmethod
+    def _entropy_rate(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> float:
+        """Return the entropy rate, the limit of `S_m - S_{m-1}`, estimated at the largest block length."""
+        entropies = EntropyAnalysis._block_entropies(symbols, max_m, base=base)
+        return float(max(entropies[-1] - entropies[-2], 0.0))
+
+    @staticmethod
+    def _excess_entropy(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> float:
+        """Return the excess entropy `S_m - m s` at the largest block length."""
+        entropies = EntropyAnalysis._block_entropies(symbols, max_m, base=base)
+        return float(entropies[-1] - max_m * max(entropies[-1] - entropies[-2], 0.0))
+
+    @staticmethod
+    def _break_ties(values: npt.ArrayLike, ties: str, random_state: int | None) -> Array:
+        """Return values with ties kept in order, or broken by random offsets below a quarter of the smallest gap."""
+        array = np.asarray(values, dtype=float)
+        if ties == 'order':
+            return array
+        gaps = np.diff(np.unique(array))
+        scale = gaps.min() / 4 if gaps.size else 1.0
+        return array + np.random.default_rng(random_state).uniform(0, scale, array.shape)
+
+    @staticmethod
+    def _measure_of(probabilities: Array, measure: str, order: float) -> float:
+        """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy, of probabilities."""
+        if measure == 'renyi':
+            return EntropyAnalysis._renyi(probabilities, order, probabilities=True)
+        if measure == 'tsallis':
+            return EntropyAnalysis._tsallis(probabilities, order, probabilities=True)
+        return EntropyAnalysis._shannon(probabilities, probabilities=True)
+
+    @staticmethod
+    def _largest_measure(outcomes: int, measure: str, order: float) -> float:
+        """Return the entropy of the uniform law on a number of outcomes."""
+        if measure == 'tsallis':
+            return EntropyAnalysis._tsallis(np.full(outcomes, 1 / outcomes), order, probabilities=True)
+        return math.log2(outcomes)
+
+    @staticmethod
+    def _tolerance(array: Array, tolerance: float) -> float:
+        """Return the tolerance as a fraction of the standard deviation of a series."""
+        return float(tolerance * array.std())
+
+    @staticmethod
+    def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
+        """Return the sample entropy `-ln(A / B)` of a series, with the tolerance a fraction of its deviation."""
+        array = np.ascontiguousarray(values, dtype=float)
+        radius = EntropyAnalysis._tolerance(array, tolerance)
+        return float(BaseAnalysis._import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0

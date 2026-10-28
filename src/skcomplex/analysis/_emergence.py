@@ -17,11 +17,12 @@ from scipy import stats
 from ..core.errors import AnalysisError, UnobservedStatesWarning
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
-from ._information import _estimated_information, _plugin_entropy
+from ._information import InformationAnalysis
 from ._kinds import DataKind
 from ._markov import _stationary_distribution
 
 type Array = npt.NDArray[np.float64]
+type Columns = npt.NDArray[np.generic]
 type Labels = npt.NDArray[np.int64]
 type Partition = npt.ArrayLike | Callable[[npt.NDArray[np.generic]], npt.ArrayLike]
 
@@ -39,167 +40,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
-
-
-def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> Labels:
-    """Return the macro label of every micro state, from a label array or a function of an array of states."""
-    if callable(partition):
-        return np.asarray(partition(states), dtype=np.int64).reshape(states.shape)
-    labels = np.asarray(partition, dtype=np.int64)
-    if labels.ndim != 1:
-        error_msg = f'A partition holds one label per state, not an array of shape {labels.shape}.'
-        raise AnalysisError(error_msg)
-    if states.size and int(states.max()) >= labels.size:
-        error_msg = f'The partition has {labels.size} labels but the states reach {int(states.max())}.'
-        raise AnalysisError(error_msg)
-    return labels[states]
-
-
-def _blocks_of(partition: Partition, n_states: int) -> Labels:
-    """Return the label of every state of a matrix, after checking that the labels number the blocks from 0."""
-    if not callable(partition) and np.size(partition) != n_states:
-        error_msg = f'A partition of {n_states} states holds one label per state, not {np.size(partition)}.'
-        raise AnalysisError(error_msg)
-    labels = _labels_of(partition, np.arange(n_states))
-    if labels.min() < 0:
-        error_msg = f'The labels of a partition are 0, 1, and so on, but got {int(labels.min())}.'
-        raise AnalysisError(error_msg)
-    n_blocks = int(labels.max()) + 1
-    empty = np.setdiff1d(np.arange(n_blocks), labels)
-    if empty.size:
-        error_msg = f'The partition uses no state for label {int(empty[0])}. Number the blocks 0, 1, and so on.'
-        raise AnalysisError(error_msg)
-    return labels
-
-
-def _square(matrix: npt.ArrayLike) -> Array:
-    """Return a square matrix of nonnegative floats."""
-    array = np.asarray(matrix, dtype=float)
-    if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
-        error_msg = f'A transition matrix is square, not of shape {array.shape}.'
-        raise AnalysisError(error_msg)
-    return array
-
-
-def _weights(matrix: Array, weighting: str) -> Array:
-    """Return the weight of every micro state within its block, uniform or stationary."""
-    if weighting == 'uniform':
-        return np.ones(matrix.shape[0])
-    totals = matrix.sum(axis=1, keepdims=True)
-    rows = np.divide(matrix, totals, out=np.eye(matrix.shape[0]), where=totals > 0)
-    return _stationary_distribution(rows)
-
-
-def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:
-    """Return the macro transition matrix of a partition, the weighted micro rows summed within every block."""
-    n_blocks = int(labels.max()) + 1
-    membership = np.eye(n_blocks)[labels]
-    flows = membership.T @ (weights[:, None] * matrix) @ membership
-    totals = flows.sum(axis=1, keepdims=True)
-    return np.divide(flows, totals, out=np.zeros_like(flows), where=totals > 0)
-
-
-def _canonical(labels: npt.ArrayLike) -> Labels:
-    """Return labels renumbered 0, 1, and so on in the order of their first state."""
-    _, first, inverse = np.unique(np.asarray(labels), return_index=True, return_inverse=True)
-    return np.argsort(np.argsort(first))[inverse].astype(np.int64)
-
-
-def _effective_information(matrix: Array) -> tuple[float, float, float, npt.NDArray[np.int64]]:
-    """Return the effective information, the determinism, the degeneracy, and the observed states of a matrix."""
-    totals = matrix.sum(axis=1)
-    observed = np.flatnonzero(totals > 0)
-    if observed.size == 0:
-        error_msg = 'The transition matrix has no observed transition, so it has no effective information.'
-        raise AnalysisError(error_msg)
-    if observed.size < matrix.shape[0]:
-        dropped = np.setdiff1d(np.arange(matrix.shape[0]), observed).tolist()
-        warnings.warn(
-            f'The states {dropped} have no observed transitions and are left out of the effective information.',
-            UnobservedStatesWarning,
-            stacklevel=2,
-        )
-    rows = matrix[observed] / totals[observed, None]
-    noise = float(np.mean(stats.entropy(rows, base=2, axis=1)))
-    spread = float(stats.entropy(rows.mean(axis=0), base=2))
-    size = float(np.log2(observed.size))
-    return spread - noise, size - noise, size - spread, observed
-
-
-def _macro_information(matrix: Array, labels: Labels, weights: Array) -> float:
-    """Return the effective information of the macro matrix of a partition, without warnings on unobserved blocks."""
-    macro = _coarse_matrix(matrix, labels, weights)
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UnobservedStatesWarning)
-        return _effective_information(macro)[0]
-
-
-def _greedy(matrix: Array, weights: Array) -> Labels:
-    """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
-    labels = np.arange(matrix.shape[0], dtype=np.int64)
-    best = _macro_information(matrix, labels, weights)
-    while int(labels.max()) > 0:
-        merges = [
-            _canonical(np.where(labels == second, first, labels))
-            for first, second in itertools.combinations(range(int(labels.max()) + 1), 2)
-        ]
-        scores = [_macro_information(matrix, merged, weights) for merged in merges]
-        index = int(np.argmax(scores))
-        if scores[index] <= best + TOLERANCE:
-            break
-        labels, best = merges[index], scores[index]
-    return labels
-
-
-def _set_partitions(n_states: int) -> Iterator[Labels]:
-    """Yield every partition of the states as restricted growth labels."""
-    labels = np.zeros(n_states, dtype=np.int64)
-
-    def extend(position: int, blocks: int) -> Iterator[Labels]:
-        if position == n_states:
-            yield labels.copy()
-            return
-        for label in range(blocks + 1):
-            labels[position] = label
-            yield from extend(position + 1, max(blocks, label + 1))
-
-    if n_states:
-        yield from extend(1, 1)
-
-
-def _exhaustive(matrix: Array, weights: Array) -> Labels:
-    """Return the partition with the largest macro effective information, the finest of equal ones."""
-    if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
-        error_msg = (
-            f'The exhaustive search covers at most {MAX_EXHAUSTIVE_STATES} states, not {matrix.shape[0]}. '
-            "Use search='greedy'."
-        )
-        raise AnalysisError(error_msg)
-    best, best_score = np.arange(matrix.shape[0], dtype=np.int64), -np.inf
-    for labels in _set_partitions(matrix.shape[0]):
-        score = _macro_information(matrix, labels, weights)
-        blocks = int(labels.max())
-        if score > best_score + TOLERANCE or (score > best_score - TOLERANCE and blocks > int(best.max())):
-            best, best_score = labels, max(score, best_score)
-    return best
-
-
-def _macro_series(micro: npt.NDArray[np.generic], partition: Partition) -> npt.NDArray[np.generic]:
-    """Return the macro series of a micro series under a partition given as labels or as a function."""
-    if callable(partition):
-        return EmergenceAnalysis._read_columns(partition(micro))
-    return EmergenceAnalysis._read_columns(np.asarray(partition)[np.asarray(micro).ravel().astype(np.int64)])
-
-
-def _lagged(columns: npt.NDArray[np.generic], history: int) -> npt.NDArray[np.generic]:
-    """Return the `history` rows before every time from `history` on, side by side."""
-    size = columns.shape[0]
-    return np.column_stack([columns[history - step : size - step] for step in range(1, history + 1)])
-
-
-def _conditional_entropy(target: npt.NDArray[np.generic], given: npt.NDArray[np.generic]) -> float:
-    """Return the plug-in entropy of the target given other columns in nats."""
-    return _plugin_entropy(np.column_stack([target, given])) - _plugin_entropy(given)
 
 
 class EmergenceAnalysis(BaseAnalysis):
@@ -399,31 +239,31 @@ class EmergenceAnalysis(BaseAnalysis):
                 'transition counts as an array.'
             )
             raise AnalysisError(error_msg)
-        self.matrix_ = _square(source)
+        self.matrix_ = self._square(source)
         return self
 
     def _run_causal(self) -> None:
         """Find or take the partition, and compare the micro and macro effective information."""
         micro = self.matrix_
-        weights = _weights(micro, self.weighting)
+        weights = self._weights(micro, self.weighting)
         if self.partition is not None:
-            labels = _blocks_of(self.partition, micro.shape[0])
+            labels = self._blocks_of(self.partition, micro.shape[0])
         else:
-            labels = _greedy(micro, weights) if self.search == 'greedy' else _exhaustive(micro, weights)
+            labels = self._greedy(micro, weights) if self.search == 'greedy' else self._exhaustive(micro, weights)
         self.partition_ = labels
-        self.macro_matrix_ = _coarse_matrix(micro, labels, weights)
-        self.micro_information_ = _effective_information(micro)[0]
+        self.macro_matrix_ = self._coarse_matrix(micro, labels, weights)
+        self.micro_information_ = self._effective_information(micro)[0]
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UnobservedStatesWarning)
-            self.macro_information_ = _effective_information(self.macro_matrix_)[0]
+            self.macro_information_ = self._effective_information(self.macro_matrix_)[0]
         self.gain_ = self.macro_information_ - self.micro_information_
 
     def _run_criteria(self) -> None:
         """Compute the criteria Ψ, Δ, and Γ of the macro feature."""
-        x, v = self.values_, _macro_series(self.values_, self.partition)
+        x, v = self.values_, self._macro_series(self.values_, self.partition)
         lag = self.lag
         present_x, future_x, present_v, future_v = x[:-lag], x[lag:], v[:-lag], v[lag:]
-        information = partial(_estimated_information, estimator=self.estimator, k=self.k)
+        information = partial(self._estimated_information, estimator=self.estimator, k=self.k)
         variables = range(x.shape[1])
         psi = information(present_v, future_v) - sum(information(present_x[:, [j]], future_v) for j in variables)
         gains = [information(present_v, future_x[:, [j]]) for j in variables]
@@ -438,17 +278,17 @@ class EmergenceAnalysis(BaseAnalysis):
     def _run_closure(self) -> None:
         """Compute the entropies of the macro future given the macro past and the micro past."""
         x = self.values_
-        v = _macro_series(x, self.partition)
+        v = self._macro_series(x, self.partition)
         future = v[self.history :]
         scale = math.log(self.base)
-        self.macro_uncertainty_ = _conditional_entropy(future, _lagged(v, self.history)) / scale
-        self.micro_uncertainty_ = _conditional_entropy(future, _lagged(x, self.history)) / scale
+        self.macro_uncertainty_ = self._conditional_entropy(future, self._lagged(v, self.history)) / scale
+        self.micro_uncertainty_ = self._conditional_entropy(future, self._lagged(x, self.history)) / scale
         self.gap_ = self.macro_uncertainty_ - self.micro_uncertainty_
 
     def _run(self) -> Self:
         """Compute the emergence of the kind."""
         if self.kind == 'effective-information':
-            information, determinism, degeneracy, states = _effective_information(self.matrix_)
+            information, determinism, degeneracy, states = self._effective_information(self.matrix_)
             self.information_ = information
             self.determinism_ = determinism
             self.degeneracy_ = degeneracy
@@ -475,3 +315,187 @@ class EmergenceAnalysis(BaseAnalysis):
         """
         array = np.asarray(data)
         return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)
+
+    @staticmethod
+    def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> Labels:
+        """Return the macro label of every micro state, from a label array or a function of an array of states."""
+        if callable(partition):
+            return np.asarray(partition(states), dtype=np.int64).reshape(states.shape)
+        labels = np.asarray(partition, dtype=np.int64)
+        if labels.ndim != 1:
+            error_msg = f'A partition holds one label per state, not an array of shape {labels.shape}.'
+            raise AnalysisError(error_msg)
+        if states.size and int(states.max()) >= labels.size:
+            error_msg = f'The partition has {labels.size} labels but the states reach {int(states.max())}.'
+            raise AnalysisError(error_msg)
+        return labels[states]
+
+    @staticmethod
+    def _blocks_of(partition: Partition, n_states: int) -> Labels:
+        """Return the label of every state of a matrix, after checking that the labels number the blocks from 0."""
+        if not callable(partition) and np.size(partition) != n_states:
+            error_msg = f'A partition of {n_states} states holds one label per state, not {np.size(partition)}.'
+            raise AnalysisError(error_msg)
+        labels = EmergenceAnalysis._labels_of(partition, np.arange(n_states))
+        if labels.min() < 0:
+            error_msg = f'The labels of a partition are 0, 1, and so on, but got {int(labels.min())}.'
+            raise AnalysisError(error_msg)
+        n_blocks = int(labels.max()) + 1
+        empty = np.setdiff1d(np.arange(n_blocks), labels)
+        if empty.size:
+            error_msg = f'The partition uses no state for label {int(empty[0])}. Number the blocks 0, 1, and so on.'
+            raise AnalysisError(error_msg)
+        return labels
+
+    @staticmethod
+    def _square(matrix: npt.ArrayLike) -> Array:
+        """Return a square matrix of nonnegative floats."""
+        array = np.asarray(matrix, dtype=float)
+        if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
+            error_msg = f'A transition matrix is square, not of shape {array.shape}.'
+            raise AnalysisError(error_msg)
+        return array
+
+    @staticmethod
+    def _weights(matrix: Array, weighting: str) -> Array:
+        """Return the weight of every micro state within its block, uniform or stationary."""
+        if weighting == 'uniform':
+            return np.ones(matrix.shape[0])
+        totals = matrix.sum(axis=1, keepdims=True)
+        rows = np.divide(matrix, totals, out=np.eye(matrix.shape[0]), where=totals > 0)
+        return _stationary_distribution(rows)
+
+    @staticmethod
+    def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:
+        """Return the macro transition matrix of a partition, the weighted micro rows summed within every block."""
+        n_blocks = int(labels.max()) + 1
+        membership = np.eye(n_blocks)[labels]
+        flows = membership.T @ (weights[:, None] * matrix) @ membership
+        totals = flows.sum(axis=1, keepdims=True)
+        return np.divide(flows, totals, out=np.zeros_like(flows), where=totals > 0)
+
+    @staticmethod
+    def _canonical(labels: npt.ArrayLike) -> Labels:
+        """Return labels renumbered 0, 1, and so on in the order of their first state."""
+        _, first, inverse = np.unique(np.asarray(labels), return_index=True, return_inverse=True)
+        return np.argsort(np.argsort(first))[inverse].astype(np.int64)
+
+    @staticmethod
+    def _effective_information(matrix: Array) -> tuple[float, float, float, npt.NDArray[np.int64]]:
+        """Return the effective information, the determinism, the degeneracy, and the observed states of a matrix."""
+        totals = matrix.sum(axis=1)
+        observed = np.flatnonzero(totals > 0)
+        if observed.size == 0:
+            error_msg = 'The transition matrix has no observed transition, so it has no effective information.'
+            raise AnalysisError(error_msg)
+        if observed.size < matrix.shape[0]:
+            dropped = np.setdiff1d(np.arange(matrix.shape[0]), observed).tolist()
+            warnings.warn(
+                f'The states {dropped} have no observed transitions and are left out of the effective information.',
+                UnobservedStatesWarning,
+                stacklevel=2,
+            )
+        rows = matrix[observed] / totals[observed, None]
+        noise = float(np.mean(stats.entropy(rows, base=2, axis=1)))
+        spread = float(stats.entropy(rows.mean(axis=0), base=2))
+        size = float(np.log2(observed.size))
+        return spread - noise, size - noise, size - spread, observed
+
+    @staticmethod
+    def _macro_information(matrix: Array, labels: Labels, weights: Array) -> float:
+        """Return the effective information of the macro matrix of a partition, without warning on unobserved blocks."""
+        macro = EmergenceAnalysis._coarse_matrix(matrix, labels, weights)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UnobservedStatesWarning)
+            return EmergenceAnalysis._effective_information(macro)[0]
+
+    @staticmethod
+    def _greedy(matrix: Array, weights: Array) -> Labels:
+        """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
+        labels = np.arange(matrix.shape[0], dtype=np.int64)
+        best = EmergenceAnalysis._macro_information(matrix, labels, weights)
+        while int(labels.max()) > 0:
+            merges = [
+                EmergenceAnalysis._canonical(np.where(labels == second, first, labels))
+                for first, second in itertools.combinations(range(int(labels.max()) + 1), 2)
+            ]
+            scores = [EmergenceAnalysis._macro_information(matrix, merged, weights) for merged in merges]
+            index = int(np.argmax(scores))
+            if scores[index] <= best + TOLERANCE:
+                break
+            labels, best = merges[index], scores[index]
+        return labels
+
+    @staticmethod
+    def _set_partitions(n_states: int) -> Iterator[Labels]:
+        """Yield every partition of the states as restricted growth labels."""
+        labels = np.zeros(n_states, dtype=np.int64)
+
+        def extend(position: int, blocks: int) -> Iterator[Labels]:
+            if position == n_states:
+                yield labels.copy()
+                return
+            for label in range(blocks + 1):
+                labels[position] = label
+                yield from extend(position + 1, max(blocks, label + 1))
+
+        if n_states:
+            yield from extend(1, 1)
+
+    @staticmethod
+    def _exhaustive(matrix: Array, weights: Array) -> Labels:
+        """Return the partition with the largest macro effective information, the finest of equal ones."""
+        if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
+            error_msg = (
+                f'The exhaustive search covers at most {MAX_EXHAUSTIVE_STATES} states, not {matrix.shape[0]}. '
+                "Use search='greedy'."
+            )
+            raise AnalysisError(error_msg)
+        best, best_score = np.arange(matrix.shape[0], dtype=np.int64), -np.inf
+        for labels in EmergenceAnalysis._set_partitions(matrix.shape[0]):
+            score = EmergenceAnalysis._macro_information(matrix, labels, weights)
+            blocks = int(labels.max())
+            if score > best_score + TOLERANCE or (score > best_score - TOLERANCE and blocks > int(best.max())):
+                best, best_score = labels, max(score, best_score)
+        return best
+
+    @staticmethod
+    def _macro_series(micro: npt.NDArray[np.generic], partition: Partition) -> npt.NDArray[np.generic]:
+        """Return the macro series of a micro series under a partition given as labels or as a function."""
+        if callable(partition):
+            return EmergenceAnalysis._read_columns(partition(micro))
+        return EmergenceAnalysis._read_columns(np.asarray(partition)[np.asarray(micro).ravel().astype(np.int64)])
+
+    @staticmethod
+    def _lagged(columns: npt.NDArray[np.generic], history: int) -> npt.NDArray[np.generic]:
+        """Return the `history` rows before every time from `history` on, side by side."""
+        size = columns.shape[0]
+        return np.column_stack([columns[history - step : size - step] for step in range(1, history + 1)])
+
+    @staticmethod
+    def _conditional_entropy(target: npt.NDArray[np.generic], given: npt.NDArray[np.generic]) -> float:
+        """Return the plug-in entropy of the target given other columns in nats."""
+        return EmergenceAnalysis._plugin_entropy(np.column_stack([target, given])) - EmergenceAnalysis._plugin_entropy(
+            given,
+        )
+
+    @staticmethod
+    def _plugin_entropy(columns: Columns) -> float:
+        """Return the plug-in entropy of the rows of discrete columns in nats."""
+        return float(stats.entropy(np.bincount(InformationAnalysis._row_codes(columns))))
+
+    @staticmethod
+    def _estimated_information(first: Columns, second: Columns, estimator: str, k: int) -> float:
+        """Return the mutual information of two groups of columns in nats by plug-in, Gaussian, or kNN estimates."""
+        if estimator == 'plugin':
+            joint = np.column_stack([InformationAnalysis._row_codes(first), InformationAnalysis._row_codes(second)])
+            return (
+                EmergenceAnalysis._plugin_entropy(first)
+                + EmergenceAnalysis._plugin_entropy(second)
+                - EmergenceAnalysis._plugin_entropy(joint)
+            )
+        x, y = np.asarray(first, dtype=float), np.asarray(second, dtype=float)
+        if estimator == 'gaussian':
+            joint_value = InformationAnalysis._log_determinant(np.column_stack([x, y]))
+            return (InformationAnalysis._log_determinant(x) + InformationAnalysis._log_determinant(y) - joint_value) / 2
+        return sum(InformationAnalysis._knn_chain(x[:, index], y, k, x[:, :index]) for index in range(x.shape[1]))

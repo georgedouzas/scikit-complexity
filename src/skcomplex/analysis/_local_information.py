@@ -13,7 +13,7 @@ from scipy import stats
 
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
-from ._information import _row_codes
+from ._information import InformationAnalysis
 from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
@@ -26,32 +26,6 @@ SETTINGS = {
     'transfer': {'history', 'lag', 'estimator', 'base'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
-
-
-def _log_probabilities(columns: Columns, estimator: str) -> Array:
-    """Return the logarithm of the probability, or of the fitted Gaussian density, of every row in nats."""
-    if estimator == 'plugin':
-        codes = _row_codes(columns)
-        counts = np.bincount(codes).astype(float)
-        return np.log(counts[codes] / codes.size)
-    values = BaseAnalysis._read_real(columns, 'values')
-    covariance = np.atleast_2d(np.cov(values, rowvar=False, bias=True))
-    density = stats.multivariate_normal(values.mean(axis=0), covariance)
-    return np.asarray(density.logpdf(values), dtype=float).reshape(-1)
-
-
-def _local_transfer_entropy(x: Columns, y: Columns, history: int, lag: int, estimator: str) -> Array:
-    """Return `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` in nats at every time from `max(history, lag)` on."""
-    start = max(history, lag)
-    future = y[start:, None]
-    past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
-    driver = x[start - lag : x.size - lag, None]
-    return (
-        _log_probabilities(np.column_stack([future, past, driver]), estimator)
-        - _log_probabilities(np.column_stack([past, driver]), estimator)
-        - _log_probabilities(np.column_stack([future, past]), estimator)
-        + _log_probabilities(past, estimator)
-    )
 
 
 class LocalInformationAnalysis(BaseAnalysis):
@@ -152,16 +126,16 @@ class LocalInformationAnalysis(BaseAnalysis):
             size = first.size - max(self.history, self.lag) if self.kind == 'transfer' else first.size
             return np.full(size, np.nan)
         if self.kind == 'transfer':
-            return _local_transfer_entropy(first, second, self.history, self.lag, self.estimator)
+            return self._local_transfer_entropy(first, second, self.history, self.lag, self.estimator)
         x, y = first[:, None], second[:, None]
-        joint = _log_probabilities(np.column_stack([x, y]), self.estimator)
-        return joint - _log_probabilities(x, self.estimator) - _log_probabilities(y, self.estimator)
+        joint = self._log_probabilities(np.column_stack([x, y]), self.estimator)
+        return joint - self._log_probabilities(x, self.estimator) - self._log_probabilities(y, self.estimator)
 
     def _run(self) -> Self:
         """Compute the local information of every series or of every pair of series."""
         columns = self.values_.T
         if self.kind == 'entropy':
-            local = [-_log_probabilities(column[:, None], self.estimator) for column in columns]
+            local = [-self._log_probabilities(column[:, None], self.estimator) for column in columns]
         else:
             local = [
                 [self._compute_pair(first, second, same=row == column) for column, second in enumerate(columns)]
@@ -169,3 +143,29 @@ class LocalInformationAnalysis(BaseAnalysis):
             ]
         self.information_ = np.asarray(local, dtype=float) / math.log(self.base)
         return self
+
+    @staticmethod
+    def _log_probabilities(columns: Columns, estimator: str) -> Array:
+        """Return the logarithm of the probability, or of the fitted Gaussian density, of every row in nats."""
+        if estimator == 'plugin':
+            codes = InformationAnalysis._row_codes(columns)
+            counts = np.bincount(codes).astype(float)
+            return np.log(counts[codes] / codes.size)
+        values = BaseAnalysis._read_real(columns, 'values')
+        covariance = np.atleast_2d(np.cov(values, rowvar=False, bias=True))
+        density = stats.multivariate_normal(values.mean(axis=0), covariance)
+        return np.asarray(density.logpdf(values), dtype=float).reshape(-1)
+
+    @staticmethod
+    def _local_transfer_entropy(x: Columns, y: Columns, history: int, lag: int, estimator: str) -> Array:
+        """Return `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` in nats at each time from `max(history, lag)`."""
+        start = max(history, lag)
+        future = y[start:, None]
+        past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
+        driver = x[start - lag : x.size - lag, None]
+        return (
+            LocalInformationAnalysis._log_probabilities(np.column_stack([future, past, driver]), estimator)
+            - LocalInformationAnalysis._log_probabilities(np.column_stack([past, driver]), estimator)
+            - LocalInformationAnalysis._log_probabilities(np.column_stack([future, past]), estimator)
+            + LocalInformationAnalysis._log_probabilities(past, estimator)
+        )
