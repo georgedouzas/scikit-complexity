@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import EventAnalysis, FitAnalysis, FluctuationAnalysis
+from skcomplex.analysis import DistributionAnalysis, EventAnalysis, FitAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -30,12 +30,12 @@ def test_events_of_a_trajectory_use_its_times():
     assert set(events.starts_) <= set(trajectory.times)
 
 
-def test_event_counts_and_fano_of_event_times():
-    """Test that the event times of a Poisson process give counts per window with a Fano factor near 1."""
+def test_event_counts_and_dispersion_of_event_times():
+    """Test that the event times of a Poisson process give counts per window with a dispersion index near 1."""
     times = np.cumsum(np.random.default_rng(1).exponential(1.0, 100_000))
     counts = _events('counts', times, window=10.0).counts_
     assert counts.sum() <= times.size
-    assert FluctuationAnalysis('fano').check().prepare(counts).run().factor_[0] == pytest.approx(1, abs=0.1)
+    assert DistributionAnalysis('dispersion-index').check().prepare(counts).run().index_[0] == pytest.approx(1, abs=0.1)
 
 
 def test_laminar_durations_of_on_off_intermittency():

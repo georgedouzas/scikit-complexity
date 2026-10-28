@@ -3,7 +3,6 @@
 from ._automata import AutomatonAnalysis
 from ._avalanches import AvalancheAnalysis
 from ._base import BaseAnalysis
-from ._binder import BinderAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
 from ._collapse import CollapseAnalysis
@@ -21,7 +20,6 @@ from ._entropy import EntropyAnalysis
 from ._ergodicity import ErgodicityAnalysis
 from ._events import EventAnalysis
 from ._fit import FitAnalysis
-from ._fluctuations import FluctuationAnalysis
 from ._information import InformationAnalysis
 from ._irreversibility import IrreversibilityAnalysis
 from ._kramers_moyal import KramersMoyalAnalysis
@@ -31,7 +29,6 @@ from ._local_information import LocalInformationAnalysis
 from ._loops import LoopAnalysis
 from ._lyapunov import LyapunovAnalysis
 from ._markov import MarkovAnalysis
-from ._mixing import MixingAnalysis
 from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
 from ._neighbors import NeighborAnalysis
@@ -55,7 +52,6 @@ __all__: list[str] = [
     'AutomatonAnalysis',
     'AvalancheAnalysis',
     'BaseAnalysis',
-    'BinderAnalysis',
     'ClusterAnalysis',
     'CoarseGrainAnalysis',
     'CollapseAnalysis',
@@ -73,7 +69,6 @@ __all__: list[str] = [
     'ErgodicityAnalysis',
     'EventAnalysis',
     'FitAnalysis',
-    'FluctuationAnalysis',
     'InformationAnalysis',
     'IrreversibilityAnalysis',
     'KramersMoyalAnalysis',
@@ -83,7 +78,6 @@ __all__: list[str] = [
     'LoopAnalysis',
     'LyapunovAnalysis',
     'MarkovAnalysis',
-    'MixingAnalysis',
     'ModeDecompositionAnalysis',
     'MotifAnalysis',
     'NeighborAnalysis',

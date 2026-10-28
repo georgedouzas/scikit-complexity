@@ -1,4 +1,4 @@
-"""Test the correlation analysis of series, ensembles at two times, and fields in space."""
+"""Test the correlation analysis of series, ensembles at two times, fields in space, and overlaps."""
 
 import math
 
@@ -129,6 +129,27 @@ def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     assert (
         _correlation('length', trajectory, frames=True).length_ == _correlation('length', frames, frames=True).length_
     )
+
+
+def test_overlap_of_ising_replicas():
+    """Test that two replicas of a 32 by 32 Ising lattice overlap at temperature 1.5 and not at temperature 5."""
+    overlaps = {}
+    for temperature in (1.5, 5.0):
+        replicas = [
+            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed)
+            .run(until=500)
+            .trajectory_
+            for seed in (0, 1)
+        ]
+        overlap = _correlation('overlap', replicas).overlap_
+        frames = np.stack([replica.lattice('spins.spin') for replica in replicas])
+        np.testing.assert_array_equal(overlap, _correlation('overlap', frames).overlap_)
+        overlaps[temperature] = float(np.mean(np.abs(overlap[100:])))
+    assert overlaps[1.5] > 0.9
+    assert overlaps[5.0] < 0.1
+    assert _correlation('overlap', [[1, -1], [1, -1]]).overlap_ == 1.0
+    with pytest.raises(AnalysisError, match='2 replicas'):
+        _correlation('overlap', [[1, -1], [1, -1], [1, 1]])
 
 
 def test_unknown_kind_method_and_ignored_setting():

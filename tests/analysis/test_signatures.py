@@ -31,11 +31,11 @@ def test_signature_analysis_of_a_map():
 
 
 def test_signature_analysis_of_a_jump_path():
-    """Test that a jump path gives its waiting-time distribution with the Fano factor."""
+    """Test that a jump path gives its waiting-time distribution with the dispersion index."""
     trajectory = run('poisson_process', settings={'until': 30.0, 'random_state': 0}).trajectory_
     (signature,) = _signatures(trajectory)
     assert signature.kind == 'path'
-    assert 'Fano factor of jumps per frame' in signature.values
+    assert 'dispersion index of jumps per frame' in signature.values
     ((_, survival),) = signature.curves.values()
     assert survival[0] == 1
 

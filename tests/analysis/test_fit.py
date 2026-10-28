@@ -1,18 +1,16 @@
-"""Test the fits of power laws, stable laws, extreme-value laws, order exponents, and named laws."""
+"""Test the fits of power laws, stable laws, extreme-value laws, and named laws."""
 
-import math
 import warnings
 
 import networkx as nx
 import numpy as np
 import pytest
-from scipy import optimize, stats
+from scipy import stats
 from sklearn.base import clone
 
 from skcomplex.analysis import FitAnalysis
 from skcomplex.core.errors import AnalysisError
-from skcomplex.engine.runtime import Simulation
-from skcomplex.models import create, run
+from skcomplex.models import run
 
 
 def _fit(law: str, source: object, **settings: object) -> FitAnalysis:
@@ -145,23 +143,15 @@ def test_named_law_boltzmann_law_on_two_domains():
     assert economy.parameters_['scale'] == pytest.approx(1, rel=0.02)
 
 
-def test_order_exponent_of_two_mean_field_transitions():
-    """Test that the mean-field Ising model and the Ott-Antonsen Kuramoto model give the exponent 1/2."""
-    temperatures = np.linspace(0.95, 0.995, 10)
-    magnetizations = [optimize.brentq(lambda m, t=t: m - math.tanh(m / t), 1e-6, 1.0) for t in temperatures]
-    fit = _fit('order-exponent', magnetizations, parameters=temperatures, critical=1.0)
-    assert fit.exponent_ == pytest.approx(0.5, abs=0.05)
-    couplings = np.linspace(1.02, 1.2, 10)
-    orders = [
-        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0).run(until=400.0).trajectory_
-        for coupling in couplings
-    ]
-    names = orders[0].problem.states.names
-    final = [float(np.abs(trajectory.values(names[0])[-1])) for trajectory in orders]
-    fit = _fit('order-exponent', final, parameters=couplings, critical=1.0, above=True)
-    assert fit.exponent_ == pytest.approx(0.5, abs=0.05)
-    with pytest.raises(AnalysisError, match='ordered side'):
-        _fit('order-exponent', [0.1, 0.2], parameters=[1.5, 2.0], critical=1.0)
+def test_maxwell_law_of_the_speeds_of_an_ideal_gas():
+    """Test that the speeds of a three-dimensional ideal gas follow the Maxwell law of its kinetic temperature."""
+    trajectory = run('ideal_gas', n_dim=3, random_state=0, settings={'until': 1.0}).trajectory_
+    velocities = np.asarray(trajectory.values('gas.v'), dtype=float)
+    pooled = FitAnalysis('maxwell', group='gas').check().prepare(trajectory).values_
+    np.testing.assert_allclose(np.sort(pooled), np.sort(np.linalg.norm(velocities, axis=-1).ravel()))
+    fit = _fit('maxwell', np.linalg.norm(velocities[-1], axis=-1), fixed={'loc': 0})
+    assert fit.p_value_ > 0.05
+    assert fit.parameters_['scale'] ** 2 == pytest.approx(np.mean(velocities[-1] ** 2), rel=0.05)
 
 
 def test_unknown_law_lists_the_laws():
@@ -176,16 +166,14 @@ def test_setting_the_law_ignores_is_rejected():
     """Test that a changed setting the law does not read raises an error naming it."""
     with pytest.raises(AnalysisError, match='does not read block'):
         FitAnalysis('power', block=10).check()
-    with pytest.raises(AnalysisError, match='does not read parameters'):
-        FitAnalysis('stable', parameters=[1.0, 2.0]).check()
+    with pytest.raises(AnalysisError, match='does not read minimum'):
+        FitAnalysis('stable', minimum=1.0).check()
 
 
 def test_missing_settings_are_rejected():
-    """Test that an extreme-value law without blocks and an order exponent without a critical value raise errors."""
+    """Test that an extreme-value law without blocks raises an error."""
     with pytest.raises(AnalysisError, match='block'):
         FitAnalysis('extreme-value').check()
-    with pytest.raises(AnalysisError, match='critical'):
-        FitAnalysis('order-exponent', parameters=[1.0, 2.0]).check()
 
 
 def test_clone_keeps_settings_and_drops_results():

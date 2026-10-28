@@ -594,6 +594,72 @@ class BaseAnalysis(BaseEstimator, ABC):
             raise self._get_missing_error(source, f'agent group {chosen!r}' if chosen else 'agent group')
         return self._read_agent_snapshots(source, chosen)
 
+    def _read_samples_of(self, source: Source, names: Sequence[str] | None, group: str | None) -> Series:
+        """Return samples as columns: the series of a source, or the speeds of agents with one column per frame.
+
+        A trajectory gives the speeds of the agents of a group when `group` is set, or when no names are given and it
+        has agents but no scalar series. Any other source gives its series.
+
+        Args:
+            source:
+                A trajectory, a series, or an array with one column per sample.
+
+            names:
+                The variables of a trajectory, or `None` for every scalar series.
+
+            group:
+                The path of the agent or particle group, or `None` for the first one when the trajectory has no series.
+
+        Returns:
+            series:
+                The samples, one per column, and their labels.
+
+        Raises:
+            AnalysisError:
+                The agents of the group have no velocities.
+        """
+        reads_agents = isinstance(source, Trajectory) and (
+            group is not None
+            or (
+                names is None
+                and not self._get_scalar_series(source)
+                and DataKind.AGENTS in self._get_data_kinds(source)
+            )
+        )
+        if not reads_agents:
+            return self._read_series(source, names)
+        speeds = np.linalg.norm(self._read_velocities(source, group), axis=-1)
+        labels = [f'speed at {time:g}' for time in source.times]
+        return Series(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
+
+    def _read_velocities(self, source: Source, group: str | None = None) -> Array:
+        """Return the velocities of the agents of a group, or an array of one snapshot or of frames.
+
+        Args:
+            source:
+                The trajectory, or the velocities of one snapshot, one row per agent, or of one snapshot per frame along
+                the first axis.
+
+            group:
+                The path of the agent or particle group of a trajectory, or `None` for the first one.
+
+        Returns:
+            velocities:
+                The velocities, frames by agents by dimensions.
+
+        Raises:
+            AnalysisError:
+                The agents of the group have no velocities.
+        """
+        if not isinstance(source, Trajectory):
+            array = np.asarray(source, dtype=float)
+            return array[None] if array.ndim == 2 else array  # noqa: PLR2004
+        velocities = self._read_snapshots(source, group).velocities
+        if velocities is None:
+            error_msg = f'The agents of {group or "the first group"} have no velocities. Use moving agents.'
+            raise AnalysisError(error_msg)
+        return velocities
+
     def _read_networks(self, source: Source) -> list[nx.Graph]:
         """Return the network of every frame of a trajectory, or a graph or a network snapshot as the only frame.
 
