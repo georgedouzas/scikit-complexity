@@ -272,7 +272,7 @@ class ReservoirAnalysis(BaseAnalysis):
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Fit the readout of the reservoir and set the surrogate system, its errors, and the forecast."""
         samples = self.samples_
         node = self._reservoir_node(

@@ -124,7 +124,7 @@ class SpectrumAnalysis(BaseAnalysis):
         self.labels_ = [name or 'field']
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the spectrum of the kind."""
         if self.kind == 'power':
             spectra = [self._power_spectrum(column, self.dt) for column in self.values_.T]

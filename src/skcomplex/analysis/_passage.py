@@ -217,7 +217,7 @@ class PassageAnalysis(BaseAnalysis):
         returns = np.flatnonzero((signs == 0) | crossing)
         self.return_times_ = np.diff(self.times_[returns])
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the passage of the kind."""
         if self.kind == 'first-passage':
             self._run_first_passage()

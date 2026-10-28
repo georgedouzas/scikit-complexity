@@ -180,7 +180,7 @@ class QuantumAnalysis(BaseAnalysis):
         self.problem_ = self._quantum_problem(self._read_system(source))
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
         if self.kind == 'purity':
             problem, states = self._states_of(self.trajectory_)

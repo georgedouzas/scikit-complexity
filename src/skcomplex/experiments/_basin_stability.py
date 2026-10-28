@@ -108,11 +108,11 @@ class BasinStabilityExperiment(BaseExperiment):
             error_msg = f'n = {self.n!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self) -> None:
+    def _prepare(self, context: object = None) -> None:
         """Draw the initial states within the bounds."""
-        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().prepare(self.bounds).run()
+        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().check().prepare(self.bounds).run()
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Run every initial state, label its trajectory, and set the fraction and error of every attractor."""
         self.labels_ = self._label_members() if self.vectorized else self._label_runs()
         counts = Counter(self.labels_)

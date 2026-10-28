@@ -59,7 +59,7 @@ class KineticTemperatureAnalysis(DistributionAnalysis):
         self.values_ = self._read_velocities(source, self.group)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the kinetic temperature of every frame."""
         self.temperature_ = self._kinetic_temperature(self.values_, self.mass)
         return self

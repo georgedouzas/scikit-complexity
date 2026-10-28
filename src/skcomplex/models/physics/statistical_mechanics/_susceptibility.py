@@ -92,7 +92,7 @@ class SusceptibilityAnalysis(DistributionAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the moments of the absolute samples, the susceptibility, and its peak."""
         super()._run()
         self.susceptibility_ = self.size * self.variance_

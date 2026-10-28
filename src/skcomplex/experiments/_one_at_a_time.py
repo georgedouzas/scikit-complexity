@@ -16,7 +16,7 @@ class OneAtATimeDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import OneAtATimeDesign
-        >>> OneAtATimeDesign().check().prepare({'r': (0.0, 1.0), 'K': (50, 150)}).run()
+        >>> OneAtATimeDesign().check().check().prepare({'r': (0.0, 1.0), 'K': (50, 150)}).run()
         [{'r': 0.0, 'K': 100.0}, {'r': 1.0, 'K': 100.0}, {'r': 0.5, 'K': 50.0}, {'r': 0.5, 'K': 150.0}]
     """
 

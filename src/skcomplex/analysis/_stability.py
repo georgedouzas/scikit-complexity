@@ -215,7 +215,7 @@ class StabilityAnalysis(BaseAnalysis):
         )
         return np.linalg.eigvals(numeric)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Derive the Jacobian, nullclines, and fixed points with their classes, or the dispersion relation."""
         if self.kind == 'dispersion':
             waves, magnitudes, growth_rates, frequencies, uniform = self._dispersion_relation(self.system_, self.at)

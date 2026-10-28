@@ -150,7 +150,7 @@ class LinearizationAnalysis(BaseAnalysis):
         self.problem_ = problem
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Derive the state-space matrices, their ranks, and the gain of the regulator."""
         problem = self.problem_
         adaptive = problem.adaptive_parameters

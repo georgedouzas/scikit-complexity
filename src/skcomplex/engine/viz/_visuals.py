@@ -11,10 +11,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import BaseSpace, NetworkSpace
+from ..base import BaseEstimator
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
-from ..base import BaseEstimator
 
 _UPWARD = np.array([1.0, -1.0])
 _LAYOUT_SEED = 0

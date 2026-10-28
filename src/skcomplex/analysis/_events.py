@@ -204,7 +204,7 @@ class EventAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the events, the counts, the laminar durations, the excursions, or the branching ratio."""
         if self.kind == 'branching':
             self.branching_ratio_ = self._branching_ratio(np.asarray(self.values_, dtype=float), self.max_step, self.dt)

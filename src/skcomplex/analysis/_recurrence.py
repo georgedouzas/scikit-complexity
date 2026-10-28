@@ -133,7 +133,7 @@ class RecurrenceAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the recurrence matrix and its quantification."""
         array = self.values_
         self.radius_ = (

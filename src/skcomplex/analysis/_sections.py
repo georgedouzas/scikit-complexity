@@ -205,7 +205,7 @@ class SectionAnalysis(BaseAnalysis):
         trajectory = simulation.run(until).trajectory_
         return trajectory.times[transient:], trajectory.states[transient:]
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Run the system and take the section."""
         problem = self.problem_
         self.times_, self.states_ = self._crossings(problem) if self.kind == 'poincare' else self._samples(problem)

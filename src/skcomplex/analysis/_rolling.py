@@ -99,7 +99,7 @@ class RollingAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the rolling statistic of every series and its trend."""
         window = int(self.window or 0)
         columns = self.values_.T

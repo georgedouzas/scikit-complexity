@@ -227,7 +227,7 @@ class SignatureAnalysis(BaseAnalysis):
             yscale='log',
         )
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the signature of every data kind of the trajectory."""
         signatures = {
             DataKind.AGENTS: self._get_agents_signature,

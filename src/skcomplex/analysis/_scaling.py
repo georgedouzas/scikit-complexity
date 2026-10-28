@@ -213,7 +213,7 @@ class ScalingAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the exponents of the series, or the dimension of the cells or points."""
         if self.kind == 'box-counting':
             self.scales_, self.counts_, self.exponent_ = self._box_counting(self.values_, self.scales)

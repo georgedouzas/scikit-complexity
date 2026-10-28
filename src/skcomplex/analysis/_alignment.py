@@ -159,7 +159,7 @@ class AlignmentAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the alignment of every frame."""
         angles, vectors, positions = self.angles_, self.vectors_, self.positions_
         if angles is None and vectors is not None:

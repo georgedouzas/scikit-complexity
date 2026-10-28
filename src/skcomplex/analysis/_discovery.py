@@ -92,7 +92,7 @@ class DiscoveryAnalysis(BaseAnalysis):
             return [analysis_class(kind=kind) for kind in kinds]
         return [analysis_class()]
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Build every analysis of the library and keep those that read a kind of data of the source."""
         self.analyses_ = {kind: [] for kind in self.kinds_}
         for analysis_class in self._get_classes(BaseAnalysis):

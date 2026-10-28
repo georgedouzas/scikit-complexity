@@ -161,7 +161,7 @@ class DomainAnalysis(BaseAnalysis):
             self.frames_, self.times_ = frames, np.asarray(self.times, dtype=float)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the domain measure of every frame."""
         if self.kind in {'size', 'growth'}:
             self.size_ = np.asarray([self._domain_size(frame, self.method, self.spacing) for frame in self.frames_])

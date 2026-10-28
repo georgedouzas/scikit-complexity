@@ -110,7 +110,7 @@ class SurrogateTestAnalysis(BaseAnalysis):
         """Return the attribute of a clone of the analysis run on the values."""
         return float(getattr(clone(self.analysis).check().prepare(values).run(), self.attribute))
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Measure the data and every surrogate, and set the p-value."""
         rng = np.random.default_rng(self.random_state)
         self.value_ = self._measure(self.values_)
