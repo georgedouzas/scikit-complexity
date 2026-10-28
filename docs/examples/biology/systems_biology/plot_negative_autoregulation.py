@@ -12,7 +12,7 @@ less.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import fano_factor
+from skcomplex.analysis import FluctuationAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -33,10 +33,11 @@ fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
     trajectory = Simulation(create(MODEL, K=K), dt=1.0, random_state=1).run(until=1000).trajectory_
     protein = trajectory.values('gene.p')[trajectory.times > 100]
+    fano = FluctuationAnalysis('fano').check().prepare(protein).run().factor_[0]
     ax.plot(
         trajectory.times,
         trajectory.values('gene.p'),
-        label=f'{label}: mean {protein.mean():.0f}, Fano {fano_factor(protein):.1f}',
+        label=f'{label}: mean {protein.mean():.0f}, Fano {fano:.1f}',
     )
 ax.set_xlabel('time')
 ax.set_ylabel('protein count')

@@ -3599,9 +3599,9 @@ print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
 ```
 
 **Time series and information.** `autocorrelation`, `autocorrelation_time`, `power_spectrum`,
-`mean_squared_displacement`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
-diffusion. The mean squared displacement comes from `tidynamics` over all lags of unwrapped positions, with its exponent
-and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
+`DisplacementAnalysis`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
+diffusion. The mean squared displacement of `DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped
+positions, with its exponent and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation. `symbolize`,
 `ordinal_patterns`, `mutual_information`, and `transfer_entropy` measure structure and information flow, as in
@@ -3623,21 +3623,21 @@ print(round(transfer_entropy(driver, np.roll(driver, 1)), 2))
 ```
 
 **Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `correlation_function` gives
-radially averaged correlations, and `box_counting_dimension` measures fractals. `degrees`, `summarize_network`, and
-`centrality` measure NetworkX graphs and network spaces.
+radially averaged correlations, and `box_counting_dimension` measures fractals. `NetworkAnalysis` measures the
+degrees, the summary, and the centralities of NetworkX graphs and of the networks of trajectories.
 
 ```python
 import numpy as np
 
 import networkx as nx
 
-from skcomplex.analysis import box_counting_dimension, label_clusters, summarize_network
+from skcomplex.analysis import NetworkAnalysis, box_counting_dimension, label_clusters
 
 clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
 print(clusters.spans(0), clusters.sizes.max())
 rows, columns = np.indices((512, 512))
 print(round(box_counting_dimension((rows & columns) == columns), 2))
-print(summarize_network(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).diameter)
+print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
 ```
 
 ### Kinds of data and signatures
@@ -3834,8 +3834,8 @@ print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrog
 
 `first_passage_times`, `hitting_probabilities`, `return_times`, and `laminar_durations` measure passages and returns of
 paths. `transition_matrix`, `stationary_distribution`, `spectral_gap`, `relaxation_times`, and `detailed_balance` read
-transition and rate matrices or estimate them from paths. `fano_factor`, `event_counts`, `relative_fluctuations`, and
-`kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
+transition and rate matrices or estimate them from paths. `FluctuationAnalysis` with the kinds `'fano'` and
+`'relative'`, `event_counts`, and `kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
 `langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility, and
 `uncertainty_relation` checks the thermodynamic uncertainty relation: the squared relative fluctuation of a current
 times the entropy produced is at least 2. `tilted_generating_function`, `block_generating_function`,
@@ -3942,9 +3942,10 @@ print(ergodicity_distance(mixing) < 0.1, round(ergodicity_distance(frozen), 1))
 ### Fields and lattices
 
 `structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`
-fits its Ornstein-Zernike form or the decay of the correlation function. `domain_size` and `domain_growth` measure
-coarsening, `pattern_wavelength` the wavelength and orientation of patterns, and `number_fluctuations` the giant number
-fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
+fits its Ornstein-Zernike form or the decay of the correlation function. `DomainAnalysis` measures coarsening with
+the kinds `'size'` and `'growth'`, the wavelength and orientation of patterns with `'wavelength'`, and the interfaces
+between domains with `'interface-density'`, and `FluctuationAnalysis('number')` the giant number fluctuations of
+density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
 and components of graphs, and `binder_cumulant`, `binder_crossings`, and `scaling_collapse` locate transitions by
 finite-size scaling. `dispersion_relation` predicts patterns from a field model's laws before running it: it
 linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
@@ -3954,36 +3955,38 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
+from skcomplex.analysis import DomainAnalysis, binder_cumulant, dispersion_relation, percolation
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
 relation = dispersion_relation(brusselator((128,), b=1.9))
 print(relation.band.min().round(2), relation.band.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
-print(pattern_wavelength(stripes).wavelength)
+print(DomainAnalysis('wavelength').check().prepare(stripes).run().wavelength_)
 print(percolation(np.random.default_rng(2).random((128, 128)) < 0.7).spanning)
 print(round(binder_cumulant(np.random.default_rng(3).standard_normal(10_000)), 1))
 ```
 
 ### Agents
 
-`polar_order`, `nematic_order`, `milling_order`, and `phase_order` measure collective order. `kinetic_temperature` and
-`maxwell_boltzmann_test` compare velocities with the Maxwell-Boltzmann law of their dimension.
-`nearest_neighbor_distances`, `clark_evans_ratio`, and `radial_distribution` describe point patterns in open or periodic
-boxes, and `coarse_grain` turns agents into density or polarization fields for the field analyses.
-`like_neighbor_share`, `interface_density`, and `dissimilarity_index` measure segregation on grids and networks.
+`OrderAnalysis` measures the polar, nematic, milling, and phase order of every frame. `FluctuationAnalysis` with the
+kinds `'kinetic-temperature'` and `'maxwell-boltzmann'` compares velocities with the Maxwell-Boltzmann law of their
+dimension. `NeighborAnalysis` describes point patterns in open or periodic boxes by their nearest-neighbour
+`'distances'`, their `'clark-evans'` ratio, and their `'radial-distribution'`, and `coarse_grain` turns agents into
+density or polarization fields for the field analyses. `NeighborAnalysis('like-share')`,
+`DomainAnalysis('interface-density')`, and `dissimilarity_index` measure segregation on grids and networks.
 
 ```python
 import numpy as np
 from skcomplex.models import run
 
-from skcomplex.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
+from skcomplex.analysis import NeighborAnalysis, OrderAnalysis, coarse_grain
 
-flock = snapshots_of(run('boids', settings={'until': 5}).trajectory_)
-print(polar_order(flock.velocities, vectors=True).shape)
+flock = run('boids', settings={'until': 5}).trajectory_
+print(OrderAnalysis('polar').check().prepare(flock).run().order_.shape)
 positions = np.random.default_rng(4).random((1000, 2))
-print(round(clark_evans_ratio(positions, [1.0, 1.0]), 1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
+ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(positions).run().ratio_
+print(ratio.round(1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
 ```
 
 ### Criticality
@@ -4012,17 +4015,19 @@ print(round(branching_ratio(activity), 1))
 
 ### Networks
 
-`degree_moments`, `assortativity`, `neighbor_degree`, and `communities` measure degrees, mixing, and communities, the
-last by Louvain modularity maximization or label propagation with its agreement with a reference partition.
-`motif_counts` and `motif_zscores` count motifs of three and four nodes and score them against degree-preserving edge
-switches or the configuration model, and `network_frames` measures every frame of an evolving network. The library
+`NetworkAnalysis` measures the network of a graph or of every frame of a trajectory by its `kind`: the
+`'degrees'` with their moments and tail exponent, the `'assortativity'`, the `'centrality'`, the `'neighbor-degree'`,
+the `'summary'`, and the `'communities'` by Louvain modularity maximization or label propagation with their agreement
+with a reference partition. `MotifAnalysis` counts motifs of three and four nodes and scores them against
+degree-preserving edge switches or the configuration model. The library
 model `network_structure_analysis` records a network with these measures.
 
 ```python
 import networkx as nx
 
-from skcomplex.analysis import communities, motif_counts
+from skcomplex.analysis import MotifAnalysis, NetworkAnalysis
 
 club = nx.karate_club_graph()
-print(round(communities(club, random_state=0).modularity, 2), motif_counts(club)['triangle'])
+communities = NetworkAnalysis('communities', random_state=0).check().prepare(club).run()
+print(communities.modularity_.round(2), MotifAnalysis().check().prepare(club).run().counts_[0]['triangle'])
 ```

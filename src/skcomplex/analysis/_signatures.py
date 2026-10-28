@@ -12,11 +12,12 @@ from ..engine.problems import Form
 from ..engine.runtime import Trajectory
 from ..experiments import ExperimentResult
 from ._adapters import Snapshots, data_kinds, ensemble_of, fields_of, networks_of, path_of, series_of, snapshots_of
-from ._agents import milling_order, nearest_neighbor_distances, polar_order
 from ._fields import correlation_length, structure_factor
-from ._fluctuations import fano_factor
+from ._fluctuations import _fano_factor
 from ._kinds import DataKind
-from ._networks import degrees, summarize_network
+from ._neighbors import _nearest_neighbor_distances
+from ._networks import _degrees, _summary
+from ._order import _milling_order, _polar_order
 from ._series import autocorrelation_time, power_spectrum
 from ._statistics import ccdf
 
@@ -109,7 +110,7 @@ def _path_signature(trajectory: Trajectory) -> Signature:
     states = path.states.reshape(path.times.size, -1)
     frames = np.asarray(trajectory.values(path.label), dtype=float).reshape(len(trajectory.times), -1)
     jumps = np.abs(np.diff(frames, axis=0)).sum(axis=1)
-    values = {'Fano factor of jumps per frame': fano_factor(jumps)} if jumps.mean() > 0 else {}
+    values = {'Fano factor of jumps per frame': _fano_factor(jumps)} if jumps.mean() > 0 else {}
     values['jumps'] = float(states.shape[0] - 1)
     curves = {'P(waiting time >= t)': ccdf(waiting)} if waiting.size else {}
     return Signature(
@@ -148,13 +149,13 @@ def _field_signature(trajectory: Trajectory) -> Signature:
 def _order_signature(snapshots: Snapshots) -> Signature:
     """Return the polar order over time, and the milling order of agents with velocities in a plane."""
     if snapshots.velocities is not None:
-        polar = np.asarray(polar_order(snapshots.velocities, vectors=True))
+        polar = _polar_order(snapshots.velocities, vectors=True)
     else:
-        polar = np.asarray(polar_order(np.asarray(snapshots.headings)))
+        polar = _polar_order(np.asarray(snapshots.headings))
     curves = {'polar order': (snapshots.times, polar)}
     planar = snapshots.positions is not None and snapshots.positions.shape[-1] == PLANE
     if snapshots.velocities is not None and snapshots.positions is not None and planar:
-        milling = np.asarray(milling_order(snapshots.positions, snapshots.velocities))
+        milling = _milling_order(snapshots.positions, snapshots.velocities)
         curves['milling order'] = (snapshots.times, milling)
     values = {name: float(curve[1][-1]) for name, curve in curves.items()}
     return Signature(DataKind.AGENTS, 'Order over time', 'time', 'order', curves, values)
@@ -162,7 +163,7 @@ def _order_signature(snapshots: Snapshots) -> Signature:
 
 def _neighbor_signature(positions: Array, box: Array | None) -> Signature:
     """Return the survival function of nearest-neighbour distances, with the Poisson law of a plane in a box."""
-    distances = nearest_neighbor_distances(positions, None if box is None else box.tolist())
+    distances = _nearest_neighbor_distances(positions, None if box is None else box.tolist())
     observed = ccdf(distances)
     curves = {'agents': observed}
     if box is not None and box.size == PLANE:
@@ -189,13 +190,13 @@ def _agents_signature(trajectory: Trajectory) -> Signature:
 def _network_signature(trajectory: Trajectory) -> Signature:
     """Return the degree distribution of the last network with its moments, clustering, and path length."""
     graph = networks_of(trajectory)[-1]
-    values = degrees(graph).astype(float)
-    summary = summarize_network(graph)
+    values = _degrees(graph).astype(float)
+    summary = _summary(graph)
     stated = {
         'mean degree': float(values.mean()),
         'second moment': float(np.mean(values**2)),
-        'clustering': summary.clustering,
-        'mean path length': summary.path_length,
+        'clustering': summary['clustering'],
+        'mean path length': summary['path_length'],
     }
     positive = values[values > 0]
     curves = {'P(degree >= k)': ccdf(positive)} if positive.size else {}

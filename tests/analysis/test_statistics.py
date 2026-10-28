@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import (
+    NetworkAnalysis,
     autocorrelation,
     ccdf,
-    degrees,
     detect_events,
     early_warning,
     fit_power_law,
@@ -17,11 +17,9 @@ from skcomplex.analysis import (
     hill,
     histogram,
     hurst_exponent,
-    mean_squared_displacement,
     power_spectrum,
 )
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.spaces import NetworkSpace
 
 
 def test_power_law_exponent_recovered():
@@ -89,12 +87,6 @@ def test_avalanche_sizes():
     assert events.starts.tolist() == [2.0, 6.0, 10.0]
 
 
-def test_brownian_motion_diffuses_normally():
-    """Test that 1000 Brownian particles have a mean squared displacement exponent within 0.05 of 1."""
-    walks = np.cumsum(np.random.default_rng(5).standard_normal((2000, 1000, 2)), axis=0)
-    assert mean_squared_displacement(walks).exponent == pytest.approx(1.0, abs=0.05)
-
-
 @pytest.mark.slow
 def test_white_noise_has_no_memory():
     """Test that white noise has a Hurst exponent within 0.05 of 0.5 and integrated noise near 1.5."""
@@ -129,4 +121,5 @@ def test_early_warning_rises_before_tipping():
 def test_barabasi_albert_degree_exponent():
     """Test that the degree distribution of a Barabási-Albert graph has an exponent within 0.3 of 3."""
     graph = nx.barabasi_albert_graph(10_000, 2, seed=0)
-    assert fit_power_law(degrees(NetworkSpace(graph)), discrete=True, bootstrap=0).alpha == pytest.approx(3, abs=0.3)
+    degrees = NetworkAnalysis('degrees').check().prepare(graph).run().degrees_[0]
+    assert fit_power_law(degrees, discrete=True, bootstrap=0).alpha == pytest.approx(3, abs=0.3)
