@@ -22,7 +22,7 @@ MODEL = 'run_and_tumble'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=299)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=299)
 
 # %%
 # Persistent random walk
@@ -36,7 +36,10 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 fig, ax = plt.subplots(figsize=(7, 4))
 steps = np.arange(1, 301)
 for rate, color in ((0.1, 'tab:blue'), (1.0, 'tab:orange')):
-    run = Simulation(create(MODEL, n_agents=500, tumble_rate=rate, size=1e5, random_state=1), dt=1, random_state=1)
+    run = (
+        Simulation(create(MODEL, n_agents=500, tumble_rate=rate, size=1e5, random_state=1), dt=1, random_state=1)
+        .check()
+    )
     run.run(until=300)
     positions = np.stack([run.trajectory_.agents('bacteria', frame).locations for frame in range(301)])
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

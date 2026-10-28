@@ -35,7 +35,7 @@ class TreeElement(WordElement):
 def _views(system):
     """Return the view classes of the geometry visual of the first element of a system."""
     problem = compile_system(system)
-    return [type(view) for view in GeometryVisual().prepare(problem.elements[0], problem).views_]
+    return [type(view) for view in GeometryVisual(path=problem.elements[0].path).check().prepare(problem).views_]
 
 
 def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):
@@ -48,5 +48,5 @@ def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]
     for name, system in [('graph', graph), ('tree', tree), ('plain', plain)]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(system, observers=[observer]).run(until=2)
+        Simulation(system, observers=[observer]).check().run(until=2)
         assert observer.logged_frames_ == 3

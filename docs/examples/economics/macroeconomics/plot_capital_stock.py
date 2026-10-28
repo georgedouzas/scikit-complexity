@@ -23,7 +23,7 @@ OUTPUT, LIFETIME, UNTIL = 1 / 3, 15.0, 50.0
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, capital=100.0, investment_fraction=0.25, output_per_capital=OUTPUT, lifetime=LIFETIME)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=UNTIL)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=UNTIL)
 
 # %%
 # Loop dominance
@@ -37,7 +37,7 @@ fractions = np.array([0.1, 0.15, 0.2, 0.25, 0.3])
 measured = []
 for index, fraction in enumerate(fractions):
     system = create(MODEL, capital=100.0, investment_fraction=fraction, output_per_capital=OUTPUT, lifetime=LIFETIME)
-    trajectory = Simulation(system, dt=1.0).run(until=UNTIL).trajectory_
+    trajectory = Simulation(system, dt=1.0).check().run(until=UNTIL).trajectory_
     rate = fraction * OUTPUT - 1 / LIFETIME
     paths.semilogy(
         trajectory.times[::3],

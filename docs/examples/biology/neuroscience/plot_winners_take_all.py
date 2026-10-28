@@ -21,7 +21,7 @@ MODEL = 'winners_take_all'
 inputs = (1.0, 1.1, 0.9, 1.05, 0.95)
 system = create(MODEL, inputs=inputs, beta=2.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=40)
 
 # %%
 # One winner or several
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=40)
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for ax, beta in zip(axes, [2.0, 0.5], strict=True):
-    trajectory = Simulation(create(MODEL, inputs=inputs, beta=beta), dt=0.2).run(until=40).trajectory_
+    trajectory = Simulation(create(MODEL, inputs=inputs, beta=beta), dt=0.2).check().run(until=40).trajectory_
     for unit, value in enumerate(inputs):
         ax.plot(trajectory.times, trajectory.values(f'unit_{unit}.x'), label=f'input {value}')
     ax.set_xlabel('time')

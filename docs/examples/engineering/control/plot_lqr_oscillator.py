@@ -32,7 +32,7 @@ simulation = Simulation(
     solver=entry.defaults['solver'],
     observers=[observer],
     observables=entry.observables_of(system),
-).run(until=10)
+).check().run(until=10)
 
 # %%
 # The decay rate of the closed loop

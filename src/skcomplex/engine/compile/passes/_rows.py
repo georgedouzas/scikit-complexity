@@ -11,27 +11,28 @@ from ....core.errors import IncompatibleLawsError, RoleError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ...problems import Source, components_of
-from .._compilation import BlockLaws, Compilation, Laws
+from .._base import BasePass
+from .._compilation import BlockLaws, Laws
 from .._draw_lowering import DrawLowering
 from .._kernel_spec import KernelSpec
 from .._matrix_law import _RANDOM_FIELDS
-from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 
 
 class RowsPass(BasePass):
     """Pass that checks the draws of the laws and settles the rows of every kernel spec, with its laws set apart."""
 
-    reads = ('lowered', 'apart')
-    writes = ('lowered',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('lowered', 'apart')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Check the draws and settle the rows of every kernel spec.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('lowered',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Check the draws and settle the rows of every kernel spec."""
+        compilation = self.compilation_
         apart = cast('Laws', compilation.apart)
         for spec, laws, _ in cast('BlockLaws', compilation.lowered):
             self._check_draw_placement(spec.owner, laws)

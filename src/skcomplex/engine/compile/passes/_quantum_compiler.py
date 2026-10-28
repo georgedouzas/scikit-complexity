@@ -7,10 +7,10 @@ import functools
 import math
 import operator
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -20,14 +20,15 @@ from sage.all__sagemath_symbolics import CC, SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.elements import GroupElement
-from ....core.errors import IncompatibleLawsError, ValidationError
+from ....core.errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
 from ....core.laws.utils import dagger, has_operator, operator_product
 from ....core.laws.utils._quantum import LOCAL_OPERATOR
-from ....core.specs import HilbertSpec
+from ....core.specs import HilbertSpec, ObservableSpec
 from ....core.system import System
 from ....core.types import Vector
+from ...backends import BaseBackend
 from ...problems import (
     BaseProblem,
     CompiledElement,
@@ -46,8 +47,9 @@ from ...problems._operator import Operator
 from ...problems._quantum_kernel import QuantumKernel
 from ...problems._quantum_problem import REAL_TOLERANCE, QuantumProblem
 from ...problems._quantum_view import QuantumView
+from .._base import BaseCompiler
 from .._declarations import Declarations
-from .._system_compilers import BaseSystemCompiler
+from .._issue import Issue
 from .._tree import Node
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
@@ -289,7 +291,7 @@ class _Lowering:
             >>> import qutip
             >>> from sage.all__sagemath_symbolics import SR, var
             >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.problems import LocalOperator
+            >>> from skcomplex.engine.compile import LocalOperator
             >>> from skcomplex.engine.compile.passes._quantum_compiler import _Lowering
             >>> q = SR.symbol('q')
             >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
@@ -317,47 +319,106 @@ class _Lowering:
         raise ValidationError(error_msg)
 
 
-class QuantumCompiler(BaseSystemCompiler):
-    """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
+class QuantumCompiler(BaseCompiler):
+    """Compiler of a system holding quantum elements into a problem of the quantum form.
 
-    def _prepare(self, system: System) -> None:
-        """Set `claims_`, whether a system holds a quantum element or group.
+    Args:
+        backend:
+            The backend requested for the problem, which the quantum form does not use.
+
+        solver:
+            The solver the problem runs on. A solver with a largest dimension of its own limits the Hilbert space.
+
+        observables:
+            The observables to compute at every frame, labelled by their path from the root.
+
+        max_dimension:
+            The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
+
+    Examples:
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> QuantumCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).claims_
+        False
+    """
+
+    def __init__(
+        self,
+        backend: BaseBackend | None = None,
+        solver: object = None,
+        observables: Sequence[ObservableSpec] = (),
+        max_dimension: int = DEFAULT_MAX_DIMENSION,
+    ) -> None:
+        super().__init__(backend, solver, observables)
+        self.max_dimension = max_dimension
+
+    def _check(self) -> Self:
+        """Raise an error for a largest dimension that is not a positive integer.
+
+        Returns:
+            self:
+                The compiler.
+
+        Raises:
+            ValidationError:
+                A setting is invalid.
+        """
+        super()._check()
+        if not isinstance(self.max_dimension, int) or isinstance(self.max_dimension, bool) or self.max_dimension < 1:
+            error_msg = f'The largest dimension is {self.max_dimension!r}. Give a positive integer.'
+            raise ValidationError(error_msg)
+        return self
+
+    def _claims(self, system: System) -> bool:
+        """Check whether a system holds a quantum element or group.
 
         Args:
             system:
                 The system.
-        """
-        self.claims_ = self._contains_quantum(system)
 
-    def _run(
-        self,
-        system: System,
-        *,
-        backend: object,
-        solver: object,
-        initial_state: Mapping[str, object],
-    ) -> BaseProblem:
-        """Compile a quantum system into a problem of the quantum form.
+        Returns:
+            claims:
+                Whether the compiler compiles the system.
+        """
+        return self._contains_quantum(system)
+
+    def _issues(self, system: System) -> list[Issue]:
+        """Return the issue of a claimed system whose tree cannot be flattened.
 
         Args:
             system:
                 The system, with the observables of the run.
 
-            backend:
-                The backend requested for the problem, which the quantum form does not use.
+        Returns:
+            issues:
+                The issues, none for a system the compiler does not claim.
+        """
+        if not self.claims_:
+            return []
+        try:
+            FlattenPass._flatten_system(system)
+        except SkcomplexError as error:
+            fix = 'Pass elements, groups, interactions, and systems as children.'
+            return [self._issue_of(error, system.label, 'structure', fix)]
+        return []
 
-            solver:
-                The solver the problem runs on, whose largest dimension limits the Hilbert space.
+    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblem:
+        """Compile the prepared quantum system into a problem of the quantum form.
 
+        Args:
             initial_state:
                 The initial state of the whole system under `<system label>.state`.
 
         Returns:
+            problem:
+                The problem of the quantum form.
+
         Raises:
             ValidationError:
                 An initial value names another state than the whole state of the system.
         """
-        del backend
+        system = self.system_
         whole = f'{system.label}.state'
         unknown = set(initial_state) - {whole}
         if unknown:
@@ -366,7 +427,7 @@ class QuantumCompiler(BaseSystemCompiler):
                 f'dotted names of states, such as {whole}.'
             )
             raise ValidationError(error_msg)
-        limit = getattr(solver, 'max_dimension', DEFAULT_MAX_DIMENSION)
+        limit = getattr(self.solver, 'max_dimension', self.max_dimension)
         return self._compile_quantum(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod

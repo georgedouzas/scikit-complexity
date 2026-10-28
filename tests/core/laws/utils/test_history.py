@@ -100,7 +100,12 @@ class JerkElement(Element):
 def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
     trajectory = (
-        Simulation(System(elements=[DoublePendulumElement('dp')]), solver=PRECISE, dt=0.05).run(until=10).trajectory_
+
+            Simulation(System(elements=[DoublePendulumElement('dp')]), solver=PRECISE, dt=0.05)
+            .check()
+            .run(until=10)
+            .trajectory_
+
     )
     a, b = trajectory.values('dp.a'), trajectory.values('dp.b')
     a_d1, b_d1 = trajectory.values('dp.a_d1'), trajectory.values('dp.b_d1')
@@ -111,14 +116,14 @@ def test_coupled_equations_conserve_energy():
 def test_lag_beyond_kept_values_is_rejected():
     """Test that reading a lag the state does not keep raises an error naming the lag."""
     with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
-        Simulation(System(elements=[TooFarElement('t')])).run(until=1)
+        Simulation(System(elements=[TooFarElement('t')])).check().run(until=1)
 
 
 def test_third_order_jerk_is_bounded_and_chaotic():
     """Test that Sprott's jerk equation compiles to three equations and gives a bounded, sensitive trajectory."""
-    first = Simulation(System(elements=[JerkElement('j')]), solver=PRECISE, dt=0.5).run(until=300)
+    first = Simulation(System(elements=[JerkElement('j')]), solver=PRECISE, dt=0.5).check().run(until=300)
     assert first.problem_.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
-    second = Simulation(System(elements=[JerkElement('j', x=1e-8)]), solver=PRECISE, dt=0.5).run(until=300)
+    second = Simulation(System(elements=[JerkElement('j', x=1e-8)]), solver=PRECISE, dt=0.5).check().run(until=300)
     x = first.trajectory_.values('j.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
@@ -145,6 +150,8 @@ def test_derivative_at_order_is_rejected_in_rates():
             return [RateLaw(s.target.x, derivative(s.target.x, 2))]
 
     with pytest.raises(ValidationError, match='below its declared order'):
-        Simulation(System(elements=[MassElement('mass')], interactions=[BadInteraction('bad', target='mass')])).run(
+        Simulation(
+            System(elements=[MassElement('mass')], interactions=[BadInteraction('bad', target='mass')]),
+        ).check().run(
             until=1,
         )

@@ -21,7 +21,7 @@ MODEL = 'thermostat'
 
 system = create(MODEL, swing=5.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=48)
+simulation = Simulation(system, dt=0.25, observers=[observer]).check().run(until=48)
 
 # %%
 # The steady room temperature
@@ -31,7 +31,14 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=48)
 
 leaks = np.linspace(0.02, 0.5, 13)
 steady = [
-    Simulation(create(MODEL, leak=leak), dt=0.25).run(until=72).trajectory_.values('room.T')[-1] for leak in leaks
+    (
+        Simulation(create(MODEL, leak=leak), dt=0.25)
+        .check()
+        .run(until=72)
+        .trajectory_
+        .values('room.T')[-1]
+    )
+    for leak in leaks
 ]
 grid = np.linspace(0.0, 0.5, 100)
 fig, (day, theory) = plt.subplots(1, 2, figsize=(10, 4))

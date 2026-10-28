@@ -33,8 +33,8 @@ simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
 # its trace stays 1.
 
 spacing = 40.0 / 128
-fields = Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).run(until=4.0).trajectory_
-operators = Simulation(create(MODEL, n_sites=128, formulation='operators'), dt=0.5).run(until=4.0).trajectory_
+fields = Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).check().run(until=4.0).trajectory_
+operators = Simulation(create(MODEL, n_sites=128, formulation='operators'), dt=0.5).check().run(until=4.0).trajectory_
 density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
 probability = np.abs(operators.values('schrodinger.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -47,7 +47,7 @@ agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = create(MODEL, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = Simulation(dephased, dt=0.1).run(until=4.0).trajectory_
+    trajectory = Simulation(dephased, dt=0.1).check().run(until=4.0).trajectory_
     purity = QuantumAnalysis('purity').check().prepare(trajectory).run().purity_
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')

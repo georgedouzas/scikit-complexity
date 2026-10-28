@@ -18,27 +18,27 @@ from ....core.laws.utils._draws import DRAWS
 from ....core.types import Indices
 from ...problems import Problem, Reference, Source, components_of, numpy_function, symbol, symbols_of
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
+from .._base import BasePass
 from .._bound_renewal import BoundRenewal
-from .._compilation import Compilation
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
-from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 
 
 class RenewalProblemPass(BasePass):
     """Pass that adds the compiled renewal laws and the symbols of their counts to the problem."""
 
-    reads = ('problem', 'renewals', 'layout')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'renewals', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the renewal laws to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the renewal laws to the problem."""
+        compilation = self.compilation_
         problem = cast('Problem', compilation.problem)
         time = cast('Declarations', compilation.layout).time
         symbols = {item.entry.name: item.symbol for item in compilation.renewals}

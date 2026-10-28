@@ -15,7 +15,7 @@ from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 
@@ -119,7 +119,7 @@ def _wealth_system(table=None, time=None, space=None):
 
 def test_conservative_encounters_keep_the_density():
     """Test that conservative encounters keep the total density within 1e-10 over 100 time units."""
-    simulation = Simulation(_wealth_system(), dt=1.0).run(until=100)
+    simulation = Simulation(_wealth_system(), dt=1.0).check().run(until=100)
     totals = np.asarray(simulation.trajectory_.values('wealth.f')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
     assert not np.allclose(simulation.trajectory_.values('wealth.f')[-1], _profile())
@@ -241,7 +241,7 @@ def test_invalid_transition_is_reported_before_compilation():
     """Test that transition probabilities summing to 0.9 are reported with the encounter, activities, and sum."""
     table = _exchange_table(CLASSES)
     table[2, 5] *= 0.9
-    report = validate(_wealth_system(table=table))
+    report = PassCompiler().check().prepare(_wealth_system(table=table)).report_
     issue = next(item for item in report.errors if item.code == 'encounter-probabilities')
     assert issue.path == 'exchange'
     assert 'candidate activity 2 with field activity 5 sums to 0.9' in issue.message
@@ -251,7 +251,7 @@ def test_invalid_transition_is_reported_before_compilation():
 
 def test_encounter_in_discrete_time_is_reported():
     """Test that an encounter in discrete time is reported with the fix of declaring continuous time."""
-    report = validate(_wealth_system(time=DiscreteTime()))
+    report = PassCompiler().check().prepare(_wealth_system(time=DiscreteTime())).report_
     issue = next(item for item in report.errors if item.code == 'law-time')
     assert 'ContinuousTime' in issue.message
     assert '`ContinuousTime()`' in issue.fix
@@ -259,9 +259,15 @@ def test_encounter_in_discrete_time_is_reported():
 
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
-    first = Simulation(_wealth_system(), dt=1.0).run(until=5).trajectory_.values('wealth.f')[-1]
+    first = Simulation(_wealth_system(), dt=1.0).check().run(until=5).trajectory_.values('wealth.f')[-1]
     second = (
-        Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01)).run(until=5).trajectory_.values('wealth.f')[-1]
+
+            Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01))
+            .check()
+            .run(until=5)
+            .trajectory_
+            .values('wealth.f')[-1]
+
     )
     np.testing.assert_allclose(first, second, atol=1e-5)
 
@@ -273,5 +279,5 @@ def test_encounter_without_a_lattice_is_reported():
         interactions=[ExchangeInteraction('exchange', population='wealth', table=_exchange_table(CLASSES))],
         time=ContinuousTime(),
     )
-    issue = next(item for item in validate(system).errors if item.code == 'law-space')
+    issue = next(item for item in PassCompiler().check().prepare(system).report_.errors if item.code == 'law-space')
     assert 'LatticeSpace' in issue.message

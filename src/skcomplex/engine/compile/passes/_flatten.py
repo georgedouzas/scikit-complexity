@@ -15,9 +15,8 @@ from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.specs import WienerProcessSpec
 from ....core.system import System
 from ...problems import VariableKind, declarations_of
-from .._compilation import Compilation
+from .._base import BasePass
 from .._laws import _AGENT_LAWS
-from .._pipeline import BasePass
 from .._probe import probe_laws
 from .._tree import _LABEL_PATTERN, Node
 
@@ -25,16 +24,17 @@ from .._tree import _LABEL_PATTERN, Node
 class FlattenPass(BasePass):
     """Pass that flattens the system tree into its nodes."""
 
-    reads = ('system',)
-    writes = ('nodes',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('system',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Flatten the system into its nodes.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('nodes',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Flatten the system into its nodes."""
+        compilation = self.compilation_
         compilation.nodes = self._flatten_system(compilation.system)
 
     @staticmethod

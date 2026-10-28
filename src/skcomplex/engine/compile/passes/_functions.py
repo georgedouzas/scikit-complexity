@@ -31,26 +31,27 @@ from ...problems import (
     VectorFunction,
     wrap_angle,
 )
+from .._base import BasePass
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._forms import STEPWISE_FORMS
-from .._pipeline import BasePass
 
 
 class FunctionsPass(BasePass):
     """Pass that lowers the kernels into the numeric functions and the equations of the form."""
 
-    reads = ('kernels', 'form', 'layout', 'reductions', 'drawing')
-    writes = ('functions',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('kernels', 'form', 'layout', 'reductions', 'drawing')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the kernels into numeric functions.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('functions',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the kernels into numeric functions."""
+        compilation = self.compilation_
         compilation.functions = self._lower(compilation)
 
     @staticmethod
@@ -151,7 +152,7 @@ class FunctionsPass(BasePass):
             compilation, form, Declarations._member_count(list(declarations.blocks.values())),
         )
         kernels, size = lowered.kernels, declarations.ends[True]
-        draws = drawing.draws
+        draws = drawing.draws_
         lowering = cast(
             'Lowering',
             backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),

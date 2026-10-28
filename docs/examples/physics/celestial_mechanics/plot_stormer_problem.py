@@ -20,7 +20,7 @@ MODEL = 'stormer_problem'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=20)
-simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=0.02, observers=[observer]).check().run(until=100)
 
 # %%
 # Conserved quantities

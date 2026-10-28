@@ -8,24 +8,24 @@ from typing import cast
 
 from ...problems import Problem
 from ...problems._kinetic_problem import KineticProblem
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 
 
 class EncounterProblemPass(BasePass):
     """Pass that makes the problem of a system with encounter laws a kinetic problem that holds them."""
 
-    reads = ('problem', 'encounters')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'encounters')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the encounter laws to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        encounters = compilation.facts['encounters']
+    def _run(self, inputs: object = None) -> None:
+        """Add the encounter laws to the problem."""
+        compilation = self.compilation_
+        encounters = compilation.encounters
         if not encounters:
             return
         problem = cast('Problem', compilation.problem)

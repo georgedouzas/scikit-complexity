@@ -21,7 +21,7 @@ MODEL = 'enso'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=200)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=200)
 
 # %%
 # A limit cycle with one period

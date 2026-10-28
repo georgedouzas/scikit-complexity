@@ -7,25 +7,28 @@ import math
 import queue
 import threading
 from collections.abc import Callable, Mapping, Sequence
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ...core.base import BaseConfig
 from ...core.errors import ParameterError, SimulationError, ValidationError
 from ...core.specs import ObservableSpec
 from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
-from ..base import BaseEstimator
-from ..compile import ObservableEvaluator, compile_system, validate
-from ..problems import BaseProblem, Entry, Form, State, contains
+from ..compile import ObservableEvaluator, PassCompiler, compile_system
+from ..problems import BaseProblem, Entry, Form, contains
+from ..problems._state import State
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
-from ._clocks import AsFastAsPossibleClock, BaseClock
-from ._conservation import InvariantObserver
+from ._as_fast_as_possible import AsFastAsPossibleClock
+from ._base import BaseClock, BaseObserver
 from ._frames import Frame
-from ._observers import BaseObserver, RecorderObserver
+from ._invariants import InvariantObserver
+from ._recorder import RecorderObserver
 from ._trajectories import Trajectory
 
 _DEFAULT_DT = 0.01
@@ -34,7 +37,7 @@ _FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
 
 
-class Simulation(BaseEstimator):
+class Simulation(BaseConfig):
     """Simulation of a system with the solver of its form.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
@@ -42,9 +45,10 @@ class Simulation(BaseEstimator):
     between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
     frame.
 
-    A simulation speaks the verbs of every configurable object: `check()` validates the system, `prepare(until)`
-    compiles it and prepares the stepper and the observers, and `run(until)` prepares and runs from time 0. A run
-    prepares every observer before the first frame, runs it at every frame, and runs it with `final=True` at the end.
+    A simulation composes the pipeline of the engine and follows its common API: `check()` validates the system,
+    `prepare()` compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
+    prepares the solver for its end time and every observer on the problem before the first frame, runs every observer
+    at every frame, and runs it with `final=True` at the end.
 
     Args:
         system:
@@ -126,7 +130,7 @@ class Simulation(BaseEstimator):
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> simulation = Simulation(system, dt=1.0).run(until=20)
+        >>> simulation = Simulation(system, dt=1.0).check().run(until=20)
         >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
@@ -191,15 +195,11 @@ class Simulation(BaseEstimator):
                 The system cannot be compiled or run, with every problem found.
         """
         if not isinstance(self.system, BaseProblem):
-            validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+            compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
+            compiler.check().prepare(self.system).report_.check()
 
-    def _prepare(self, until: float = math.inf) -> None:
-        """Compile the system, prepare the stepper, and prepare the observers for a run until a time.
-
-        Args:
-            until:
-                The simulated time the run stops at.
-        """
+    def _prepare(self, context: None = None) -> None:
+        """Compile the system, choose the solver, and gather the clock and the observers of a run."""
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
         self.problem_ = (
@@ -209,34 +209,36 @@ class Simulation(BaseEstimator):
         )
         self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
-        self.dt_ = self._check_dt(self.problem_, until)
-        if self.solver is not None:
-            self.stepper_ = self.solver
-        elif self.problem_.form == Form.COUPLED:
-            self.stepper_ = CoSimulationSolver()
-        else:
-            self.stepper_ = DEFAULT_SOLVERS[self.problem_.form]()
+        self.stepper_ = self.solver if self.solver is not None else self._default_solver(self.problem_.form)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
-        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
-        initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
         monitors = [InvariantObserver(self.invariants)] if self.invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
-        self.time_ = 0.0
-        self.state_ = initial_state
         self.parameters_ = self.problem_.initial_parameters.copy()
         if previous is not None and previous[0] == self.problem_.parameters.names:
             self.parameters_ = previous[1] if previous[1].shape == self.parameters_.shape else self.parameters_
-        self._step = 0
         self._pending: queue.Queue[tuple[slice, Vector]] = queue.Queue()
         self._stop_requested = threading.Event()
         self._running = threading.Event()
         self._running.set()
         self._thread: threading.Thread | None = None
         self._error: BaseException | None = None
+
+    def _start(self, until: float) -> None:
+        """Prepare the solver and the observers for a run from time 0 until a time.
+
+        Args:
+            until:
+                The simulated time the run stops at.
+        """
+        self.dt_ = self._check_dt(self.problem_, until)
+        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
+        self.time_ = 0.0
+        self.state_ = self.stepper_.initial_state_.copy()
+        self._step = 0
         for observer in self.observers_:
-            observer.prepare(self.problem_)
+            observer.check().prepare(self.problem_)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
@@ -273,7 +275,7 @@ class Simulation(BaseEstimator):
         such as an external process.
         """
         origin, first = self.time_, self._step
-        self.clock_.prepare()
+        self.clock_.check().prepare()
         self._apply_schedule()
         if first == 0:
             self._emit(0)
@@ -380,7 +382,33 @@ class Simulation(BaseEstimator):
             error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
             raise SimulationError(error_msg)
 
-    def _run(self, until: float) -> 'Simulation':
+    def _default_solver(self, form: Form) -> BaseSolver:
+        """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
+        return CoSimulationSolver() if form == Form.COUPLED else DEFAULT_SOLVERS[form]()
+
+    def prepare(self) -> Self:
+        """Compile the system of the checked simulation and choose the solver.
+
+        Returns:
+            self:
+                The prepared simulation, with the compiled problem `problem_` and the solver `stepper_`.
+        """
+        return super().prepare()
+
+    def run(self, until: float) -> Self:
+        """Prepare the simulation and run it from time 0 to `until` in the calling thread.
+
+        Args:
+            until:
+                The simulated time to stop at.
+
+        Returns:
+            simulation:
+                The simulation itself.
+        """
+        return super().run(until)
+
+    def _run(self, until: float) -> Self:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
@@ -394,11 +422,12 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self.prepare(until)
+        self.prepare()
+        self._start(until)
         self._loop(until)
         return self
 
-    def extend(self, until: float) -> 'Simulation':
+    def extend(self, until: float) -> Self:
         """Continue a finished run from its last frame to `until` in the calling thread.
 
         The run keeps its state, parameters, stepper, clock, observers, and frame duration, applies pending parameter
@@ -426,7 +455,7 @@ class Simulation(BaseEstimator):
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
-            >>> simulation = Simulation(system, dt=1.0).run(until=5)
+            >>> simulation = Simulation(system, dt=1.0).check().run(until=5)
             >>> simulation.update_parameters({'growth.r': 0.0})
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
@@ -435,6 +464,9 @@ class Simulation(BaseEstimator):
             True
         """
         self._check_prepared()
+        if not hasattr(self, 'time_'):
+            error_msg = 'The simulation has been prepared but not run. Call `run` before `extend`.'
+            raise SimulationError(error_msg)
         if self._thread is not None and self._thread.is_alive():
             error_msg = 'The simulation is running in the background. Call `wait` or `stop` before `extend`.'
             raise SimulationError(error_msg)
@@ -449,7 +481,7 @@ class Simulation(BaseEstimator):
         self._loop(until)
         return self
 
-    def start(self, until: float = math.inf) -> 'Simulation':
+    def start(self, until: float = math.inf) -> Self:
         """Start the simulation from time 0 in a background thread.
 
         Args:
@@ -460,7 +492,8 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self.prepare(until)
+        self.prepare()
+        self._start(until)
         self._thread = threading.Thread(target=self._run_in_background, args=(until,), daemon=True)
         self._thread.start()
         return self

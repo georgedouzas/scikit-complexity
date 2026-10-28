@@ -7,26 +7,26 @@ from typing import cast
 
 from ....core.errors import LabelError
 from ...problems import symbol
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation
 from .._declarations import Declarations
-from .._pipeline import BasePass
 from .._tree import Node
 
 
 class LayoutPass(BasePass):
     """Pass that declares every component in tree order and checks that no two variables share a symbol."""
 
-    reads = ('nodes',)
-    writes = ('layout',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('nodes',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Declare the components of the nodes.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('layout',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Declare the components of the nodes."""
+        compilation = self.compilation_
         declarations = Declarations(time=symbol('t'))
         for node in cast('list[Node]', compilation.nodes):
             declarations.declare_component(node)

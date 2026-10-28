@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_strategies=200, mutation=0.005, random_state=0)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=290)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=290)
 trajectory = simulation.trajectory_
 scores = np.array([trajectory.agents('strategies', frame).values['score'] for frame in range(len(trajectory.times))])
 for name, series in (('mean', scores.mean(axis=1)), ('best', scores.max(axis=1))):

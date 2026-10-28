@@ -13,7 +13,7 @@ def test_asset_price_stays_positive_and_reproducible():
         elements=[AssetElement('stock', price=100.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
     )
-    first = Simulation(system, dt=0.1, random_state=7).run(until=5).trajectory_.values('stock.price')
-    second = Simulation(system, dt=0.1, random_state=7).run(until=5).trajectory_.values('stock.price')
+    first = Simulation(system, dt=0.1, random_state=7).check().run(until=5).trajectory_.values('stock.price')
+    second = Simulation(system, dt=0.1, random_state=7).check().run(until=5).trajectory_.values('stock.price')
     assert np.all(first > 0)
     assert np.array_equal(first, second)

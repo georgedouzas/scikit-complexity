@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_agents=200, strategy='crowd_avoiding', random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=EVENINGS)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=EVENINGS)
 
 # %%
 # Utilization of the two strategies
@@ -44,7 +44,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 # `1 - 1/e ~ 0.632` of the restaurants. Ghosh, Chatterjee, Mitra, and Chakrabarti found about 0.8 for the stochastic
 # crowd avoiding strategy, reached within a few evenings.
 
-random = Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0).run(EVENINGS)
+random = (
+    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0)
+    .check()
+    .run(EVENINGS)
+)
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times
 for label, run in [('random', random), ('crowd avoiding', simulation)]:

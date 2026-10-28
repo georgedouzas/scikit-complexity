@@ -7,9 +7,10 @@ from scipy.special import jv
 
 from skcomplex.analysis import QuantumAnalysis
 from skcomplex.core.errors import ValidationError
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LindbladSolver
-from skcomplex.engine.viz import ExpectationVisual, RerunObserver, default_blueprint
+from skcomplex.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.models import create, run
 
 
@@ -59,10 +60,10 @@ def test_quantum_heisenberg_rejects_unknown_options(values, message):
 def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     """Test that the chain logs a space-time image of the local magnetisation as its primary view."""
     system = create('quantum_heisenberg', initial='domain_wall', boundary='open')
-    blueprint = default_blueprint(system)
+    blueprint = RerunObserver(blueprint='default').check().prepare(compile_system(system)).blueprint_
     first = blueprint.root_container.contents[0]
     assert isinstance(first, rrb.Container | rrb.Spatial2DView)
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')
-    Simulation(system, dt=0.5, observers=[observer]).run(until=2.0)
+    Simulation(system, dt=0.5, observers=[observer]).check().run(until=2.0)
     assert observer.logged_frames_ == 5
     assert repr(ExpectationVisual()) == 'ExpectationVisual()'

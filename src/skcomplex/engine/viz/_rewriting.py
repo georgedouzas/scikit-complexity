@@ -17,7 +17,7 @@ from ..problems._patch_structure import PatchStructure
 from ..problems._structure import Structure
 from ..problems._word_structure import WordStructure
 from ..runtime import Frame
-from ._visuals import BaseVisual
+from ._base import BaseVisual
 
 MARGIN = 0.03
 _RESOLUTION = 512
@@ -39,15 +39,30 @@ class GeometryVisual(BaseVisual):
         resolution:
             The side in pixels of the image of a filled patch.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Examples:
         >>> from skcomplex.engine.viz import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True)
     """
 
-    def __init__(self, filled: bool | None = None, resolution: int = _RESOLUTION) -> None:
+    def __init__(
+        self,
+        filled: bool | None = None,
+        resolution: int = _RESOLUTION,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
+    ) -> None:
         self.filled = filled
         self.resolution = resolution
+        self.path = path
+        self.recording = recording
 
     def _is_filled(self, element: CompiledElement) -> bool:
         """Check whether an element is drawn as a filled image."""
@@ -118,7 +133,8 @@ class GeometryVisual(BaseVisual):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
             >>> problem = compile_system(System(elements=[koch], time=DiscreteTime()))
-            >>> [type(view).__name__ for view in GeometryVisual().prepare(problem.elements[0], problem).views_]
+            >>> views = GeometryVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> [type(view).__name__ for view in views]
             ['Spatial2DView', 'TimeSeriesView']
         """
         del problem

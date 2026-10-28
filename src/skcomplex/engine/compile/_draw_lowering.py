@@ -7,7 +7,7 @@ import difflib
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -20,6 +20,9 @@ from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
 from ..problems import DrawKernel, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
 from ..problems._sampled_draw import SampledDraw
+from ._base import BaseLowering
+from ._declarations import Declarations
+from ._kernel_spec import KernelSpec
 
 _NORMAL_KINDS = frozenset({'normal'})
 
@@ -33,7 +36,7 @@ DISTRIBUTIONS = tuple(
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Request:
     """Draw of a component that needs a value per evaluation row at every step."""
 
@@ -47,22 +50,70 @@ class _Request:
     slots: dict[str, Expression] = field(default_factory=dict)
 
 
-@dataclass
-class DrawLowering:
-    """Draws of every component, lowered to values in an extended parameter vector.
+class DrawLowering(BaseLowering):
+    """Lowering of the draws of every component to values in an extended parameter vector.
 
-    Args:
-        offset:
+    `prepare(compilation)` reads where the parameters end and the time symbol, and `run(laws)` takes the laws of every
+    kernel spec, replaces every draw of their update laws by a drawn value, and places the drawn values after the
+    parameters, by component path, draw name, and member index.
+
+    Attributes:
+        offset_:
             The size of the parameter vector, where the draws start.
 
-        time:
+        time_:
             The time symbol, which the arguments of draws from `scipy.stats` distributions may read.
+
+        requests_:
+            The draws of every component that need a value per evaluation row at every step.
+
+        draws_:
+            The draws taken at every step, or `None` when no update law draws.
     """
 
-    offset: int
-    time: Expression
-    requests: list[_Request] = field(default_factory=list)
-    draws: DrawKernel | None = None
+    offset_: int
+    time_: Expression
+    requests_: list[_Request]
+    draws_: DrawKernel | None
+
+    def _prepare(self, context: object) -> Self:
+        """Read where the parameters end and the time symbol of the compilation, with no draws yet.
+
+        Args:
+            context:
+                The compilation.
+
+        Returns:
+            self:
+                The prepared lowering.
+        """
+        super()._prepare(context)
+        declarations = cast('Declarations', self.compilation_.layout)
+        self.offset_, self.time_ = declarations.ends[False], declarations.time
+        self.requests_, self.draws_ = [], None
+        return self
+
+    def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+        """Return the laws of every kernel spec with the draws of their update laws replaced by drawn values.
+
+        Args:
+            inputs:
+                The laws of every kernel spec.
+
+        Returns:
+            laws:
+                The lowered laws of every kernel spec.
+
+        Raises:
+            ValidationError:
+                One draw name has two declarations in a component.
+        """
+        lowered = [
+            (spec, self._lower(spec.owner, spec.rows, laws, spec.references))
+            for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
+        ]
+        self._allocate()
+        return lowered
 
     def _slots(
         self,
@@ -96,10 +147,10 @@ class DrawLowering:
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
             request = _Request(owner, name, draw.kind in _NORMAL_KINDS, rows, slot, references, sampled, slots)
-            self.requests.append(request)
+            self.requests_.append(request)
         return slots
 
-    def lower(
+    def _lower(
         self,
         owner: str,
         rows: int,
@@ -142,15 +193,15 @@ class DrawLowering:
             lowered.append(UpdateLaw(law._get_targets()[0], value))
         return lowered
 
-    def allocate(self) -> None:
+    def _allocate(self) -> None:
         """Place the drawn values after the parameters, by component path, draw name, and member index.
 
-        The draws taken at every step are kept in `draws`, which stays `None` when no update law draws.
+        The draws taken at every step are kept in `draws_`, which stays `None` when no update law draws.
         """
-        if not self.requests:
+        if not self.requests_:
             return
-        start, flags = self.offset, []
-        ordered = sorted(self.requests, key=lambda item: (item.draw is not None, item.owner, item.name))
+        start, flags = self.offset_, []
+        ordered = sorted(self.requests_, key=lambda item: (item.draw is not None, item.owner, item.name))
         for request in ordered:
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
@@ -162,12 +213,12 @@ class DrawLowering:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
         sampled: list[SampledDraw] = []
-        position = self.offset + len(flags)
+        position = self.offset_ + len(flags)
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time)))
+                sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time_)))
                 position += request.rows
-        self.draws = DrawKernel(self.offset, np.array(flags, dtype=bool), tuple(sampled)).check()
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
 
     @staticmethod
     def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:

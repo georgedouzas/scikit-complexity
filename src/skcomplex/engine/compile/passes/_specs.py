@@ -17,13 +17,12 @@ from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpac
 from ....core.specs import WienerProcessSpec
 from ...problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol
 from ...problems._pair_search import PairSearch
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation
 from .._declarations import _ACTIVE, ENDS, Declarations
 from .._kernel_spec import KernelSpec
 from .._observables import ObservableEvaluator
 from .._observer import Observer
-from .._pipeline import BasePass
 from .._set_symbol import _EDGE_NAMES, _MEMBER_REFERENCE, Observe, SetSymbol
 from .._tree import Node
 
@@ -31,16 +30,17 @@ from .._tree import Node
 class SpecsPass(BasePass):
     """Pass that builds the kernel specs of every component, one per element set entry of an interaction."""
 
-    reads = ('layout', 'nodes')
-    writes = ('specs',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('layout', 'nodes')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Build the kernel specs of the declared components.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('specs',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Build the kernel specs of the declared components."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         blocks = list(declarations.blocks.values())
         elements = {block.node.path: block for block in blocks if not block.node._is_interaction()}

@@ -108,7 +108,7 @@ def test_correlation_length_ising_lattice_above_its_critical_temperature():
     """Test that 128 by 128 Ising lattices at temperatures 2.5 and 3 give the exact length within 15 percent."""
     for temperature in (2.5, 3.0):
         system = create('ising', size=128, temperature=temperature, random_state=0)
-        trajectory = Simulation(system, dt=1, random_state=0).run(until=1500).trajectory_
+        trajectory = Simulation(system, dt=1, random_state=0).check().run(until=1500).trajectory_
         frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)[500::5]
         length = _correlation('length', frames, frames=True).length_
         assert length == pytest.approx(_exact_correlation_length(temperature), rel=0.15)
@@ -123,7 +123,12 @@ def test_correlation_length_reaction_diffusion_field():
 
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     """Test that a field trajectory gives the length of its last frame, or of every frame."""
-    trajectory = Simulation(create('ising', size=32, temperature=3.0), dt=1, random_state=0).run(until=20).trajectory_
+    trajectory = (
+        Simulation(create('ising', size=32, temperature=3.0), dt=1, random_state=0)
+        .check()
+        .run(until=20)
+        .trajectory_
+    )
     frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)
     assert _correlation('length', trajectory).length_ == _correlation('length', frames[-1]).length_
     assert (
@@ -136,7 +141,7 @@ def test_overlap_of_ising_replicas():
     overlaps = {}
     for temperature in (1.5, 5.0):
         replicas = [
-            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed)
+            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed).check()
             .run(until=500)
             .trajectory_
             for seed in (0, 1)

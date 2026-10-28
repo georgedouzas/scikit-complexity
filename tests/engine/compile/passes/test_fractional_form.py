@@ -12,7 +12,7 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
 
@@ -183,7 +183,7 @@ class ShakenElement(Element):
 
 def test_validate_fractional_state_with_rk4_names_fractional_solvers():
     """Test that a fractional state with the solver rk4 gives one error naming the state and the fractional solvers."""
-    report = validate(System(elements=[RelaxingElement('r')]), solver=RK4Solver())
+    report = PassCompiler(solver=RK4Solver()).check().prepare(System(elements=[RelaxingElement('r')])).report_
     assert [issue.code for issue in report.errors] == ['order-unsupported']
     assert 'r.x' in report.errors[0].message
     assert 'FractionalABMSolver' in report.errors[0].fix
@@ -191,7 +191,7 @@ def test_validate_fractional_state_with_rk4_names_fractional_solvers():
 
 def test_validate_order_out_of_range_names_interval():
     """Test that a state of order 1.5 gives one error naming the element and the interval of fractional orders."""
-    report = validate(System(elements=[OverorderedElement('a')]))
+    report = PassCompiler().check().prepare(System(elements=[OverorderedElement('a')])).report_
     assert [issue.code for issue in report.errors] == ['structure']
     assert 'a: The order 1.5' in report.errors[0].message
     assert '(0, 1)' in report.errors[0].message
@@ -199,7 +199,7 @@ def test_validate_order_out_of_range_names_interval():
 
 def test_validate_fractional_state_under_discrete_time_suggests_continuous_time():
     """Test that a fractional state in a system of discrete time gives one error suggesting continuous time."""
-    report = validate(System(elements=[RememberingElement('a')], time=DiscreteTime()))
+    report = PassCompiler().check().prepare(System(elements=[RememberingElement('a')], time=DiscreteTime())).report_
     assert [issue.code for issue in report.errors] == ['fractional-time']
     assert 'a.x' in report.errors[0].message
     assert 'continuous time' in report.errors[0].fix
@@ -213,15 +213,15 @@ def test_validate_fractional_state_with_backend_without_orders():
 
         supports = SupportSpec(orders={OrderKind.INTEGER})
 
-    report = validate(System(elements=[RelaxingElement('r')]), backend=IntegerBackend())
+    report = PassCompiler(backend=IntegerBackend()).check().prepare(System(elements=[RelaxingElement('r')])).report_
     assert [issue.code for issue in report.errors] == ['order-unsupported']
     assert 'fractional orders' in report.errors[0].fix
-    assert validate(System(elements=[RelaxingElement('r')]), backend=NumbaBackend()).ok
+    assert PassCompiler(backend=NumbaBackend()).check().prepare(System(elements=[RelaxingElement('r')])).report_.ok
 
 
 def test_validate_noise_on_fractional_state_is_unsupported():
     """Test that a noise law on a fractional state is reported, since no fractional solver runs noise laws."""
-    report = validate(System(elements=[ShakenElement('a')]))
+    report = PassCompiler().check().prepare(System(elements=[ShakenElement('a')])).report_
     assert [issue.code for issue in report.errors] == ['solver-unsupported']
     assert 'a.x' in report.errors[0].message
 
@@ -229,9 +229,9 @@ def test_validate_noise_on_fractional_state_is_unsupported():
 def test_validate_fractional_state_with_fractional_solver():
     """Test that a fractional state with a fractional solver and default settings is valid."""
     system = System(elements=[RelaxingElement('r')])
-    assert validate(system).ok
-    assert validate(system, solver=L1Solver()).ok
-    assert validate(system, solver=GrunwaldLetnikovSolver()).ok
+    assert PassCompiler().check().prepare(system).report_.ok
+    assert PassCompiler(solver=L1Solver()).check().prepare(system).report_.ok
+    assert PassCompiler(solver=GrunwaldLetnikovSolver()).check().prepare(system).report_.ok
 
 
 def test_compile_system_rejects_a_hurst_index_out_of_range():

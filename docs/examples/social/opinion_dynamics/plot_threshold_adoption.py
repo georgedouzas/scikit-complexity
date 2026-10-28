@@ -31,7 +31,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, reach=9.0, random_state=0), observers=[observer], random_state=0).run(until=STEPS)
+simulation = (
+    Simulation(create(MODEL, reach=9.0, random_state=0), observers=[observer], random_state=0)
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # Percolation of the social circles
@@ -58,7 +62,7 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
         finals.append(
             np.mean(
                 [
-                    Simulation(create(MODEL, reach=reach, mode=mode, random_state=seed), random_state=seed)
+                    Simulation(create(MODEL, reach=reach, mode=mode, random_state=seed), random_state=seed).check()
                     .run(until=STEPS)
                     .trajectory_.agents('people', STEPS)
                     .values['adopted']

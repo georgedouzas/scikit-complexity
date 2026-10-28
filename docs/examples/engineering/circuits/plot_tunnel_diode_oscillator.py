@@ -20,7 +20,7 @@ MODEL = 'tunnel_diode_oscillator'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=50)
 
 # %%
 # One limit cycle
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for V0, i0 in [(0.1, 0.0), (2.0, 1.0), (-1.5, -1.5), (0.0, 2.5)]:
-    run = Simulation(create(MODEL, V=V0, i=i0), dt=0.05).run(until=50).trajectory_
+    run = Simulation(create(MODEL, V=V0, i=i0), dt=0.05).check().run(until=50).trajectory_
     ax.plot(run.values('circuit.V'), run.values('circuit.i'), linewidth=0.8)
     ax.plot(V0, i0, 'o', color='gray', markersize=4)
 trajectory = simulation.trajectory_

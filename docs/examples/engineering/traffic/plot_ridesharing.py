@@ -48,7 +48,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 
 # %%
 # Waiting near saturation
@@ -63,7 +63,11 @@ demands = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
 waits, utilisations = [], []
 for demand in demands:
     system = create(MODEL, demand=demand, random_state=0)
-    run = Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).run(until=STEPS)
+    run = (
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        .check()
+        .run(until=STEPS)
+    )
     waits.append(np.nanmean(run.trajectory_.values('mean_wait')[STEPS // 2 :]))
     utilisations.append(run.trajectory_.values('utilisation')[STEPS // 2 :].mean())
 fig, (wait, busy) = plt.subplots(1, 2, figsize=(11, 4))

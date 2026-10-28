@@ -39,7 +39,7 @@ def test_particle_constant_acceleration():
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),
     )
-    position = Simulation(system, dt=0.5).run(until=2).trajectory_.values('p.x')[-1]
+    position = Simulation(system, dt=0.5).check().run(until=2).trajectory_.values('p.x')[-1]
     assert np.allclose(position, [4.0, 0.0, -2.0])
 
 
@@ -50,7 +50,12 @@ def test_spring_conserves_energy():
         interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1).run(until=5).trajectory_
+    trajectory = (
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1)
+        .check()
+        .run(until=5)
+        .trajectory_
+    )
     kinetic = 0.5 * (trajectory.values('a.v') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.v') ** 2).sum(
         axis=1,
     )
@@ -69,7 +74,12 @@ def test_gravity_keeps_circular_orbit():
         interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5).run(until=6).trajectory_
+    trajectory = (
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5)
+        .check()
+        .run(until=6)
+        .trajectory_
+    )
     radius = np.linalg.norm(trajectory.values('planet.x') - trajectory.values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)
 
@@ -81,7 +91,7 @@ def test_linear_drag_slows_particle():
         interactions=[LinearDragInteraction('air', target='p', gamma=0.5)],
         space=ContinuousSpace(n_dim=1),
     )
-    velocity = Simulation(system, dt=0.5).run(until=2).trajectory_.values('p.v')[-1, 0]
+    velocity = Simulation(system, dt=0.5).check().run(until=2).trajectory_.values('p.v')[-1, 0]
     assert velocity == pytest.approx(np.exp(-1.0), rel=1e-4)
 
 
@@ -93,7 +103,7 @@ def test_linear_drag_slows_particle():
 def test_lennard_jones_force_vanishes_at_minimum(solver):
     """Test that two particles at `2 ** (1 / 6)` stay at rest."""
     system = _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6))
-    velocities = Simulation(system, solver=solver, dt=0.1).run(until=1).trajectory_.values('pair.v')
+    velocities = Simulation(system, solver=solver, dt=0.1).check().run(until=1).trajectory_.values('pair.v')
     assert np.allclose(velocities, 0.0, atol=1e-10)
 
 
@@ -113,7 +123,7 @@ def test_lennard_jones_drift_vanishes_at_minimum():
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
     system = _pair(SoftSphereInteraction('soft', first='pair', second='pair', cutoff=1.0, k=50.0), 0.8)
-    trajectory = Simulation(system, solver=solver, dt=0.1).run(until=1).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.1).check().run(until=1).trajectory_
     separation = np.linalg.norm(trajectory.values('pair.x')[:, 1] - trajectory.values('pair.x')[:, 0], axis=1)
     assert separation[-1] > 1.0
     assert np.allclose(np.diff(separation[-3:]), np.diff(separation[-3:])[0])
@@ -135,6 +145,6 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
         ],
         space=gas.space,
     )
-    trajectory = Simulation(system, solver=solver, dt=dt, random_state=0).run(until=20).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=dt, random_state=0).check().run(until=20).trajectory_
     temperature = (trajectory.values('gas.v')[-5:] ** 2).sum(axis=2).mean() / 2
     assert temperature == pytest.approx(2.0, rel=0.05)

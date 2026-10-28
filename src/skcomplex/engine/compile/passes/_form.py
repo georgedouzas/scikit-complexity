@@ -8,25 +8,25 @@ from typing import cast
 
 from ....core.errors import IncompatibleLawsError
 from ...problems import Form
-from .._compilation import Compilation
+from .._base import BasePass
 from .._forms import _FORMS
 from .._owners import _Owners
-from .._pipeline import BasePass
 
 
 class FormPass(BasePass):
     """Pass that infers the form of the problem from the law classes of its owners."""
 
-    reads = ('kinds',)
-    writes = ('form',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('kinds',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Infer the form of the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('form',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Infer the form of the problem."""
+        compilation = self.compilation_
         compilation.form = self._infer_form(cast('dict[str, set[type]]', compilation.kinds).values())
 
     @staticmethod

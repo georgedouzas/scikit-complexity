@@ -21,7 +21,7 @@ MODEL = 'oncolytic_virus'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=60)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=60)
 
 # %%
 # Coexistence point

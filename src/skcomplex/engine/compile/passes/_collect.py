@@ -5,26 +5,26 @@
 
 from typing import cast
 
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from ._census import CensusPass
 
 
 class CollectPass(BasePass):
     """Pass that collects the declared laws of every kernel spec, with no laws set apart yet."""
 
-    reads = ('specs',)
-    writes = ('collected', 'apart')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('specs',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Collect the laws of every kernel spec.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected', 'apart')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Collect the laws of every kernel spec."""
+        compilation = self.compilation_
         specs = cast('list[tuple[KernelSpec, Block]]', compilation.specs)
         compilation.collected = [
             (spec, CensusPass._declared_laws(spec, CensusPass._component_of(block.node)), block)

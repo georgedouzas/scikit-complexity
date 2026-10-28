@@ -21,7 +21,7 @@ MODEL = 'wilson_cowan'
 
 system = create(MODEL, P=1.25)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=50)
 
 # %%
 # Limit cycle against rest
@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=50)
 # without input the activity should decay to rest.
 
 oscillating = simulation.trajectory_
-second = Simulation(create(MODEL, E=0.4, I=0.3, P=1.25), dt=0.2).run(until=100).trajectory_
-resting = Simulation(create(MODEL, E=0.4, I=0.3, P=0.0), dt=0.2).run(until=100).trajectory_
+second = Simulation(create(MODEL, E=0.4, I=0.3, P=1.25), dt=0.2).check().run(until=100).trajectory_
+resting = Simulation(create(MODEL, E=0.4, I=0.3, P=0.0), dt=0.2).check().run(until=100).trajectory_
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(oscillating.values('cortex.E'), oscillating.values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
 ax.plot(second.values('cortex.E'), second.values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')

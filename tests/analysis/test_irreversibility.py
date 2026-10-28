@@ -132,7 +132,7 @@ def _walker_currents(forward, backward, duration, paths, seed):
     system = System(elements=[WalkerElement('walker')])
     currents = []
     for index in range(paths):
-        trajectory = Simulation(system, dt=duration, random_state=seed + index).run(until=duration).trajectory_
+        trajectory = Simulation(system, dt=duration, random_state=seed + index).check().run(until=duration).trajectory_
         currents.append(trajectory.values('walker.ahead')[-1] - trajectory.values('walker.behind')[-1])
     return np.asarray(currents)
 

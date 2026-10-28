@@ -19,3 +19,13 @@ def test_kept_functions_are_public():
     for name in FUNCTIONS:
         assert name in package.__all__
         assert callable(getattr(package, name))
+
+
+def test_classes_derive_from_a_base_of_the_package():
+    """Every observer derives from the observer base and every clock from the clock base."""
+    for name in package.__all__:
+        item = getattr(package, name)
+        if name.endswith('Observer'):
+            assert issubclass(item, package.BaseObserver), name
+        if name.endswith('Clock'):
+            assert issubclass(item, package.BaseClock), name

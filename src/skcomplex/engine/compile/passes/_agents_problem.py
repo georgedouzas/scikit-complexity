@@ -13,11 +13,10 @@ from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
 from ....core.specs import VisualSpec
 from ...problems import CompiledAgents, Problem, VariableKind, declarations_of
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._tree import Node
 from ._problem import ProblemPass
 
@@ -50,18 +49,19 @@ AGENT_RESERVED_NAMES = _AGENT_VIEW_NAMES | _MESA_AGENT_NAMES
 class AgentsProblemPass(BasePass):
     """Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
 
-    reads = ('problem', 'layout', 'reduced', 'rules')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'layout', 'reduced', 'rules')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the agents and the rules to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the agents and the rules to the problem."""
+        compilation = self.compilation_
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
-        rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.facts['rules'])
+        rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.rules)
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
             cast('Problem', compilation.problem),

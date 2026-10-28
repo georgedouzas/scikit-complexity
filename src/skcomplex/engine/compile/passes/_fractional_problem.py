@@ -15,8 +15,7 @@ from sage.all__sagemath_symbolics import SR
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....core.types import Vector
 from ...problems import Form, FractionalRows, LawKernel, Layout, Lowered, Problem
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass
 from ._fractional_state import FractionalState
@@ -25,16 +24,17 @@ from ._fractional_state import FractionalState
 class FractionalProblemPass(BasePass):
     """Pass that adds the noise rows of fractional noise laws and the orders of the states to the problem."""
 
-    reads = ('problem', 'kernels', 'nodes', 'layout')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'kernels', 'nodes', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the fractional noise rows and the state orders to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the fractional noise rows and the state orders to the problem."""
+        compilation = self.compilation_
         problem = cast('Problem', compilation.problem)
         lowered = cast('Lowered', compilation.kernels)
         compilation.problem = replace(

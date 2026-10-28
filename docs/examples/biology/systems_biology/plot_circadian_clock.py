@@ -23,7 +23,7 @@ MODEL = 'circadian_clock'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=240)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=240)
 
 # %%
 # Period of the clock
@@ -43,7 +43,7 @@ series.legend()
 rates = np.linspace(0.8, 1.6, 9)
 lengths = []
 for rate in rates:
-    run = Simulation(create(MODEL, v_d=rate), dt=0.5).run(until=480).trajectory_
+    run = Simulation(create(MODEL, v_d=rate), dt=0.5).check().run(until=480).trajectory_
     peaks, _ = find_peaks(run.values('clock.M'))
     lengths.append(np.diff(run.times[peaks][-4:]).mean())
 periods.plot(rates, lengths, 'o-')

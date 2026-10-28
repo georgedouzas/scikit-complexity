@@ -11,11 +11,11 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.laws import BaseLaw
 from ...problems import symbol
+from .._base import BasePass
 from .._bound_renewal import BoundRenewal
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass
 
@@ -23,19 +23,23 @@ from ._census import CensusPass
 class DeclareRenewalsPass(BasePass):
     """Pass that declares the hidden state that counts the renewals of every renewal law, once delays are lowered."""
 
-    reads = ('delayed', 'layout')
-    writes = ('delayed', 'renewals')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('delayed', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Declare the counts of the renewal laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('delayed', 'renewals')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Declare the counts of the renewal laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
-        for spec, laws in cast('Laws', compilation.delayed):
-            compilation.renewals += self._declared_renewals(spec, laws, declarations)
+        compilation.renewals = [
+            renewal
+            for spec, laws in cast('Laws', compilation.delayed)
+            for renewal in self._declared_renewals(spec, laws, declarations)
+        ]
 
     @staticmethod
     def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewal:

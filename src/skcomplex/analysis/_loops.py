@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.errors import AnalysisError
 from ..core.laws.utils import delay_parts
-from ..engine.compile import compiled_problem
 from ..engine.problems import LoopTerm, Problem, numpy_function, symbols_of
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
@@ -269,7 +268,7 @@ class LoopAnalysis(BaseAnalysis):
         >>> from skcomplex.models import create
         >>> LoopAnalysis().check().prepare(create('bass_diffusion')).run().polarities_
         ['reinforcing', 'balancing']
-        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).run(2).trajectory_
+        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).check().run(2).trajectory_
         >>> LoopAnalysis('dominance').check().prepare(trajectory).run().gains_.shape
         (3, 2)
     """
@@ -303,7 +302,7 @@ class LoopAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
-        self.problem_ = compiled_problem(self._read_system(source), 'The feedback loop analysis')
+        self.problem_ = self._compiled_problem(self._read_system(source), 'The feedback loop analysis')
         if self.kind == 'flow-matrix' and not SymbolicAnalysis._transfer_network(self.problem_).flows:
             error_msg = (
                 'The system declares no flows, so it has no transaction-flow matrix. Read the signed dependency of its '

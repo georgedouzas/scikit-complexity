@@ -11,10 +11,10 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...problems import vector
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._tree import Node
 from ._census import CensusPass
 from ._kernels import KernelsPass
@@ -24,16 +24,17 @@ from ._mask_requests import MaskRequestsPass
 class OwnersPass(BasePass):
     """Pass that keeps the laws of the compiled owners, masks them to the rows present, and finds their kinds."""
 
-    reads = ('shifted', 'apart', 'nodes', 'layout')
-    writes = ('drawn', 'kinds', 'drawn_apart')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('shifted', 'apart', 'nodes', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Keep the laws of the owners of the compilation and find their kinds.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn', 'kinds', 'drawn_apart')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Keep the laws of the owners of the compilation and find their kinds."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         agents = {node.path for node in cast('list[Node]', compilation.nodes) if node.is_agent}
         owned = self._owned(cast('Laws', compilation.shifted), compilation.owners, agents)

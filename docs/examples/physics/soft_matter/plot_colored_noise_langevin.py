@@ -22,7 +22,10 @@ MODEL = 'colored_noise_langevin'
 
 system = create(MODEL, n_particles=1, gamma=1.0, D=1.0, tau=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
+simulation = (
+    Simulation(system, dt=0.2, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
+    .check()
+)
 simulation.run(until=59.8)
 
 # %%
@@ -41,7 +44,7 @@ for tau in taus:
         dt=0.5,
         solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
         random_state=0,
-    ).run(until=20)
+    ).check().run(until=20)
     variances.append(np.mean(run.trajectory_.values('particles.v')[20:] ** 2))
     if tau == 1.0:
         noise = run.trajectory_.values('particles.xi')

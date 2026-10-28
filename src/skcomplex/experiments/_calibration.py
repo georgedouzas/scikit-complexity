@@ -148,7 +148,7 @@ class CalibrationExperiment(BaseExperiment):
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
         for seed in self.seeds_:
-            simulation = Simulation(candidate, random_state=np.random.default_rng(seed), **self.settings_)
+            simulation = Simulation(candidate, random_state=np.random.default_rng(seed), **self.settings_).check()
             trajectory = simulation.run(until).trajectory_
             runs.append(
                 {

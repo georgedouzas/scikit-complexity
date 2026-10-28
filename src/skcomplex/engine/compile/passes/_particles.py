@@ -9,25 +9,26 @@ from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
 from ...problems import VariableKind, components_of, declarations_of
+from .._base import BasePass
 from .._block import Block
-from .._compilation import BlockLaws, Compilation
+from .._compilation import BlockLaws
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 class BoundaryLawsPass(BasePass):
     """Pass that adds the laws by which the boundary of a continuous space acts on the positions of components."""
 
-    reads = ('collected',)
-    writes = ('collected',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the boundary laws of continuous spaces.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the boundary laws of continuous spaces."""
+        compilation = self.compilation_
         compilation.collected = [
             (spec, [*laws, *self._space_boundary_laws(block, spec)], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)

@@ -5,26 +5,25 @@
 
 from typing import cast
 
-from .._compilation import BlockLaws, Compilation
-from .._declarations import Declarations
-from .._flows import TransferPass
-from .._pipeline import BasePass
+from .._base import BasePass
+from .._compilation import BlockLaws
+from .._flows import TransferLowering
 
 
 class LowerFlowsPass(BasePass):
     """Pass that checks the conserved quantities and lowers flows and delays into the laws of every spec, in place."""
 
-    reads = ('lowered', 'layout', 'flows')
-    writes = ('lowered', 'transfer_network')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('lowered', 'layout', 'flows')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the flows and their delays.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('lowered', 'transfer_network')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        flows = cast('TransferPass', compilation.facts['flows'])
+    def _run(self, inputs: object = None) -> None:
+        """Lower the flows and their delays."""
+        compilation = self.compilation_
+        flows = cast('TransferLowering', compilation.flows)
         lowered = cast('BlockLaws', compilation.lowered)
-        declarations = cast('Declarations', compilation.layout)
-        compilation.facts['transfer_network'] = flows.lower([(spec, laws) for spec, laws, _ in lowered], declarations)
+        compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

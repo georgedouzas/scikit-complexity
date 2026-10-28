@@ -23,7 +23,7 @@ MODEL = 'hodgepodge'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=600)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=600)
 
 # %%
 # Every cell repeats one cycle

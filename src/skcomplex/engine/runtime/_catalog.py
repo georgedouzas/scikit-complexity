@@ -334,5 +334,5 @@ def run(name: str, *, settings: Mapping[str, Any] | None = None, **parameters: A
     until = chosen.pop('until', 10.0)
     system = create(name, **parameters)
     initial = {**entry.initial_state_of(**parameters), **dict(chosen.pop('initial_state', None) or {})}
-    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen)
+    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen).check()
     return simulation.run(until=until)

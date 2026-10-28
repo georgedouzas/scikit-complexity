@@ -163,7 +163,7 @@ def compatibility_page() -> str:
         '# Compatibility',
         '',
         'Not every combination of laws, spaces, time, solvers, and backends is valid. This page is generated from the',
-        'declarations that validation reads, so it always agrees with what `validate` accepts.',
+        'declarations that validation reads, so it always agrees with what the compilers accept.',
         '',
         *law_lines(),
         *space_lines(),

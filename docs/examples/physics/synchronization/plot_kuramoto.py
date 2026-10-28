@@ -14,15 +14,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'kuramoto'
 
 system = create(MODEL, n_oscillators=50, K=4.0, sigma=1.0, seed=0)
-blueprint = default_blueprint(system, primary='observables', observables=describe(MODEL).observables_of(system))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+simulation = Simulation(
+    system, dt=0.2, observers=[observer], observables=describe(MODEL).observables_of(system),
+).check().run(
     until=30,
 )
 
@@ -37,7 +38,11 @@ couplings = np.linspace(0.0, 4.0, 17)
 order = []
 for coupling in couplings:
     model_system = create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
-    run = Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system)).run(until=60)
+    run = (
+        Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=60)
+    )
     order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, order, 'o-')

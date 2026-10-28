@@ -162,7 +162,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
             ),
         ],
     )
-    burning = Simulation(system, dt=1, backend=backend()).run(until=10).trajectory_.lattice('forest.fire')
+    burning = Simulation(system, dt=1, backend=backend()).check().run(until=10).trajectory_.lattice('forest.fire')
     assert [int(item.sum()) for item in burning] == [3 * k * (k + 1) + 1 for k in range(11)]
 
 
@@ -199,8 +199,8 @@ def test_grid_graph_matches_square_lattice():
             ),
         ],
     )
-    expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_.values('cells.alive')
-    found = Simulation(on_graph, dt=1).run(until=40).trajectory_.values('cells.alive')
+    expected = Simulation(on_lattice, dt=1).check().run(until=40).trajectory_.values('cells.alive')
+    found = Simulation(on_graph, dt=1).check().run(until=40).trajectory_.values('cells.alive')
     assert np.array_equal(found, expected)
     assert expected[-1].sum() == 5
 
@@ -236,7 +236,7 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
             ),
         ],
     )
-    assert Simulation(system, dt=1).run(until=1).state_.tolist() == [2, 1, 1, 1, 1, 1]
+    assert Simulation(system, dt=1).check().run(until=1).state_.tolist() == [2, 1, 1, 1, 1, 1]
 
 
 def test_function_rule_reads_degrees_on_star():
@@ -260,7 +260,7 @@ def test_function_rule_reads_degrees_on_star():
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(center=True), lambda *values, degree: degree)]
 
     system = System(elements=[LatticeElement('star', element=DegreeElement, space=NetworkSpace(nx.star_graph(5)))])
-    assert Simulation(system, dt=1).run(until=1).state_.tolist() == [5, 1, 1, 1, 1, 1]
+    assert Simulation(system, dt=1).check().run(until=1).state_.tolist() == [5, 1, 1, 1, 1, 1]
 
 
 def test_lattice_groups_on_networks_reject_tables_and_capacities():
@@ -403,7 +403,7 @@ def test_colored_schedule_partitions_triangular_lattice():
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
         assert not np.isin(sampling.table[members], members).any()
-    Simulation(System(elements=[LatticeElement('spins', element=SpinElement, space=space)]), dt=1).run(until=2)
+    Simulation(System(elements=[LatticeElement('spins', element=SpinElement, space=space)]), dt=1).check().run(until=2)
 
 
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
@@ -458,7 +458,7 @@ def test_extremal_changes_only_the_neighbourhood():
             elements=[LatticeElement('ring', element=OnceElement, space=LatticeSpace(100), values={'value': values})],
         ),
         dt=1,
-    )
+    ).check()
     simulation.run(until=1)
     site = int(np.argmin(values))
     changed = np.flatnonzero(simulation.state_ != values)
@@ -497,7 +497,7 @@ def test_extremal_maximum_and_ties():
             ),
         ],
     )
-    events = Simulation(system, dt=1, random_state=0).run(until=1).trajectory_.events
+    events = Simulation(system, dt=1, random_state=0).check().run(until=1).trajectory_.events
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
     with pytest.raises(ValidationError, match='extremum'):
@@ -514,7 +514,7 @@ def test_extremal_runs_are_reproducible_across_backends():
                 LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}),
             ],
         )
-        simulation = Simulation(system, dt=1, backend=backend(), random_state=7).run(until=20)
+        simulation = Simulation(system, dt=1, backend=backend(), random_state=7).check().run(until=20)
         runs.append((simulation.trajectory_.values('ring.value'), simulation.trajectory_.events))
     system = System(
         elements=[LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values})],
@@ -530,10 +530,15 @@ def test_extremal_runs_are_reproducible_across_backends():
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     """Test that a triangular forest fire logs one colored cell per site at its position at every logged step."""
-    simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).run(until=1)
+    simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).check().run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
-    SiteVisual().prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
+    (
+        SiteVisual(path=simulation.problem_.elements[0].path, recording=recording)
+        .check()
+        .prepare(simulation.problem_)
+        .run(frame)
+    )
     ((path, points, _),) = recording.entries
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
@@ -541,18 +546,19 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').check().prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
-    Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).run(until=3)
+    Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).check().run(until=3)
     assert observer.logged_frames_ == 4
     assert (tmp_path / 'forest.rrd').stat().st_size > 0
 
 
 def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
-    simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).run(until=1)
+    simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).check().run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    visual = SiteVisual(low=-1, high=1).prepare(simulation.problem_.elements[0], simulation.problem_)
     recording = Recording()
-    visual.run(frame, recording)
-    visual.run(frame, recording)
+    visual = SiteVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
+    visual.check().prepare(simulation.problem_)
+    visual.run(frame)
+    visual.run(frame)
     kinds = [(type(archetype).__name__, static) for _, archetype, static in recording.entries]
     assert kinds == [('GraphEdges', True), ('GraphNodes', False), ('GraphNodes', False)]

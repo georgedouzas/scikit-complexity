@@ -21,7 +21,7 @@ MODEL = 'hutchinson'
 
 system = create(MODEL, n=50.0, r=1.0, K=100.0, tau=2.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=100)
 
 # %%
 # Period of the oscillation

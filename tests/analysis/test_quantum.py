@@ -63,7 +63,7 @@ def test_ground_state_is_stationary():
     entry = describe('quantum_heisenberg')
     initial = entry.initial_state_of(n_sites=6, initial='ground')
     assert initial == {'quantum_heisenberg.state': 'ground'}
-    simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial)
+    simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial).check()
     trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory.values('energy')) < 1e-8
     assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
@@ -74,7 +74,7 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
     system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
-    trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).check().run(until=1.0).trajectory_
     assert np.allclose(_quantum('entanglement', trajectory, subsystems=['pair[0]']).entropy_, np.log(2), atol=1e-12)
     assert np.allclose(_quantum('entanglement', trajectory, subsystems=['pair']).entropy_, 0, atol=1e-10)
     with pytest.raises(AnalysisError, match='not a subsystem'):
@@ -83,12 +83,12 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
 
 def test_purity_of_pure_and_dephased_runs():
     """Test that purity is 1 for closed runs and falls under dephasing."""
-    closed = Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5).run(until=1.0).trajectory_
+    closed = Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5).check().run(until=1.0).trajectory_
     assert np.allclose(_quantum('purity', closed).purity_, 1)
-    opened = Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5).run(until=2.0).trajectory_
+    opened = Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5).check().run(until=2.0).trajectory_
     assert np.all(np.diff(_quantum('purity', opened).purity_) <= 1e-10)
     assert _quantum('purity', opened).purity_[-1] < 1
-    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).run(until=1.0).trajectory_
+    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().run(until=1.0).trajectory_
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _quantum('purity', rabbits)
 

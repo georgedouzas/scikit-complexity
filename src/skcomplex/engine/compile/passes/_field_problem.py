@@ -7,33 +7,33 @@ from dataclasses import replace
 from typing import cast
 
 from ...problems import Problem
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 
 
 class FieldProblemPass(BasePass):
     """Pass that adds the stable step, the linear terms, the finite volumes, and the fixed nodes to the problem."""
 
-    reads = ('problem', 'limits', 'volume_limits', 'linear', 'volumes', 'constrained')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'limits', 'volume_limits', 'linear', 'volumes', 'constrained')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the discretizations of the fields to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the discretizations of the fields to the problem."""
+        compilation = self.compilation_
         problem = cast('Problem', compilation.problem)
-        indices, values = compilation.facts['constrained']
+        indices, values = compilation.constrained
         initial_state = problem.initial_state.copy()
         initial_state[indices] = values
         compilation.problem = replace(
             problem,
             initial_state=initial_state,
-            stable_step=min(compilation.facts['limits'], default=None),
-            diffusive_limits=tuple(compilation.facts['volume_limits']),
-            linear=tuple(compilation.facts['linear']),
-            volumes=compilation.facts['volumes'],
+            stable_step=min(compilation.limits, default=None),
+            diffusive_limits=tuple(compilation.volume_limits),
+            linear=tuple(compilation.linear),
+            volumes=compilation.volumes,
             constrained=indices,
         )

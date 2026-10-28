@@ -15,72 +15,38 @@ from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
 from ....core.types import Indices
 from ...problems import NoiseProcess, Output, Reference, Source
+from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._field_lowering import FieldLowering
 from .._issue import Issue
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._tree import Node
-from ._lower_fields import LowerFieldsPass
-
-
-def _is_lattice_field(component: object) -> bool:
-    """Check whether a component is a finite-difference field on a square lattice."""
-    return (
-        isinstance(component, FieldElement)
-        and isinstance(component.space, LatticeSpace)
-        and component.space.geometry == 'square'
-        and component.discretization == 'finite-difference'
-    )
-
-
-def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> Issue | None:
-    """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
-    outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
-    if not outside:
-        return None
-    message = (
-        f'The conserved {type(record.law).__name__} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
-        'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per link.'
-    )
-    fix = 'Declare the state on a `FieldElement` of a `LatticeSpace`, or remove `conserved=True`.'
-    return Issue('noise-unsupported', record.path, message, fix)
-
-
-def _conserved_issues(compilation: Compilation) -> list[Issue]:
-    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
-    components = {node.path: node.component for node in cast('list[Node]', compilation.nodes)}
-    records = cast('Census', compilation.census).records
-    found = [
-        _conserved_issue(record, components)
-        for record in records
-        if isinstance(record.law, NoiseLaw) and record.law.conserved
-    ]
-    return [issue for issue in found if issue is not None]
 
 
 class ConservedNoisePass(BasePass):
     """Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
 
-    reads = ('reduced', 'layout', 'outputs')
-    writes = ('outputs',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('reduced', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the outputs of the conserved noise laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('outputs',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Set the outputs of the conserved noise laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
-        compilation.outputs.update(self._conserved_outputs(cast('Laws', compilation.reduced), declarations))
+        compilation.outputs = self._conserved_outputs(cast('Laws', compilation.reduced), declarations)
 
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:
         """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
-        places = LowerFieldsPass._places(declarations)
+        places = FieldLowering._field_entries(declarations)
         outputs = {}
         for spec, laws in specs:
             for law in laws:
@@ -217,3 +183,43 @@ class ConservedNoisePass(BasePass):
                     Output(reference, scaled, process=NoiseProcess(key, dimension=dimension, links=preceding)),
                 )
         return outputs
+
+    @staticmethod
+    def _is_lattice_field(component: object) -> bool:
+        """Check whether a component is a finite-difference field on a square lattice."""
+        return (
+            isinstance(component, FieldElement)
+            and isinstance(component.space, LatticeSpace)
+            and component.space.geometry == 'square'
+            and component.discretization == 'finite-difference'
+        )
+
+    @staticmethod
+    def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> Issue | None:
+        """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
+        outside = [
+            name
+            for name, _ in record.driven
+            if not ConservedNoisePass._is_lattice_field(components.get(name.rpartition('.')[0]))
+        ]
+        if not outside:
+            return None
+        message = (
+            f'The conserved {type(record.law).__name__} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
+            'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per '
+            'link.'
+        )
+        fix = 'Declare the state on a `FieldElement` of a `LatticeSpace`, or remove `conserved=True`.'
+        return Issue('noise-unsupported', record.path, message, fix)
+
+    @staticmethod
+    def _conserved_issues(compilation: Compilation) -> list[Issue]:
+        """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
+        components = {node.path: node.component for node in cast('list[Node]', compilation.nodes)}
+        records = cast('Census', compilation.census).records
+        found = [
+            ConservedNoisePass._conserved_issue(record, components)
+            for record in records
+            if isinstance(record.law, NoiseLaw) and record.law.conserved
+        ]
+        return [issue for issue in found if issue is not None]

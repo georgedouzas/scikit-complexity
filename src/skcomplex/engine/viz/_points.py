@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._visuals import _UPWARD, BaseVisual
+from ._base import _UPWARD, BaseVisual
 
 _MAX_POINT_DIMENSIONS = 3
 _TRAIL_LENGTH = 256
@@ -52,6 +52,12 @@ class PointsVisual(BaseVisual):
         trail:
             The number of recent positions the trail of each point holds, or 0 for no trail.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         history_:
             The recent positions of the points, the oldest first.
@@ -77,6 +83,8 @@ class PointsVisual(BaseVisual):
         states: Sequence[str] | None = None,
         *,
         trail: int = _TRAIL_LENGTH,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.position = position
         self.radius = radius
@@ -84,13 +92,15 @@ class PointsVisual(BaseVisual):
         self.color_range = color_range
         self.states = states
         self.trail = trail
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
         self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
         self.span_: tuple[float, float] | None = None
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _point_colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points over the given range, or over a range widened to every value so far."""
@@ -203,7 +213,8 @@ class PointsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import PointsVisual
             >>> gas = GroupElement('gas', element=ParticleElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
             >>> problem = compile_system(System(elements=[gas], space=ContinuousSpace(n_dim=3)))
-            >>> views = PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).views_
+            >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
+            >>> views = visual.check().prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """

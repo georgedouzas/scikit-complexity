@@ -40,7 +40,7 @@ from skcomplex.core.spaces import (
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -476,7 +476,7 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
         space=NetworkSpace(nx.cycle_graph(5)),
         time=DiscreteTime(),
     )
-    issues = [issue for issue in validate(system).issues if issue.code == 'law-space']
+    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].fix
     assert 'over=None' in issues[0].fix
@@ -489,7 +489,7 @@ def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    assert [issue.code for issue in validate(system).issues] == ['law-space']
+    assert [issue.code for issue in PassCompiler().check().prepare(system).report_.issues] == ['law-space']
 
 
 def test_validate_reports_a_cone_without_a_heading():
@@ -500,7 +500,7 @@ def test_validate_reports_a_cone_without_a_heading():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    issues = validate(system).issues
+    issues = PassCompiler().check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'velocity_of' in issues[0].fix
 
@@ -533,7 +533,7 @@ def test_validate_accepts_a_cone_along_the_velocity():
 
     moving = MovingElement
     system = System(elements=[GroupElement('g', element=moving, size=5)], space=ContinuousSpace(extent=(2.0, 2.0)))
-    assert validate(system).ok
+    assert PassCompiler().check().prepare(system).report_.ok
 
 
 class OscillatorElement(Element):
@@ -580,8 +580,16 @@ def _order(phases):
 @pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
-    below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).run(10.0)
-    above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).run(10.0)
+    below = (
+        Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+        .check()
+        .run(10.0)
+    )
+    above = (
+        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+        .check()
+        .run(10.0)
+    )
     weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
         above.trajectory_.values('oscillators.theta'),
     )
@@ -593,7 +601,12 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
 def test_kuramoto_agrees_across_backends():
     """Test that the Kuramoto run on a complete graph gives the same phases on NumPy and Numba."""
     runs = [
-        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend).run(2.0).trajectory_
+        (
+            Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
+            .check()
+            .run(2.0)
+            .trajectory_
+        )
         for backend in BACKENDS
     ]
     assert np.allclose(runs[0].values('oscillators.theta'), runs[1].values('oscillators.theta'), rtol=0, atol=1e-12)
@@ -654,7 +667,7 @@ def _vicsek(size=400, side=5.0):
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek model exceeds 0.9 at low noise and high density."""
-    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).run(100).trajectory_
+    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).check().run(100).trajectory_
     order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
@@ -662,7 +675,9 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek model gives the same headings and positions on NumPy and Numba for one seed."""
-    runs = [Simulation(_vicsek(), dt=1.0, random_state=0, backend=backend).run(50).trajectory_ for backend in BACKENDS]
+    runs = [Simulation(
+        _vicsek(), dt=1.0, random_state=0, backend=backend,
+    ).check().run(50).trajectory_ for backend in BACKENDS]
     turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
     assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)

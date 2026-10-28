@@ -14,7 +14,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
 
@@ -50,7 +50,12 @@ class LinearElement(Element):
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return Simulation(System(elements=[LinearElement('linear')]), solver=solver, dt=0.05).run(until=10.0).trajectory_
+    return (
+        Simulation(System(elements=[LinearElement('linear')]), solver=solver, dt=0.05)
+        .check()
+        .run(until=10.0)
+        .trajectory_
+    )
 
 
 NAMES = ['linear.x', 'linear.y', 'linear.z']
@@ -78,11 +83,11 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     """Test that the surrogate passes validation, declares continuous time, and runs with an ODE solver."""
     trajectory = _linear_trajectory()
     decomposition = _fit(trajectory)
-    assert validate(decomposition.system_).ok
+    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
     assert isinstance(decomposition.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    run = Simulation(decomposition.system_, solver=solver, dt=0.05).run(until=10.0).trajectory_
+    run = Simulation(decomposition.system_, solver=solver, dt=0.05).check().run(until=10.0).trajectory_
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
 
 
@@ -101,7 +106,7 @@ def test_mode_decomposition_run_matches_simulated_system():
     decomposition = _fit(_linear_values(_linear_trajectory(), 101), variables=NAMES, horizon=20, dt=0.05)
     names = [f'surrogate.{name}' for name in decomposition.states_]
     initial_state = dict(zip(names, decomposition.last_state_, strict=True))
-    run = Simulation(decomposition.system_, dt=0.05, initial_state=initial_state).run(until=1.0).trajectory_
+    run = Simulation(decomposition.system_, dt=0.05, initial_state=initial_state).check().run(until=1.0).trajectory_
     simulated = np.column_stack([run.values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast_, simulated, atol=1e-4)
 
@@ -143,7 +148,7 @@ def test_mode_decomposition_dictionary_lifts_observables():
     )
     assert decomposition.labels_ == ['linear.x', 'linear.y', 'linear.x^2', 'linear.x linear.y', 'linear.y^2']
     assert decomposition.states_ == ['x', 'y', 'x_2', 'x_y', 'y_2']
-    assert validate(decomposition.system_).ok
+    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
 
 
 def test_mode_decomposition_fits_several_series():

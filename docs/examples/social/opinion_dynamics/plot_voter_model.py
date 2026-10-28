@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=60)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=60)
 
 # %%
 # Magnetization and interface density

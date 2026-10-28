@@ -142,14 +142,14 @@ def test_moment_rejects_bad_orders_and_coordinates(order, coordinates):
 
 def test_normalised_start_holds_the_profile():
     """Test that a distribution starts at its profile and its order-0 moment equals the profile's sum."""
-    simulation = Simulation(_system(), observables=OBSERVABLES, dt=1.0).run(until=0)
+    simulation = Simulation(_system(), observables=OBSERVABLES, dt=1.0).check().run(until=0)
     np.testing.assert_allclose(simulation.trajectory_.values('wealth.f')[0], PROFILE)
     assert simulation.trajectory_.values('density')[0] == pytest.approx(PROFILE.sum())
 
 
 def test_mean_activity_is_recorded_at_every_frame():
     """Test that the mean activity moment is the activity-weighted sum divided by the density at every frame."""
-    trajectory = Simulation(_system(), observables=OBSERVABLES, dt=0.5).run(until=5).trajectory_
+    trajectory = Simulation(_system(), observables=OBSERVABLES, dt=0.5).check().run(until=5).trajectory_
     states = np.asarray(trajectory.values('wealth.f'))
     expected = states @ ACTIVITIES / states.sum(axis=1)
     np.testing.assert_allclose(trajectory.values('mean_activity'), expected, rtol=1e-12)

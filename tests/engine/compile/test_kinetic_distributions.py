@@ -74,7 +74,7 @@ def test_agents_bin_into_a_distribution():
         ObservableSpec('density', density, group='wealth'),
         ObservableSpec('mean', mean_class, group='wealth'),
     ]
-    trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
+    trajectory = Simulation(system, observables=observables, dt=1.0).check().run(until=0).trajectory_
     assert trajectory.values('density')[0] == pytest.approx(1.0)
     assert trajectory.values('mean')[0] == pytest.approx(traders.values['wealth'].mean())
 

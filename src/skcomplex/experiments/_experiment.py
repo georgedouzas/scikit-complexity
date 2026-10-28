@@ -15,7 +15,6 @@ from sklearn.base import BaseEstimator, clone
 
 from ..core.errors import ExperimentError, ValidationError
 from ..core.specs import ObservableSpec
-from ..engine.compile import observables_of
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Simulation, Trajectory
 from ._base import BaseDesign, BaseExperiment, Bounds, Factory, Row, Source
@@ -304,16 +303,15 @@ class Experiment(BaseExperiment):
             random_state=np.random.default_rng(task.seed),
             schedule=Experiment._schedule(problem, task.scenario),
             **task.settings,
-        )
+        ).check()
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
         if task.outputs is not None:
             outputs = list(task.outputs)
         else:
-            system = problem.system
             outputs = [
                 f'{scope}/{observable.label}' if scope else observable.label
-                for scope, observable in (observables_of(system) if system is not None else ())
+                for scope, observable in problem.observables
             ] or list(problem.states.names)
         series, scalars = {}, {}
         for output in outputs:

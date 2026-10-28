@@ -30,7 +30,7 @@ simulation = Simulation(
     solver=entry.defaults['solver'],
     observers=[observer],
     observables=entry.observables_of(system),
-).run(until=30)
+).check().run(until=30)
 
 # %%
 # Vaccination flattens the epidemic
@@ -39,7 +39,12 @@ simulation = Simulation(
 # the infected fraction should peak much lower, because vaccination removes susceptible people before the epidemic
 # reaches them.
 
-uncontrolled = Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver']).run(until=30).trajectory_
+uncontrolled = (
+    Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver'])
+    .check()
+    .run(until=30)
+    .trajectory_
+)
 trajectory = simulation.trajectory_
 fig, (infected, rate) = plt.subplots(1, 2, figsize=(10, 4))
 infected.plot(uncontrolled.times, uncontrolled.values('population.I'), label='without vaccination')

@@ -31,11 +31,11 @@ from ...problems._capacity_rows import CapacityRows
 from ...problems._compiled_request import CompiledRequest
 from ...problems._network_rows import NetworkRows
 from ...problems._topology_kernel import TopologyKernel
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import _ACTIVE, ENDS, Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from ._specs import SpecsPass
 from ._weight import _Weight
 
@@ -43,26 +43,27 @@ from ._weight import _Weight
 class TopologyFunctionsPass(BasePass):
     """Pass that compiles the topology changes, leaving out the compiled stepper loops when laws request them."""
 
-    reads = ('functions', 'kernels', 'reduced_apart', 'layout', 'reductions', 'request_jumps')
-    writes = ('functions', 'topology')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('functions', 'kernels', 'reduced_apart', 'layout', 'reductions', 'request_jumps')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Compile the topology changes of the networks.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('functions', 'topology')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Compile the topology changes of the networks."""
+        compilation = self.compilation_
         topology = self._topology(
             cast('Lowered', compilation.kernels),
             cast('Laws', compilation.reduced_apart),
             cast('Declarations', compilation.layout),
             cast('ReductionSchedule', compilation.reductions),
-            compilation.facts['request_jumps'],
+            compilation.request_jumps,
         )
         if topology is not None and (topology.requests or topology.channels):
             cast('dict[str, Any]', compilation.functions)['accelerated'] = None
-        compilation.facts['topology'] = topology
+        compilation.topology = topology
 
     @staticmethod
     def _request_kernel(spec: KernelSpec, value: object, declarations: Declarations) -> LawKernel:

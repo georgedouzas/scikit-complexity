@@ -18,7 +18,9 @@ def test_logistic_growth_saturates():
         elements=[PopulationElement('p', n=5)],
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )
-    assert Simulation(system, dt=1.0).run(until=30).trajectory_.values('p.n')[-1] == pytest.approx(200, rel=1e-3)
+    assert Simulation(
+        system, dt=1.0,
+    ).check().run(until=30).trajectory_.values('p.n')[-1] == pytest.approx(200, rel=1e-3)
 
 
 def test_lotka_volterra_oscillates():
@@ -31,7 +33,7 @@ def test_lotka_volterra_oscillates():
             MortalityInteraction('death', target='foxes', d=0.4),
         ],
     )
-    trajectory = Simulation(system, dt=0.1).run(until=50).trajectory_
+    trajectory = Simulation(system, dt=0.1).check().run(until=50).trajectory_
     rabbits = trajectory.values('rabbits.n')
     assert rabbits.min() > 0
     assert rabbits.max() > 2 * rabbits.min()

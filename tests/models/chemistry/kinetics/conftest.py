@@ -8,4 +8,4 @@ from skcomplex.engine.runtime import Simulation, Trajectory
 
 def _run(system: System, until: float, dt: float, **settings: Any) -> Trajectory:  # noqa: ANN401
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt, random_state=0, **settings).run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, **settings).check().run(until=until).trajectory_

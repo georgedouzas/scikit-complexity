@@ -20,36 +20,37 @@ from ...problems import (
     Layout,
     Reference,
     Source,
-    State,
     VariableKind,
     declarations_of,
     numpy_function,
 )
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._state import State
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 class FieldFunctionsPass(BasePass):
     """Pass that writes operators back into the equations and adds flux differences, symmetries, and fixed nodes."""
 
-    reads = ('functions', 'written', 'reduced', 'layout')
-    writes = ('functions', 'volumes', 'symmetries', 'constrained')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('functions', 'written', 'reduced', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the discretizations of the fields to the numeric functions.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('functions', 'volumes', 'symmetries', 'constrained')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the discretizations of the fields to the numeric functions."""
+        compilation = self.compilation_
         functions = cast('dict[str, Any]', compilation.functions)
         declarations = cast('Declarations', compilation.layout)
         states = Layout(declarations.states)
-        functions['equations'] = self._written_equations(functions['equations'], states, compilation.facts['written'])
+        functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
         blocks = list(declarations.blocks.values())
         volumes, constrained = self._with_discretizations(
             functions,
@@ -57,9 +58,9 @@ class FieldFunctionsPass(BasePass):
             declarations,
             blocks,
         )
-        compilation.facts['volumes'] = volumes
-        compilation.facts['symmetries'] = tuple(self._symmetries(blocks))
-        compilation.facts['constrained'] = constrained
+        compilation.volumes = volumes
+        compilation.symmetries = tuple(self._symmetries(blocks))
+        compilation.constrained = constrained
 
     @staticmethod
     def _written_equations(

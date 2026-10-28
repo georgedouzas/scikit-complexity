@@ -21,7 +21,7 @@ MODEL = 'dynamic_carrying_capacity'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
 
 # %%
 # Tumour and capacity

@@ -220,6 +220,19 @@ class BaseProblem(BaseValue):
         return False
 
     @property
+    def observables(self) -> list[tuple[str, ObservableSpec]]:
+        """The observables of the system, each with the path of the system that declares it, empty for the root."""
+        found: list[tuple[str, ObservableSpec]] = []
+        pending = [('', self.system)] if self.system is not None else []
+        while pending:
+            scope, system = pending.pop()
+            found += [(scope, item) for item in getattr(system, 'observables', ())]
+            pending += [
+                (f'{scope}/{child.label}' if scope else child.label, child) for child in reversed(system.systems)
+            ]
+        return found
+
+    @property
     def adaptive_parameters(self) -> dict[str, Variable]:
         """Declarations of the adaptive parameters, states that a schedule may set, by dotted state name."""
         return {}

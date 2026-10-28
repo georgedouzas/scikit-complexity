@@ -38,7 +38,7 @@ def test_carbon_cycle_is_excitable():
 
 def test_van_der_pol_ice_ages_cycle_every_hundred_thousand_years():
     """Test that the unforced ice-age oscillator settles on a relaxation cycle of about 100 thousand years."""
-    trajectory = Simulation(van_der_pol_ice_ages(), dt=0.5).run(until=400.0).trajectory_
+    trajectory = Simulation(van_der_pol_ice_ages(), dt=0.5).check().run(until=400.0).trajectory_
     climate = np.asarray(trajectory.values('climate.y'), dtype=float)
     times = np.asarray(trajectory.times)
     crossings = times[np.flatnonzero((climate[:-1] < 0) & (climate[1:] >= 0))]

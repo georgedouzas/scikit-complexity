@@ -22,7 +22,7 @@ MODEL = 'lamplighter_automaton'
 
 system = create(MODEL, radius=7, density=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).run(until=20)
+simulation = Simulation(system, observers=[observer]).check().run(until=20)
 
 # %%
 # Ones over time and invertibility on a quotient

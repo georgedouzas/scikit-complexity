@@ -6,23 +6,24 @@
 from typing import cast
 
 from ....core.laws import MatchLaw
-from .._compilation import BlockLaws, Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
+from .._compilation import BlockLaws
 
 
 class UnpackMatchesPass(BasePass):
     """Pass that replaces every matching by the rule it runs."""
 
-    reads = ('collected',)
-    writes = ('collected',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Replace the matchings by their rules.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Replace the matchings by their rules."""
+        compilation = self.compilation_
         compilation.collected = [
             (spec, [law._get_rule() if isinstance(law, MatchLaw) else law for law in laws], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)

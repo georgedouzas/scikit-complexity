@@ -33,15 +33,14 @@ from ....core.system import System
 from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
+from .._base import BasePass
 from .._block import Block
 from .._census import Census
 from .._census_record import CensusRecord
-from .._compilation import Compilation
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._observables import ObservableEvaluator
 from .._observer import Observer
-from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 from .._tree import Node
 from ._noise import NoisePass
@@ -51,16 +50,17 @@ from ._specs import SpecsPass
 class CensusPass(BasePass):
     """Pass that takes the census of the laws of the system, keeping going past failing components."""
 
-    reads = ('nodes',)
-    writes = ('census',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('nodes',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Take the census of the laws of the nodes.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('census',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Take the census of the laws of the nodes."""
+        compilation = self.compilation_
         compilation.census = self._census_of(compilation.system, cast('list[Node]', compilation.nodes))
 
     @staticmethod

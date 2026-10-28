@@ -1,4 +1,4 @@
-"""Compile a system into a problem of one mathematical form, continuing from the state its validation planned."""
+"""Compile a system into a problem of one mathematical form with the compiler that claims it."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,114 +6,14 @@
 from collections.abc import Mapping, Sequence
 from typing import cast
 
-import numpy as np
-
-from ...core.errors import ValidationError
 from ...core.specs import ObservableSpec
 from ...core.system import System
 from ..backends import BaseBackend
-from ..problems import BaseProblem, Form, Partition, Problem
-from ._compilation import Compilation
-from ._observables import _check_held_reads, _with_observables
-from ._pipeline import run_passes
-from ._plan import _Plan
-from ._tree import Node
-from ._validation import validate
-from .passes._core import _PASSES, claiming_compiler
-
-
-def _compiled(compilation: Compilation) -> Problem:
-    """Return the problem of a compilation, running every pass it has not run yet."""
-    return cast('Problem', run_passes(compilation, _PASSES).problem)
-
-
-def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> Problem:
-    """Return the problem of a system split into partitions, each compiled with the laws of its owners."""
-    partitions = []
-    for name, owners in plan:
-        problem = _compiled(compilation.fork(owners))
-        owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
-        indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
-        partitions.append(Partition(name, problem, indices.astype(np.intp), owners))
-    first = partitions[0].problem
-    equations = {
-        key: value
-        for item in partitions
-        for key, value in item.problem.equations.items()
-        if key.partition('.')[0] in item.owners
-    }
-    symbols = {
-        key: item.problem.equation_symbols[key]
-        for item in partitions
-        for key in item.problem.equations
-        if key in equations
-    }
-    return Problem(
-        form=Form.COUPLED,
-        states=first.states,
-        parameters=first.parameters,
-        initial_state=first.initial_state,
-        initial_parameters=first.initial_parameters,
-        time=first.time,
-        symbols=first.symbols,
-        equations=equations,
-        equation_symbols=symbols,
-        has_callables=any(item.problem.has_callables for item in partitions),
-        has_group_sums=any(item.problem.has_group_sums for item in partitions),
-        elements=first.elements,
-        interactions=first.interactions,
-        system=compilation.system,
-        agents=tuple(agents for item in partitions for agents in item.problem.agents),
-        agent_space=next((item.problem.agent_space for item in partitions if item.problem.agents), None),
-        partitions=tuple(partitions),
-    )
-
-
-def _planned_problem(compilation: Compilation) -> Problem:
-    """Return the problem of a validated compilation, one problem or one partition per planned subsystem.
-
-    The owners of a partition are the elements and groups of its subsystem whose lowered laws it holds.
-    """
-    plan = cast('_Plan', compilation.plan)
-    if len(plan.partitions) <= 1:
-        return _compiled(compilation)
-    kinds = cast('dict[str, set[type]]', run_passes(compilation, _PASSES, until='kinds').kinds)
-    owners = [(item.name, frozenset(owner for owner in kinds if item.holds(owner))) for item in plan.partitions]
-    return _partitioned(compilation, owners)
-
-
-def compiled_problem(system: 'System | BaseProblem', purpose: str) -> Problem:
-    """Return the compiler's problem of a system, or the problem itself, for work that reads the compiler's fields.
-
-    Args:
-        system:
-            A system, or a problem compiled from one.
-
-        purpose:
-            What needs the compiler's problem, such as `'Linear stability'`, for the error message.
-
-    Returns:
-        problem:
-            The compiler's problem.
-
-    Raises:
-        ValidationError:
-            A formalism compiles the system to a problem of its own, which the work cannot read.
-
-    Examples:
-        >>> from skcomplex.engine.compile import compiled_problem
-        >>> from skcomplex.models import create
-        >>> compiled_problem(create('lotka_volterra'), 'Linear stability').form.name
-        'ODE'
-    """
-    problem = system if isinstance(system, BaseProblem) else compile_system(system)
-    if isinstance(problem, Problem):
-        return problem
-    error_msg = (
-        f'{purpose} reads the problem of the general compiler, but the system compiles to a '
-        f'{type(problem).__name__} of the {problem.form.value} form.'
-    )
-    raise ValidationError(error_msg)
+from ..problems import BaseProblem
+from ._base import BaseCompiler
+from ._pass_compiler import PassCompiler
+from .passes._quantum_compiler import QuantumCompiler
+from .passes._rewriting_compiler import RewritingCompiler
 
 
 def compile_system(
@@ -126,9 +26,9 @@ def compile_system(
 ) -> BaseProblem:
     """Compile a system into a problem of the form its law kinds determine.
 
-    Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
-    evaluated for every member, and pair interactions are evaluated for every pair within their cutoff. Compilation
-    continues from the state that validation planned, so the system tree is flattened once.
+    The compilers of whole systems, of quantum and of rewriting systems, are asked in turn whether they claim the
+    system, and the general `PassCompiler` compiles every other system. The compiler that claims it validates the
+    system in `prepare` and compiles it in `run`.
 
     Args:
         system:
@@ -193,66 +93,10 @@ def compile_system(
         >>> problem.equations
         {'rabbits.n': n_rabbits*r_growth}
     """
-    report = validate(system, backend=backend, observables=observables)
-    report.raise_errors()
-    observed = _with_observables(system, observables)
-    initial = dict(initial_state or {})
-    compiler = claiming_compiler(observed)
-    if compiler is not None:
-        return cast('BaseProblem', compiler.run(observed, backend=backend, solver=solver, initial_state=initial))
-    compilation = cast('Compilation', report.compilation)
-    problem = _planned_problem(compilation)
-    _check_held_reads(problem, list(compilation.held))
-    return problem.with_initial_state(initial)
-
-
-def partition_system(system: System, backend: BaseBackend | None = None) -> Problem:
-    """Compile a system as one partition per subsystem, also when the whole system fits one form.
-
-    The elements of the root system form one partition and every child subsystem forms another, so a co-simulation
-    can advance them with separate solvers.
-
-    Args:
-        system:
-            The system to compile.
-
-        backend:
-            The backend of every partition.
-
-    Returns:
-        problem:
-            The partitioned problem.
-
-    Raises:
-        IncompatibleLawsError:
-            A partition mixes law kinds that no form supports.
-
-    Examples:
-        >>> from skcomplex.engine.compile import partition_system
-        >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     systems=[
-        ...         System(
-        ...             'a',
-        ...             elements=[PopulationElement('x')],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
-        ...         ),
-        ...         System(
-        ...             'b',
-        ...             elements=[PopulationElement('y')],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
-        ...         ),
-        ...     ],
-        ... )
-        >>> [partition.name for partition in partition_system(system).partitions]
-        ['a', 'b']
-    """
-    system = _with_observables(system, ())
-    compilation = run_passes(Compilation(system, backend), _PASSES, until='nodes')
-    elements = {node.path for node in cast('list[Node]', compilation.nodes) if not node._is_interaction()}
-    own = frozenset(path for path in elements if '/' not in path)
-    plan = [(system.label, own)] if own else []
-    for child in system.systems:
-        plan.append((child.label, frozenset(path for path in elements if path.startswith(f'{child.label}/'))))
-    return _partitioned(compilation, plan)
+    compilers: tuple[BaseCompiler, ...] = (
+        QuantumCompiler(backend, solver, observables),
+        RewritingCompiler(backend, solver, observables),
+        PassCompiler(backend=backend, solver=solver, observables=observables),
+    )
+    compiler = next(item for item in compilers if item.check().prepare(system).claims_)
+    return cast('BaseProblem', compiler.run(initial_state))

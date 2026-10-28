@@ -42,7 +42,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=300)
+).check().run(until=300)
 
 # %%
 # The money multiplier

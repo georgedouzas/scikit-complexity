@@ -35,7 +35,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL)
-simulation = Simulation(system, observers=[observer], dt=0.5, observables=describe(MODEL).observables_of(system)).run(
+simulation = Simulation(
+    system, observers=[observer], dt=0.5, observables=describe(MODEL).observables_of(system),
+).check().run(
     until=100,
 )
 
@@ -48,7 +50,7 @@ simulation = Simulation(system, observers=[observer], dt=0.5, observables=descri
 
 trajectory = simulation.trajectory_
 unchecked_system = create(MODEL, deterrence=0.0, recruitment=0.0)
-unchecked = Simulation(unchecked_system, dt=0.5, observables=describe(MODEL).observables_of(unchecked_system))
+unchecked = Simulation(unchecked_system, dt=0.5, observables=describe(MODEL).observables_of(unchecked_system)).check()
 unchecked_criminality = unchecked.run(until=100).trajectory_.values('mean_criminality')
 fig, (phase_axis, time_axis) = plt.subplots(1, 2, figsize=(10, 4))
 phase_axis.plot(trajectory.values('mean_criminality'), trajectory.values('security_forces'))

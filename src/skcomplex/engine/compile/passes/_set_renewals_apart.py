@@ -5,24 +5,25 @@
 
 from typing import cast
 
-from .._compilation import Compilation, Laws
-from .._pipeline import BasePass
+from .._base import BasePass
+from .._compilation import Laws
 from .._renewal_law import RenewalLaw
 
 
 class SetRenewalsApartPass(BasePass):
     """Pass that takes the renewal laws out of the laws lowered into kernels, since they compile on their own."""
 
-    reads = ('reduced',)
-    writes = ('reduced',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('reduced',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Take the renewal laws out of the reduced laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('reduced',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Take the renewal laws out of the reduced laws."""
+        compilation = self.compilation_
         compilation.reduced = [
             (spec, [law for law in laws if not isinstance(law, RenewalLaw)])
             for spec, laws in cast('Laws', compilation.reduced)

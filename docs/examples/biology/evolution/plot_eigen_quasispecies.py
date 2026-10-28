@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, u=0.3, sigma=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=40)
 
 # %%
 # The error threshold
@@ -48,7 +48,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=40)
 
 rates = np.linspace(0.0, 0.7, 15)
 shares = [
-    Simulation(create(MODEL, u=rate, sigma=0.5), dt=1).run(until=200).trajectory_.values('master.x')[-1]
+    Simulation(create(MODEL, u=rate, sigma=0.5), dt=1).check().run(until=200).trajectory_.values('master.x')[-1]
     for rate in rates
 ]
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -8,24 +8,24 @@ from typing import cast
 from ....core.laws import RateLaw
 from ...problems import Form, Lowered, ReductionSchedule
 from ...problems._jacobian_kernel import JacobianKernel
-from .._compilation import Compilation
+from .._base import BasePass
 from .._declarations import Declarations
-from .._pipeline import BasePass
 
 
 class JacobianPass(BasePass):
     """Pass that derives the exact Jacobian of the drift of an ODE problem, and none for other forms."""
 
-    reads = ('kernels', 'form', 'reductions', 'layout')
-    writes = ('jacobian',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('kernels', 'form', 'reductions', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Derive the Jacobian of the drift.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('jacobian',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Derive the Jacobian of the drift."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         compilation.jacobian = (
             JacobianKernel(

@@ -12,7 +12,6 @@ import numpy.typing as npt
 
 from ..core.errors import AnalysisError
 from ..core.types import Vector
-from ..engine.compile import compiled_problem
 from ..engine.problems import EventKernel, EventRecord, Form, Problem
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
@@ -156,7 +155,7 @@ class SectionAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the flow of the section."""
-        problem = compiled_problem(self._read_system(source), 'A section')
+        problem = self._compiled_problem(self._read_system(source), 'A section')
         if problem.form not in {Form.ODE, Form.SDE}:
             error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
             raise AnalysisError(error_msg)
@@ -182,7 +181,7 @@ class SectionAnalysis(BaseAnalysis):
         event = EventKernel(SECTION, guard, None, int(self.direction), False).check()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
-            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)
+            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state).check()
             .run(self.until)
             .trajectory_
         )
@@ -201,7 +200,7 @@ class SectionAnalysis(BaseAnalysis):
         period = float(self.period)  # type: ignore[arg-type]
         transient = int(self.transient if self.transient is not None else 100)
         until = period * (transient + self.n_points - 1)
-        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state)
+        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check()
         trajectory = simulation.run(until).trajectory_
         return trajectory.times[transient:], trajectory.states[transient:]
 

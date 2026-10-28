@@ -62,6 +62,11 @@ def test_pair_interaction_conserves_momentum():
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=0.2)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
+    trajectory = (
+        Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05)
+        .check()
+        .run(until=2)
+        .trajectory_
+    )
     momentum = trajectory.values('gas.v').sum(axis=1)
     assert np.allclose(momentum, momentum[0], atol=1e-8)

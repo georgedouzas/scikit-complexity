@@ -20,7 +20,11 @@ from skcomplex.models import create
 MODEL = 'poisson_process'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observer], random_state=0).run(until=50)
+simulation = (
+    Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observer], random_state=0)
+    .check()
+    .run(until=50)
+)
 
 # %%
 # Poisson counts
@@ -29,7 +33,7 @@ simulation = Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observe
 # the variance over the mean, should be 1 at every time, within the few percent of sampling
 # error of 2000 counters, the signature of independent events.
 
-counts = Simulation(create(MODEL, n_processes=2000), dt=1.0, random_state=1).run(until=50).trajectory_
+counts = Simulation(create(MODEL, n_processes=2000), dt=1.0, random_state=1).check().run(until=50).trajectory_
 values = counts.values('counters.count')
 fig, (distribution, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)

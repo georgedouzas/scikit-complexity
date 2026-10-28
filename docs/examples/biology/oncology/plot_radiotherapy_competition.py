@@ -21,7 +21,7 @@ MODEL = 'radiotherapy_competition'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=7.0, observers=[observer]).run(until=1400)
+simulation = Simulation(system, dt=7.0, observers=[observer]).check().run(until=1400)
 
 # %%
 # Coexistence instead of exclusion
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=7.0, observers=[observer]).run(until=1400)
 r1, r2, c1, c2, a2, epsilon = 0.008, 0.4, 0.01, 0.15, 0.2, 0.001
 kill = a2 * 5 / 7
 normal = (r1 - epsilon - c1 * (1 - kill / r2)) / (r1 - c1 * c2 / r2)
-untreated = Simulation(create(MODEL, a2=0.0, epsilon=0.0), dt=7.0).run(until=1400).trajectory_
+untreated = Simulation(create(MODEL, a2=0.0, epsilon=0.0), dt=7.0).check().run(until=1400).trajectory_
 treated = simulation.trajectory_
 fig, (cells, tumour) = plt.subplots(1, 2, figsize=(10, 4))
 cells.plot(treated.times, treated.values('tissue.N'), label='irradiated')

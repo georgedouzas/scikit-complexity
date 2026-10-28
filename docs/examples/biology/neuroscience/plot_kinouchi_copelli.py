@@ -40,7 +40,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(280)
+).check().run(280)
 
 # %%
 # Response curves and the dynamic range
@@ -57,7 +57,7 @@ responses = {}
 for sigma in sigmas:
     responses[sigma] = []
     for rate in rates:
-        run = Simulation(create(MODEL, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0).run(600)
+        run = Simulation(create(MODEL, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0).check().run(600)
         responses[sigma].append((run.trajectory_.values('neurons.phase')[100:] == 1).mean())
 
 

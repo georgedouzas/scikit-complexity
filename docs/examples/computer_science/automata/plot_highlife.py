@@ -21,7 +21,7 @@ MODEL = 'highlife'
 
 system = create(MODEL, shape=(100, 100), density=0.3, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=200)
 
 # %%
 # Soup decay and the replicator
@@ -31,11 +31,15 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=200)
 # live cells rising in bursts as the copies multiply on the small torus, while the same pattern under Life's rule
 # `B3/S23` should settle into a few still lifes within about 25 generations.
 
-life = Simulation(create(MODEL, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1).run(until=200)
+life = (
+    Simulation(create(MODEL, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1)
+    .check()
+    .run(until=200)
+)
 replicator = np.zeros((64, 64))
 replicator[30:35, 30:35] = [[0, 0, 1, 1, 1], [0, 1, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 1, 0], [1, 1, 1, 0, 0]]
 grown = {
-    rule: Simulation(create(MODEL, shape=(64, 64), rule=rule, initial=replicator), dt=1)
+    rule: Simulation(create(MODEL, shape=(64, 64), rule=rule, initial=replicator), dt=1).check()
     .run(until=90)
     .trajectory_.lattice('cells.alive')
     .sum(axis=(1, 2))

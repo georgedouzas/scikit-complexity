@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).run(40)
+simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().run(40)
 
 # %%
 # Filling the landfill

@@ -19,8 +19,8 @@ from ..problems._quantum_kernel import QuantumKernel
 from ..problems._quantum_problem import QuantumProblem
 from ..problems._quantum_view import QuantumView
 from ..runtime import Frame
+from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
-from ._visuals import BaseVisual
 
 
 class ExpectationVisual(ImageVisual):

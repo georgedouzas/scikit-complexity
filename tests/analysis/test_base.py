@@ -166,7 +166,7 @@ def test_series_labels_of_every_scalar_series():
 def test_jump_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
     system = System(elements=[BirthDeathElement('cells')])
-    trajectory = Simulation(system, dt=0.01, random_state=0).run(until=20).trajectory_
+    trajectory = Simulation(system, dt=0.01, random_state=0).check().run(until=20).trajectory_
     path = PathAnalysis().check().prepare(trajectory).path_
     assert path.label == 'cells.n'
     assert np.all(np.diff(path.states) != 0)

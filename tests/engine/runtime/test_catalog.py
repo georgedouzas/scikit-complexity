@@ -9,7 +9,7 @@ from sklearn.base import clone
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
-from skcomplex.engine.compile import compile_system, observables_of, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -100,8 +100,8 @@ def test_create_matches_components():
             MortalityInteraction('death', target='predators', d=0.4),
         ],
     )
-    first = Simulation(created, dt=0.1).run(until=5).trajectory_.states
-    second = Simulation(built, dt=0.1).run(until=5).trajectory_.states
+    first = Simulation(created, dt=0.1).check().run(until=5).trajectory_.states
+    second = Simulation(built, dt=0.1).check().run(until=5).trajectory_.states
     assert np.array_equal(first, second)
 
 
@@ -134,19 +134,19 @@ def test_model_conforms(entry, tmp_path):
     """Test that a registered model is created, validated, compiled, simulated, logged, and cloned generically."""
     defaults = describe(entry.name).defaults
     system = create(entry.name)
-    assert validate(system).ok
+    assert PassCompiler().check().prepare(system).report_.ok
     problem = compile_system(system)
     settings = {key: value for key, value in defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)
     until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(entry.name, save_path=tmp_path / 'run.rrd')
     observables = describe(entry.name).observables_of(system)
-    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings)
+    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings).check()
     trajectory = simulation.run(until=until).trajectory_
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
         assert len(trajectory.values(name)) == len(trajectory.times)
-    for scope, observable in observables_of(system):
+    for scope, observable in problem.observables:
         assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
             trajectory.times,
         )

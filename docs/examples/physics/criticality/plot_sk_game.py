@@ -40,7 +40,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(200)
+).check().run(200)
 
 # %%
 # Freezing and exploration
@@ -54,7 +54,9 @@ rewards, flips = [], []
 for temperature in temperatures:
     run = create(MODEL, temperature=temperature)
     couplings = run.elements[0].values['couplings']
-    actions = np.asarray(Simulation(run, dt=1, random_state=0).run(150).trajectory_.values('agents.sigma'))[-50:]
+    actions = np.asarray(Simulation(
+        run, dt=1, random_state=0,
+    ).check().run(150).trajectory_.values('agents.sigma'))[-50:]
     rewards.append(np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1])
     flips.append((actions[1:] != actions[:-1]).mean())
 

@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
 from ..core.errors import AnalysisError, ValidationError
-from ..engine.compile import compiled_problem
 from ..engine.problems import Form, Problem
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
@@ -141,7 +140,7 @@ class LinearizationAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it runs in continuous time."""
-        problem = compiled_problem(self._read_system(source), 'Linearization')
+        problem = self._compiled_problem(self._read_system(source), 'Linearization')
         if problem.form != Form.ODE:
             error_msg = (
                 f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form.value}.'

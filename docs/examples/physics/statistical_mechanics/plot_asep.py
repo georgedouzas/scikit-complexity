@@ -23,7 +23,11 @@ MODEL = 'asep'
 
 system = create(MODEL, n_sites=100, alpha=0.3, gamma=0.7)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).run(until=250)
+simulation = (
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend())
+    .check()
+    .run(until=250)
+)
 
 # %%
 # Density profiles and currents of the three phases
@@ -36,7 +40,9 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0, ba
 phases = {'low density': (0.3, 0.7), 'high density': (0.7, 0.3), 'maximal current': (0.8, 0.8)}
 fig, (profiles, currents) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, (alpha, gamma)) in enumerate(phases.items()):
-    run = Simulation(create(MODEL, alpha=alpha, gamma=gamma), dt=2.0, random_state=0, backend=NumbaBackend()).run(
+    run = Simulation(
+        create(MODEL, alpha=alpha, gamma=gamma), dt=2.0, random_state=0, backend=NumbaBackend(),
+    ).check().run(
         until=4000,
     )
     lane = run.trajectory_.values('lane.n')[250:]

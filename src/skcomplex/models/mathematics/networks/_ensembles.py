@@ -251,7 +251,7 @@ def network_attack(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import network_attack
-        >>> trajectory = Simulation(network_attack(50), random_state=0).run(until=3).trajectory_
+        >>> trajectory = Simulation(network_attack(50), random_state=0).check().run(until=3).trajectory_
         >>> int(trajectory.network(-1).nodes.size) < 50
         True
     """
@@ -314,7 +314,7 @@ def random_graph_ensembles(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import random_graph_ensembles
         >>> system = random_graph_ensembles(40, ensemble='watts_strogatz', steps=5)
-        >>> trajectory = Simulation(system, random_state=0).run(until=5).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).check().run(until=5).trajectory_
         >>> int(trajectory.network(-1).sources.size)
         80
     """

@@ -1,4 +1,4 @@
-"""Define observers, which receive the frames of a simulation."""
+"""Record the frames of a simulation as a trajectory."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,25 +6,10 @@
 import numpy as np
 
 from ...core.errors import SimulationError
-from ..base import BaseEstimator
 from ..problems import BaseProblem
+from ._base import BaseObserver
 from ._frames import Frame
 from ._trajectories import Trajectory
-
-
-class BaseObserver(BaseEstimator):
-    """Base class of objects that receive the frames of a simulation.
-
-    A simulation calls `prepare(problem)` with the compiled problem before the first frame, `run(frame)` with every
-    frame, and `run(final=True)` without a frame once the run stops, which releases what preparing acquired. Subclasses
-    override any of the hooks `_prepare`, `_run`, and `_release`.
-    """
-
-    def _prepare(self, problem: BaseProblem) -> None:
-        """Prepare for a run of the compiled problem; prepare nothing by default."""
-
-    def _run(self, frame: Frame | None = None) -> None:
-        """React to a frame, or to the end of the run without one; do nothing by default."""
 
 
 class RecorderObserver(BaseObserver):
@@ -42,7 +27,7 @@ class RecorderObserver(BaseObserver):
         >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
         >>> recorder = RecorderObserver()
-        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder]).run(until=2)
+        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder]).check().run(until=2)
         >>> len(recorder.trajectory_.times)
         3
     """

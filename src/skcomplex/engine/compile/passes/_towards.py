@@ -10,11 +10,11 @@ from sage.all__sagemath_symbolics import SR
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, UpdateLaw
 from ...problems._topology_kernel import TopologyKernel
+from .._base import BasePass
 from .._block import Block
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 from ._weight import _Weight
@@ -23,16 +23,17 @@ from ._weight import _Weight
 class TowardsPass(BasePass):
     """Pass that sets apart the weight of the candidate nodes of every request, read through reductions like laws."""
 
-    reads = ('drawn_apart', 'drawn', 'layout')
-    writes = ('drawn_apart',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn_apart', 'drawn', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Set the weights of the requests apart.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn_apart',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Set the weights of the requests apart."""
+        compilation = self.compilation_
         apart = cast('Laws', compilation.drawn_apart)
         towards = self._toward_specs(
             [*cast('Laws', compilation.drawn), *apart],

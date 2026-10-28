@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, strategy='adaptive')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=10)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=200)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=200)
 
 # %%
 # The costs of the three levels of adaptivity
@@ -50,7 +50,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=200)
 
 totals = {}
 for strategy in STRATEGIES:
-    trajectory = Simulation(create(MODEL, strategy=strategy), dt=0.1).run(until=200).trajectory_
+    trajectory = Simulation(create(MODEL, strategy=strategy), dt=0.1).check().run(until=200).trajectory_
     totals[strategy] = [trajectory.values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))
