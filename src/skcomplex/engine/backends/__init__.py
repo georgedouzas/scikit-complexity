@@ -1,6 +1,6 @@
 """Backends that write the numeric functions of compiled problems: NumPy and Numba."""
 
-from ._base import BaseBackend, Lowering, reads_reductions
+from ._base import BaseBackend, Lowering
 from ._numba import NumbaBackend
 from ._numpy import NumpyBackend
 from ._resolve import resolve_backend
@@ -10,6 +10,5 @@ __all__: list[str] = [
     'Lowering',
     'NumbaBackend',
     'NumpyBackend',
-    'reads_reductions',
     'resolve_backend',
 ]

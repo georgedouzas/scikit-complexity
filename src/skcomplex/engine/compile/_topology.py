@@ -13,7 +13,7 @@ from ...core.errors import ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
 from ...core.specs import EDGE_KINDS, TopologyRequestSpec
 from ...core.types import Vector
-from ..backends import reads_reductions
+from ..backends import BaseBackend
 from ..problems import Kernel, NetworkSnapshot, ReductionSchedule
 from ._capacity import CapacityRows
 
@@ -321,7 +321,7 @@ class Topology:
         if not self.requests:
             return []
         conditions = [item.condition for item in self.requests if item.condition is not None]
-        q = self.reductions.extend(t, x, p) if reads_reductions(conditions) else p
+        q = self.reductions.extend(t, x, p) if BaseBackend._reads_reductions(conditions) else p
         fired = []
         for index, item in enumerate(self.requests):
             assert item.condition is not None  # nosec B101: update requests carry their condition
