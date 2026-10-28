@@ -32,129 +32,39 @@ from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, Lattice
 from ...core.types import Vector
 from ..problems import Form, OrderKind, Problem, SupportSpec, VectorFunction, components_of, step_count
 from ._hybrid import (
-    RESTART,
+    _RESTART,
     History,
     Interpolant,
-    advance_fixed_steps,
-    find_left_limit,
-    find_smallest_delay,
+    _advance_fixed_steps,
+    _find_left_limit,
+    _find_smallest_delay,
+    _is_hybrid,
+    _open_history,
+    _reject_hybrid,
+    _with_delays,
     hermite,
-    is_hybrid,
-    open_history,
-    reject_hybrid,
-    with_delays,
 )
 from ._stepper import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
-IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
-JACOBIANS = ('auto', 'exact', 'dense')
-DENSITY_LIMIT = 0.5
-BAND_FRACTION = 0.1
-STIFF_SPAN = 1000
-EXPLICIT_SPAN = 100
-DISCONTINUITY_ORDERS = 3
-STEPS_PER_FRAME = 100
-LARGEST_TIME = sys.float_info.max
-LSODA_LARGEST_SIZE = 4096
-STALL_STEP = 1e-9
-RESTING_SPAN = 1e-9
-STALL_STEPS = 1000
-MAX_FRAME_STEPS = 50_000
-BLOW_UP = 1e12
-SMALL_NORM = 1e-5
-TINY_NORM = 1e-15
-FALLBACK_STEP = 1e-6
-
-
-def _lsoda_first_step(
-    field: Callable[[float, Vector], Vector],
-    t: float,
-    x: Vector,
-    *,
-    end: float,
-    max_step: float,
-    rtol: float,
-    atol: float,
-) -> float | None:
-    """Return the first step of LSODA when the drift vanishes at the start, or `None` to let LSODA choose.
-
-    LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
-    largest step it fails before its first step on a far end. The step then comes from the drift's change over a trial
-    step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is kept, since a
-    trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small steps.
-    """
-    span = abs(end - t)
-    with np.errstate(all='ignore'):
-        drift = field(t, x)
-        scale = atol + np.abs(x) * rtol
-        drift_norm = np.sqrt(np.mean((drift / scale) ** 2))
-        if drift_norm >= SMALL_NORM:
-            return None
-        trial = min(FALLBACK_STEP, span)
-        change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
-        largest = max(drift_norm, change)
-        second = max(FALLBACK_STEP, trial * 1e-3) if largest <= TINY_NORM else (0.01 / largest) ** 0.5
-        step = min(100 * trial, second, span, max_step)
-    return float(step) if math.isfinite(step) and step > 0 else None
-
-
-def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    """Return the flat indices of the position components and of their velocities, in matching order."""
-    indices: dict[Expression, npt.NDArray[np.int64]] = {}
-    for entry in problem.states.entries:
-        for column, item in enumerate(components_of(problem.symbols[entry.name])):
-            indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
-    positions, velocities = [], []
-    for name, equation in problem.equations.items():
-        if equation.is_symbol() and equation in indices:
-            positions.append(indices[problem.equation_symbols[name]])
-            velocities.append(indices[equation])
-    position_indices = np.concatenate([np.zeros(0, dtype=np.int64), *positions]).astype(np.int64)
-    velocity_indices = np.concatenate([np.zeros(0, dtype=np.int64), *velocities]).astype(np.int64)
-    covered = set(position_indices.tolist()) | set(velocity_indices.tolist())
-    missing = [
-        entry.name
-        for entry in problem.states.entries
-        if not set(range(entry.start, entry.start + entry.size)) <= covered
-    ]
-    if missing:
-        error_msg = (
-            f'VelocityVerletSolver integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} are '
-            'neither. Use RK4Solver or ScipyODESolver for this system.'
-        )
-        raise SolverError(error_msg)
-    return position_indices, velocity_indices
-
-
-def rk4_step(field: Callable[[float, Vector], Vector], time: float, state: Vector, step: float | Vector) -> Vector:
-    """Return the state after one classical Runge-Kutta step, with one step length or one per state component.
-
-    The step spans the longest of the step lengths in time.
-
-    Args:
-        field:
-            The drift `field(t, x)`.
-
-        time:
-            The time at the start of the step.
-
-        state:
-            The state at the start of the step.
-
-        step:
-            The step length, or one step length per state component.
-
-    Returns:
-        state:
-            The state at the end of the step, before the boundary laws.
-    """
-    span = float(np.max(step))
-    k1 = field(time, state)
-    k2 = field(time + span / 2, state + step / 2 * k1)
-    k3 = field(time + span / 2, state + step / 2 * k2)
-    k4 = field(time + span, state + step * k3)
-    return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+_IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
+_JACOBIANS = ('auto', 'exact', 'dense')
+_DENSITY_LIMIT = 0.5
+_BAND_FRACTION = 0.1
+_STIFF_SPAN = 1000
+_EXPLICIT_SPAN = 100
+_DISCONTINUITY_ORDERS = 3
+_STEPS_PER_FRAME = 100
+_LARGEST_TIME = sys.float_info.max
+_LSODA_LARGEST_SIZE = 4096
+_STALL_STEP = 1e-9
+_RESTING_SPAN = 1e-9
+_STALL_STEPS = 1000
+_MAX_FRAME_STEPS = 50_000
+_BLOW_UP = 1e12
+_SMALL_NORM = 1e-5
+_TINY_NORM = 1e-15
+_FALLBACK_STEP = 1e-6
 
 
 @dataclass(frozen=True)
@@ -283,8 +193,8 @@ class ScipyODESolver(Solver):
         if self.method != 'auto' and self.method not in METHODS:
             error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
-        if self.jacobian not in JACOBIANS:
-            error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, JACOBIANS))}.'
+        if self.jacobian not in _JACOBIANS:
+            error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, _JACOBIANS))}.'
             raise SolverError(error_msg)
         self.jacobian_pattern_ = None
         self.jacobian_options_: dict[str, Any] = {}
@@ -294,13 +204,13 @@ class ScipyODESolver(Solver):
         self._frame_steps = 0
         self._choosing = False
         self.method_ = 'LSODA' if self.method == 'auto' else self.method
-        if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
+        if self.method_ in _IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
         if self.method_ == 'LSODA' and not self._fits_lsoda(problem.initial_state.size):
             if self.method != 'auto':
                 error_msg = (
                     f'LSODA would store a dense {problem.initial_state.size} x {problem.initial_state.size} matrix, '
-                    f'more than the limit of {LSODA_LARGEST_SIZE} states without a narrow band. Use '
+                    f'more than the limit of {_LSODA_LARGEST_SIZE} states without a narrow band. Use '
                     "ScipyODESolver(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
                     'method.'
                 )
@@ -318,7 +228,7 @@ class ScipyODESolver(Solver):
 
     def _fits_lsoda(self, size: int) -> bool:
         """Check whether the dense or banded matrix of LSODA fits for a state of a size."""
-        return size <= LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
+        return size <= _LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
     def _prepare_jacobian(self, problem: Problem) -> None:
         """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
@@ -331,7 +241,7 @@ class ScipyODESolver(Solver):
             return
         pattern = jacobian.pattern()
         size = problem.initial_state.size
-        if pattern is None or pattern.nnz > DENSITY_LIMIT * size * size:
+        if pattern is None or pattern.nnz > _DENSITY_LIMIT * size * size:
             return
         self.jacobian_pattern_ = pattern
         if self.method_ != 'LSODA':
@@ -340,7 +250,7 @@ class ScipyODESolver(Solver):
         rows, columns = pattern.nonzero()
         lower = int(np.max(rows - columns, initial=0))
         upper = int(np.max(columns - rows, initial=0))
-        if max(lower, upper) <= BAND_FRACTION * size:
+        if max(lower, upper) <= _BAND_FRACTION * size:
             self.jacobian_options_ = {'lband': lower, 'uband': upper}
 
     def _jacobian_options(self, history: History | None, p: Vector) -> dict[str, Any]:
@@ -353,7 +263,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
-            matrix = jacobian.evaluate(time, state, with_delays(problem, history, time, state, p))
+            matrix = jacobian.evaluate(time, state, _with_delays(problem, history, time, state, p))
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}
@@ -364,18 +274,18 @@ class ScipyODESolver(Solver):
             return
         self._choosing = False
         limit = self.problem_.stable_step
-        if limit is not None and span > EXPLICIT_SPAN * limit:
+        if limit is not None and span > _EXPLICIT_SPAN * limit:
             self.method_ = 'BDF'
             self._prepare_jacobian(self.problem_)
 
     def _warn_stiff(self, t: float, until: float) -> None:
         """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
         limit = self.problem_.stable_step
-        if self._warned or self.method_ in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
+        if self._warned or self.method_ in _IMPLICIT or limit is None or until - t <= _STIFF_SPAN * limit:
             return
         self._warned = True
         warning_msg = (
-            f'{self.method_} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
+            f'{self.method_} spans {until - t:.6g} in one call, more than {_STIFF_SPAN} times the stability limit '
             f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
             "ScipyODESolver(method='BDF') or ScipyODESolver(method='Radau'), which receive the sparsity pattern of the "
             "Jacobian."
@@ -386,7 +296,7 @@ class ScipyODESolver(Solver):
         """Check whether a call continues the state, time, and parameters the integrator returned last."""
         return (
             self._solver is not None
-            and abs(t - self._time) <= RESTART * max(1.0, abs(t))
+            and abs(t - self._time) <= _RESTART * max(1.0, abs(t))
             and np.array_equal(x, self._state)
             and np.array_equal(p, self._parameters)
         )
@@ -399,7 +309,7 @@ class ScipyODESolver(Solver):
         times = [
             history.start + order * delay.minimum
             for delay in self.problem_.delays
-            for order in range(1, DISCONTINUITY_ORDERS + 1)
+            for order in range(1, _DISCONTINUITY_ORDERS + 1)
             if history.start + order * delay.minimum > time
         ]
         return min(times, default=math.inf)
@@ -411,23 +321,23 @@ class ScipyODESolver(Solver):
         history = self.history_
         if history is not None:
             history.truncate(t)
-        after = t + RESTART * max(1.0, abs(t))
+        after = t + _RESTART * max(1.0, abs(t))
         later = problem.breakpoints.next_after(after)
         if problem.breakpoints.unresolved:
             later = self._until if later is None else min(later, self._until)
         bound = min(later if later is not None else math.inf, self._next_discontinuity(after))
-        ceiling = find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
+        ceiling = _find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
 
         def field(time: float, state: Vector) -> Vector:
             time = min(time, ceiling)
-            return drift(time, state, with_delays(problem, history, time, state, p))  # type: ignore[misc]
+            return drift(time, state, _with_delays(problem, history, time, state, p))  # type: ignore[misc]
 
-        delay = find_smallest_delay(problem)
-        end = min(bound, LARGEST_TIME)
-        max_step = max(delay, self._frame / STEPS_PER_FRAME)
+        delay = _find_smallest_delay(problem)
+        end = min(bound, _LARGEST_TIME)
+        max_step = max(delay, self._frame / _STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
         if first_step is None and self.method_ == 'LSODA':
-            first_step = _lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
+            first_step = self._lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
         self._solver = METHODS[self.method_](
             field,
             t,
@@ -456,7 +366,7 @@ class ScipyODESolver(Solver):
             message = solver.step()
             if solver.status == 'failed':
                 largest = float(np.max(np.abs(solver.y))) if solver.y.size else 0.0
-                if not np.isfinite(largest) or largest > BLOW_UP:
+                if not np.isfinite(largest) or largest > _BLOW_UP:
                     error_msg = (
                         f'The solution blows up near t = {start}: the largest state reaches {largest:.3g}, and the '
                         f'{self.method_} integrator cannot follow it. Check the laws for growth without bound, or end '
@@ -465,7 +375,7 @@ class ScipyODESolver(Solver):
                     raise SolverError(error_msg)
                 error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
-            if solver.t == start and solver.t_bound - start <= 2 * RESTART * max(1.0, abs(start)):
+            if solver.t == start and solver.t_bound - start <= 2 * _RESTART * max(1.0, abs(start)):
                 self._restart(solver.t_bound, before, p)
                 continue
             if solver.t == start or not np.all(np.isfinite(solver.y)):
@@ -502,28 +412,28 @@ class ScipyODESolver(Solver):
         """
         self._frame_steps += 1
         if self.method_ != 'LSODA':
-            if self._frame_steps >= MAX_FRAME_STEPS:
+            if self._frame_steps >= _MAX_FRAME_STEPS:
                 error_msg = (
-                    f'The {self.method_} integrator took {MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
+                    f'The {self.method_} integrator took {_MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
                     'state slides along a discontinuity of the drift, which no adaptive integrator crosses. Smooth the '
                     'switch of the law, or use a fixed step with RK4Solver.'
                 )
                 raise SolverError(error_msg)
             return False
-        if self._frame_steps >= MAX_FRAME_STEPS:
+        if self._frame_steps >= _MAX_FRAME_STEPS:
             return True
-        if end - start >= STALL_STEP * max(1.0, abs(end)):
+        if end - start >= _STALL_STEP * max(1.0, abs(end)):
             self._stalled = 0
             return False
         self._stalled += 1
-        return self._stalled >= STALL_STEPS
+        return self._stalled >= _STALL_STEPS
 
     def _leave_lsoda(self, t: float, x: Vector, p: Vector) -> None:
         """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
         cause = (
-            f'{MAX_FRAME_STEPS} steps in one frame'
-            if self._frame_steps >= MAX_FRAME_STEPS
-            else f'{STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time'
+            f'{_MAX_FRAME_STEPS} steps in one frame'
+            if self._frame_steps >= _MAX_FRAME_STEPS
+            else f'{_STALL_STEPS} consecutive steps shorter than {_STALL_STEP:g} of the time'
         )
         if self.method != 'auto':
             error_msg = (
@@ -550,7 +460,7 @@ class ScipyODESolver(Solver):
         low, high = self._time, end
         if changed(low):
             return end
-        while high - low > RESTART * max(1.0, abs(high)):
+        while high - low > _RESTART * max(1.0, abs(high)):
             middle = (low + high) / 2
             low, high = (low, middle) if changed(middle) else (middle, high)
         return high
@@ -579,7 +489,7 @@ class ScipyODESolver(Solver):
             self._time, self._state = end, after
             return
         time = self._first_change(segment.dense, end, p)
-        if time - self._time <= RESTING_SPAN * max(1.0, abs(time)):
+        if time - self._time <= _RESTING_SPAN * max(1.0, abs(time)):
             time = end
         self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
@@ -622,11 +532,44 @@ class ScipyODESolver(Solver):
         if not self._continues(t, x, p):
             self._frame = until - t
             self._restart(t, x, p)
-        while self._time < until - RESTART * max(1.0, abs(until)):
+        while self._time < until - _RESTART * max(1.0, abs(until)):
             self._to_event(p, until)
             if self.locator_.stopped_at is not None:
                 return self._state.copy()
         return self._state.copy()
+
+    @staticmethod
+    def _lsoda_first_step(
+        field: Callable[[float, Vector], Vector],
+        t: float,
+        x: Vector,
+        *,
+        end: float,
+        max_step: float,
+        rtol: float,
+        atol: float,
+    ) -> float | None:
+        """Return the first step of LSODA when the drift vanishes at the start, or `None` to let LSODA choose.
+
+        LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
+        largest step it fails before its first step on a far end. The step then comes from the drift's change over a
+        trial step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is
+        kept, since a trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small
+        steps.
+        """
+        span = abs(end - t)
+        with np.errstate(all='ignore'):
+            drift = field(t, x)
+            scale = atol + np.abs(x) * rtol
+            drift_norm = np.sqrt(np.mean((drift / scale) ** 2))
+            if drift_norm >= _SMALL_NORM:
+                return None
+            trial = min(_FALLBACK_STEP, span)
+            change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
+            largest = max(drift_norm, change)
+            second = max(_FALLBACK_STEP, trial * 1e-3) if largest <= _TINY_NORM else (0.01 / largest) ** 0.5
+            step = min(100 * trial, second, span, max_step)
+        return float(step) if math.isfinite(step) and step > 0 else None
 
 
 class RK4Solver(Solver):
@@ -686,20 +629,20 @@ class RK4Solver(Solver):
         def field(time: float, state: Vector) -> Vector:
             return drift(time, state, p)
 
-        return self._bounded(time + float(np.max(lengths)), rk4_step(field, time, state, lengths), p)
+        return self._bounded(time + float(np.max(lengths)), self._rk4_step(field, time, state, lengths), p)
 
     def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate with fixed RK4 steps, interpolating every step for delays and locating events in it."""
         problem = self.problem_
         drift = cast('VectorFunction', problem.drift)
-        history = self.history_ = open_history(problem, self.history_, t, x)
+        history = self.history_ = _open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Vector, step: float, ceiling: float) -> tuple[Vector, Interpolant]:
             def field(time: float, state: Vector) -> Vector:
                 time = min(time, ceiling)
-                return drift(time, state, with_delays(problem, history, time, state, p))
+                return drift(time, state, _with_delays(problem, history, time, state, p))
 
-            following = rk4_step(field, time, state, step)
+            following = self._rk4_step(field, time, state, step)
             interpolant = hermite(
                 time,
                 state,
@@ -710,7 +653,7 @@ class RK4Solver(Solver):
             )
             return following, interpolant
 
-        return advance_fixed_steps(
+        return _advance_fixed_steps(
             t,
             x,
             p,
@@ -754,7 +697,7 @@ class RK4Solver(Solver):
             return x
         if self.problem_.renewals:
             return self._advance_renewals(t, x, p, until, dt=self.dt, step=self._step)
-        if is_hybrid(self.problem_, t, until):
+        if _is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
         accelerated = self.problem_.accelerated
         if accelerated is not None and accelerated.rk4 is not None:
@@ -765,6 +708,36 @@ class RK4Solver(Solver):
         for index in range(n_steps):
             state = self._step(t + index * step, state, p, step)
         return state
+
+    @staticmethod
+    def _rk4_step(field: Callable[[float, Vector], Vector], time: float, state: Vector, step: float | Vector) -> Vector:
+        """Return the state after one classical Runge-Kutta step, with one step length or one per state component.
+
+        The step spans the longest of the step lengths in time.
+
+        Args:
+            field:
+                The drift `field(t, x)`.
+
+            time:
+                The time at the start of the step.
+
+            state:
+                The state at the start of the step.
+
+            step:
+                The step length, or one step length per state component.
+
+        Returns:
+            state:
+                The state at the end of the step, before the boundary laws.
+        """
+        span = float(np.max(step))
+        k1 = field(time, state)
+        k2 = field(time + span / 2, state + step / 2 * k1)
+        k3 = field(time + span / 2, state + step / 2 * k2)
+        k4 = field(time + span, state + step * k3)
+        return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
 
 class VelocityVerletSolver(Solver):
@@ -823,8 +796,8 @@ class VelocityVerletSolver(Solver):
                 The problem is not an ODE, or has states that are neither positions nor velocities.
         """
         super()._prepare(problem, rng, until)
-        reject_hybrid(problem, type(self).__name__)
-        self.positions_, self.velocities_ = _position_pairs(problem)
+        _reject_hybrid(problem, type(self).__name__)
+        self.positions_, self.velocities_ = self._position_pairs(problem)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate positions and velocities from time `t` to time `until` in equal steps no longer than `dt`.
@@ -871,3 +844,31 @@ class VelocityVerletSolver(Solver):
             rates = drift(time, state, p)
             state[self.velocities_] += step / 2 * rates[self.velocities_]
         return state
+
+    @staticmethod
+    def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+        """Return the flat indices of the position components and of their velocities, in matching order."""
+        indices: dict[Expression, npt.NDArray[np.int64]] = {}
+        for entry in problem.states.entries:
+            for column, item in enumerate(components_of(problem.symbols[entry.name])):
+                indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
+        positions, velocities = [], []
+        for name, equation in problem.equations.items():
+            if equation.is_symbol() and equation in indices:
+                positions.append(indices[problem.equation_symbols[name]])
+                velocities.append(indices[equation])
+        position_indices = np.concatenate([np.zeros(0, dtype=np.int64), *positions]).astype(np.int64)
+        velocity_indices = np.concatenate([np.zeros(0, dtype=np.int64), *velocities]).astype(np.int64)
+        covered = set(position_indices.tolist()) | set(velocity_indices.tolist())
+        missing = [
+            entry.name
+            for entry in problem.states.entries
+            if not set(range(entry.start, entry.start + entry.size)) <= covered
+        ]
+        if missing:
+            error_msg = (
+                f'VelocityVerletSolver integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} '
+                'are neither. Use RK4Solver or ScipyODESolver for this system.'
+            )
+            raise SolverError(error_msg)
+        return position_indices, velocity_indices

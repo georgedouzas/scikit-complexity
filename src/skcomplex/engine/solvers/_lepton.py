@@ -9,7 +9,7 @@ from sage.sets.real_set import RealSet
 from ...core.errors import BackendError
 from ..problems import Dialect, print_expressions, symbol, symbols_of
 
-LEPTON = Dialect(
+_LEPTON = Dialect(
     'Lepton',
     {
         'exp': 'exp({0})',
@@ -114,4 +114,4 @@ class LeptonPrinter:
             BackendError:
                 The expression uses a function Lepton does not know.
         """
-        return print_expressions([expression], LEPTON, shared=False)[1][0]
+        return print_expressions([expression], _LEPTON, shared=False)[1][0]

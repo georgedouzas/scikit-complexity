@@ -53,7 +53,7 @@ def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, Refere
     return amplitude
 
 
-def link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
+def _link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
     """Return the links of every site along every dimension of a lattice, numbered `k n + i` for site `i`.
 
     The link `(i, k)` joins site `i` to its next neighbour along dimension `k`. Without periodic edges, the links that
@@ -127,7 +127,7 @@ def conserved_outputs(
         place = places.get(reference.entry.name)
         space = _check_place(owner, reference, place)
         kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])  # type: ignore[arg-type]
-        tables = link_tables(space.shape_, kind == 'periodic')
+        tables = _link_tables(space.shape_, kind == 'periodic')
         key = ('conserved', reference.entry.name, reference.column)
         dimension = len(tables) * space.size_
         for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):

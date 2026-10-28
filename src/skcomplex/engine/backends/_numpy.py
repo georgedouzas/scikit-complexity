@@ -59,10 +59,10 @@ from ..problems._kernels import jump_channels, lower_noise
 from ._base import (
     BaseBackend,
     Lowering,
-    adding_function,
-    assigning_function,
-    concatenating_function,
-    with_reductions,
+    _adding_function,
+    _assigning_function,
+    _concatenating_function,
+    _with_reductions,
 )
 
 
@@ -148,16 +148,16 @@ class NumpyBackend(BaseBackend):
         form, size = self.form_, self.size_
         lowering = Lowering()
         if kernels.get(BoundaryLaw):
-            lowering.boundary = assigning_function(kernels[BoundaryLaw])
+            lowering.boundary = _assigning_function(kernels[BoundaryLaw])
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
-            lowering.drift = adding_function(kernels.get(RateLaw, []), size)
+            lowering.drift = _adding_function(kernels.get(RateLaw, []), size)
         if form == Form.SDE:
-            lowering.diffusion = concatenating_function(kernels.get(NoiseLaw, []))
+            lowering.diffusion = _concatenating_function(kernels.get(NoiseLaw, []))
             noise = lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
-            lowering.propensities = concatenating_function(kernels.get(JumpLaw, []))
+            lowering.propensities = _concatenating_function(kernels.get(JumpLaw, []))
             lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
         if form == Form.DISCRETE:
-            lowering.update = assigning_function(kernels.get(UpdateLaw, []))
-        return with_reductions(lowering, reductions, kernels)
+            lowering.update = _assigning_function(kernels.get(UpdateLaw, []))
+        return _with_reductions(lowering, reductions, kernels)

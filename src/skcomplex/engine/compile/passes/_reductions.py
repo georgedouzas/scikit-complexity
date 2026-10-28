@@ -39,48 +39,13 @@ from ...problems._neighbourhoods import (
 from ...problems._reads import Read
 from ...problems._reductions import CompiledReduction
 from .._compilation import Compilation, Laws
-from .._complex import modulus_form
+from .._complex import _modulus_form
 from .._declarations import Declarations
 from .._laws import replaced
-from .._observables import _HeldElement, held_reduction
+from .._observables import _held_reduction, _HeldElement
 from .._pipeline import BasePass
-from .._specs import KernelSpec, activity_symbol, group_space
+from .._specs import KernelSpec, _activity_symbol, _group_space
 from .._stochastic import DrawLowering
-
-
-def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseLaw:
-    """Return a law with every reduction in its values replaced by its placeholder."""
-    if isinstance(law, JumpLaw):
-        return JumpLaw(reductions.lower(law.rate, spec), law.changes)
-    if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-        return law
-    value = law.value
-    if isinstance(value, Call):
-        value = Call(value.function, tuple(reductions.lower(argument, spec) for argument in value.arguments))
-    else:
-        value = reductions.lower(value, spec)
-    if isinstance(law, RateLaw | NoiseLaw):
-        return replaced(law, value=value)
-    return replaced(law, value=value)
-
-
-def _prune_foreign(spec: KernelSpec, declarations: Declarations) -> None:
-    """Remove the references of groups that a spec reads only through reductions, so kernels loop over its group."""
-    if spec.pairs is not None:
-        return
-    owners = {
-        reference.entry.name.rpartition('.')[0]
-        for reference in spec.references.values()
-        if reference.source is Source.MEMBER
-    }
-    foreign = (owners & declarations.groups) - {spec.group, *spec.aligned}
-    if not foreign:
-        return
-    spec.references = {
-        item: reference
-        for item, reference in spec.references.items()
-        if reference.source is not Source.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
-    }
 
 
 @dataclass
@@ -121,7 +86,7 @@ class _Reductions:
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
-        return modulus_form(lowered)
+        return _modulus_form(lowered)
 
     def _group_of(self, item: Expression, spec: KernelSpec) -> str | None:
         """Return the group, element set, or element whose members a symbol of a reduction stands for."""
@@ -230,7 +195,7 @@ class _Reductions:
 
     def _held(self, reduction: Reduction, spec: KernelSpec) -> Expression | None:
         """Return the state of the element that holds a reduction of agents, or `None` for a reduction of elements."""
-        held = held_reduction(reduction, self.declarations.agents, self.declarations.time, spec.owner)
+        held = _held_reduction(reduction, self.declarations.agents, self.declarations.time, spec.owner)
         if held is None:
             return None
         block = next(
@@ -275,7 +240,7 @@ class _Reductions:
         condition = None if reduction.condition is None else SR(self.lower(reduction.condition, spec))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.declarations.time}
         group = self._group(reduction, spec, symbols)
-        activity = activity_symbol(spec, group) if group in self.declarations.capacity else None
+        activity = _activity_symbol(spec, group) if group in self.declarations.capacity else None
         if activity is not None:
             present = SR(activity) > ACTIVE_THRESHOLD
             condition = present if condition is None else both(condition, present)
@@ -353,7 +318,7 @@ class _Reductions:
         edges = self.declarations.blocks[entry.name.rpartition('.')[0]]
         nodes = self.declarations.blocks[group]
         layer = getattr(over, 'layer', None)
-        same = isinstance(over, AdjacencyNeighborhood) and group_space(edges) is group_space(nodes)
+        same = isinstance(over, AdjacencyNeighborhood) and _group_space(edges) is _group_space(nodes)
         if not same or getattr(edges.node.component, 'layer', None) != layer:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over {over!r} reads {entry.name} of the edge group '
@@ -427,7 +392,9 @@ class _Reductions:
         key = ('neighborhood', reduction.kind, str(argument), str(weight), repr(over), group)
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
-            changing = self.declarations.changing_entries(group_space(block)) if block.node.active is not None else None
+            changing = (
+                self.declarations.changing_entries(_group_space(block)) if block.node.active is not None else None
+            )
             over = over.check() if isinstance(over, BaseNeighborhood) else over
             search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
@@ -470,7 +437,7 @@ class ReductionsPass(BasePass):
         drawing = cast('DrawLowering', compilation.drawing)
         reductions = _Reductions(declarations, drawing.draws.size if drawing.draws else 0)
         specs, apart = cast('Laws', compilation.drawn), cast('Laws', compilation.drawn_apart)
-        lowered = [(spec, [_lower_law(law, spec, reductions) for law in laws]) for spec, laws in [*specs, *apart]]
+        lowered = [(spec, [self._lower_law(law, spec, reductions) for law in laws]) for spec, laws in [*specs, *apart]]
         events = []
         for spec, event in compilation.events:
             reset = {target: reductions.lower(SR(value), spec) for target, value in (event.reset or {}).items()}
@@ -478,7 +445,7 @@ class ReductionsPass(BasePass):
             events.append((spec, replaced(event, guard=guard, reset=reset if event.reset is not None else None)))
         compilation.events = events
         for spec, _ in lowered:
-            _prune_foreign(spec, declarations)
+            self._prune_foreign(spec, declarations)
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
         compilation.reductions = ReductionSchedule(
@@ -487,3 +454,38 @@ class ReductionsPass(BasePass):
             tuple(reductions.neighbourhoods.values()),
             tuple(reductions.sequence),
         )
+
+    @staticmethod
+    def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseLaw:
+        """Return a law with every reduction in its values replaced by its placeholder."""
+        if isinstance(law, JumpLaw):
+            return JumpLaw(reductions.lower(law.rate, spec), law.changes)
+        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            return law
+        value = law.value
+        if isinstance(value, Call):
+            value = Call(value.function, tuple(reductions.lower(argument, spec) for argument in value.arguments))
+        else:
+            value = reductions.lower(value, spec)
+        if isinstance(law, RateLaw | NoiseLaw):
+            return replaced(law, value=value)
+        return replaced(law, value=value)
+
+    @staticmethod
+    def _prune_foreign(spec: KernelSpec, declarations: Declarations) -> None:
+        """Remove the references of groups that a spec reads only through reductions, so kernels loop over its group."""
+        if spec.pairs is not None:
+            return
+        owners = {
+            reference.entry.name.rpartition('.')[0]
+            for reference in spec.references.values()
+            if reference.source is Source.MEMBER
+        }
+        foreign = (owners & declarations.groups) - {spec.group, *spec.aligned}
+        if not foreign:
+            return
+        spec.references = {
+            item: reference
+            for item, reference in spec.references.items()
+            if reference.source is not Source.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
+        }

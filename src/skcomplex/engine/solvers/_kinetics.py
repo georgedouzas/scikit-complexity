@@ -23,15 +23,6 @@ type Counts = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
 
 
-def _densities(encounters: tuple[CompiledEncounter, ...]) -> list[Indices]:
-    """Return the state indices of every density the encounters read or change, each once."""
-    found: dict[tuple[int, ...], Indices] = {}
-    for encounter in encounters:
-        for indices in (encounter.candidate, encounter.field, encounter.test):
-            found.setdefault(tuple(indices.tolist()), indices)
-    return list(found.values())
-
-
 class KineticSolver(Solver):
     """Direct simulation Monte Carlo of encounter laws with finite particles on activity grids.
 
@@ -110,7 +101,7 @@ class KineticSolver(Solver):
         super()._prepare(problem, rng, until)
         self._check_problem(problem)
         self._encounters = cast('KineticProblem', problem).encounters
-        self.densities_ = _densities(self._encounters)
+        self.densities_ = self._densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], Counts] = {}
         self._sample(self.initial_state_)
@@ -209,3 +200,12 @@ class KineticSolver(Solver):
         for _ in range(n_steps):
             self._step(p, step)
         return self._state(x)
+
+    @staticmethod
+    def _densities(encounters: tuple[CompiledEncounter, ...]) -> list[Indices]:
+        """Return the state indices of every density the encounters read or change, each once."""
+        found: dict[tuple[int, ...], Indices] = {}
+        for encounter in encounters:
+            for indices in (encounter.candidate, encounter.field, encounter.test):
+                found.setdefault(tuple(indices.tolist()), indices)
+        return list(found.values())

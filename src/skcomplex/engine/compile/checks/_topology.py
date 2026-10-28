@@ -12,7 +12,7 @@ from ....core.specs import TopologyRequestSpec
 from .._census import Census, CensusRecord
 from .._compilation import Compilation
 from .._issues import Issue
-from .._topology import changes_edges, request_of
+from .._topology import _request_of, changes_edges
 from .._tree import Node
 
 
@@ -41,7 +41,7 @@ def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issu
     issues = []
     for record in records:
         try:
-            request = request_of(record.law)
+            request = _request_of(record.law)
         except ValidationError as error:
             issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
             continue

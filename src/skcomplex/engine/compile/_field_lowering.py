@@ -29,26 +29,6 @@ OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
 
 
-def _tag(offset: Offset | int) -> str:
-    """Return a name fragment for a lattice offset or a network neighbour slot."""
-    if isinstance(offset, int):
-        return f'k{offset}'
-    return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
-
-
-def _operator_calls(expression: Expression, name: str) -> list[Expression]:
-    """Return the calls of an operator by name inside an expression."""
-    found, stack = [], [SR(expression)]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        if getattr(item.operator(), 'name', lambda: '')() == name:
-            found.append(item)
-        stack.extend(item.operands())
-    return found
-
-
 @functools.cache
 def _mesh_matrices(
     points: bytes,
@@ -69,29 +49,7 @@ def _mesh_matrices(
     return stiffness, lumped
 
 
-def spectral_apply(multiplier: npt.NDArray[np.complex128], dimensions: tuple[int, ...]) -> Callable[[Any], Any]:
-    """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
-
-    Args:
-        multiplier:
-            The factor of every real Fourier mode.
-
-        dimensions:
-            The lattice shape.
-
-    Returns:
-        apply:
-            The function of the values at every site.
-    """
-
-    def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        transformed = np.fft.rfftn(np.reshape(values, dimensions)) * multiplier
-        return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
-
-    return apply
-
-
-def has_operators(expression: object) -> bool:
+def _has_operators(expression: object) -> bool:
     """Check whether an expression applies a differential operator.
 
     Args:
@@ -335,7 +293,7 @@ class FieldLowering:
             if not isinstance(total, int) and not any(total):
                 replacements[item] = base
                 continue
-            name = f'{base}__{_tag(total)}'
+            name = f'{base}__{self._tag(total)}'
             target = symbol(name, domain_of(base))
             if target not in self.references:
                 reference = self.references[base]
@@ -433,7 +391,7 @@ class FieldLowering:
             lowered:
                 The value with stencils.
         """
-        if not has_operators(expression):
+        if not _has_operators(expression):
             return expression
         call = cast('Expression', expression)
         operator = call.operator()
@@ -497,7 +455,7 @@ class FieldLowering:
         if inner is not None and inner[1].multiplier is not None:
             operand, multiplier = inner[1].operand, multiplier * inner[1].multiplier
         symbols = sorted((item for item in operand.variables() if item in self.references), key=str)
-        read = DerivedRead(operand, symbols, spectral_apply(multiplier, dimensions), multiplier, dimensions)
+        read = DerivedRead(operand, symbols, self._spectral_apply(multiplier, dimensions), multiplier, dimensions)
         return self._derived(place, read)
 
     def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
@@ -533,7 +491,7 @@ class FieldLowering:
         """
         if not isinstance(value, Expression):
             return
-        for call in _operator_calls(value, 'laplacian'):
+        for call in self._operator_calls(value, 'laplacian'):
             placeholder = symbol('_laplacian_')
             expression = SR(value.subs({call: placeholder})).diff(placeholder)
             place = self._place(call.operands()[0])
@@ -556,3 +514,45 @@ class FieldLowering:
             if magnitude == 0:
                 continue
             self.limits.append(1 / (stiffness * magnitude))
+
+    @staticmethod
+    def _tag(offset: Offset | int) -> str:
+        """Return a name fragment for a lattice offset or a network neighbour slot."""
+        if isinstance(offset, int):
+            return f'k{offset}'
+        return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
+
+    @staticmethod
+    def _operator_calls(expression: Expression, name: str) -> list[Expression]:
+        """Return the calls of an operator by name inside an expression."""
+        found, stack = [], [SR(expression)]
+        while stack:
+            item = stack.pop()
+            if item.operator() is None:
+                continue
+            if getattr(item.operator(), 'name', lambda: '')() == name:
+                found.append(item)
+            stack.extend(item.operands())
+        return found
+
+    @staticmethod
+    def _spectral_apply(multiplier: npt.NDArray[np.complex128], dimensions: tuple[int, ...]) -> Callable[[Any], Any]:
+        """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
+
+        Args:
+            multiplier:
+                The factor of every real Fourier mode.
+
+            dimensions:
+                The lattice shape.
+
+        Returns:
+            apply:
+                The function of the values at every site.
+        """
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            transformed = np.fft.rfftn(np.reshape(values, dimensions)) * multiplier
+            return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
+
+        return apply

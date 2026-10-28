@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._base import AUTO_MEMBERS, BaseBackend
+from ._base import _AUTO_MEMBERS, BaseBackend
 from ._numba import NumbaBackend
 from ._numpy import NumpyBackend
 
@@ -32,4 +32,4 @@ def resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
     """
     if backend is not None:
         return backend
-    return NumbaBackend() if members >= AUTO_MEMBERS else NumpyBackend()
+    return NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()

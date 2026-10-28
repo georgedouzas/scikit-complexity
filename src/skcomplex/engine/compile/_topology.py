@@ -21,7 +21,7 @@ type Indices = npt.NDArray[np.intp]
 type Pair = tuple[int, int]
 
 
-def request_of(law: object) -> TopologyRequestSpec | None:
+def _request_of(law: object) -> TopologyRequestSpec | None:
     """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
 
     Args:

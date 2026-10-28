@@ -14,12 +14,12 @@ import rerun.blueprint as rrb
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
-from ._utils import MODULUS, PHASE
+from ._utils import _MODULUS, _PHASE
 from ._visuals import BaseVisual
 
-MIN_HISTORY = 64
-MAX_HISTORY = 256
-SPACE_TIME = 'space_time'
+_MIN_HISTORY = 64
+_MAX_HISTORY = 256
+_SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
@@ -73,7 +73,7 @@ class ImageVisual(BaseVisual):
         """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
         if self.history is not None:
             return self.history
-        return int(np.clip(sites, MIN_HISTORY, MAX_HISTORY))
+        return int(np.clip(sites, _MIN_HISTORY, _MAX_HISTORY))
 
     def _range(self, values: npt.NDArray[np.float64]) -> tuple[float, float]:
         """Return the values of the two ends of the color scale, the given ones or the extremes of the values."""
@@ -136,13 +136,13 @@ class ImageVisual(BaseVisual):
             path = f'{element.path}/{state}'
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
-                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
+                self._log_space_time(recording, f'{element.path}/{_SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
                 cyclic = frame.problem.states.entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
-            self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
-            self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)
+            self._log_image(recording, f'{path}/{_MODULUS}', magnitudes, cyclic=False)
+            self._log_image(recording, f'{path}/{_PHASE}', np.angle(values), cyclic=True)
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
@@ -186,11 +186,11 @@ class ImageVisual(BaseVisual):
             )
             if len(shape) == 1 and self._history_of(shape[0]):
                 histories.append(
-                    rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
+                    rrb.Spatial2DView(origin=f'{element.path}/{_SPACE_TIME}/{state}', name=f'{state} history'),
                 )
             kind = rrb.TensorView if len(shape) > 2 else rrb.Spatial2DView  # noqa: PLR2004
             if problem.states.entry(name).is_complex:
-                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
+                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)]
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]

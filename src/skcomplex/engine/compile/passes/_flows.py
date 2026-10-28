@@ -9,7 +9,7 @@ from typing import cast
 from ...problems import Problem, StockFlow
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
-from .._flows import StockFlowPass, quantities_of
+from .._flows import StockFlowPass, _quantities_of
 from .._pipeline import BasePass
 
 
@@ -27,7 +27,7 @@ class ExpandFlowsPass(BasePass):
                 The compilation state.
         """
         declarations = cast('Declarations', compilation.layout)
-        flows = StockFlowPass(quantities_of(declarations.blocks))
+        flows = StockFlowPass(_quantities_of(declarations.blocks))
         compilation.collected = [
             (spec, flows.expand(spec, list(laws)), block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)

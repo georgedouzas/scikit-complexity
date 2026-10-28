@@ -34,13 +34,13 @@ from .._rewriting_words import IDENTIFIER, CompiledWord, Parameters
 from .._structures import GraphStructure, PatchStructure, affine_matrix
 from .._system_compilers import BaseSystemCompiler
 from .._tree import Node, flatten_system
-from ._problem import visual_of
+from ._problem import _visual_of
 
-LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
+_LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
 type Compiled = CompiledWord | CompiledPatch | CompiledGraph
 
-PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw, GraphProductionLaw)
-STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling', HostGraphElement: 'graph'}
+_PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw, GraphProductionLaw)
+_STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling', HostGraphElement: 'graph'}
 type Production = ProductionLaw | SubstitutionLaw | GraphProductionLaw
 
 
@@ -48,7 +48,7 @@ def structure_of(element_type: type) -> str | None:
     """Return the kind of structure an element type rewrites, or `None` for a type that rewrites none."""
     if not isinstance(element_type, type):
         return None
-    return next((kind for base, kind in STRUCTURES.items() if issubclass(element_type, base)), None)
+    return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
 
 def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
@@ -86,7 +86,7 @@ def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, 
 def _productions(node: Node, namespace: SimpleNamespace) -> list[Production]:
     """Return the checked productions, substitutions, or graph productions a word, a patch, or a host graph returns."""
     laws = node.component.run(namespace)
-    wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
+    wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
     if wrong:
         error_msg = (
             f'{node.path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word, a patch, or a host graph '
@@ -108,7 +108,7 @@ def _compiled(
     if kind is None:
         error_msg = f'{node.path} holds no sequence, tiling, or graph that rewriting laws rewrite.'
         raise ValidationError(error_msg)
-    expected = LAWS_OF[kind]
+    expected = _LAWS_OF[kind]
     wrong = [law for law in laws if not isinstance(law, expected)]
     if wrong:
         error_msg = (
@@ -126,22 +126,6 @@ def _compiled(
     if kind == 'tiling':
         return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, SubstitutionLaw)], parameters)
     return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)])
-
-
-def is_rewriting(system: System) -> bool:
-    """Check whether a system holds a word, a patch, or a host graph.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        found:
-            Whether one of its elements, at any depth, is rewritten.
-    """
-    return any(structure_of(_type_of(element)) for element in system.elements) or any(
-        is_rewriting(child) for child in system.systems
-    )
 
 
 def compile_rewriting(system: System) -> 'RewritingProblem':
@@ -207,7 +191,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
                 element=component,
                 states={name: f'{item.path}.{name}' for name in names},
                 parameters={name: f'{item.path}.{name}' for name in vars(namespaces[item.path]) if name != 't'},
-                visual=visual_of(elements[item.path]),
+                visual=_visual_of(elements[item.path]),
             ),
         )
         for name in names:
@@ -551,7 +535,7 @@ class RewritingCompiler(BaseSystemCompiler):
             system:
                 The system.
         """
-        self.claims_ = is_rewriting(system)
+        self.claims_ = self._is_rewriting(system)
 
     def _run(
         self,
@@ -582,3 +566,19 @@ class RewritingCompiler(BaseSystemCompiler):
         """
         del backend, solver, initial_state
         return compile_rewriting(system)
+
+    @staticmethod
+    def _is_rewriting(system: System) -> bool:
+        """Check whether a system holds a word, a patch, or a host graph.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            found:
+                Whether one of its elements, at any depth, is rewritten.
+        """
+        return any(structure_of(_type_of(element)) for element in system.elements) or any(
+            RewritingCompiler._is_rewriting(child) for child in system.systems
+        )

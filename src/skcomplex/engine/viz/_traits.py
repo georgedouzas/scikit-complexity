@@ -15,41 +15,13 @@ from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
-from ._colors import SERIES_COLORS, _widened
+from ._colors import _SERIES_COLORS, _widened
 
 BINS = 20
-MAX_LEVELS = 50
-MAX_AGENT_SERIES = 10
-STATISTICS = ('mean', 'std', 'distinct')
-NUMERIC_KINDS = frozenset('biuf')
-
-
-def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
-    """Return one number per agent: the value, the total of a row of numbers, or the size of a collection."""
-    array = np.asarray(values)
-    if array.dtype.kind in NUMERIC_KINDS:
-        numbers = array.astype(float)
-        return numbers if numbers.ndim == 1 else numbers.reshape(len(numbers), -1).sum(axis=1)
-    items = list(np.ravel(array)) if array.ndim else [array.item()]
-    if items and all(isinstance(item, Sized) and not isinstance(item, str) for item in items):
-        return np.asarray([len(item) for item in items], dtype=float)
-    return None
-
-
-def _histogram(
-    numbers: npt.NDArray[np.float64],
-    span: tuple[float, float],
-    bins: int,
-) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64], float]:
-    """Return the counts, the bar centres, and the bar width of a histogram, with one bar per value for few integers."""
-    low, high = span
-    if np.all(numbers == np.round(numbers)) and high - low < MAX_LEVELS:
-        levels = np.arange(np.floor(low), np.floor(high) + 1)
-        counts = np.bincount((numbers - levels[0]).astype(np.int64), minlength=len(levels))
-        return counts, levels, 1.0
-    low, high = (low, high) if high > low else (low - 0.5, low + 0.5)
-    counts, edges = np.histogram(numbers, bins=bins, range=(low, high))
-    return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])
+_MAX_LEVELS = 50
+_MAX_AGENT_SERIES = 10
+_STATISTICS = ('mean', 'std', 'distinct')
+_NUMERIC_KINDS = frozenset('biuf')
 
 
 class TraitsVisual(AgentsVisual):
@@ -118,18 +90,18 @@ class TraitsVisual(AgentsVisual):
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""
         if path not in self.spans_:
-            for index, statistic in enumerate(STATISTICS):
-                style = rr.SeriesLines(colors=SERIES_COLORS[index], names=statistic)
+            for index, statistic in enumerate(_STATISTICS):
+                style = rr.SeriesLines(colors=_SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
         span = self.color_range if self.color_range is not None else _widened(self.spans_.get(path), numbers)
         self.spans_[path] = span
-        counts, centres, width = _histogram(numbers, span, self.bins)
+        counts, centres, width = self._histogram(numbers, span, self.bins)
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
         recording.log(f'{path}/std', rr.Scalars(float(numbers.std())))
         if np.all(numbers == np.round(numbers)):
             recording.log(f'{path}/distinct', rr.Scalars(float(np.unique(numbers).size)))
-        if numbers.size <= MAX_AGENT_SERIES:
+        if numbers.size <= _MAX_AGENT_SERIES:
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
@@ -146,7 +118,7 @@ class TraitsVisual(AgentsVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            numbers = _numbers_of(frame.value(name))
+            numbers = self._numbers_of(frame.value(name))
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{element.path}/{state}', numbers)
 
@@ -175,7 +147,7 @@ class TraitsVisual(AgentsVisual):
         if not len(snapshot.ids):
             return
         for trait, values in snapshot.values.items():
-            numbers = _numbers_of(values)
+            numbers = self._numbers_of(values)
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', numbers)
 
@@ -208,3 +180,31 @@ class TraitsVisual(AgentsVisual):
         histogram = rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram')
         first = [histogram, series] if self.histogram_first else [series, histogram]
         return [*first, rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits')]
+
+    @staticmethod
+    def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
+        """Return one number per agent: the value, the total of a row of numbers, or the size of a collection."""
+        array = np.asarray(values)
+        if array.dtype.kind in _NUMERIC_KINDS:
+            numbers = array.astype(float)
+            return numbers if numbers.ndim == 1 else numbers.reshape(len(numbers), -1).sum(axis=1)
+        items = list(np.ravel(array)) if array.ndim else [array.item()]
+        if items and all(isinstance(item, Sized) and not isinstance(item, str) for item in items):
+            return np.asarray([len(item) for item in items], dtype=float)
+        return None
+
+    @staticmethod
+    def _histogram(
+        numbers: npt.NDArray[np.float64],
+        span: tuple[float, float],
+        bins: int,
+    ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64], float]:
+        """Return the counts, bar centres, and bar width of a histogram, with one bar per value for few integers."""
+        low, high = span
+        if np.all(numbers == np.round(numbers)) and high - low < _MAX_LEVELS:
+            levels = np.arange(np.floor(low), np.floor(high) + 1)
+            counts = np.bincount((numbers - levels[0]).astype(np.int64), minlength=len(levels))
+            return counts, levels, 1.0
+        low, high = (low, high) if high > low else (low - 0.5, low + 0.5)
+        counts, edges = np.histogram(numbers, bins=bins, range=(low, high))
+        return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])

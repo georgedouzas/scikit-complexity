@@ -17,26 +17,6 @@ from .._pipeline import BasePass
 from .._specs import KernelSpec
 
 
-def _with_member_shifts(spec: KernelSpec, laws: list[BaseLaw], time: Expression) -> list[BaseLaw]:
-    """Return laws whose member offset reads are lowered to neighbour reads of the group's index table.
-
-    A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
-    """
-    shifts = MemberShifts(spec.owner, spec.references, time)
-    result: list[BaseLaw] = []
-    for law in laws:
-        if isinstance(law, JumpLaw):
-            changes: dict[Expression, float] = defaultdict(float)
-            for target, increment in law.changes.items():
-                changes[SR(shifts.lower(target)) if isinstance(target, Expression) else target] += increment
-            result.append(JumpLaw(shifts.lower(law.rate), dict(changes)))
-        elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            result.append(replaced(law, value=shifts.lower(law.value)))
-        else:
-            result.append(law)
-    return result
-
-
 class MemberShiftPass(BasePass):
     """Pass that lowers the member offset reads of laws to neighbour reads."""
 
@@ -52,5 +32,25 @@ class MemberShiftPass(BasePass):
         """
         time = cast('Declarations', compilation.layout).time
         compilation.shifted = [
-            (spec, _with_member_shifts(spec, laws, time)) for spec, laws in cast('Laws', compilation.corrected)
+            (spec, self._with_member_shifts(spec, laws, time)) for spec, laws in cast('Laws', compilation.corrected)
         ]
+
+    @staticmethod
+    def _with_member_shifts(spec: KernelSpec, laws: list[BaseLaw], time: Expression) -> list[BaseLaw]:
+        """Return laws whose member offset reads are lowered to neighbour reads of the group's index table.
+
+        A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
+        """
+        shifts = MemberShifts(spec.owner, spec.references, time)
+        result: list[BaseLaw] = []
+        for law in laws:
+            if isinstance(law, JumpLaw):
+                changes: dict[Expression, float] = defaultdict(float)
+                for target, increment in law.changes.items():
+                    changes[SR(shifts.lower(target)) if isinstance(target, Expression) else target] += increment
+                result.append(JumpLaw(shifts.lower(law.rate), dict(changes)))
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+                result.append(replaced(law, value=shifts.lower(law.value)))
+            else:
+                result.append(law)
+        return result

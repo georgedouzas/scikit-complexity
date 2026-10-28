@@ -19,51 +19,9 @@ from ._utils import log_scalars
 from ._visuals import BaseVisual
 
 MARGIN = 0.03
-RESOLUTION = 512
-FILL = np.array([94, 201, 98], dtype=np.uint8)
-BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
-
-
-def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | None:
-    """Return the box an element's geometry is drawn in: its declared bounds, or the box of a patch's first tiles."""
-    component = element.element
-    declared = getattr(component, 'bounds', None)
-    if declared is not None:
-        xmin, ymin, xmax, ymax = (float(item) for item in declared)
-        return (xmin, ymin, xmax, ymax)
-    if not isinstance(component, PatchElement) or not component.prototiles:
-        return None
-    tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
-    names = [prototile.name for prototile in component.prototiles]
-    try:
-        matrices = [np.eye(3) if placement is None else affine_matrix(placement, {}) for _, placement in tiles]
-        codes = [names.index(name) for name, _ in tiles]
-    except (TypeError, ValueError):
-        return None
-    xmin, ymin, xmax, ymax = PatchStructure(component.prototiles, codes, np.reshape(matrices, (-1, 3, 3)), 0).bounds()
-    pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
-    return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
-
-
-def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-    """Return the line strips of a structure, with y flipped for the downward axis of Rerun, and a value per strip."""
-    segments = structure.segments()
-    if isinstance(structure, WordStructure):
-        values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
-    elif isinstance(structure, PatchStructure):
-        codes = [code for code, prototile in enumerate(structure.prototiles) if is_segment(prototile)]
-        values = np.concatenate(
-            [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],
-        )
-    else:
-        values = np.zeros(len(segments))
-    strips = list(segments.copy())
-    for index, polygons in enumerate(structure.polygons()):
-        strips += [np.concatenate([polygon, polygon[:1]]) for polygon in polygons]
-        values = np.concatenate([values, np.full(len(polygons), float(index))])
-    for strip in strips:
-        strip[:, 1] *= -1
-    return strips, values
+_RESOLUTION = 512
+_FILL = np.array([94, 201, 98], dtype=np.uint8)
+_BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
 
 
 class GeometryVisual(BaseVisual):
@@ -86,7 +44,7 @@ class GeometryVisual(BaseVisual):
         GeometryVisual(filled=True)
     """
 
-    def __init__(self, filled: bool | None = None, resolution: int = RESOLUTION) -> None:
+    def __init__(self, filled: bool | None = None, resolution: int = _RESOLUTION) -> None:
         self.filled = filled
         self.resolution = resolution
 
@@ -121,11 +79,11 @@ class GeometryVisual(BaseVisual):
             recording.log(element.path, rr.GraphEdges(edges, graph_type=kind))
             return
         if isinstance(structure, PatchStructure) and self._is_filled(element):
-            grid = structure.raster(self.resolution, _bounds_of(element))
-            pixels = np.where(grid[..., None], FILL, BACKGROUND).astype(np.uint8)
+            grid = structure.raster(self.resolution, self._bounds_of(element))
+            pixels = np.where(grid[..., None], _FILL, _BACKGROUND).astype(np.uint8)
             recording.log(element.path, rr.Image(pixels))
             return
-        strips, values = _strips(structure)
+        strips, values = self._strips(structure)
         colors = colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
@@ -171,9 +129,56 @@ class GeometryVisual(BaseVisual):
         geometry = component.geometry if isinstance(component, WordElement) else None
         if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        bounds = _bounds_of(element) if isinstance(element, CompiledElement) else None
+        bounds = self._bounds_of(element) if isinstance(element, CompiledElement) else None
         if bounds is None or self._is_filled(element):  # type: ignore[arg-type]
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
         visual_bounds = rrb.VisualBounds2D(x_range=[xmin, xmax], y_range=[-ymax, -ymin])
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=visual_bounds), series]
+
+    @staticmethod
+    def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | None:
+        """Return the box an element's geometry is drawn in, its declared bounds or the box of a patch's first tiles."""
+        component = element.element
+        declared = getattr(component, 'bounds', None)
+        if declared is not None:
+            xmin, ymin, xmax, ymax = (float(item) for item in declared)
+            return (xmin, ymin, xmax, ymax)
+        if not isinstance(component, PatchElement) or not component.prototiles:
+            return None
+        tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
+        names = [prototile.name for prototile in component.prototiles]
+        try:
+            matrices = [np.eye(3) if placement is None else affine_matrix(placement, {}) for _, placement in tiles]
+            codes = [names.index(name) for name, _ in tiles]
+        except (TypeError, ValueError):
+            return None
+        xmin, ymin, xmax, ymax = PatchStructure(
+            component.prototiles,
+            codes,
+            np.reshape(matrices, (-1, 3, 3)),
+            0,
+        ).bounds()
+        pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
+        return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
+
+    @staticmethod
+    def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+        """Return the line strips of a structure, with y flipped for Rerun's downward axis, and a value per strip."""
+        segments = structure.segments()
+        if isinstance(structure, WordStructure):
+            values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
+        elif isinstance(structure, PatchStructure):
+            codes = [code for code, prototile in enumerate(structure.prototiles) if is_segment(prototile)]
+            values = np.concatenate(
+                [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],
+            )
+        else:
+            values = np.zeros(len(segments))
+        strips = list(segments.copy())
+        for index, polygons in enumerate(structure.polygons()):
+            strips += [np.concatenate([polygon, polygon[:1]]) for polygon in polygons]
+            values = np.concatenate([values, np.full(len(polygons), float(index))])
+        for strip in strips:
+            strip[:, 1] *= -1
+        return strips, values

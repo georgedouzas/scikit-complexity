@@ -10,41 +10,9 @@ from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
 from ...problems import VariableKind, components_of, declarations_of
 from .._compilation import BlockLaws, Compilation
-from .._declarations import Block, is_interaction
+from .._declarations import Block, _is_interaction
 from .._pipeline import BasePass
 from .._specs import KernelSpec
-
-
-def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
-    """Return the laws by which the boundary of a continuous space acts on the position states of a component.
-
-    A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
-    crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is the
-    state declared as the rate of the position, or the first derivative of a second-order position.
-    """
-    space = block.node.space
-    if is_interaction(block.node) or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
-        return []
-    declarations = declarations_of(block.node.component_type, VariableKind.STATE)
-    laws: list[BaseLaw] = []
-    for name, declaration in declarations.items():
-        if not declaration.position:
-            continue
-        velocity_name = next(
-            (other for other, item in declarations.items() if item.velocity_of == name),
-            f'{name}_d1' if declaration.order > 1 else None,
-        )
-        positions = components_of(getattr(spec.namespace, name))
-        velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
-        for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
-            if space.boundary == 'periodic':
-                laws.append(BoundaryLaw(position, mod(position, side)))
-                continue
-            below, above = position < 0, position > side
-            laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
-            if velocity is not None:
-                laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
-    return laws
 
 
 class BoundaryLawsPass(BasePass):
@@ -61,6 +29,40 @@ class BoundaryLawsPass(BasePass):
                 The compilation state.
         """
         compilation.collected = [
-            (spec, [*laws, *_space_boundary_laws(block, spec)], block)
+            (spec, [*laws, *self._space_boundary_laws(block, spec)], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
+
+    @staticmethod
+    def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
+        """Return the laws by which the boundary of a continuous space acts on the position states of a component.
+
+        A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
+        crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is the
+        state declared as the rate of the position, or the first derivative of a second-order position.
+        """
+        space = block.node.space
+        if _is_interaction(block.node) or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+            return []
+        declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+        laws: list[BaseLaw] = []
+        for name, declaration in declarations.items():
+            if not declaration.position:
+                continue
+            velocity_name = next(
+                (other for other, item in declarations.items() if item.velocity_of == name),
+                f'{name}_d1' if declaration.order > 1 else None,
+            )
+            positions = components_of(getattr(spec.namespace, name))
+            velocities = (
+                components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
+            )
+            for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
+                if space.boundary == 'periodic':
+                    laws.append(BoundaryLaw(position, mod(position, side)))
+                    continue
+                below, above = position < 0, position > side
+                laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
+                if velocity is not None:
+                    laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
+        return laws

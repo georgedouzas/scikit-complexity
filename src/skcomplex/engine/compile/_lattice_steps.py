@@ -33,8 +33,8 @@ from ..problems import numpy_function, symbol
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
 
-LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
-COLORING_STRATEGY = 'largest_first'
+_LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
+_COLORING_STRATEGY = 'largest_first'
 type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
@@ -77,7 +77,7 @@ def _color_classes(table: Indices) -> tuple[Indices, ...]:
     graph = nx.Graph()
     graph.add_nodes_from(range(size))
     graph.add_edges_from(zip(rows[real].tolist(), columns[real].tolist(), strict=True))
-    colors = nx.greedy_color(graph, strategy=COLORING_STRATEGY)
+    colors = nx.greedy_color(graph, strategy=_COLORING_STRATEGY)
     found = np.asarray([colors[site] for site in range(size)], dtype=np.intp)
     return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
 
@@ -488,7 +488,7 @@ class CompiledRule:
                     np.ascontiguousarray(centers),
                     float(space.fill),
                     table,
-                    LOOKUP_KINDS[lookup.kind],
+                    _LOOKUP_KINDS[lookup.kind],
                     lookup.base,
                     lookup.values,
                     lookup.columns,
@@ -677,9 +677,9 @@ class LatticeContext:
 def _compile_part(law: object, context: LatticeContext) -> CompiledRule | CompiledDrive:
     """Return a law of a relaxation compiled."""
     if isinstance(law, LocalRuleLaw):
-        return compile_rule(law, context)
+        return _compile_rule(law, context)
     if isinstance(law, DriveLaw):
-        return compile_drive(law, context)
+        return _compile_drive(law, context)
     error_msg = f'A relaxation of {context.owner} holds {law!r}, which is not a local rule or a drive.'
     raise ValidationError(error_msg)
 
@@ -728,7 +728,7 @@ def _lower_neighbor_sums(  # noqa: PLR0917
     return SR(expression).subs(replacements) if replacements else SR(expression)
 
 
-def compile_rule(law: LocalRuleLaw, context: LatticeContext) -> CompiledRule:
+def _compile_rule(law: LocalRuleLaw, context: LatticeContext) -> CompiledRule:
     """Return a local rule compiled for its lattice.
 
     Args:
@@ -785,7 +785,7 @@ def compile_rule(law: LocalRuleLaw, context: LatticeContext) -> CompiledRule:
     )
 
 
-def compile_drive(law: DriveLaw, context: LatticeContext) -> CompiledDrive:
+def _compile_drive(law: DriveLaw, context: LatticeContext) -> CompiledDrive:
     """Return a drive compiled for its lattice state.
 
     Args:
@@ -933,7 +933,7 @@ class CompiledRelaxation:
         return RelaxationRecord(self.label, time, size, duration, area)
 
 
-def compile_relaxation(law: RelaxationLaw, context: LatticeContext) -> CompiledRelaxation:
+def _compile_relaxation(law: RelaxationLaw, context: LatticeContext) -> CompiledRelaxation:
     """Return a relaxation compiled for its lattice.
 
     Args:
@@ -1090,7 +1090,7 @@ class CompiledMonteCarlo:
             self._update(x, p, np.asarray([site]), rng)
 
 
-def compile_monte_carlo(
+def _compile_monte_carlo(
     energy: EnergySpec,
     move: MoveSpec,
     sampler: SamplerSpec,
@@ -1294,7 +1294,7 @@ class CompiledExtremal:
         ]
 
 
-def compile_extremal(law: ExtremalLaw, context: LatticeContext) -> CompiledExtremal:
+def _compile_extremal(law: ExtremalLaw, context: LatticeContext) -> CompiledExtremal:
     """Return an extremal law compiled for its lattice or network.
 
     Args:

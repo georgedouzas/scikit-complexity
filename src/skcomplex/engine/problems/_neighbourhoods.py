@@ -34,7 +34,7 @@ from ._printing import numpy_function
 from ._reads import Read
 from ._variables import Variable
 
-SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
+_SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
     ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood), (ContinuousSpace,)),
@@ -59,7 +59,7 @@ def spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
         >>> spaces_of(RadiusNeighborhood(1.0))
         (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)
     """
-    return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))
+    return next(spaces for neighborhoods, spaces in _SPACES_OF if isinstance(neighborhood, neighborhoods))
 
 
 type Rows = tuple[Indices, Indices]

@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ._kinds import DomainKind
 
-BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
+_BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
 
 
 def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
@@ -60,7 +60,7 @@ def labels_of(domain: object) -> tuple[object, ...] | None:
         >>> labels_of(FiniteEnumeratedSet(['S', 'I', 'R']))
         ('S', 'I', 'R')
     """
-    if not isinstance(domain, FiniteEnumeratedSet) or frozenset(domain) in BOOLEAN_LABELS:
+    if not isinstance(domain, FiniteEnumeratedSet) or frozenset(domain) in _BOOLEAN_LABELS:
         return None
     if all(_is_number(item) for item in domain):
         return None
@@ -94,13 +94,13 @@ def domain_kind(domain: object, period: object = None) -> DomainKind:
     if isinstance(domain, FiniteEnumeratedSet):
         if labels_of(domain) is not None:
             return DomainKind.CATEGORICAL
-        return DomainKind.BOOLEAN if frozenset(domain) in BOOLEAN_LABELS else DomainKind.INTEGER
+        return DomainKind.BOOLEAN if frozenset(domain) in _BOOLEAN_LABELS else DomainKind.INTEGER
     if domain is ZZ or domain is NN:
         return DomainKind.INTEGER
     return DomainKind.REAL
 
 
-def sage_assumption(domain: object) -> str:
+def _sage_assumption(domain: object) -> str:
     """Return the Sage domain of the symbols of a Sage set: real, positive, integer, or complex.
 
     Args:

@@ -19,17 +19,17 @@ from ._fields import (
     FieldJacobianPass,
     FieldProblemPass,
     LowerFieldsPass,
-    conserved_issues,
+    _conserved_issues,
 )
 from ._flatten import FlattenPass
 from ._flows import ExpandFlowsPass, FlowsProblemPass, LowerFlowsPass
 from ._form import FormPass
-from ._fractional import CheckFractionalNoisePass, FractionalFormPass, FractionalProblemPass, order_issues
+from ._fractional import CheckFractionalNoisePass, FractionalFormPass, FractionalProblemPass, _order_issues
 from ._functions import FunctionsPass
 from ._jacobian import JacobianPass
 from ._kernels import KernelsPass
 from ._kinetics import CompileEncountersPass, EncounterFunctionsPass, EncounterJacobianPass, EncounterProblemPass
-from ._lattices import LatticeProblemPass, schedule_issues
+from ._lattices import LatticeProblemPass, _schedule_issues
 from ._layout import LayoutPass
 from ._markov import MarkovPass
 from ._members import MemberShiftPass
@@ -54,7 +54,7 @@ from ._topology import (
 )
 from ._waiting_jumps import DeclareRenewalsPass, RenewalProblemPass, SetRenewalsApartPass, UnpackRenewalsPass
 
-PASSES: tuple[BasePass, ...] = (
+_PASSES: tuple[BasePass, ...] = (
     FlattenPass(),
     CensusPass(),
     PlanPass(),
@@ -110,16 +110,16 @@ PASSES: tuple[BasePass, ...] = (
 )
 """Passes of a compilation, in the order that `order_passes` keeps where their fields leave them unordered."""
 
-CHECKS: tuple[Check, ...] = (
-    schedule_issues,
-    conserved_issues,
-    order_issues,
+_CHECKS: tuple[Check, ...] = (
+    _schedule_issues,
+    _conserved_issues,
+    _order_issues,
     probability_issues,
     request_issues,
 )
 """Checks that validation runs on the compilation state of every system the general compiler compiles."""
 
-SYSTEM_COMPILERS: tuple[BaseSystemCompiler, ...] = (QuantumCompiler(), RewritingCompiler())
+_SYSTEM_COMPILERS: tuple[BaseSystemCompiler, ...] = (QuantumCompiler(), RewritingCompiler())
 """Compilers of the whole systems they claim, which compile them in place of the passes."""
 
 
@@ -140,7 +140,7 @@ def claiming_compiler(system: System) -> BaseSystemCompiler | None:
         >>> claiming_compiler(create('lotka_volterra')) is None
         True
     """
-    for compiler in SYSTEM_COMPILERS:
+    for compiler in _SYSTEM_COMPILERS:
         if compiler.prepare(system).claims_:
             return compiler
     return None

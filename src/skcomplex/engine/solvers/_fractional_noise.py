@@ -27,9 +27,9 @@ from ...core.types import Vector
 from ..problems import Form, NoiseKind, OrderKind, Problem, SupportSpec
 from ._stepper import Solver
 
-EIGENVALUE_TOLERANCE = 1e-10
+_EIGENVALUE_TOLERANCE = 1e-10
 GRID_TOLERANCE = 1e-9
-MAX_INCREMENTS = 100_000_000
+_MAX_INCREMENTS = 100_000_000
 
 
 def _autocovariance(n: int, hurst: float) -> Vector:
@@ -82,7 +82,7 @@ def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Ge
     covariance = _autocovariance(n, hurst)
     row = np.concatenate([covariance, covariance[-2:0:-1]])
     eigenvalues = scipy.fft.fft(row).real
-    if np.min(eigenvalues) < -EIGENVALUE_TOLERANCE * np.max(eigenvalues):
+    if np.min(eigenvalues) < -_EIGENVALUE_TOLERANCE * np.max(eigenvalues):
         factor = scipy.linalg.cholesky(scipy.linalg.toeplitz(covariance[:n]), lower=True)
         return np.asarray(factor @ rng.standard_normal((n, size)), dtype=float)
     scale = np.sqrt(np.clip(eigenvalues, 0.0, None) / row.size)[:, np.newaxis]
@@ -153,7 +153,7 @@ class FractionalEulerMaruyamaSolver(Solver):
     form: ClassVar[Form] = Form.SDE
     fractional: ClassVar[bool] = True
 
-    def __init__(self, dt: float = 1e-3, horizon: float | None = None, max_increments: int = MAX_INCREMENTS) -> None:
+    def __init__(self, dt: float = 1e-3, horizon: float | None = None, max_increments: int = _MAX_INCREMENTS) -> None:
         self.dt = dt
         self.horizon = horizon
         self.max_increments = max_increments

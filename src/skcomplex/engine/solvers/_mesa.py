@@ -36,11 +36,11 @@ from ..problems import (
 from ._snapshots import AgentSnapshot, AgentState
 from ._stepper import Solver
 
-DEFAULT_PHASE = 'default'
+_DEFAULT_PHASE = 'default'
 
 
 MAX_SEED = 2**31 - 1
-HISTORY_LENGTH = 10_000
+_HISTORY_LENGTH = 10_000
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 
 
@@ -68,66 +68,6 @@ def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
     return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
 
-def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
-    """Return the Mesa space of a framework space."""
-    if isinstance(space, LatticeSpace):
-        grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
-        return grid(space.shape_[:2], torus=space.periodic_, capacity=space.capacity, random=model.random)
-    if isinstance(space, NetworkSpace):
-        return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
-    if isinstance(space, ContinuousSpace):
-        bounds = [[0.0, space.extent_[0]], [0.0, space.extent_[1]]]
-        return MesaContinuousSpace(bounds, torus=space.periodic_, random=model.random, n_agents=max(n_agents, 1))
-    return None
-
-
-def _rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
-    """Return the rules among laws, which the compiled agents and the model rules hold alone."""
-    return [law for law in laws if isinstance(law, RuleLaw)]
-
-
-def _phase_of(rule: RuleLaw) -> str:
-    """Return the name of the phase a rule runs in."""
-    return rule.phase or DEFAULT_PHASE
-
-
-def _phase_plan(phases: Sequence[PhaseSpec], problem: Problem) -> list[PhaseSpec] | None:
-    """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
-    rules = _rules_of(
-        [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.model_rules)],
-    )
-    if not phases and all(rule.phase is None for rule in rules):
-        return None
-    names = [phase.name for phase in phases]
-    if len(set(names)) != len(names):
-        error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
-        raise SimulationError(error_msg)
-    plan = list(phases) if DEFAULT_PHASE in names else [PhaseSpec(DEFAULT_PHASE), *phases]
-    unknown = sorted({_phase_of(rule) for rule in rules} - {phase.name for phase in plan})
-    if unknown:
-        error_msg = (
-            f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases are: '
-            f'{", ".join(names) or "none"}.'
-        )
-        raise SimulationError(error_msg)
-    return plan
-
-
-def _attribute(name: str) -> Callable[[mesa.Agent], object]:
-    """Return a function that reads an attribute of an agent."""
-    return lambda agent: getattr(agent, name)
-
-
-def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mesa.Agent], object]]) -> AgentSnapshot:
-    """Return the ids, reported values, and locations of agents."""
-    agents = sorted(agents, key=lambda agent: agent.unique_id)
-    ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
-    values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
-    locations = [_location_of(agent) for agent in agents]
-    has_locations = any(location is not None for location in locations)
-    return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
-
-
 def _check_variable(spec: CompiledAgents, action: str) -> None:
     """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
     if isinstance(spec.element, GroupElement) and spec.element.variable:
@@ -147,21 +87,6 @@ def _member_value(value: object, index: int, size: int) -> object:
         item = array[index]
         return item.item() if np.ndim(item) == 0 else item
     return value
-
-
-def _member_location(location: object, index: int, size: int) -> object:
-    """Return the initial location of one agent from per-agent locations or one shared location."""
-    if location is None:
-        return None
-    array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
-    if array.ndim >= 1 and array.shape[0] == size:
-        return _cell_key(np.asarray(array[index]))
-    return _cell_key(location)
-
-
-def _shared_default(element_type: type, name: str) -> object:
-    """Return the default of a state of an element type."""
-    return default_of(element_type, name)
 
 
 class _AgentModel(mesa.Model):
@@ -457,7 +382,7 @@ class ModelView:
             )
             raise SimulationError(error_msg)
         self._stepper.reports_[full] = float(value)
-        self._stepper.reported_.setdefault(full, deque(maxlen=HISTORY_LENGTH)).append(float(value))
+        self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(float(value))
 
     def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter, the last one last.
@@ -739,42 +664,6 @@ def _view_of(agent: mesa.Agent) -> AgentView:
     return cast('AgentView', agent.__dict__['view_'])
 
 
-def _state_property(name: str) -> property:
-    """Return the property of a state of agents, which sets the agent at the end of a simultaneous phase."""
-
-    def read(view: AgentView) -> Any:  # noqa: ANN401
-        return getattr(view._agent, name)
-
-    def write(view: AgentView, value: Any) -> None:  # noqa: ANN401
-        buffer = view._stepper.buffer_
-        if buffer is not None:
-            buffer[view._agent, name] = value
-            return
-        setattr(view._agent, name, value)
-
-    return property(read, write, doc=f'State {name} of the agent.')
-
-
-def _parameter_property(name: str, entry: str) -> property:
-    """Return the read-only property of a parameter of the group of agents."""
-
-    def read(view: AgentView) -> float:
-        stepper = view._stepper
-        return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, entry))[0])
-
-    return property(read, doc=f'Parameter {name} of the group of the agent.')
-
-
-def _view_class(spec: CompiledAgents) -> type[AgentView]:
-    """Return the class of the views of a group's agents, with a property per state and parameter."""
-    names: dict[str, Any] = {
-        name: _parameter_property(name, entry) for name, entry in spec.parameters.items() if name not in spec.states
-    }
-    names.update({name: _state_property(name) for name in spec.states})
-    names['__slots__'] = ()
-    return type(f'{spec.path.replace("/", "_")}_view', (AgentView,), names)
-
-
 class MesaSolver(Solver):
     """Mesa backend of agent-based problems, one Mesa step per unit of time.
 
@@ -870,7 +759,11 @@ class MesaSolver(Solver):
         self._classes: dict[type, CompiledAgents] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
-        self.space_: Any = _build_space(problem.agent_space, self.model_, sum(spec.size for spec in problem.agents))
+        self.space_: Any = self._build_space(
+            problem.agent_space,
+            self.model_,
+            sum(spec.size for spec in problem.agents),
+        )
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
         self._rules = [
@@ -880,7 +773,7 @@ class MesaSolver(Solver):
         ]
         time = getattr(problem.system, 'time', None)
         schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
-        self._phases = _phase_plan(schedule.phases if isinstance(schedule, PhasesScheduleSpec) else (), problem)
+        self._phases = self._phase_plan(schedule.phases if isinstance(schedule, PhasesScheduleSpec) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
             for spec in problem.agents
@@ -909,14 +802,14 @@ class MesaSolver(Solver):
         def step(agent: mesa.Agent) -> None:
             """Run the rules of the agent's type unless the agent was removed earlier in the step."""
             view = _view_of(agent)
-            for rule in _rules_of(spec.rules):
+            for rule in self._rules_of(spec.rules):
                 if getattr(agent, 'removed_', False):
                     return
                 rule.function(view, model)
 
         agent_class = type(f'{spec.path.replace("/", "_")}_agent', (base,), {'step': step})
         self._classes[agent_class] = spec
-        self._view_classes[agent_class] = _view_class(spec)
+        self._view_classes[agent_class] = self._view_class(spec)
         return agent_class
 
     def _place(self, agent: mesa.Agent, location: object) -> None:
@@ -991,7 +884,7 @@ class MesaSolver(Solver):
         agent.__dict__['view_'] = self._view_classes[agent_class](agent, self)
         defaults = _agent_type(spec)
         for name in spec.states:
-            value = values[name] if name in values else _shared_default(defaults, name)
+            value = values[name] if name in values else self._shared_default(defaults, name)
             setattr(agent, name, value)
         self._place(agent, location)
         return agent
@@ -1003,7 +896,7 @@ class MesaSolver(Solver):
         given = spec.element.location if isinstance(spec.element, GroupElement) else None
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
-            location = _member_location(given, index, spec.size)
+            location = self._member_location(given, index, spec.size)
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
@@ -1085,17 +978,17 @@ class MesaSolver(Solver):
             for agent in self._ordered_agents(phase):
                 spec = self._spec_of(agent)
                 view, model = _view_of(agent), self._views[spec.path]
-                for rule in _rules_of(spec.rules):
+                for rule in self._rules_of(spec.rules):
                     if getattr(agent, 'removed_', False):
                         break
-                    if _phase_of(rule) == phase.name:
+                    if self._phase_of(rule) == phase.name:
                         rule.function(view, model)
         finally:
             buffer, self.buffer_ = self.buffer_, None
         for (agent, name), value in (buffer or {}).items():
             setattr(agent, name, value)
         for model, rule in self._rules:
-            if _phase_of(rule) == phase.name:
+            if self._phase_of(rule) == phase.name:
                 rule.function(model)
 
     def _remember(self) -> None:
@@ -1177,8 +1070,127 @@ class MesaSolver(Solver):
         groups, agents = {}, {}
         for spec in self.problem_.agents:
             agents[spec.path] = self._group_agents(spec.path)
-            groups[spec.path] = _snapshot_of(agents[spec.path], {name: _attribute(name) for name in spec.states})
+            groups[spec.path] = self._snapshot_of(
+                agents[spec.path],
+                {name: self._attribute(name) for name in spec.states},
+            )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
         self.snapshot_ = AgentState(groups, {**reporters, **self.reports_})
         self.agents_ = agents
+
+    @staticmethod
+    def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
+        """Return the Mesa space of a framework space."""
+        if isinstance(space, LatticeSpace):
+            grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
+            return grid(space.shape_[:2], torus=space.periodic_, capacity=space.capacity, random=model.random)
+        if isinstance(space, NetworkSpace):
+            return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
+        if isinstance(space, ContinuousSpace):
+            bounds = [[0.0, space.extent_[0]], [0.0, space.extent_[1]]]
+            return MesaContinuousSpace(bounds, torus=space.periodic_, random=model.random, n_agents=max(n_agents, 1))
+        return None
+
+    @staticmethod
+    def _rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
+        """Return the rules among laws, which the compiled agents and the model rules hold alone."""
+        return [law for law in laws if isinstance(law, RuleLaw)]
+
+    @staticmethod
+    def _phase_of(rule: RuleLaw) -> str:
+        """Return the name of the phase a rule runs in."""
+        return rule.phase or _DEFAULT_PHASE
+
+    @staticmethod
+    def _phase_plan(phases: Sequence[PhaseSpec], problem: Problem) -> list[PhaseSpec] | None:
+        """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
+        rules = MesaSolver._rules_of(
+            [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.model_rules)],
+        )
+        if not phases and all(rule.phase is None for rule in rules):
+            return None
+        names = [phase.name for phase in phases]
+        if len(set(names)) != len(names):
+            error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
+            raise SimulationError(error_msg)
+        plan = list(phases) if _DEFAULT_PHASE in names else [PhaseSpec(_DEFAULT_PHASE), *phases]
+        unknown = sorted({MesaSolver._phase_of(rule) for rule in rules} - {phase.name for phase in plan})
+        if unknown:
+            error_msg = (
+                f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases '
+                f'are: {", ".join(names) or "none"}.'
+            )
+            raise SimulationError(error_msg)
+        return plan
+
+    @staticmethod
+    def _attribute(name: str) -> Callable[[mesa.Agent], object]:
+        """Return a function that reads an attribute of an agent."""
+        return lambda agent: getattr(agent, name)
+
+    @staticmethod
+    def _snapshot_of(
+        agents: list[mesa.Agent],
+        reporters: Mapping[str, Callable[[mesa.Agent], object]],
+    ) -> AgentSnapshot:
+        """Return the ids, reported values, and locations of agents."""
+        agents = sorted(agents, key=lambda agent: agent.unique_id)
+        ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
+        values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
+        locations = [_location_of(agent) for agent in agents]
+        has_locations = any(location is not None for location in locations)
+        return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
+
+    @staticmethod
+    def _member_location(location: object, index: int, size: int) -> object:
+        """Return the initial location of one agent from per-agent locations or one shared location."""
+        if location is None:
+            return None
+        array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
+        if array.ndim >= 1 and array.shape[0] == size:
+            return _cell_key(np.asarray(array[index]))
+        return _cell_key(location)
+
+    @staticmethod
+    def _shared_default(element_type: type, name: str) -> object:
+        """Return the default of a state of an element type."""
+        return default_of(element_type, name)
+
+    @staticmethod
+    def _state_property(name: str) -> property:
+        """Return the property of a state of agents, which sets the agent at the end of a simultaneous phase."""
+
+        def read(view: AgentView) -> Any:  # noqa: ANN401
+            return getattr(view._agent, name)
+
+        def write(view: AgentView, value: Any) -> None:  # noqa: ANN401
+            buffer = view._stepper.buffer_
+            if buffer is not None:
+                buffer[view._agent, name] = value
+                return
+            setattr(view._agent, name, value)
+
+        return property(read, write, doc=f'State {name} of the agent.')
+
+    @staticmethod
+    def _parameter_property(name: str, entry: str) -> property:
+        """Return the read-only property of a parameter of the group of agents."""
+
+        def read(view: AgentView) -> float:
+            stepper = view._stepper
+            return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, entry))[0])
+
+        return property(read, doc=f'Parameter {name} of the group of the agent.')
+
+    @staticmethod
+    def _view_class(spec: CompiledAgents) -> type[AgentView]:
+        """Return the class of the views of a group's agents, with a property per state and parameter."""
+        names: dict[str, Any] = {
+            name: MesaSolver._parameter_property(name, entry)
+            for name, entry in spec.parameters.items()
+            if name not in spec.states
+        }
+        names.update({name: MesaSolver._state_property(name) for name in spec.states})
+        names['__slots__'] = ()
+        return type(f'{spec.path.replace("/", "_")}_view', (AgentView,), names)

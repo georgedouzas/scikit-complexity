@@ -8,7 +8,7 @@ import numpy.typing as npt
 from numba import njit
 
 DRAW, MOVE, LEFT, RIGHT, REVERSE, PUSH, POP, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT = range(1, 12)
-ACTION_CODES = {
+_ACTION_CODES = {
     'draw': DRAW,
     'move': MOVE,
     'left': LEFT,
@@ -90,7 +90,7 @@ def neighbors(  # noqa: C901
 
 
 @njit(cache=True)
-def walk_word(  # noqa: C901
+def _walk_word(  # noqa: C901
     actions: npt.NDArray[np.int64],
     values: npt.NDArray[np.float64],
     step: float,

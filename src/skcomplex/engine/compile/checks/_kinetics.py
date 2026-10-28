@@ -15,7 +15,7 @@ from .._issues import Issue
 from .._kinetic_encounters import kinetic_table
 
 PROBABILITY_TOLERANCE = 1e-9
-LISTED_ENCOUNTERS = 3
+_LISTED_ENCOUNTERS = 3
 
 
 def _probability_sum(total: object) -> float | None:
@@ -63,9 +63,9 @@ def probability_issues(compilation: Compilation) -> list[Issue]:
             continue
         listed = '; '.join(
             f'candidate activity {candidate} with field activity {field_activity} sums to {value:.6g}'
-            for candidate, field_activity, value in found[:LISTED_ENCOUNTERS]
+            for candidate, field_activity, value in found[:_LISTED_ENCOUNTERS]
         )
-        more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
+        more = f', and {len(found) - _LISTED_ENCOUNTERS} more' if len(found) > _LISTED_ENCOUNTERS else ''
         message = (
             f'The {type(law).__name__} of {record.path} has outcome probabilities that do not sum to one over the '
             f'outcomes of an encounter: {listed}{more}.'

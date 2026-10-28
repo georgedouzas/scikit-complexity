@@ -36,13 +36,13 @@ from ...core.spaces import BaseSpace
 from ...core.system import System
 from ..problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
 from ..problems._kernels import PairSearch
-from ._declarations import Block, Declarations, is_interaction
+from ._declarations import Block, Declarations, _is_interaction
 from ._laws import values_of
-from ._noise import ProcessKey, process_keys
-from ._observables import Observer, lowerable_observables
+from ._noise import ProcessKey, _process_keys
+from ._observables import Observer, _lowerable_observables
 from ._renewal_law import RenewalLaw
-from ._specs import KernelSpec, component_of, group_space, specs_of, target_references
-from ._topology import request_of
+from ._specs import KernelSpec, _component_of, _group_space, _specs_of, target_references
+from ._topology import _request_of
 from ._tree import Node
 
 
@@ -87,7 +87,7 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
     )
     references = [spec.references.get(item) for item in targets]
     return {
-        'processes': tuple(process_keys(spec, law, declarations)),
+        'processes': tuple(_process_keys(spec, law, declarations)),
         'driven': tuple((item.entry.name, item.column) for item in references if item is not None),
         'reads': tuple(_state_reads(spec, value) for value in values),
     }
@@ -123,13 +123,13 @@ def _records_of(
 ) -> list[CensusRecord]:
     """Return the census records of the laws of one component."""
     records = []
-    for spec in specs_of(block, elements, declarations.time, observe.evaluate):
-        component = cast('BaseElement | BaseInteraction', component_of(block.node))
-        for law in declared_laws(spec, component):
+    for spec in _specs_of(block, elements, declarations.time, observe.evaluate):
+        component = cast('BaseElement | BaseInteraction', _component_of(block.node))
+        for law in _declared_laws(spec, component):
             items = [item for target in law._get_targets() for item in components_of(target)]
             references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
             targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
-            owner = law_owner(spec, law, agents)
+            owner = _law_owner(spec, law, agents)
             vectors = frozenset(entry.name for entry in targets if _is_vector(entry, elements))
             kind = _component_kind(elements.get(owner, block).node)
             records.append(
@@ -140,7 +140,7 @@ def _records_of(
                     targets,
                     vectors,
                     kind,
-                    group_space(elements.get(owner, block)),
+                    _group_space(elements.get(owner, block)),
                     members=spec.rows,
                     handles=_handle_uses(law, declarations.handles),
                     **_noise_census(spec, law, declarations),
@@ -149,7 +149,7 @@ def _records_of(
     return records
 
 
-def renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
+def _renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
     """Return the path of the element or group whose states a renewal law resets, or the law's component."""
     targets = [item for target in (law.reset or {}) for item in components_of(target)]
     reference = spec.references.get(targets[0]) if targets else None
@@ -159,18 +159,18 @@ def renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
 def _special_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the owner of a renewal, a rule, a matching, or a topology request, or `None` for another law."""
     if isinstance(law, JumpLaw) and law.waiting is not None:
-        return renewal_group(spec, RenewalLaw(law.waiting, law.reset))
+        return _renewal_group(spec, RenewalLaw(law.waiting, law.reset))
     if isinstance(law, RenewalLaw):
-        return renewal_group(spec, law)
+        return _renewal_group(spec, law)
     if isinstance(law, RuleLaw | MatchLaw):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if request_of(law) is not None:
+    if _request_of(law) is not None:
         return spec.group or next(iter(spec.groups), spec.owner)
     return None
 
 
-def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
+def _law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
     """Return the path of the element or group a law belongs to.
 
     A renewal belongs to the group whose states it resets, a rule or a matching to the first agent group among its
@@ -208,7 +208,7 @@ def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
     return target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
 
-def kind_of(law: BaseLaw) -> type:
+def _kind_of(law: BaseLaw) -> type:
     """Return the class of a law that decides its form, with every noise law counted as a noise law.
 
     Args:
@@ -222,7 +222,7 @@ def kind_of(law: BaseLaw) -> type:
     return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
 
-def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
+def _declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
     Args:
@@ -265,7 +265,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     return checked
 
 
-def census_of(system: System, nodes: list[Node]) -> Census:
+def _census_of(system: System, nodes: list[Node]) -> Census:
     """Return the census of the laws of a system, with the errors of the components that fail.
 
     The census declares every component and collects its laws as compilation does, without lowering them, and keeps
@@ -290,9 +290,9 @@ def census_of(system: System, nodes: list[Node]) -> Census:
             blocks.append(declarations.declare_component(node))
         except SkcomplexError as error:
             errors.append((node.path, error))
-    elements = {block.node.path: block for block in blocks if not is_interaction(block.node)}
+    elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
     elements.update(declarations.processes)
-    observe = Observer(declarations, lowerable_observables(system, nodes))
+    observe = Observer(declarations, _lowerable_observables(system, nodes))
     agents = {block.node.path for block in blocks if block.node.is_agent}
     records = []
     for block in blocks:

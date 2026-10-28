@@ -10,17 +10,12 @@ import rerun.blueprint as rrb
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, wrap_angle
 from ..runtime import Frame
 from ._colors import _phase_colors
-from ._utils import UPWARD, _radius_of, log_scalars
+from ._utils import _UPWARD, _radius_of, log_scalars
 from ._visuals import BaseVisual
 
-PHASE_MARGIN = 0.1
-HEIGHT_SHARE = 0.6
-POSITION_MARGIN = 0.05
-
-
-def _phase_scale(extent: float) -> float:
-    """Return the height of one radian, so one turn of phase spans a share of the extent of the positions."""
-    return HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)
+_PHASE_MARGIN = 0.1
+_HEIGHT_SHARE = 0.6
+_POSITION_MARGIN = 0.05
 
 
 class PhaseRingVisual(BaseVisual):
@@ -70,7 +65,7 @@ class PhaseRingVisual(BaseVisual):
             coordinates = np.asarray(frame.value(element.states[self.position]), dtype=float)
             positions = coordinates.reshape(phases.size, -1)[:, 0]
         extent = float(np.ptp(positions)) if positions.size else 1.0
-        points = np.column_stack([positions, phases * _phase_scale(extent)]) * UPWARD
+        points = np.column_stack([positions, phases * self._phase_scale(extent)]) * _UPWARD
         radius = _radius_of(max(extent, 1.0), phases.size)
         recording.log(f'{element.path}/phases', rr.Points2D(points, radii=radius, colors=_phase_colors(phases)))
         for state, name in element.states.items():
@@ -100,11 +95,16 @@ class PhaseRingVisual(BaseVisual):
             entry = problem.states.read(problem.initial_state, element.states[self.position])
             positions = np.asarray(entry, dtype=float).reshape(count, -1)[:, 0]
             low, high = float(positions.min()), float(positions.max())
-        margin = max(high - low, 1.0) * POSITION_MARGIN
-        height = (np.pi + PHASE_MARGIN) * _phase_scale(high - low)
+        margin = max(high - low, 1.0) * _POSITION_MARGIN
+        height = (np.pi + _PHASE_MARGIN) * self._phase_scale(high - low)
         bounds = rrb.VisualBounds2D(
             x_range=(low - margin, high + margin),
             y_range=(-height, height),
         )
         path = f'{element.path}/phases'
         return [rrb.Spatial2DView(origin=path, name=element.path, visual_bounds=bounds)]
+
+    @staticmethod
+    def _phase_scale(extent: float) -> float:
+        """Return the height of one radian, so one turn of phase spans a share of the extent of the positions."""
+        return _HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)

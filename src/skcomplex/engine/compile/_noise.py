@@ -34,7 +34,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
     return ('wiener', *found)
 
 
-def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
+def _process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
     """Return the process of every component of the target of a noise law, `None` for an independent process."""
     count = len(components_of(law._get_targets()[0]))
     process = law.process
@@ -52,7 +52,7 @@ def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) ->
     return [_process_key(spec, item, declarations) for item in items]
 
 
-def process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
+def _process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
     """Return the covariance per unit time of the increments of two processes, keys or independent markers."""
     if not (isinstance(first, tuple) and isinstance(second, tuple) and first[0] == 'wiener' == second[0]):
         return 1.0 if first == second else 0.0
@@ -64,7 +64,7 @@ def process_covariance(first: object, second: object, wieners: Mapping[str, Wien
     return float(np.asarray(covariance, dtype=float)[first[2], second[2]])
 
 
-def covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
+def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
     matrix = np.asarray(covariance, dtype=float)
     try:
@@ -74,7 +74,7 @@ def covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
         return vectors * np.sqrt(np.maximum(values, 0.0))
 
 
-def noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
+def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
     """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
     if key is None:
         return None
@@ -82,5 +82,5 @@ def noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpe
     if kind == 'local':
         return NoiseProcess(key)
     wiener = wieners[owner]
-    factor = None if wiener.covariance is None else covariance_factor(wiener.covariance)
+    factor = None if wiener.covariance is None else _covariance_factor(wiener.covariance)
     return NoiseProcess(owner, item, wiener.dimension, factor)
