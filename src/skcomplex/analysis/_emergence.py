@@ -19,7 +19,7 @@ from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
 from ._kinds import DataKind
-from ._markov import _stationary_distribution
+from ._markov import MarkovAnalysis
 
 type Array = npt.NDArray[np.float64]
 type Columns = npt.NDArray[np.generic]
@@ -363,7 +363,7 @@ class EmergenceAnalysis(BaseAnalysis):
             return np.ones(matrix.shape[0])
         totals = matrix.sum(axis=1, keepdims=True)
         rows = np.divide(matrix, totals, out=np.eye(matrix.shape[0]), where=totals > 0)
-        return _stationary_distribution(rows)
+        return MarkovAnalysis._stationary_distribution(rows)
 
     @staticmethod
     def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:

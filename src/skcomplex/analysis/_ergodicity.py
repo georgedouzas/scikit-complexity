@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._markov import _stationary_distribution
+from ._markov import MarkovAnalysis
 
 type Array = npt.NDArray[np.float64]
 MIN_RUNS = 2
@@ -210,7 +210,7 @@ class ErgodicityAnalysis(BaseAnalysis):
         counts = np.bincount(origins * cells + landed, minlength=cells * cells).reshape(cells, cells)
         self.edges_ = grid
         self.transition_matrix_ = counts / self.samples
-        self.density_ = _stationary_distribution(self.transition_matrix_) / np.diff(grid)
+        self.density_ = MarkovAnalysis._stationary_distribution(self.transition_matrix_) / np.diff(grid)
 
     def _run(self) -> Self:
         """Compute the diagnostic of the kind."""
