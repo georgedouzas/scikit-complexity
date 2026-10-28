@@ -17,7 +17,7 @@ bright spots, and new bands leave every meeting point in the opposite directions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
+from skcomplex.analysis import StabilityAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
@@ -46,7 +46,7 @@ simulation = Simulation(
 trajectory = simulation.trajectory_
 mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, n_sites=512, length=400.0)).run()
+relation = StabilityAnalysis('dispersion').check().prepare(create(MODEL, n_sites=512, length=400.0)).run()
 order = np.argsort(relation.magnitudes_)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))

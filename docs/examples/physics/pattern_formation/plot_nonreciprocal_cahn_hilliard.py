@@ -17,7 +17,7 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
+from skcomplex.analysis import StabilityAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -39,8 +39,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ru
 # sites, whose wavenumbers resolve the band finely. In the run above, the phase of the dominant Fourier
 # mode of `phi` should advance at a constant rate once the domains form, the signature of domains that travel.
 
-above = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
-below = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
+above = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
+below = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
 edge = np.sqrt(1 - 0.1)
 phi = simulation.trajectory_.lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))

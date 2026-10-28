@@ -1,4 +1,4 @@
-"""Test the polar, milling, nematic, and phase order of agents."""
+"""Test the alignment of agents, fields, and series: mean vector, mean rotation, axial order, and mean phase."""
 
 import math
 
@@ -7,14 +7,19 @@ import pytest
 from scipy.spatial import cKDTree
 from sklearn.base import clone
 
-from skcomplex.analysis import OrderAnalysis
+from skcomplex.analysis import AlignmentAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
 
+def _alignment(kind: str, source: object, **settings: object) -> AlignmentAnalysis:
+    """Return the alignment analysis of a source for one kind, run."""
+    return AlignmentAnalysis(kind, **settings).check().prepare(source).run()
+
+
 def _order(kind: str, source: object, **settings: object) -> np.ndarray:
     """Return the order of every frame of a source for one kind."""
-    return OrderAnalysis(kind, **settings).check().prepare(source).run().order_
+    return _alignment(kind, source, **settings).order_
 
 
 def _vicsek(rng: np.random.Generator, agents: int, noise: float, steps: int) -> np.ndarray:
@@ -63,45 +68,82 @@ def _dorsogna_mill(rng: np.random.Generator, agents: int) -> tuple[np.ndarray, n
     return positions, velocities
 
 
-def test_polar_order_vicsek_ordering():
+def test_mean_vector_vicsek_ordering():
     """Test that 1000 Vicsek agents order at noise 0.1 and stay disordered at noise 5."""
     rng = np.random.default_rng(0)
-    assert _order('polar', _vicsek(rng, 1000, 0.1, 400))[0] > 0.9
-    assert _order('polar', _vicsek(rng, 1000, 5.0, 100))[0] < 3 / math.sqrt(1000)
+    assert _order('mean-vector', _vicsek(rng, 1000, 0.1, 400))[0] > 0.9
+    assert _order('mean-vector', _vicsek(rng, 1000, 5.0, 100))[0] < 3 / math.sqrt(1000)
 
 
-def test_phase_order_same_on_oscillators_and_headings():
+def test_mean_phase_same_on_oscillators_and_headings():
     """Test that Kuramoto phases and Vicsek headings give the same order as unit vectors at those angles."""
     rng = np.random.default_rng(1)
     for angles in (_kuramoto_phases(rng, 2000, 4.0), _vicsek(rng, 1000, 0.1, 400)):
-        order = _order('phase', angles)[0]
-        assert abs(order) > 0.6
+        phases = _alignment('mean-phase', angles)
+        order = phases.order_[0]
+        assert order > 0.6
+        assert order * np.exp(1j * phases.phase_[0]) == pytest.approx(np.mean(np.exp(1j * angles)), abs=1e-12)
         vectors = np.column_stack([np.cos(angles), np.sin(angles)])
-        assert abs(order) == pytest.approx(_order('polar', vectors, vectors=True)[0], abs=1e-12)
-        assert _order('nematic', angles)[0] >= 0
+        assert order == pytest.approx(_order('mean-vector', vectors, vectors=True)[0], abs=1e-12)
+        assert _order('axial', angles)[0] >= 0
 
 
-def test_milling_order_of_a_mill():
-    """Test that a D'Orsogna swarm in its mill state has milling order above 0.8 and polar order below 0.2."""
+def test_mean_rotation_of_a_mill():
+    """Test that a D'Orsogna swarm in its mill state has mean rotation above 0.8 and mean vector below 0.2."""
     positions, velocities = _dorsogna_mill(np.random.default_rng(2), 100)
-    assert _order('milling', np.hstack([positions, velocities]))[0] > 0.8
-    assert _order('polar', velocities, vectors=True)[0] < 0.2
+    assert _order('mean-rotation', np.hstack([positions, velocities]))[0] > 0.8
+    assert _order('mean-vector', velocities, vectors=True)[0] < 0.2
 
 
-def test_order_of_every_frame_of_a_trajectory():
-    """Test that a flock gives one polar, milling, and nematic order per frame between 0 and 1."""
+def test_alignment_of_every_frame_of_a_trajectory():
+    """Test that a flock gives one mean-vector, mean-rotation, and axial order per frame between 0 and 1."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
-    for kind in ('polar', 'milling', 'nematic'):
+    for kind in ('mean-vector', 'mean-rotation', 'axial'):
         order = _order(kind, trajectory)
         assert order.shape == (len(trajectory.times),)
         assert np.all((order >= 0) & (order <= 1 + 1e-12))
 
 
-def test_order_checks_its_settings():
+def test_alignment_checks_its_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors, and that a clone has no results."""
-    with pytest.raises(AnalysisError, match='polar, milling, nematic, phase'):
-        OrderAnalysis('swirl').check()
+    with pytest.raises(AnalysisError, match='mean-vector, mean-rotation, axial, mean-phase'):
+        AlignmentAnalysis('swirl').check()
     with pytest.raises(AnalysisError, match='does not read vectors'):
-        OrderAnalysis('milling', vectors=True).check()
-    analysis = OrderAnalysis().check().prepare([0.0, 0.0]).run()
+        AlignmentAnalysis('mean-rotation', vectors=True).check()
+    analysis = AlignmentAnalysis().check().prepare([0.0, 0.0]).run()
     assert not hasattr(clone(analysis), 'order_')
+
+
+def test_alignment_on_three_domains():
+    """Test the mean vector of a Vicsek flock and of an XY lattice, and the mean phase of Kuramoto oscillators."""
+    flock = run('vicsek', settings={'until': 3}).trajectory_
+    spins = run('xy', settings={'until': 3}).trajectory_
+    oscillators = run('kuramoto', settings={'until': 3}).trajectory_
+    runs = (
+        (_alignment('mean-vector', flock), flock),
+        (_alignment('mean-vector', spins), spins),
+        (_alignment('mean-phase', oscillators, variables=['oscillators.theta']), oscillators),
+    )
+    for analysis, trajectory in runs:
+        assert analysis.order_.shape == (len(trajectory.times),)
+        assert np.all((analysis.order_ >= 0) & (analysis.order_ <= 1 + 1e-12))
+    assert runs[0][0].order_ == pytest.approx(flock.values('polarization'), abs=1e-9)
+    angles = spins.lattice('spins.theta')
+    assert runs[1][0].order_ == pytest.approx(np.abs(np.exp(1j * angles).mean(axis=(1, 2))), abs=1e-12)
+    phases = oscillators.values('oscillators.theta')
+    assert runs[2][0].order_ == pytest.approx(np.abs(np.exp(1j * phases).mean(axis=1)), abs=1e-12)
+
+
+def test_alignment_of_a_field_of_vectors():
+    """Test that frames of a field of three-dimensional vectors give the length of their mean unit vector."""
+    field = np.zeros((2, 4, 4, 3))
+    field[0, ..., 2] = 2.0
+    field[1, ..., 0] = np.where(np.arange(4) % 2, 1.0, -1.0)
+    assert _order('mean-vector', field, vectors=True).tolist() == [1.0, 0.0]
+
+
+def test_alignment_rejects_a_source_without_a_readable_kind():
+    """Test that a trajectory with no agents, field, or series names the kinds read and the kinds held."""
+    trajectory = run('poisson_process', n_processes=1, settings={'until': 3.0, 'random_state': 0}).trajectory_
+    with pytest.raises(AnalysisError, match='reads agents, field, series, but the trajectory holds path'):
+        _alignment('mean-vector', trajectory)

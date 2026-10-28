@@ -11,6 +11,7 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ..engine.problems import Form
 from ..engine.runtime import Trajectory
+from ._alignment import AlignmentAnalysis
 from ._base import BaseAnalysis, Signature, Source
 from ._correlation import CorrelationAnalysis
 from ._distribution import DistributionAnalysis
@@ -18,7 +19,6 @@ from ._fluctuations import FluctuationAnalysis
 from ._kinds import DataKind
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
-from ._order import OrderAnalysis
 from ._spectrum import SpectrumAnalysis
 
 type Array = npt.NDArray[np.float64]
@@ -168,13 +168,13 @@ class SignatureAnalysis(BaseAnalysis):
         """Return the polar order over time, and the milling order of agents with velocities in a plane."""
         snapshots = self.snapshots_
         if snapshots.velocities is not None:
-            polar = OrderAnalysis._polar_order(snapshots.velocities, vectors=True)
+            polar = AlignmentAnalysis._mean_vector_length(snapshots.velocities, vectors=True)
         else:
-            polar = OrderAnalysis._polar_order(np.asarray(snapshots.headings))
+            polar = AlignmentAnalysis._mean_vector_length(np.asarray(snapshots.headings))
         curves = {'polar order': (snapshots.times, polar)}
         planar = snapshots.positions is not None and snapshots.positions.shape[-1] == PLANE
         if snapshots.velocities is not None and snapshots.positions is not None and planar:
-            milling = OrderAnalysis._milling_order(snapshots.positions, snapshots.velocities)
+            milling = AlignmentAnalysis._mean_rotation(snapshots.positions, snapshots.velocities)
             curves['milling order'] = (snapshots.times, milling)
         values = {name: float(curve[1][-1]) for name, curve in curves.items()}
         return Signature(DataKind.AGENTS, 'Order over time', 'time', 'order', curves, values)

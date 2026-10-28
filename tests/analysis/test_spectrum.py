@@ -4,25 +4,13 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.core.elements import FieldElement
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.system import System
 from skcomplex.models import run
-from skcomplex.models.chemistry.pattern_formation import BrusselatorElement
 
 
 def _spectrum(kind: str, source: object, **settings: object) -> SpectrumAnalysis:
     """Return the spectrum analysis of a source for one kind, run."""
     return SpectrumAnalysis(kind, **settings).check().prepare(source).run()
-
-
-def _brusselator(b, *, discretization='spectral', boundary='periodic'):
-    """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
-    values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
-    space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
-    cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
-    return System(elements=[cells])
 
 
 def test_power_spectrum_of_a_sine():
@@ -48,38 +36,9 @@ def test_structure_factor_same_on_a_trajectory_and_its_last_frame():
     )
 
 
-def test_dispersion_relation_finds_the_turing_band():
-    """Test that the Brusselator above its Turing threshold grows on the analytic band within one grid wavenumber."""
-    relation = _spectrum('dispersion', _brusselator(1.9))
-    gap = np.sqrt(6.2**2 - 32)
-    low, high = np.sqrt((6.2 - gap) / 16), np.sqrt((6.2 + gap) / 16)
-    step = 2 * np.pi / (128 * 0.5)
-    assert relation.uniform_ == pytest.approx({'u': 1.0, 'v': 1.9})
-    assert relation.band_.min() == pytest.approx(low, abs=step)
-    assert relation.band_.max() == pytest.approx(high, abs=step)
-    assert relation.growth_rates_[relation.magnitudes_ == 0] < 0
-
-
-def test_dispersion_relation_of_finite_differences_and_below_threshold():
-    """Test that finite differences agree with spectral modes at long waves, and that no mode grows below threshold."""
-    spectral = _spectrum('dispersion', _brusselator(1.9))
-    stencil = _spectrum('dispersion', _brusselator(1.9, discretization='finite-difference'))
-    long = spectral.magnitudes_ < 0.3
-    assert stencil.growth_rates_[long] == pytest.approx(spectral.growth_rates_[long], abs=1e-2)
-    assert _spectrum('dispersion', _brusselator(1.7)).band_.size == 0
-
-
-def test_dispersion_relation_rejects_non_periodic_fields_and_data():
-    """Test that a field with walls has no Fourier modes, and that an array is not a system."""
-    with pytest.raises(AnalysisError, match='periodic lattice'):
-        _spectrum('dispersion', _brusselator(1.9, boundary='fixed'))
-    with pytest.raises(AnalysisError, match='from a system'):
-        _spectrum('dispersion', np.zeros(4))
-
-
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
-    with pytest.raises(AnalysisError, match='power, structure-factor, dispersion'):
+    with pytest.raises(AnalysisError, match='power, structure-factor'):
         SpectrumAnalysis('unknown').check()
     with pytest.raises(AnalysisError, match='does not read spacing'):
         SpectrumAnalysis('power', spacing=2.0).check()
