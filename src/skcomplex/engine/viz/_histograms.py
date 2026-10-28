@@ -15,7 +15,7 @@ from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
-from ._visuals import _SERIES_COLORS, BaseVisual
+from ._base import _SERIES_COLORS, BaseVisual
 
 BINS = 20
 _MAX_LEVELS = 50
@@ -57,6 +57,12 @@ class HistogramVisual(AgentsVisual):
             Whether the histogram view comes before the time series view of the colored trait, for traits whose
             distribution matters more than its statistics, such as clustered opinions.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         spans_:
             The range of the histogram of every trait logged so far, by entity path.
@@ -76,16 +82,18 @@ class HistogramVisual(AgentsVisual):
         bins: int = BINS,
         shown: Sequence[str] = ('agents', 'mean', 'std'),
         histogram_first: bool = False,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
-        super().__init__(color_by=color_by, color_range=color_range, radius=radius)
+        super().__init__(color_by=color_by, color_range=color_range, radius=radius, path=path, recording=recording)
         self.bins = bins
         self.shown = shown
         self.histogram_first = histogram_first
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
         self.spans_: dict[str, tuple[float, float]] = {}
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""

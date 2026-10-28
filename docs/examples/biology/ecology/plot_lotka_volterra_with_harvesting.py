@@ -21,7 +21,7 @@ MODEL = 'lotka_volterra_with_harvesting'
 
 system = create(MODEL, prey=16.0, predators=8.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=50)
 
 # %%
 # Volterra's principle
@@ -31,7 +31,10 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
 # shifted centre.
 
 harvested = simulation.trajectory_
-unharvested = Simulation(create(MODEL, prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0), dt=0.1)
+unharvested = (
+    Simulation(create(MODEL, prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0), dt=0.1)
+    .check()
+)
 unharvested = unharvested.run(until=50).trajectory_
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(unharvested.values('prey.n'), unharvested.values('predators.n'), color='tab:grey', label='without harvesting')

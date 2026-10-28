@@ -52,7 +52,11 @@ blueprint = rrb.Blueprint(
 system = create(MODEL, n_fish=50, informed=0.1, size=SIZE, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 heading_x = Observable('heading_x', group='shoal', variable='vx')
-simulation = Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0).run(until=150)
+simulation = (
+    Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0)
+    .check()
+    .run(until=150)
+)
 
 # %%
 # Accuracy and the size of the informed minority
@@ -68,7 +72,10 @@ accuracy = []
 for fraction in fractions:
     cosines = []
     for seed in range(3):
-        run = Simulation(create(MODEL, n_fish=20, informed=fraction, random_state=seed), dt=1, random_state=seed)
+        run = (
+            Simulation(create(MODEL, n_fish=20, informed=fraction, random_state=seed), dt=1, random_state=seed)
+            .check()
+        )
         trajectory = run.run(until=120).trajectory_
         cosines.extend(np.cos(mean_heading(trajectory, frame)) for frame in range(80, 121))
     accuracy.append(np.mean(cosines))

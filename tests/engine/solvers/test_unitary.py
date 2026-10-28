@@ -129,7 +129,7 @@ def _chain(n_sites, **values):
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
     system = System(elements=[RabiElement('q')])
-    simulation = Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z).run(until=np.pi / OMEGA)
+    simulation = Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z).check().run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
     assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
     assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
@@ -138,7 +138,7 @@ def test_unitary_evolution_follows_rabi_oscillations():
 def test_unitary_evolution_conserves_magnetization_and_energy():
     """Test that an isotropic chain of 10 spins conserves its magnetisation and energy."""
     trajectory = (
-        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(atol=1e-14, rtol=1e-13), dt=1.0)
+        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(atol=1e-14, rtol=1e-13), dt=1.0).check()
         .run(until=10.0)
         .trajectory_
     )
@@ -149,13 +149,13 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(System(elements=[DecayingElement('q')]), solver=UnitarySolver()).run(until=1.0)
+        Simulation(System(elements=[DecayingElement('q')]), solver=UnitarySolver()).check().run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
     system = System(elements=[DecayingElement('q')])
-    simulation = Simulation(system, dt=0.5, observables=Z).run(until=4.0)
+    simulation = Simulation(system, dt=0.5, observables=Z).check().run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
     assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
@@ -165,7 +165,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = Simulation(System(elements=[DephasedElement('q')]), dt=0.2).run(until=4.0).trajectory_
+    trajectory = Simulation(System(elements=[DephasedElement('q')]), dt=0.2).check().run(until=4.0).trajectory_
     purity = trajectory.values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
@@ -175,7 +175,11 @@ def test_quantum_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
     system = System(elements=[DecayingElement('q')])
     runs = [
-        Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
+        (
+            Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z)
+            .check()
+            .run(until=10.0)
+        )
         for _ in range(2)
     ]
     assert np.array_equal(runs[0].trajectory_.values('z'), runs[1].trajectory_.values('z'))
@@ -189,7 +193,7 @@ def test_quantum_trajectories_average_to_the_master_equation():
     rng = np.random.default_rng(0)
     values = np.array(
         [
-            Simulation(problem, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=rng)
+            Simulation(problem, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=rng).check()
             .run(until=4.0)
             .trajectory_.values('z')
             for _ in range(500)
@@ -203,7 +207,7 @@ def test_quantum_trajectories_average_to_the_master_equation():
 
 def test_quantum_solvers_follow_parameter_updates():
     """Test that a quench of the anisotropy changes the energy after the update."""
-    simulation = Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5).run(until=1.0)
+    simulation = Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5).check().run(until=1.0)
     simulation.update_parameters({'xxz.delta': 0.0})
     trajectory = simulation.extend(until=2.0).trajectory_
     energy = trajectory.values('energy')

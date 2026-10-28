@@ -346,7 +346,7 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import barabasi_albert
-        >>> trajectory = Simulation(barabasi_albert(13), random_state=0).run(until=10).trajectory_
+        >>> trajectory = Simulation(barabasi_albert(13), random_state=0).check().run(until=10).trajectory_
         >>> int(trajectory.network(-1).sources.size)
         23
     """

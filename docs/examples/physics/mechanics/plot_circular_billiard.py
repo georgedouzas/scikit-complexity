@@ -20,7 +20,7 @@ MODEL = 'circular_billiard'
 
 system = create(MODEL, x=0.3, y=0.0, vx=0.4, vy=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.02, observers=[observer]).check().run(until=20)
 
 # %%
 # The caustic

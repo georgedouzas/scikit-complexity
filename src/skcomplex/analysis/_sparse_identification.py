@@ -181,7 +181,7 @@ class SparseIdentificationAnalysis(BaseAnalysis):
             self.system_,
             dt=self.dt_,
             initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
-        )
+        ).check()
         trajectory = simulation.run(until=self.horizon * self.dt_).trajectory_
         values = np.column_stack([trajectory.values(name) for name in names])
         return values[1 : self.horizon + 1].reshape(self.horizon, len(names))

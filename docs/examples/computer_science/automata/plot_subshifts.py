@@ -23,7 +23,7 @@ MODEL = 'subshifts'
 
 system = create(MODEL, size=200)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=50)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=50)
 
 # %%
 # Density and entropy

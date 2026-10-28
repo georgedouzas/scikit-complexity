@@ -30,7 +30,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=250)
+).check().run(until=250)
 
 # %%
 # Wright's law
@@ -49,7 +49,7 @@ for index, d in enumerate((1, 2, 3)):
                 create(MODEL, n_components=N_COMPONENTS, d=d, random_state=seed),
                 random_state=seed,
                 observables=describe(MODEL).observables_of(system),
-            )
+            ).check()
             .run(until=STEPS)
             .trajectory_.values('total_cost')
             for seed in range(SEEDS)

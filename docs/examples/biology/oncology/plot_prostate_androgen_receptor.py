@@ -21,7 +21,11 @@ MODEL = 'prostate_androgen_receptor'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).run(until=26280)
+simulation = (
+    Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer])
+    .check()
+    .run(until=26280)
+)
 
 # %%
 # Androgen ablation
@@ -30,7 +34,11 @@ simulation = Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'),
 # their growth rate, so the cancer should shrink and the serum PSA fall instead of rising.
 
 trajectory = simulation.trajectory_
-ablated = Simulation(create(MODEL, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA')).run(until=26280)
+ablated = (
+    Simulation(create(MODEL, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA'))
+    .check()
+    .run(until=26280)
+)
 ablation = ablated.trajectory_
 years = trajectory.times / 8760
 fig, (cells, psa) = plt.subplots(1, 2, figsize=(10, 4))

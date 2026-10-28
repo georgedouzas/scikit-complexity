@@ -22,7 +22,7 @@ MODEL = 'von_bertalanffy'
 r, p, d = 2.32, 2 / 3, 0.808
 system = create(MODEL, n=1.0, r=r, p=p, d=d)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=40)
 
 # %%
 # Closed-form solution

@@ -22,7 +22,9 @@ MODEL = 'hasselmann'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0).run(
+simulation = Simulation(
+    system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0,
+).check().run(
     until=100,
 )
 
@@ -33,7 +35,12 @@ simulation = Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), obs
 # its values should follow a normal distribution of variance `sigma^2 / (2 lam)`.
 
 lam, sigma = 0.5, 0.3
-run = Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=2000).trajectory_
+run = (
+    Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
+    .check()
+    .run(until=2000)
+    .trajectory_
+)
 anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
 histogram = DistributionAnalysis('histogram', bins=40).check().prepare(anomaly).run()

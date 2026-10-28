@@ -269,7 +269,7 @@ class LoopAnalysis(BaseAnalysis):
         >>> from skcomplex.models import create
         >>> LoopAnalysis().check().prepare(create('bass_diffusion')).run().polarities_
         ['reinforcing', 'balancing']
-        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).run(2).trajectory_
+        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).check().run(2).trajectory_
         >>> LoopAnalysis('dominance').check().prepare(trajectory).run().gains_.shape
         (3, 2)
     """

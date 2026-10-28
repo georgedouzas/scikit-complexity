@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, n_balls=BALLS), dt=1, observers=[observer], random_state=0).run(250)
+simulation = Simulation(create(MODEL, n_balls=BALLS), dt=1, observers=[observer], random_state=0).check().run(250)
 
 # %%
 # Relaxation and the binomial distribution
@@ -46,12 +46,12 @@ simulation = Simulation(create(MODEL, n_balls=BALLS), dt=1, observers=[observer]
 steps = np.arange(301)
 urns = np.array(
     [
-        Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=seed).run(300).trajectory_.values('urn.n')
+        Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=seed).check().run(300).trajectory_.values('urn.n')
         for seed in range(200)
     ],
 )
 counts = np.asarray(
-    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).run(20000).trajectory_.values('urn.n'),
+    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).check().run(20000).trajectory_.values('urn.n'),
 )
 relaxed = counts[400:].astype(int)
 values = np.arange(BALLS + 1)

@@ -1,8 +1,10 @@
-"""Define the base class of visuals and the registry that resolves them by name."""
+"""Define the base class of visuals, which log one element or agent group to a Rerun recording."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
+from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -10,8 +12,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.base import BaseConfig
+from ...core.errors import ValidationError
 from ...core.spaces import BaseSpace, NetworkSpace
-from ..base import BaseEstimator
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -69,17 +72,29 @@ _PHASE_PALETTE = (
 )
 
 
-class BaseVisual(BaseEstimator):
+class BaseVisual(BaseConfig):
     """Base class of visuals, which log the state of one element or agent group to a Rerun recording.
 
-    `prepare(element, problem)` keeps the element, forgets what earlier frames left, and sets the Rerun views that show
-    what the visual logs. `run(frame, recording)` logs the element at one frame: a compiled element through the hook
+    A visual follows the common API of the engine. `prepare(problem)` finds the element or agent group of the problem
+    at the entity path `path`, forgets what earlier frames left, and sets the Rerun views that show what the visual
+    logs. `run(frame)` logs the element at one frame to the recording `recording`: a compiled element through the hook
     `_log`, and agents through the hook `_log_agents` with the snapshot of the frame. Subclasses implement `_log`,
-    `_log_agents`, or both, declare their views with `_views`, and are named by the kind of a `VisualSpec` in `VISUALS`.
+    `_log_agents`, or both, declare their views with `_views`, and are named by the kind of a `VisualSpec`.
+    `RerunObserver` builds the visual of every element and agent group with their path and its recording.
+
+    Args:
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
 
     Attributes:
         element_:
             The compiled element or agents the visual logs.
+
+        recording_:
+            The Rerun recording the visual logs to.
 
         space_:
             The space the agents of the problem live in, or `None`.
@@ -89,23 +104,81 @@ class BaseVisual(BaseEstimator):
 
         views_:
             The Rerun views that show what the visual logs, each with an entity path of the element as origin.
+
+    Examples:
+        >>> from skcomplex.engine.compile import compile_system
+        >>> from skcomplex.engine.viz import ScalarsVisual
+        >>> from skcomplex.models import create
+        >>> problem = compile_system(create('lotka_volterra'))
+        >>> visual = ScalarsVisual(path='prey').check().prepare(problem)
+        >>> visual.element_.path, str(visual.views_[0].origin)
+        ('prey', 'prey')
     """
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
-        """Keep the element and the space of the agents, forget earlier layouts, and set the views."""
-        self.element_ = element
+    def __init__(self, *, path: str | None = None, recording: rr.RecordingStream | None = None) -> None:
+        self.path = path
+        self.recording = recording
+
+    def _check(self) -> None:
+        """Raise an error unless the path is a string."""
+        if not isinstance(self.path, str):
+            error_msg = f'path = {self.path!r} must be the entity path of the element or agent group to draw.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self, problem: BaseProblem) -> None:
+        """Find the element at the path, keep the recording and the space of the agents, and set the views."""
+        elements = {item.path: item for item in (*problem.elements, *problem.agents)}
+        if self.path not in elements:
+            error_msg = (
+                f'No element or agent group of the problem has the path {self.path!r}. The paths are: '
+                f'{", ".join(elements)}.'
+            )
+            raise ValidationError(error_msg)
+        self.element_ = elements[self.path]
+        self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
         self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
-        self.views_ = self._views(element, problem)
+        self.views_ = self._views(self.element_, problem)
 
-    def _run(self, frame: Frame, recording: rr.RecordingStream) -> None:
+    def _run(self, frame: Frame) -> None:
         """Log the element at a frame, or the agents of the frame when the element is an agent group."""
         if isinstance(self.element_, CompiledAgents):
             snapshot = frame.agents.get(self.element_.path)
             if snapshot is not None:
-                self._log_agents(recording, self.element_.path, snapshot, self.space_)
+                self._log_agents(self.recording_, self.element_.path, snapshot, self.space_)
             return
-        self._log(recording, self.element_, frame)
+        self._log(self.recording_, self.element_, frame)
+
+    def prepare(self, problem: BaseProblem) -> Self:
+        """Prepare the checked visual for the element at its path in a compiled problem.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            self:
+                The prepared visual, with its views `views_`.
+
+        Raises:
+            ValidationError:
+                No element or agent group of the problem has the path of the visual.
+        """
+        return super().prepare(problem)
+
+    def run(self, frame: Frame) -> Self:
+        """Log the element or the agents of the visual at a frame.
+
+        Args:
+            frame:
+                The frame.
+
+        Returns:
+            self:
+                The visual.
+        """
+        super().run(frame)
+        return self
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element, none by default."""

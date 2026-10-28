@@ -40,7 +40,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 
 # %%
 # A regulator saves the meadow
@@ -56,7 +56,7 @@ regulated = Simulation(
     regulated_system,
     random_state=0,
     observables=describe(MODEL).observables_of(regulated_system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))
 for label, run in (('open access', simulation), ('regulated quota', regulated)):
     trajectory = run.trajectory_

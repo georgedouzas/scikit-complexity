@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'fisher_kpp'
 
 system = create(MODEL, length=800, D=1.0, r=1.0, spacing=0.25, front=0.05)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=default_blueprint(system), interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=80)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=80)
 
 # %%
 # Speed of the front

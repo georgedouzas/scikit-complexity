@@ -10,7 +10,7 @@ from ...conftest import _run_monitored
 
 def test_bathtub_drains_then_holds():
     """Test that the tub loses five gallons per minute until the faucet opens, and then holds its level."""
-    trajectory = Simulation(bathtub(), dt=0.5).run(until=10).trajectory_
+    trajectory = Simulation(bathtub(), dt=0.5).check().run(until=10).trajectory_
     assert trajectory.values('tub.water')[10] == pytest.approx(25.0)
     assert trajectory.values('tub.water')[-1] == pytest.approx(25.0)
 
@@ -19,7 +19,7 @@ def test_bathtub_drains_then_holds():
 def test_cascade_classifier_fractional_extraction(n_stages, k, feed_stage):
     """Test that the share of the feed in the fine product matches Barsky's fractional extraction."""
     system = cascade_classifier(n_stages, k=k, feed_stage=feed_stage)
-    trajectory = Simulation(system, dt=10.0).run(until=400).trajectory_
+    trajectory = Simulation(system, dt=10.0).check().run(until=400).trajectory_
     fine = trajectory.values('fine.m')
     entry = (n_stages + 1) // 2 if feed_stage is None else feed_stage
     ratio = (1 - k) / k

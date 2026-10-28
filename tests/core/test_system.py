@@ -187,9 +187,9 @@ def test_four_part_system_runs():
         space=None,
         time=ContinuousTime(),
     )
-    trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=0.5).check().run(until=1).trajectory_
     assert trajectory.values('rabbits.n')[-1] > 1.0
-    assert Simulation(system).run(until=0).problem_.parameters.names == ['growth.r']
+    assert Simulation(system).check().run(until=0).problem_.parameters.names == ['growth.r']
 
 
 def test_systems_nest_and_interactions_couple_them_by_path():
@@ -198,7 +198,7 @@ def test_systems_nest_and_interactions_couple_them_by_path():
         systems=[System('meadow', elements=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
-    trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=0.5).check().run(until=1).trajectory_
     assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
 
 
@@ -246,7 +246,7 @@ def test_periodic_space_wraps_positions():
         elements=[ParticleElement('p', x=[0.9, 0.5], v=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.2).check().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
 
 
@@ -258,7 +258,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
         ],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.1).check().run(until=0.2).trajectory_
     assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
     assert np.allclose(trajectory.values('gas.v')[-1], [[1.0, 0.0]])
 
@@ -266,7 +266,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = System(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
-    trajectory = Simulation(system).run(until=3).trajectory_
+    trajectory = Simulation(system).check().run(until=3).trajectory_
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
@@ -287,6 +287,6 @@ def test_group_on_edges_outside_a_network_is_reported():
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that an element with a complex state in a Hilbert space and a generator law runs unitary dynamics."""
-    simulation = Simulation(System(elements=[TwoLevelElement('q')]), solver=UnitarySolver(), dt=np.pi)
+    simulation = Simulation(System(elements=[TwoLevelElement('q')]), solver=UnitarySolver(), dt=np.pi).check()
     simulation.run(until=np.pi)
     assert simulation.problem_.form.name == 'QUANTUM'

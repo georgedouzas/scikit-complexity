@@ -35,7 +35,7 @@ simulation = Simulation(
     backend=NumbaBackend(),
     observers=[observer],
     random_state=0,
-).run(until=1500)
+).check().run(until=1500)
 
 # %%
 # Arrested coarsening

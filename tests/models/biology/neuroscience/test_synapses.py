@@ -10,7 +10,7 @@ from skcomplex.models.biology.neuroscience import (
 
 def test_adaptrode_keeps_long_term_memory():
     """Test that the Adaptrode weights order by time scale during input and that the slow weight outlasts it."""
-    trajectory = Simulation(adaptrode(), dt=1).run(until=400).trajectory_
+    trajectory = Simulation(adaptrode(), dt=1).check().run(until=400).trajectory_
     w0, w1, w2 = (trajectory.values(f'synapse.w{index}') for index in range(3))
     during = (trajectory.times > 100) & (trajectory.times < 150)
     assert np.all(w0[during] > w1[during])

@@ -215,5 +215,5 @@ def run(name: str, *, settings: Mapping[str, object] | None = None, **parameters
     until = float(chosen.pop('until', 10.0))  # type: ignore[arg-type]
     system = entry.factory(**parameters)
     initial = {**entry.initial_state_of(**parameters), **dict(chosen.pop('initial_state', None) or {})}  # type: ignore[call-overload]
-    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen)  # type: ignore[arg-type]
+    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen).check()  # type: ignore[arg-type]
     return simulation.run(until=until)

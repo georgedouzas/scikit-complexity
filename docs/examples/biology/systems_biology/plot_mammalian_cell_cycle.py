@@ -21,7 +21,7 @@ PROTEINS = ('CycD', 'Rb', 'E2F', 'CycE', 'CycA', 'p27', 'Cdc20', 'Cdh1', 'Ubc', 
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=21)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=21)
 
 # %%
 # The cycle of the cyclins
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=21)
 # state stays fixed.
 
 cycling = simulation.trajectory_
-resting = Simulation(create(MODEL, active=('Rb', 'p27', 'Cdh1')), dt=1).run(until=21).trajectory_
+resting = Simulation(create(MODEL, active=('Rb', 'p27', 'Cdh1')), dt=1).check().run(until=21).trajectory_
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(
     axes,

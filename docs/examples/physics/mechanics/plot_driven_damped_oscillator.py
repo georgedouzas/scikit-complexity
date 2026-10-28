@@ -20,7 +20,7 @@ MODEL = 'driven_damped_oscillator'
 
 system = create(MODEL, x=0.0, v=0.0, c=0.1, F=0.5, omega=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=90)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=90)
 
 # %%
 # Resonance curve
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=90)
 frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for frequency in frequencies:
-    run = Simulation(create(MODEL, x=0.0, v=0.0, c=0.1, F=0.5, omega=frequency), dt=0.05).run(until=150)
+    run = Simulation(create(MODEL, x=0.0, v=0.0, c=0.1, F=0.5, omega=frequency), dt=0.05).check().run(until=150)
     steady = np.ravel(run.trajectory_.values('mass.x'))[np.asarray(run.trajectory_.times) > 100]
     amplitudes.append(np.abs(steady).max())
 grid = np.linspace(0.5, 1.5, 300)

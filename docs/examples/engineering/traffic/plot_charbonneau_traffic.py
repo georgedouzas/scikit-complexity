@@ -21,7 +21,7 @@ MODEL = 'charbonneau_traffic'
 
 system = create(MODEL, probability=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=200)
 
 # %%
 # Jams travel backwards

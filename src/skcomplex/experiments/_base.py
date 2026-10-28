@@ -182,7 +182,8 @@ class BaseExperiment(BaseConfig, ABC):
         size = len(next(iter(values.values())))
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
-        simulation = Simulation(BaseExperiment._replicate(system, size, values), dt=step, random_state=random_state)
+        replicated = BaseExperiment._replicate(system, size, values)
+        simulation = Simulation(replicated, dt=step, random_state=random_state).check()
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod

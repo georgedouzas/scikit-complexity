@@ -1,12 +1,14 @@
 """Test the visual of bodies, rods, trails, and outlines."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import VisualSpec
 from skcomplex.engine.runtime import BaseObserver, Simulation
-from skcomplex.engine.viz import BodiesVisual, resolve_visual
+from skcomplex.engine.viz import BodiesVisual, RerunObserver
 from skcomplex.models import create
 
 
@@ -40,7 +42,7 @@ def _frames(system, steps, dt):
             if frame is not None:
                 frames.append(frame)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()])
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()]).check()
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 
@@ -59,12 +61,11 @@ def _points(archetype, field):
 def test_bodies_visual_draws_double_pendulum():
     """Test that bobs, a rod strip from the pivot, a fading trail of the lower bob, and the angles are logged."""
     problem, frames = _frames(create('double_pendulum'), steps=20, dt=0.01)
-    visual, logs = (
-        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1]).prepare(problem.elements[0], problem),
-        Logs(),
-    )
+    logs = Logs()
+    visual = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1], path=problem.elements[0].path, recording=logs)
+    visual.check().prepare(problem)
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     element = problem.elements[0]
     last = bobs(**{name: frames[-1].value(dotted) for name, dotted in {**element.parameters, **element.states}.items()})
     bodies = _points(logs.of('pendulum/bodies')[-1], 'positions')
@@ -84,40 +85,53 @@ def test_bodies_visual_logs_outline_once():
     """Test that the outline of a billiard table is logged once as a static line strip."""
     problem, frames = _frames(create('circular_billiard'), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
-    visual, logs = BodiesVisual(('x', 'y'), outline=[circle]).prepare(problem.elements[0], problem), Logs()
+    logs = Logs()
+    visual = (
+        BodiesVisual(('x', 'y'), outline=[circle], path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+    )
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     assert len(logs.of('particle/outline')) == 1
     assert logs.static.count('particle/outline') == 1
 
 
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
-    problem = Simulation(create('double_pendulum')).run(until=0.0).problem_
-    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True).prepare(problem.elements[0], problem).views_
+    problem = Simulation(create('double_pendulum')).check().run(until=0.0).problem_
+    views = (
+        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path)
+        .check()
+        .prepare(problem)
+        .views_
+    )
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
 def test_bodies_visual_is_registered():
-    """Test that the bodies visual resolves from its registered name."""
-    visual = resolve_visual(VisualSpec('bodies', {'positions': ('x', 'y')}))
-    assert isinstance(visual, BodiesVisual)
+    """Test that a Rerun observer draws an element whose visual spec names `bodies` with the bodies visual."""
+    problem = Simulation(create('circular_billiard')).check().prepare().problem_
+    element = replace(problem.elements[0], visual=VisualSpec('bodies', {'positions': ('x', 'y')}))
+    problem = replace(problem, elements=(element, *problem.elements[1:]))
+    assert isinstance(RerunObserver().check().prepare(problem).visuals_[0], BodiesVisual)
 
 
 def test_bodies_visual_rejects_positions_of_wrong_shape():
     """Test that positions that are not pairs of coordinates raise a named error."""
     problem, frames = _frames(create('circular_billiard'), steps=1, dt=0.05)
-    visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]))
+    visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]), path=problem.elements[0].path, recording=Logs())
     with pytest.raises(ValidationError, match='pairs of coordinates'):
-        visual.prepare(problem.elements[0], problem).run(frames[0], Logs())
+        visual.check().prepare(problem).run(frames[0])
 
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
     problem, frames = _frames(create('stormer_problem'), steps=5, dt=0.02)
-    visual, logs = BodiesVisual(('x', 'y', 'z')).prepare(problem.elements[0], problem), Logs()
+    logs = Logs()
+    visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).check().prepare(problem)
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     assert type(logs.of('charge/bodies')[-1]).__name__ == 'Points3D'
     assert type(logs.of('charge/trail')[-1]).__name__ == 'LineStrips3D'
     assert type(visual.views_[0]).__name__ == 'Spatial3DView'

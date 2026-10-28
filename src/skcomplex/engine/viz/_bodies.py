@@ -15,8 +15,8 @@ import rerun.blueprint as rrb
 from ...core.errors import ValidationError
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
+from ._base import _UPWARD, BaseVisual
 from ._points import _TRAIL_LENGTH
-from ._visuals import _UPWARD, BaseVisual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
@@ -74,6 +74,12 @@ class BodiesVisual(BaseVisual):
         radius:
             The radius of the bodies, or `None` for a share of the extent of the view.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         history_:
             The recent positions of the traced bodies, the oldest first.
@@ -98,6 +104,8 @@ class BodiesVisual(BaseVisual):
         outline: Outline = (),
         marks: Marks = (),
         radius: float | None = None,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.positions = positions
         self.pivot = pivot
@@ -107,12 +115,14 @@ class BodiesVisual(BaseVisual):
         self.outline = outline
         self.marks = marks
         self.radius = radius
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
         self.drawn_: set[str] = set()
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _bodies(self, values: dict[str, Any]) -> npt.NDArray[np.float64]:
         """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""

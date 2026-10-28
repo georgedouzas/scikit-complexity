@@ -105,7 +105,7 @@ def test_density_over_a_state_starts_a_distribution():
         ObservableSpec('density', density, group='wealth'),
         ObservableSpec('mean', mean_class, group='wealth'),
     ]
-    trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
+    trajectory = Simulation(system, observables=observables, dt=1.0).check().run(until=0).trajectory_
     assert trajectory.values('density')[0] == pytest.approx(1.0)
     assert trajectory.values('mean')[0] == pytest.approx(wealth.mean())
 
@@ -114,7 +114,7 @@ def test_density_over_a_state_of_a_trajectory():
     """Test that the members of a group of a trajectory give one density per frame over the values of a state."""
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
     traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
-    trajectory = Simulation(System(elements=[traders]), dt=1.0).run(until=2).trajectory_
+    trajectory = Simulation(System(elements=[traders]), dt=1.0).check().run(until=2).trajectory_
     analysis = CoarseGrainAnalysis(over=CLASSES, state='traders.wealth').check().prepare(trajectory).run()
     assert analysis.field_.shape == (3, 9)
     np.testing.assert_allclose(analysis.field_.sum(axis=1), 1.0)

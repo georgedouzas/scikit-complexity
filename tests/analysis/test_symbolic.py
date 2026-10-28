@@ -163,8 +163,8 @@ def test_sage_expression_compiles_like_number():
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    expected = Simulation(system).run(until=1).trajectory_.values('p.x')
-    result = Simulation(sage_system).run(until=1).trajectory_.values('p.x')
+    expected = Simulation(system).check().run(until=1).trajectory_.values('p.x')
+    result = Simulation(sage_system).check().run(until=1).trajectory_.values('p.x')
     assert np.allclose(expected, result)
 
 

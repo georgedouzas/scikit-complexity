@@ -21,7 +21,7 @@ MODEL = 'random_boolean_network'
 
 system = create(MODEL, n_nodes=20, k=2, random_state=4)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=50)
 
 # %%
 # Transient and attractor

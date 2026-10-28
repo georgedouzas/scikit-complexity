@@ -81,7 +81,7 @@ def _damage_share(factory, connectivity, seed):
 
 def test_random_boolean_network_reaches_a_cycle():
     """Test that a random Boolean network returns to a state it visited, so it settles on an attractor."""
-    states = Simulation(random_boolean_network(), dt=1).run(until=60).trajectory_.states
+    states = Simulation(random_boolean_network(), dt=1).check().run(until=60).trajectory_.states
     seen = {tuple(row) for row in states[:30]}
     assert tuple(states[-1]) in seen or len({tuple(row) for row in states}) < len(states)
 
@@ -90,7 +90,7 @@ def test_random_boolean_network_takes_eight_inputs():
     """Test that every node reads eight distinct nodes through a table of 256 entries, and the network runs."""
     system = random_boolean_network(n_nodes=12, k=8)
     assert all(len(set(function.inputs)) == 8 and len(function.table) == 256 for function in system.interactions)
-    assert len(Simulation(system, dt=1).run(until=50).trajectory_.times) == 51
+    assert len(Simulation(system, dt=1).check().run(until=50).trajectory_.times) == 51
 
 
 def test_random_boolean_network_rejects_more_inputs_than_nodes():
@@ -101,13 +101,13 @@ def test_random_boolean_network_rejects_more_inputs_than_nodes():
 
 def test_yeast_cell_cycle_matches_recorded_trajectory():
     """Test that the yeast network on one variadic role per node runs as the five-role version recorded before."""
-    states = Simulation(yeast_cell_cycle(), dt=1).run(until=15).trajectory_.states
+    states = Simulation(yeast_cell_cycle(), dt=1).check().run(until=15).trajectory_.states
     assert [''.join(str(int(value)) for value in row) for row in states] == list(YEAST_RECORDED)
 
 
 def test_yeast_cell_cycle_returns_to_g1():
     """Test that the yeast network passes through the M phase and ends in the stationary G1 state."""
-    simulation = Simulation(yeast_cell_cycle(), dt=1).run(until=15)
+    simulation = Simulation(yeast_cell_cycle(), dt=1).check().run(until=15)
     names = simulation.problem_.states.names
     active = [[name for name, value in zip(names, row, strict=True) if value] for row in simulation.trajectory_.states]
     assert any('Clb1_2.x' in names for names in active)

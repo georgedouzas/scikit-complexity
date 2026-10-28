@@ -11,7 +11,12 @@ from skcomplex.models.mathematics.dynamical_systems import (
 def test_koopman_slow_manifold_eigenfunctions_decay_exponentially():
     """Test that the Koopman eigenfunctions x1 and x2 - b x1^2 decay as exp(mu t) and exp(lam t)."""
     mu, lam = -0.05, -1.0
-    trajectory = Simulation(koopman_slow_manifold(1.0, -1.0, mu=mu, lam=lam), dt=0.1).run(until=40.0).trajectory_
+    trajectory = (
+        Simulation(koopman_slow_manifold(1.0, -1.0, mu=mu, lam=lam), dt=0.1)
+        .check()
+        .run(until=40.0)
+        .trajectory_
+    )
     times = 0.1 * np.arange(len(trajectory.values('flow.x1')))
     b = lam / (lam - 2 * mu)
     fast = trajectory.values('flow.x2') - b * trajectory.values('flow.x1') ** 2

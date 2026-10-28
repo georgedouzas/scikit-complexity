@@ -26,3 +26,13 @@ def test_simulation_rejects_a_model_name():
     """A simulation of a model name raises an error that says to create the model with the models library."""
     with pytest.raises(ValidationError, match=r'takes a system or a compiled problem, not .sir.\. Create a model'):
         package.Simulation('sir').check()
+
+
+def test_classes_derive_from_a_base_of_the_package():
+    """Every observer derives from the observer base and every clock from the clock base."""
+    for name in package.__all__:
+        item = getattr(package, name)
+        if name.endswith('Observer'):
+            assert issubclass(item, package.BaseObserver), name
+        if name.endswith('Clock'):
+            assert issubclass(item, package.BaseClock), name

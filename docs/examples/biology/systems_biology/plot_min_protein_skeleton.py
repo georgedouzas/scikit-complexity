@@ -33,7 +33,7 @@ simulation = Simulation(
     solver=ScipyODESolver(method='BDF', jacobian='exact'),
     observers=[observer],
     random_state=0,
-).run(until=400)
+).check().run(until=400)
 
 # %%
 # Oscillatory instability and conservation

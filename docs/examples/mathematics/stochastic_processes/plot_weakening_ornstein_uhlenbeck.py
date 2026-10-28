@@ -21,7 +21,11 @@ from skcomplex.models import create
 MODEL = 'weakening_ornstein_uhlenbeck'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=16)
-simulation = Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observer], random_state=0).run(until=200)
+simulation = (
+    Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observer], random_state=0)
+    .check()
+    .run(until=200)
+)
 
 # %%
 # Power-law tails
@@ -31,7 +35,7 @@ simulation = Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observ
 # `|x|` near 5, beyond which the run is too short to fill the slowly relaxing tail, far above the Gaussian of an
 # Ornstein-Uhlenbeck process with the same stiffness near the origin, of variance `D / k = 0.25`.
 
-ensemble = Simulation(create(MODEL, n_particles=500), dt=0.05, random_state=1).run(until=200).trajectory_
+ensemble = Simulation(create(MODEL, n_particles=500), dt=0.05, random_state=1).check().run(until=200).trajectory_
 positions = np.abs(ensemble.values('particles.x')[2000:].ravel())
 edges = np.geomspace(0.05, 30, 40)
 density, _ = np.histogram(positions, bins=edges, density=True)

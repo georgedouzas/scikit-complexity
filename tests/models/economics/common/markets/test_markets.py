@@ -223,7 +223,7 @@ def test_double_auction_efficiency():
     """Zero-intelligence traders with budget constraints realise over 90% of the maximum surplus."""
     rng = np.random.default_rng(1)
     values, costs, system = _zero_intelligence(50, rng)
-    simulation = Simulation(system, random_state=0).run(until=30)
+    simulation = Simulation(system, random_state=0).check().run(until=30)
     buyers = simulation.trajectory_.agents('buyers', 30)
     sellers = simulation.trajectory_.agents('sellers', 30)
     bought = buyers.values['goods'] > 0
@@ -248,6 +248,6 @@ def test_order_book_is_a_pairing_of_the_matching_law():
         ],
         interactions=[BookInteraction('book', buyers='buyers', sellers='sellers')],
     )
-    Simulation(system).run(1)
+    Simulation(system).check().run(1)
     assert len(PAIRS) == 1
     assert PAIRS[0][1] == EARLIEST[0]

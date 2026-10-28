@@ -49,7 +49,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, width=50, height=50, n_foragers=400, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=100)
 
 # %%
 # Carrying capacity and inequality

@@ -25,7 +25,7 @@ MODEL = 'brownian_motion'
 system = create(MODEL, n_particles=500, n_dim=2, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).run(until=10)
+simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).check().run(until=10)
 
 # %%
 # From ballistic flight to diffusion

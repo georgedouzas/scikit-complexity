@@ -23,7 +23,7 @@ MODEL = 'tasep'
 
 system = create(MODEL, n_sites=200, p=0.5, ring=True, density=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=250)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=250)
 
 # %%
 # Fundamental diagram of the ring
@@ -48,7 +48,7 @@ for p, color in ((0.5, 'tab:blue'), (0.9, 'tab:orange')):
     measured = []
     for density in densities:
         system_p = create(MODEL, n_sites=400, p=p, ring=True, density=density, random_state=1)
-        run = Simulation(system_p, dt=1, random_state=1).run(until=1000)
+        run = Simulation(system_p, dt=1, random_state=1).check().run(until=1000)
         measured.append(current(run.trajectory_.values('lane.occupied')[200:]))
     ax.plot(densities, measured, 'o', color=color, label=f'simulation, p = {p}')
     ax.plot(grid, (1 - np.sqrt(1 - 4 * p * grid * (1 - grid))) / 2, color=color, label=f'exact, p = {p}')

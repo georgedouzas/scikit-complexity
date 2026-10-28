@@ -21,7 +21,7 @@ def test_standardized_agents_match_the_exact_equilibrium():
     probabilities = np.exp(weights - weights.max()) / np.exp(weights - weights.max()).sum()
     system = standardized_agents(size, K=K, J=0.0, T=temperature, H=configurations, standardized=0.0, random_state=0)
     q = (
-        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
+        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system)).check()
         .run(until=5000)
         .trajectory_.values('q')
     )
@@ -33,7 +33,7 @@ def test_standardized_agents_order_below_t_m(temperature, ordered):
     """Test that standardized agents magnetize below T_M = J, to the root of m = tanh(J m / T), and not above."""
     system = standardized_agents(100, K=10.0, J=1.0, T=temperature, H=50, random_state=0)
     trajectory = (
-        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
+        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system)).check()
         .run(until=1000)
         .trajectory_
     )

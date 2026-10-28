@@ -22,7 +22,7 @@ MODEL = 'network_sir'
 
 system = create(MODEL, residents=20, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=25)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=25)
 
 # %%
 # The outbreak in the network
@@ -30,7 +30,12 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 # Counting the health states of the travellers, the infected should rise, peak, and decline while the recovered
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
-trajectory = Simulation(create(MODEL, residents=20, random_state=0), dt=1, random_state=0).run(until=150).trajectory_
+trajectory = (
+    Simulation(create(MODEL, residents=20, random_state=0), dt=1, random_state=0)
+    .check()
+    .run(until=150)
+    .trajectory_
+)
 health = np.array([trajectory.agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))])
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label in [(0, 'susceptible'), (2, 'infected'), (3, 'recovered')]:

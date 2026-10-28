@@ -46,7 +46,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables).run(until=UNTIL)
+simulation = (
+    Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables)
+    .check()
+    .run(until=UNTIL)
+)
 
 # %%
 # Stationary distribution

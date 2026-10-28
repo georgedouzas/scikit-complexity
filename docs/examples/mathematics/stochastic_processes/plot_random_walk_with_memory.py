@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=200)
 
 # %%
 # Mean squared displacement

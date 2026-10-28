@@ -14,16 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'kuramoto_on_networks'
 
 system = create(MODEL, n_oscillators=200, K=3.0, sigma=0.5, seed=0)
 observables = describe(MODEL).observables_of(system)
-blueprint = default_blueprint(system, primary='observables', observables=observables)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], observables=observables).run(until=30)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+simulation = Simulation(system, dt=0.2, observers=[observer], observables=observables).check().run(until=30)
 
 # %%
 # Onset of synchronization on two networks
@@ -39,7 +38,11 @@ for network in ('erdos_renyi', 'watts_strogatz'):
     order = []
     for coupling in couplings:
         model_system = create(MODEL, n_oscillators=200, network=network, K=coupling, sigma=0.5, seed=1)
-        run = Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system)).run(until=40)
+        run = (
+            Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
+            .check()
+            .run(until=40)
+        )
         order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=network.replace('_', '-'))
 ax.axvline(2 * 0.5 * np.sqrt(2 / np.pi), linestyle='--', color='black', label='all-to-all K_c')

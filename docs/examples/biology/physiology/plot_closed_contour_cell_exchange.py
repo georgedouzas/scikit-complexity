@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, r=2.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(40)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(40)
 
 # %%
 # Stability domain and desynchronization
@@ -50,7 +50,7 @@ rates = np.linspace(2.0, 4.0, 41)
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(10, 4))
 spreads = []
 for rate in rates:
-    late = Simulation(create(MODEL, r=rate), dt=1).run(200).trajectory_.values('cells.x')[-30:]
+    late = Simulation(create(MODEL, r=rate), dt=1).check().run(200).trajectory_.values('cells.x')[-30:]
     diagram.plot(np.full(late.size, rate), late.ravel(), '.', markersize=2, color='tab:blue')
     spreads.append(np.ptp(late, axis=1).max())
 diagram.fill_between(rates, (rates - 1) / (2 * rates), (rates + 1) / (2 * rates), color='tab:green', alpha=0.2)

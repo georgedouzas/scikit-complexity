@@ -22,7 +22,7 @@ MODEL = 'phosphorylation_oscillator'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=40)
 
 # %%
 # A negative feedback loop of switches

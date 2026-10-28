@@ -21,7 +21,7 @@ MODEL = 'galam_majority'
 
 system = create(MODEL, share=0.4, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=10)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=10)
 
 # %%
 # One round of discussions
@@ -33,7 +33,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 def after_one_round(share, seed):
     """Return the share of opinion 1 after one round of discussions in a large population."""
-    run = Simulation(create(MODEL, n_agents=3000, share=share, random_state=seed), random_state=seed).run(until=1)
+    run = (
+        Simulation(create(MODEL, n_agents=3000, share=share, random_state=seed), random_state=seed)
+        .check()
+        .run(until=1)
+    )
     return run.trajectory_.agents('citizens', 1).values['opinion'].mean()
 
 

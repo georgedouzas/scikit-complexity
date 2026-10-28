@@ -23,7 +23,10 @@ MODEL = 'on_off_intermittency'
 
 system = create(MODEL, n_realizations=2, epsilon=0.0, D=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
+simulation = (
+    Simulation(system, dt=2.0, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
+    .check()
+)
 simulation.run(until=598)
 
 # %%
@@ -35,7 +38,10 @@ simulation.run(until=598)
 # of the phases below `x = 0.05` in 50 realizations should follow this power law over two decades, and `ln x` of the
 # run above should wander far below 0 and never far above it.
 
-ensemble = Simulation(create(MODEL, n_realizations=50), dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=1)
+ensemble = (
+    Simulation(create(MODEL, n_realizations=50), dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=1)
+    .check()
+)
 values = ensemble.run(until=500).trajectory_.values('variables.x')
 step = float(np.median(np.diff(ensemble.trajectory_.times)))
 events = EventAnalysis(threshold=-0.05).check()

@@ -24,7 +24,7 @@ MODEL = 'two_phase_zone_exchange'
 
 system = create(MODEL, n_zones=10)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().run(until=20)
 
 # %%
 # Binomial occupation
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).ru
 # `Na p (1 - p) = 9`. Pooled over 2000 zones and the second half of the run, the histogram should match this
 # distribution.
 
-run = Simulation(create(MODEL, n_zones=2000), dt=1.0, random_state=1).run(until=20)
+run = Simulation(create(MODEL, n_zones=2000), dt=1.0, random_state=1).check().run(until=20)
 numbers = run.trajectory_.values('zones.N')[10:].ravel()
 counts = np.arange(numbers.max() + 2)
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._visuals import _MODULUS, _PHASE, BaseVisual
+from ._base import _MODULUS, _PHASE, BaseVisual
 
 
 class MeshVisual(BaseVisual):
@@ -31,6 +31,12 @@ class MeshVisual(BaseVisual):
         high:
             The value of the brightest color, or `None` for the largest value of every frame.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Examples:
         >>> from skcomplex.engine.viz import MeshVisual
         >>> MeshVisual(low=0.0)
@@ -42,10 +48,15 @@ class MeshVisual(BaseVisual):
         states: Sequence[str] | None = None,
         low: float | None = None,
         high: float | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.states = states
         self.low = low
         self.high = high
+        self.path = path
+        self.recording = recording
 
     @staticmethod
     def _log_mesh(
@@ -108,7 +119,8 @@ class MeshVisual(BaseVisual):
             >>> from skcomplex.engine.viz import MeshVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('heat_l_shape', refine=1))
-            >>> [type(view).__name__ for view in MeshVisual().prepare(problem.elements[0], problem).views_]
+            >>> views = MeshVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """
         if not isinstance(element, CompiledElement):
