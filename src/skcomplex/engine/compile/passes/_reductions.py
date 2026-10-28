@@ -443,7 +443,7 @@ class ReductionsPass(BasePass):
         compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         drawing = cast('DrawLowering', compilation.drawing)
-        reductions = _Reductions(declarations, drawing.draws.size if drawing.draws else 0)
+        reductions = _Reductions(declarations, drawing.draws_.size if drawing.draws_ else 0)
         specs, apart = cast('Laws', compilation.drawn), cast('Laws', compilation.drawn_apart)
         lowered = [(spec, [self._lower_law(law, spec, reductions) for law in laws]) for spec, laws in [*specs, *apart]]
         events = []

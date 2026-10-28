@@ -7,7 +7,6 @@ from typing import cast
 
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 
 
@@ -25,11 +24,6 @@ class DrawsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the draws of the laws."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
-        drawing = DrawLowering(declarations.ends[False], declarations.time)
-        compilation.drawn = [
-            (spec, drawing.lower(spec.owner, spec.rows, laws, spec.references))
-            for spec, laws in cast('Laws', compilation.drawn)
-        ]
-        drawing.allocate()
+        drawing = DrawLowering().check().prepare(compilation)
+        compilation.drawn = drawing.run(cast('Laws', compilation.drawn))
         compilation.drawing = drawing

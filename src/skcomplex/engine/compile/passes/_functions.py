@@ -149,7 +149,7 @@ class FunctionsPass(BasePass):
             compilation, form, Declarations._member_count(list(declarations.blocks.values())),
         )
         kernels, size = lowered.kernels, declarations.ends[True]
-        draws = drawing.draws
+        draws = drawing.draws_
         lowering = cast(
             'Lowering',
             backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
