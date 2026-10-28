@@ -37,99 +37,6 @@ SECTOR_TOLERANCE = 1e-9
 type Sector = tuple[Callable[[SimpleNamespace], Any], float]
 
 
-def _quantum_problem(system: System | BaseProblem) -> QuantumProblem:
-    """Return the quantum problem of a system, compiling it when needed."""
-    problem = system if isinstance(system, BaseProblem) else compile_system(system)
-    if not isinstance(problem, QuantumProblem):
-        error_msg = f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
-        raise AnalysisError(error_msg)
-    return problem
-
-
-def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Vector:
-    """Return the initial parameter vector with some values replaced by dotted name."""
-    p = problem.initial_parameters.copy()
-    for name, value in (values or {}).items():
-        try:
-            entry, indices = problem.parameters.locate(name)
-        except KeyError as error:
-            error_msg = f'No parameter named {name!r}. Available names are: {", ".join(problem.parameters.names)}.'
-            raise ParameterError(error_msg) from error
-        p[indices] = entry.encode(value)
-    return p
-
-
-def _sector_basis(
-    problem: QuantumProblem,
-    sector: Sector,
-    p: Vector,
-) -> npt.NDArray[np.intp]:
-    """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
-    expression, value = sector
-    terms = problem.lowering.terms(expression(problem.namespaces['']), 'the sector')
-    matrix = sum((term.value(0.0, p) * term.matrix for term in terms), start=0 * terms[0].matrix)
-    diagonal = matrix.diagonal()
-    if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
-        error_msg = 'The operator of a sector must be diagonal in the product basis, such as a sum of `z` operators.'
-        raise AnalysisError(error_msg)
-    basis = np.flatnonzero(np.abs(diagonal - value) < SECTOR_TOLERANCE)
-    if not basis.size:
-        error_msg = f'No basis state has the eigenvalue {value} of the sector operator.'
-        raise AnalysisError(error_msg)
-    return basis
-
-
-def _states_of(trajectory: Trajectory) -> tuple[QuantumProblem, npt.NDArray[np.complex128]]:
-    """Return the quantum problem of a trajectory and its states, one per frame."""
-    problem = trajectory.problem
-    if not isinstance(problem, QuantumProblem):
-        error_msg = 'The trajectory is not the trajectory of a quantum system.'
-        raise AnalysisError(error_msg)
-    return problem, np.asarray(trajectory.values(problem.states.names[0]))
-
-
-def _lowest_states(
-    problem: QuantumProblem,
-    p: Vector,
-    k: int,
-    basis: npt.NDArray[np.intp] | None,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
-    """Return the lowest eigenvalues and eigenstates of the Hamiltonian at time 0 through QuTiP, within a basis."""
-    dimension = math.prod(problem.dimensions)
-    matrix = hamiltonian_at(problem, 0.0, p)
-    indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
-    matrix = sp.csr_array(matrix[indices][:, indices])
-    count = min(k, indices.size)
-    sparse = indices.size > DENSE_LIMIT and count < indices.size - 1
-    energies, kets = qutip.Qobj(matrix).eigenstates(sparse=sparse, eigvals=count)
-    states = np.zeros((dimension, count), dtype=complex)
-    for column, ket in enumerate(kets):
-        states[indices, column] = ket.full().ravel()
-    return np.real(np.asarray(energies)), states
-
-
-def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Vector:
-    """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
-    keep = []
-    for name in subsystems:
-        found = [index for index, key in enumerate(problem.subsystems) if key == name or key.startswith(f'{name}[')]
-        if not found:
-            error_msg = (
-                f'{name} is not a subsystem of the trajectory. The subsystems are {", ".join(problem.subsystems)}.'
-            )
-            raise AnalysisError(error_msg)
-        keep += found
-    dimensions = list(problem.dimensions)
-    values = []
-    for state in states:
-        if problem.pure:
-            quantum = qutip.Qobj(state.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
-        else:
-            quantum = qutip.Qobj(state, dims=[dimensions, dimensions])
-        values.append(qutip.entropy_vn(quantum.ptrace(sorted(set(keep)))))
-    return np.asarray(values, dtype=float)
-
-
 class QuantumAnalysis(BaseAnalysis):
     """Spectrum and ground state of a quantum system, or the purity and entanglement of the states of its trajectory.
 
@@ -266,31 +173,128 @@ class QuantumAnalysis(BaseAnalysis):
                     f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
                 )
                 raise AnalysisError(error_msg)
-            self.problem_, _ = _states_of(source)
+            self.problem_, _ = self._states_of(source)
             self.trajectory_ = source
             return self
-        self.problem_ = _quantum_problem(self._read_system(source))
+        self.problem_ = self._quantum_problem(self._read_system(source))
         return self
 
     def _run(self) -> Self:
         """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
         if self.kind == 'purity':
-            problem, states = _states_of(self.trajectory_)
+            problem, states = self._states_of(self.trajectory_)
             if problem.pure:
                 self.purity_ = np.sum(np.abs(states) ** 2, axis=1) ** 2
             else:
                 self.purity_ = np.sum(np.abs(states) ** 2, axis=(1, 2))
             return self
         if self.kind == 'entanglement':
-            problem, states = _states_of(self.trajectory_)
-            self.entropy_ = _entanglement(problem, states, self.subsystems)  # type: ignore[arg-type]
+            problem, states = self._states_of(self.trajectory_)
+            self.entropy_ = self._entanglement(problem, states, self.subsystems)  # type: ignore[arg-type]
             return self
-        p = _parameters_of(self.problem_, self.parameters)
+        p = self._parameters_of(self.problem_, self.parameters)
         if self.kind == 'ground-state':
-            energies, states = _lowest_states(self.problem_, p, 1, None)
+            energies, states = self._lowest_states(self.problem_, p, 1, None)
             self.energy_ = float(energies[0])
             self.state_ = states[:, 0]
             return self
-        basis = None if self.sector is None else _sector_basis(self.problem_, self.sector, p)
-        self.energies_, self.states_ = _lowest_states(self.problem_, p, self.n_states, basis)
+        basis = None if self.sector is None else self._sector_basis(self.problem_, self.sector, p)
+        self.energies_, self.states_ = self._lowest_states(self.problem_, p, self.n_states, basis)
         return self
+
+    @staticmethod
+    def _quantum_problem(system: System | BaseProblem) -> QuantumProblem:
+        """Return the quantum problem of a system, compiling it when needed."""
+        problem = system if isinstance(system, BaseProblem) else compile_system(system)
+        if not isinstance(problem, QuantumProblem):
+            error_msg = (
+                f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
+            )
+            raise AnalysisError(error_msg)
+        return problem
+
+    @staticmethod
+    def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Vector:
+        """Return the initial parameter vector with some values replaced by dotted name."""
+        p = problem.initial_parameters.copy()
+        for name, value in (values or {}).items():
+            try:
+                entry, indices = problem.parameters.locate(name)
+            except KeyError as error:
+                error_msg = f'No parameter named {name!r}. Available names are: {", ".join(problem.parameters.names)}.'
+                raise ParameterError(error_msg) from error
+            p[indices] = entry.encode(value)
+        return p
+
+    @staticmethod
+    def _sector_basis(
+        problem: QuantumProblem,
+        sector: Sector,
+        p: Vector,
+    ) -> npt.NDArray[np.intp]:
+        """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
+        expression, value = sector
+        terms = problem.lowering.terms(expression(problem.namespaces['']), 'the sector')
+        matrix = sum((term.value(0.0, p) * term.matrix for term in terms), start=0 * terms[0].matrix)
+        diagonal = matrix.diagonal()
+        if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
+            error_msg = (
+                'The operator of a sector must be diagonal in the product basis, such as a sum of `z` operators.'
+            )
+            raise AnalysisError(error_msg)
+        basis = np.flatnonzero(np.abs(diagonal - value) < SECTOR_TOLERANCE)
+        if not basis.size:
+            error_msg = f'No basis state has the eigenvalue {value} of the sector operator.'
+            raise AnalysisError(error_msg)
+        return basis
+
+    @staticmethod
+    def _states_of(trajectory: Trajectory) -> tuple[QuantumProblem, npt.NDArray[np.complex128]]:
+        """Return the quantum problem of a trajectory and its states, one per frame."""
+        problem = trajectory.problem
+        if not isinstance(problem, QuantumProblem):
+            error_msg = 'The trajectory is not the trajectory of a quantum system.'
+            raise AnalysisError(error_msg)
+        return problem, np.asarray(trajectory.values(problem.states.names[0]))
+
+    @staticmethod
+    def _lowest_states(
+        problem: QuantumProblem,
+        p: Vector,
+        k: int,
+        basis: npt.NDArray[np.intp] | None,
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
+        """Return the lowest eigenvalues and eigenstates of the Hamiltonian at time 0 through QuTiP, within a basis."""
+        dimension = math.prod(problem.dimensions)
+        matrix = hamiltonian_at(problem, 0.0, p)
+        indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
+        matrix = sp.csr_array(matrix[indices][:, indices])
+        count = min(k, indices.size)
+        sparse = indices.size > DENSE_LIMIT and count < indices.size - 1
+        energies, kets = qutip.Qobj(matrix).eigenstates(sparse=sparse, eigvals=count)
+        states = np.zeros((dimension, count), dtype=complex)
+        for column, ket in enumerate(kets):
+            states[indices, column] = ket.full().ravel()
+        return np.real(np.asarray(energies)), states
+
+    @staticmethod
+    def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Vector:
+        """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
+        keep = []
+        for name in subsystems:
+            found = [index for index, key in enumerate(problem.subsystems) if key == name or key.startswith(f'{name}[')]
+            if not found:
+                error_msg = (
+                    f'{name} is not a subsystem of the trajectory. The subsystems are {", ".join(problem.subsystems)}.'
+                )
+                raise AnalysisError(error_msg)
+            keep += found
+        dimensions = list(problem.dimensions)
+        values = []
+        for state in states:
+            if problem.pure:
+                quantum = qutip.Qobj(state.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
+            else:
+                quantum = qutip.Qobj(state, dims=[dimensions, dimensions])
+            values.append(qutip.entropy_vn(quantum.ptrace(sorted(set(keep)))))
+        return np.asarray(values, dtype=float)

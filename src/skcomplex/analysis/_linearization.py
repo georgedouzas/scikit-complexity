@@ -16,49 +16,9 @@ from ..engine.compile import compiled_problem
 from ..engine.problems import Form, Problem
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._stability import _dynamics_of
+from ._stability import StabilityAnalysis
 
 type Matrix = npt.NDArray[np.float64]
-
-
-def _initial_values(problem: Problem) -> dict[str, float]:
-    """Return the initial value of every state component by name."""
-    return {
-        name: float(problem.initial_state[entry.start + column])
-        for entry in problem.states.entries
-        for column, name in enumerate(entry.component_names)
-    }
-
-
-def _checked_names(names: Sequence[str], known: Sequence[str], description: str) -> list[str]:
-    """Return names after checking that each is one of the known names."""
-    unknown = [name for name in names if name not in known]
-    if unknown:
-        error_msg = f'{", ".join(unknown)} are not {description}. Available names are: {", ".join(known)}.'
-        raise AnalysisError(error_msg)
-    return list(names)
-
-
-def _evaluated(rows: list[list[Expression]], values: Mapping[Expression, float]) -> Matrix:
-    """Return a matrix of expressions evaluated at values of their symbols."""
-    columns = len(rows[0]) if rows else 0
-    return np.array([[float(SR(item).subs(values)) for item in row] for row in rows]).reshape(len(rows), columns)
-
-
-def _controllability(state: Matrix, inputs: Matrix) -> int:
-    """Return the rank of the controllability matrix `[B, AB, ..., A^(n-1) B]`."""
-    blocks = [inputs]
-    for _ in range(state.shape[0] - 1):
-        blocks.append(state @ blocks[-1])
-    return int(np.linalg.matrix_rank(np.hstack(blocks)))
-
-
-def _lqr(state: Matrix, inputs: Matrix, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Matrix:
-    """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator, from the Riccati solution `P` of SciPy."""
-    weights = np.atleast_2d(np.asarray(control_weights, dtype=float))
-    riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(state_weights, dtype=float)), weights)
-    gain: Matrix = np.linalg.solve(weights, inputs.T @ riccati)
-    return gain
 
 
 class LinearizationAnalysis(BaseAnalysis):
@@ -199,23 +159,23 @@ class LinearizationAnalysis(BaseAnalysis):
             if self.controls is None
             else self.controls
         )
-        inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
-        dynamics = _dynamics_of(problem)
+        inputs = self._checked_names(chosen, list(adaptive), 'adaptive parameters')
+        dynamics = StabilityAnalysis._dynamics_of(problem)
         states = [name for name in dynamics.names if name not in inputs]
-        observed = _checked_names(
+        observed = self._checked_names(
             states if self.outputs is None else self.outputs,
             [*states, *inputs],
             'states or controls',
         )
-        values = _initial_values(problem)
+        values = self._initial_values(problem)
         values.update(self.at or {})
         by_name = dict(zip(dynamics.names, dynamics.symbols, strict=True))
         rates = dict(zip(dynamics.names, dynamics.rates, strict=True))
         point = {by_name[name]: float(value) for name, value in values.items() if name in by_name}
         point.update(dynamics.parameters)
         point[dynamics.time] = 0.0
-        self.A_ = _evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
-        self.B_ = _evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
+        self.A_ = self._evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
+        self.B_ = self._evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
         self.C_ = np.array([[float(row == column) for column in states] for row in observed]).reshape(
             len(observed),
             len(states),
@@ -227,11 +187,51 @@ class LinearizationAnalysis(BaseAnalysis):
         self.states_ = tuple(states)
         self.controls_ = tuple(inputs)
         self.outputs_ = tuple(observed)
-        self.controllability_ = _controllability(self.A_, self.B_)
-        self.observability_ = _controllability(self.A_.T, self.C_.T)
+        self.controllability_ = self._controllability(self.A_, self.B_)
+        self.observability_ = self._controllability(self.A_.T, self.C_.T)
         self.gain_ = (
             None
             if self.state_weights is None
-            else _lqr(self.A_, self.B_, self.state_weights, self.control_weights)  # type: ignore[arg-type]
+            else self._lqr(self.A_, self.B_, self.state_weights, self.control_weights)  # type: ignore[arg-type]
         )
         return self
+
+    @staticmethod
+    def _initial_values(problem: Problem) -> dict[str, float]:
+        """Return the initial value of every state component by name."""
+        return {
+            name: float(problem.initial_state[entry.start + column])
+            for entry in problem.states.entries
+            for column, name in enumerate(entry.component_names)
+        }
+
+    @staticmethod
+    def _checked_names(names: Sequence[str], known: Sequence[str], description: str) -> list[str]:
+        """Return names after checking that each is one of the known names."""
+        unknown = [name for name in names if name not in known]
+        if unknown:
+            error_msg = f'{", ".join(unknown)} are not {description}. Available names are: {", ".join(known)}.'
+            raise AnalysisError(error_msg)
+        return list(names)
+
+    @staticmethod
+    def _evaluated(rows: list[list[Expression]], values: Mapping[Expression, float]) -> Matrix:
+        """Return a matrix of expressions evaluated at values of their symbols."""
+        columns = len(rows[0]) if rows else 0
+        return np.array([[float(SR(item).subs(values)) for item in row] for row in rows]).reshape(len(rows), columns)
+
+    @staticmethod
+    def _controllability(state: Matrix, inputs: Matrix) -> int:
+        """Return the rank of the controllability matrix `[B, AB, ..., A^(n-1) B]`."""
+        blocks = [inputs]
+        for _ in range(state.shape[0] - 1):
+            blocks.append(state @ blocks[-1])
+        return int(np.linalg.matrix_rank(np.hstack(blocks)))
+
+    @staticmethod
+    def _lqr(state: Matrix, inputs: Matrix, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Matrix:
+        """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator, from the Riccati solution `P` of SciPy."""
+        weights = np.atleast_2d(np.asarray(control_weights, dtype=float))
+        riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(state_weights, dtype=float)), weights)
+        gain: Matrix = np.linalg.solve(weights, inputs.T @ riccati)
+        return gain
