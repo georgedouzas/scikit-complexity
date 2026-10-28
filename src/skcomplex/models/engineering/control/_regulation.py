@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ..._catalog import register_model
 from ._integrator import IntegratorElement
 from ._pid import PIDInteraction
 from ._state_feedback import StateFeedbackInteraction

@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import ramp
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 
 C0 = 1.10869e-8
 C1 = 9.7137e9

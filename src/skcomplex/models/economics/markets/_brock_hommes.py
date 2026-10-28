@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics, logit_choice
 

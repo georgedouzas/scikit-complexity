@@ -18,8 +18,8 @@ from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 
 
 def _active_model_b_laws(s: SimpleNamespace) -> list[BaseLaw]:

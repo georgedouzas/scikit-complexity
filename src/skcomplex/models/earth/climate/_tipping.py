@@ -19,7 +19,7 @@ from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousTime, NetworkSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 FOLD = math.sqrt(4 / 27)
 

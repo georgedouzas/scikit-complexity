@@ -10,8 +10,8 @@ from ....core.interactions import BaseInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.specs import VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
+from ..._catalog import register_model
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 

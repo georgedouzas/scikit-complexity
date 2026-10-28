@@ -16,7 +16,7 @@ from ....core.laws import BaseLaw, EquationLaw
 from ....core.laws.utils import derivative
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 class ScaleFactorElement(Element):

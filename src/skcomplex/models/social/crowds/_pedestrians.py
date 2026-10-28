@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ..._catalog import register_model
 
 
 class MotivationInteraction(Interaction):

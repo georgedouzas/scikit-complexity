@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._compartments import CompartmentElement, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 
 

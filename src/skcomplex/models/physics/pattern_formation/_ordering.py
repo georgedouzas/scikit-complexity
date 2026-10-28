@@ -16,8 +16,8 @@ from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
+from ..._catalog import register_model
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 

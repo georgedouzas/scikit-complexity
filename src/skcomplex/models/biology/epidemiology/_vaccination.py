@@ -13,8 +13,8 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import PontryaginSolver
+from ..._catalog import register_model
 
 MAX_RATE = 0.9
 

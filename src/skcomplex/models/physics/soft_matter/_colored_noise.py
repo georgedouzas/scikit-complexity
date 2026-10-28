@@ -15,8 +15,8 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 
 
 class ColoredNoiseParticleElement(Element):

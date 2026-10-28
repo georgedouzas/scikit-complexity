@@ -27,7 +27,7 @@ class BasinStabilityExperiment(BaseExperiment):
 
     Args:
         source:
-            A registered model name, a factory, or a system.
+            A factory of systems, or a system, such as one that `skcomplex.models.create` returns.
 
         bounds:
             A mapping from dotted state path to the `(low, high)` bounds of its initial value.
@@ -39,10 +39,10 @@ class BasinStabilityExperiment(BaseExperiment):
             The number of initial states.
 
         until:
-            The simulated time of every run, or `None` for the model's default.
+            The simulated time of every run, or `None` for the default of the simulation.
 
         dt:
-            The time between frames, or `None` for the model's default.
+            The time between frames, or `None` for the default of the simulation.
 
         random_state:
             The seed of the initial states and the runs.

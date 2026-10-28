@@ -15,8 +15,8 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.problems import VariableKind, declarations_of
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 
 WASH = 0
 VALET = 1

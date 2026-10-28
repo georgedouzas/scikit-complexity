@@ -16,7 +16,7 @@ from ....core.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
 from ....core.spaces import BoxNeighborhood, LatticeSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

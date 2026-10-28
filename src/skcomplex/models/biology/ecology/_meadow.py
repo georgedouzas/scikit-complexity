@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ..._catalog import register_model
 
 
 def _cell(agent: AgentView) -> tuple[int, ...]:

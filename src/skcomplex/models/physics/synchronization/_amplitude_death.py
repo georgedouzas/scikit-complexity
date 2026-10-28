@@ -18,7 +18,7 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import mean
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')

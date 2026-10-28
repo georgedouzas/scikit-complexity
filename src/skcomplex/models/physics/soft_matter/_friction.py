@@ -16,8 +16,8 @@ from ....core.laws.utils import both, laplacian, pulse_train, where
 from ....core.spaces import LatticeSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ..._catalog import register_model
 
 
 def _frictional_block_laws(s: SimpleNamespace) -> list[BaseLaw]:

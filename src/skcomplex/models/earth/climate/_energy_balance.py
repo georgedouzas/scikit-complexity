@@ -16,7 +16,7 @@ from ....core.laws.utils import gradient, laplacian, where
 from ....core.spaces import LatticeSpace
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401

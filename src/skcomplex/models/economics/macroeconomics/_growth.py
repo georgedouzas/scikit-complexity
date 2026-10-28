@@ -15,7 +15,7 @@ from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import lag
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 
 @register_model(

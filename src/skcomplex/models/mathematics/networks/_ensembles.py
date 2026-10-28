@@ -21,7 +21,7 @@ from ....core.laws.utils import maximum, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ._growth import DEGREE_VISUAL, LinkElement
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')

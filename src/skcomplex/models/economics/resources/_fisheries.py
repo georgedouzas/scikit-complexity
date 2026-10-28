@@ -14,7 +14,7 @@ from ....core.laws import BaseLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import where
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5

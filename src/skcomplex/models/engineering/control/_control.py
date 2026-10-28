@@ -14,8 +14,8 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import derivative, step, where
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ..._catalog import register_model
 
 HOURS_PER_DAY = 24.0
 DISTURBANCE_TIME = 10.0

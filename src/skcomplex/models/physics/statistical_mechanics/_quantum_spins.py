@@ -18,7 +18,7 @@ from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 from ..common.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')

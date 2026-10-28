@@ -16,7 +16,7 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse_train, where
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 

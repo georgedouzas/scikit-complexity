@@ -16,7 +16,7 @@ from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import step, where
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
+from ..._catalog import register_model
 
 INFLOW_START = 5.0
 

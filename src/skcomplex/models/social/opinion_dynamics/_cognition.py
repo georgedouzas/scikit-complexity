@@ -19,8 +19,8 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
+from ..._catalog import register_model
 
 type Array = npt.NDArray[np.float64]
 

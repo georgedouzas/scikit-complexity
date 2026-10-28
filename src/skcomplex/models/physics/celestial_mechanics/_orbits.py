@@ -20,8 +20,8 @@ from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ..._catalog import register_model
 from ..common.particles import GravityInteraction
 
 FIGURE_EIGHT = {
