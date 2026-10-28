@@ -80,10 +80,15 @@ A predator and prey model assembles from ready-made interactions:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
+from skcomplex.models.biology.ecology import (
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+    PredationInteraction,
+)
 
 system = System(
-    components=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
     interactions=[
         LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000),
         PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
@@ -106,7 +111,7 @@ simulation = Simulation(
     observers=[RerunObserver('lotka-volterra', spawn=True)],
 )
 trajectory = simulation.run(until=30).trajectory_
-print(trajectory.values('rabbits.n').max())
+print(round(float(trajectory.values('rabbits.n').max())))
 ```
 
 A simulation started with `start` runs in the background, and its parameters can change while it runs:
@@ -119,30 +124,46 @@ simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
 ```
 
-A new law takes a few lines. The namespace `s` holds the symbols of the interaction's parameters and of the elements
+A new interaction takes a few lines. It declares its roles and parameters as annotated arguments of its constructor,
+and returns its laws from `_get_laws`, where the namespace `s` holds the symbols of its parameters and of the elements
 bound to its roles:
 
 ```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.analysis import SymbolicAnalysis
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 
-from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.core.base import NumericDomain, parameter, role
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import RateLaw
 
+class HarvestInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.h = h
 
-class HarvestInteraction(BaseInteraction):
-    target: str = role()
-    h: float = parameter(0.1, domain=NumericDomain.NONNEGATIVE)
-
-    def laws(self, s):
+    def _get_laws(self, s):
         return [RateLaw(s.target.n, -s.h * s.target.n)]
 
 
 harvested = System(
-    components=[PopulationElement('fish', n=500)],
-    interactions=[LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000), HarvestInteraction('fishing', target='fish', h=0.1)],
+    elements=[PopulationElement('fish', n=500)],
+    interactions=[
+        LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000),
+        HarvestInteraction('fishing', target='fish', h=0.1),
+    ],
 )
 print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
 ```
