@@ -1296,35 +1296,43 @@ engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in marke
 
 ## Control
 
-A control input is an adaptive parameter with bounds, `parameter(initial, adaptive=True, bounds=(lower, upper))`. Laws
-read it like a parameter, trajectories record it like a state, and a schedule, an optimal control solver, or a
-feedback controller supplies its value. Without one it keeps its initial value. `validate` reports an initial value
+A control input is an adaptive parameter with bounds, annotated with `ParameterSpec(adaptive=True, bounds=(lower,
+upper))`. Laws read it like a parameter, trajectories record it like a state, and a schedule, an optimal control solver,
+or a feedback controller supplies its value. Without one it keeps its initial value. `validate` reports an initial value
 outside the bounds as an error at the parameter, whose fix names the bounds.
 
 ```python
-from skcomplex.core.base import parameter
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
-from skcomplex.core.declarations import state
+from skcomplex.engine.runtime import Simulation
+
 
 class HeaterElement(Element):
-    """Heater element."""
+    def __init__(
+        self,
+        label,
+        *,
+        T: Annotated[float, StateSpec()] = 0.0,
+        power: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
+    ):
+        super().__init__(label)
+        self.T = T
+        self.power = power
 
-    T = state(0.0)
-    power = parameter(0.0, adaptive=True, bounds=(0, 1))
-
-    def laws(self, s):
-        """Return the laws of the heater element."""
+    def _get_laws(self, s):
         return [RateLaw(s.T, s.power - s.T)]
+
+
 room = System(elements=[HeaterElement('heater')])
 print([issue.path for issue in validate(System(elements=[HeaterElement('heater', power=2.0)])).errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
-print(heated.values('heater.power'))
+print(heated.values('heater.power').tolist())
 ```
 
 ### Objectives and optimal control
@@ -1336,34 +1344,42 @@ a function of the namespace `s` of the states, parameters, and time of the syste
 terminal cost, and `sense` is `'min'` to minimise it or `'max'` to maximise it.
 
 Two solvers optimise the objective over the bounded adaptive parameters of the system. `PontryaginSolver(objective)`
-builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`, derives the costate equations
-`λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, projects the controls onto their bounds, takes
-a bound where `H` is linear in a control, and solves the two-point problem by a forward-backward sweep.
+builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`, derives the costate equations `λ' =
+-∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, projects the controls onto their bounds, takes a bound
+where `H` is linear in a control, and solves the two-point problem by a forward-backward sweep.
 `CollocationSolver(objective, nodes=..., scheme=...)` transcribes the problem with the `'hermite-simpson'` or
 `'trapezoidal'` scheme and solves it with SciPy's `minimize`, with the Jacobians derived symbolically. Collocation
-handles bang-bang controls, singular arcs, and saddle paths on which the sweep diverges. Both solve the problem over
-the whole run when it starts, and `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for
+handles bang-bang controls, singular arcs, and saddle paths on which the sweep diverges. Both solve the problem over the
+whole run when it starts, and `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for
 `PontryaginSolver`, the costates.
 
 ```python
-from skcomplex.core.base import parameter
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CollocationSolver, PontryaginSolver
-from skcomplex.core.declarations import state
+
 
 class PlantElement(Element):
-    """Plant element."""
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.u = u
 
-    x = state(1.0)
-    u = parameter(0.0, adaptive=True, bounds=(-10, 10))
-
-    def laws(self, s):
-        """Return the laws of the plant element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, s.u)]
+
+
 plant = System(elements=[PlantElement('plant')])
 
 
@@ -1372,9 +1388,9 @@ def cost(s):
 
 
 optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).run(until=1.0)
-print(round(optimal.trajectory_.values('plant.u')[0], 3), round(optimal.stepper_.solution_.cost, 4))
+print(round(float(optimal.trajectory_.values('plant.u')[0]), 3), round(float(optimal.stepper_.solution_.cost), 4))
 transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).run(until=1.0)
-print(round(transcribed.trajectory_.values('plant.u')[0], 3))
+print(round(float(transcribed.trajectory_.values('plant.u')[0]), 3))
 ```
 
 Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate and
@@ -1397,12 +1413,12 @@ print([issue.code for issue in validate(plant, solver=PontryaginSolver()).errors
 ### Feedback controllers
 
 Feedback controllers are realizations of the engineering field, in `skcomplex.models.engineering.realizations`, so the
-core holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the control
-input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state `measure`,
-with the integral of the error in an `IntegratorElement` element. `StateFeedbackInteraction(label, plant=, control=, states=, gain=)` sets
-it to `-K x`. Both set the control after every solver step, as boundary laws, so a fixed-step solver with small steps
-makes them close to continuous controllers. The engineering models `pid_inverted_pendulum` and `lqr_oscillator` use
-them.
+core holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
+control input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state
+`measure`, with the integral of the error in an `IntegratorElement` element. `StateFeedbackInteraction(label, plant=,
+control=, states=, gain=)` sets it to `-K x`. Both set the control after every solver step, as boundary laws, so a
+fixed-step solver with small steps makes them close to continuous controllers. The engineering models
+`pid_inverted_pendulum` and `lqr_oscillator` use them.
 
 ### Linear analysis
 
@@ -1413,28 +1429,37 @@ parameters. Its `controllability_` and `observability_` are the ranks of the Kal
 of the Riccati equation.
 
 ```python
-from skcomplex.core.base import parameter
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.system import System
+from typing import Annotated
 
 from skcomplex.analysis import LinearizationAnalysis
-from skcomplex.core.declarations import state
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+
 
 class CartElement(Element):
-    """Cart element."""
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec()] = 0.0,
+        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.force = force
 
-    x = state(0.0)
-    v = state(0.0)
-    force = parameter(0.0, adaptive=True, bounds=(-1, 1))
-
-    def laws(self, s):
-        """Return the laws of the cart element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
+
+
 model = LinearizationAnalysis(outputs=['cart.x'], state_weights=[[1, 0], [0, 1]], control_weights=[[1]])
 model.check().prepare(System(elements=[CartElement('cart')])).run()
 print(model.controllability_, model.observability_)
-print(model.gain_.round(3))
+print(model.gain_.round(3).tolist())
 ```
 
 The library models with optimal controls are `optimal_harvesting` in resources, `optimal_consumption` in
@@ -1443,227 +1468,128 @@ oncology.
 
 ## Package layout
 
-The package holds two parts. `skcomplex.core` is the domain-agnostic framework, and `skcomplex.models` is the library
-of ready-made models built from it.
+The package holds five parts, layered so that each imports only the parts below it. `skcomplex.experiments` builds on
+`skcomplex.analysis`, which builds on `skcomplex.engine`, which builds on `skcomplex.core`. `skcomplex.models` is the
+library of ready-made models built from the other four, and none of them imports it.
 
-### The shared core
+### The core
 
-The shared core holds the general concepts, one package for each part of a system or step of a run. The packages are
-listed in their import order, so a package imports only the packages above it.
+`skcomplex.core` defines what a system is, and nothing about how it runs. Its modules are listed in their import
+order, so a module imports only the modules above it.
 
-- `base`: symbols, domains, the declarations `state`, `parameter`, and `role`, errors, the bases of elements,
-  interactions, and laws, and the open registries of law kinds, forms, space kinds, and traits.
-- `space`: `BaseSpace` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
-- `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and
-  flows.
-- `components`: `BaseElement`, `Element`, `GroupElement`, and `WienerProcessSpec`, which is no component.
-- `interactions`: `BaseInteraction` and the bindings of its roles.
-- `system`: `System`, `Observable`, `observe_element`, and ensembles.
-- `compile`: validation and the pipeline of passes that turns a system into a problem.
-- `solvers`: the stepper contract, `step_count`, and the general steppers by form.
-- `backends`: the NumPy and Numba backends.
-- `runtime`: `Simulation`, clocks, observers, and the registry of models.
-- `viz`: the visuals and the Rerun viewer.
-- `experiments`: experiments over grids of parameters and replicates.
-- `analysis`: analyses of systems, trajectories, and data.
-- `formalisms`: one package for each formalism, which may import every package above it.
+- `errors`: the errors of the package, such as `ValidationError`, `RoleError`, and `SolverError`.
+- `specs`: the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
+  and the specs of runs and structures, such as `ObservableSpec`, `WienerProcessSpec`, and `RequirementSpec`.
+- `types`: the types that annotations share.
+- `base`: `BasePart`, the base of every part, with the verbs `check`, `prepare`, and `run`.
+- `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
+- `laws`: the `BaseLaw` base and every law, and in `laws.utils` what laws are written with besides Sage, such as
+  `where`, reductions, draws, delays, and drivers.
+- `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and `Interaction`,
+  `PairInteraction`, and the other interactions.
+- `system`: `System`.
 
-No package of the shared core imports a formalism, so a system built only from the shared core compiles and simulates
-with no formalism loaded. A test of the package layout enforces the import order.
+### The engine
 
-## Formalisms
+`skcomplex.engine` runs systems. Its packages are listed in their import order too.
 
-A formalism is one kind of dynamics that not every model needs, such as lattice dynamics or quantum dynamics. Each
-formalism is a package of `skcomplex.formalisms` that holds its laws, components, compilation passes, solvers,
-backends, visuals, and validation checks, so one kind of dynamics lives in one place.
+- `problems`: the compiled problems, their layouts of states and parameters, and their numeric functions.
+- `backends`: the NumPy and Numba backends, which lower expressions to numeric functions.
+- `compile`: `validate`, `compile_system`, and the pipeline of passes that turns a system into a problem.
+- `solvers`: the solver contract, `step_count`, and every solver.
+- `runtime`: `Simulation`, clocks, observers, trajectories, and the catalog of models.
+- `viz`: the visuals and the Rerun observer.
 
-### The formalisms
+`skcomplex.analysis` holds the analyses of systems, trajectories, and data, and `skcomplex.experiments` the experiments
+over designs of parameters and replicates. Tests of the import contracts enforce the layering.
 
-- `agents`: `RuleLaw` and `MatchLaw`, the phases of a step, agent memory, and the Mesa stepper.
-- `lattices`: `LocalRuleLaw`, `Energy`, drives, relaxations, extremal updates, Monte Carlo sampling, and the lattice
-  steppers.
-- `groups`: finitely generated groups, their Cayley graphs as spaces of cellular automata, and the visual of those
-  graphs.
-- `rewriting`: productions on words, substitutions of tiles, graph productions, and their geometry.
-- `quantum`: operators, `GeneratorLaw` and `DissipatorLaw`s, quantum elements, and the QuTiP solvers.
-- `fields`: `FieldElement`, differential operators, `FluxLaw`s, meshes, discretizations, and stiff integrators.
-- `kinetics`: encounter laws, moments, activity levels, and direct simulation Monte Carlo.
-- `fractional`: states of fractional order, Caputo schemes, and fractional noise.
-- `topology`: requests of laws that add and remove the nodes and edges of networks.
-- `particles`: `ParticleElement`, potentials, pair potentials, and the LAMMPS backend.
-- `control`: the optimal control solvers by collocation and by Pontryagin's principle.
+## Kinds of dynamics
 
-`fields` builds on `lattices`, and the other formalisms build on the shared core alone.
+Some kinds of dynamics, such as lattice dynamics or quantum dynamics, are needed by few models. Each is not a package of
+its own: its laws, elements, and spaces are parts of the core, and the passes that compile it, its solvers, and its
+visuals are parts of the engine, beside those of every other kind.
 
-### Importing a formalism
+### Where each kind lives
 
-A name specific to one formalism is imported from the package of that formalism, as
-`from skcomplex.formalisms.<formalism> import <Name>`. The shared packages do not export it.
+| Kind | Core | Engine |
+| --- | --- | --- |
+| agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
+| lattices | `LocalRuleLaw`, `DriveLaw`, `RelaxationLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| finitely generated groups | `CayleySpace` | `CayleyVisual` |
+| rewriting | `ProductionLaw`, `SubstitutionLaw`, `GraphProductionLaw`, `WordElement`, `PatchElement`, `HostGraphElement` | a system compiler, `RewritingSolver` |
+| quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
+| fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
+| kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
+| fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
+| topology | `TopologyRequestSpec` | the topology passes |
+| particles | `ParticleElement`, `PotentialInteraction`, `PairPotentialInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
+| control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
-- Importing any name of a formalism registers the formalism, with every law, solver, and backend it contributes.
-- A system that holds a law of a class that no formalism registered fails validation with an issue that names the
-  class.
-- `registered_formalisms()` lists the registered formalisms in registration order.
+Most kinds compile through the passes of `compile_system`, which lower each law to the problem of its form. Quantum
+and rewriting systems are compiled whole by a system compiler, a `BaseSystemCompiler`, and `claiming_compiler` returns
+the compiler that claims a system, or `None` for the passes.
 
-```python
-from skcomplex.core.laws import GeneratorLaw
+### Writing a law
 
-quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
-print([law.__name__ for law in quantum.laws], sorted(quantum.solvers))
-```
+A new law derives from `BaseLaw`. It stores its arguments under their own names, and it implements three methods.
 
-### Writing a formalism
-
-A new formalism needs no change to the shared core. It declares its contributions in one `Formalism` and passes it to
-`register` when its package is imported.
-
-- A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
-- A law class derives from `BaseLaw` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
-- A `BaseSystemCompiler` claims the systems it compiles, setting `claims_` when it is fitted to a system, and its `run`
-  turns each into a `Problem` of the new form.
-- A solver is a `Solver` that declares the form it advances and what it supports. It implements `_advance`, which
-  advances the state from one time to the next. The runtime calls `prepare(problem, rng, until)` before the first frame
-  and `run(t, x, p, until)` at every frame, which returns the state and sets `events_`, `stopped_at_`, `snapshot_`,
-  and `agents_`. The last run, `run(..., final=True)`, releases what fitting acquired, such as an external process.
-- `depends` names the formalisms it builds on, which must be registered first.
-
-The example below adds radioactive decay as a formalism with its own law, pass, and exact solver.
+- `_get_targets` returns the states it changes, which `prepare` sets as `targets_`.
+- `_get_requirements` returns a `RequirementSpec` of the kinds of time and space it runs in.
+- `_run` returns its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
 
 ```python
-from dataclasses import dataclass
-from typing import ClassVar
+from typing import Annotated
 
-import numpy as np
+from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.base import (
-    ElementKind,
-    NumericDomain,
-    DomainKind,
-    Expression,
-    Form,
-    LawClass,
-    LawKind,
-    OrderKind,
-    RequirementSpec,
-    SupportSpec,
-    TimeKind,
-    Trait,
-    VisualSpec,
-    parameter,
-    state,
-    symbol,
-)
-from skcomplex.engine.compile import BaseSystemCompiler
-from skcomplex.engine.problems import CompiledElement, Problem
-from skcomplex.engine.problems import Entry, Layout
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import Solver
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import BaseLaw
+from skcomplex.core.spaces import ContinuousTime
+from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
 from skcomplex.core.system import System
-
-DECAY = LawKind.register('DECAY', 'decay')
-EXPONENTIAL_DECAY = Form.register('EXPONENTIAL_DECAY', 'exponential decay')
+from skcomplex.engine.compile import validate
 
 
-@dataclass(frozen=True)
 class DecayLaw(BaseLaw):
-    law_kind: ClassVar[LawKind] = DECAY
-    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
-    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
-    requires: ClassVar[RequirementSpec] = RequirementSpec()
+    def __init__(self, target, rate, *, label=''):
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
 
-    targets: Expression | tuple[Expression, ...]
-    rate: object
+    def _check(self):
+        return self
+
+    def _get_targets(self):
+        return (self.target,)
+
+    def _get_requirements(self):
+        return RequirementSpec(time=(ContinuousTime,))
+
+    def _run(self, inputs):
+        return self._evaluate(-self.rate * self.target, inputs)
+
+
+n, k = var('n k')
+law = DecayLaw(n, k).check().prepare('atom')
+print(law.targets_, sorted(map(str, law.reads_)), law.owner_, law.run({'n': 2.0, 'k': 0.5}))
 
 
 class NucleusElement(Element):
-    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0, k: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         return [DecayLaw(s.n, s.k)]
 
 
-@dataclass(frozen=True)
-class DecayProblem(Problem):
-    rates: tuple[int, ...] = ()
-
-
-class DecayCompiler(BaseSystemCompiler):
-    def _prepare(self, system):
-        self.claims_ = bool(system.elements) and all(isinstance(item, NucleusElement) for item in system.elements)
-
-    def _run(self, system, *, backend, solver, initial_state):
-        nuclei = list(system.elements)
-        states = [Entry(f'{item.label}.n', i, (), NumericDomain.NONNEGATIVE) for i, item in enumerate(nuclei)]
-        rates = [Entry(f'{item.label}.k', i, (), NumericDomain.POSITIVE) for i, item in enumerate(nuclei)]
-        return DecayProblem(
-            form=EXPONENTIAL_DECAY,
-            states=Layout(states),
-            parameters=Layout(rates),
-            initial_state=np.array([float(initial_state.get(f'{item.label}.n', item.n)) for item in nuclei]),
-            initial_parameters=np.array([float(item.k) for item in nuclei]),
-            time=symbol('t'),
-            symbols={},
-            equations={},
-            equation_symbols={},
-            has_callables=False,
-            has_group_sums=False,
-            elements=tuple(
-                CompiledElement(item.label, item, {'n': f'{item.label}.n'}, {'k': f'{item.label}.k'}, VisualSpec())
-                for item in nuclei
-            ),
-            system=system,
-            rates=tuple(entry.start for entry in rates),
-        )
-
-
-class ExactDecaySolver(Solver):
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={TimeKind.CONTINUOUS},
-        laws={DECAY},
-        domains={DomainKind.REAL},
-        components={ElementKind.ELEMENT},
-        orders={OrderKind.INTEGER},
-    )
-    form: ClassVar[Form] = EXPONENTIAL_DECAY
-
-    def _advance(self, t, x, p, until):
-        return x * np.exp(-p[list(self.problem_.rates)] * (until - t))
-
-
-register(
-    Formalism(
-        'decay',
-        laws=(DecayLaw,),
-        components=(NucleusElement,),
-        compilers=(DecayCompiler(),),
-        forms=(EXPONENTIAL_DECAY,),
-        solvers={'exact-decay': ExactDecaySolver},
-        defaults=(ExactDecaySolver,),
-    ),
-)
-decayed = Simulation(System(elements=[NucleusElement('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
-print(type(decayed.stepper_).__name__, decayed.trajectory_.values('atom.n')[-1].round(4))
+print([issue.code for issue in validate(System(elements=[NucleusElement('atom')])).errors])
 ```
 
-The formalism packages of `skcomplex.formalisms` follow one internal layout, with the modules `_laws`,
-`_components`, `_spaces`, `_passes`, `_solvers`, `_backends`, `_visuals`, and `_checks`, each present only when the
-formalism needs it, and an `__init__` that registers the formalism.
-
-### What stays in the shared core
-
-Some parts look specific to one kind of model but stay in the shared core, because general laws or several formalisms
-need them.
-
-- **Renewals** stay because `JumpLaw` with a clock of waiting times is a general law. Its lowering and its stepper belong
-  with the other jump processes, so a waiting-time jump never compiles as a rate jump when a formalism is missing.
-- **Stocks and flows** stay because their lowering also lowers the general law `TransferLaw`, and `analysis` reads their
-  feedback loops.
-- **The `'pairs'` binding** stays because models without particles couple the pairs of members of a group closer than
-  a cutoff.
-- **The bodies visual** stays because models without particles draw their members as bodies.
+The passes and the system compilers are fixed lists of the engine, so a law of a new class
+checks, prepares, and runs on its own, but no form takes it in a system. `validate` reports it with the code
+`laws-mixed`, and a new kind of dynamics is a change to the engine.
 
 ## The model library
 
@@ -1705,28 +1631,38 @@ print(run('sir').trajectory_.values('I.n').max().round())
 
 ### Models as patterns
 
-The models are examples of the core interface, not a separate one, so each is also the pattern for a model of your
-own. The page of every field, under Models in the documentation, shows each model's factory, its component types with
-their states, parameters, and laws as written, and, for differential equations and maps, its equations as
-`SymbolicAnalysis('equations')` returns them. A model of your own follows the same steps: declare the component types, write a factory
-that returns the system, and register it with `register_model`.
+The models are examples of the core interface, not a separate one, so each is also the pattern for a model of your own.
+The page of every field, under Models in the documentation, shows each model's factory, its element and interaction
+types with their states, parameters, and laws as written, and, for differential equations and maps, its equations as
+`SymbolicAnalysis('equations')` returns them. A model of your own follows the same steps: declare the element and
+interaction types, write a factory that returns the system, and register it with `register_model`.
 
 ```python
-from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import create, register_model
-from skcomplex.core.declarations import parameter
+
 
 class TankElement(Element):
-    """Tank element."""
+    def __init__(
+        self,
+        label,
+        *,
+        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label)
+        self.level = level
+        self.k = k
 
-    level = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    k = parameter(0.5)
-
-    def laws(self, s):
-        """Return the laws of the tank element."""
+    def _get_laws(self, s):
         return [RateLaw(s.level, -s.k * s.level)]
 
 
@@ -1764,18 +1700,17 @@ A group holds N identical elements of one type as arrays with one row per member
 and every law written for one member runs over all members with array operations.
 
 ```python
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
-
 import numpy as np
 
-from skcomplex.core.elements import ParticleElement
-from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 rng = np.random.default_rng(0)
+values = {'x': rng.uniform(0, 1, (1_000, 2)), 'v': rng.normal(0, 1, (1_000, 2))}
 gas = System(
-    elements=[GroupElement('gas', element=ParticleElement, size=1_000, values={'x': rng.uniform(0, 1, (1_000, 2)), 'v': rng.normal(0, 1, (1_000, 2))})],
+    elements=[GroupElement('gas', element=ParticleElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).run(until=0.5).trajectory_
@@ -1793,10 +1728,11 @@ print(trajectory.values('gas.x').shape)
 
 ### Reductions over a group
 
-`total`, `mean`, `maximum`, `minimum`, `variance`, and `count` reduce an expression over the members of a group inside
-any law. Inside the reduction, the symbols of a member stand for the reduced member, and outside it for the reading
-member, so `RateLaw(s.x, -s.x + tanh(total(s.x)))` reads the group total in every member's own law. A reduction is
-evaluated once per evaluation, before the member laws, at a cost linear in the size of the group, on NumPy and Numba.
+`total`, `mean`, `maximum`, `minimum`, `variance`, and `count` of `skcomplex.core.laws.utils` reduce an expression over
+the members of a group inside any law. Inside the reduction, the symbols of a member stand for the reduced member, and
+outside it for the reading member, so `RateLaw(s.x, -s.x + tanh(total(s.x)))` reads the group total in every member's
+own law. A reduction is evaluated once per evaluation, before the member laws, at a cost linear in the size of the
+group, on NumPy and Numba.
 
 - `where` selects the members with a condition on the reduced member, such as `count(where=s.x > 0.5)`. The reductions
   of no selected member are 0.
@@ -1813,133 +1749,159 @@ evaluated once per evaluation, before the member laws, at a cost linear in the s
   receive.
 
 ```python
-import numpy as np
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.laws import total
-from skcomplex.core.declarations import role, state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import total
+from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class UnitElement(Element):
-    """Unit element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.0)
-
-    def laws(self, s):
-        """Return the laws of the unit element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
+
+
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-print(Simulation(units, dt=0.5).run(until=2).trajectory_.values('units.x')[-1, :3].round(3))
+print(Simulation(units, dt=0.5).run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist())
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
+
+
 class StrategyElement(Element):
-    """Strategy element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.5):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.5)
-class ReplicationInteraction(BaseInteraction):
-    """Replication interaction."""
 
-    population = role()
+class ReplicationInteraction(Interaction):
+    def __init__(self, label, *, population: Annotated[str, RoleSpec()]):
+        super().__init__(label)
+        self.population = population
 
-    def laws(self, s):
-        """Return the laws of the replication interaction."""
-        return [
-        RateLaw(
-            s.population.x,
-            s.population.x
-            * (total(s.population.x, weights=payoff) - total(s.population.x * total(s.population.x, weights=payoff))),
-        ),
-    ]
+    def _get_laws(self, s):
+        x = s.population.x
+        return [RateLaw(x, x * (total(x, weights=payoff) - total(x * total(x, weights=payoff))))]
+
+
 game = System(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-print(Simulation(game, dt=1.0).run(until=40).trajectory_.values('population.x')[-1].round(3))
+print(Simulation(game, dt=1.0).run(until=40).trajectory_.values('population.x')[-1].round(3).tolist())
 ```
 
 A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
 element, the elements keep their own state names, and reductions over the role reduce over the set.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import RateLaw, total
-from skcomplex.engine.runtime import Simulation
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import total
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.core.declarations import parameter, role, state
+from skcomplex.engine.runtime import Simulation
 
-class InhibitionInteraction(BaseInteraction):
-    """Inhibition interaction."""
 
-    units = role()
-    beta = parameter(2.0)
-
-    def laws(self, s):
-        """Return the laws of the inhibition interaction."""
-        return [RateLaw(s.units.x, s.units.x * (1 - s.units.x) - s.beta * s.units.x * (total(s.units.x) - s.units.x))]
 class ActivityElement(Element):
-    """Activity element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.1):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.1)
+
+class InhibitionInteraction(Interaction):
+    def __init__(self, label, *, units: Annotated[str, RoleSpec()], beta: Annotated[float, ParameterSpec()] = 2.0):
+        super().__init__(label)
+        self.units = units
+        self.beta = beta
+
+    def _get_laws(self, s):
+        x = s.units.x
+        return [RateLaw(x, x * (1 - x) - s.beta * x * (total(x) - x))]
+
+
 network = System(
     elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
-print(Simulation(network, dt=1.0).run(until=30).state_.round(3))
+print((Simulation(network, dt=1.0).run(until=30).state_.round(3) + 0.0).tolist())
 ```
 
 ### Variadic roles
 
-A role declared with `role(variadic=True)` binds a list of element paths and group member references `<group>[<i>]`,
+A role declared with `RoleSpec(variadic=True)` binds a list of element paths and group member references `<group>[<i>]`,
 and laws read it as a tuple of namespaces in the given order, so a law can take any number of inputs. A parameter
-declared with `parameter(per='<role>')` holds one value per entry, laws read it as a tuple of symbols, and each value is
-the parameter component `<path>.<name>[<i>]`, which `update_parameters` and `schedule` set like any parameter.
+declared with `ParameterSpec(per='<role>')` holds one value per entry, laws read it as a tuple of symbols, and each
+value is the parameter component `<path>.<name>[<i>]`, which `update_parameters` and `schedule` set like any parameter.
 
 ```python
-from skcomplex.core.base import parameter, role
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseInteraction
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.declarations import state
-from skcomplex.core.elements import GroupElement
+
 
 class NodeElement(Element):
-    """Node element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.0)
 
+class WeightedSumInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        weights: Annotated[list[float], ParameterSpec(per='inputs')] = 1.0,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.inputs = inputs
+        self.weights = weights
 
-class WeightedSumInteraction(BaseInteraction):
-    target: str = role()
-    inputs: list[str] = role(variadic=True)
-    weights: list[float] = parameter(1.0, per='inputs')
-
-    def laws(self, s):
+    def _get_laws(self, s):
         total_input = sum(weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True))
         return [UpdateLaw(s.target.x, total_input)]
 
 
 summed = System(
-    elements=[NodeElement('a', x=1.0), NodeElement('b', x=2.0), NodeElement('out'), GroupElement('nodes', element=NodeElement, size=5, values={'x': [0.0, 1.0, 2.0, 3.0, 4.0]})],
+    elements=[
+        NodeElement('a', x=1.0),
+        NodeElement('b', x=2.0),
+        NodeElement('out'),
+        GroupElement('nodes', element=NodeElement, size=5, values={'x': [0.0, 1.0, 2.0, 3.0, 4.0]}),
+    ],
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
 simulation = Simulation(summed, dt=1).run(until=1)
 simulation.update_parameters({'sum.weights[2]': 0.0})
-print(simulation.trajectory_.values('out.x'), simulation.parameters_)
+print(simulation.trajectory_.values('out.x').tolist(), simulation.parameters_.tolist())
 ```
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
 read like a single element, while a variadic role gives one law the whole sequence. `random_boolean_network` and
-`yeast_cell_cycle` read the inputs of every node through one variadic role. A role declared with `role(noise=True)`
-binds a `WienerProcessSpec` instead of a path, as the section on shared and correlated noise shows.
+`yeast_cell_cycle` read the inputs of every node through one variadic role. A role declared with
+`RoleSpec(noise=True)` binds a `WienerProcessSpec` instead of a path, as the section on shared and correlated noise
+shows.
 
 ### Several groups and member offsets
 
@@ -1955,43 +1917,47 @@ Numba backends. The ring roads of `optimal_velocity` and `intelligent_driver_mod
 `mod` for the headway across the point where positions wrap.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseInteraction
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.laws import RateLaw, mod, shift_member
-from skcomplex.core.declarations import parameter, role, state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import mod, shift_member
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class CarElement(Element):
-    """Car element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0, v: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.x = x
+        self.v = v
 
-    x = state(0.0)
-    v = state(1.0)
-
-    def laws(self, s):
-        """Return the laws of the car element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, s.v)]
-class FollowingComponentInteraction(BaseInteraction):
-    """Following component interaction."""
 
-    cars = role()
-    length = parameter(40.0)
 
-    def laws(self, s):
-        """Return the laws of the following component interaction."""
-        return [
-        RateLaw(s.cars.v, tanh(mod(shift_member(s.cars.x, 1) - s.cars.x, s.length) - 2.0) + tanh(2.0) - s.cars.v),
-    ]
+class FollowingInteraction(Interaction):
+    def __init__(self, label, *, cars: Annotated[str, RoleSpec()], length: Annotated[float, ParameterSpec()] = 40.0):
+        super().__init__(label)
+        self.cars = cars
+        self.length = length
+
+    def _get_laws(self, s):
+        headway = mod(shift_member(s.cars.x, 1) - s.cars.x, s.length)
+        return [RateLaw(s.cars.v, tanh(headway - 2.0) + tanh(2.0) - s.cars.v)]
+
+
+positions = np.arange(20) * 2.0 + np.eye(20)[0] * 0.1
 ring = System(
-    elements=[GroupElement('cars', element=CarElement, size=20, values={'x': np.arange(20) * 2.0 + np.eye(20)[0] * 0.1})],
-    interactions=[FollowingComponentInteraction('following', cars='cars', length=40.0)],
+    elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
+    interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
-print(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1)
+print(bool(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1))
 ```
 
 ### Jacobians of reductions
@@ -1999,30 +1965,34 @@ print(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].st
 A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
 the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem evaluates the exact
 Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
-its structure, which the implicit methods of `ScipyODESolver` receive (see
-[Discretizations and stiff solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million
-entries, `pattern()` returns `None` and an implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so explicit steppers such as `RK4Solver` and
-`ScipyODESolver(method='RK45')` suit large groups with reductions.
+its structure, which the implicit methods of `ScipyODESolver` receive (see [Discretizations and stiff
+solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million entries, `pattern()` returns
+`None` and an implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so an explicit method such
+as `ScipyODESolver(method='RK45')` suits large groups with reductions.
 
 ```python
+from typing import Annotated
+
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.engine.compile import compile_system
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw, total
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import total
+from skcomplex.core.specs import StateSpec
 from skcomplex.core.system import System
-from skcomplex.core.declarations import state
-from skcomplex.core.elements import GroupElement
+from skcomplex.engine.compile import compile_system
+
 
 class UnitElement(Element):
-    """Unit element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.0)
-
-    def laws(self, s):
-        """Return the laws of the unit element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
+
+
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = compile_system(units)
 jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
@@ -2039,32 +2009,47 @@ A pair interaction is written once for a pair of members and summed over every p
 group or between two groups. `PairPotentialInteraction` derives the forces from a pair energy.
 
 ```python
-import numpy as np
-from skcomplex.core.elements import ParticleElement
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.spaces import ContinuousSpace, GeneratorNeighborhood, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.base import NumericDomain, parameter
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.interactions import PairPotentialInteraction
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 
 class LennardJonesInteraction(PairPotentialInteraction):
-    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label,
+        first,
+        second,
+        cutoff=2.5,
+        *,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ):
+        super().__init__(label, first, second, cutoff=cutoff)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
 
 
 side = np.arange(10) * 1.2
+positions = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 liquid = System(
-    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)})],
+    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': positions})],
     interactions=[LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5)],
     space=ContinuousSpace(n_dim=2),
 )
-Simulation(liquid, dt=0.05).run(until=1)
+print(Simulation(liquid, dt=0.05).run(until=1).trajectory_.values('atoms.x').shape)
 ```
 
 `period` gives the side of a periodic box, so pair distances use the nearest periodic image.
@@ -2075,7 +2060,8 @@ A `BoundaryLaw` sets the value of a state after every internal solver step, howe
 reports a state that a boundary would change. Adaptive solvers find the first time in a step where a boundary acts and
 restart there. Boundaries combine with every form, so walls and periodic boxes work for differential equations,
 stochastic systems, jump processes, and discrete maps.
-`ReflectingBox` mirrors positions and velocities at the walls, and `PeriodicBox` wraps positions around the box.
+A `ContinuousSpace` with `boundary='reflecting'` mirrors the position states of its elements at the walls and reverses
+the velocities declared with `StateSpec(velocity_of=...)`, and `boundary='periodic'` wraps positions around the box.
 
 ## Lattice models
 
