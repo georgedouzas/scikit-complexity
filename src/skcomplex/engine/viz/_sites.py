@@ -13,8 +13,7 @@ import rerun.blueprint as rrb
 from ...core.spaces import LatticeSpace, NetworkSpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
 from ..runtime import Frame
-from ._utils import _GRID_RADIUS, _NODE_SPACING
-from ._visuals import BaseVisual
+from ._visuals import _GRID_RADIUS, _NODE_SPACING, BaseVisual
 
 _HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
 _CHANGING_REACH = 10.0

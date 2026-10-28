@@ -9,7 +9,6 @@ from sage.all__sagemath_symbolics import var
 
 from ...core.elements import BaseElement, GroupElement
 from ...core.interactions import BaseInteraction
-from ...core.laws import RuleLaw
 from ...core.specs import RoleSpec
 
 
@@ -78,32 +77,3 @@ def probe_laws(component: object) -> list[object] | None:
         return None
 
 
-def runs_rules(component: object) -> bool:
-    """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
-
-    Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
-    own in a system with rules, unless an interaction whose laws are not rules binds them.
-
-    Args:
-        component:
-            The element, group, interaction, or system.
-
-    Returns:
-        runs_rules:
-            Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
-
-    Examples:
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import RuleLaw
-        >>> from skcomplex.engine.compile._probe import runs_rules
-        >>> class WalkerElement(Element):
-        ...     def _get_laws(self, namespace):
-        ...         return [RuleLaw(lambda agent, model: None)]
-        >>> runs_rules(WalkerElement('walker')), runs_rules(Element('plain'))
-        (True, False)
-    """
-    if isinstance(component, GroupElement) and component.variable:
-        return True
-    if not isinstance(component, BaseElement):
-        return False
-    return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])

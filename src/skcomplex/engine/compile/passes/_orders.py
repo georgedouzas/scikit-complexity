@@ -19,14 +19,14 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ...problems import VariableKind, components_of, declarations_of, symbol, vector
+from .._block import Block
 from .._compilation import BlockLaws, Compilation
-from .._complex import _split_law
-from .._declarations import Block, Declarations, _is_interaction
-from .._laws import _KERNEL_FREE_LAWS, replaced
-from .._lowering import _calls_of
+from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
+from .._laws import _KERNEL_FREE_LAWS
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
-from .._specs import KernelSpec, state_name
+from ._complex import LowerComplexPass
 
 _EQUATION_UNKNOWNS = 6
 
@@ -43,7 +43,7 @@ class _Orders:
         """Return the orders above 1 and the lags of every state of the blocks."""
         orders, lags = {}, {}
         for block in blocks:
-            if _is_interaction(block.node) or block.node.is_agent:
+            if block.node._is_interaction() or block.node.is_agent:
                 continue
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():
@@ -120,7 +120,7 @@ class OrdersPass(BasePass):
         if not isinstance(value, Expression):
             return value
         replacements = {}
-        for call in _calls_of(value, 'derivative'):
+        for call in BasePass._calls_of(value, 'derivative'):
             item, degree = call.operands()
             reference = spec.references.get(item)
             order = orders.orders.get(reference.entry.name, 1) if reference is not None else 1
@@ -138,7 +138,7 @@ class OrdersPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._companion_symbol(spec, item, f'_d{int(degree)}')
-        for call in _calls_of(value, 'lag'):
+        for call in BasePass._calls_of(value, 'lag'):
             item, steps = call.operands()
             reference = spec.references.get(item)
             kept = orders.lags.get(reference.entry.name, 0) if reference is not None else 0
@@ -168,7 +168,7 @@ class OrdersPass(BasePass):
             return law
         tops = [OrdersPass._companion_symbol(spec, item, f'_d{order - 1}') for item in items]
         target = vector(tops) if isinstance(law._get_targets()[0], FreeModuleElement) else tops[0]
-        return replaced(law, target=target)
+        return BasePass._replaced(law, target=target)
 
     @staticmethod
     def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[BaseLaw]:
@@ -222,18 +222,20 @@ class OrdersPass(BasePass):
             }
             reset_value = reset if law.reset is not None else None
             if isinstance(law, RenewalLaw):
-                return replaced(
+                return BasePass._replaced(
                     law,
                     waiting=OrdersPass._substitute(SR(law.waiting), spec, orders, owner),
                     reset=reset_value,
                 )
-            return replaced(law, guard=OrdersPass._substitute(SR(law.guard), spec, orders, owner), reset=reset_value)
+            return BasePass._replaced(
+                law, guard=OrdersPass._substitute(SR(law.guard), spec, orders, owner), reset=reset_value,
+            )
         if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
             return law
         value = OrdersPass._substitute(law.value, spec, orders, owner)
         if isinstance(law, RateLaw | NoiseLaw):
-            return OrdersPass._retarget(replaced(law, value=value), spec, orders)
-        return replaced(law, value=value)
+            return OrdersPass._retarget(BasePass._replaced(law, value=value), spec, orders)
+        return BasePass._replaced(law, value=value)
 
     @staticmethod
     def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _Orders) -> list[Any]:
@@ -248,11 +250,13 @@ class OrdersPass(BasePass):
                 result.append(OrdersPass._relation(spec, law, orders))
             else:
                 result.append(OrdersPass._ordered_law(spec, law, orders))
-        if not _is_interaction(block.node):
+        if not block.node._is_interaction():
             result += [
                 item
                 for law in OrdersPass._intrinsic_laws(spec, block, orders)
-                for item in _split_law(law, spec.owner, lambda target: state_name(spec, target))
+                for item in LowerComplexPass._split_law(
+                    law, spec.owner, lambda target: KernelSpec._state_name(spec, target),
+                )
             ]
         return result
 

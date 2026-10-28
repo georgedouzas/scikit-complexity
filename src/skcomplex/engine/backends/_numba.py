@@ -8,14 +8,17 @@ import importlib.util
 import inspect
 import os
 import sys
+import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import ModuleType
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numba
 import numpy as np
+from numba.core.dispatcher import Dispatcher
 
+from ...core.errors import BackendWarning, ValidationError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -57,6 +60,7 @@ from ...core.spaces import (
 )
 from ...core.types import Vector
 from ..problems import (
+    SCALAR_DIALECT,
     Accelerated,
     Draws,
     EdgeSearch,
@@ -69,24 +73,15 @@ from ..problems import (
     Reference,
     Source,
     SupportSpec,
+    print_expressions,
     step_count,
 )
-from ..problems._kernels import jump_channels, lower_noise
-from ..problems._neighbourhoods import EdgeRows, MetricSearch
+from ..problems._edge_rows import EdgeRows
+from ..problems._metric_search import MetricSearch
 from . import _numba_neighbours, _numba_stencils
-from ._base import (
-    _AUTO_MEMBERS,
-    BaseBackend,
-    Lowering,
-    _adding_function,
-    _assigning_function,
-    _concatenating_function,
-    _report_fallbacks,
-    reads_reductions,
-)
-from ._numba_kernels import _edge_kernel, _entry_function, _is_compilable, _member_kernel, _output_count, _pair_kernel
-from ._numba_loops import LOOPS, NO_BOUNDARY, _channel_arrays, _noise_arrays
-from ._numba_reductions import _reduce_function, _reductions_compile
+from ._base import _AUTO_MEMBERS, BaseBackend
+from ._lowering import Lowering
+from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_source import _Source
 
 _DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
@@ -126,31 +121,6 @@ def _helpers_fingerprint() -> str:
     modules = (_numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
     sources = [inspect.getsource(module).encode() for module in modules]
     return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
-
-
-def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
-    """Return the module of generated source, from a cached file when it has no injected functions."""
-    digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
-    name = f'skcomplex_kernels_{digest}'
-    if functions:
-        module = ModuleType(name)
-        module.__dict__.update(functions)
-        code = compile(text.replace('cache=CACHE', 'cache=False'), name, 'exec')
-        exec(code, module.__dict__)  # noqa: S102  # nosec B102: runs the kernel source generated above
-        return module
-    if name in sys.modules:
-        return sys.modules[name]
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    path = cache_dir / f'{name}.py'
-    if not path.exists():
-        temporary = path.with_suffix(f'.{os.getpid()}.tmp')
-        temporary.write_text(text.replace('cache=CACHE', 'cache=True'))
-        temporary.replace(path)
-    specification = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(specification)  # type: ignore[arg-type]
-    sys.modules[name] = module
-    specification.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
 
 
 HELPERS_FINGERPRINT = _helpers_fingerprint()
@@ -253,14 +223,14 @@ class NumbaBackend(BaseBackend):
             name = f'_{label}{index}_'
             parallel = self._is_parallel(kernel, form)
             if isinstance(kernel.pairs, EdgeSearch):
-                _edge_kernel(source, kernel, name, mode)
+                source._edge_kernel(kernel, name, mode)
             elif kernel.pairs is not None:
-                _pair_kernel(source, kernel, name, parallel)
+                source._pair_kernel(kernel, name, parallel)
             else:
-                _member_kernel(source, kernel, name, mode, parallel)
+                source._member_kernel(kernel, name, mode, parallel)
             names.append(name)
-        size = ' + '.join(_output_count(source, kernel) for kernel in kernels) or '0'
-        _entry_function(source, label, names, mode, size, reduced=reduced)
+        size = ' + '.join(source._output_count(kernel) for kernel in kernels) or '0'
+        source._entry_function(label, names, mode, size, reduced=reduced)
         return label, size
 
     def _run(
@@ -302,14 +272,14 @@ class NumbaBackend(BaseBackend):
         }
         reductions = reductions or ReductionSchedule()
         reduced = bool(reductions.steps)
-        fused = _reductions_compile(reductions)
+        fused = self._reductions_compile(reductions)
         compiled: dict[type, bool] = {
-            kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()
+            kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
-        backends = _report_fallbacks(self.name, used, compiled, reductions)
+        backends = self._report_fallbacks(self.name, used, compiled, reductions)
         source = _Source()
         if reduced and fused:
-            _reduce_function(source, reductions, self.parallel and form not in _EVENT_FORMS)
+            source._reduce_function(reductions, self.parallel and form not in _EVENT_FORMS)
         plan: dict[type, tuple[str, str]] = {
             RateLaw: ('drift', 'add'),
             NoiseLaw: ('diffusion', 'concatenate'),
@@ -322,7 +292,13 @@ class NumbaBackend(BaseBackend):
             needed = [*needed, BoundaryLaw]
         for kind in needed:
             if compiled[kind]:
-                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced and reads_reductions(used[kind]))
+                self._kind(
+                    source,
+                    used[kind],
+                    *plan[kind],
+                    form=form,
+                    reduced=reduced and BaseBackend._reads_reductions(used[kind]),
+                )
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
@@ -336,7 +312,7 @@ class NumbaBackend(BaseBackend):
         )
         text = '\n'.join([_HEADER, *source.lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else _DEFAULT_CACHE_DIR
-        module = _load(text, source.functions, cache_dir)
+        module = self._load(text, source.functions, cache_dir)
         entries = self._layout_entries(used, reductions)
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
@@ -378,11 +354,11 @@ class NumbaBackend(BaseBackend):
             return lambda t, x, p: function(t, x, p, layout)
 
         numpy: dict[type, Any] = {
-            RateLaw: lambda: _adding_function(used[RateLaw], size),
-            NoiseLaw: lambda: _concatenating_function(used[NoiseLaw]),
-            JumpLaw: lambda: _concatenating_function(used[JumpLaw]),
-            UpdateLaw: lambda: _assigning_function(used[UpdateLaw]),
-            BoundaryLaw: lambda: _assigning_function(used[BoundaryLaw]),
+            RateLaw: lambda: BaseBackend._adding_function(used[RateLaw], size),
+            NoiseLaw: lambda: BaseBackend._concatenating_function(used[NoiseLaw]),
+            JumpLaw: lambda: BaseBackend._concatenating_function(used[JumpLaw]),
+            UpdateLaw: lambda: BaseBackend._assigning_function(used[UpdateLaw]),
+            BoundaryLaw: lambda: BaseBackend._assigning_function(used[BoundaryLaw]),
         }
         names: dict[type, str] = {
             RateLaw: 'drift',
@@ -395,7 +371,7 @@ class NumbaBackend(BaseBackend):
             kind: (
                 bind(names[kind])
                 if compiled[kind]
-                else reductions.wrap(numpy[kind]()) if reads_reductions(used[kind]) else numpy[kind]()
+                else reductions.wrap(numpy[kind]()) if BaseBackend._reads_reductions(used[kind]) else numpy[kind]()
             )
             for kind in needed
         }
@@ -403,12 +379,12 @@ class NumbaBackend(BaseBackend):
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = functions[RateLaw]
         if form == Form.SDE:
-            lowering.diffusion = functions.get(NoiseLaw, _concatenating_function([]))
-            noise = lower_noise(used[NoiseLaw])
+            lowering.diffusion = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
+            noise = Kernel._lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
-            lowering.propensities = functions.get(JumpLaw, _concatenating_function([]))
-            lowering.jumps = jump_channels(used[JumpLaw], changes)
+            lowering.propensities = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
+            lowering.jumps = Kernel._jump_channels(used[JumpLaw], changes)
         if form == Form.DISCRETE:
             lowering.update = functions[UpdateLaw]
         if loop is not None:
@@ -441,12 +417,12 @@ class NumbaBackend(BaseBackend):
                 ),
             )
         if loop == 'euler_maruyama':
-            noise = _noise_arrays(lowering)
+            noise = self._noise_arrays(lowering)
             return Accelerated(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
-            targets, increments = _channel_arrays(lowering)
+            targets, increments = self._channel_arrays(lowering)
             return Accelerated(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
@@ -494,3 +470,144 @@ class NumbaBackend(BaseBackend):
             )
             entries.update(NumbaBackend._search_entries(neighbourhood.search))
         return entries
+
+    @staticmethod
+    def _is_compilable(kernel: Kernel) -> bool:
+        """Check whether every output of a kernel can be compiled, so it has no Python callable."""
+        lattice = all(
+            (reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None)
+            and reference.source is not Source.DERIVED
+            for reference in kernel.references.values()
+        )
+        return lattice and all(
+            output.function is None or (output.arguments is not None and isinstance(output.function, Dispatcher))
+            for output in kernel.outputs
+        )
+
+    @staticmethod
+    def _reductions_compile(reductions: ReductionSchedule) -> bool:
+        """Check whether every reduction prints in Numba's dialect."""
+        try:
+            for reduction in reductions.reductions:
+                print_expressions(
+                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+                    SCALAR_DIALECT,
+                )
+            for neighbourhood in reductions.neighbourhoods:
+                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+        except ValidationError:
+            return False
+        return True
+
+    @staticmethod
+    def _noise_arrays(lowering: Lowering) -> tuple[Any, ...]:
+        """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
+        blocks = lowering.noise_blocks
+        sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
+        offsets = np.concatenate([np.zeros(1, dtype=np.int64), np.cumsum(sizes**2)])[:-1].astype(np.int64)
+        factors = np.concatenate([np.zeros(0), *(np.ravel(block.factor) for block in blocks)]).astype(np.float64)
+        return (
+            lowering.noise_rows.astype(np.int64),
+            lowering.noise_columns.astype(np.int64),
+            int(lowering.n_processes),
+            np.asarray([block.start for block in blocks], dtype=np.int64),
+            sizes,
+            offsets,
+            factors,
+        )
+
+    @staticmethod
+    def _channel_arrays(lowering: Lowering) -> tuple[np.ndarray, np.ndarray]:
+        """Return the state targets and increments of every jump channel, padded with -1 targets."""
+        n_channels = sum(channels.size for channels in lowering.jumps)
+        width = max((len(channels.increments) for channels in lowering.jumps), default=0)
+        targets = np.full((n_channels, width), -1, dtype=np.int64)
+        increments = np.zeros((n_channels, width))
+        for channels in lowering.jumps:
+            rows = slice(channels.offset, channels.offset + channels.size)
+            count = len(channels.increments)
+            targets[rows, :count] = channels.targets.T
+            increments[rows, :count] = channels.increments
+        return targets, increments
+
+    @staticmethod
+    def _unprinted_reduction(reductions: ReductionSchedule) -> str | None:
+        """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
+        for reduction in reductions.reductions:
+            try:
+                print_expressions(
+                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+                    SCALAR_DIALECT,
+                )
+            except ValidationError:
+                return f'the {reduction.kind} reduction {reduction.argument}'
+        for neighbourhood in reductions.neighbourhoods:
+            try:
+                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+            except ValidationError:
+                return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
+        return None
+
+    @staticmethod
+    def _report_fallbacks(
+        name: str,
+        used: Mapping[type, list[Kernel]],
+        compiled: Mapping[type, bool],
+        reductions: ReductionSchedule,
+    ) -> dict[str, str]:
+        """Warn once about the law kinds whose kernels the backend runs in Python, and return every kind's runner.
+
+        Args:
+            name:
+                The name of the compiling backend.
+
+            used:
+                The kernels of every law kind the backend lowers.
+
+            compiled:
+                Whether the backend compiles the kernels of every law kind.
+
+            reductions:
+                The reductions the kernels read.
+
+        Returns:
+            backends:
+                The backend name for every law kind with kernels, `'python'` for those that run in Python.
+        """
+        kinds = [kind for kind, items in used.items() if items]
+        fallen = [cast('type', kind).__name__ for kind in kinds if not compiled[kind]]
+        if fallen:
+            unprinted = NumbaBackend._unprinted_reduction(reductions)
+            reason = (
+                f'{unprinted} does not print in its dialect'
+                if unprinted is not None
+                else 'a law holds a Python callable or reads values it cannot compile'
+            )
+            message = f'The {name} backend runs the {", ".join(fallen)} laws in Python, because {reason}.'
+            warnings.warn(message, BackendWarning, stacklevel=4)
+        return {cast('type', kind).__name__: name if compiled[kind] else 'python' for kind in kinds}
+
+    @staticmethod
+    def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
+        """Return the module of generated source, from a cached file when it has no injected functions."""
+        digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
+        name = f'skcomplex_kernels_{digest}'
+        if functions:
+            module = ModuleType(name)
+            module.__dict__.update(functions)
+            code = compile(text.replace('cache=CACHE', 'cache=False'), name, 'exec')
+            exec(code, module.__dict__)  # noqa: S102  # nosec B102: runs the kernel source generated above
+            return module
+        if name in sys.modules:
+            return sys.modules[name]
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        path = cache_dir / f'{name}.py'
+        if not path.exists():
+            temporary = path.with_suffix(f'.{os.getpid()}.tmp')
+            temporary.write_text(text.replace('cache=CACHE', 'cache=True'))
+            temporary.replace(path)
+        specification = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(specification)  # type: ignore[arg-type]
+        sys.modules[name] = module
+        specification.loader.exec_module(module)  # type: ignore[union-attr]
+        return module

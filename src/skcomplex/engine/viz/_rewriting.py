@@ -11,11 +11,12 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..compile._structures import GraphStructure, PatchStructure, Structure, WordStructure, affine_matrix, is_segment
+from ..compile._graph_structure import GraphStructure
+from ..compile._patch_structure import PatchStructure
+from ..compile._structure import Structure
+from ..compile._word_structure import WordStructure
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import colors_of
-from ._utils import log_scalars
 from ._visuals import BaseVisual
 
 MARGIN = 0.03
@@ -66,7 +67,7 @@ class GeometryVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
+            BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
         structure = frame.structures.get(element.path)
         if structure is None:
             return
@@ -84,7 +85,7 @@ class GeometryVisual(BaseVisual):
             recording.log(element.path, rr.Image(pixels))
             return
         strips, values = self._strips(structure)
-        colors = colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
+        colors = BaseVisual._colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
         recording.log(element.path, archetype(strips, colors=colors))
@@ -149,7 +150,10 @@ class GeometryVisual(BaseVisual):
         tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
         names = [prototile.name for prototile in component.prototiles]
         try:
-            matrices = [np.eye(3) if placement is None else affine_matrix(placement, {}) for _, placement in tiles]
+            matrices = [
+                np.eye(3) if placement is None else PatchStructure._affine_matrix(placement, {})
+                for _, placement in tiles
+            ]
             codes = [names.index(name) for name, _ in tiles]
         except (TypeError, ValueError):
             return None
@@ -169,7 +173,9 @@ class GeometryVisual(BaseVisual):
         if isinstance(structure, WordStructure):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
         elif isinstance(structure, PatchStructure):
-            codes = [code for code, prototile in enumerate(structure.prototiles) if is_segment(prototile)]
+            codes = [
+                code for code, prototile in enumerate(structure.prototiles) if PatchStructure._is_segment(prototile)
+            ]
             values = np.concatenate(
                 [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],
             )

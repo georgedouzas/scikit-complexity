@@ -1,4 +1,4 @@
-"""Test the reading of optimal control problems and the following of their solutions over a run."""
+"""Test the `OptimalControlSolver` class."""
 
 from typing import Annotated
 

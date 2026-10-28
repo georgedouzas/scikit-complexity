@@ -1,4 +1,4 @@
-"""Test the LAMMPS backend against the native solvers."""
+"""Test the `LammpsSolver` class."""
 
 import subprocess  # nosec B404: the loading test starts a new Python process
 import sys

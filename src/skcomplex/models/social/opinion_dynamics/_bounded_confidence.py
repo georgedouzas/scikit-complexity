@@ -162,7 +162,7 @@ def deffuant(
         20
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
-    visual = VisualSpec('traits', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
+    visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
     people = GroupElement(
         'people',
         element=DiscussantElement,
@@ -198,7 +198,7 @@ class ConfidentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('traits', {'color_range': (0.0, 1.0), 'histogram_first': True}),
+        visual: VisualSpec | None = VisualSpec('histograms', {'color_range': (0.0, 1.0), 'histogram_first': True}),
         *,
         opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,

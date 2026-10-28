@@ -29,23 +29,20 @@ from ...problems import (
     symbols_of,
     vector,
 )
-from ...problems._neighbourhoods import (
-    ACTIVE_THRESHOLD,
-    CompiledNeighborhood,
-    PairRead,
-    default_neighborhood,
-    neighbor_search,
-)
+from ...problems._compiled_neighborhood import CompiledNeighborhood
+from ...problems._compiled_reduction import CompiledReduction
+from ...problems._edge_rows import ACTIVE_THRESHOLD
+from ...problems._pair_read import PairRead
 from ...problems._reads import Read
-from ...problems._reductions import CompiledReduction
 from .._compilation import Compilation, Laws
 from .._complex import _modulus_form
 from .._declarations import Declarations
-from .._laws import replaced
-from .._observables import _held_reduction, _HeldElement
+from .._draw_lowering import DrawLowering
+from .._kernel_spec import KernelSpec
+from .._observables import _HeldElement, _HeldReduction
 from .._pipeline import BasePass
-from .._specs import KernelSpec, _activity_symbol, _group_space
-from .._stochastic import DrawLowering
+from ._mask_requests import MaskRequestsPass
+from ._specs import SpecsPass
 
 
 @dataclass
@@ -195,7 +192,7 @@ class _Reductions:
 
     def _held(self, reduction: Reduction, spec: KernelSpec) -> Expression | None:
         """Return the state of the element that holds a reduction of agents, or `None` for a reduction of elements."""
-        held = _held_reduction(reduction, self.declarations.agents, self.declarations.time, spec.owner)
+        held = _HeldReduction._held_reduction(reduction, self.declarations.agents, self.declarations.time, spec.owner)
         if held is None:
             return None
         block = next(
@@ -240,7 +237,7 @@ class _Reductions:
         condition = None if reduction.condition is None else SR(self.lower(reduction.condition, spec))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.declarations.time}
         group = self._group(reduction, spec, symbols)
-        activity = _activity_symbol(spec, group) if group in self.declarations.capacity else None
+        activity = MaskRequestsPass._activity_symbol(spec, group) if group in self.declarations.capacity else None
         if activity is not None:
             present = SR(activity) > ACTIVE_THRESHOLD
             condition = present if condition is None else both(condition, present)
@@ -318,7 +315,9 @@ class _Reductions:
         edges = self.declarations.blocks[entry.name.rpartition('.')[0]]
         nodes = self.declarations.blocks[group]
         layer = getattr(over, 'layer', None)
-        same = isinstance(over, AdjacencyNeighborhood) and _group_space(edges) is _group_space(nodes)
+        same = isinstance(over, AdjacencyNeighborhood) and SpecsPass._group_space(edges) is SpecsPass._group_space(
+            nodes,
+        )
         if not same or getattr(edges.node.component, 'layer', None) != layer:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over {over!r} reads {entry.name} of the edge group '
@@ -382,7 +381,11 @@ class _Reductions:
         symbols = symbols_of([argument, weight]) - {self.declarations.time}
         group = self._neighbor_group(reduction, spec, symbols)
         block = self.declarations.blocks[group]
-        over = reduction.over if reduction.over is not None else default_neighborhood(block.node.space)
+        over = (
+            reduction.over
+            if reduction.over is not None
+            else CompiledNeighborhood._default_neighborhood(block.node.space)
+        )
         if over is None:
             error_msg = (
                 f'The neighbourhood reduction {reduction.call} of {group} names no neighbourhood, but the group lives '
@@ -393,10 +396,14 @@ class _Reductions:
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             changing = (
-                self.declarations.changing_entries(_group_space(block)) if block.node.active is not None else None
+                self.declarations.changing_entries(SpecsPass._group_space(block))
+                if block.node.active is not None
+                else None
             )
             over = over.check() if isinstance(over, BaseNeighborhood) else over
-            search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
+            search = CompiledNeighborhood._neighbor_search(
+                over, block.node.space, block.rows, block.entries, states, changing=changing,
+            )
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), RR, block.rows)
@@ -442,7 +449,9 @@ class ReductionsPass(BasePass):
         for spec, event in compilation.events:
             reset = {target: reductions.lower(SR(value), spec) for target, value in (event.reset or {}).items()}
             guard = reductions.lower(SR(event.guard), spec)
-            events.append((spec, replaced(event, guard=guard, reset=reset if event.reset is not None else None)))
+            events.append(
+                (spec, BasePass._replaced(event, guard=guard, reset=reset if event.reset is not None else None)),
+            )
         compilation.events = events
         for spec, _ in lowered:
             self._prune_foreign(spec, declarations)
@@ -468,8 +477,8 @@ class ReductionsPass(BasePass):
         else:
             value = reductions.lower(value, spec)
         if isinstance(law, RateLaw | NoiseLaw):
-            return replaced(law, value=value)
-        return replaced(law, value=value)
+            return BasePass._replaced(law, value=value)
+        return BasePass._replaced(law, value=value)
 
     @staticmethod
     def _prune_foreign(spec: KernelSpec, declarations: Declarations) -> None:

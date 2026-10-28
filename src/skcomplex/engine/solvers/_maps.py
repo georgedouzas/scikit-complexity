@@ -12,8 +12,8 @@ from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, U
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
 from ..problems import Form, OrderKind, Problem, SupportSpec
-from ._hybrid import _reject_hybrid
-from ._stepper import Solver
+from ._base import BaseSolver
+from ._solver import Solver
 
 
 class IterationSolver(Solver):
@@ -65,7 +65,7 @@ class IterationSolver(Solver):
                 The problem has another form, delays, or events.
         """
         super()._prepare(problem, rng, until)
-        _reject_hybrid(problem, type(self).__name__)
+        BaseSolver._reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Apply the map once per integer time step from `t` up to `until`.

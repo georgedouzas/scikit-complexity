@@ -17,12 +17,10 @@ FUNCTIONS = {
     'labels_of',
     'numpy_function',
     'print_expressions',
-    'spaces_of',
     'step_count',
     'symbol',
     'symbols_of',
     'vector',
-    'with_initial_state',
     'wrap_angle',
 }
 VALUES = {'Getter', 'LATTICE_BOUNDARIES', 'MODES', 'NUMPY_DIALECT', 'SCALAR_DIALECT', 'VectorFunction'}

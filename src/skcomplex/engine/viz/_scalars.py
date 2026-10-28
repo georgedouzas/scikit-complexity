@@ -11,9 +11,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import _SERIES_COLORS
-from ._utils import PARTS, log_scalars
-from ._visuals import BaseVisual
+from ._visuals import _SERIES_COLORS, PARTS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
@@ -72,7 +70,7 @@ class ScalarsVisual(BaseVisual):
             if path not in self.styled_:
                 self._style_series(recording, path, value, self._series_index(frame.problem, element.path, state))
                 self.styled_.add(path)
-            log_scalars(recording, path, value)
+            BaseVisual._log_scalars(recording, path, value)
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one time series view of the states of the element.

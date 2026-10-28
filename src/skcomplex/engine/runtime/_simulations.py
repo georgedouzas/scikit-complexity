@@ -19,7 +19,7 @@ from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, compile_system, validate
-from ..problems import BaseProblem, Entry, Form, contains, with_initial_state
+from ..problems import BaseProblem, Entry, Form, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
 from ..utils import BaseEstimator
 from ._clocks import AsFastAsPossibleClock, BaseClock
@@ -203,7 +203,7 @@ class Simulation(BaseEstimator):
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
         self.problem_ = (
-            with_initial_state(self.system, initial)
+            self.system.with_initial_state(initial)
             if isinstance(self.system, BaseProblem)
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )

@@ -7,7 +7,8 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
-from ._kinds import NoiseKind, OrderKind
+from ._noise_kind import NoiseKind
+from ._order_kind import OrderKind
 
 
 @dataclass(frozen=True)

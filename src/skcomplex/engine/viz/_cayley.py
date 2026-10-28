@@ -12,8 +12,7 @@ import rerun.blueprint as rrb
 from ...core.spaces import CayleySpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._utils import _NODE_SPACING, _UPWARD
-from ._visuals import BaseVisual
+from ._visuals import _NODE_SPACING, _UPWARD, BaseVisual
 
 _NODE_SHARE = 0.15
 

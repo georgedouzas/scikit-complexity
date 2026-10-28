@@ -13,9 +13,7 @@ import rerun.blueprint as rrb
 from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..solvers import AgentSnapshot
-from ._colors import _widened, colors_of
-from ._utils import _GRID_RADIUS, _NODE_SPACING, _UPWARD, _radius_of
-from ._visuals import BaseVisual
+from ._visuals import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
 
 _PATH_COLOR = (86, 180, 233)
 _PATH_WIDTH = 1.0
@@ -88,9 +86,9 @@ class AgentsVisual(BaseVisual):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
         if self.color_range is not None:
-            return colors_of(values, *self.color_range)
-        self.span_ = _widened(self.span_, values)
-        return colors_of(values, *self.span_)
+            return BaseVisual._colors_of(values, *self.color_range)
+        self.span_ = BaseVisual._widened(self.span_, values)
+        return BaseVisual._colors_of(values, *self.span_)
 
     def _radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
@@ -99,9 +97,9 @@ class AgentsVisual(BaseVisual):
         if space is None or isinstance(space, LatticeSpace | NetworkSpace):
             return _GRID_RADIUS
         if isinstance(space, ContinuousSpace):
-            return _radius_of(float(max(space.extent_[:2])), len(positions))
+            return BaseVisual._radius_of(float(max(space.extent_[:2])), len(positions))
         extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
-        return _radius_of(extent, len(positions))
+        return BaseVisual._radius_of(extent, len(positions))
 
     def _log_agents(
         self,
@@ -138,7 +136,7 @@ class AgentsVisual(BaseVisual):
                 return
             positions = positions[:, :2] * _UPWARD
             extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
-            radius = _radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
+            radius = BaseVisual._radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
             recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
             return
         if snapshot.locations is None:

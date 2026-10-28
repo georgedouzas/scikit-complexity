@@ -5,11 +5,11 @@
 
 from typing import cast
 
-from .._census import _declared_laws
+from .._block import Block
 from .._compilation import Compilation
-from .._declarations import Block
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec, _component_of
+from ._census import CensusPass
 
 
 class CollectPass(BasePass):
@@ -27,6 +27,7 @@ class CollectPass(BasePass):
         """
         specs = cast('list[tuple[KernelSpec, Block]]', compilation.specs)
         compilation.collected = [
-            (spec, _declared_laws(spec, _component_of(block.node)), block) for spec, block in specs
+            (spec, CensusPass._declared_laws(spec, CensusPass._component_of(block.node)), block)
+            for spec, block in specs
         ]
         compilation.apart = []

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -13,261 +12,10 @@ from ...core.errors import ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
 from ...core.specs import EDGE_KINDS, TopologyRequestSpec
 from ...core.types import Vector
-from ..backends import reads_reductions
-from ..problems import Kernel, NetworkSnapshot, ReductionSchedule
-from ._capacity import CapacityRows
-
-type Indices = npt.NDArray[np.intp]
-type Pair = tuple[int, int]
-
-
-def _request_of(law: object) -> TopologyRequestSpec | None:
-    """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
-
-    Args:
-        law:
-            The law.
-
-    Returns:
-        request:
-            The request.
-
-    Raises:
-        ValidationError:
-            A jump changes states and requests a topology change at once, or fires a request more than once.
-    """
-    if isinstance(law, UpdateLaw):
-        return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
-    changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
-    requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
-    if not requests:
-        return None
-    if len(changes) > 1 or float(changes[requests[0]]) != 1:
-        error_msg = (
-            f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
-            'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
-        )
-        raise ValidationError(error_msg)
-    return requests[0].check()
-
-
-def changes_edges(request: TopologyRequestSpec) -> bool:
-    """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
-
-    Args:
-        request:
-            The request.
-
-    Returns:
-        changes:
-            Whether the request adds, removes, or rewires edges of its layer.
-
-    Examples:
-        >>> from skcomplex.core.specs import TopologyRequestSpec
-        >>> from skcomplex.engine.compile._topology import changes_edges
-        >>> changes_edges(TopologyRequestSpec('rewire')), changes_edges(TopologyRequestSpec('remove-node'))
-        (True, False)
-    """
-    return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)
-
-
-@dataclass(frozen=True)
-class NetworkRows:
-    """Variable groups of one network: the groups on its nodes and the edge group of every changing layer.
-
-    Args:
-        nodes:
-            The groups on the nodes, which share their rows.
-
-        edges:
-            The variable edge group of every layer by label, `None` for the graph of the network.
-
-        directed:
-            Whether the edges of every layer are directed.
-    """
-
-    nodes: tuple[CapacityRows, ...]
-    edges: Mapping[str | None, CapacityRows]
-    directed: Mapping[str | None, bool]
-
-    def present(self, p: Vector) -> npt.NDArray[np.bool_]:
-        """Return whether every node row holds a node.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            present:
-                One flag per node row.
-        """
-        return self.nodes[0].present(p)
-
-    def order_ends(self, layer: str | None, first: int, second: int) -> Pair:
-        """Return the ends of an edge, in node order on an undirected layer.
-
-        Args:
-            layer:
-                The layer.
-
-            first:
-                The node row of one end.
-
-            second:
-                The node row of the other end.
-
-        Returns:
-            ends:
-                The source and target node rows.
-        """
-        return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
-
-    def neighbours(self, layer: str | None, node: int, p: Vector) -> Indices:
-        """Return the node rows a node joins in a layer, its successors on a directed layer.
-
-        Args:
-            layer:
-                The layer.
-
-            node:
-                The node row.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            neighbours:
-                The node rows.
-        """
-        edges = self.edges[layer]
-        sources, targets = edges.ends(p)
-        present = edges.present(p)
-        found = targets[present & (sources == node)]
-        if self.directed[layer]:
-            return found
-        return np.concatenate([found, sources[present & (targets == node)]])
-
-    def add_node(self, x: Vector, p: Vector, values: Mapping[str, object]) -> int:
-        """Add a node in the first free node row of every group on the nodes.
-
-        Args:
-            x:
-                The state vector, changed in place.
-
-            p:
-                The parameter vector, changed in place.
-
-            values:
-                The values of the new node by variable name.
-
-        Returns:
-            row:
-                The node row.
-        """
-        row = self.nodes[0].take_row(p)
-        for group in self.nodes:
-            group.write(row, x, p, values)
-        return row
-
-    def add_edge(self, layer: str | None, ends: Pair, x: Vector, p: Vector, values: Mapping[str, object]) -> None:
-        """Add an edge between two node rows to a layer.
-
-        Args:
-            layer:
-                The layer.
-
-            ends:
-                The source and target node rows.
-
-            x:
-                The state vector, changed in place.
-
-            p:
-                The parameter vector, changed in place.
-
-            values:
-                The values of the new edge by variable name.
-        """
-        edges = self.edges[layer]
-        row = edges.take_row(p)
-        first, second = self.order_ends(layer, *ends)
-        edges.write(row, x, p, values)
-        p[edges.source.start + row] = first  # type: ignore[union-attr]
-        p[edges.target.start + row] = second  # type: ignore[union-attr]
-
-    def remove_node(self, row: int, p: Vector) -> None:
-        """Remove a node and every edge that joins it.
-
-        Args:
-            row:
-                The node row.
-
-            p:
-                The parameter vector, changed in place.
-        """
-        for group in self.nodes:
-            group.clear(row, p)
-        for edges in self.edges.values():
-            sources, targets = edges.ends(p)
-            for edge in np.flatnonzero(edges.present(p) & ((sources == row) | (targets == row))):
-                edges.clear(int(edge), p)
-
-    def snapshot(self, p: Vector, layer: str | None) -> NetworkSnapshot:
-        """Return the nodes and the edges of a layer present at the parameters of a frame.
-
-        Args:
-            p:
-                The parameter vector of the frame.
-
-            layer:
-                The layer.
-
-        Returns:
-            snapshot:
-                The nodes and edges present.
-        """
-        edges = self.edges[layer]
-        present = edges.present(p)
-        sources, targets = edges.ends(p)
-        return NetworkSnapshot(
-            np.flatnonzero(self.present(p)).astype(np.intp),
-            sources[present],
-            targets[present],
-            np.flatnonzero(present).astype(np.intp),
-        )
-
-
-@dataclass(frozen=True)
-class CompiledRequest:
-    """Topology request of a law with the rows it runs for and the kernels that decide and direct it.
-
-    Args:
-        request:
-            The request.
-
-        owner:
-            The path of the component whose law requests it.
-
-        network:
-            The variable groups of the network it changes.
-
-        rows:
-            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, or `'single'` for a law that
-            runs once.
-
-        condition:
-            The kernel of the probability that an update law fires the request for every row, or `None` for a jump.
-
-        toward:
-            The kernel of the weight of every node row as a new end, or `None` for equal weights.
-    """
-
-    request: TopologyRequestSpec
-    owner: str
-    network: NetworkRows
-    rows: str
-    condition: Kernel | None = None
-    toward: Kernel | None = None
+from ..backends import BaseBackend
+from ..problems import NetworkSnapshot, ReductionSchedule
+from ._compiled_request import CompiledRequest
+from ._network_rows import NetworkRows
 
 
 @dataclass
@@ -321,7 +69,7 @@ class Topology:
         if not self.requests:
             return []
         conditions = [item.condition for item in self.requests if item.condition is not None]
-        q = self.reductions.extend(t, x, p) if reads_reductions(conditions) else p
+        q = self.reductions.extend(t, x, p) if BaseBackend._reads_reductions(conditions) else p
         fired = []
         for index, item in enumerate(self.requests):
             assert item.condition is not None  # nosec B101: update requests carry their condition
@@ -539,3 +287,54 @@ class Topology:
             network.edges[request.layer].clear(row, p)
         else:
             self._rewire(item, row, t, x, p, rng=rng)
+
+    @staticmethod
+    def _request_of(law: object) -> TopologyRequestSpec | None:
+        """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
+
+        Args:
+            law:
+                The law.
+
+        Returns:
+            request:
+                The request.
+
+        Raises:
+            ValidationError:
+                A jump changes states and requests a topology change at once, or fires a request more than once.
+        """
+        if isinstance(law, UpdateLaw):
+            return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
+        changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
+        requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
+        if not requests:
+            return None
+        if len(changes) > 1 or float(changes[requests[0]]) != 1:
+            error_msg = (
+                f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
+                'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
+            )
+            raise ValidationError(error_msg)
+        return requests[0].check()
+
+    @staticmethod
+    def _changes_edges(request: TopologyRequestSpec) -> bool:
+        """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
+
+        Args:
+            request:
+                The request.
+
+        Returns:
+            changes:
+                Whether the request adds, removes, or rewires edges of its layer.
+
+        Examples:
+            >>> from skcomplex.core.specs import TopologyRequestSpec
+            >>> from skcomplex.engine.compile._topology import Topology
+            >>> rewire, removal = TopologyRequestSpec('rewire'), TopologyRequestSpec('remove-node')
+            >>> Topology._changes_edges(rewire), Topology._changes_edges(removal)
+            (True, False)
+        """
+        return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)

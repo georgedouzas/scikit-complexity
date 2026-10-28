@@ -27,32 +27,16 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...core.types import Vector
-from ..problems import Entry, LoopTerm, Reference, StockFlow, VariableKind, declarations_of, symbol, symbols_of
+from ..problems import Entry, LoopTerm, Reference, TransferNetwork, symbol, symbols_of
 from ..problems import Source as Read
-from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
-from ._laws import replaced
+from ..problems._transfer_network import _CompiledDelay, _CompiledFlow, _Recorded
+from ._pipeline import BasePass
 
 _BOUNDARY_PREFIX = '__boundary'
 
 
-def _delay_calls(expression: object) -> list[Expression]:
-    """Return the calls of delay functions in an expression whose inputs hold no other delay."""
-    if not isinstance(expression, Expression):
-        return []
-    found, stack = [], [expression]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        name = getattr(item.operator(), 'name', lambda: '')()
-        if delay_parts(name) is not None and not _delay_calls(item.operands()[0]):
-            found.append(item)
-        stack.extend(item.operands())
-    return found
-
-
 class _Declared(Protocol):
-    """Declarations of a compilation as the stock-flow pass extends them with hidden stocks."""
+    """Declarations of a compilation as the transfer pass extends them with hidden states."""
 
     time: Expression
     states: list[Entry]
@@ -73,55 +57,16 @@ class _Declared(Protocol):
 
 
 class _Spec(Protocol):
-    """Kernel spec of a component as the stock-flow pass reads it."""
+    """Kernel spec of a component as the transfer pass reads it."""
 
     owner: str
     references: dict[Expression, Reference]
     rows: int
 
 
-def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
-    """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
-    states = np.concatenate([np.zeros(0), *declarations.initial_states])
-    parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-    values: dict[Expression, float] = {declarations.time: 0.0}
-    for name in symbols_of([item]) - {declarations.time}:
-        reference = spec.references.get(name)
-        if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
-            error_msg = (
-                f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or interaction. '
-                'Delays and smoothings start from the initial value of their input, read from single elements.'
-            )
-            raise ValidationError(error_msg)
-        vector = states if reference.is_state else parameters
-        values[name] = float(vector[reference.entry.start + reference.column])
-    return float(SR(item).subs(values))
-
-
-def _quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
-    """Return the quantity of every state tagged with one, by entry name.
-
-    Args:
-        blocks:
-            The blocks of the declared components by path.
-
-    Returns:
-        quantities:
-            The quantity of every tagged state.
-    """
-    quantities = {}
-    for block in blocks.values():
-        if block.node.is_agent:
-            continue
-        for variable, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items():
-            if declaration.quantity is not None:
-                quantities[block.entries[variable].name] = declaration.quantity
-    return quantities
-
-
 @dataclass
 class _Record:
-    """Recorded expression of a spec, rewritten as later passes substitute hidden stocks."""
+    """Recorded expression of a spec, rewritten as later passes substitute hidden states."""
 
     path: str
     expression: Expression
@@ -138,7 +83,7 @@ class _Born:
     sign: int
 
 
-class StockFlowPass:
+class TransferPass:
     """Pass of a compilation that expands flows and delays, and checks conserved quantities.
 
     Args:
@@ -327,17 +272,17 @@ class StockFlowPass:
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
     def _expand_delays(self, spec: _Spec, laws: list[BaseLaw], declarations: _Declared, discrete: bool) -> None:
-        """Replace the delays and smoothings in a spec's rate laws and records by hidden stocks with their own laws."""
+        """Replace the delays and smoothings in a spec's rate laws and records by hidden states with their own laws."""
         records = [record for record in self._records if record.spec is spec]
         counter = 0
         while True:
             values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
-            calls = [call for value in values for call in _delay_calls(value)]
+            calls = [call for value in values for call in self._delay_calls(value)]
             if not calls:
                 return
             if discrete or spec.rows > 1:
                 error_msg = (
-                    f'{spec.owner} uses {calls[0]}, but delays and smoothings add hidden stocks to systems of rate '
+                    f'{spec.owner} uses {calls[0]}, but delays and smoothings add hidden states to systems of rate '
                     'laws of single elements and interactions only.'
                 )
                 raise ValidationError(error_msg)
@@ -347,8 +292,8 @@ class StockFlowPass:
             material, order = self._delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
-            start = _initial(value, spec, declarations)
-            each = _initial(SR(time), spec, declarations) / order if material else 1.0
+            start = self._initial(value, spec, declarations)
+            each = self._initial(SR(time), spec, declarations) / order if material else 1.0
             entry = declarations.declare_state(
                 f'{spec.owner}.{kind}_{counter}',
                 np.full(order, start * each),
@@ -366,7 +311,7 @@ class StockFlowPass:
                 record.expression = SR(record.expression).subs(mapping)
             counter += 1
 
-    def lower(self, specs: list[tuple[_Spec, list[BaseLaw]]], declarations: _Declared) -> StockFlow:
+    def lower(self, specs: list[tuple[_Spec, list[BaseLaw]]], declarations: _Declared) -> TransferNetwork:
         """Check the conserved quantities and lower flows and delays into the laws of every spec, in place.
 
         Args:
@@ -374,10 +319,10 @@ class StockFlowPass:
                 The kernel specs with their expanded laws, which the pass changes in place.
 
             declarations:
-                The declarations, which the pass extends with hidden stocks.
+                The declarations, which the pass extends with hidden states.
 
         Returns:
-            stock_flow:
+            transfer_network:
                 The quantities, flows, records, and loop terms of the system.
 
         Raises:
@@ -399,7 +344,7 @@ class StockFlowPass:
         quantities: dict[str, list[str]] = defaultdict(list)
         for name, quantity in self.quantities.items():
             quantities[quantity].append(name)
-        return StockFlow(
+        return TransferNetwork(
             quantities={quantity: tuple(names) for quantity, names in quantities.items()},
             flows=tuple(born.flow for born in self._flows),
             recorded=tuple(
@@ -423,20 +368,20 @@ class StockFlowPass:
 
     @staticmethod
     def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
-        """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden stocks."""
+        """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden states."""
         if not mapping:
             return law
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            return replaced(law, value=StockFlowPass._substituted(law.value, mapping))
+            return BasePass._replaced(law, value=TransferPass._substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
-            return JumpLaw(StockFlowPass._substituted(law.rate, mapping), law.changes)
+            return JumpLaw(TransferPass._substituted(law.rate, mapping), law.changes)
         if isinstance(law, CrossingLaw):
             reset = (
                 None
                 if law.reset is None
-                else {key: StockFlowPass._substituted(item, mapping) for key, item in law.reset.items()}
+                else {key: TransferPass._substituted(item, mapping) for key, item in law.reset.items()}
             )
-            return replaced(law, guard=StockFlowPass._substituted(law.guard, mapping), reset=reset)
+            return BasePass._replaced(law, guard=TransferPass._substituted(law.guard, mapping), reset=reset)
         return law
 
     @staticmethod
@@ -450,9 +395,9 @@ class StockFlowPass:
 
     @staticmethod
     def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
-        """Return the rate laws of the hidden stocks of a delay or a smoothing."""
+        """Return the rate laws of the hidden states of a delay or a smoothing."""
         each = time / len(stages)
-        if StockFlowPass._delay_parts(kind)[0]:
+        if TransferPass._delay_parts(kind)[0]:
             inflows = [value, *(stage / each for stage in stages[:-1])]
             return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
         inputs = [value, *stages[:-1]]
@@ -515,3 +460,38 @@ class StockFlowPass:
             error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
             raise LabelError(error_msg)
         labels.add(label)
+
+    @staticmethod
+    def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
+        """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
+        states = np.concatenate([np.zeros(0), *declarations.initial_states])
+        parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        values: dict[Expression, float] = {declarations.time: 0.0}
+        for name in symbols_of([item]) - {declarations.time}:
+            reference = spec.references.get(name)
+            if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
+                error_msg = (
+                    f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or '
+                    'interaction. Delays and smoothings start from the initial value of their input, read from single '
+                    'elements.'
+                )
+                raise ValidationError(error_msg)
+            vector = states if reference.is_state else parameters
+            values[name] = float(vector[reference.entry.start + reference.column])
+        return float(SR(item).subs(values))
+
+    @staticmethod
+    def _delay_calls(expression: object) -> list[Expression]:
+        """Return the calls of delay functions in an expression whose inputs hold no other delay."""
+        if not isinstance(expression, Expression):
+            return []
+        found, stack = [], [expression]
+        while stack:
+            item = stack.pop()
+            if item.operator() is None:
+                continue
+            name = getattr(item.operator(), 'name', lambda: '')()
+            if delay_parts(name) is not None and not TransferPass._delay_calls(item.operands()[0]):
+                found.append(item)
+            stack.extend(item.operands())
+        return found

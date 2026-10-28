@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import CC, NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ._kinds import DomainKind
+from ._domain_kind import DomainKind
 
 _BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
 

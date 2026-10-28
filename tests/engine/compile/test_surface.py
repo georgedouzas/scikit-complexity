@@ -9,16 +9,11 @@ FUNCTIONS = {
     'compile_system',
     'compiled_problem',
     'distribution_from',
-    'held_reductions_of',
     'members_from',
-    'mesh_laplacian',
-    'namespace_of',
     'observables_of',
     'order_passes',
     'partition_system',
     'run_passes',
-    'runs_rules',
-    'spectral_multiplier',
     'validate',
 }
 

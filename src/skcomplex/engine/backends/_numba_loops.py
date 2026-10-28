@@ -1,13 +1,8 @@
-"""Hold the Numba stepper loops of every form, which call the step count, and the arrays they take."""
+"""Hold the Numba stepper loops of every form, which call the step count."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
-
-import numpy as np
-
-from ._base import Lowering
 
 NO_BOUNDARY = """
 HAS_BOUNDARY = False
@@ -142,32 +137,3 @@ def iterate_random(t, x, p, L, until, rng, offset, normal):
 }
 
 
-def _noise_arrays(lowering: Lowering) -> tuple[Any, ...]:
-    """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
-    blocks = lowering.noise_blocks
-    sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
-    offsets = np.concatenate([np.zeros(1, dtype=np.int64), np.cumsum(sizes**2)])[:-1].astype(np.int64)
-    factors = np.concatenate([np.zeros(0), *(np.ravel(block.factor) for block in blocks)]).astype(np.float64)
-    return (
-        lowering.noise_rows.astype(np.int64),
-        lowering.noise_columns.astype(np.int64),
-        int(lowering.n_processes),
-        np.asarray([block.start for block in blocks], dtype=np.int64),
-        sizes,
-        offsets,
-        factors,
-    )
-
-
-def _channel_arrays(lowering: Lowering) -> tuple[np.ndarray, np.ndarray]:
-    """Return the state targets and increments of every jump channel, padded with -1 targets."""
-    n_channels = sum(channels.size for channels in lowering.jumps)
-    width = max((len(channels.increments) for channels in lowering.jumps), default=0)
-    targets = np.full((n_channels, width), -1, dtype=np.int64)
-    increments = np.zeros((n_channels, width))
-    for channels in lowering.jumps:
-        rows = slice(channels.offset, channels.offset + channels.size)
-        count = len(channels.increments)
-        targets[rows, :count] = channels.targets.T
-        increments[rows, :count] = channels.increments
-    return targets, increments

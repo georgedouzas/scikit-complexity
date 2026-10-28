@@ -16,8 +16,7 @@ from ...core.errors import ValidationError
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._points import _TRAIL_LENGTH
-from ._utils import _UPWARD, _radius_of, log_scalars
-from ._visuals import BaseVisual
+from ._visuals import _UPWARD, BaseVisual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
@@ -35,22 +34,6 @@ _TRAIL_SHARE = 0.1
 MARGIN = 0.1
 PAIR = 2
 _SPACE = 3
-
-
-def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """Return points as logged: with the vertical axis up in two dimensions, unchanged in three."""
-    return points * _UPWARD if points.shape[-1] == PAIR else points
-
-
-def _points(
-    points: npt.NDArray[np.float64],
-    radius: float,
-    colors: Colors,
-) -> rr.Points2D | rr.Points3D:
-    """Return the points archetype of the dimension of some points."""
-    if points.shape[-1] == PAIR:
-        return rr.Points2D(_shown(points), radii=radius, colors=colors)
-    return rr.Points3D(points, radii=radius, colors=colors)
 
 
 class BodiesVisual(BaseVisual):
@@ -188,7 +171,7 @@ class BodiesVisual(BaseVisual):
         if strips:
             recording.log(f'{path}/outline', self._strips(strips, None, _OUTLINE_COLOR), static=True)
         if len(marks):
-            recording.log(f'{path}/marks', _points(marks, radius, _MARK_COLOR), static=True)
+            recording.log(f'{path}/marks', self._points(marks, radius, _MARK_COLOR), static=True)
 
     def _log_trail(
         self,
@@ -228,10 +211,10 @@ class BodiesVisual(BaseVisual):
         path = element.path
         values = self._values_of(element, frame.value)
         bodies = self._bodies(values)
-        share = _radius_of(self._scale(bodies, values), len(bodies))
+        share = BaseVisual._radius_of(self._scale(bodies, values), len(bodies))
         radius = share if self.radius is None else float(self.radius)
         self._log_static(recording, path, values, (bodies.shape[1], radius))
-        recording.log(f'{path}/bodies', _points(bodies, radius, _BODY_COLOR))
+        recording.log(f'{path}/bodies', self._points(bodies, radius, _BODY_COLOR))
         if self.rods:
             recording.log(
                 f'{path}/rods',
@@ -239,7 +222,7 @@ class BodiesVisual(BaseVisual):
             )
         self._log_trail(recording, path, bodies, share * _TRAIL_SHARE)
         for state, name in element.states.items():
-            log_scalars(recording, f'{path}/{state}', frame.value(name))
+            BaseVisual._log_scalars(recording, f'{path}/{state}', frame.value(name))
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.
@@ -293,7 +276,7 @@ class BodiesVisual(BaseVisual):
         """Return the line strips archetype of the dimension of some polylines."""
         if strips and strips[0].shape[-1] == _SPACE:
             return rr.LineStrips3D(list(strips), radii=radius, colors=colors)
-        return rr.LineStrips2D([_shown(strip) for strip in strips], radii=radius, colors=colors)
+        return rr.LineStrips2D([BodiesVisual._shown(strip) for strip in strips], radii=radius, colors=colors)
 
     @staticmethod
     def _values_of(element: CompiledElement, read: Callable[[str], Any]) -> dict[str, Any]:
@@ -328,3 +311,19 @@ class BodiesVisual(BaseVisual):
             x_range=(center[0] - half, center[0] + half),
             y_range=(-(center[1] + half), -(center[1] - half)),
         )
+
+    @staticmethod
+    def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return points as logged: with the vertical axis up in two dimensions, unchanged in three."""
+        return points * _UPWARD if points.shape[-1] == PAIR else points
+
+    @staticmethod
+    def _points(
+        points: npt.NDArray[np.float64],
+        radius: float,
+        colors: Colors,
+    ) -> rr.Points2D | rr.Points3D:
+        """Return the points archetype of the dimension of some points."""
+        if points.shape[-1] == PAIR:
+            return rr.Points2D(BodiesVisual._shown(points), radii=radius, colors=colors)
+        return rr.Points3D(points, radii=radius, colors=colors)

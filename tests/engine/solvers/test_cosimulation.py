@@ -13,7 +13,8 @@ from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, maximum, mean, total
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
+from skcomplex.engine.compile import compile_system, partition_system
+from skcomplex.engine.compile._observables import ObservableEvaluator
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
@@ -320,7 +321,7 @@ def test_held_reductions_of_one_group_share_an_element():
             CountingInteraction('third', target='land/dust', source='village/farmers'),
         ],
     )
-    paths = [path for path, _ in held_reductions_of(compile_system(system))]
+    paths = [path for path, _ in ObservableEvaluator._held_reductions_of(compile_system(system))]
     assert paths == ['village/farmers_sum', 'village/farmers_count']
 
 
@@ -338,7 +339,7 @@ def test_reduction_of_element_group_reads_other_partition():
         interactions=[TallyInteraction('tally', target='ledger/tally', source='herds/herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert held_reductions_of(compile_system(system)) == []
+    assert ObservableEvaluator._held_reductions_of(compile_system(system)) == []
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(6.0)
 
 

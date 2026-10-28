@@ -11,13 +11,14 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...problems import vector
-from .._census import _kind_of, _law_owner
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._laws import replaced
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec, _mask_of, _masked_value
 from .._tree import Node
+from ._census import CensusPass
+from ._kernels import KernelsPass
+from ._mask_requests import MaskRequestsPass
 
 
 class OwnersPass(BasePass):
@@ -43,7 +44,10 @@ class OwnersPass(BasePass):
     @staticmethod
     def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
         """Return an update law that keeps the value of its target on the free rows of a capacity layout."""
-        value, kept = _masked_value(law.value, mask), _masked_value(law._get_targets()[0], 1 - mask)
+        value, kept = (
+            MaskRequestsPass._masked_value(law.value, mask),
+            MaskRequestsPass._masked_value(law._get_targets()[0], 1 - mask),
+        )
         if isinstance(value, FreeModuleElement):
             return UpdateLaw(
                 law._get_targets()[0],
@@ -54,15 +58,15 @@ class OwnersPass(BasePass):
     @staticmethod
     def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
         """Return laws that leave the free rows of a capacity layout unchanged and fire no event for them."""
-        mask = _mask_of(spec, declarations)
+        mask = MaskRequestsPass._mask_of(spec, declarations)
         if mask is None:
             return laws
         masked: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
-                masked.append(replaced(law, value=_masked_value(law.value, mask)))
+                masked.append(BasePass._replaced(law, value=MaskRequestsPass._masked_value(law.value, mask)))
             elif isinstance(law, JumpLaw) and law.rate is not None:
-                masked.append(replaced(law, rate=_masked_value(law.rate, mask)))
+                masked.append(BasePass._replaced(law, rate=MaskRequestsPass._masked_value(law.rate, mask)))
             elif isinstance(law, UpdateLaw) and isinstance(law.value, Expression | FreeModuleElement | int | float):
                 masked.append(OwnersPass._kept_update(law, mask))
             else:
@@ -73,7 +77,10 @@ class OwnersPass(BasePass):
     def _owned(specs: Laws, owners: frozenset[str] | None, agents: set[str]) -> Laws:
         """Return the laws of the components in `owners`, or every law."""
         return [
-            (spec, laws if owners is None else [law for law in laws if _law_owner(spec, law, agents) in owners])
+            (
+                spec,
+                laws if owners is None else [law for law in laws if CensusPass._law_owner(spec, law, agents) in owners],
+            )
             for spec, laws in specs
         ]
 
@@ -83,5 +90,5 @@ class OwnersPass(BasePass):
         kinds: dict[str, set[type]] = defaultdict(set)
         for spec, laws in specs:
             for law in laws:
-                kinds[_law_owner(spec, law, agents)].add(_kind_of(law))
+                kinds[CensusPass._law_owner(spec, law, agents)].add(KernelsPass._kind_of(law))
         return kinds

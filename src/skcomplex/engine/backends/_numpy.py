@@ -55,15 +55,8 @@ from ..problems import (
     Reference,
     SupportSpec,
 )
-from ..problems._kernels import jump_channels, lower_noise
-from ._base import (
-    BaseBackend,
-    Lowering,
-    _adding_function,
-    _assigning_function,
-    _concatenating_function,
-    _with_reductions,
-)
+from ._base import BaseBackend
+from ._lowering import _FUNCTION_KINDS, Lowering
 
 
 class NumpyBackend(BaseBackend):
@@ -148,16 +141,46 @@ class NumpyBackend(BaseBackend):
         form, size = self.form_, self.size_
         lowering = Lowering()
         if kernels.get(BoundaryLaw):
-            lowering.boundary = _assigning_function(kernels[BoundaryLaw])
+            lowering.boundary = BaseBackend._assigning_function(kernels[BoundaryLaw])
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
-            lowering.drift = _adding_function(kernels.get(RateLaw, []), size)
+            lowering.drift = BaseBackend._adding_function(kernels.get(RateLaw, []), size)
         if form == Form.SDE:
-            lowering.diffusion = _concatenating_function(kernels.get(NoiseLaw, []))
-            noise = lower_noise(kernels.get(NoiseLaw, []))
+            lowering.diffusion = BaseBackend._concatenating_function(kernels.get(NoiseLaw, []))
+            noise = Kernel._lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
-            lowering.propensities = _concatenating_function(kernels.get(JumpLaw, []))
-            lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
+            lowering.propensities = BaseBackend._concatenating_function(kernels.get(JumpLaw, []))
+            lowering.jumps = Kernel._jump_channels(kernels.get(JumpLaw, []), changes)
         if form == Form.DISCRETE:
-            lowering.update = _assigning_function(kernels.get(UpdateLaw, []))
-        return _with_reductions(lowering, reductions, kernels)
+            lowering.update = BaseBackend._assigning_function(kernels.get(UpdateLaw, []))
+        return self._with_reductions(lowering, reductions, kernels)
+
+    @staticmethod
+    def _with_reductions(
+        lowering: Lowering,
+        reductions: ReductionSchedule | None,
+        kernels: Mapping[type, list[Kernel]] | None = None,
+    ) -> Lowering:
+        """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
+
+        Args:
+            lowering:
+                The functions of the extended parameter vector.
+
+            reductions:
+                The reductions, or `None`.
+
+            kernels:
+                The kernels of every law kind, so that only the functions whose kernels read reductions evaluate them,
+                or `None` for every function.
+
+        Returns:
+            lowering:
+                The functions of the parameter vector.
+        """
+        if reductions is None or not reductions.steps:
+            return lowering
+        for name, kind in _FUNCTION_KINDS.items():
+            if kernels is None or BaseBackend._reads_reductions(kernels.get(kind, [])):
+                setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
+        return lowering

@@ -3,35 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, Expression, solve
-from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.elements import FieldElement
-from ...core.errors import ValidationError
-from ...core.laws import FluxLaw
-from ...core.spaces import LatticeSpace
-from ..problems import Reference, Source, numpy_function, symbol
+from ..problems import Reference, symbol
 
 type Array = npt.NDArray[np.float64]
 
 TIME = symbol('t')
 _STENCIL = 2
-
-
-def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
-    """Return the member symbol of a flux target after checking it is a member state."""
-    reference = references.get(target)
-    if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
-        error_msg = f'A flux targets {target}, which is not a state of a field.'
-        raise ValidationError(error_msg)
-    return target
 
 
 @dataclass(eq=False)
@@ -251,95 +236,3 @@ class FiniteVolume:
             return np.where(same, 2 * backward * forward / (backward + forward), 0.0)
 
 
-def _compile_volumes(
-    laws: Sequence[tuple[FluxLaw, Reference]],
-    references: Mapping[Expression, Reference],
-    place: FieldElement,
-    owner: str,
-) -> FiniteVolume:
-    """Return the conservation laws of one finite-volume field.
-
-    Args:
-        laws:
-            The flux laws of the field with the references of their targets.
-
-        references:
-            The references of the symbols of the field's namespace.
-
-        place:
-            The field.
-
-        owner:
-            The path of the field.
-
-    Returns:
-        volumes:
-            The compiled conservation laws.
-
-    Raises:
-        ValidationError:
-            The field is not a finite-volume field on a lattice, or the fluxes are not one per dimension.
-    """
-    space = place.space
-    if place.discretization != 'finite-volume' or not isinstance(space, LatticeSpace):
-        error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
-        raise ValidationError(error_msg)
-    states = [_symbol(law._get_targets()[0], references) for law, _ in laws]
-    n_dim = space.n_dim_
-    expressions = []
-    for law, _ in laws:
-        components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
-        if len(components) != n_dim:
-            error_msg = f'A flux of {owner} has {len(components)} components for a {n_dim}D lattice.'
-            raise ValidationError(error_msg)
-        expressions.append([SR(item) for item in components])
-    parameters = sorted(
-        {
-            item
-            for row in expressions
-            for value in row
-            for item in value.variables()
-            if item not in states and item in references
-        },
-        key=str,
-    )
-    unknown = {item for row in expressions for value in row for item in value.variables() if item not in states} - set(
-        parameters,
-    )
-    if unknown:
-        error_msg = f'The fluxes of {owner} read {", ".join(map(str, unknown))}, which are not states or parameters.'
-        raise ValidationError(error_msg)
-    columns = list(zip(*expressions, strict=True))
-    fluxes = tuple(numpy_function(TIME, [*states, *parameters], list(column)) for column in columns)
-    jacobians = tuple(
-        numpy_function(TIME, [*states, *parameters], [value.diff(state) for value in column for state in states])
-        for column in columns
-    )
-    first = laws[0][0]
-    critical: tuple[Callable[..., Any], ...] = ()
-    if first.riemann == 'godunov':
-        if len(states) != 1:
-            error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
-            raise ValidationError(error_msg)
-        roots = []
-        for column in columns:
-            found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-            roots.append(numpy_function(TIME, parameters, found) if found else numpy_function(TIME, parameters, []))
-        critical = tuple(roots)
-    boundaries = tuple(
-        (kind, float(value) if not callable(value) else 0.0)
-        for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
-    )
-    return FiniteVolume(
-        owner,
-        tuple(reference.entry.start for _, reference in laws),
-        space.shape_,
-        space.spacings_,
-        boundaries,
-        fluxes,
-        jacobians,
-        tuple(references[item] for item in parameters),
-        first.limiter,
-        first.riemann,
-        critical,
-    )

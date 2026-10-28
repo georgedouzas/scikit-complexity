@@ -14,7 +14,8 @@ from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
 from ...core.types import Vector
 from ..problems import OrderKind, SupportSpec
-from ._optimal_control import ControlSolution, Cost, GridFunction, OptimalControlSolver, _ControlProblem
+from ._control_solution import ControlSolution
+from ._optimal_control import Cost, GridFunction, OptimalControlSolver, _ControlProblem
 
 _MIN_RELAXATION = 1e-3
 MIN_NODES = 2

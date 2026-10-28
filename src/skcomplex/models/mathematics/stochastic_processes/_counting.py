@@ -65,7 +65,7 @@ class BernoulliTrialElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('traits', {'color_by': 'successes'}),
+        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'successes'}),
         *,
         outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         successes: Annotated[float, StateSpec(domain=NN)] = 0.0,

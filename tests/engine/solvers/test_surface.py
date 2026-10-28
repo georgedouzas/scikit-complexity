@@ -4,7 +4,7 @@ import inspect
 
 from skcomplex.engine import solvers as package
 
-FUNCTIONS = {'fractional_gaussian_noise', 'memory'}
+FUNCTIONS = {'fractional_gaussian_noise'}
 VALUES = {'DEFAULT_SOLVERS'}
 
 

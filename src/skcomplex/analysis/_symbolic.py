@@ -32,7 +32,7 @@ from sage.symbolic.function_factory import function as formal_function
 
 from ..core.errors import AnalysisError, ConservationError
 from ..engine.compile import compile_system, compiled_problem
-from ..engine.problems import BaseProblem, Form, Problem, StockFlow, components_of, domain_of
+from ..engine.problems import BaseProblem, Form, Problem, TransferNetwork, components_of, domain_of
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._quantum import QuantumAnalysis
@@ -112,7 +112,7 @@ class SymbolicAnalysis(BaseAnalysis):
     - `'hamiltonian'`: the Hamiltonian of a quantum system, the sum of the operators of its generator laws, whose
       subsystems are the symbols of the states of the elements, named `<state>_<path>`, and whose parameters are
       named `<parameter>_<path>`.
-    - `'conservation'`: the net inflow from the environment of every quantity of a system of stocks and flows, after
+    - `'conservation'`: the net inflow from the environment of every quantity of a system with a transfer network, after
       checking that its internal flows cancel, so the total changes only through the boundary.
 
     Args:
@@ -609,23 +609,23 @@ class SymbolicAnalysis(BaseAnalysis):
         return solutions
 
     @staticmethod
-    def _stock_flow(problem: Problem) -> StockFlow:
-        """Return the stock-flow description of a problem, or raise an error for problems without one."""
-        if problem.stock_flow is None:
+    def _transfer_network(problem: Problem) -> TransferNetwork:
+        """Return the transfer network of a problem, or raise an error for problems without one."""
+        if problem.transfer_network is None:
             error_msg = (
-                'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
+                'The problem has no transfer network. Compile the system as one partition with compile_system.'
             )
             raise AnalysisError(error_msg)
-        return problem.stock_flow
+        return problem.transfer_network
 
     @staticmethod
     def _conservation(problem: Problem) -> dict[str, Expression]:
         """Return the net inflow from the environment of every quantity, after checking that internal flows cancel."""
-        stock_flow = SymbolicAnalysis._stock_flow(problem)
-        amounts = {record.path: record.expression for record in stock_flow.recorded}
+        transfer_network = SymbolicAnalysis._transfer_network(problem)
+        amounts = {record.path: record.expression for record in transfer_network.recorded}
         net: dict[str, Expression] = defaultdict(lambda: SR(0))
         boundary: dict[str, Expression] = defaultdict(lambda: SR(0))
-        for flow in stock_flow.flows:
+        for flow in transfer_network.flows:
             if flow.quantity is None:
                 continue
             amount = SR(amounts[flow.path])
@@ -635,6 +635,6 @@ class SymbolicAnalysis(BaseAnalysis):
             if not bool((value - boundary[quantity]).simplify_full().is_trivial_zero()):
                 error_msg = f'The internal flows of {quantity!r} do not cancel: the total changes by {value}.'
                 raise ConservationError(error_msg)
-        return {quantity: boundary[quantity] for quantity in stock_flow.quantities if quantity in boundary} | {
-            quantity: SR(0) for quantity in stock_flow.quantities if quantity not in boundary
+        return {quantity: boundary[quantity] for quantity in transfer_network.quantities if quantity in boundary} | {
+            quantity: SR(0) for quantity in transfer_network.quantities if quantity not in boundary
         }

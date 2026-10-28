@@ -10,9 +10,11 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.errors import ValidationError
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
+from ...core.spaces._lattice import BOUNDARIES
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
-from ._lowering import _SHIFT, _calls_of
-from ._shifts import shift_arguments
+from ._pipeline import BasePass
+
+_SHIFT = 'shift_member'
 
 
 @dataclass
@@ -127,12 +129,12 @@ class MemberShifts:
         """
         if isinstance(value, FreeModuleElement):
             return vector(self.lower(item) for item in value)
-        if not isinstance(value, Expression) or not _calls_of(value, _SHIFT):
+        if not isinstance(value, Expression) or not BasePass._calls_of(value, _SHIFT):
             return value
         operator = value.operator()
         if getattr(operator, 'name', lambda: '')() != _SHIFT:
             return operator(*(self.lower(item) for item in value.operands()))
-        expression, offset, boundary, fill = shift_arguments(value)
+        expression, offset, boundary, fill = self._shift_arguments(value)
         return self.shift(SR(self.lower(expression)), offset, boundary, fill)
 
     @staticmethod
@@ -143,3 +145,26 @@ class MemberShifts:
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
         return NeighborRead(table, ghost, (rows,), (offset,), MODES[kind])
+
+    @staticmethod
+    def _shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
+        """Return the expression, the offset, the boundary, and the fill of a member offset read.
+
+        Args:
+            call:
+                A call returned by `shift_member`.
+
+        Returns:
+            arguments:
+                The expression of member symbols, the number of members along the group order, the boundary, and the
+                value read past the ends of a fixed boundary.
+
+        Examples:
+            >>> from skcomplex.engine.problems import symbol
+            >>> from skcomplex.engine.compile._members import MemberShifts
+            >>> from skcomplex.core.laws.utils import shift_member
+            >>> MemberShifts._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
+            (x, -2, 'fixed', 1.0)
+        """
+        expression, offset, boundary, fill = call.operands()
+        return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)

@@ -11,10 +11,13 @@ import numpy as np
 
 from ...core.errors import SolverError
 from ...core.types import Vector
-from ..problems._kinds import Form
-from ..problems._problem import BaseProblem
+from ..problems import Problem
+from ..problems._base_problem import BaseProblem
+from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ..utils import BaseEstimator
+from ._event_locator import EventLocator
+from ._history import _RESTART, Bounded, History, Take
 
 
 class BaseSolver[P: BaseProblem](BaseEstimator):
@@ -157,4 +160,136 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
         """
         state = self._advance(t, x, p, until) if until > t else x
         self._collect()
+        return state
+
+    @staticmethod
+    def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
+        """Check whether a problem needs the hybrid path between two times: delays, events, or breakpoints.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            t:
+                The start time.
+
+            until:
+                The end time.
+
+        Returns:
+            hybrid:
+                Whether the problem has delays, events, or breakpoints up to and at the end.
+        """
+        return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
+
+    @staticmethod
+    def _reject_hybrid(problem: Problem, solver: str) -> None:
+        """Raise an error when a solver without a hybrid path receives delays or events.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            solver:
+                The name of the solver.
+
+        Raises:
+            SolverError:
+                The problem has delays or events.
+        """
+        if problem.delays or problem.events:
+            error_msg = (
+                f'{solver} does not integrate delays or events. Use ScipyODESolver or RK4Solver for ODEs and '
+                'EulerMaruyamaSolver, MilsteinSolver, or HeunSolver for SDEs.'
+            )
+            raise SolverError(error_msg)
+
+    @staticmethod
+    def _advance_fixed_steps(
+        t: float,
+        x: Vector,
+        p: Vector,
+        until: float,
+        *,
+        dt: float,
+        locator: EventLocator,
+        history: History | None,
+        bounded: Bounded,
+        take: Take,
+    ) -> Vector:
+        """Integrate with fixed steps that stop at breakpoints, record every step for delays, and locate events in it.
+
+        Args:
+            t:
+                The current time.
+
+            x:
+                The current state vector.
+
+            p:
+                The parameter vector.
+
+            until:
+                The time to advance to.
+
+            dt:
+                The largest step.
+
+            locator:
+                The event locator of the run.
+
+            history:
+                The history that delayed laws read, or `None` without delays.
+
+            bounded:
+                The boundary laws `bounded(t, x, p)`.
+
+            take:
+                The step `take(t, x, h, ceiling)` of a scheme, which returns the state after a step of length `h` and
+                its interpolant over the step, and reads inputs no later than `ceiling`.
+
+        Returns:
+            state:
+                The state vector at time `until`, or at a terminal event.
+
+        Raises:
+            SolverError:
+                The step exceeds the smallest delay.
+        """
+        problem = locator.problem
+        smallest = EventLocator._find_smallest_delay(problem)
+        if dt > smallest:
+            error_msg = f'dt = {dt} exceeds the smallest delay {smallest}. Take a smaller step.'
+            raise SolverError(error_msg)
+        state, time = x.copy(), t
+        for bound in EventLocator._find_bounds(problem, t, until):
+            ceiling = EventLocator._find_left_limit(bound)
+            while time < bound - _RESTART * max(1.0, abs(bound)):
+                step = min(dt, bound - time)
+                following, interpolant = take(time, state, step, ceiling)
+                if history is not None:
+                    history.add(time, time + step, interpolant)
+                hit = (
+                    locator.crossing(
+                        time,
+                        time + step,
+                        state,
+                        following,
+                        p=p,
+                        interpolant=interpolant,
+                        include_hidden=False,
+                    )
+                    if problem.events
+                    else None
+                )
+                if hit is not None:
+                    time, index = hit
+                    if history is not None:
+                        history.truncate(time)
+                    state = bounded(time, locator.apply(time, index, interpolant(time), p), p)
+                    if locator.stopped_at is not None:
+                        return state
+                    continue
+                state, time = bounded(time + step, following, p), time + step
+            time = bound
         return state
