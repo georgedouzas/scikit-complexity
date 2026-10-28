@@ -29,7 +29,7 @@ def test_bases_are_abstract():
 
 def test_sampled_design_reads_distributions():
     """Test that a sampled design maps its samples through the quantile function of a SciPy distribution."""
-    rows = RandomDesign(n=200, random_state=0).check().prepare({'r': stats.norm(10, 1)}).run()
+    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run()
     assert 9.5 < sum(row['r'] for row in rows) / len(rows) < 10.5
 
 
@@ -37,7 +37,7 @@ def test_sampled_design_reads_distributions():
 def test_sampled_design_rejects_invalid_bounds(bound):
     """Test that a bound that is neither a pair nor a distribution raises an error naming it when prepared."""
     with pytest.raises(ValidationError, match='The bounds of r must be'):
-        RandomDesign(n=4).check().prepare({'r': bound})
+        RandomDesign(n=4).check().check().prepare({'r': bound})
 
 
 def test_design_check_rejects_negative_size():

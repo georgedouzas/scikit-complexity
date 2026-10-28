@@ -102,7 +102,7 @@ class SensitivityAnalysis(BaseAnalysis):
         self.outputs_ = np.asarray(source.column(self.output), dtype=float)  # type: ignore[arg-type]
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the indices of the method and rank the inputs."""
         problem = {'num_vars': len(self.names_), 'names': self.names_}
         if self.method == 'oat':

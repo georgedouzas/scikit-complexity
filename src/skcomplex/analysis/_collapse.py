@@ -182,7 +182,7 @@ class CollapseAnalysis(BaseAnalysis):
         self.labels_ = list(self.waiting) if self.waiting is not None else list(range(len(self.values_)))
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the collapse of the kind."""
         if self.kind in {'scaling', 'crossings'} and len(self.values_) < MIN_SIZES:
             error_msg = (

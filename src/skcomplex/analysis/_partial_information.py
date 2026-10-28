@@ -107,7 +107,7 @@ class PartialInformationAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Decompose the information of the sources about the target."""
         columns = np.column_stack([column.ravel() for column in self.values_.T])
         measure = getattr(self._import('dit').pid, REDUNDANCIES[self.redundancy])

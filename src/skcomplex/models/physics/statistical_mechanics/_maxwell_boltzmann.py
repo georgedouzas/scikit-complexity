@@ -78,7 +78,7 @@ class MaxwellBoltzmannAnalysis(FitAnalysis):
         self.values_ = self._read_velocities(source, self.group)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Test the speeds of every frame."""
         tests = [self._maxwell_boltzmann(frame, self.mass, self.temperature) for frame in self.values_]
         self.temperature_, self.statistic_, self.p_value_ = np.asarray(tests).T

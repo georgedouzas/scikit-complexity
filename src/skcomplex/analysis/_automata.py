@@ -357,7 +357,7 @@ class AutomatonAnalysis(BaseAnalysis):
             decision = self._is_injective(automaton, method=self.method)  # type: ignore[arg-type]
         setattr(self, f'{self.kind.replace("-", "_")}_', decision)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Decide or measure the automaton."""
         automaton = self.automaton_
         if self.kind in {'injective', 'surjective', 'pre-injective'}:

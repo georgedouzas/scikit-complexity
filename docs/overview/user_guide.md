@@ -3864,11 +3864,11 @@ from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.economics.resources import harvesting
 
 bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
-ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().prepare().run()
+ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()
 print(round(float(ensemble.result_.summary()[0]['I.n.mean']), 1))
 
 policies = [Scenario('baseline'), Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-stocks = Experiment(harvesting, scenarios=policies, until=80, outputs=['land/stock.n']).check().prepare().run()
+stocks = Experiment(harvesting, scenarios=policies, until=80, outputs=['land/stock.n']).check().check().prepare().run()
 print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 ```
 
@@ -3896,7 +3896,7 @@ import numpy as np
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)}
-fit = CalibrationExperiment(logistic_growth, {'population.n': (times, observed)}, bounds).check().prepare().run()
+fit = CalibrationExperiment(logistic_growth, {'population.n': (times, observed)}, bounds).check().check().prepare().run()
 print(round(fit.estimates_['growth.r'], 2), round(fit.r2_, 4))
 
 sweep = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])

@@ -214,13 +214,13 @@ class Experiment(BaseExperiment):
             prefixes.append(f'{name}-{seen[name]}' if counts[name] > 1 else name)
         return tuple(zip(prefixes, self.analyses or (), strict=True))
 
-    def _prepare(self) -> None:
+    def _prepare(self, context: object = None) -> None:
         """Resolve the source and set the runs of the experiment, compiling every problem once before serial runs."""
         source = self._check_source(self.source)
         observables = list(self.observables) if self.observables is not None else None
         settings = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
         until = float(self.until if self.until is not None else 10.0)
-        rows = self.design.prepare(self.bounds).run() if self.design is not None else [{}]
+        rows = self.design.check().prepare(self.bounds).run() if self.design is not None else [{}]
         scenarios = list(self.scenarios) if self.scenarios else [Scenario()]
         analyses = self._name_analyses()
         seeds = np.random.SeedSequence(self.random_state).spawn(len(rows) * self.replicates)
@@ -344,7 +344,7 @@ class Experiment(BaseExperiment):
             scalars=scalars,
         )
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Run every task and keep the results in `result_`."""
         if self.executor == 'serial':
             results = [self._run_task(task) for task in self.tasks_]

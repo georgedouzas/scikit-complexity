@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ..core.base import BaseConfig
 from ..core.elements import Element, GroupElement
 from ..core.errors import ExperimentError, ValidationError
 from ..core.laws import (
@@ -27,7 +28,6 @@ from ..core.laws import (
 )
 from ..core.specs import ObservableSpec
 from ..core.system import System
-from ..engine.base import BaseEstimator
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
 from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
@@ -53,7 +53,7 @@ PLAIN_LAWS = (
 """Laws of elements that a group of members of the same type runs as one vectorised simulation."""
 
 
-class BaseDesign(BaseEstimator, ABC):
+class BaseDesign(BaseConfig, ABC):
     """Base of designs, which give rows of values by factory argument or dotted path.
 
     A design stores its settings, such as the number of rows, in `__init__`. Preparing it on a mapping from name to
@@ -74,7 +74,7 @@ class BaseDesign(BaseEstimator, ABC):
         >>> class MidpointDesign(BaseDesign):
         ...     def _prepare(self, bounds=None):
         ...         self.rows_ = [{name: sum(bound) / 2 for name, bound in (bounds or {}).items()}]
-        >>> MidpointDesign().check().prepare({'r': (0.0, 1.0)}).run()
+        >>> MidpointDesign().check().check().prepare({'r': (0.0, 1.0)}).run()
         [{'r': 0.5}]
     """
 
@@ -111,12 +111,12 @@ class BaseDesign(BaseEstimator, ABC):
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set the rows of the design in `rows_` from the mapping of what it samples."""
 
-    def _run(self) -> list[Row]:
+    def _run(self, inputs: object = None) -> list[Row]:
         """Return a copy of the prepared rows."""
         return [dict(row) for row in self.rows_]
 
 
-class BaseExperiment(BaseEstimator, ABC):
+class BaseExperiment(BaseConfig, ABC):
     """Base of experiments, which run a model, given by a factory of systems or a system, many times.
 
     An experiment stores its source and settings in `__init__`, validates them in `check`, resolves the source and
@@ -132,21 +132,21 @@ class BaseExperiment(BaseEstimator, ABC):
         ...     def __init__(self, source):
         ...         self.source = source
         ...
-        ...     def _prepare(self):
+        ...     def _prepare(self, context):
         ...         self.factory_ = self._check_source(self.source)
         ...
-        ...     def _run(self):
+        ...     def _run(self, inputs):
         ...         return self
         >>> len(SystemExperiment(logistic_growth).check().prepare().run().factory_().elements)
         1
     """
 
     @abstractmethod
-    def _prepare(self) -> None:
+    def _prepare(self, context: object = None) -> None:
         """Resolve the source and what the experiment runs, and set the attributes that end in `_`."""
 
     @abstractmethod
-    def _run(self) -> 'BaseExperiment':
+    def _run(self, inputs: object = None) -> 'BaseExperiment':
         """Run the experiment, set its results as attributes that end in `_`, and return it."""
 
     @staticmethod

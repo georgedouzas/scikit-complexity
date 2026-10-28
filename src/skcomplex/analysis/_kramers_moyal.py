@@ -93,7 +93,7 @@ class KramersMoyalAnalysis(BaseAnalysis):
         self.values_ = np.asarray(series.values[:, 0], dtype=float)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the drift and the diffusion in every bin."""
         moments, edges = self._import('kramersmoyal').km(
             self.values_,

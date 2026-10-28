@@ -156,7 +156,7 @@ class EmbeddingAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Choose the delay and the dimension unless given, and compute the embedding or the false neighbours."""
         array = self.values_[:, 0]
         self.mutual_information_ = None

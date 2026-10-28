@@ -27,7 +27,7 @@ def test_double_well_basins_are_symmetric():
 def test_vectorised_basins_match_the_serial_runs():
     """Test that basin stability over 200 initial states run as one ensemble equals the serial runs."""
     settings = {'n': 200, 'until': 40, 'dt': 0.5, 'random_state': 0}
-    serial = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, **settings).check().prepare().run()
+    serial = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, **settings).check().check().prepare().run()
     vectorised = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, vectorized=True, **settings)
     assert vectorised.check().prepare().run().fractions_ == serial.fractions_
 

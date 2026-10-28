@@ -144,7 +144,7 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Fit the sparse model and set the surrogate system, its errors, its coefficients, and the forecast."""
         samples = self.samples_
         states = self._state_names(samples.labels)
