@@ -3967,11 +3967,13 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 ```
 
 **Time series and information.** `CorrelationAnalysis`, `SpectrumAnalysis`, `DisplacementAnalysis`,
-`ScalingAnalysis`, and `EarlyWarningAnalysis` describe memory and diffusion. The mean squared displacement of
+`ScalingAnalysis`, and `RollingAnalysis` describe memory and diffusion. The mean squared displacement of
 `DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped positions, with its exponent and diffusion
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
-The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation.
+`RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
+trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.realizations` gathers them with spectral reddening as early
+warnings of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
 permutation, and Lempel-Ziv entropies by its `kind`. Its setting `symbols` turns real series into symbols first: bins of
@@ -4014,8 +4016,8 @@ print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6,
 
 Every analysis consumes one kind of data, never a model or a field of science: a series, a jump path, a field, agent
 snapshots, a network, or an ensemble of runs. The same `SpectrumAnalysis` serves an Ising lattice and a
-reaction-diffusion field, and the same `AvalancheAnalysis` serves a sandpile and an earthquake model. Every analysis
-takes plain arrays or graphs, so it works on measured data as well.
+reaction-diffusion field, and the same `EventAnalysis('excursions')` serves a sandpile and an earthquake model. Every
+analysis takes plain arrays or graphs, so it works on measured data as well.
 
 An analysis prepared on a trajectory extracts its kind of data itself: named series of states, reporters, or
 observables, the jump path of a discrete state, the frames of a lattice, the agents of a group with their positions
@@ -4333,7 +4335,7 @@ and `CorrelationAnalysis('length')` fits its Ornstein-Zernike form or the decay 
 with `'wavelength'`, and the interfaces between domains with `'interface-density'`, and `FluctuationAnalysis('number')`
 the giant number fluctuations of density fields. `ClusterAnalysis` with the kinds `'sizes'`, `'percolation'`, and
 `'spanning'` describes clusters of grids and components of graphs, and `BinderAnalysis` with the kinds `'cumulant'` and
-`'crossings'`, and `CollapseAnalysis`, locate transitions by finite-size scaling. `SpectrumAnalysis('dispersion')`
+`'crossings'`, and `CollapseAnalysis`, locate transitions by finite-size scaling. `StabilityAnalysis('dispersion')`
 predicts patterns from a field model's laws before running it: it
 linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
 and returns the growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes
@@ -4342,10 +4344,10 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, DomainAnalysis, SpectrumAnalysis
+from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, DomainAnalysis, StabilityAnalysis
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
-relation = SpectrumAnalysis('dispersion').check().prepare(brusselator((128,), b=1.9)).run()
+relation = StabilityAnalysis('dispersion').check().prepare(brusselator((128,), b=1.9)).run()
 print(relation.band_.min().round(2), relation.band_.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
@@ -4358,7 +4360,9 @@ print(BinderAnalysis('cumulant').check().prepare(samples).run().cumulant_.round(
 
 ### Agents
 
-`OrderAnalysis` measures the polar, nematic, milling, and phase order of every frame. `FluctuationAnalysis` with the
+`AlignmentAnalysis` measures the alignment of every frame of agents, of a field of angles or vectors, or of series of
+phases, by the length of the mean vector, the mean rotation, the axial order, or the mean phase. The physics
+realizations name them the polar, milling, nematic, and Kuramoto orders. `FluctuationAnalysis` with the
 kinds `'kinetic-temperature'` and `'maxwell-boltzmann'` compares velocities with the Maxwell-Boltzmann law of their
 dimension. `NeighborAnalysis` describes point patterns in open or periodic boxes by their nearest-neighbour
 `'distances'`, their `'clark-evans'` ratio, and their `'radial-distribution'`, and `CoarseGrainAnalysis` turns agents
@@ -4370,10 +4374,10 @@ dissimilarity index of two groups across units.
 import numpy as np
 from skcomplex.models import run
 
-from skcomplex.analysis import CoarseGrainAnalysis, NeighborAnalysis, OrderAnalysis
+from skcomplex.analysis import AlignmentAnalysis, CoarseGrainAnalysis, NeighborAnalysis
 
 flock = run('boids', settings={'until': 5}).trajectory_
-print(OrderAnalysis('polar').check().prepare(flock).run().order_.shape)
+print(AlignmentAnalysis('mean-vector').check().prepare(flock).run().order_.shape)
 positions = np.random.default_rng(4).random((1000, 2))
 ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(positions).run().ratio_
 field = CoarseGrainAnalysis([8, 8], box=[1.0, 1.0]).check().prepare(positions).run().field_
@@ -4382,10 +4386,11 @@ print(ratio.round(1).tolist(), float(field.sum()))
 
 ### Criticality
 
-`AvalancheAnalysis` extracts avalanches from activity series or relaxation records with the kind `'sizes'`, and
-`FitAnalysis(law='power')` fits their size and duration laws. The kind `'crackling'` checks the scaling relation
-between the exponents and collapses mean shapes, and the kind `'branching'` estimates the branching ratio by the
-multistep regression of `mrestimator`, which stays unbiased under subsampling. `BinderAnalysis('sweep')` gives the
+`EventAnalysis('excursions')` extracts avalanches from activity series or relaxation records, and
+`FitAnalysis(law='power')` fits their size and duration laws. `EventAnalysis('branching')` estimates the branching
+ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling. The physics realizations
+name the excursions `AvalancheAnalysis`, and `CracklingNoiseAnalysis` checks the scaling relation between the
+exponents and collapses mean shapes. `BinderAnalysis('sweep')` gives the
 order parameter, the susceptibility, and the Binder cumulant over a sweep with the peak of the susceptibility,
 `FitAnalysis(law='order-exponent')` fits the order-parameter exponent, and `BinderAnalysis('overlap')` compares
 replicas.
@@ -4393,16 +4398,16 @@ replicas.
 ```python
 import numpy as np
 
-from skcomplex.analysis import AvalancheAnalysis
+from skcomplex.analysis import EventAnalysis
 
-found = AvalancheAnalysis('sizes').check().prepare([0, 1, 3, 2, 0, 0, 4, 1, 0]).run()
+found = EventAnalysis('excursions').check().prepare([0, 1, 3, 2, 0, 0, 4, 1, 0]).run()
 print(found.sizes_.tolist(), found.durations_.tolist())
 rng = np.random.default_rng(5)
 activity = np.zeros(5000)
 activity[0] = 50
 for t in range(1, activity.size):
     activity[t] = rng.poisson(0.8 * activity[t - 1] + 10)
-print(round(AvalancheAnalysis('branching').check().prepare(activity).run().branching_ratio_, 1))
+print(round(EventAnalysis('branching').check().prepare(activity).run().branching_ratio_, 1))
 ```
 
 ### Networks
