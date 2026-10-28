@@ -32,7 +32,7 @@ def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     return pairs
 
 
-class PatchElement(Element):
+class HabitatPatchElement(Element):
     """Patch of space whose organisms divide and die at the same rate, so their number makes a symmetric random walk.
 
     Every organism divides at the rate `alpha` and dies at the rate `alpha`, and an empty patch stays empty without
@@ -49,8 +49,8 @@ class PatchElement(Element):
             The rate at which an organism divides, equal to the rate at which it dies.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PatchElement
-        >>> PatchElement('patch', n=5.0).alpha
+        >>> from skcomplex.models.biology.ecology import HabitatPatchElement
+        >>> HabitatPatchElement('patch', n=5.0).alpha
         1.0
     """
 
@@ -186,7 +186,7 @@ def neutral_clustering(
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)
     patches = LatticeElement(
         'patches',
-        element=PatchElement,
+        element=HabitatPatchElement,
         space=LatticeSpace(lattice),
         values={'n': np.full(lattice, float(n)), 'alpha': alpha},
     )

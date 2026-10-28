@@ -29,7 +29,7 @@ from ._prices import QuadraticSupplyMarketElement, riccati_prices
 from ._produce import ShopperElement, StallElement, produce_market
 from ._queues import CarElement, CarWashOperationInteraction, TillElement, WasherElement, car_wash
 from ._shops import ResidentElement, ShoppingInteraction, StoreElement, delivered_price_choice, shops
-from ._sugarscape import CensusInteraction, ForagerElement, PatchElement, sugarscape
+from ._sugarscape import CensusInteraction, ForagerElement, SugarPatchElement, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
     EchelonElement,
@@ -62,7 +62,6 @@ __all__: list[str] = [
     'HeuristicPricingInteraction',
     'JobseekerElement',
     'MarketElement',
-    'PatchElement',
     'PerishableTradeInteraction',
     'ProductElement',
     'QuadraticSupplyMarketElement',
@@ -75,6 +74,7 @@ __all__: list[str] = [
     'SpeculatorElement',
     'StallElement',
     'StoreElement',
+    'SugarPatchElement',
     'SupplyLinkInteraction',
     'TillElement',
     'WasherElement',

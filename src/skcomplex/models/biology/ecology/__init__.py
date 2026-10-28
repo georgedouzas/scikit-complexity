@@ -2,7 +2,7 @@
 
 from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
-from ._clustering import HoppingInteraction, PatchElement, neutral_clustering
+from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
 from ._communities import CompetitionInteraction, MutualismInteraction, competition, food_webs, mutualism
 from ._factories import (
     RabbitsElement,
@@ -67,6 +67,7 @@ __all__: list[str] = [
     'GeneralizedLotkaVolterraInteraction',
     'GrassElement',
     'GrazingInteraction',
+    'HabitatPatchElement',
     'HerdingInteraction',
     'HoppingInteraction',
     'InfluenceDrawInteraction',
@@ -81,7 +82,6 @@ __all__: list[str] = [
     'OrganismElement',
     'ParasitismInteraction',
     'PastureElement',
-    'PatchElement',
     'PioneerGrowthInteraction',
     'PlantElement',
     'PopulationElement',

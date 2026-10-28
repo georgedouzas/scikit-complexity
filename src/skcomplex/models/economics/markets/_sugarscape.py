@@ -55,7 +55,7 @@ def landscape(width: int, height: int) -> Array:
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
 
 
-class PatchElement(Element):
+class SugarPatchElement(Element):
     """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
 
     Args:
@@ -75,8 +75,8 @@ class PatchElement(Element):
             The sugar that grows back in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import PatchElement
-        >>> GroupElement('patches', element=PatchElement, size=4, values={'capacity': 2.0}).size
+        >>> from skcomplex.models.economics.markets import SugarPatchElement
+        >>> GroupElement('patches', element=SugarPatchElement, size=4, values={'capacity': 2.0}).size
         4
     """
 
@@ -356,7 +356,7 @@ def sugarscape(
     cells = [(x, y) for x in range(width) for y in range(height)]
     patches = GroupElement(
         'patches',
-        element=PatchElement,
+        element=SugarPatchElement,
         size=len(cells),
         values={'sugar': capacity, 'capacity': capacity, 'growback': growback},
         location=cells,

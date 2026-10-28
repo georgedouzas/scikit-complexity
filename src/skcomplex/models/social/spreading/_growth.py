@@ -20,7 +20,7 @@ from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-class WordElement(Element):
+class GrowingWordElement(Element):
     """Distinct word of the Simon model, with the number of times it occurs in the text.
 
     Args:
@@ -37,10 +37,10 @@ class WordElement(Element):
             The probability that the next word of the text is new.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import WordElement
-        >>> group = GroupElement('words', element=WordElement, size=1, values={'count': 1.0})
+        >>> from skcomplex.models.social.spreading import GrowingWordElement
+        >>> group = GroupElement('words', element=GrowingWordElement, size=1, values={'count': 1.0})
         >>> group.label, group.element.__name__, group.size
-        ('words', 'WordElement', 1)
+        ('words', 'GrowingWordElement', 1)
     """
 
     def __init__(
@@ -160,7 +160,7 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
     """
     words = GroupElement(
         'words',
-        element=WordElement,
+        element=GrowingWordElement,
         size=1,
         values={'count': 1.0, 'innovation': innovation},
         variable=True,
