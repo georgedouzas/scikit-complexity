@@ -253,7 +253,13 @@ class JacobianKernel(BaseKernel):
         if reference.source is ReadKind.NEIGHBOR:
             members, columns = self._neighbor_columns(reference)
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
-        return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
+        return self._selection(
+            rows,
+            LawKernel._member_indices(reference, kernel.rows),
+            1.0,
+            self.size,
+            height=kernel.rows,
+        )
 
     def _run(self, inputs: RunStateSpec) -> Sparse:
         """Return the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
@@ -269,7 +275,7 @@ class JacobianKernel(BaseKernel):
                 gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
                 if gradient is None:
                     continue
-                target = kernel.outputs[index].target._member_indices(kernel.rows)  # type: ignore[arg-type]
+                target = LawKernel._member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
                 scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
@@ -410,7 +416,12 @@ class JacobianKernel(BaseKernel):
                 block = self._dense_rows(targets.size, columns)
                 blocks.append(self._selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
                 continue
-            scatter = self._selection(np.arange(kernel.rows), target._member_indices(kernel.rows), 1.0, self.size).T
+            scatter = self._selection(
+                np.arange(kernel.rows),
+                LawKernel._member_indices(target, kernel.rows),
+                1.0,
+                self.size,
+            ).T
             if used is None:
                 blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
                 continue
@@ -507,5 +518,6 @@ class JacobianKernel(BaseKernel):
         matrix = scipy.sparse.csr_array(matrix)
         matrix.eliminate_zeros()
         return scipy.sparse.csr_array(
-            (np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape,
+            (np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr),
+            shape=matrix.shape,
         )

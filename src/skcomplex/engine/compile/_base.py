@@ -190,7 +190,9 @@ class BaseCompiler(BaseConfig):
         if inputs is not None and not isinstance(inputs, Mapping):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
-        return self._compile(dict(inputs or {}))
+        problem = self._compile(dict(inputs or {}))
+        observables = tuple(self._observables_of(problem.system)) if problem.system is not None else ()
+        return dataclasses.replace(problem, observables=observables)
 
     @staticmethod
     def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
@@ -236,6 +238,26 @@ class BaseCompiler(BaseConfig):
             expression=expression,
             element=None,
         )
+
+    @staticmethod
+    def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+        """Yield every observable of a system tree, with the path of the system that declares it.
+
+        Args:
+            system:
+                The root system.
+
+            scope:
+                The path of the system, empty for the root.
+
+        Yields:
+            observable:
+                The path of the declaring system and the observable.
+        """
+        for observable in getattr(system, 'observables', ()):
+            yield scope, observable
+        for child in system.systems:
+            yield from BaseCompiler._observables_of(child, f'{scope}/{child.label}' if scope else child.label)
 
     @staticmethod
     def _system_paths(system: System, scope: str = '') -> Iterator[str]:

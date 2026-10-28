@@ -3,14 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from ..types import AnyArray
-from ._affine_spec import AffineSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._prototile_spec import PrototileSpec
 
@@ -36,7 +34,8 @@ class PatchStructureSpec(BaseStructureSpec):
         >>> import numpy as np
         >>> from skcomplex.specs import PatchStructureSpec
         >>> from skcomplex.specs import PrototileSpec
-        >>> patch = PatchStructureSpec((PrototileSpec('interval', [(0, 0), (1, 0)]),), np.array([0]), np.eye(3)[None], 0)
+        >>> interval = PrototileSpec('interval', [(0, 0), (1, 0)])
+        >>> patch = PatchStructureSpec((interval,), np.array([0]), np.eye(3)[None], 0)
         >>> patch.length()
         1.0
     """
@@ -93,7 +92,7 @@ class PatchStructureSpec(BaseStructureSpec):
             segments:
                 The array of shape `(k, 2, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if self._is_segment(item)]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if item.is_segment]
         return np.concatenate(parts) if parts else np.zeros((0, 2, 2))
 
     def polygons(self) -> AnyArray:
@@ -103,58 +102,7 @@ class PatchStructureSpec(BaseStructureSpec):
             polygons:
                 An object array of arrays of shape `(t, k, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not self._is_segment(item)]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not item.is_segment]
         result = np.empty(len(parts), dtype=object)
         result[:] = parts
         return result
-
-    @staticmethod
-    def _affine_matrix(affine: AffineSpec, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
-        """Return the homogeneous matrix of an affine map at values of the parameters its expressions read.
-
-        The map reflects across the x axis, rotates, scales, and translates, in this order.
-
-        Args:
-            affine:
-                The affine map.
-
-            values:
-                A mapping from parameter symbol to value.
-
-        Returns:
-            matrix:
-                The 3 by 3 matrix.
-
-        Examples:
-            >>> from skcomplex.specs import AffineSpec
-            >>> from skcomplex.specs import PatchStructureSpec
-            >>> PatchStructureSpec._affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
-            [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
-        """
-        if affine.matrix is not None:
-            return np.asarray(affine.matrix, dtype=float)
-        scale, rotation, *translation = (
-            float(item.subs(values)) if hasattr(item, 'subs') else float(item)
-            for item in (affine.scale, affine.rotation, *affine.translation)
-        )
-        angle = np.deg2rad(rotation)
-        turn = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-        reflection = np.diag([1.0, -1.0]) if affine.reflect else np.eye(2)
-        matrix = np.eye(3)
-        matrix[:2, :2] = scale * turn @ reflection
-        matrix[:2, 2] = translation
-        return matrix
-
-    @staticmethod
-    def _is_segment(prototile: PrototileSpec) -> bool:
-        """Check whether a prototile is a segment, with two vertices, rather than a polygon.
-
-        Args:
-            prototile:
-                The prototile.
-
-        Returns:
-            is_segment:
-                Whether the prototile has two vertices.
-        """
-        return len(prototile.vertices) == 2  # noqa: PLR2004

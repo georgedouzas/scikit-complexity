@@ -8,7 +8,7 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...specs import LoweredFunctionsSpec, LoweredKernelsSpec, ReferenceSpec, RunStateSpec, SupportSpec
-from ...types import Array, VectorFunction
+from ...types import Array, Indices, ReadKind, VectorFunction
 from ..problems._law_kernel import LawKernel
 
 _AUTO_MEMBERS = 1000
@@ -74,7 +74,7 @@ class BaseBackend(BaseConfig):
             for kernel in kernels:
                 _, pairs, values = kernel.run(RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    ReferenceSpec._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
+                    BaseBackend._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
             return output
 
         return evaluate
@@ -98,7 +98,7 @@ class BaseBackend(BaseConfig):
             for kernel in kernels:
                 _, _, values = kernel.run(RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    ReferenceSpec._assign_into(output, item.target, value)  # type: ignore[arg-type]
+                    BaseBackend._assign_into(output, item.target, value)  # type: ignore[arg-type]
             return output
 
         return evaluate
@@ -122,3 +122,49 @@ class BaseBackend(BaseConfig):
             return np.concatenate([np.zeros(0), *values])
 
         return evaluate
+
+    @staticmethod
+    def _add_into(output: Array, target: ReferenceSpec, values: Array, pairs: tuple[Indices, Indices] | None) -> None:
+        """Add the values of one output to the target component of a flat vector.
+
+        Args:
+            output:
+                The flat vector to add to.
+
+            target:
+                The target component.
+
+            values:
+                One value per evaluation index.
+
+            pairs:
+                The pairs of a pair kernel, or `None` in member mode.
+        """
+        if target.source is ReadKind.SINGLE:
+            output[target.index] += values.sum()
+            return
+        column = output[target.members]
+        if target.source is ReadKind.MEMBER:
+            column += values
+        else:
+            assert pairs is not None
+            np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
+
+    @staticmethod
+    def _assign_into(output: Array, target: ReferenceSpec, values: Array) -> None:
+        """Set the target component of a flat vector to the values of one output.
+
+        Args:
+            output:
+                The flat vector to write to.
+
+            target:
+                The target component, read per member or as a single element.
+
+            values:
+                One value per evaluation index.
+        """
+        if target.source is not ReadKind.MEMBER:
+            output[target.index] = values[0]
+            return
+        output[target.members] = values

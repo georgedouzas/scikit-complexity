@@ -192,14 +192,16 @@ class PontryaginSolver(OptimalControlSolver):
         gradients = [hamiltonian.diff(control) for control in controls]
         self._bang_bang = self._is_linear(gradients, controls)
         law = gradients if self._bang_bang else self._stationary_controls(gradients, controls)
-        self._adjoint: GridFunction = control_problem.function(
+        self._adjoint: GridFunction = self._function(
+            control_problem,
             [-hamiltonian.diff(item) for item in control_problem.states],
             costates,
         )
-        self._final: GridFunction = control_problem.function(
+        self._final: GridFunction = self._function(
+            control_problem,
             [control_problem.terminal.diff(item) for item in control_problem.states],
         )
-        self._law: GridFunction = control_problem.function(law, costates)
+        self._law: GridFunction = self._function(control_problem, law, costates)
 
     def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
         """Return the optimal solution by a forward-backward sweep with relaxed control updates.

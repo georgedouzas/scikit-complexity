@@ -16,6 +16,7 @@ from ...specs._jump_channels_spec import _JumpChannelsSpec
 from ...specs._reference_spec import Search
 from ...types import Array, Indices, OptionalPairs, Reader, ReadKind
 from ._base import BaseKernel
+from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
 from ._pair_search import PairSearch
 
@@ -258,7 +259,14 @@ class LawKernel(BaseKernel):
 
         return read
 
-    def _gather(self, symbol: Expression, x: Array, p: Array, pairs: OptionalPairs, t: float = 0.0) -> Any:  # noqa: ANN401
+    def _gather(
+        self,
+        symbol: Expression,
+        x: Array,
+        p: Array,
+        pairs: OptionalPairs,
+        t: float = 0.0,
+    ) -> Any:  # noqa: ANN401
         """Return the values of a symbol for every evaluation index."""
         return self._reader(symbol)(x, p, pairs, t)
 
@@ -359,11 +367,16 @@ class LawKernel(BaseKernel):
         counter = [0, -1]
         for kernel in kernels:
             for item in kernel.outputs:
-                indices = item.target._member_indices(kernel.rows, kernel.pairs)  # type: ignore[arg-type]
+                indices = LawKernel._member_indices(item.target, kernel.rows, kernel.pairs)  # type: ignore[arg-type]
                 rows.append(indices)
                 columns.append(
                     LawKernel._process_columns(
-                        item.process, indices.size, counter=counter, local=local, starts=starts, blocks=blocks,
+                        item.process,
+                        indices.size,
+                        counter=counter,
+                        local=local,
+                        starts=starts,
+                        blocks=blocks,
                     ),
                 )
         empty = np.zeros(0, dtype=np.intp)
@@ -441,10 +454,51 @@ class LawKernel(BaseKernel):
             for item in kernel.outputs:
                 law_changes = changes[id(item)]
                 targets = np.array(
-                    [reference._member_indices(kernel.rows, kernel.pairs) for reference, _ in law_changes],
+                    [LawKernel._member_indices(reference, kernel.rows, kernel.pairs) for reference, _ in law_changes],
                     dtype=np.intp,
                 ).reshape(len(law_changes), kernel.rows)
                 increments = np.array([increment for _, increment in law_changes], dtype=float)
                 channels.append(_JumpChannelsSpec(offset, targets, increments))
                 offset += kernel.rows
         return tuple(channels)
+
+    @staticmethod
+    def _member_indices(reference: ReferenceSpec, rows: int, pairs: Search | None = None) -> Indices:
+        """Return the flat index of a target component for every evaluation index of a member or edge kernel.
+
+        Args:
+            reference:
+                The target component.
+
+            rows:
+                The number of evaluation indices of the kernel.
+
+            pairs:
+                The edges of an edge kernel, whose ends targets of the source and target roles index, or `None`.
+
+        Returns:
+            indices:
+                One flat index per evaluation index.
+
+        Raises:
+            ValidationError:
+                A target of an end of an edge lies on a network whose edges change.
+        """
+        if reference.source is ReadKind.MEMBER:
+            return reference.flat_indices
+        if reference.source in {ReadKind.FIRST, ReadKind.SECOND} and isinstance(pairs, EdgeSearch):
+            if pairs.source is not None:
+                error_msg = (
+                    f'A law targets {reference.entry.name} at an end of the edges of a network whose edges change, '
+                    'whose ends a fixed channel cannot follow. Target the edge member, or the node through its own '
+                    'laws.'
+                )
+                raise ValidationError(error_msg)
+            ends = pairs.sources if reference.source is ReadKind.FIRST else pairs.targets
+            return (reference.entry.start + ends * reference.entry.columns + reference.column).astype(np.intp)
+        if reference.source is ReadKind.NEIGHBOR:
+            table = np.asarray(reference.neighbor.table, dtype=np.intp)
+            inside = table < reference.entry.rows
+            flat = reference.entry.start + table * reference.entry.columns + reference.column
+            return np.where(inside, flat, -1).astype(np.intp)
+        return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)

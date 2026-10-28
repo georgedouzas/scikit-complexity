@@ -110,7 +110,7 @@ class EulerMaruyamaSolver(SDESolver):
 
     def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:
         """Return the state after one Euler-Maruyama step and the boundary laws, with one step length per state."""
-        noise = self.problem_.draw_increments(self.rng_, 1.0) * np.sqrt(lengths[self.problem_.noise_rows])
+        noise = self._draw_increments(1.0) * np.sqrt(lengths[self.problem_.noise_rows])
         end = time + float(np.max(lengths))
         return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
 
@@ -156,7 +156,7 @@ class EulerMaruyamaSolver(SDESolver):
         state = x.copy()
         for index in range(n_steps):
             time = t + index * step
-            noise = self.problem_.draw_increments(self.rng_, math.sqrt(step))
+            noise = self._draw_increments(math.sqrt(step))
             following = self._increment(time, state, p, step=step, noise=noise, end=time + step)
             state = self._bounded(time + step, following, p)
         return state

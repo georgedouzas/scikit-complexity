@@ -83,6 +83,27 @@ class SDESolver(Solver):
         """
         raise NotImplementedError
 
+    def _draw_increments(self, scale: float) -> Array:
+        """Return the Wiener increment that every noise amplitude of the problem multiplies, drawn for one step.
+
+        The increments of the processes are normal with the standard deviation `scale`, correlated within every block
+        by its covariance factor. Amplitudes that share a process take its increment.
+
+        Args:
+            scale:
+                The square root of the step.
+
+        Returns:
+            increments:
+                One increment per noise amplitude, in the order of `noise_rows`.
+        """
+        problem = self.problem_
+        increments = self.rng_.normal(0.0, scale, size=problem.n_processes)
+        for block in problem.noise_blocks:
+            part = slice(block.start, block.start + block.size)
+            increments[part] = block.factor @ increments[part]
+        return increments[problem.noise_columns]
+
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate with fixed steps, reading delays and locating events by linear interpolation of every step."""
         problem = self.problem_
@@ -90,7 +111,7 @@ class SDESolver(Solver):
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
             parameters = History._with_delays(problem, history, time, state, p)
-            noise = problem.draw_increments(self.rng_, math.sqrt(step))
+            noise = self._draw_increments(math.sqrt(step))
             following = self._increment(time, state, parameters, step=step, noise=noise, end=min(time + step, ceiling))
             start, end = state.copy(), following.copy()
 

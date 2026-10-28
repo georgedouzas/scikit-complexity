@@ -4,10 +4,10 @@
 # License: MIT
 
 import copy
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +15,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...core.elements import Element
-from ...core.laws.utils import reductions_in
+from ...core.laws.utils import has_operator, local_operator, reductions_in
 from ...core.system import System
 from ...errors import RoleError, ValidationError
 from ...specs import (
@@ -24,6 +24,7 @@ from ...specs import (
     NodeSpec,
     ObservableSpec,
     ProblemSpec,
+    QuantumProblemSpec,
     ReadSpec,
     ReductionScheduleSpec,
     ReductionSpec,
@@ -35,7 +36,9 @@ from ...specs._recorded_spec import _RecordedSpec
 from ...types import AgentsOf, Array, FormKind, Getter, ReadKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import ExpressionPrinter
+from ..problems._quantum_kernel import QuantumKernel
 from ..problems._reduction_kernel import ReductionKernel
+from ._base import BaseCompiler
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
 
@@ -74,26 +77,6 @@ def _held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
     while label in labels:
         label, index = f'{base}_{index}', index + 1
     return label
-
-
-def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
-    """Yield the path of every system in a tree that declares observables, with each observable.
-
-    Args:
-        system:
-            The root system.
-
-        scope:
-            The path of the system, empty for the root.
-
-    Yields:
-        observable:
-            The path of the declaring system and the observable.
-    """
-    for observable in getattr(system, 'observables', ()):
-        yield scope, observable
-    for child in system.systems:
-        yield from _observables_of(child, ObservableEvaluator._join(scope, child.label))
 
 
 def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSpec'], scope: str = '') -> System:
@@ -179,7 +162,9 @@ def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
             The paths of the held observables.
     """
     lowerable = ObservableEvaluator._lowerable_observables(system, nodes)
-    declared = {ObservableEvaluator._join(scope, observable.label) for scope, observable in _observables_of(system)}
+    declared = {
+        ObservableEvaluator._join(scope, observable.label) for scope, observable in BaseCompiler._observables_of(system)
+    }
     return (_role_paths(system) & declared) - set(lowerable)
 
 
@@ -187,7 +172,7 @@ def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
     groups = {
         ObservableEvaluator._join(scope, observable.label): ObservableEvaluator._join(scope, observable.group or '')
-        for scope, observable in _observables_of(problem.system)  # type: ignore[arg-type]
+        for scope, observable in BaseCompiler._observables_of(problem.system)  # type: ignore[arg-type]
     }
     for path in held:
         readers = _readers_of(problem, path)
@@ -215,8 +200,6 @@ class _HeldElement(Element):
         super().__init__(label)
         self.value = value
         self.reduction = reduction
-
-
 
 
 @dataclass
@@ -366,15 +349,12 @@ class ObservableEvaluator:
                 reads a symbol it cannot.
         """
         self.getters_: dict[str, Getter] = {}
-        system = self.problem.system
-        observables = _observables_of(system) if system is not None else ()
-        own = self.problem.observable_getters(observables)
-        if own is not None:
+        if isinstance(self.problem, QuantumProblemSpec):
             self._scalars = {}
-            self.getters_ = own
+            self.getters_ = self._quantum_getters(self.problem)
             return self
         self._scalars = self._scalar_sources()
-        for scope, observable in _observables_of(system) if system is not None else ():
+        for scope, observable in self.problem.observables:
             path = self._join(scope, observable.label)
             if path in self.getters_:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
@@ -522,7 +502,8 @@ class ObservableEvaluator:
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
                 return ReductionKernel._reduce_values(
-                    values if element.members is not None else values[np.newaxis], observable.reduce,
+                    values if element.members is not None else values[np.newaxis],
+                    observable.reduce,
                 )
 
             return read_variable
@@ -582,6 +563,126 @@ class ObservableEvaluator:
             return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_agents
+
+    @staticmethod
+    def _quantum_getters(problem: QuantumProblemSpec) -> dict[str, Getter]:
+        """Return the getters of the observables of a quantum problem, with the energy, and the purity when it is open.
+
+        An observable gives an operator, a Sage expression of local operators, as a function of the namespace of its
+        system, of its element, or of every member of its group, or names a local operator of its element or of every
+        member of its group with `variable`, such as `ObservableSpec('z', element='q', variable='z')`. Its value is the
+        expectation of the operator, reduced over the members of a group.
+
+        Args:
+            problem:
+                The quantum problem.
+
+        Returns:
+            getters:
+                The getters by observable path.
+
+        Raises:
+            ValidationError:
+                Two observables share a path, or an observable does not give an operator.
+        """
+        getters: dict[str, Getter] = {}
+        for scope, observable in problem.observables:
+            label = observable.label if observable.element is None else f'{observable.element}.{observable.label}'
+            path = ObservableEvaluator._join(scope, label)
+            if path in getters:
+                error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
+                raise ValidationError(error_msg)
+            if observable.group is not None:
+                group = ObservableEvaluator._join(scope, observable.group)
+                getters[path] = ObservableEvaluator._quantum_member_getter(problem, path, observable, group)
+                continue
+            if observable.element is not None and observable.variable is not None:
+                element = ObservableEvaluator._join(scope, observable.element)
+                terms = ObservableEvaluator._local_terms(problem, element, observable.variable)[0]
+                getters[path] = ObservableEvaluator._expectation_getter(problem, terms)
+                continue
+            expression = observable.expression
+            value = expression(problem.namespaces[scope]) if callable(expression) else expression
+            terms = problem.lowering.terms(ObservableEvaluator._operator_of(path, value), path)
+            getters[path] = ObservableEvaluator._expectation_getter(problem, terms)
+        getters.setdefault('energy', ObservableEvaluator._expectation_getter(problem, problem.hamiltonian))
+        if not problem.pure:
+            getters.setdefault('purity', ObservableEvaluator._purity_getter(problem))
+        return getters
+
+    @staticmethod
+    def _local_terms(problem: QuantumProblemSpec, path: str, name: str) -> list[tuple[QuantumKernel, ...]]:
+        """Return the terms of the local operator of a name of every member of a quantum element or group."""
+        subsystems = [
+            item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
+        ]
+        if not subsystems:
+            error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
+            raise ValidationError(error_msg)
+        return [problem.lowering.terms(local_operator(item.symbol, SR.symbol(name)), path) for item in subsystems]
+
+    @staticmethod
+    def _quantum_member_getter(
+        problem: QuantumProblemSpec,
+        path: str,
+        observable: ObservableSpec,
+        group: str,
+    ) -> Getter:
+        """Return the getter of a quantum observable evaluated member by member and reduced.
+
+        The observable gives the operator of a member as a function of its namespace, or names a local operator of every
+        member with `variable`.
+        """
+        if group not in problem.members:
+            error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
+            raise ValidationError(error_msg)
+        expression = observable.expression
+        if observable.variable is not None:
+            terms = ObservableEvaluator._local_terms(problem, group, observable.variable)
+        elif callable(expression):
+            terms = [
+                problem.lowering.terms(ObservableEvaluator._operator_of(path, expression(member)), path)
+                for member in problem.members[group]
+            ]
+        else:
+            error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
+            raise ValidationError(error_msg)
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+            del done
+            values = np.asarray([problem._expect(item, t, x, p) for item in terms])
+            return ReductionKernel._reduce_values(values, observable.reduce)
+
+        return get
+
+    @staticmethod
+    def _operator_of(path: str, value: object) -> Expression:
+        """Return the operator an observable expression of a quantum system gives, after checking that it is one."""
+        if not has_operator(value):
+            error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
+            raise ValidationError(error_msg)
+        return cast('Expression', value)
+
+    @staticmethod
+    def _expectation_getter(problem: QuantumProblemSpec, terms: Sequence[QuantumKernel]) -> Getter:
+        """Return the getter of the expectation value of an operator at the state of a quantum problem."""
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+            del done
+            return problem._expect(terms, t, x, p)
+
+        return get
+
+    @staticmethod
+    def _purity_getter(problem: QuantumProblemSpec) -> Getter:
+        """Return the getter of the purity `Tr(rho^2)` of the state of a quantum problem."""
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+            del t, p, done
+            state = problem._state_of(x)
+            return 1.0 if problem.pure else float(np.sum(np.abs(state) ** 2))
+
+        return get
 
     def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsOf | None = None) -> dict[str, Any]:
         """Return the value of every observable by path.
@@ -747,7 +848,7 @@ class ObservableEvaluator:
         by_path = {node.path: node for node in nodes}
         lowerable: Declared = {}
         blocked: set[str] = set()
-        for scope, observable in _observables_of(system):
+        for scope, observable in BaseCompiler._observables_of(system):
             if scope in blocked or not ObservableEvaluator._is_lowerable(scope, observable, by_path):
                 blocked.add(scope)
                 continue

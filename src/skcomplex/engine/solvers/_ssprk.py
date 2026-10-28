@@ -95,11 +95,9 @@ class SSPRKSolver(Solver):
 
     def _step_size(self, x: Array, p: Array) -> float:
         """Return the step allowed by the CFL condition and the diffusion of finite-volume fields, at most `dt`."""
-        step = self.dt
-        diffusive = self.problem_.diffusive_step(p)
-        if diffusive is not None:
-            step = min(step, diffusive)
-        speed = self.problem_.max_speed(x, p)
+        problem = self.problem_
+        step = min([self.dt, *(limit.step(p) for limit in problem.diffusive_limits)])
+        speed = max((volume.max_speed(x, p) for volume in problem.volumes), default=None)
         if speed is None or self.spacing_ is None or speed <= 0:
             return step
         return min(step, self.cfl * self.spacing_ / speed)
