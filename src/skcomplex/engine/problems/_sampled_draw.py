@@ -1,0 +1,31 @@
+"""Draw from a `scipy.stats` distribution that a stochastic map takes for every member at every step."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+import numpy as np
+
+from ...core.types import Vector
+
+
+@dataclass(frozen=True)
+class SampledDraw:
+    """Draw from a `scipy.stats` distribution that a stochastic map takes for every member at every step.
+
+    Args:
+        start:
+            The index of the first value in the extended parameter vector.
+
+        rows:
+            The number of values, one per member.
+
+        sample:
+            The function `sample(t, x, q, rng)` that returns the values, given the extended parameter vector `q`.
+    """
+
+    start: int
+    rows: int
+    sample: Callable[[float, Vector, Vector, np.random.Generator], Vector]

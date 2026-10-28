@@ -53,7 +53,7 @@ class _Graph:
         self.problem = problem
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
-        terms = problem.stock_flow.terms if problem.stock_flow is not None else ()
+        terms = problem.transfer_network.terms if problem.transfer_network is not None else ()
         self.described = self._described(terms)
         self.states = {entry.name for entry in problem.states.entries}
         for term in terms:
@@ -82,14 +82,14 @@ class _Graph:
 
     def _hidden(self) -> set[str]:
         """Return the states the compiler adds for the boundary flows and for delays and smoothings."""
-        stock_flow = self.problem.stock_flow
-        if stock_flow is None:
+        transfer_network = self.problem.transfer_network
+        if transfer_network is None:
             return set()
-        outputs = symbols_of([delay.output for delay in stock_flow.delays])
+        outputs = symbols_of([delay.output for delay in transfer_network.delays])
         delays = {
             name.partition('[')[0] for name, item in self.problem.equation_symbols.items() if item in outputs
         }
-        return set(stock_flow.boundary.values()) | delays
+        return set(transfer_network.boundary.values()) | delays
 
     def _node_of(self, item: Expression, term: LoopTerm) -> str | None:
         """Return the state a symbol stands for, or `None` for parameters and time."""
@@ -304,7 +304,7 @@ class LoopAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
         self.problem_ = compiled_problem(self._read_system(source), 'The feedback loop analysis')
-        if self.kind == 'flow-matrix' and not SymbolicAnalysis._stock_flow(self.problem_).flows:
+        if self.kind == 'flow-matrix' and not SymbolicAnalysis._transfer_network(self.problem_).flows:
             error_msg = (
                 'The system declares no flows, so it has no transaction-flow matrix. Read the signed dependency of its '
                 "states with the kind 'loops', or its Jacobian with StabilityAnalysis."
@@ -355,8 +355,8 @@ class LoopAnalysis(BaseAnalysis):
 
     def _run_flow_matrix(self, trajectory: Trajectory) -> None:
         """Set the transaction-flow matrix of one frame."""
-        stock_flow = SymbolicAnalysis._stock_flow(self.problem_)
-        flows = [flow for flow in stock_flow.flows if self.quantity is None or flow.quantity == self.quantity]
+        transfer_network = SymbolicAnalysis._transfer_network(self.problem_)
+        flows = [flow for flow in transfer_network.flows if self.quantity is None or flow.quantity == self.quantity]
         holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
         values = np.zeros((len(flows), len(holders)))
         for row, flow in enumerate(flows):

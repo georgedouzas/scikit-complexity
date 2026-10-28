@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._laws import replaced
+from .._kernel_spec import KernelSpec
 from .._members import MemberShifts
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 
 
 class MemberShiftPass(BasePass):
@@ -50,7 +49,7 @@ class MemberShiftPass(BasePass):
                     changes[SR(shifts.lower(target)) if isinstance(target, Expression) else target] += increment
                 result.append(JumpLaw(shifts.lower(law.rate), dict(changes)))
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-                result.append(replaced(law, value=shifts.lower(law.value)))
+                result.append(BasePass._replaced(law, value=shifts.lower(law.value)))
             else:
                 result.append(law)
         return result

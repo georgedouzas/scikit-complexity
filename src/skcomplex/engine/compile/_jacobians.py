@@ -16,20 +16,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
 from ..problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function, symbols_of
-from ..problems._kernels import member_indices
-from ..problems._reductions import CompiledReduction
+from ..problems._compiled_reduction import CompiledReduction
 
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 
 _PATTERN_LIMIT = 4_000_000
-
-
-def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
-    """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
-    matrix = scipy.sparse.csr_array(matrix)
-    matrix.eliminate_zeros()
-    return scipy.sparse.csr_array((np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape)
 
 
 class _TooDense(Exception):  # noqa: N818
@@ -293,7 +285,7 @@ class ExactJacobian:
         if reference.source is Source.NEIGHBOR:
             members, columns = self._neighbor_columns(reference)
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
-        return self._selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
+        return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
 
     def evaluate(self, t: float, x: Vector, p: Vector) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
@@ -327,7 +319,7 @@ class ExactJacobian:
                 gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
                 if gradient is None:
                     continue
-                target = member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
+                target = kernel.outputs[index].target._member_indices(kernel.rows)  # type: ignore[arg-type]
                 scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
@@ -373,9 +365,9 @@ class ExactJacobian:
         total = scipy.sparse.csr_array((self.size, self.size))
         for block in blocks:
             total = total + scipy.sparse.csr_array(block, dtype=float)
-        pattern = _boolean(total)
+        pattern = self._boolean(total)
         for projection in self._mirror_projections(self.symmetries, self.size):
-            pattern = self._product(_boolean(projection), pattern)
+            pattern = self._product(self._boolean(projection), pattern)
         return self._product(self._free_rows(), pattern)
 
     def _note_dense(self, entries: int) -> None:
@@ -429,7 +421,7 @@ class ExactJacobian:
             block = self._symbol_support(kernel, symbol, supports)
             if block is not None:
                 operand = operand + scipy.sparse.csr_array(block, dtype=float)
-        return self._product(_boolean(read.matrix), operand)
+        return self._product(self._boolean(read.matrix), operand)
 
     def _state_support(self, kernel: Kernel, reference: Reference) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
@@ -465,7 +457,7 @@ class ExactJacobian:
                 block = self._dense_rows(targets.size, columns)
                 blocks.append(self._selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
                 continue
-            scatter = self._selection(np.arange(kernel.rows), member_indices(target, kernel.rows), 1.0, self.size).T
+            scatter = self._selection(np.arange(kernel.rows), target._member_indices(kernel.rows), 1.0, self.size).T
             if used is None:
                 blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
                 continue
@@ -510,7 +502,9 @@ class ExactJacobian:
     @staticmethod
     def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
         """Return the structure of the product of two boolean structures."""
-        return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
+        return ExactJacobian._boolean(
+            scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float),
+        )
 
     @staticmethod
     def _output_symbols(output: Output) -> set[Expression] | None:
@@ -553,3 +547,12 @@ class ExactJacobian:
     def _is_variable(reference: Reference) -> bool:
         """Check whether a reference is a state, a reduction, or a derived read, so derivatives reach the state."""
         return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
+
+    @staticmethod
+    def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
+        """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
+        matrix = scipy.sparse.csr_array(matrix)
+        matrix.eliminate_zeros()
+        return scipy.sparse.csr_array(
+            (np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape,
+        )

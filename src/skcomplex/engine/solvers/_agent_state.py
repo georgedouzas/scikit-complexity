@@ -1,0 +1,25 @@
+"""Agents of every group and the model reporters at one frame."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+
+from ._agent_snapshot import AgentSnapshot
+
+
+@dataclass(frozen=True)
+class AgentState:
+    """Agents of every group and the model reporters at one frame.
+
+    Args:
+        groups:
+            A mapping from group path to the agents of that group.
+
+        reporters:
+            A mapping from dotted reporter name to its value.
+    """
+
+    groups: Mapping[str, AgentSnapshot] = field(default_factory=dict)
+    reporters: Mapping[str, float] = field(default_factory=dict)

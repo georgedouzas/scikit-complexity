@@ -48,7 +48,7 @@ class TaskElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)}),
+        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'age', 'shown': ('agents',)}),
         *,
         priority: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         age: Annotated[float, StateSpec(domain=NN)] = 0.0,

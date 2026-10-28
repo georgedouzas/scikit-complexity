@@ -20,7 +20,7 @@ from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
 
-TEMPERATURE_VISUAL = VisualSpec('traits', {'color_by': 'temperature', 'histogram_first': True})
+TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
 
 
 def _softmax_action(incentive: Expression, temperature: Expression) -> Expression:

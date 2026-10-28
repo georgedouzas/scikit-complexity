@@ -7,150 +7,37 @@ import itertools
 import re
 from dataclasses import dataclass, field
 from functools import cached_property
-from types import SimpleNamespace
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, RR, Expression, I
-from sage.modules.free_module_element import FreeModuleElement
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
+from sage.sets.real_set import RealSet
 
-from ...core.elements import Element, GroupElement
-from ...core.errors import LabelError, ValidationError
+from ...core.elements import GroupElement
+from ...core.errors import SpaceError, ValidationError
 from ...core.interactions import BaseInteraction
-from ...core.spaces import NetworkSpace
+from ...core.spaces import BaseSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ...core.types import Vector
 from ..problems import (
     Entry,
     Reference,
-    Source,
     Variable,
     VariableKind,
     components_of,
+    contains,
     declarations_of,
-    domain_of,
+    encode,
     symbol,
     vector,
 )
-from ._tree import Node, _coerce_value, _noise_processes, _shape_of
+from ._block import Block
+from ._tree import _MAX_SHOWN_COMPONENTS, Node
 
 _ACTIVE = '_active'
 ENDS = ('_source', '_target')
 _MEMBERS = '~members'
-
-
-def _check_symbol_names(blocks: dict[str, 'Block']) -> None:
-    """Raise an error when two variables produce the same symbol name."""
-    seen: dict[str, str] = {}
-    for block in blocks.values():
-        for item, reference in block.references.items():
-            name = str(item)
-            if name in seen and seen[name] != reference.entry.name:
-                error_msg = (
-                    f'{reference.entry.name} and {seen[name]} produce the same symbol {name}. Rename one '
-                    'of their labels or variables.'
-                )
-                raise LabelError(error_msg)
-            seen[name] = reference.entry.name
-
-
-def _is_interaction(node: Node) -> bool:
-    """Check whether a node is an interaction."""
-    return not isinstance(node.component, Element | GroupElement)
-
-
-def _member_count(blocks: list['Block']) -> int:
-    """Return the number of members of the groups of a system, leaving out agents, which chooses a default backend.
-
-    Args:
-        blocks:
-            The blocks of the components.
-
-    Returns:
-        members:
-            The total number of members.
-    """
-    return sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
-
-
-@dataclass
-class Block:
-    """Variables of a component with the symbols of one member and the components they stand for."""
-
-    node: Node
-    symbols: dict[str, Expression | FreeModuleElement] = field(default_factory=dict)
-    entries: dict[str, Entry] = field(default_factory=dict)
-    references: dict[Expression, Reference] = field(default_factory=dict)
-    per: set[str] = field(default_factory=set)
-
-    @property
-    def rows(self) -> int:
-        """Number of members, 1 for a single element or an interaction."""
-        return self.node.members or 1
-
-    def _namespace(self, mapping: dict[Expression, Expression]) -> SimpleNamespace:
-        """Return the namespace of the block's variables in renamed symbols, with tuples for per-entry parameters."""
-        symbols: dict[str, Any] = {}
-        for name, value in self.symbols.items():
-            if not isinstance(value, FreeModuleElement):
-                symbols[name] = self._renamed(value, mapping)
-            elif name in self.per:
-                symbols[name] = tuple(self._renamed(item, mapping) for item in value)
-            else:
-                symbols[name] = vector(self._renamed(item, mapping) for item in value)
-        return SimpleNamespace(**symbols)
-
-    def namespace(self, source: Source, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
-        """Return the namespace of the block's symbols and their references for one way of reading them.
-
-        Args:
-            source:
-                How the block's components are read.
-
-            alias:
-                A suffix that gives the block's symbols distinct names, used for the second member of a pair.
-
-        Returns:
-            namespace:
-                The namespace and the references of its symbols.
-        """
-        mapping = {item: symbol(f'{item}{alias}', domain_of(item)) for item in self.references}
-        references = {
-            mapping[item]: Reference(reference.entry, reference.is_state, reference.column, source)
-            for item, reference in self.references.items()
-        }
-        return self._namespace(mapping), references
-
-    def member_namespace(self, index: int) -> tuple[SimpleNamespace, dict[Expression, Reference]]:
-        """Return the namespace of one member of a group, read like a single element, and the references of its symbols.
-
-        Args:
-            index:
-                The index of the member.
-
-        Returns:
-            namespace:
-                The namespace and the references of its symbols, whose columns count from the group's first component.
-        """
-        mapping = {item: symbol(f'{item}__m{index}', domain_of(item)) for item in self.references}
-        references = {
-            mapping[item]: Reference(
-                reference.entry,
-                reference.is_state,
-                index * reference.entry.columns + reference.column,
-                Source.SINGLE,
-            )
-            for item, reference in self.references.items()
-        }
-        return self._namespace(mapping), references
-
-    @staticmethod
-    def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
-        """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed.
-
-        A symbol without a variable, such as the handle of a Wiener process, keeps its name.
-        """
-        return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
 
 
 @dataclass
@@ -170,7 +57,7 @@ class Declarations:
 
     def _declare_processes(self, node: Node) -> None:
         """Add a block with the handle `dW` of every Wiener process an interaction binds, one symbol per process."""
-        for path, wiener in _noise_processes([node]).items():
+        for path, wiener in self._noise_processes([node]).items():
             if path in self.processes:
                 continue
             block = Block(Node(path, node.scope, wiener, node.space))
@@ -191,14 +78,14 @@ class Declarations:
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
         if declaration.per is None:
-            member_shape = _shape_of(name, declaration, node.space)
+            member_shape = self._shape_of(name, declaration, node.space)
         else:
             member_shape = self._per_entry_shape(node, variable, declaration)
             block.per.add(variable)
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(
-            _coerce_value(
+            self._coerce_value(
                 name,
                 node.value_of(variable),
                 member_shape,
@@ -404,3 +291,178 @@ class Declarations:
             )
             raise ValidationError(error_msg)
         return (entries,)
+
+    @staticmethod
+    def _shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
+        """Return the shape of a declared variable in its space.
+
+        Args:
+            name:
+                The dotted name of the variable.
+
+            declaration:
+                The declaration of the variable.
+
+            space:
+                The nearest enclosing space.
+
+        Returns:
+            shape:
+                `()` for a scalar and `(n_dim,)` for a vector.
+
+        Raises:
+            SpaceError:
+                A vector variable has no enclosing space.
+
+            ValidationError:
+                The space dimension is not a positive integer.
+        """
+        if not declaration.vector:
+            return ()
+        if space is None:
+            error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
+            raise SpaceError(error_msg)
+        if not contains(RealSet.open(0, oo), space.n_dim_) or not contains(ZZ, space.n_dim_):
+            error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
+            raise ValidationError(error_msg)
+        return (int(space.n_dim_),)
+
+    @staticmethod
+    def _member_count(blocks: list['Block']) -> int:
+        """Return the number of members of the groups of a system, leaving out agents, which chooses a default backend.
+
+        Args:
+            blocks:
+                The blocks of the components.
+
+        Returns:
+            members:
+                The total number of members.
+        """
+        return sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
+
+    @staticmethod
+    def _describe(value: object) -> str:
+        """Return the repr of a small value, or its shape for an array with many components."""
+        if isinstance(value, np.ndarray | list | tuple) and np.size(value) > _MAX_SHOWN_COMPONENTS:
+            return f'an array of shape {np.shape(value)}'
+        return repr(value)
+
+    @staticmethod
+    def _flat_value(
+        name: str,
+        value: object,
+        array: npt.NDArray[Any],
+        shape: tuple[int, ...],
+        members: int | None,
+    ) -> npt.NDArray[Any]:
+        """Return an encoded value as flat components of the given shape, member after member for a group."""
+        if members is not None:
+            return Declarations._coerce_group_value(name, value, array, shape, members)
+        if not shape and array.ndim == 0:
+            return array.reshape(1)
+        if shape and array.ndim == 0:
+            return np.full(shape, array.item(), dtype=array.dtype).ravel()
+        if array.shape != shape:
+            error_msg = (
+                f'{name} = {Declarations._describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
+            )
+            raise ValidationError(error_msg)
+        return array.ravel()
+
+    @staticmethod
+    def _coerce_group_value(
+        name: str,
+        value: object,
+        array: npt.NDArray[Any],
+        shape: tuple[int, ...],
+        members: int,
+    ) -> npt.NDArray[Any]:
+        """Return a group value as flat member-major components, broadcasting shared values."""
+        if array.shape in ((), shape):
+            return np.broadcast_to(array, (members, *shape)).ravel().copy()
+        if array.shape == (members, *shape):
+            return array.ravel()
+        count = array.shape[0] if array.ndim else 1
+        error_msg = (
+            f'{name} = {Declarations._describe(value)} has {count} values of shape {array.shape[1:]} for a group of '
+            f'{members} members of shape {shape}. Give one value per member or one value shared by every member.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
+    def _coerce_value(
+        name: str,
+        value: object,
+        shape: tuple[int, ...],
+        domain: object,
+        members: int | None = None,
+        *,
+        period: object = None,
+    ) -> npt.NDArray[np.float64]:
+        """Return a value as a flat float array of the given shape after validating it.
+
+        Args:
+            name:
+                The dotted name of the variable.
+
+            value:
+                The value given by the user.
+
+            shape:
+                The shape of the variable.
+
+            domain:
+                The domain of the variable.
+
+            members:
+                The size of the group that holds the variable, or `None` for a single element or an interaction. A group
+                value is a per-member array with this first dimension, or one value shared by every member.
+
+            period:
+                The period the values wrap around, or `None`.
+
+        Returns:
+            array:
+                The flat components of the value, member after member for a group, with the real and imaginary part of
+                every component in a row for the complex domain.
+
+        Raises:
+            ValidationError:
+                The value is not numeric, has the wrong shape, or is outside the domain.
+        """
+        if not contains(domain, value):
+            error_msg = f'{name} = {Declarations._describe(value)} is not in its domain {domain}.'
+            if contains(CC, value):
+                error_msg = (
+                    f'{name} = {Declarations._describe(value)} has a nonzero imaginary part, which its domain {domain} '
+                    f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
+                    'values.'
+                )
+            raise ValidationError(error_msg)
+        flat = Declarations._flat_value(name, value, encode(domain, value, period), shape, members)
+        return np.ascontiguousarray(flat).view(float) if domain is CC else flat
+
+    @staticmethod
+    def _noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
+        """Return the Wiener processes that the noise roles of the interactions of a system tree bind, by path.
+
+        Interactions of one system that bind processes of one label share them, at the path of the label in that system.
+
+        Args:
+            nodes:
+                The nodes of the system tree.
+
+        Returns:
+            processes:
+                The Wiener processes by path, in the order the interactions first bind them.
+        """
+        processes: dict[str, WienerProcessSpec] = {}
+        for node in nodes:
+            if not isinstance(node.component, BaseInteraction):
+                continue
+            for name, declaration in declarations_of(type(node.component), VariableKind.ROLE).items():
+                value = getattr(node.component, name)
+                if declaration.noise and isinstance(value, WienerProcessSpec):
+                    processes.setdefault(f'{node.scope}{value.label}', value)
+        return processes

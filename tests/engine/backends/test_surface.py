@@ -4,7 +4,7 @@ import inspect
 
 from skcomplex.engine import backends as package
 
-FUNCTIONS = {'reads_reductions', 'resolve_backend'}
+FUNCTIONS = {'resolve_backend'}
 
 
 def test_public_names_are_classes_or_functions():

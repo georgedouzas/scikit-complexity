@@ -11,10 +11,10 @@ import numpy as np
 from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile.passes._rewriting import RewritingProblem
+from ..compile.passes._rewriting_problem import RewritingProblem
 from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
-from ._snapshots import StructureState
+from ._structure_state import StructureState
 
 
 class RewritingSolver(BaseSolver[RewritingProblem]):

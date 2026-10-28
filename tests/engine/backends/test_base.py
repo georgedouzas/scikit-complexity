@@ -397,9 +397,9 @@ def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_p
 def test_cached_kernels_are_keyed_on_the_compiled_helpers(tmp_path, monkeypatch):
     """Test that the same generated source is cached apart when the compiled helpers it imports change."""
     text = 'VALUE = 1\n'
-    _numba._load(text, {}, tmp_path)
+    NumbaBackend._load(text, {}, tmp_path)
     monkeypatch.setattr(_numba, 'HELPERS_FINGERPRINT', 'other helpers')
-    _numba._load(text, {}, tmp_path)
+    NumbaBackend._load(text, {}, tmp_path)
     assert len(list(tmp_path.glob('skcomplex_kernels_*.py'))) == 2
 
 
