@@ -68,8 +68,8 @@ def test_analyses_for_arrays_without_a_simulation():
     """Test that every listed analysis of a measured series runs on the array alone."""
     values = np.random.default_rng(0).standard_normal(2000)
     found = {item.name for item in analyses_for(values)}
-    assert {'autocorrelation', 'sample_entropy', 'hurst_exponent'} <= found
-    assert ANALYSES.resolve('sample_entropy').function(values) > 1
+    assert {'autocorrelation', 'hurst_exponent'} <= found
+    assert 0 < ANALYSES.resolve('hurst_exponent').function(values) < 1
 
 
 def test_series_of_an_ode():

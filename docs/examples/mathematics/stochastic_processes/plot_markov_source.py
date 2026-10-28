@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import block_entropies, epsilon_machine
+from skcomplex.analysis import EntropyAnalysis, epsilon_machine
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -40,7 +40,8 @@ simulation = Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[o
 # symbol of the past holds all the memory of the source.
 
 symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).run(100000).trajectory_
-entropies = block_entropies(symbols.values('source.symbol').astype(int), 8)
+blocks = EntropyAnalysis('block', dimension=8).check().prepare(symbols.values('source.symbol').astype(int)).run()
+entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
 fig, (sequence, rates) = plt.subplots(1, 2, figsize=(10, 4))

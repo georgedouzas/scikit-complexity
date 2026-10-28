@@ -3604,19 +3604,20 @@ diffusion. The mean squared displacement comes from `tidynamics` over all lags o
 and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation. `symbolize`,
-`ordinal_patterns`, `shannon_entropy`, `block_entropy`, `entropy_rate`, `excess_entropy`, `mutual_information`,
-`transfer_entropy`, `permutation_entropy`, and `lempel_ziv_complexity` measure structure and information flow, as in
-Lindgren's information theory of complex systems. Ordinal patterns are coded by the lexicographic rank of their
+`ordinal_patterns`, `mutual_information`, and `transfer_entropy` measure structure and information flow, as in
+Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
+permutation, and Lempel-Ziv entropies by its `kind`. Ordinal patterns are coded by the lexicographic rank of their
 permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv parsing comes from `antropy`.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, hurst_exponent, transfer_entropy
 
 noise = np.random.default_rng(1).standard_normal(20_000)
 print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
-print(round(entropy_rate([0, 0, 1, 1] * 200, 4), 3), round(excess_entropy([0, 0, 1, 1] * 200, 4), 3))
+for kind in ('rate', 'excess'):
+    print(EntropyAnalysis(kind, dimension=4).check().prepare([0, 0, 1, 1] * 200).run().entropy_.round(3))
 driver = np.random.default_rng(2).integers(0, 2, 5000)
 print(round(transfer_entropy(driver, np.roll(driver, 1)), 2))
 ```
@@ -3683,13 +3684,13 @@ for signature in signature_analysis(predation):
 
 ### Complexity and information
 
-`renyi_entropy` and `tsallis_entropy` generalize the Shannon entropy of a distribution, and `ensemble_entropy` follows
-the entropy of an ensemble and its divergence from a reference law frame by frame, as in the H-theorem.
-`sample_entropy`, `approximate_entropy`, `multiscale_entropy`, and `spectral_entropy` come from `antropy` and measure the
-regularity of a series. `permutation_entropy` reads ordinal patterns of series with a delay, or of two-dimensional
-fields in a window, in its Shannon, Rényi, or Tsallis form, and `complexity_entropy` places data on Rosso's
-complexity-entropy plane between its bounding curves with `ordpy`. Discrete states such as spins have many equal values,
-which `break_ties` ranks at random. `active_information_storage` measures the information the past of a series holds
+`EntropyAnalysis` measures every entropy by its `kind`. The kinds `'renyi'` and `'tsallis'` generalize the Shannon
+entropy of a distribution. The kinds `'sample'`, `'approximate'`, `'multiscale'`, and `'spectral'` come from `antropy`
+and measure the regularity of a series. The kind `'permutation'` reads ordinal patterns of series with a delay, or of
+two-dimensional fields in a window, in its Shannon, Rényi, or Tsallis `measure`. Discrete states such as spins have
+many equal values, which `ties='random'` ranks at random. `ensemble_entropy` follows the entropy of an ensemble and its
+divergence from a reference law frame by frame, as in the H-theorem, and `complexity_entropy` places data on Rosso's
+complexity-entropy plane between its bounding curves with `ordpy`. `active_information_storage` measures the information the past of a series holds
 about its next value, and `transfer_entropy` estimates the flow between series by plug-in counts of symbols or by the
 nearest-neighbour estimator of `ennemi` on continuous values.
 
@@ -3698,11 +3699,13 @@ import numpy as np
 
 import math
 
-from skcomplex.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, complexity_entropy, transfer_entropy
 
 rng = np.random.default_rng(0)
-print(round(renyi_entropy(np.full(8, 1 / 8), 2, probabilities=True), 3))
-print(round(sample_entropy(rng.standard_normal(2000)), 1))
+renyi = EntropyAnalysis('renyi', order=2, probabilities=True).check().prepare(np.full(8, 1 / 8)).run()
+print(renyi.entropy_.round(3))
+sample = EntropyAnalysis('sample', dimension=2).check().prepare(rng.standard_normal(2000)).run()
+print(sample.entropy_.round(1))
 plane = complexity_entropy(rng.standard_normal(20_000), 4)
 print(round(plane.entropy, 2), round(plane.complexity, 2))
 x = rng.standard_normal(5000)

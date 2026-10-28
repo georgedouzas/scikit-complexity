@@ -2,7 +2,7 @@
 
 ## 1. Analysis base and entropy pilot
 
-- [ ] 1.1 Add `BaseAnalysis` to `analysis/_base.py`.
+- [x] 1.1 Add `BaseAnalysis` to `analysis/_base.py`.
   - It defines `check`, `prepare`, `run`, the hooks `_check`, `_prepare`, `_run`, and `_get_data_kind`.
   - It holds the private readers `_read_series`, `_read_path`, `_read_fields`, `_read_snapshots`, `_read_networks`, moved from `_adapters.py`, and the private record values.
   - Verify with the doctest of `BaseAnalysis` and `tests/analysis/test_base.py`, which covers:
@@ -10,13 +10,13 @@
     - the missing-kind error;
     - run before prepare;
     - cloning.
-- [ ] 1.2 Write `EntropyAnalysis` in `analysis/_entropy.py` with the choices listed in the design, and delete the entropy functions and their result classes.
+- [x] 1.2 Write `EntropyAnalysis` in `analysis/_entropy.py` with the choices listed in the design, and delete the entropy functions and their result classes.
   - Verify with `tests/analysis/test_entropy.py`, which covers:
     - every kind against the values of the deleted functions;
     - the unknown kind;
     - a setting the kind ignores.
-- [ ] 1.3 Convert every caller of the deleted entropy functions in `src`, `tests`, and `docs`, and verify that `pytest tests/analysis tests/models` and the model doctests pass.
-- [ ] 1.4 Stop for the user's review of the pilot before converting further families.
+- [x] 1.3 Convert every caller of the deleted entropy functions in `src`, `tests`, and `docs`, and verify that `pytest tests/analysis tests/models` and the model doctests pass.
+- [x] 1.4 Stop for the user's review of the pilot before converting further families. The user waived the stop and asked to run to the end.
 
 ## 2. Remaining analysis families
 

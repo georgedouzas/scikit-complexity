@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import (
+    EntropyAnalysis,
     local_entropy,
     local_mutual_information,
     local_transfer_entropy,
     mutual_information,
-    shannon_entropy,
     total_correlation,
     transfer_entropy,
 )
@@ -36,7 +36,8 @@ def test_local_mutual_information_plugin_mean_is_global():
 def test_local_entropy_mean_is_shannon_entropy():
     """Test that the mean local entropy of symbols equals their Shannon entropy."""
     symbols = np.random.default_rng(2).integers(0, 5, 3000)
-    assert local_entropy(symbols).mean() == pytest.approx(shannon_entropy(symbols), abs=1e-9)
+    shannon = EntropyAnalysis().check().prepare(symbols).run().entropy_[0]
+    assert local_entropy(symbols).mean() == pytest.approx(shannon, abs=1e-9)
 
 
 def test_local_entropy_gaussian_mean_is_differential_entropy():

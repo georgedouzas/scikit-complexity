@@ -1,7 +1,6 @@
 """Test the estimators moved onto libraries: power laws, fluctuations, displacement, warnings, and ordinal patterns."""
 
 import itertools
-import time
 
 import numpy as np
 import pytest
@@ -13,10 +12,8 @@ from skcomplex.analysis import (
     early_warning,
     fit_power_law,
     hurst_exponent,
-    lempel_ziv_complexity,
     mean_squared_displacement,
     ordinal_patterns,
-    permutation_entropy,
     symbolize,
 )
 from skcomplex.core.errors import AnalysisError
@@ -175,45 +172,3 @@ def test_ordinal_patterns_rank_every_permutation():
         values[list(permutation)] = np.arange(3)
         ranks.append(int(ordinal_patterns(values, 3)[0]))
     assert ranks == list(range(6))
-
-
-def _previous_draws() -> tuple[list[np.ndarray], np.ndarray]:
-    """Return the fixed sequences and the noise the previous in-house estimators were evaluated on."""
-    rng = np.random.default_rng(7)
-    sequences = [rng.integers(0, 2, 500), rng.integers(0, 4, 300), rng.integers(0, 3, 1000)]
-    return sequences, rng.standard_normal(3000)
-
-
-def test_permutation_entropy_matches_previous_values_at_delay_1():
-    """Test that the permutation entropy at delay 1 equals the previous in-house estimate on a fixed seed."""
-    _, values = _previous_draws()
-    assert permutation_entropy(values, 4, normalize=False) == pytest.approx(4.5814617588460695, abs=1e-8)
-    assert permutation_entropy(values, 4, delay=2) == pytest.approx(1, abs=0.01)
-
-
-def test_permutation_entropy_rejects_unknown_entropies():
-    """Test that an unknown entropy raises an error."""
-    with pytest.raises(AnalysisError, match='Unknown entropy'):
-        permutation_entropy(np.arange(10.0), entropy='wiener')
-
-
-def test_lempel_ziv_complexity_matches_previous_values():
-    """Test that the phrase counts equal the previous in-house parsing on fixed sequences."""
-    sequences, _ = _previous_draws()
-    assert [lempel_ziv_complexity(sequence, normalize=False) for sequence in sequences] == [62.0, 75.0, 165.0]
-
-
-def test_lempel_ziv_complexity_of_a_long_sequence():
-    """Test that 10^5 fair coin flips have a normalized complexity within 0.1 of 1."""
-    flips = np.random.default_rng(10).integers(0, 2, 100_000)
-    assert lempel_ziv_complexity(flips) == pytest.approx(1, abs=0.1)
-
-
-@pytest.mark.benchmark
-def test_lempel_ziv_complexity_of_a_long_sequence_is_fast():
-    """Test that the complexity of 10^5 coin flips returns within one second on an idle machine."""
-    flips = np.random.default_rng(10).integers(0, 2, 100_000)
-    lempel_ziv_complexity(flips[:100])
-    start = time.perf_counter()
-    lempel_ziv_complexity(flips)
-    assert time.perf_counter() - start < 1
