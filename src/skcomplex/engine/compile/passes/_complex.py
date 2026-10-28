@@ -186,7 +186,7 @@ class LowerComplexPass(BasePass):
                 state, or a law of a kind that takes only real values holds a complex value.
         """
         if isinstance(law, _AGENT_LAWS) or not any(
-            LowerComplexPass._has_complex(item) for item in BasePass._values_of(law)
+            LowerComplexPass._has_complex(item) for item in law._get_values()
         ):
             return [law]
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):

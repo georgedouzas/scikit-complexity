@@ -63,11 +63,6 @@ class CompiledEncounter:
     probabilities: TableValues | None
     fused: bool = False
 
-    @property
-    def conserves(self) -> bool:
-        """Whether the encounter moves particles and so conserves the total density."""
-        return self.kind == 'transition'
-
     def rate_matrix(self, p: Vector) -> Vector:
         """Return the encounter rate of every candidate activity with every field activity.
 

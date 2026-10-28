@@ -14,7 +14,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import ValidationError
-from ...core.types import Indices, Vector
+from ...core.types import Vector
 from ._entry import Entry
 from ._printing import numpy_function
 from ._reads import Read
@@ -66,9 +66,6 @@ class CompiledReduction:
 
         members:
             The entry of the reduced group that gives its size to compiled loops, or `None` for an element set.
-
-        set_indices:
-            The flat state indices of the elements of an element set, one per element, or `None`.
     """
 
     symbol: Expression
@@ -82,7 +79,6 @@ class CompiledReduction:
     reads: dict[Expression, Read]
     time: Expression
     members: Entry | None = None
-    set_indices: Indices | None = None
 
     @functools.cached_property
     def _symbols(self) -> list[Expression]:

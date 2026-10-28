@@ -119,7 +119,7 @@ class RowsPass(BasePass):
             ):
                 continue
             values = [
-                value for value in BasePass._values_of(law, include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
+                value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
             ]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):

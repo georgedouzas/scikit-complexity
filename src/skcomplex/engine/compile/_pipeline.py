@@ -4,17 +4,14 @@
 # License: MIT
 
 import heapq
-import inspect
 from collections import defaultdict
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Sequence
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
-from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.errors import PipelineError
 from ...core.laws import BaseLaw
-from ...core.laws.utils import Call
 from ..base import BaseEstimator
 from ._compilation import Compilation
 from ._issue import Issue
@@ -228,56 +225,6 @@ class BasePass(BaseEstimator):
             -2*x
         """
         return type(law)(**{**law.get_params(deep=False), **changes})
-
-    @staticmethod
-    def _values_of(
-        law: BaseLaw, *, include: Collection[str] | None = None, exclude: Collection[str] = (),
-    ) -> list[object]:
-        """Return the values of the arguments of a law besides its label, flattened in the order of its constructor.
-
-        A call gives its arguments, a mapping its keys and values in pairs, and a vector, a list, or a tuple its items,
-        at any depth. Every other value is returned as it is.
-
-        Args:
-            law:
-                The law.
-
-            include:
-                The names of the arguments to read, or `None` for every argument.
-
-            exclude:
-                The names of the arguments to leave out.
-
-        Returns:
-            values:
-                The flattened values.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.laws import JumpLaw
-            >>> from skcomplex.engine.compile import BasePass
-            >>> s, i = var('s'), var('i')
-            >>> BasePass._values_of(JumpLaw(0.1 * s * i, {s: -1, i: 1}), include=('rate',))
-            [0.1*i*s]
-        """
-        names = [
-            name
-            for name in inspect.signature(type(law)).parameters
-            if name != 'label' and (include is None or name in include) and name not in exclude
-        ]
-        stack: list[object] = [getattr(law, name) for name in reversed(names)]
-        found: list[object] = []
-        while stack:
-            value = stack.pop()
-            if isinstance(value, Mapping):
-                stack += reversed([item for pair in value.items() for item in pair])
-            elif isinstance(value, FreeModuleElement | list | tuple):
-                stack += reversed(list(value))
-            elif isinstance(value, Call):
-                stack += reversed(value.arguments)
-            else:
-                found.append(value)
-        return found
 
     @staticmethod
     def _calls_of(expression: Expression, name: str) -> list[Expression]:

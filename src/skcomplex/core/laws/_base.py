@@ -5,7 +5,7 @@
 
 import inspect
 from abc import abstractmethod
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from typing import Self
 
 import numpy as np
@@ -63,13 +63,28 @@ class BaseLaw(BasePart):
         """Return the law itself, the one law it contributes, whatever the namespace."""
         return [self]
 
-    def _get_values(self) -> list[object]:
+    def _get_values(self, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
         """Return the values of the arguments of the law besides its label, flattened in the order of its constructor.
 
         A call gives its arguments, a mapping its keys and values in pairs, and a vector, a list, or a tuple its items,
         at any depth. Every other value is returned as it is.
+
+        Args:
+            include:
+                The names of the arguments to read, or `None` for every argument.
+
+            exclude:
+                The names of the arguments to leave out.
+
+        Returns:
+            values:
+                The flattened values.
         """
-        names = [name for name in inspect.signature(type(self)).parameters if name != 'label']
+        names = [
+            name
+            for name in inspect.signature(type(self)).parameters
+            if name != 'label' and (include is None or name in include) and name not in exclude
+        ]
         stack: list[object] = [getattr(self, name) for name in reversed(names)]
         found: list[object] = []
         while stack:

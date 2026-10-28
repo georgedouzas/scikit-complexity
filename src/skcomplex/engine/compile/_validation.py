@@ -55,7 +55,7 @@ from ._observables import (
     _with_held_reductions,
     _with_observables,
 )
-from ._pipeline import BasePass, run_passes
+from ._pipeline import run_passes
 from ._plan import _Plan
 from ._tree import Node, _declared_times
 from ._validation_warning import ValidationWarning
@@ -255,7 +255,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
     issues = []
     for record in records:
         name = f'{type(record.law).__name__} of {record.path}'
-        values = BasePass._values_of(record.law, include=('rate',) if isinstance(record.law, JumpLaw) else ('value',))
+        values = record.law._get_values(include=('rate',) if isinstance(record.law, JumpLaw) else ('value',))
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
@@ -528,7 +528,7 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
 
 def _law_values(record: CensusRecord) -> Iterator[object]:
     """Yield the symbolic values of the law of a census record, with the items of vectors."""
-    for value in BasePass._values_of(record.law):
+    for value in record.law._get_values():
         if isinstance(value, FreeModuleElement):
             yield from value
         elif isinstance(value, Expression):

@@ -9,7 +9,6 @@ from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 import numpy as np
-import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
@@ -160,17 +159,16 @@ class _Reductions:
             return Read(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
         return Read(reference.is_state, entry.start + reference.column, entry, reference.column)
 
-    def _members(self, group: str | None, spec: KernelSpec) -> tuple[int, Entry | None, npt.NDArray[np.intp] | None]:
-        """Return the size of a group, an entry that gives its size, and the state indices of an element set."""
+    def _members(self, group: str | None, spec: KernelSpec) -> tuple[int, Entry | None]:
+        """Return the size of a group and an entry that gives its size, or `None` for an element set."""
         if group is None:
-            return 1, None, None
+            return 1, None
         block = self.declarations.blocks.get(group)
         if block is not None:
             entry = next(iter(block.entries.values()), None)
-            return block.rows, entry, None
+            return block.rows, entry
         references = next(item.references for item in spec.sets.values() if item.label == group)
-        indices = np.asarray([reference.entry.start + reference.column for reference in references], dtype=np.intp)
-        return len(references), None, indices
+        return len(references), None
 
     def _weights(self, reduction: Reduction, spec: KernelSpec, group: str | None, size: int) -> Any:  # noqa: ANN401
         """Return the weights of a reduction as a CSR array after checking their shape."""
@@ -242,7 +240,7 @@ class _Reductions:
             present = SR(activity) > ACTIVE_THRESHOLD
             condition = present if condition is None else both(condition, present)
             symbols.add(activity)
-        size, members, set_indices = self._members(group, spec)
+        size, members = self._members(group, spec)
         weights = self._weights(reduction, spec, group, size)
         canonical = {item: spec.sets[item].canonical for item in symbols if item in spec.sets}
         argument_key = argument.subs(canonical) if canonical else argument
@@ -270,7 +268,6 @@ class _Reductions:
                 reads,
                 self.declarations.time,
                 members,
-                set_indices,
             )
             self.found[key] = compiled
             self.sequence.append(compiled)

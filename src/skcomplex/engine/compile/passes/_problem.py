@@ -484,7 +484,7 @@ class ProblemPass(BasePass):
                 value
                 for law in laws
                 if isinstance(law, BaseLaw) and not isinstance(law, JumpLaw)
-                for value in BasePass._values_of(law, include=('value', 'lhs', 'rhs'))
+                for value in law._get_values(include=('value', 'lhs', 'rhs'))
                 if isinstance(value, Expression)
             ]
             for index, condition in enumerate(ProblemPass._state_conditions_of(values, time)):

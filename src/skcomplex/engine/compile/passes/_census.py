@@ -108,7 +108,7 @@ class CensusPass(BasePass):
         if not handles:
             return ()
         symbols = symbols_of(
-            [value for value in BasePass._values_of(law, exclude=('process',)) if isinstance(value, Expression)],
+            [value for value in law._get_values(exclude=('process',)) if isinstance(value, Expression)],
         )
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
