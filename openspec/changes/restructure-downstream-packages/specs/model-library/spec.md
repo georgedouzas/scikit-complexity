@@ -1,20 +1,20 @@
 ## ADDED Requirements
 
-### Requirement: Field measures are realizations of general analyses
-A measure named by one field, such as the Binder cumulant or the polar order, SHALL be a realization in that field's
-models: a subclass of a general analysis that only fixes settings and documents the field's name, adding no formula,
-verb, or attribute. It SHALL follow the placement rule of realizations: with the one package that measures it, or in
-the field's shared realizations when several packages use it.
+### Requirement: Field measures with logic of their own live with their models
+A measure named by one field that only picks a choice of a general analysis, such as the Binder cumulant or the polar
+order, SHALL have no class of its own: models, examples, and tests SHALL use the general analysis. A field measure with
+logic of its own, such as the susceptibility peak or the crackling-noise relation, SHALL be a subclass of the closest
+general analysis in the model package whose models it measures.
 
-#### Scenario: Binder cumulant of a model
-- **WHEN** a user runs `BinderCumulantAnalysis` from `skcomplex.models.physics.statistical_mechanics` on magnetisation
-  samples
-- **THEN** it sets the same attributes as the general distribution analysis of kind `moment-ratio` with orders 4 and 2,
-  with the same values
+#### Scenario: Binder cumulant without a class
+- **WHEN** a user computes the Binder cumulant of magnetisation samples
+- **THEN** they run `DistributionAnalysis('moment-ratio')` with orders 4 and 2, and no model package defines a class for
+  it
 
-#### Scenario: Polar order of a flock
-- **WHEN** a user runs `PolarOrderAnalysis` from `skcomplex.models.physics.active_matter` on a Vicsek trajectory
-- **THEN** it equals the alignment analysis of kind `mean-vector` on the headings of the flock
+#### Scenario: Crackling noise with the sandpiles
+- **WHEN** a user checks the crackling-noise relation of a sandpile's avalanches
+- **THEN** they run `CracklingNoiseAnalysis` from `skcomplex.models.physics.criticality`, a subclass of the event
+  analysis
 
 ### Requirement: Specialized code moves to the model library
 When a library package is generalised, its specialized code that still means something in a field, such as a field's
@@ -32,24 +32,24 @@ packages by subclassing their bases and general classes.
 ### Requirement: Specific realizations live in the model library
 The library SHALL hold every specific realization of a core primitive or a general analysis in its own private module
 of the model package that uses it, next to the model definitions, exported from that package. A realization that
-several packages of one field share SHALL live in `skcomplex.models.<field>.realizations`, grouped in family packages
-such as `particles`, `quantum`, `institutions`, `learning`, or `markets`, with no loose modules beside the families,
-and only that field's packages import it. A package of another field that needs a realization SHALL define its own. A
-field whose realizations no two packages share SHALL have no `realizations` package. The realizations the core holds
+several packages of one field share SHALL live in `skcomplex.models.<field>.common`, grouped in family packages such as
+`particles`, `quantum`, `institutions`, `learning`, or `markets`, with no loose modules beside the families, and only
+that field's packages import it. A package of another field that needs a realization SHALL define its own. A field
+whose packages share no code SHALL have no `common` package. The realizations the core holds
 today SHALL move as the design's table of moved realizations lists.
 
 #### Scenario: Order book from the library
-- **WHEN** a user imports the order book from `skcomplex.models.economics.realizations.markets`
+- **WHEN** a user imports the order book from `skcomplex.models.economics.common.markets`
 - **THEN** it is a pairing function for the core's matching law, and its priority scenario holds: the earlier of two
   same-price sell orders trades first
 
 #### Scenario: Potential from the library
-- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.realizations.particles`
+- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.common.particles`
 - **THEN** it is a realization of the core's potential primitive, and the existing LAMMPS agreement tests pass with it
 
 #### Scenario: Realization of one package
 - **WHEN** only the climate models use `EarlyWarningAnalysis`
-- **THEN** it lives in `skcomplex.models.earth.climate`, and the earth field has no `realizations` package
+- **THEN** it lives in `skcomplex.models.earth.climate`, and the earth field has no `common` package
 
 ### Requirement: Feedback controllers are engineering realizations
 The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.control`, the package of

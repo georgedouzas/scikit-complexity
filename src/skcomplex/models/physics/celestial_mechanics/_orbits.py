@@ -22,7 +22,7 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ..realizations.particles import GravityInteraction
+from ..common.particles import GravityInteraction
 
 FIGURE_EIGHT = {
     'G': 1.0,

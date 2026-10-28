@@ -11,7 +11,7 @@ from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, Phase
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
-from skcomplex.models.economics.realizations.institutions import (
+from skcomplex.models.economics.common.institutions import (
     InstitutionInteraction,
 )
 

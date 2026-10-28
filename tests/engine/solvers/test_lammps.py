@@ -26,7 +26,7 @@ from skcomplex.models.biology.ecology import (
     PopulationElement,
     PredationInteraction,
 )
-from skcomplex.models.physics.realizations.particles import (
+from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
     ConstantForceInteraction,
     HarmonicPotentialInteraction,

@@ -19,7 +19,7 @@ from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction
+from ..common.particles import HarmonicPotentialInteraction, LinearDragInteraction
 from ._mechanics import PendulumElement
 
 

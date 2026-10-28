@@ -15,11 +15,10 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
+from skcomplex.analysis import DistributionAnalysis, EventAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 MODEL = 'sandpile'
 
@@ -37,7 +36,7 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).run
 
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
 found = (
-    AvalancheAnalysis()
+    EventAnalysis('excursions')
     .check()
     .prepare([record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0])
     .run()

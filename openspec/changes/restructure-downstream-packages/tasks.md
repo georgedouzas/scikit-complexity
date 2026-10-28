@@ -67,7 +67,7 @@
 - [x] 5.2 Generalise `LoopAnalysis` to read feedback loops from the signed dependency graph of any system, and verify it on a stock-and-flow model and on an ODE model of another field.
 - [x] 5.3 Add the field realizations of the design's table to the models library, each a subclass that only fixes settings, and convert the models, tests, gallery examples, and user guide that used the deleted classes. Verify with a test per realization that it equals its general analysis.
 - [x] 5.4 Audit the public classes and choices of the core, the engine, and experiments for names taken from one application field, list them with a general name and a realization, and convert them the same way. Verify that the surface tests of every package pass.
-- [ ] 5.5 Place every realization of every field by its users: a realization used by one model package lives in that package beside its models, one shared by several packages of a field lives in a named family package of the field's realizations, and fields with nothing shared have no realizations package. Move specialized code instead of removing it. Verify with lint-imports, the full test session, and the user guide.
+- [ ] 5.5 Place every realization of every field by its users: a realization used by one model package lives in that package beside its models, one shared by several packages of a field lives in a family package of the field's `common` package, and fields with nothing shared have no `common` package. Delete field-measure classes that only fix a choice of a general analysis, and move specialized code with logic of its own instead of removing it. Verify with lint-imports, the full test session, and the user guide.
 
 ## 6. Layering and integration
 

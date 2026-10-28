@@ -30,7 +30,7 @@ from skcomplex.engine.viz import (
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
-from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling

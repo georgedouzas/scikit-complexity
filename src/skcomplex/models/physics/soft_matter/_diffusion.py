@@ -22,7 +22,7 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ..realizations.particles import LangevinThermostatInteraction
+from ..common.particles import LangevinThermostatInteraction
 from ._brownian import DoubleWellElement
 
 type Array = npt.NDArray[np.float64]

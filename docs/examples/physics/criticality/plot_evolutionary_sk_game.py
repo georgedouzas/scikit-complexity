@@ -16,11 +16,10 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, ErgodicityAnalysis, FitAnalysis
+from skcomplex.analysis import DistributionAnalysis, ErgodicityAnalysis, EventAnalysis, FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 MODEL = 'evolutionary_sk_game'
 STEPS = 14999
@@ -46,7 +45,7 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 # high for frozen runs at low `k`, near 0 for ergodic runs at high `k`, and in between at the evolved temperatures.
 
 threshold = float(np.quantile(fitness.min(axis=1), 0.97))
-sizes = AvalancheAnalysis().check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
+sizes = EventAnalysis('excursions').check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
 fit = FitAnalysis(discrete=True, minimum=5).check().prepare(sizes).run()
 histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(sizes).run()
 edges, density = histogram.edges_, histogram.density_
