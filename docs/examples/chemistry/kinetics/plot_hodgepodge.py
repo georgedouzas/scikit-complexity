@@ -14,7 +14,7 @@ Belousov-Zhabotinsky reaction.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis, fields_of
+from skcomplex.analysis import CorrelationAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=600)
 # the level of each cell should repeat with one period. The autocorrelation of the level of a cell, averaged over all
 # cells, should then peak at that period and its multiples.
 
-fields = fields_of(simulation.trajectory_, 'cells.level')[300:]
+fields = simulation.trajectory_.lattice('cells.level')[300:]
 levels = fields.reshape(len(fields), -1)
 cells = levels[:, ::7]
 correlations = CorrelationAnalysis(max_lag=60).check().prepare(cells).run().correlation_.mean(axis=0)

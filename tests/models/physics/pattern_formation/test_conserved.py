@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.pattern_formation import (
     nonreciprocal_cahn_hilliard,
@@ -13,7 +13,7 @@ def _domain_speed(**coupling):
     """Return the speed of the domains of the nonreciprocal Cahn-Hilliard model over the second half of a run."""
     length = 40.0
     system = nonreciprocal_cahn_hilliard((64,), length=length, **coupling)
-    phi = fields_of(Simulation(system, dt=2.0).run(until=300).trajectory_, 'mixture.phi')
+    phi = Simulation(system, dt=2.0).run(until=300).trajectory_.lattice('mixture.phi')
     modes = np.fft.rfft(phi, axis=1)
     mode = 1 + np.argmax(np.abs(modes[-1, 1:]))
     phases = np.unwrap(np.angle(modes[75:, mode]))

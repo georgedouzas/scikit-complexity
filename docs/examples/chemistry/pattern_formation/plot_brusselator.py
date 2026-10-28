@@ -12,7 +12,7 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, default_blueprint
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[ob
 # the nonlinear spots settling at a slightly shorter wavelength.
 
 a, b, Du, Dv = 1.0, 3.0, 1.0, 8.0
-u = fields_of(simulation.trajectory_, 'cells.u')[-1]
+u = simulation.trajectory_.lattice('cells.u')[-1]
 factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
 q = np.linspace(0.01, 2.0, 300)
 growth = [np.linalg.eigvals([[b - 1 - Du * k**2, a**2], [-b, -(a**2) - Dv * k**2]]).real.max() for k in q]

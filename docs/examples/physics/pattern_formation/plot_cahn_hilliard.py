@@ -15,7 +15,7 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -36,7 +36,7 @@ simulation = Simulation(system, dt=10.0, solver=ETDRK4Solver(dt=0.25), observers
 # the bulk, the Lifshitz-Slyozov law, makes it grow as `t^(1/3)`, so it should follow a line of slope 1/3 on log-log
 # axes. The mean of the order parameter is conserved by the dynamics and should stay at its initial value.
 
-phi = fields_of(simulation.trajectory_, 'mixture.phi')
+phi = simulation.trajectory_.lattice('mixture.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:

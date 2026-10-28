@@ -13,7 +13,6 @@ where the string never moves, and only swells and flips with the mode frequency 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -30,7 +29,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=4.0)
 # The exact solution is `u(x, t) = sin(m π x / L) cos(ω t)` with `ω = c m π / L`. Snapshots of the string should all
 # share the nodes at `x = L / 3` and `2 L / 3`, and the displacement at an antinode should follow `cos(ω t)`.
 
-displacement = fields_of(simulation.trajectory_, 'string.u')
+displacement = simulation.trajectory_.lattice('string.u')
 times = np.asarray(simulation.trajectory_.times)
 positions = 2.0 / 100 * np.arange(1, 100)
 omega = 3 * np.pi / 2.0

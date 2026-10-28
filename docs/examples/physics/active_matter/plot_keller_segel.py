@@ -16,7 +16,6 @@ dark uniform background with a few bright, compact aggregates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -37,7 +36,7 @@ simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).r
 # fluctuations of the density should rise towards the largest of these rates over the modes of the lattice, and then
 # grow faster than exponentially as the aggregates collapse. The total number of cells should stay constant.
 
-rho = fields_of(simulation.trajectory_, 'colony.rho')
+rho = simulation.trajectory_.lattice('colony.rho')
 times = simulation.trajectory_.times
 axis = 2 * np.pi * np.fft.fftfreq(32)
 qx, qy = np.meshgrid(axis, axis)

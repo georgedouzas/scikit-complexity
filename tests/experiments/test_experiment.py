@@ -8,7 +8,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.analysis import BaseAnalysis, DataKind
+from skcomplex.analysis import BaseAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw, RateLaw, UpdateLaw
@@ -58,7 +58,7 @@ class PeakAnalysis(BaseAnalysis):
         self.variable = variable
 
     def _get_data_kind(self):
-        return DataKind.SERIES
+        return 'series'
 
     def _prepare(self, source):
         self.series_ = self._read_series(source, [self.variable])

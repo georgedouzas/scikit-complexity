@@ -17,7 +17,7 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -42,7 +42,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ru
 above = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
 below = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
 edge = np.sqrt(1 - 0.1)
-phi = fields_of(simulation.trajectory_, 'mixture.phi')
+phi = simulation.trajectory_.lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))
 modes = np.fft.rfft(phi, axis=1)
 mode = 1 + np.argmax(np.abs(modes[-1, 1:]))

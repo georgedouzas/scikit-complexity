@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import skew
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, fields_of
+from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -41,9 +41,9 @@ simulation = Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[
 # quadratic term also makes the rising cells stronger than the sinking rims, so the values of the hexagons should be
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
-hexagons = fields_of(simulation.trajectory_, 'layer.u')[-1]
+hexagons = simulation.trajectory_.lattice('layer.u')[-1]
 rolls_run = Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0).run(until=300)
-rolls = fields_of(rolls_run.trajectory_, 'layer.u')[-1]
+rolls = rolls_run.trajectory_.lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 
 fig, (spectrum, histogram) = plt.subplots(1, 2, figsize=(10, 4))

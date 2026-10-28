@@ -13,7 +13,6 @@ Greenshields law and the anticipation of drivers smooth it out, so the road retu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.engine.viz import RerunObserver
@@ -32,7 +31,7 @@ simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observ
 # the bump should fall as it spreads.
 
 trajectory = simulation.trajectory_
-rho = fields_of(trajectory, 'road.rho')
+rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 cars = rho.sum(axis=1) / rho.shape[1]
 fig, (profiles, totals) = plt.subplots(1, 2, figsize=(10, 4))

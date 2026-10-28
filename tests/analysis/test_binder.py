@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.analysis import BinderAnalysis, fields_of
+from skcomplex.analysis import BinderAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
@@ -73,11 +73,9 @@ def test_replica_overlap_of_ising_lattices():
     overlaps = {}
     for temperature in (1.5, 5.0):
         replicas = [
-            fields_of(
-                Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed)
-                .run(until=500)
-                .trajectory_,
-            )[100:]
+            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed)
+            .run(until=500)
+            .trajectory_.lattice('spins.spin')[100:]
             for seed in (0, 1)
         ]
         overlaps[temperature] = float(np.mean(np.abs(_binder('overlap', np.stack(replicas)).overlap_)))

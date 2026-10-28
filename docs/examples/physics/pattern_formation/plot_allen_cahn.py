@@ -15,7 +15,6 @@ run: large yellow and purple domains with smooth, gently curved walls.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -37,7 +36,7 @@ simulation = Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.5), observers=[
 # follow a line of slope -1/2 on log-log axes once the domains have formed. The mean of the order parameter is not
 # conserved: it wanders as domains of one sign win over the other.
 
-phi = fields_of(simulation.trajectory_, 'mixture.phi')
+phi = simulation.trajectory_.lattice('mixture.phi')
 times = simulation.trajectory_.times
 signs = np.sign(phi)
 walls = 0.5 * (

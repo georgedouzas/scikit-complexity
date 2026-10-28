@@ -13,7 +13,7 @@ the wavelength `2π`. Patches of rolls with different orientations meet at defec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, fields_of
+from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import run
 
@@ -28,7 +28,7 @@ simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'rand
 # The linear growth rate `r - (1 - k^2)^2` is largest at the wavenumber `k = 1`. The structure factor of the final
 # field should peak there, and the dominant wavelength measured from the pattern should be close to `2π`.
 
-field = fields_of(simulation.trajectory_, 'cells.u')[-1]
+field = simulation.trajectory_.lattice('cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
 factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
 wavelength = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().wavelength_[0]

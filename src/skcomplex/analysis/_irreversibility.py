@@ -13,7 +13,6 @@ from scipy import stats
 
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
-from ._adapters import Ensemble
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import _stationary_distribution, _transition_counts
@@ -324,13 +323,10 @@ class IrreversibilityAnalysis(BaseAnalysis):
         """Return the path kind for rates and discrete paths, and the ensemble kind for samples and ensembles."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.PATH
 
-    def _prepare(self, source: Source | Ensemble) -> Self:
+    def _prepare(self, source: Source) -> Self:
         """Read the rate matrix, the paths as rows, the samples, or the ensemble the kind measures."""
         name = self.variables[0] if self.variables else None
         self.duration_ = self.duration
-        if isinstance(source, Ensemble):
-            self.values_ = np.asarray(source.values, dtype=float)
-            return self
         if isinstance(source, Trajectory) and self.kind in PATH_KINDS:
             path = self._read_path(source, name)
             self.values_ = np.asarray(path.states, dtype=np.int64).reshape(1, -1)

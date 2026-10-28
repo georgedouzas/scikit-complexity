@@ -5,6 +5,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Self
 
 import networkx as nx
@@ -13,12 +14,145 @@ import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ..core.errors import AnalysisError, NotCheckedError
+from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
+from ..engine.compile import compile_system, observables_of
+from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, domain_kind
 from ..engine.runtime import Trajectory
-from ._adapters import JumpPath, Series, Snapshots, fields_of, networks_of, path_of, series_of, snapshots_of
 from ._kinds import DataKind
 
-type Source = Trajectory | System | nx.Graph | npt.ArrayLike
+type Array = npt.NDArray[np.float64]
+type Source = Trajectory | System | nx.Graph | NetworkSnapshot | npt.ArrayLike
+VELOCITY_NAMES = ('vx', 'vy', 'vz')
+HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
+POSITION_STATE = 'x'
+VELOCITY_STATE = 'v'
+SERIES_DIMENSIONS = 1
+KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
+
+
+@dataclass(frozen=True)
+class Series:
+    """Named series on common times.
+
+    Args:
+        times:
+            The time of every frame.
+
+        values:
+            One row per frame and one column per series.
+
+        labels:
+            The name of every column.
+    """
+
+    times: Array
+    values: Array
+    labels: list[str]
+
+
+@dataclass(frozen=True)
+class JumpPath:
+    """Path of a discrete state with the time of every jump.
+
+    Args:
+        times:
+            The first time, then the time of every frame at which the state changed.
+
+        states:
+            The state at the first time and after every jump, one row per jump for vector states.
+
+        label:
+            The name of the state.
+    """
+
+    times: Array
+    states: Array
+    label: str
+
+
+@dataclass(frozen=True)
+class Snapshots:
+    """Agents of one group at every frame, aligned on the agents present in every frame.
+
+    Args:
+        times:
+            The time of every frame.
+
+        ids:
+            The id of every agent, in column order.
+
+        positions:
+            The unwrapped positions, frames by agents by dimensions, or `None` without a space with coordinates.
+
+        velocities:
+            The velocities, shaped like the positions, or `None` without them.
+
+        headings:
+            The heading angles, frames by agents, or `None` without them.
+
+        states:
+            Every other state of the agents, frames by agents.
+
+        box:
+            The sides of the space, or `None` for an unbounded space.
+
+        periodic:
+            Whether opposite sides of the box are joined.
+    """
+
+    times: Array
+    ids: npt.NDArray[np.int64]
+    positions: Array | None
+    velocities: Array | None
+    headings: Array | None
+    states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
+    box: Array | None = None
+    periodic: bool = False
+
+
+@dataclass(frozen=True)
+class Signature:
+    """Default analysis of one kind of data, ready to plot.
+
+    Args:
+        kind:
+            The kind of data analysed.
+
+        title:
+            The title of the figure.
+
+        xlabel:
+            The label of the horizontal axis.
+
+        ylabel:
+            The label of the vertical axis.
+
+        curves:
+            A mapping from label to the abscissas and ordinates of every curve.
+
+        values:
+            The measured values worth stating, by name.
+
+        xscale:
+            `'linear'` or `'log'`.
+
+        yscale:
+            `'linear'` or `'log'`.
+
+        points:
+            Whether the curves are drawn as points rather than lines.
+    """
+
+    kind: DataKind
+    title: str
+    xlabel: str
+    ylabel: str
+    curves: dict[str, tuple[Array, Array]]
+    values: dict[str, float] = field(default_factory=dict)
+    xscale: str = 'linear'
+    yscale: str = 'linear'
+    points: bool = False
 
 
 class BaseAnalysis(BaseEstimator, ABC):
@@ -27,7 +161,7 @@ class BaseAnalysis(BaseEstimator, ABC):
     A child stores its settings in `__init__` and implements four hooks that the verbs call:
 
     - `_check()` validates the settings.
-    - `_get_data_kind()` returns the kind of data the analysis reads.
+    - `_get_data_kind()` returns the kind of data the analysis reads, such as `'series'` or `'field'`.
     - `_prepare(source)` reads the data from the source with the readers of the base and sets the attributes that end
       in `_`.
     - `_run()` computes the results and sets them as attributes that end in `_`.
@@ -37,13 +171,13 @@ class BaseAnalysis(BaseEstimator, ABC):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import BaseAnalysis, DataKind
+        >>> from skcomplex.analysis import BaseAnalysis
         >>> class MeanAnalysis(BaseAnalysis):
         ...     def __init__(self, variables=None):
         ...         self.variables = variables
         ...
         ...     def _get_data_kind(self):
-        ...         return DataKind.SERIES
+        ...         return 'series'
         ...
         ...     def _prepare(self, source):
         ...         self.series_ = self._read_series(source, self.variables)
@@ -72,59 +206,368 @@ class BaseAnalysis(BaseEstimator, ABC):
     def _run(self) -> Self:
         """Compute the results of the analysis and set them as attributes that end in `_`."""
 
+    @staticmethod
+    def _get_problem(source: Trajectory | System | BaseProblem) -> BaseProblem:
+        """Return the compiled problem of a trajectory or a system."""
+        if isinstance(source, Trajectory):
+            return source.problem
+        if isinstance(source, System):
+            return compile_system(source)
+        return source
+
+    @staticmethod
+    def _get_lattice_names(problem: BaseProblem) -> list[str]:
+        """Return the states of a problem that live on lattices or grids."""
+        return [name for name in problem.states.names if problem.lattice_shape(name) is not None]
+
+    @staticmethod
+    def _get_path_names(problem: BaseProblem) -> list[str]:
+        """Return the discrete states that are not lattice states, or every state of a jump process."""
+        lattice = set(BaseAnalysis._get_lattice_names(problem))
+        names = [name for name in problem.states.names if name not in lattice]
+        if problem.form == Form.JUMP:
+            return names
+        if problem.form == Form.DISCRETE:
+            discrete = {DomainKind.CATEGORICAL, DomainKind.BOOLEAN, DomainKind.INTEGER}
+            return [name for name in names if domain_kind(problem.states.entry(name).domain) in discrete]
+        return []
+
+    @staticmethod
+    def _get_particle_groups(problem: BaseProblem) -> list[str]:
+        """Return the groups whose members carry a vector position `x`."""
+        found = []
+        for element in problem.elements:
+            dotted = element.states.get(POSITION_STATE)
+            if element.members is not None and dotted is not None and problem.states.entry(dotted).shape:
+                found.append(element.path)
+        return found
+
+    @staticmethod
+    def _get_network_space(problem: BaseProblem) -> NetworkSpace | None:
+        """Return the network space of the agents or of a field of a problem, or `None`."""
+        if isinstance(problem.agent_space, NetworkSpace):
+            return problem.agent_space
+        for element in problem.elements:
+            space = getattr(element.element, 'space', None)
+            if isinstance(space, NetworkSpace):
+                return space
+        return None
+
+    @staticmethod
+    def _get_graph_observables(trajectory: Trajectory) -> list[str]:
+        """Return the observables whose value is a graph."""
+        first = trajectory.observables[0] if trajectory.observables else {}
+        return [name for name, value in first.items() if isinstance(value, nx.Graph)]
+
+    @staticmethod
+    def _get_scalar_series(trajectory: Trajectory) -> list[str]:
+        """Return the scalar observables and reporters, or the scalar states of single elements without them."""
+        first = trajectory.observables[0] if trajectory.observables else {}
+        observed = [name for name, value in first.items() if np.ndim(value) == 0 and not isinstance(value, nx.Graph)]
+        reported = list(trajectory.reporters[0]) if trajectory.reporters else []
+        if observed or reported:
+            return observed + reported
+        lattice = set(BaseAnalysis._get_lattice_names(trajectory.problem))
+        return [
+            entry.name
+            for entry in trajectory.problem.states.entries
+            if entry.shape == () and entry.members is None and entry.name not in lattice
+        ]
+
+    @staticmethod
+    def _has_series(source: Trajectory | System | BaseProblem, problem: BaseProblem) -> bool:
+        """Check whether a source records scalar series: observables, reporters, or scalar states."""
+        if isinstance(source, Trajectory):
+            return bool(BaseAnalysis._get_scalar_series(source))
+        system = problem.system
+        if system is not None and any(True for _ in observables_of(system)):
+            return True
+        lattice = set(BaseAnalysis._get_lattice_names(problem))
+        return any(
+            entry.shape == () and entry.members is None and entry.name not in lattice
+            for entry in problem.states.entries
+        )
+
+    @staticmethod
+    def _get_data_kinds(source: Source | BaseProblem) -> list[DataKind]:
+        """Return the kinds of data a trajectory, a system, a graph, or an array holds.
+
+        An array of one dimension is a series, and an array of more dimensions is a field and a set of series.
+
+        Args:
+            source:
+                The trajectory, the system, the graph, or the array.
+
+        Returns:
+            kinds:
+                The data kinds present, in the order agents, field, network, path, series.
+        """
+        if isinstance(source, nx.Graph | NetworkSnapshot):
+            return [DataKind.NETWORK]
+        if not isinstance(source, Trajectory | System | BaseProblem):
+            dimensions = np.ndim(source)
+            return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
+        problem = BaseAnalysis._get_problem(source)
+        agent_groups = [agents.path for agents in problem.agents] + BaseAnalysis._get_particle_groups(problem)
+        recorded = isinstance(source, Trajectory) and bool(BaseAnalysis._get_graph_observables(source))
+        present = {
+            DataKind.AGENTS: bool(agent_groups),
+            DataKind.FIELD: bool(BaseAnalysis._get_lattice_names(problem)),
+            DataKind.NETWORK: BaseAnalysis._get_network_space(problem) is not None or recorded,
+            DataKind.PATH: bool(BaseAnalysis._get_path_names(problem)),
+            DataKind.SERIES: BaseAnalysis._has_series(source, problem),
+        }
+        return [kind for kind in KIND_ORDER if present[kind]]
+
+    def _get_missing_error(self, trajectory: Trajectory, wanted: str) -> AnalysisError:
+        """Return the error that a trajectory lacks a kind of data, listing the kinds it has."""
+        kinds = ', '.join(kind.value for kind in self._get_data_kinds(trajectory)) or 'none'
+        error_msg = f'The trajectory has no {wanted}. Its data kinds are: {kinds}.'
+        return AnalysisError(error_msg)
+
+    @staticmethod
+    def _unwrap(positions: Array, box: Array | None, *, periodic: bool) -> Array:
+        """Return positions unwrapped across periodic sides by accumulating minimum-image steps."""
+        if box is None or not periodic:
+            return positions
+        steps = np.diff(positions, axis=0)
+        steps -= box * np.round(steps / box)
+        return np.concatenate([positions[:1], positions[:1] + np.cumsum(steps, axis=0)])
+
+    @staticmethod
+    def _get_space_box(space: object) -> tuple[Array | None, bool]:
+        """Return the sides of a continuous or grid space and whether it is periodic."""
+        if isinstance(space, ContinuousSpace):
+            return np.asarray(space.extent_[:2], dtype=float), space.periodic_
+        if isinstance(space, LatticeSpace):
+            return np.asarray(space.shape_[:2], dtype=float), space.periodic_
+        return None, False
+
+    @staticmethod
+    def _get_columns(ids: npt.NDArray[np.int64], wanted: npt.NDArray[np.int64]) -> npt.NDArray[np.intp]:
+        """Return the index of every wanted id among the ids of a frame."""
+        if np.all(np.diff(ids) > 0):
+            return np.searchsorted(ids, wanted)
+        lookup = {int(item): index for index, item in enumerate(ids.tolist())}
+        return np.asarray([lookup[int(item)] for item in wanted], dtype=np.intp)
+
+    @staticmethod
+    def _read_agent_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
+        """Return the snapshots of an agent group, aligned on the agents present in every frame."""
+        frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
+        common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
+        ids = np.asarray(sorted(common), dtype=np.int64)
+        columns = [BaseAnalysis._get_columns(frame.ids, ids) for frame in frames]
+        states = {
+            name: np.asarray([frame.values[name][column] for frame, column in zip(frames, columns, strict=True)])
+            for name in frames[0].values
+        }
+        box, periodic = BaseAnalysis._get_space_box(trajectory.problem.agent_space)
+        positions = None
+        located = not isinstance(trajectory.problem.agent_space, NetworkSpace)
+        if located and frames[0].locations is not None and np.asarray(frames[0].locations).dtype != object:
+            raw = np.asarray(
+                [
+                    np.asarray(frame.locations, dtype=float)[column]
+                    for frame, column in zip(frames, columns, strict=True)
+                ],
+            )
+            positions = BaseAnalysis._unwrap(raw.reshape(len(frames), ids.size, -1), box, periodic=periodic)
+        velocity_names = [name for name in VELOCITY_NAMES if name in states]
+        velocities = (
+            np.stack([states.pop(name) for name in velocity_names], axis=-1).astype(float) if velocity_names else None
+        )
+        heading = next((name for name in HEADING_NAMES if name in states), None)
+        headings = np.asarray(states.pop(heading), dtype=float) if heading is not None else None
+        times = np.asarray(trajectory.times, dtype=float)
+        return Snapshots(times, ids, positions, velocities, headings, states, box, periodic)
+
+    @staticmethod
+    def _read_particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
+        """Return the snapshots of a particle group from its vector states, unwrapped in a periodic box."""
+        element = next(item for item in trajectory.problem.elements if item.path == group)
+        system = trajectory.problem.system
+        space = system.space if system is not None else None
+        periodic = isinstance(space, ContinuousSpace) and space.periodic_
+        box = np.asarray(space.extent_, dtype=float) if periodic else None
+        raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
+        positions = BaseAnalysis._unwrap(raw, box, periodic=periodic)
+        velocity = element.states.get(VELOCITY_STATE)
+        velocities = np.asarray(trajectory.values(velocity), dtype=float) if velocity is not None else None
+        others = {
+            name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
+            for name, dotted in element.states.items()
+            if name not in {POSITION_STATE, VELOCITY_STATE}
+        }
+        ids = np.arange(positions.shape[1], dtype=np.int64)
+        times = np.asarray(trajectory.times, dtype=float)
+        return Snapshots(times, ids, positions, velocities, None, others, box, periodic)
+
     def _read_series(self, source: Source, names: Sequence[str] | None = None) -> Series:
         """Return named series of a trajectory, or the columns of an array, one series per column.
+
+        A trajectory gives its states, parameters, reporters, or observables, and a vector or group variable gives one
+        column per component, labelled `name[i]`.
 
         Args:
             source:
                 A trajectory, a series, or an array with one row per time and one column per series.
 
             names:
-                The variables of a trajectory, or `None` for every scalar observable and reporter.
+                The variables of a trajectory, or `None` for every scalar observable and reporter, or every scalar
+                state without them.
 
         Returns:
             series:
                 The times, the columns, and their labels.
+
+        Raises:
+            AnalysisError:
+                The trajectory has no scalar series and no names are given.
         """
-        if isinstance(source, Trajectory):
-            return series_of(source, names)
-        array = np.asarray(source)
-        values = array.reshape(-1, 1) if array.ndim <= 1 else array.reshape(array.shape[0], -1)
-        labels = list(names) if names is not None else [str(index) for index in range(values.shape[1])]
-        return Series(np.arange(values.shape[0], dtype=float), values, labels)
+        if not isinstance(source, Trajectory):
+            array = np.asarray(source)
+            values = array.reshape(-1, 1) if array.ndim <= 1 else array.reshape(array.shape[0], -1)
+            labels = list(names) if names is not None else [str(index) for index in range(values.shape[1])]
+            return Series(np.arange(values.shape[0], dtype=float), values, labels)
+        chosen = list(names) if names is not None else self._get_scalar_series(source)
+        if not chosen:
+            raise self._get_missing_error(source, 'scalar series')
+        columns, labels = [], []
+        for name in chosen:
+            values = np.asarray(source.values(name), dtype=float).reshape(len(source.times), -1)
+            columns.append(values)
+            labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
+        return Series(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
 
     def _read_path(self, source: Source, name: str | None = None) -> JumpPath:
-        """Return the jump path of a discrete state of a trajectory, or of a series of states."""
-        if isinstance(source, Trajectory):
-            return path_of(source, name)
-        values = np.asarray(source)
-        changed = np.concatenate([[True], values[1:] != values[:-1]]) if values.ndim == 1 else None
-        if changed is None:
-            error_msg = f'A jump path is one series of states, but the array has shape {values.shape}.'
-            raise AnalysisError(error_msg)
-        return JumpPath(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
+        """Return the jump path of a discrete state of a trajectory, or of a series of states.
 
-    def _read_fields(self, source: Source, name: str | None = None) -> npt.NDArray[np.float64]:
-        """Return the frames of a lattice or grid state of a trajectory, or an array of frames as it is."""
-        if isinstance(source, Trajectory):
-            return fields_of(source, name)
-        return np.asarray(source, dtype=float)
+        The frames where the state did not change are dropped.
+
+        Args:
+            source:
+                The trajectory of a jump process or of a map with discrete states, or a series of states.
+
+            name:
+                The dotted name of the state, or `None` for the first discrete state.
+
+        Returns:
+            path:
+                The jump times and the state after every jump.
+
+        Raises:
+            AnalysisError:
+                The trajectory has no discrete state, or the array is not one series.
+        """
+        if not isinstance(source, Trajectory):
+            values = np.asarray(source)
+            if values.ndim != 1:
+                error_msg = f'A jump path is one series of states, but the array has shape {values.shape}.'
+                raise AnalysisError(error_msg)
+            changed = np.concatenate([[True], values[1:] != values[:-1]])
+            return JumpPath(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
+        names = self._get_path_names(source.problem)
+        chosen = names[0] if name is None and names else name
+        if chosen is None:
+            raise self._get_missing_error(source, 'discrete state')
+        values = np.asarray(source.values(chosen), dtype=float).reshape(len(source.times), -1)
+        changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
+        states = values[changed]
+        times = np.asarray(source.times, dtype=float)[changed]
+        return JumpPath(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
+
+    def _read_fields(self, source: Source, name: str | None = None) -> Array:
+        """Return the frames of a lattice or grid state of a trajectory, or an array of frames as it is.
+
+        Args:
+            source:
+                The trajectory, or a grid or frames of grids.
+
+            name:
+                The dotted name of the state, or `None` for the first lattice state.
+
+        Returns:
+            frames:
+                One array of the grid shape per frame, or the array.
+
+        Raises:
+            AnalysisError:
+                The trajectory has no lattice or grid state.
+        """
+        if not isinstance(source, Trajectory):
+            return np.asarray(source, dtype=float)
+        names = self._get_lattice_names(source.problem)
+        chosen = names[0] if name is None and names else name
+        if chosen is None:
+            raise self._get_missing_error(source, 'lattice or grid state')
+        return np.asarray(source.lattice(chosen), dtype=float)
 
     def _read_snapshots(self, source: Source, group: str | None = None) -> Snapshots:
-        """Return the agents of a group of a trajectory at every frame."""
+        """Return the agents of a group of a trajectory at every frame.
+
+        Agent groups give their positions unwrapped across periodic sides, velocities from the states `vx`, `vy`, and
+        `vz`, and headings from a state named `heading`, `theta`, `angle`, or `phase`. Particle groups give their vector
+        states `x` and `v`.
+
+        Args:
+            source:
+                The trajectory.
+
+            group:
+                The path of the agent or particle group, or `None` for the first one.
+
+        Returns:
+            snapshots:
+                The aligned snapshots.
+
+        Raises:
+            AnalysisError:
+                The source is not a trajectory, or it has no agent or particle group of that path.
+        """
         if not isinstance(source, Trajectory):
             error_msg = f'Agent snapshots are read from a trajectory, not from {type(source).__name__}.'
             raise AnalysisError(error_msg)
-        return snapshots_of(source, group)
+        agent_paths = [agents.path for agents in source.problem.agents]
+        particle_paths = self._get_particle_groups(source.problem)
+        chosen = group if group is not None else next(iter(agent_paths + particle_paths), None)
+        if chosen in particle_paths:
+            return self._read_particle_snapshots(source, chosen)
+        if chosen is None or chosen not in agent_paths:
+            raise self._get_missing_error(source, f'agent group {chosen!r}' if chosen else 'agent group')
+        return self._read_agent_snapshots(source, chosen)
 
     def _read_networks(self, source: Source) -> list[nx.Graph]:
-        """Return the network of every frame of a trajectory, or a graph as the only frame."""
+        """Return the network of every frame of a trajectory, or a graph or a network snapshot as the only frame.
+
+        A trajectory gives the graphs it records as observables, or the network space of its problem at every frame.
+
+        Args:
+            source:
+                The trajectory, the graph, or the network snapshot.
+
+        Returns:
+            graphs:
+                One NetworkX graph per frame.
+
+        Raises:
+            AnalysisError:
+                The source is none of these, or the trajectory has no network.
+        """
         if isinstance(source, nx.Graph):
             return [source]
+        if isinstance(source, NetworkSnapshot):
+            return [source.graph()]
         if not isinstance(source, Trajectory):
             error_msg = f'Networks are read from a trajectory or a graph, not from {type(source).__name__}.'
             raise AnalysisError(error_msg)
-        return networks_of(source)
+        recorded = self._get_graph_observables(source)
+        if recorded:
+            return [frame[recorded[0]] for frame in source.observables]
+        space = self._get_network_space(source.problem)
+        if space is None:
+            raise self._get_missing_error(source, 'network')
+        return [space.graph] * len(source.times)
 
     def check(self) -> Self:
         """Validate the settings of the analysis and mark it as checked.
