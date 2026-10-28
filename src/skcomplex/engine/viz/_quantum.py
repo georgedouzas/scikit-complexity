@@ -15,7 +15,8 @@ from sage.all__sagemath_symbolics import SR
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
 from ..compile._quantum_views import QuantumView
-from ..compile.passes._quantum import QuantumProblem, QuantumTerm
+from ..compile.passes._quantum_problem import QuantumProblem
+from ..compile.passes._quantum_term import QuantumTerm
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._images import _SPACE_TIME, ImageVisual

@@ -13,12 +13,12 @@ from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...problems import vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 from .._tree import Node
 from ._census import CensusPass
 from ._kernels import KernelsPass
-from ._topology import MaskRequestsPass
+from ._mask_requests import MaskRequestsPass
 
 
 class OwnersPass(BasePass):

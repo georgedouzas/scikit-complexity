@@ -9,10 +9,10 @@ from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
 from ...problems import VariableKind, components_of, declarations_of
+from .._block import Block
 from .._compilation import BlockLaws, Compilation
-from .._declarations import Block
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 
 
 class BoundaryLawsPass(BasePass):

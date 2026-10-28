@@ -18,7 +18,7 @@ from ...core.elements import BaseElement, Element, GroupElement
 from ...core.errors import ValidationError
 from ...core.specs import HilbertSpec
 from ..problems import VariableKind, declarations_of
-from ._quantum_operators import LocalOperator
+from ._local_operator import LocalOperator
 
 NORM_TOLERANCE = 1e-8
 

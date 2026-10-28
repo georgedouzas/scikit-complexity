@@ -17,11 +17,14 @@ from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpac
 from ....core.specs import WienerProcessSpec
 from ...problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol
 from ...problems._pair_search import PairSearch
+from .._block import Block
 from .._compilation import Compilation
-from .._declarations import _ACTIVE, ENDS, Block, Declarations
-from .._observables import ObservableEvaluator, Observer
+from .._declarations import _ACTIVE, ENDS, Declarations
+from .._kernel_spec import KernelSpec
+from .._observables import ObservableEvaluator
+from .._observer import Observer
 from .._pipeline import BasePass
-from .._specs import _EDGE_NAMES, _MEMBER_REFERENCE, KernelSpec, Observe, SetSymbol
+from .._set_symbol import _EDGE_NAMES, _MEMBER_REFERENCE, Observe, SetSymbol
 from .._tree import Node
 
 

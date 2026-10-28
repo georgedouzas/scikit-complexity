@@ -17,7 +17,8 @@ from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
 from ..core.types import Vector
 from ..engine.compile import compile_system
-from ..engine.compile.passes._quantum import DENSE_LIMIT, QuantumProblem
+from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
+from ..engine.compile.passes._quantum_problem import QuantumProblem
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source

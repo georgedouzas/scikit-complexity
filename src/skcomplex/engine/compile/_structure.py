@@ -1,0 +1,171 @@
+"""Base class of the structure of a rewriting element at one generation."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from typing import Any
+
+import numpy as np
+import numpy.typing as npt
+import shapely
+
+from ...core.errors import ValidationError
+
+type Array = npt.NDArray[Any]
+
+
+class Structure:
+    """Base class of the structure of a rewriting element at one generation.
+
+    Subclasses give their line segments and polygons, from which the measures follow with Shapely.
+
+    Args:
+        generation:
+            The generation.
+    """
+
+    def __init__(self, generation: int) -> None:
+        self.generation = generation
+        self._geometry: Array | None = None
+
+    @property
+    def parts(self) -> int:
+        """Number of parts, symbols, tiles, or nodes."""
+        raise NotImplementedError
+
+    @property
+    def has_geometry(self) -> bool:
+        """Whether the structure has a geometry, a patch or a word with a word geometry."""
+        return False
+
+    def segments(self) -> Array:
+        """Return the line segments of the geometry.
+
+        Returns:
+            segments:
+                The array of shape `(k, 2, d)`, empty without segments.
+        """
+        return np.zeros((0, 2, 2))
+
+    def polygons(self) -> Array:
+        """Return the polygons of the geometry, one coordinate array of shape `(t, k, 2)` per vertex count `k`.
+
+        Returns:
+            polygons:
+                An object array of coordinate arrays, empty without polygons.
+        """
+        return np.zeros(0, dtype=object)
+
+    def geometry(self) -> Array:
+        """Return the segments and polygons as an array of Shapely geometries.
+
+        Returns:
+            geometry:
+                The line strings of the segments followed by the polygons.
+        """
+        if self._geometry is None:
+            segments = self.segments()
+            lines = shapely.linestrings(segments[..., :2]) if len(segments) else np.zeros(0, dtype=object)
+            shapes = [shapely.polygons(coordinates) for coordinates in self.polygons()]
+            self._geometry = np.concatenate([lines, *shapes]) if shapes else lines
+        return self._geometry
+
+    def length(self) -> float:
+        """Return the total length of the segments and the perimeters of the polygons.
+
+        Returns:
+            length:
+                The total length.
+        """
+        segments = self.segments()
+        if segments.shape[-1] == 3:  # noqa: PLR2004
+            return float(np.linalg.norm(segments[:, 1] - segments[:, 0], axis=-1).sum())
+        return float(shapely.length(self.geometry()).sum())
+
+    def area(self) -> float:
+        """Return the total area of the polygons.
+
+        Returns:
+            area:
+                The sum of the areas of the polygons, 0 without polygons.
+        """
+        return float(shapely.area(self.geometry()).sum())
+
+    def bounds(self) -> tuple[float, float, float, float]:
+        """Return the bounding box of the geometry in the plane.
+
+        Returns:
+            bounds:
+                `(xmin, ymin, xmax, ymax)`, or zeros without geometry.
+        """
+        geometry = self.geometry()
+        if not len(geometry):
+            return (0.0, 0.0, 0.0, 0.0)
+        box = shapely.bounds(geometry)
+        return (
+            float(box[:, 0].min()),
+            float(box[:, 1].min()),
+            float(box[:, 2].max()),
+            float(box[:, 3].max()),
+        )
+
+    def raster(self, resolution: int, bounds: Sequence[float] | None = None) -> npt.NDArray[np.bool_]:
+        """Return a square boolean grid of the cells the geometry covers, with the first row at the top.
+
+        Segments mark the cells of points spaced at most half a cell apart along them, and polygons mark the cells
+        whose centres they contain, so the grid suits `ScalingAnalysis('box-counting')`.
+
+        Args:
+            resolution:
+                The number of cells per side.
+
+            bounds:
+                The box `(xmin, ymin, xmax, ymax)` to rasterise, or `None` for the bounding box of the geometry. The
+                grid covers a square with the longer side of the box.
+
+        Returns:
+            grid:
+                The boolean grid of shape `(resolution, resolution)`.
+
+        Raises:
+            ValidationError:
+                The resolution is not a positive integer.
+        """
+        if not isinstance(resolution, int | np.integer) or resolution < 1:
+            error_msg = f'resolution = {resolution!r} must be a positive integer.'
+            raise ValidationError(error_msg)
+        xmin, ymin, xmax, ymax = self.bounds() if bounds is None else bounds
+        side = max(xmax - xmin, ymax - ymin) or 1.0
+        cell = side / resolution
+        grid = np.zeros((resolution, resolution), dtype=bool)
+        geometry = self.geometry()
+        if not len(geometry):
+            return grid
+        lines = geometry[shapely.get_type_id(geometry) == shapely.GeometryType.LINESTRING]
+        if len(lines):
+            points = shapely.get_coordinates(shapely.segmentize(lines, cell / 2))
+            self._mark(grid, points, xmin, ymax, cell)
+        shapes = geometry[shapely.get_type_id(geometry) == shapely.GeometryType.POLYGON]
+        if len(shapes):
+            centres = (np.arange(resolution) + 0.5) * cell
+            x, y = np.meshgrid(xmin + centres, ymax - centres)
+            tree = shapely.STRtree(shapes)
+            found = tree.query(shapely.points(x.ravel(), y.ravel()), predicate='intersects')[0]
+            grid.ravel()[np.unique(found)] = True
+        return grid
+
+    @staticmethod
+    def _mark(grid: npt.NDArray[np.bool_], points: Array, xmin: float, ymax: float, cell: float) -> None:
+        """Mark the cells of a grid that hold points."""
+        resolution = grid.shape[0]
+        columns = np.clip(((points[:, 0] - xmin) / cell).astype(int), 0, resolution - 1)
+        rows = np.clip(((ymax - points[:, 1]) / cell).astype(int), 0, resolution - 1)
+        grid[rows, columns] = True
+
+    @staticmethod
+    def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
+        """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
+        result: Array = np.array(array, dtype=dtype)
+        result.setflags(write=False)
+        return result

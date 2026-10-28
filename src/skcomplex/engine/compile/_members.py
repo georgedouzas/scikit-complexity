@@ -12,8 +12,9 @@ from ...core.errors import ValidationError
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
-from ._lowering import _SHIFT
 from ._pipeline import BasePass
+
+_SHIFT = 'shift_member'
 
 
 @dataclass

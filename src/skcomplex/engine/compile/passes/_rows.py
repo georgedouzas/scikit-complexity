@@ -12,10 +12,11 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLa
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ...problems import Source, components_of
 from .._compilation import BlockLaws, Compilation, Laws
+from .._draw_lowering import DrawLowering
+from .._kernel_spec import KernelSpec
+from .._matrix_law import _RANDOM_FIELDS
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
-from .._specs import KernelSpec
-from .._stochastic import _RANDOM_FIELDS, DrawLowering
 
 
 class RowsPass(BasePass):

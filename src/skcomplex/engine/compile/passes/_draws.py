@@ -7,8 +7,8 @@ from typing import cast
 
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._draw_lowering import DrawLowering
 from .._pipeline import BasePass
-from .._stochastic import DrawLowering
 
 
 class DrawsPass(BasePass):

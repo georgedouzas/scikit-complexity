@@ -9,7 +9,9 @@ from typing import ClassVar, cast
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile._lattice_steps import CompiledExtremal, CompiledRelaxation, LatticeStep
+from ..compile._compiled_extremal import CompiledExtremal
+from ..compile._compiled_relaxation import CompiledRelaxation
+from ..compile.passes._lattices import LatticeStep
 from ..problems import Form, OrderKind, SupportSpec
 from ._solver import Solver
 

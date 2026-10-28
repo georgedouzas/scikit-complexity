@@ -5,10 +5,10 @@
 
 from typing import cast
 
+from .._block import Block
 from .._compilation import Compilation
-from .._declarations import Block
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 from ._census import CensusPass
 
 

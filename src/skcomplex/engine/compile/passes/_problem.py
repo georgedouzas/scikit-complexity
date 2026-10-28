@@ -35,10 +35,11 @@ from ...problems import (
 )
 from ...problems._base_problem import _MarkovMatrix
 from ...problems._compiled_event import _Breakpoints, _Delay
+from .._block import Block
 from .._compilation import Compilation, Laws
-from .._declarations import Block, Declarations
+from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 from .._tree import Node
 from ._events import _SWITCHES, RELATIONS, Scalars
 

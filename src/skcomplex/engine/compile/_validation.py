@@ -43,10 +43,11 @@ from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import DomainKind, NoiseKind, SupportSpec, VariableKind, declarations_of, symbol
 from ..problems._compiled_neighborhood import CompiledNeighborhood
-from ._census import Census, CensusRecord
+from ._census import Census
+from ._census_record import CensusRecord
 from ._compilation import Compilation
 from ._declarations import Declarations
-from ._issues import _ERROR, _WARNING, Issue, ValidationWarning
+from ._issue import _ERROR, _WARNING, Issue
 from ._observables import (
     _held_observables,
     _HeldReduction,
@@ -55,8 +56,9 @@ from ._observables import (
     _with_observables,
 )
 from ._pipeline import BasePass, run_passes
-from ._planner import _Plan
+from ._plan import _Plan
 from ._tree import Node, _declared_times
+from ._validation_warning import ValidationWarning
 from .passes._core import _CHECKS, _PASSES, claiming_compiler
 from .passes._noise import NoisePass
 

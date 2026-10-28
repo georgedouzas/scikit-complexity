@@ -16,7 +16,7 @@ from ..problems import BaseProblem, Form, Partition, Problem
 from ._compilation import Compilation
 from ._observables import _check_held_reads, _with_observables
 from ._pipeline import run_passes
-from ._planner import _Plan
+from ._plan import _Plan
 from ._tree import Node
 from ._validation import validate
 from .passes._core import _PASSES, claiming_compiler

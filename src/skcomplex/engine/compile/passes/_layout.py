@@ -7,8 +7,9 @@ from typing import cast
 
 from ....core.errors import LabelError
 from ...problems import symbol
+from .._block import Block
 from .._compilation import Compilation
-from .._declarations import Block, Declarations
+from .._declarations import Declarations
 from .._pipeline import BasePass
 from .._tree import Node
 

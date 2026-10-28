@@ -10,9 +10,11 @@ from ....core.errors import IncompatibleLawsError
 from ....core.system import System
 from .._census import Census
 from .._compilation import Compilation
-from .._issues import Issue
+from .._issue import Issue
+from .._owners import _Owners
 from .._pipeline import BasePass
-from .._planner import _Owners, _Plan, _PlannedPartition
+from .._plan import _Plan
+from .._planned_partition import _PlannedPartition
 
 
 class PlanPass(BasePass):

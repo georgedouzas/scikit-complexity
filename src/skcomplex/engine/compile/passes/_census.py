@@ -32,13 +32,16 @@ from ....core.laws import (
 from ....core.system import System
 from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
 from ...problems._pair_search import PairSearch
-from .._census import Census, CensusRecord
+from .._block import Block
+from .._census import Census
+from .._census_record import CensusRecord
 from .._compilation import Compilation
-from .._declarations import Block, Declarations
-from .._observables import ObservableEvaluator, Observer
+from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
+from .._observables import ObservableEvaluator
+from .._observer import Observer
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
-from .._specs import KernelSpec
 from .._topology import Topology
 from .._tree import Node
 from ._noise import NoisePass

@@ -14,7 +14,7 @@ from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, compile_system, validate
-from skcomplex.engine.compile.passes._quantum import QuantumCompiler
+from skcomplex.engine.compile.passes._quantum_compiler import QuantumCompiler
 from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 

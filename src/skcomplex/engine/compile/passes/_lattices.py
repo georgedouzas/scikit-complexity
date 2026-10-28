@@ -29,28 +29,26 @@ from ....core.spaces import (
 from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
+from .._arguments import Arguments, Indices
 from .._census import Census
 from .._compilation import Compilation, Laws
+from .._compiled_drive import CompiledDrive
+from .._compiled_extremal import CompiledExtremal
+from .._compiled_monte_carlo import CompiledMonteCarlo
+from .._compiled_relaxation import CompiledRelaxation
+from .._compiled_rule import CompiledRule
 from .._declarations import Declarations
-from .._issues import Issue
-from .._lattice_steps import (
-    _COLORING_STRATEGY,
-    Arguments,
-    CompiledDrive,
-    CompiledExtremal,
-    CompiledMonteCarlo,
-    CompiledRelaxation,
-    CompiledRule,
-    Indices,
-    LatticeContext,
-    LatticeState,
-    LatticeStep,
-    Lookup,
-    Vector,
-)
+from .._issue import Issue
+from .._kernel_spec import KernelSpec
+from .._lattice_context import LatticeContext
+from .._lattice_state import LatticeState
 from .._laws import LATTICE_LAWS
+from .._lookup import Lookup, Vector
 from .._pipeline import BasePass
-from .._specs import KernelSpec
+
+_COLORING_STRATEGY = 'largest_first'
+
+type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
 def _schedule_of(law: object) -> str | None:

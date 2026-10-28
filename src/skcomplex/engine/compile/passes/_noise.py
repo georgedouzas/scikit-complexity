@@ -19,11 +19,11 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....core.specs import WienerProcessSpec
 from ...problems import components_of
+from .._census_record import ProcessKey
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._noise import ProcessKey
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 
 
 @dataclass(frozen=True)

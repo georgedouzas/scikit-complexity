@@ -8,7 +8,7 @@ from collections.abc import Callable
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 
 from ...core.errors import ValidationError
-from ._lowering import _SHIFT
+from ._members import _SHIFT
 
 _LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
 _SUMS = frozenset({'total', 'mean'})

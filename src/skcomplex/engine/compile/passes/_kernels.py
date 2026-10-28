@@ -18,12 +18,12 @@ from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, Upda
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
 from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
+from .._census_record import ProcessKey
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
-from .._noise import ProcessKey
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 from ._noise import NoisePass
 
 _ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)

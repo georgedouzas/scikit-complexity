@@ -19,9 +19,9 @@ from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, n
 from ...problems._base_problem import _MarkovMatrix
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
+from .._matrix_law import MatrixLaw
 from .._pipeline import BasePass
-from .._specs import KernelSpec
-from .._stochastic import MatrixLaw
 
 
 class MarkovPass(BasePass):

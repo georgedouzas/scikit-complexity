@@ -18,9 +18,9 @@ from ....core.laws.utils import Call
 from ...problems import components_of
 from .._compilation import BlockLaws, Compilation
 from .._complex import _is_zero, _real, _split_complex
+from .._kernel_spec import KernelSpec
 from .._laws import _AGENT_LAWS
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 from ._kernels import KernelsPass
 
 

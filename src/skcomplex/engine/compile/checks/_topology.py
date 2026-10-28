@@ -9,9 +9,10 @@ from ....core.elements import GroupElement
 from ....core.errors import ValidationError
 from ....core.spaces import NetworkSpace
 from ....core.specs import TopologyRequestSpec
-from .._census import Census, CensusRecord
+from .._census import Census
+from .._census_record import CensusRecord
 from .._compilation import Compilation
-from .._issues import Issue
+from .._issue import Issue
 from .._topology import Topology
 from .._tree import Node
 

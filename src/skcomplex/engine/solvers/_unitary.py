@@ -8,7 +8,7 @@ from typing import Any
 import qutip
 
 from ...core.types import Vector
-from ..compile.passes._quantum import QuantumProblem
+from ..compile.passes._quantum_problem import QuantumProblem
 from ._quantum import QuantumSolver
 
 

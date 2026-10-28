@@ -14,7 +14,8 @@ from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, N
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.compile.passes._agents import AGENT_RESERVED_NAMES, AgentsPass
+from skcomplex.engine.compile.passes._agents import AgentsPass
+from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, MesaSolver

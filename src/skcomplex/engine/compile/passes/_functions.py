@@ -32,9 +32,9 @@ from ...problems import (
 )
 from .._compilation import Compilation
 from .._declarations import Declarations
+from .._draw_lowering import DrawLowering
 from .._forms import STEPWISE_FORMS
 from .._pipeline import BasePass
-from .._stochastic import DrawLowering
 
 
 class FunctionsPass(BasePass):

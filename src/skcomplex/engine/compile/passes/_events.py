@@ -17,8 +17,8 @@ from ....core.types import Vector
 from ...problems import Entry, Reference, Source, numpy_function, symbol, vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 
 type Scalars = Callable[[float, Vector, Vector], list[float]]
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)

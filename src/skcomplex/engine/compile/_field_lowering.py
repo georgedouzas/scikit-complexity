@@ -4,7 +4,6 @@
 # License: MIT
 
 import functools
-import math
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -20,103 +19,14 @@ from ...core.errors import ValidationError
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
+from ._derived_read import DerivedRead
+from ._diffusive_limit import DiffusiveLimit
 
 type Indices = npt.NDArray[np.intp]
 type Offset = tuple[int, ...]
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
-
-
-@dataclass(eq=False)
-class DerivedRead:
-    """Value of a global operator, a spectral multiplier or a finite element matrix, applied to an expression.
-
-    Args:
-        operand:
-            The expression of member symbols the operator acts on.
-
-        symbols:
-            The symbols of the operand in the order its function takes them.
-
-        apply:
-            The operator on the operand's values at every site.
-
-        multiplier:
-            The Fourier multiplier of a spectral operator, or `None`.
-
-        dimensions:
-            The lattice shape of a spectral operator, or `None`.
-
-        matrix:
-            The sparse matrix of an operator that acts on the sites as one, such as the finite element Laplacian, or
-            `None` for spectral operators.
-    """
-
-    operand: Expression
-    symbols: list[Expression]
-    apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
-    multiplier: npt.NDArray[np.complex128] | None = None
-    dimensions: tuple[int, ...] | None = None
-    matrix: Any = None
-    _function: Callable[..., Any] | None = field(default=None, repr=False)
-
-    def evaluate(self, t: float, values: list[Any], size: int) -> npt.NDArray[np.float64]:
-        """Return the operator applied to the operand evaluated from the values of its symbols.
-
-        Args:
-            t:
-                The time.
-
-            values:
-                The values of the operand's symbols.
-
-            size:
-                The number of sites.
-
-        Returns:
-            values:
-                The operator's value at every site.
-        """
-        if self._function is None:
-            self._function = numpy_function(symbol('t'), self.symbols, [self.operand])
-        operand = np.broadcast_to(np.asarray(self._function(t, *values)[0], dtype=float), (size,))
-        return self.apply(operand)
-
-
-@dataclass(frozen=True, eq=False)
-class DiffusiveLimit:
-    """Stability limit of explicit steps for the diffusion of a finite-volume field, at the current parameters.
-
-    Args:
-        coefficient:
-            The NumPy function of time and parameters that returns the diffusion coefficient.
-
-        parameters:
-            The references of the parameters the coefficient reads, in argument order.
-
-        stiffness:
-            The largest eigenvalue magnitude of the unit Laplacian, `sum(2 / h^2)` over the axes.
-    """
-
-    coefficient: Callable[..., list[Any]]
-    parameters: tuple[Reference, ...]
-    stiffness: float
-
-    def step(self, p: npt.NDArray[np.float64]) -> float:
-        """Return the largest stable step of explicit Euler for the diffusion at parameter values.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            step:
-                The step `1 / (stiffness * max |D|)`, infinite without diffusion.
-        """
-        values = [reference.column_of(np.zeros(0), p) for reference in self.parameters]
-        magnitude = float(np.max(np.abs(self.coefficient(0.0, *values)[0])))
-        return math.inf if magnitude == 0 else 1 / (self.stiffness * magnitude)
 
 
 @dataclass

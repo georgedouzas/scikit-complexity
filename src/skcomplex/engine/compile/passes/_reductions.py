@@ -37,12 +37,12 @@ from ...problems._reads import Read
 from .._compilation import Compilation, Laws
 from .._complex import _modulus_form
 from .._declarations import Declarations
+from .._draw_lowering import DrawLowering
+from .._kernel_spec import KernelSpec
 from .._observables import _HeldElement, _HeldReduction
 from .._pipeline import BasePass
-from .._specs import KernelSpec
-from .._stochastic import DrawLowering
+from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
-from ._topology import MaskRequestsPass
 
 
 @dataclass

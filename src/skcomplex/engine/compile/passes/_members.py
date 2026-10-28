@@ -11,9 +11,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._members import MemberShifts
 from .._pipeline import BasePass
-from .._specs import KernelSpec
 
 
 class MemberShiftPass(BasePass):

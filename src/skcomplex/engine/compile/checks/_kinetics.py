@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import EncounterLaw, ProliferationLaw
 from .._census import Census
 from .._compilation import Compilation
-from .._issues import Issue
-from ..passes._kinetics import CompileEncountersPass
+from .._issue import Issue
+from ..passes._compile_encounters import CompileEncountersPass
 
 PROBABILITY_TOLERANCE = 1e-9
 _LISTED_ENCOUNTERS = 3

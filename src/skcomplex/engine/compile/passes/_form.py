@@ -10,8 +10,8 @@ from ....core.errors import IncompatibleLawsError
 from ...problems import Form
 from .._compilation import Compilation
 from .._forms import _FORMS
+from .._owners import _Owners
 from .._pipeline import BasePass
-from .._planner import _Owners
 
 
 class FormPass(BasePass):

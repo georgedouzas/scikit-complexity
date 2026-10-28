@@ -19,12 +19,13 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ...problems import VariableKind, components_of, declarations_of, symbol, vector
+from .._block import Block
 from .._compilation import BlockLaws, Compilation
-from .._declarations import Block, Declarations
+from .._declarations import Declarations
+from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
-from .._specs import KernelSpec
 from ._complex import LowerComplexPass
 
 _EQUATION_UNKNOWNS = 6

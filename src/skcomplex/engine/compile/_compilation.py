@@ -14,13 +14,15 @@ from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import Form, Lowered, Output, Problem, ReductionSchedule
 from ..problems._base_problem import _MarkovMatrix
+from ._block import Block
+from ._bound_renewal import BoundRenewal
 from ._census import Census
-from ._declarations import Block, Declarations
+from ._declarations import Declarations
+from ._draw_lowering import DrawLowering
 from ._jacobians import ExactJacobian
-from ._planner import _Plan
-from ._renewals import BoundRenewal
-from ._specs import KernelSpec
-from ._stochastic import DrawLowering, MatrixLaw
+from ._kernel_spec import KernelSpec
+from ._matrix_law import MatrixLaw
+from ._plan import _Plan
 from ._tree import Node
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]

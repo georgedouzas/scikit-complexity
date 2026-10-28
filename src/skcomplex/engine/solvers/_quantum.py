@@ -16,7 +16,9 @@ from ...core.errors import SolverError
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile.passes._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
+from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
+from ..compile.passes._quantum_problem import QuantumProblem
+from ..compile.passes._quantum_term import QuantumTerm
 from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
 
