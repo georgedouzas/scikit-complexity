@@ -2616,8 +2616,9 @@ print(ball.ball_sizes_, quotient.size_)
 
 **Theory of automata.** `skcomplex.analysis` decides the properties the theory studies on finite universes, where
 they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
-not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` is the map on configurations of a
-local rule, with `step` and `run`, and `AutomatonAnalysis` prepares on it.
+not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` of
+`skcomplex.models.computer_science.automata` is the map on configurations of a local rule, with `step` and `run`, and
+`AutomatonAnalysis` prepares on it.
 
 - The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
   universes and solve a SAT encoding with PySAT on larger ones. `'pre-injective'` asks whether two configurations that
@@ -2627,11 +2628,11 @@ local rule, with `step` and `run`, and `AutomatonAnalysis` prepares on it.
   `'compose'` gives the automaton of its composition with a `second` one.
 
 ```python
-from skcomplex.core.laws import OuterTotalistic
+from skcomplex.core.laws.utils import OuterTotalistic, Table
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.analysis import Automaton, AutomatonAnalysis
-from skcomplex.core.laws import Table
+from skcomplex.analysis import AutomatonAnalysis
+from skcomplex.models.computer_science.automata import Automaton
 
 life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
 print(AutomatonAnalysis('surjective').check().prepare(life).run().surjective_)
@@ -2647,7 +2648,8 @@ print(composition.step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
 injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `infinite=True`, its Laurent polynomial
 decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
 `Subshift(neighborhood, forbidden)` holds the configurations without forbidden patterns: it checks configurations,
-counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves.
+counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves. Both are models of
+`skcomplex.models.computer_science.automata`, and `AutomatonAnalysis` tells the three models apart by their methods.
 `AutomatonAnalysis('entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`, and
 `AutomatonAnalysis('difference')` the cells where two runs differ after one cell changes.
 `EntropyAnalysis('rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
@@ -2656,7 +2658,8 @@ increases under an automaton.
 ```python
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
 
-from skcomplex.analysis import AutomatonAnalysis, LinearAutomaton, Subshift
+from skcomplex.analysis import AutomatonAnalysis
+from skcomplex.models.computer_science.automata import LinearAutomaton, Subshift
 
 laplacian = LinearAutomaton(LatticeSpace(5), LatticeNeighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
 golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])

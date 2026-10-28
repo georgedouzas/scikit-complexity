@@ -16,7 +16,7 @@ from ._adapters import (
     snapshots_of,
 )
 from ._agents import coarse_grain
-from ._automata import Automaton, AutomatonAnalysis, LinearAutomaton, Subshift
+from ._automata import AutomatonAnalysis
 from ._avalanches import AvalancheAnalysis
 from ._base import BaseAnalysis
 from ._binder import BinderAnalysis
@@ -71,7 +71,6 @@ __all__: list[str] = [
     'ANALYSES',
     'AnalysisEntry',
     'Applicable',
-    'Automaton',
     'AutomatonAnalysis',
     'AvalancheAnalysis',
     'BaseAnalysis',
@@ -100,7 +99,6 @@ __all__: list[str] = [
     'JumpPath',
     'KramersMoyalAnalysis',
     'LargeDeviationAnalysis',
-    'LinearAutomaton',
     'LinearizationAnalysis',
     'LocalInformationAnalysis',
     'LoopAnalysis',
@@ -125,7 +123,6 @@ __all__: list[str] = [
     'SparseIdentificationAnalysis',
     'SpectrumAnalysis',
     'StabilityAnalysis',
-    'Subshift',
     'SurrogateTestAnalysis',
     'SymbolicAnalysis',
     'analyses_for',
