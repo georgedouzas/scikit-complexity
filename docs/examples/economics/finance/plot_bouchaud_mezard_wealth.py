@@ -19,10 +19,10 @@ import rerun.blueprint as rrb
 from scipy import stats
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.core.system import Observable
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
+from skcomplex.specs import ObservableSpec
 
 MODEL = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
@@ -36,7 +36,7 @@ def gini(wealth: np.ndarray) -> float:
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
     *describe(MODEL).observables_of(system),
-    Observable('gini', group='agents', variable='W', reduce=gini),
+    ObservableSpec('gini', group='agents', variable='W', reduce=gini),
 ]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(

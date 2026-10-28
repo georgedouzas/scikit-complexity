@@ -18,10 +18,10 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.analysis import DistributionAnalysis, FitAnalysis
-from skcomplex.core.system import Observable
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
+from skcomplex.specs import ObservableSpec
 
 MODEL = 'toy_firm_investment'
 N_FIRMS, STEPS = 1000, 250
@@ -33,7 +33,7 @@ def top_share(capital):
 
 
 system = create(MODEL, n_firms=N_FIRMS, random_state=0)
-top = Observable('top_share', group='firms', variable='K', reduce=top_share)
+top = ObservableSpec('top_share', group='firms', variable='K', reduce=top_share)
 observables = [*describe(MODEL).observables_of(system), top]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(

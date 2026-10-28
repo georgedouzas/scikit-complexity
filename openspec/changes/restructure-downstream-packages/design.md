@@ -10,7 +10,7 @@
   - `_kinds.py` holds `DataKind` and a `Registry` of analyses per kind.
   - `_bifurcation.py`, `_adapters.py`, and `_signatures.py` import `experiments`.
 - `experiments` is 10 modules.
-  - `Experiment`, `Scenario`, and the designs are already estimators.
+  - `Experiment`, `Scenario` (now `ScenarioSpec`), and the designs are already estimators.
   - `calibrate`, `sensitivity`, `run_task`, and `resolve_source` are functions.
 - The constitution and the user's rules bind the design:
   - one class per module, with `_base.py` holding only bases;

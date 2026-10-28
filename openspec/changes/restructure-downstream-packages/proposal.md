@@ -56,7 +56,7 @@ The whole package becomes one pipeline, `System → Problem → Trajectory → m
   - `basin_stability` becomes `BasinStabilityExperiment`;
   - `ensemble_of` becomes a named method of the experiment result.
 - **BREAKING** `Task`, `run_task`, `resolve_source`, `RunResult`, `Scenario` internals, and `replicate` become private.
-  - `Scenario` stays public.
+  - `Scenario` stays public, as `ScenarioSpec` in `skcomplex.specs`.
   - `ExperimentResult` stays public with named methods.
 
 ### Layering
