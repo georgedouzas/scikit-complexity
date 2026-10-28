@@ -61,8 +61,16 @@
 - [ ] 4.4 In every engine package, make each module-level function that classes use a private method of the class it belongs to, or of the package's base when several classes share it. Keep module-level only the Numba-jitted kernels and the functions that generated kernel source imports by name. Verify that `pytest tests/engine` and the engine doctests pass.
 - [ ] 4.5 Split every engine module that holds several classes into one module per class, keeping `_base.py` for bases only. Verify with `pytest tests/engine` and `lint-imports`.
 
-## 5. Layering and integration
+## 5. General operations and field realizations
 
-- [x] 5.1 Set the import-linter layers to `experiments`, `analysis`, `engine`, `core`, and verify that `lint-imports` passes and fails on a planted import of `experiments` from `analysis`.
-- [x] 5.2 Update the user guide and the README to the classes, and verify that their code blocks run in the test session.
-- [ ] 5.3 Run the full test session with doctests, the checks session, and the gallery build, and verify that all pass.
+- [x] 5.1 Regroup the analysis classes named after a field into the general operations of the design's table: add `AlignmentAnalysis` and `RollingAnalysis`, add the kinds moments, moment-ratio, dispersion-index, and total-variation to `DistributionAnalysis`, overlap to `CorrelationAnalysis`, variance-mean and power to `ScalingAnalysis`, crossings to `CollapseAnalysis`, excursions and branching to `EventAnalysis`, and dispersion to `StabilityAnalysis`, and delete `AvalancheAnalysis`, `BinderAnalysis`, `FluctuationAnalysis`, `OrderAnalysis`, `MixingAnalysis`, and `EarlyWarningAnalysis`. Make each general class read every data kind its operation is defined on. Verify with the test modules of the changed classes, including the alignment scenario on three domains and the moment-ratio scenario.
+- [x] 5.2 Generalise `LoopAnalysis` to read feedback loops from the signed dependency graph of any system, and verify it on a stock-and-flow model and on an ODE model of another field.
+- [x] 5.3 Add the field realizations of the design's table to the models library, each a subclass that only fixes settings, and convert the models, tests, gallery examples, and user guide that used the deleted classes. Verify with a test per realization that it equals its general analysis.
+- [x] 5.4 Audit the public classes and choices of the core, the engine, and experiments for names taken from one application field, list them with a general name and a realization, and convert them the same way. Verify that the surface tests of every package pass.
+- [ ] 5.5 Place every realization of every field by its users: a realization used by one model package lives in that package beside its models, one shared by several packages of a field lives in a named family package of the field's realizations, and fields with nothing shared have no realizations package. Move specialized code instead of removing it. Verify with lint-imports, the full test session, and the user guide.
+
+## 6. Layering and integration
+
+- [x] 6.1 Set the import-linter layers to `experiments`, `analysis`, `engine`, `core`, and verify that `lint-imports` passes and fails on a planted import of `experiments` from `analysis`.
+- [x] 6.2 Update the user guide and the README to the classes, and verify that their code blocks run in the test session.
+- [ ] 6.3 Run the full test session with doctests, the checks session, and the gallery build, and verify that all pass.

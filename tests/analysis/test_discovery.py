@@ -3,12 +3,12 @@
 import numpy as np
 
 from skcomplex.analysis import (
+    AlignmentAnalysis,
     DiscoveryAnalysis,
     DisplacementAnalysis,
     EntropyAnalysis,
     MarkovAnalysis,
     NeighborAnalysis,
-    OrderAnalysis,
 )
 from skcomplex.models import create, run
 
@@ -24,14 +24,14 @@ def _names(analyses: list) -> set[tuple[str, str | None]]:
 
 
 def test_discovery_of_a_lattice_model():
-    """Test that an Ising system lists the structure factor, correlation length, clusters, and Binder cumulant."""
+    """Test that an Ising system lists the structure factor, correlation length, clusters, and variance-mean law."""
     discovery = _discover(create('ising', size=16))
     assert discovery.kinds_ == ['field']
     assert {
         ('SpectrumAnalysis', 'structure-factor'),
         ('CorrelationAnalysis', 'length'),
         ('ClusterAnalysis', 'sizes'),
-        ('BinderAnalysis', 'cumulant'),
+        ('ScalingAnalysis', 'variance-mean'),
     } <= _names(discovery.analyses_['field'])
     assert 'agents' not in discovery.analyses_
     assert discovery.readings_['field'] == 'a grid of values, or frames of grids'
@@ -46,10 +46,10 @@ def test_discovery_of_a_model_with_several_kinds():
 
 
 def test_discovery_of_an_agent_model():
-    """Test that a Vicsek trajectory lists the order, nearest-neighbour, and displacement analyses under agents."""
+    """Test that a Vicsek trajectory lists the alignment, nearest-neighbour, and displacement analyses under agents."""
     discovery = _discover(run('vicsek', settings={'until': 3}).trajectory_)
     agents = discovery.analyses_['agents']
-    assert any(isinstance(item, OrderAnalysis) and item.kind == 'polar' for item in agents)
+    assert any(isinstance(item, AlignmentAnalysis) and item.kind == 'mean-vector' for item in agents)
     assert any(isinstance(item, NeighborAnalysis) and item.kind == 'distances' for item in agents)
     assert any(isinstance(item, DisplacementAnalysis) for item in agents)
 

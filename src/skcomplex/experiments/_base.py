@@ -6,18 +6,32 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
+from ..core.elements import Element, GroupElement
 from ..core.errors import ValidationError
+from ..core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    EmissionLaw,
+    EquationLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    TransferLaw,
+    TransitionLaw,
+    UpdateLaw,
+)
 from ..core.specs import ObservableSpec
 from ..core.system import System
 from ..engine.compile import compile_system
-from ..engine.problems import BaseProblem, contains
+from ..engine.compile._probe import probe_laws
+from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
 from ..engine.runtime import MODELS, Simulation, Trajectory
 from ..engine.utils import BaseEstimator
-from ._ensembles import _replicate
 
 type Source = str | Callable[..., System] | System
 type Factory = Callable[..., System] | System
@@ -25,6 +39,19 @@ type Row = dict[str, object]
 type Bounds = Mapping[str, object]
 _PROBLEMS: dict[tuple[object, ...], BaseProblem] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
+PLAIN_LAWS = (
+    RateLaw,
+    NoiseLaw,
+    JumpLaw,
+    UpdateLaw,
+    BoundaryLaw,
+    CrossingLaw,
+    TransitionLaw,
+    EmissionLaw,
+    TransferLaw,
+    EquationLaw,
+)
+"""Laws of elements that a group of members of the same type runs as one vectorised simulation."""
 
 
 class BaseDesign(BaseEstimator, ABC):
@@ -147,7 +174,12 @@ class BaseExperiment(BaseEstimator, ABC):
         options = {key: value for key, value in defaults.items() if key in ('solver', 'backend')}
         step = dt if dt is not None else defaults.get('dt', 1.0)
         end = until if until is not None else defaults.get('until', 10.0)
-        simulation = Simulation(_replicate(system, size, values), dt=step, random_state=random_state, **options)
+        simulation = Simulation(
+            BaseExperiment._replicate(system, size, values),
+            dt=step,
+            random_state=random_state,
+            **options,
+        )
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod
@@ -201,3 +233,108 @@ class BaseExperiment(BaseEstimator, ABC):
                 raise ValidationError(error_msg)
             vector[entry.indices] = entry.encode(value)
         return dataclasses.replace(problem, initial_state=states, initial_parameters=parameters)
+
+    @staticmethod
+    def _has_formalism_laws(element: Element) -> bool:
+        """Check whether an element follows laws other than the plain ones, such as the rules of agents."""
+        return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
+
+    @staticmethod
+    def _check_plain(system: System) -> None:
+        """Raise an error unless a system holds single elements alone."""
+        plain = all(
+            isinstance(item, Element) and not BaseExperiment._has_formalism_laws(item) for item in system.elements
+        )
+        if system.interactions or system.systems or not plain:
+            error_msg = (
+                f'Only systems of plain single elements replicate, but {system.label!r} has interactions, child '
+                'systems, groups, fields, or agents. Build the ensemble as a GroupElement with per-member values '
+                'instead.'
+            )
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    def _value_names(element: Element) -> list[str]:
+        """Return the names of the states and parameters an element holds, with derivatives of higher order states."""
+        return [
+            name
+            for name, (variable, _) in declared_variables(element).items()
+            if variable.kind != VariableKind.ROLE and hasattr(element, name)
+        ]
+
+    @staticmethod
+    def _member_values(
+        values: Mapping[str, npt.ArrayLike],
+        system: System,
+        size: int,
+    ) -> dict[str, dict[str, Any]]:
+        """Return the per-member values of every element by its label, checked against the elements and the size."""
+        by_label: dict[str, dict[str, Any]] = {element.label: {} for element in system.elements}
+        names = {element.label: set(BaseExperiment._value_names(element)) for element in system.elements}
+        for path, value in values.items():
+            label, _, name = path.partition('.')
+            if label not in names or name not in names[label]:
+                available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
+                error_msg = f'{path} is not a state or parameter of the system. Available paths are: {available}.'
+                raise ValidationError(error_msg)
+            array = np.asarray(value)
+            if array.ndim == 0 or array.shape[0] != size:
+                error_msg = (
+                    f'The values of {path} have shape {array.shape}, but they need one row per member, {size} rows.'
+                )
+                raise ValidationError(error_msg)
+            by_label[label][name] = array
+        return by_label
+
+    @staticmethod
+    def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+        """Return a system whose single elements become groups of members of the same types and labels.
+
+        Every member starts from the values of its element, except the dotted paths given in `values`, which take one
+        value per member. A dotted path such as `map.x` names the same state in the replicated system, where it holds
+        one value per member, so many initial conditions or parameter values run as one vectorised simulation.
+
+        Args:
+            system:
+                The system of single elements, without interactions or child systems.
+
+            size:
+                The number of members of every group.
+
+            values:
+                A mapping from dotted path of a state or parameter to its per-member values, one row per member.
+
+        Returns:
+            system:
+                The replicated system, with the observables of the original.
+
+        Raises:
+            ValidationError:
+                The system has interactions, child systems, groups, fields, or agents, a path is not a state or
+                parameter, or its values do not have one row per member.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.experiments import BaseExperiment
+            >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
+            >>> ensemble = BaseExperiment._replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
+            >>> group = ensemble.elements[0]
+            >>> group.label, group.element.__name__, group.size
+            ('map', 'LogisticMapElement', 4)
+        """
+        BaseExperiment._check_plain(system)
+        by_label = BaseExperiment._member_values(values or {}, system, size)
+        groups = [
+            GroupElement(
+                element.label,
+                element=type(element),
+                size=size,
+                values={
+                    **{name: getattr(element, name) for name in BaseExperiment._value_names(element)},
+                    **by_label[element.label],
+                },
+                visual=element.visual,
+            )
+            for element in system.elements
+        ]
+        return System(system.label, elements=groups, space=system.space, time=system.time)

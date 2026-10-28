@@ -15,10 +15,11 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AvalancheAnalysis, DistributionAnalysis
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 MODEL = 'sandpile'
 

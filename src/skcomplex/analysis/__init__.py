@@ -1,9 +1,8 @@
 """Analyse systems, trajectories, and measured data by kind of data: series, paths, fields, agents, and networks."""
 
+from ._alignment import AlignmentAnalysis
 from ._automata import AutomatonAnalysis
-from ._avalanches import AvalancheAnalysis
 from ._base import BaseAnalysis
-from ._binder import BinderAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
 from ._collapse import CollapseAnalysis
@@ -14,14 +13,12 @@ from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
 from ._domains import DomainAnalysis
-from ._early_warning import EarlyWarningAnalysis
 from ._embedding import EmbeddingAnalysis
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
 from ._ergodicity import ErgodicityAnalysis
 from ._events import EventAnalysis
 from ._fit import FitAnalysis
-from ._fluctuations import FluctuationAnalysis
 from ._information import InformationAnalysis
 from ._irreversibility import IrreversibilityAnalysis
 from ._kramers_moyal import KramersMoyalAnalysis
@@ -31,17 +28,16 @@ from ._local_information import LocalInformationAnalysis
 from ._loops import LoopAnalysis
 from ._lyapunov import LyapunovAnalysis
 from ._markov import MarkovAnalysis
-from ._mixing import MixingAnalysis
 from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
-from ._order import OrderAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
 from ._quantum import QuantumAnalysis
 from ._recurrence import RecurrenceAnalysis
 from ._reservoirs import ReservoirAnalysis
+from ._rolling import RollingAnalysis
 from ._scaling import ScalingAnalysis
 from ._sections import SectionAnalysis
 from ._signatures import SignatureAnalysis
@@ -52,10 +48,9 @@ from ._surrogates import SurrogateTestAnalysis
 from ._symbolic import SymbolicAnalysis
 
 __all__: list[str] = [
+    'AlignmentAnalysis',
     'AutomatonAnalysis',
-    'AvalancheAnalysis',
     'BaseAnalysis',
-    'BinderAnalysis',
     'ClusterAnalysis',
     'CoarseGrainAnalysis',
     'CollapseAnalysis',
@@ -65,7 +60,6 @@ __all__: list[str] = [
     'DisplacementAnalysis',
     'DistributionAnalysis',
     'DomainAnalysis',
-    'EarlyWarningAnalysis',
     'EmbeddingAnalysis',
     'EmergenceAnalysis',
     'EntropyAnalysis',
@@ -73,7 +67,6 @@ __all__: list[str] = [
     'ErgodicityAnalysis',
     'EventAnalysis',
     'FitAnalysis',
-    'FluctuationAnalysis',
     'InformationAnalysis',
     'IrreversibilityAnalysis',
     'KramersMoyalAnalysis',
@@ -83,17 +76,16 @@ __all__: list[str] = [
     'LoopAnalysis',
     'LyapunovAnalysis',
     'MarkovAnalysis',
-    'MixingAnalysis',
     'ModeDecompositionAnalysis',
     'MotifAnalysis',
     'NeighborAnalysis',
     'NetworkAnalysis',
-    'OrderAnalysis',
     'PartialInformationAnalysis',
     'PassageAnalysis',
     'QuantumAnalysis',
     'RecurrenceAnalysis',
     'ReservoirAnalysis',
+    'RollingAnalysis',
     'ScalingAnalysis',
     'SectionAnalysis',
     'SignatureAnalysis',

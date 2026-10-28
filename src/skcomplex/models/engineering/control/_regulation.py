@@ -18,7 +18,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ..realizations._controllers import IntegratorElement, PIDInteraction, StateFeedbackInteraction
+from ._integrator import IntegratorElement
+from ._pid import PIDInteraction
+from ._state_feedback import StateFeedbackInteraction
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0

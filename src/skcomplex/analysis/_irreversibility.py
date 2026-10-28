@@ -14,7 +14,7 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._markov import _stationary_distribution, _transition_counts
+from ._markov import MarkovAnalysis
 
 type Array = npt.NDArray[np.float64]
 MIN_PAIRS = 3
@@ -51,41 +51,6 @@ ENSEMBLE_KINDS = (
     'response',
     'fluctuation-dissipation',
 )
-
-
-def _entropy_production(rates: npt.ArrayLike) -> float:
-    """Return `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates."""
-    matrix = np.asarray(rates, dtype=float)
-    matrix = matrix - np.diag(np.diag(matrix))
-    if np.any((matrix > 0) != (matrix.T > 0)):
-        error_msg = 'A jump has no reverse jump, so the entropy production is infinite. Give every jump its reverse.'
-        raise AnalysisError(error_msg)
-    flux = _stationary_distribution(matrix, rates=True)[:, None] * matrix
-    positive = flux > 0
-    return float(0.5 * np.sum((flux - flux.T)[positive] * np.log(flux[positive] / flux.T[positive])))
-
-
-def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: float) -> float:
-    """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` over the pairs visited both ways, per unit time."""
-    counts = _transition_counts(states, n_states).astype(float)
-    upper = np.triu(np.ones_like(counts, dtype=bool), k=1)
-    both = upper & (counts > 0) & (counts.T > 0)
-    forward, backward = counts[both], counts.T[both]
-    return float(np.sum((forward - backward) * np.log(forward / backward)) / (counts.sum() * dt))
-
-
-def _response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float) -> Array:
-    """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of ensembles with and without a field."""
-    first, second = np.asarray(perturbed, dtype=float), np.asarray(unperturbed, dtype=float)
-    return (first.mean(axis=0) - second.mean(axis=0)) / field
-
-
-def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, temperature: float) -> float:
-    """Return the slope of `T chi` against `C(t_w, t_w) - C(t, t_w)`."""
-    values = np.asarray(correlation, dtype=float)
-    decay = values[0] - values
-    scaled = temperature * susceptibility
-    return float(np.sum(decay * scaled) / np.sum(decay**2))
 
 
 class IrreversibilityAnalysis(BaseAnalysis):
@@ -344,7 +309,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
 
     def _run_detailed_balance(self) -> None:
         """Test detailed balance on the transition counts."""
-        counts = _transition_counts(self.values_, self.n_states).astype(float)
+        counts = MarkovAnalysis._transition_counts(self.values_, self.n_states).astype(float)
         steps = counts.sum()
         upper = np.triu_indices_from(counts, k=1)
         forward, backward = counts[upper], counts.T[upper]
@@ -397,13 +362,13 @@ class IrreversibilityAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the measure of the kind."""
         if self.kind == 'entropy-production':
-            self.entropy_production_ = _entropy_production(self.values_)
+            self.entropy_production_ = self._entropy_production(self.values_)
         elif self.kind == 'jump-entropy-production':
             self._run_jumps()
         elif self.kind == 'langevin-entropy-production':
             self._run_langevin()
         elif self.kind == 'count-entropy-production':
-            self.entropy_production_ = _count_entropy_production(self.values_, self.n_states, self.dt)
+            self.entropy_production_ = self._count_entropy_production(self.values_, self.n_states, self.dt)
         elif self.kind == 'detailed-balance':
             self._run_detailed_balance()
         elif self.kind == 'fluctuation-theorem':
@@ -411,11 +376,48 @@ class IrreversibilityAnalysis(BaseAnalysis):
         elif self.kind == 'uncertainty-relation':
             self._run_uncertainty_relation()
         else:
-            self.response_ = _response(self.values_, np.asarray(self.unperturbed, dtype=float), self.field)
+            self.response_ = self._response(self.values_, np.asarray(self.unperturbed, dtype=float), self.field)
             if self.kind == 'fluctuation-dissipation':
-                self.fluctuation_dissipation_ratio_ = _fluctuation_dissipation_ratio(
+                self.fluctuation_dissipation_ratio_ = self._fluctuation_dissipation_ratio(
                     np.asarray(self.correlation, dtype=float),
                     self.response_,
                     self.temperature,
                 )
         return self
+
+    @staticmethod
+    def _entropy_production(rates: npt.ArrayLike) -> float:
+        """Return `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates."""
+        matrix = np.asarray(rates, dtype=float)
+        matrix = matrix - np.diag(np.diag(matrix))
+        if np.any((matrix > 0) != (matrix.T > 0)):
+            error_msg = (
+                'A jump has no reverse jump, so the entropy production is infinite. Give every jump its reverse.'
+            )
+            raise AnalysisError(error_msg)
+        flux = MarkovAnalysis._stationary_distribution(matrix, rates=True)[:, None] * matrix
+        positive = flux > 0
+        return float(0.5 * np.sum((flux - flux.T)[positive] * np.log(flux[positive] / flux.T[positive])))
+
+    @staticmethod
+    def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: float) -> float:
+        """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` over the pairs visited both ways, per unit time."""
+        counts = MarkovAnalysis._transition_counts(states, n_states).astype(float)
+        upper = np.triu(np.ones_like(counts, dtype=bool), k=1)
+        both = upper & (counts > 0) & (counts.T > 0)
+        forward, backward = counts[both], counts.T[both]
+        return float(np.sum((forward - backward) * np.log(forward / backward)) / (counts.sum() * dt))
+
+    @staticmethod
+    def _response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float) -> Array:
+        """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of ensembles with and without a field."""
+        first, second = np.asarray(perturbed, dtype=float), np.asarray(unperturbed, dtype=float)
+        return (first.mean(axis=0) - second.mean(axis=0)) / field
+
+    @staticmethod
+    def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, temperature: float) -> float:
+        """Return the slope of `T chi` against `C(t_w, t_w) - C(t, t_w)`."""
+        values = np.asarray(correlation, dtype=float)
+        decay = values[0] - values
+        scaled = temperature * susceptibility
+        return float(np.sum(decay * scaled) / np.sum(decay**2))

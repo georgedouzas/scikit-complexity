@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import AvalancheAnalysis, FitAnalysis
+from skcomplex.analysis import FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
-from skcomplex.models.physics.criticality import evolutionary_sk_game
+from skcomplex.models.physics.criticality import AvalancheAnalysis, evolutionary_sk_game
 
 STEPS = 51_000
 

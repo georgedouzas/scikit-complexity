@@ -7,6 +7,9 @@ import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
+from functools import cache
+from importlib import import_module
+from types import ModuleType
 from typing import Self
 
 import networkx as nx
@@ -14,7 +17,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..core.errors import AnalysisError, NotCheckedError
+from ..core.errors import AnalysisError, NotCheckedError, ValidationError
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system, observables_of
@@ -24,11 +27,13 @@ from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 type Source = Trajectory | System | nx.Graph | NetworkSnapshot | npt.ArrayLike
+type SurrogateSource = Trajectory | npt.ArrayLike | list[Trajectory | npt.ArrayLike]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
 VELOCITY_STATE = 'v'
 SERIES_DIMENSIONS = 1
+STEP_TOLERANCE = 1e-6
 KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
 
 
@@ -110,6 +115,26 @@ class Snapshots:
     states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
     box: Array | None = None
     periodic: bool = False
+
+
+@dataclass(frozen=True)
+class Samples:
+    """Uniformly sampled series that a surrogate is fitted to.
+
+    Args:
+        series:
+            The values of every series, one row per sample and one column per variable.
+
+        labels:
+            The name of every variable.
+
+        dt:
+            The time between consecutive samples.
+    """
+
+    series: list[Array]
+    labels: list[str]
+    dt: float
 
 
 @dataclass(frozen=True)
@@ -416,7 +441,7 @@ class BaseAnalysis(BaseEstimator, ABC):
 
     @staticmethod
     def _read_particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
-        """Return the snapshots of a particle group from its vector states, unwrapped in a periodic box."""
+        """Return the snapshots of a particle group from its vector states and headings, unwrapped in a periodic box."""
         element = next(item for item in trajectory.problem.elements if item.path == group)
         system = trajectory.problem.system
         space = system.space if system is not None else None
@@ -431,9 +456,11 @@ class BaseAnalysis(BaseEstimator, ABC):
             for name, dotted in element.states.items()
             if name not in {POSITION_STATE, VELOCITY_STATE}
         }
+        heading = next((name for name in HEADING_NAMES if name in others), None)
+        headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
         ids = np.arange(positions.shape[1], dtype=np.int64)
         times = np.asarray(trajectory.times, dtype=float)
-        return Snapshots(times, ids, positions, velocities, None, others, box, periodic)
+        return Snapshots(times, ids, positions, velocities, headings, others, box, periodic)
 
     def _read_series(self, source: Source, names: Sequence[str] | None = None) -> Series:
         """Return named series of a trajectory, or the columns of an array, one series per column.
@@ -569,6 +596,72 @@ class BaseAnalysis(BaseEstimator, ABC):
             raise self._get_missing_error(source, f'agent group {chosen!r}' if chosen else 'agent group')
         return self._read_agent_snapshots(source, chosen)
 
+    def _read_samples_of(self, source: Source, names: Sequence[str] | None, group: str | None) -> Series:
+        """Return samples as columns: the series of a source, or the speeds of agents with one column per frame.
+
+        A trajectory gives the speeds of the agents of a group when `group` is set, or when no names are given and it
+        has agents but no scalar series. Any other source gives its series.
+
+        Args:
+            source:
+                A trajectory, a series, or an array with one column per sample.
+
+            names:
+                The variables of a trajectory, or `None` for every scalar series.
+
+            group:
+                The path of the agent or particle group, or `None` for the first one when the trajectory has no series.
+
+        Returns:
+            series:
+                The samples, one per column, and their labels.
+
+        Raises:
+            AnalysisError:
+                The agents of the group have no velocities.
+        """
+        reads_agents = isinstance(source, Trajectory) and (
+            group is not None
+            or (
+                names is None
+                and not self._get_scalar_series(source)
+                and DataKind.AGENTS in self._get_data_kinds(source)
+            )
+        )
+        if not reads_agents:
+            return self._read_series(source, names)
+        speeds = np.linalg.norm(self._read_velocities(source, group), axis=-1)
+        labels = [f'speed at {time:g}' for time in source.times]
+        return Series(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
+
+    def _read_velocities(self, source: Source, group: str | None = None) -> Array:
+        """Return the velocities of the agents of a group, or an array of one snapshot or of frames.
+
+        Args:
+            source:
+                The trajectory, or the velocities of one snapshot, one row per agent, or of one snapshot per frame along
+                the first axis.
+
+            group:
+                The path of the agent or particle group of a trajectory, or `None` for the first one.
+
+        Returns:
+            velocities:
+                The velocities, frames by agents by dimensions.
+
+        Raises:
+            AnalysisError:
+                The agents of the group have no velocities.
+        """
+        if not isinstance(source, Trajectory):
+            array = np.asarray(source, dtype=float)
+            return array[None] if array.ndim == 2 else array  # noqa: PLR2004
+        velocities = self._read_snapshots(source, group).velocities
+        if velocities is None:
+            error_msg = f'The agents of {group or "the first group"} have no velocities. Use moving agents.'
+            raise AnalysisError(error_msg)
+        return velocities
+
     def _read_networks(self, source: Source) -> list[nx.Graph]:
         """Return the network of every frame of a trajectory, or a graph or a network snapshot as the only frame.
 
@@ -652,3 +745,143 @@ class BaseAnalysis(BaseEstimator, ABC):
             error_msg = f'{type(self).__name__} must be prepared with a source before it runs. Call `prepare(source)`.'
             raise AnalysisError(error_msg)
         return self._run()
+
+    @staticmethod
+    @cache
+    def _import(name: str) -> ModuleType:
+        """Return a module, importing it on the first call.
+
+        Args:
+            name:
+                The dotted name of the module.
+
+        Returns:
+            module:
+                The imported module.
+
+        Examples:
+            >>> from skcomplex.analysis import BaseAnalysis
+            >>> BaseAnalysis._import('math').sqrt(4.0)
+            2.0
+        """
+        return import_module(name)
+
+    @staticmethod
+    def _read_system(source: object) -> System | BaseProblem:
+        """Return the system or the problem of a source: the problem of a trajectory, or a system or problem as it is.
+
+        Args:
+            source:
+                A system, a problem compiled from one, or a trajectory.
+
+        Returns:
+            system:
+                The system, or the problem.
+
+        Raises:
+            AnalysisError:
+                The source is not a system, a problem, or a trajectory.
+        """
+        if isinstance(source, Trajectory):
+            return source.problem
+        if isinstance(source, System | BaseProblem):
+            return source
+        error_msg = (
+            f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
+        )
+        raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _read_real(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:
+        """Return values as a float array after rejecting complex values, whose imaginary part a cast would drop.
+
+        Args:
+            values:
+                The values an analysis function receives.
+
+            argument:
+                The name of the argument that holds the values, used in the error message.
+
+        Returns:
+            array:
+                The values as floats.
+
+        Raises:
+            ValidationError:
+                The values are complex.
+        """
+        array = np.asarray(values)
+        if np.iscomplexobj(array):
+            error_msg = (
+                f'The {argument} are complex, and the analysis takes real values. Pass one real view of them: the real '
+                'part `values.real`, the imaginary part `values.imag`, the modulus `np.abs(values)`, or the argument '
+                '`np.angle(values)`.'
+            )
+            raise ValidationError(error_msg)
+        return np.asarray(array, dtype=float)
+
+    @staticmethod
+    def _runs_of(source: SurrogateSource) -> list[Trajectory | npt.ArrayLike]:
+        """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or itself."""
+        if isinstance(source, list) and all(isinstance(item, Trajectory | np.ndarray) for item in source):
+            return source
+        if not isinstance(source, Trajectory) and np.ndim(source) == 3:  # noqa: PLR2004
+            return list(np.asarray(source, dtype=float))
+        return [source]
+
+    @staticmethod
+    def _step_of(series: Series) -> float:
+        """Return the time between the samples of a series, after checking that it is uniform."""
+        steps = np.diff(np.asarray(series.times, dtype=float))
+        if steps.size == 0 or not np.allclose(steps, steps[0], rtol=STEP_TOLERANCE, atol=0.0):
+            error_msg = (
+                f'The series of {series.labels} are not sampled at a uniform step with at least two samples. Record '
+                'them at a fixed interval, such as with the `dt` of `Simulation`.'
+            )
+            raise AnalysisError(error_msg)
+        return float(steps[0])
+
+    def _read_samples(
+        self,
+        source: SurrogateSource,
+        variables: Sequence[str] | None,
+        dt: float,
+    ) -> Samples:
+        """Return the uniformly sampled series of the runs of a source, with common variables and step.
+
+        Args:
+            source:
+                A trajectory, an array with one row per sample, or several runs as a list or a 3-D array.
+
+            variables:
+                The variables of trajectories, or `None` for every scalar state or observable.
+
+            dt:
+                The time between the rows of an array.
+
+        Returns:
+            samples:
+                The values of every series, the names of the variables, and the step.
+
+        Raises:
+            AnalysisError:
+                No run is given, or the runs differ in variables or step, or are not uniformly sampled.
+        """
+        found = []
+        for run in self._runs_of(source):
+            series = self._read_series(run, variables)
+            found.append(
+                series if isinstance(run, Trajectory) else Series(series.times * dt, series.values, series.labels),
+            )
+        if not found:
+            error_msg = 'No series is given. Pass a trajectory, an array, or a list of them.'
+            raise AnalysisError(error_msg)
+        steps = [self._step_of(series) for series in found]
+        labels = found[0].labels
+        if any(series.labels != labels for series in found) or not np.allclose(steps, steps[0], rtol=STEP_TOLERANCE):
+            error_msg = (
+                f'The series have the variables {[series.labels for series in found]} and the steps {steps}. Give '
+                'series of the same variables sampled at the same step.'
+            )
+            raise AnalysisError(error_msg)
+        return Samples([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])

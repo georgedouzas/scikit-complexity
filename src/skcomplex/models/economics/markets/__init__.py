@@ -1,4 +1,4 @@
-"""Markets: prices, competition, retail, inventories, queues, and barter on trade networks."""
+"""Markets: prices, competition, retail, inventories, queues, and barter of Cobb-Douglas traders on trade networks."""
 
 from ._barter import BartererElement, barter, contract_curve
 from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, wilhite_trade_networks
@@ -13,6 +13,7 @@ from ._double_auction import (
     maximum_surplus,
 )
 from ._duopoly import CournotAdjustmentInteraction, DuopolistElement, cournot_duopoly
+from ._exchange import cobb_douglas, marginal_rate, neighbor_pairing, trade_goods
 from ._fair_food import ConsumerElement, fair_food
 from ._goods_traders import ExchangeInteraction, GoodsTraderElement, goods_traders
 from ._inventory import CarDealershipElement, car_dealer
@@ -84,6 +85,7 @@ __all__: list[str] = [
     'brock_hommes',
     'car_dealer',
     'car_wash',
+    'cobb_douglas',
     'cobweb',
     'commodity_cycle',
     'contract_curve',
@@ -94,11 +96,14 @@ __all__: list[str] = [
     'goods_traders',
     'hire',
     'labour_market',
+    'marginal_rate',
     'maximum_surplus',
+    'neighbor_pairing',
     'perishable_goods_duopoly',
     'produce_market',
     'riccati_prices',
     'shops',
     'sugarscape',
+    'trade_goods',
     'wilhite_trade_networks',
 ]

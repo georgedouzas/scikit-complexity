@@ -72,11 +72,11 @@ class DiscoveryAnalysis(BaseAnalysis):
 
     @staticmethod
     def _get_classes(base: type[BaseAnalysis]) -> list[type[BaseAnalysis]]:
-        """Return every concrete analysis of the library below a base, by name."""
+        """Return every concrete general analysis below a base, by name, leaving out the realizations of the models."""
         found = []
         for child in base.__subclasses__():
             found.extend(DiscoveryAnalysis._get_classes(child))
-            if child.__module__.startswith('skcomplex.') and not inspect.isabstract(child):
+            if child.__module__.startswith('skcomplex.analysis.') and not inspect.isabstract(child):
                 found.append(child)
         return sorted(set(found), key=lambda item: item.__name__)
 

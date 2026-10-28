@@ -13,10 +13,10 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
-from ._correlation import _correlation_function
+from ._correlation import CorrelationAnalysis
 from ._kinds import DataKind
-from ._mixing import _pairs
-from ._spectrum import _mode_power, _structure_factor
+from ._neighbors import NeighborAnalysis
+from ._spectrum import SpectrumAnalysis
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('size', 'growth', 'wavelength', 'interface-density')
@@ -28,52 +28,6 @@ SETTINGS = {
     'interface-density': {'attribute', 'times'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
-
-
-def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:
-    """Return `2 pi / <k>` over the structure factor of a frame, or the first zero of its correlation function."""
-    if method == 'zero':
-        distances, values = _correlation_function(field)
-        crossing = np.flatnonzero(values <= 0)
-        index = int(crossing[0]) if crossing.size else distances.size - 1
-        return float(distances[index] * spacing)
-    wavenumbers, power = _structure_factor(np.asarray(field, dtype=float)[None], spacing)
-    return float(2 * np.pi * power.sum() / np.sum(wavenumbers * power))
-
-
-def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] | None) -> float:
-    """Return the slope of `log size` against `log time` over the frames of the fit range."""
-    low, high = (0.0, np.inf) if fit_range is None else fit_range
-    inside = (times >= low) & (times <= high) & (times > 0) & (sizes > 0)
-    if inside.sum() < 2:  # noqa: PLR2004
-        error_msg = (
-            f'The fit range {fit_range} holds fewer than 2 frames with a positive time and size. Widen it, or prepare '
-            'on more frames.'
-        )
-        raise AnalysisError(error_msg)
-    return float(np.polyfit(np.log(times[inside]), np.log(sizes[inside]), 1)[0])
-
-
-def _pattern(field: npt.ArrayLike, spacing: float) -> tuple[float, float, float]:
-    """Return the wavelength and the wavenumber of the peak of the structure factor and the order of its orientation."""
-    grid = np.asarray(field, dtype=float)
-    wavenumbers, shells = _structure_factor(grid[None], spacing)
-    peak = float(wavenumbers[shells.argmax()])
-    power = _mode_power(grid[None])
-    axes = np.meshgrid(*(2 * np.pi * np.fft.fftfreq(size, spacing) for size in grid.shape), indexing='ij')
-    moduli = np.sqrt(sum(axis**2 for axis in axes))
-    width = 2 * np.pi / (max(grid.shape) * spacing)
-    near = np.abs(moduli - peak) <= width
-    angles = np.arctan2(axes[1], axes[0]) if grid.ndim > 1 else np.zeros_like(moduli)
-    weights = power[near]
-    orientation = float(np.abs(np.sum(weights * np.exp(2j * angles[near]))) / weights.sum())
-    return 2 * np.pi / peak, peak, orientation
-
-
-def _interface_density(data: npt.ArrayLike | nx.Graph, attribute: str = 'state') -> float:
-    """Return the share of neighbouring pairs, on a periodic grid without corners or along edges, that differ."""
-    own, other = _pairs(data, attribute, diagonal=False)
-    return float(np.mean(own != other))
 
 
 class DomainAnalysis(BaseAnalysis):
@@ -210,13 +164,59 @@ class DomainAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the domain measure of every frame."""
         if self.kind in {'size', 'growth'}:
-            self.size_ = np.asarray([_domain_size(frame, self.method, self.spacing) for frame in self.frames_])
+            self.size_ = np.asarray([self._domain_size(frame, self.method, self.spacing) for frame in self.frames_])
             if self.kind == 'growth':
-                self.exponent_ = _growth_exponent(self.times_, self.size_, self.fit_range)
+                self.exponent_ = self._growth_exponent(self.times_, self.size_, self.fit_range)
             return self
         if self.kind == 'wavelength':
-            patterns = np.asarray([_pattern(frame, self.spacing) for frame in self.frames_]).reshape(-1, 3)
+            patterns = np.asarray([self._pattern(frame, self.spacing) for frame in self.frames_]).reshape(-1, 3)
             self.wavelength_, self.wavenumber_, self.orientation_ = patterns.T
             return self
-        self.density_ = np.asarray([_interface_density(frame, self.attribute) for frame in self.frames_])
+        self.density_ = np.asarray([self._interface_density(frame, self.attribute) for frame in self.frames_])
         return self
+
+    @staticmethod
+    def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:
+        """Return `2 pi / <k>` over the structure factor of a frame, or the first zero of its correlation function."""
+        if method == 'zero':
+            distances, values = CorrelationAnalysis._correlation_function(field)
+            crossing = np.flatnonzero(values <= 0)
+            index = int(crossing[0]) if crossing.size else distances.size - 1
+            return float(distances[index] * spacing)
+        wavenumbers, power = SpectrumAnalysis._structure_factor(np.asarray(field, dtype=float)[None], spacing)
+        return float(2 * np.pi * power.sum() / np.sum(wavenumbers * power))
+
+    @staticmethod
+    def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] | None) -> float:
+        """Return the slope of `log size` against `log time` over the frames of the fit range."""
+        low, high = (0.0, np.inf) if fit_range is None else fit_range
+        inside = (times >= low) & (times <= high) & (times > 0) & (sizes > 0)
+        if inside.sum() < 2:  # noqa: PLR2004
+            error_msg = (
+                f'The fit range {fit_range} holds fewer than 2 frames with a positive time and size. Widen it, or '
+                'prepare on more frames.'
+            )
+            raise AnalysisError(error_msg)
+        return float(np.polyfit(np.log(times[inside]), np.log(sizes[inside]), 1)[0])
+
+    @staticmethod
+    def _pattern(field: npt.ArrayLike, spacing: float) -> tuple[float, float, float]:
+        """Return the wavelength and the wavenumber of the structure factor peak and the order of its orientation."""
+        grid = np.asarray(field, dtype=float)
+        wavenumbers, shells = SpectrumAnalysis._structure_factor(grid[None], spacing)
+        peak = float(wavenumbers[shells.argmax()])
+        power = SpectrumAnalysis._mode_power(grid[None])
+        axes = np.meshgrid(*(2 * np.pi * np.fft.fftfreq(size, spacing) for size in grid.shape), indexing='ij')
+        moduli = np.sqrt(sum(axis**2 for axis in axes))
+        width = 2 * np.pi / (max(grid.shape) * spacing)
+        near = np.abs(moduli - peak) <= width
+        angles = np.arctan2(axes[1], axes[0]) if grid.ndim > 1 else np.zeros_like(moduli)
+        weights = power[near]
+        orientation = float(np.abs(np.sum(weights * np.exp(2j * angles[near]))) / weights.sum())
+        return 2 * np.pi / peak, peak, orientation
+
+    @staticmethod
+    def _interface_density(data: npt.ArrayLike | nx.Graph, attribute: str = 'state') -> float:
+        """Return the share of neighbouring pairs, on a periodic grid without corners or along edges, that differ."""
+        own, other = NeighborAnalysis._pairs(data, attribute, diagonal=False)
+        return float(np.mean(own != other))

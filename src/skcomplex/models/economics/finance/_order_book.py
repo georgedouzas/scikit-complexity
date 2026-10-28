@@ -20,7 +20,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._markets import OrderBook, Trade
+from ..realizations.markets import OrderBook, Trade
 
 LOWEST_PRICE = 0.01
 HOLDINGS = ('money', 'shares')
@@ -215,10 +215,10 @@ class StockTraderElement(Element):
 class BookInteraction(Interaction):
     """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
 
-    The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.realizations`, and
-    every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the total money and the
-    total shares stay the same, which the default run checks as invariants. The book reports the last traded `price`,
-    the previous price when nothing trades, and the traded `volume`.
+    The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.realizations.markets`,
+    and every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the total money and
+    the total shares stay the same, which the default run checks as invariants. The book reports the last traded
+    `price`, the previous price when nothing trades, and the traded `volume`.
 
     Args:
         label:

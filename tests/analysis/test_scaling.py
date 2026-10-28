@@ -1,11 +1,17 @@
-"""Test the scaling analysis of series, cells, and points."""
+"""Test the scaling analysis of series, cells, points, fluctuations at growing scales, and power laws."""
+
+import math
 
 import numpy as np
 import pytest
+from scipy import optimize
 from scipy.integrate import solve_ivp
+from scipy.spatial import cKDTree
 
-from skcomplex.analysis import ScalingAnalysis
+from skcomplex.analysis import CoarseGrainAnalysis, ScalingAnalysis
 from skcomplex.core.errors import AnalysisError
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models import create
 
 
 def _scaling(kind: str, source: object, **settings: object) -> ScalingAnalysis:
@@ -98,9 +104,74 @@ def test_correlation_dimension_of_attractors_and_agents():
         _scaling('correlation-dimension', agents, scales=[10.0, 20.0])
 
 
+def _density(positions: np.ndarray, side: float) -> np.ndarray:
+    """Return the agents of a square of a side coarse-grained on a 64 by 64 grid."""
+    return CoarseGrainAnalysis([64, 64], box=[side, side]).check().prepare(positions).run().field_
+
+
+def _vicsek_densities(rng: np.random.Generator, agents: int, side: float, noise: float, steps: int) -> np.ndarray:
+    """Return coarse-grained densities of Vicsek agents of speed 0.5 aligning within distance 1 in a periodic box."""
+    positions = rng.random((agents, 2)) * side
+    headings = rng.uniform(-np.pi, np.pi, agents)
+    densities = []
+    for step in range(steps):
+        pairs = cKDTree(positions, boxsize=side).query_pairs(1.0, output_type='ndarray')
+        sines, cosines = np.sin(headings), np.cos(headings)
+        total_sines, total_cosines = sines.copy(), cosines.copy()
+        for first, second in ((0, 1), (1, 0)):
+            np.add.at(total_sines, pairs[:, first], sines[pairs[:, second]])
+            np.add.at(total_cosines, pairs[:, first], cosines[pairs[:, second]])
+        headings = np.arctan2(total_sines, total_cosines) + noise * rng.uniform(-np.pi, np.pi, agents)
+        positions = np.mod(positions + 0.5 * np.column_stack([np.cos(headings), np.sin(headings)]), side)
+        if step >= steps // 3 and step % 50 == 0:
+            densities.append(_density(positions, side))
+    return np.asarray(densities)
+
+
+def test_variance_mean_of_box_counts_giant_in_ordered_flocks():
+    """Test that an ideal gas has normal number fluctuations and ordered Vicsek agents giant ones."""
+    rng = np.random.default_rng(2)
+    gas = np.asarray([_density(rng.random((4000, 2)) * 32, 32) for _ in range(40)])
+    assert _scaling('variance-mean', gas).exponent_ == pytest.approx(0.5, abs=0.05)
+    assert _scaling('variance-mean', _vicsek_densities(rng, 2000, 22.6, 0.3, 2000)).exponent_ > 0.6
+
+
+def test_variance_mean_against_size_of_an_ideal_lattice_gas():
+    """Test that the particle number in subvolumes of a lattice gas fluctuates as the inverse root of the volume."""
+    occupied = np.random.default_rng(3).random((200, 256, 256)) < 0.3
+    samples = {side**2: occupied[:, :side, :side].sum(axis=(1, 2)) for side in (4, 8, 16, 32, 64)}
+    relative = _scaling('variance-mean', samples, against='size')
+    assert relative.exponent_ == pytest.approx(-0.5, abs=0.05)
+    assert relative.scales_.tolist() == [16.0, 64.0, 256.0, 1024.0, 4096.0]
+    assert _scaling('variance-mean', samples).exponent_ == pytest.approx(0.5, abs=0.05)
+
+
+def test_power_exponent_of_two_mean_field_transitions():
+    """Test that the mean-field Ising model and the Ott-Antonsen Kuramoto model give the exponent 1/2."""
+    temperatures = np.linspace(0.95, 0.995, 10)
+    magnetizations = [optimize.brentq(lambda m, t=t: m - math.tanh(m / t), 1e-6, 1.0) for t in temperatures]
+    power = _scaling('power', magnetizations, parameters=temperatures, critical=1.0)
+    assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
+    couplings = np.linspace(1.02, 1.2, 10)
+    orders = [
+        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0).run(until=400.0).trajectory_
+        for coupling in couplings
+    ]
+    names = orders[0].problem.states.names
+    final = [float(np.abs(trajectory.values(names[0])[-1])) for trajectory in orders]
+    power = _scaling('power', final, parameters=couplings, critical=1.0, above=True)
+    assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
+    with pytest.raises(AnalysisError, match='chosen side'):
+        _scaling('power', [0.1, 0.2], parameters=[1.5, 2.0], critical=1.0)
+
+
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='detrended-fluctuation, rescaled-range'):
         ScalingAnalysis('wavelet').check()
     with pytest.raises(AnalysisError, match='does not read order'):
         ScalingAnalysis('box-counting', order=2).check()
+    with pytest.raises(AnalysisError, match="against='variance'"):
+        ScalingAnalysis('variance-mean', against='variance').check()
+    with pytest.raises(AnalysisError, match='critical value'):
+        ScalingAnalysis('power', parameters=[1.0, 2.0]).check()

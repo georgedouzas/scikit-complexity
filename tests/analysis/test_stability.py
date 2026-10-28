@@ -1,4 +1,4 @@
-"""Test the stability analysis: fixed points, Jacobians, stability, nullclines, and divergence."""
+"""Test the stability analysis: fixed points, Jacobians, stability, nullclines, divergence, and dispersion."""
 
 from typing import Annotated
 
@@ -7,15 +7,17 @@ import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.analysis import StabilityAnalysis
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
+from skcomplex.models.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 
@@ -23,6 +25,14 @@ from skcomplex.models.physics.mechanics import harmonic_oscillator
 def _stability(source, **settings):
     """Return the stability analysis of a source, run."""
     return StabilityAnalysis(**settings).check().prepare(source).run()
+
+
+def _brusselator(b, *, discretization='spectral', boundary='periodic'):
+    """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
+    values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
+    space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
+    cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
+    return System(elements=[cells])
 
 
 def test_lotka_volterra_centre():
@@ -163,3 +173,40 @@ def test_points_are_the_given_points():
     analysis = _stability(lotka_volterra(), points=[{'prey.n': 0, 'predators.n': 0}])
     assert analysis.fixed_points_ == [{'prey.n': 0, 'predators.n': 0}]
     assert len(analysis.eigenvalues_) == 1
+
+
+def test_dispersion_relation_finds_the_turing_band():
+    """Test that the Brusselator above its Turing threshold grows on the analytic band within one grid wavenumber."""
+    relation = _stability(_brusselator(1.9), kind='dispersion')
+    gap = np.sqrt(6.2**2 - 32)
+    low, high = np.sqrt((6.2 - gap) / 16), np.sqrt((6.2 + gap) / 16)
+    step = 2 * np.pi / (128 * 0.5)
+    assert relation.uniform_ == pytest.approx({'u': 1.0, 'v': 1.9})
+    assert relation.band_.min() == pytest.approx(low, abs=step)
+    assert relation.band_.max() == pytest.approx(high, abs=step)
+    assert relation.growth_rates_[relation.magnitudes_ == 0] < 0
+
+
+def test_dispersion_relation_of_finite_differences_and_below_threshold():
+    """Test that finite differences agree with spectral modes at long waves, and that no mode grows below threshold."""
+    spectral = _stability(_brusselator(1.9), kind='dispersion')
+    stencil = _stability(_brusselator(1.9, discretization='finite-difference'), kind='dispersion')
+    long = spectral.magnitudes_ < 0.3
+    assert stencil.growth_rates_[long] == pytest.approx(spectral.growth_rates_[long], abs=1e-2)
+    assert _stability(_brusselator(1.7), kind='dispersion').band_.size == 0
+
+
+def test_dispersion_relation_rejects_non_periodic_fields_and_data():
+    """Test that a field with walls has no Fourier modes, and that an array is not a system."""
+    with pytest.raises(AnalysisError, match='periodic lattice'):
+        _stability(_brusselator(1.9, boundary='fixed'), kind='dispersion')
+    with pytest.raises(AnalysisError, match='from a system'):
+        _stability(np.zeros(4), kind='dispersion')
+
+
+def test_stability_checks_its_kind_and_settings():
+    """Test that an unknown kind and a setting the kind ignores raise errors."""
+    with pytest.raises(AnalysisError, match='fixed-points, dispersion'):
+        StabilityAnalysis('unknown').check()
+    with pytest.raises(AnalysisError, match='does not read points'):
+        StabilityAnalysis('dispersion', points=[{'x': 0.0}]).check()
