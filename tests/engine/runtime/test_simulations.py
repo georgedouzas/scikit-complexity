@@ -1,5 +1,6 @@
 """Test the `_simulations` module of `skcomplex.engine.runtime`."""
 
+import inspect
 import time
 from typing import Annotated
 
@@ -493,3 +494,22 @@ def test_simulation_releases_the_solver_after_a_stop():
     time.sleep(0.05)
     simulation.stop()
     assert simulation.stepper_.releases_ == 1
+
+
+def test_simulation_prepare_compiles_and_chooses_the_solver_without_running():
+    """Test that preparing a simulation takes no input, compiles the system, and runs nothing."""
+    simulation = Simulation(_growth()).prepare()
+    assert simulation.problem_.states.names == ['a.n']
+    assert simulation.stepper_ is not None
+    assert not hasattr(simulation, 'time_')
+    with pytest.raises(SimulationError, match='not run'):
+        simulation.extend(until=1)
+
+
+def test_simulation_run_takes_the_end_time():
+    """Test that running a simulation takes one input, the time to stop at, and returns the simulation."""
+    assert list(inspect.signature(Simulation.prepare).parameters) == ['self']
+    assert list(inspect.signature(Simulation.run).parameters) == ['self', 'until']
+    simulation = Simulation(_growth(), dt=1.0)
+    assert simulation.run(2) is simulation
+    assert simulation.time_ == 2.0
