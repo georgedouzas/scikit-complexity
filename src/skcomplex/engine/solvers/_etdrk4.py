@@ -31,7 +31,7 @@ class ETDRK4Solver(SplitSolver):
 
     def _built(self, p: Array) -> None:
         """Check that the linear part is spectral and forget its coefficients."""
-        if self.operator_.sparse is not None:
+        if self.sparse_ is not None:
             error_msg = 'ETDRK4Solver needs the linear part on spectral fields. Use IMEX2Solver or CrankNicolsonSolver.'
             raise SolverError(error_msg)
         self._coefficients: dict[float, list[list[ComplexArray]]] = {}
@@ -40,8 +40,8 @@ class ETDRK4Solver(SplitSolver):
         """Return the six ETDRK4 matrices of every block for a step."""
         if h not in self._coefficients:
             blocks = []
-            for block in self.operator_.blocks:
-                values, vectors = np.linalg.eig(h * block.matrix)
+            for _, _, matrix in self.blocks_:
+                values, vectors = np.linalg.eig(h * matrix)
                 inverse = np.linalg.inv(vectors)
                 blocks.append(
                     [np.einsum('...ij,...j,...jk->...ik', vectors, item, inverse) for item in self._phi(values, h)],
@@ -53,8 +53,8 @@ class ETDRK4Solver(SplitSolver):
         """Return one of the six ETDRK4 maps applied to a state vector, with its L = 0 limit outside blocks."""
         scalars = [1.0, 1.0, h / 2, h / 6, h / 6, h / 6]
         out = scalars[index] * x
-        for block, matrices in zip(self.operator_.blocks, self._matrices(h), strict=True):
-            block.apply(matrices[index], x, out)
+        for block, matrices in zip(self.blocks_, self._matrices(h), strict=True):
+            self._apply_block(block, matrices[index], x, out)
         return out
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:

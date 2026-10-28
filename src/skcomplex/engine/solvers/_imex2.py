@@ -37,4 +37,4 @@ class IMEX2Solver(SplitSolver):
         remainder = self._remainder(t, x, p)
         extrapolated = remainder if self._previous is None else 1.5 * remainder - 0.5 * self._previous
         self._previous = remainder
-        return self.operator_.solve(h / 2, x + h / 2 * self.operator_.apply(x) + h * extrapolated)
+        return self._solve_linear(h / 2, x + h / 2 * self._linear(x) + h * extrapolated)

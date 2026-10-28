@@ -32,4 +32,4 @@ class IMEXEulerSolver(SplitSolver):
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one implicit-explicit Euler step."""
-        return self.operator_.solve(h, x + h * self._remainder(t, x, p))
+        return self._solve_linear(h, x + h * self._remainder(t, x, p))

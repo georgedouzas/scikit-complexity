@@ -7,7 +7,6 @@ import functools
 import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import cast
 
@@ -39,18 +38,6 @@ _SUPPORTED_DIMENSIONS = (2, 3)
 type FixCommand = Callable[[LammpsFixSpec], str]
 
 
-@dataclass
-class _Atoms:
-    """Particle elements and groups as LAMMPS atom types, with the flat state indices of every atom."""
-
-    elements: list[CompiledElementSpec] = field(default_factory=list)
-    types: dict[str, int] = field(default_factory=dict)
-    positions: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros((0, 0), dtype=np.intp))
-    velocities: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros((0, 0), dtype=np.intp))
-    atom_types: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    n_dim: int = 0
-
-
 class LammpsSolver(ExternalSolver):
     """Solver that runs particle systems in LAMMPS, with LAMMPS velocity Verlet integration.
 
@@ -73,6 +60,24 @@ class LammpsSolver(ExternalSolver):
     Attributes:
         lammps_:
             The LAMMPS instance, which the final run `run(..., final=True)` closes.
+
+        atom_elements_:
+            The particle elements and groups, each a LAMMPS atom type.
+
+        atom_numbers_:
+            The LAMMPS atom type of every particle element and group, by path.
+
+        position_indices_:
+            The flat state indices of the position of every atom, of shape `(atoms, dimensions)`.
+
+        velocity_indices_:
+            The flat state indices of the velocity of every atom, of shape `(atoms, dimensions)`.
+
+        atom_types_:
+            The LAMMPS atom type of every atom.
+
+        n_dim_:
+            The number of dimensions of the space of the atoms.
 
         released_:
             Whether the LAMMPS instance is closed.
@@ -218,12 +223,11 @@ class LammpsSolver(ExternalSolver):
 
     def _box_commands(self, problem: ProblemSpec, x: Array) -> list[str]:
         """Return the commands that create the simulation box."""
-        atoms = self.atoms_
         box = self._box(problem)
-        positions = x[atoms.positions]
+        positions = x[self.position_indices_]
         if box is not None:
-            low, high = np.zeros(atoms.n_dim), np.asarray(box.extent_)
-            boundary = ['p' if box.boundary == 'periodic' else 'f'] * atoms.n_dim
+            low, high = np.zeros(self.n_dim_), np.asarray(box.extent_)
+            boundary = ['p' if box.boundary == 'periodic' else 'f'] * self.n_dim_
         else:
             cutoffs = [
                 float(self._parameter(problem, problem.initial_parameters, item.path, 'cutoff')[0])
@@ -232,19 +236,19 @@ class LammpsSolver(ExternalSolver):
             ]
             margin = max(cutoffs, default=0.0) + 1.0
             low, high = positions.min(axis=0) - margin, positions.max(axis=0) + margin
-            boundary = ['m'] * atoms.n_dim
-        bounds = [f'{low[dimension]} {high[dimension]}' for dimension in range(atoms.n_dim)]
-        if atoms.n_dim == _SUPPORTED_DIMENSIONS[0]:
+            boundary = ['m'] * self.n_dim_
+        bounds = [f'{low[dimension]} {high[dimension]}' for dimension in range(self.n_dim_)]
+        if self.n_dim_ == _SUPPORTED_DIMENSIONS[0]:
             bounds.append('-0.5 0.5')
             boundary.append('p')
         return [
             'units lj',
-            f'dimension {atoms.n_dim}',
+            f'dimension {self.n_dim_}',
             'atom_style atomic',
             'atom_modify map array sort 0 0.0',
             f'boundary {" ".join(boundary)}',
             f'region box block {" ".join(bounds)}',
-            f'create_box {len(atoms.elements)} box',
+            f'create_box {len(self.atom_elements_)} box',
         ]
 
     def _pair_commands(self, problem: ProblemSpec, p: Array) -> list[str]:
@@ -257,7 +261,10 @@ class LammpsSolver(ExternalSolver):
             cutoff = float(self._parameter(problem, p, item.path, 'cutoff')[0])
             largest = max(largest, cutoff)
             first, second = sorted(
-                (self.atoms_.types[self._role_path(item, 'first')], self.atoms_.types[self._role_path(item, 'second')]),
+                (
+                    self.atom_numbers_[self._role_path(item, 'first')],
+                    self.atom_numbers_[self._role_path(item, 'second')],
+                ),
             )
             native = self._native(self.pairs or {}, item.interaction)
             if native is not None:
@@ -278,9 +285,8 @@ class LammpsSolver(ExternalSolver):
 
     def _fix_commands(self, problem: ProblemSpec, p: Array) -> list[str]:
         """Return the commands of the integrator and of every box, force, drag, and thermostat fix."""
-        atoms = self.atoms_
         commands = ['fix nve all nve']
-        if atoms.n_dim == _SUPPORTED_DIMENSIONS[0]:
+        if self.n_dim_ == _SUPPORTED_DIMENSIONS[0]:
             commands.append('fix plane all enforce2d')
         box = self._box(problem)
         if box is not None and box.boundary == 'reflecting':
@@ -295,7 +301,7 @@ class LammpsSolver(ExternalSolver):
             target = self._role_path(item, 'target') if 'target' in item.roles else None
             fix = LammpsFixSpec(
                 name=f'fix{index}',
-                group=f'group{atoms.types[target]}' if target is not None else 'all',
+                group=f'group{self.atom_numbers_[target]}' if target is not None else 'all',
                 value=functools.partial(self._parameter, problem, p, item.path),
                 mass=functools.partial(self._target_mass, problem, p, target),
                 seed=self._seed,
@@ -307,7 +313,7 @@ class LammpsSolver(ExternalSolver):
 
     def _target_mass(self, problem: ProblemSpec, p: Array, target: str | None) -> float:
         """Return the mass of the atoms of the element or group an interaction targets."""
-        return self._mass(problem, p, next(element for element in self.atoms_.elements if element.path == target))
+        return self._mass(problem, p, next(element for element in self.atom_elements_ if element.path == target))
 
     def _seed(self) -> int:
         """Return a random seed for a LAMMPS fix."""
@@ -319,7 +325,6 @@ class LammpsSolver(ExternalSolver):
         assert sub_problem is not None
         drift = sub_problem.drift
         assert drift is not None
-        atoms = self.atoms_
         sub_positions = np.concatenate(
             [self._state_indices(sub_problem, element.states['x']) for element in sub_problem.elements],
         )
@@ -329,7 +334,7 @@ class LammpsSolver(ExternalSolver):
         masses = np.concatenate(
             [
                 np.full(element.members or 1, self._mass(self.problem_, self.parameters_, element))
-                for element in atoms.elements
+                for element in self.atom_elements_
             ],
         )
 
@@ -344,13 +349,13 @@ class LammpsSolver(ExternalSolver):
             """Write the forces of the external interactions on every local atom."""
             order = np.asarray(tags[:n_local], dtype=np.intp) - 1
             state = sub_problem.initial_state.copy()
-            state[sub_positions[order]] = x[:n_local, : atoms.n_dim]
-            state[sub_velocities[order]] = self.lammps_.numpy.extract_atom('v')[:n_local, : atoms.n_dim]
+            state[sub_positions[order]] = x[:n_local, : self.n_dim_]
+            state[sub_velocities[order]] = self.lammps_.numpy.extract_atom('v')[:n_local, : self.n_dim_]
             parameters = self._sub_parameters()
             time = self.time_ + (step - self.start_step_) * self.timestep_
             accelerations = drift(time, state, parameters)
             forces[:n_local, :] = 0.0
-            forces[:n_local, : atoms.n_dim] = accelerations[sub_velocities[order]] * masses[order, None]
+            forces[:n_local, : self.n_dim_] = accelerations[sub_velocities[order]] * masses[order, None]
 
         return callback
 
@@ -371,7 +376,7 @@ class LammpsSolver(ExternalSolver):
                 The compiled problem.
 
         """
-        self.atoms_ = self._atoms_of(problem)
+        self._set_atoms(problem)
         external = self._external_paths(problem)
         self.external_ = (
             cast('ProblemSpec', compile_system(self._filter_system(problem.system, external)))  # type: ignore[arg-type]
@@ -383,12 +388,12 @@ class LammpsSolver(ExternalSolver):
         self.lammps_ = lammps(cmdargs=_LAMMPS_ARGUMENTS)
         self.released_ = False
         self.lammps_.commands_list(self._box_commands(problem, problem.initial_state))
-        for element in self.atoms_.elements:
+        for element in self.atom_elements_:
             self.lammps_.command(
-                f'mass {self.atoms_.types[element.path]} {self._mass(problem, self.parameters_, element)}',
+                f'mass {self.atom_numbers_[element.path]} {self._mass(problem, self.parameters_, element)}',
             )
         self._create_atoms(problem.initial_state)
-        self.lammps_.commands_list([f'group group{number} type {number}' for number in self.atoms_.types.values()])
+        self.lammps_.commands_list([f'group group{number} type {number}' for number in self.atom_numbers_.values()])
         self.lammps_.commands_list(
             [
                 *self._pair_commands(problem, self.parameters_),
@@ -402,25 +407,24 @@ class LammpsSolver(ExternalSolver):
 
     def _create_atoms(self, x: Array) -> None:
         """Create one LAMMPS atom per member, with ids in state vector order."""
-        atoms = self.atoms_
-        count = len(atoms.atom_types)
+        count = len(self.atom_types_)
         positions, velocities = np.zeros((count, 3)), np.zeros((count, 3))
-        positions[:, : atoms.n_dim], velocities[:, : atoms.n_dim] = x[atoms.positions], x[atoms.velocities]
+        positions[:, : self.n_dim_], velocities[:, : self.n_dim_] = x[self.position_indices_], x[self.velocity_indices_]
         ids = list(range(1, count + 1))
         self.lammps_.create_atoms(
             count,
             ids,
-            atoms.atom_types.tolist(),
+            self.atom_types_.tolist(),
             positions.ravel().tolist(),
             velocities.ravel().tolist(),
         )
 
     def _update_parameters(self, p: Array) -> None:
         """Reissue the masses, pair coefficients, and fixes after a parameter change."""
-        problem, atoms = self.problem_, self.atoms_
+        problem = self.problem_
         self.parameters_ = p.copy()
-        for element in atoms.elements:
-            self.lammps_.command(f'mass {atoms.types[element.path]} {self._mass(problem, p, element)}')
+        for element in self.atom_elements_:
+            self.lammps_.command(f'mass {self.atom_numbers_[element.path]} {self._mass(problem, p, element)}')
         self.lammps_.commands_list(self._pair_commands(problem, p))
         fixes = self._fix_commands(problem, p)
         self.lammps_.commands_list([f'unfix {command.split()[1]}' for command in fixes])
@@ -463,10 +467,9 @@ class LammpsSolver(ExternalSolver):
             raise SolverError(error_msg)
         if not np.array_equal(p, self.parameters_):
             self._update_parameters(p)
-        atoms = self.atoms_
         order, positions, velocities = self._local_atoms()
-        positions[:, : atoms.n_dim] = x[atoms.positions[order]]
-        velocities[:, : atoms.n_dim] = x[atoms.velocities[order]]
+        positions[:, : self.n_dim_] = x[self.position_indices_[order]]
+        velocities[:, : self.n_dim_] = x[self.velocity_indices_[order]]
         n_steps = step_count(t, until, self.dt)
         timestep = (until - t) / n_steps
         if timestep != self.timestep_:
@@ -477,8 +480,8 @@ class LammpsSolver(ExternalSolver):
         self.lammps_.command(f'run {n_steps} pre yes post no')
         state = x.copy()
         order, positions, velocities = self._local_atoms()
-        state[atoms.positions[order]] = positions[:, : atoms.n_dim]
-        state[atoms.velocities[order]] = velocities[:, : atoms.n_dim]
+        state[self.position_indices_[order]] = positions[:, : self.n_dim_]
+        state[self.velocity_indices_[order]] = velocities[:, : self.n_dim_]
         return state
 
     def _release(self) -> None:
@@ -498,22 +501,22 @@ class LammpsSolver(ExternalSolver):
         entry = problem.states.entry(name)
         return (entry.start + np.arange(entry.size)).reshape(entry.rows, entry.columns)
 
-    @staticmethod
-    def _atoms_of(problem: ProblemSpec) -> _Atoms:
-        """Return the atom types and state indices of the particle elements and groups of a problem."""
-        atoms = _Atoms(elements=list(problem.elements))
+    def _set_atoms(self, problem: ProblemSpec) -> None:
+        """Set the atom types and state indices of the particle elements and groups of a problem."""
+        self.atom_elements_ = list(problem.elements)
+        self.atom_numbers_: dict[str, int] = {}
         positions, velocities, types = [], [], []
+        self.n_dim_ = 0
         for number, element in enumerate(problem.elements, start=1):
-            atoms.types[element.path] = number
+            self.atom_numbers_[element.path] = number
             member_positions = LammpsSolver._state_indices(problem, element.states['x'])
             positions.append(member_positions)
             velocities.append(LammpsSolver._state_indices(problem, element.states['v']))
             types.append(np.full(len(member_positions), number, dtype=np.intp))
-            atoms.n_dim = member_positions.shape[1]
-        atoms.positions = np.concatenate(positions)
-        atoms.velocities = np.concatenate(velocities)
-        atoms.atom_types = np.concatenate(types)
-        return atoms
+            self.n_dim_ = member_positions.shape[1]
+        self.position_indices_ = np.concatenate(positions)
+        self.velocity_indices_ = np.concatenate(velocities)
+        self.atom_types_ = np.concatenate(types)
 
     @staticmethod
     def _role_path(item: CompiledInteractionSpec, role: str) -> str:
