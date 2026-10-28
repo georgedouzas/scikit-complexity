@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import orbit_diagram
+from skcomplex.analysis import SectionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -26,11 +26,24 @@ MODEL = 'circle_map'
 
 def winding_numbers(rotations, K):
     """Return the mean rotation per step of the lifted map after a transient, for every bare rotation."""
-    diagram = orbit_diagram(create(MODEL, K=K), 'map.Omega', rotations, 'map.theta', transient=100, keep=500, dt=1)
+    diagram = (
+        SectionAnalysis(
+            'orbit-diagram',
+            parameter='map.Omega',
+            parameter_values=rotations,
+            observable='map.theta',
+            transient=100,
+            keep=500,
+            dt=1,
+        )
+        .check()
+        .prepare(create(MODEL, K=K))
+        .run()
+    )
     return np.array(
         [
             np.mean(Omega - K / (2 * np.pi) * np.sin(2 * np.pi * theta))
-            for Omega, theta in zip(rotations, diagram.points, strict=True)
+            for Omega, theta in zip(rotations, diagram.points_, strict=True)
         ],
     )
 

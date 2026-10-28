@@ -126,7 +126,7 @@ bound to its roles:
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 
-from skcomplex.analysis import equations_of
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.base import NumericDomain, parameter, role
 from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
@@ -144,7 +144,7 @@ harvested = System(
     components=[PopulationElement('fish', n=500)],
     interactions=[LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000), HarvestInteraction('fishing', target='fish', h=0.1)],
 )
-print(equations_of(harvested)['fish.n'])
+print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
 ```
 
 ## Spec-driven development

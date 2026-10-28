@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.analysis import equations_of
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.physics.mechanics import circular_billiard, newtons_cradle
@@ -13,7 +13,7 @@ from skcomplex.models.physics.mechanics import circular_billiard, newtons_cradle
 
 def test_pendulum_equation_is_newtons_law():
     """Test that the pendulum is compiled from Newton's law into one second-order equation."""
-    equations = equations_of(create('pendulum'))
+    equations = SymbolicAnalysis().check().prepare(create('pendulum')).run().equations_
     assert list(equations) == ['bob.theta']
     assert 'sin(theta_bob(t))' in str(equations['bob.theta'].rhs())
 

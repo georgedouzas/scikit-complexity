@@ -48,9 +48,12 @@ def last_value(trajectory):
 
 SCRIPT_WITHOUT_GUARD = """
 import skcomplex.models.mathematics.dynamical_systems
-from skcomplex.analysis import orbit_diagram
+from skcomplex.analysis import SectionAnalysis
 
-orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2, dt=1, executor='process')
+SectionAnalysis(
+    'orbit-diagram', parameter='map.r', parameter_values=[2.9, 3.2], observable='map.x', transient=10, keep=2, dt=1,
+    executor='process',
+).check().prepare('logistic_map').run()
 """
 
 

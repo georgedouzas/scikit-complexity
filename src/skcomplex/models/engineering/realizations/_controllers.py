@@ -158,7 +158,7 @@ class StateFeedbackInteraction(Interaction):
     """Linear state feedback `u = -K x` that sets a control input of a plant from its states.
 
     The control input is an adaptive parameter of the plant, which the controller sets after every solver step, so it
-    holds within a step like a sampled controller. A gain from `lqr` of a linearisation of the plant makes the
+    holds within a step like a sampled controller. A gain from `LinearizationAnalysis` of the plant makes the
     controller a linear-quadratic regulator.
 
     Args:

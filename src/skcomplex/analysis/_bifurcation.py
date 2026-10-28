@@ -1,4 +1,4 @@
-"""Build orbit diagrams over parameter ranges and basin stability over initial conditions from experiments."""
+"""Build basin stability over initial conditions from experiments."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,48 +10,14 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 
 from ..core.system import System
 from ..engine.compile import compiled_problem
 from ..engine.runtime import Simulation, Trajectory
-from ..experiments import Experiment, GridDesign, RandomDesign, Source, resolve_source
+from ..experiments import Experiment, RandomDesign, Source, resolve_source
 from ..experiments._ensembles import replicate
 
 RUN_SETTINGS = ('solver', 'backend')
-
-
-@dataclass(frozen=True)
-class OrbitDiagram:
-    """Values an observable visits after a transient, for every value of a parameter.
-
-    Args:
-        parameter:
-            The dotted path or factory argument that was swept.
-
-        values:
-            The swept values.
-
-        points:
-            The kept values of the observable for every swept value.
-    """
-
-    parameter: str
-    values: npt.NDArray[np.float64]
-    points: list[npt.NDArray[np.float64]]
-
-    def periods(self, decimals: int = 6) -> npt.NDArray[np.int64]:
-        """Return the number of distinct kept values for every swept value, the period of periodic orbits.
-
-        Args:
-            decimals:
-                The decimals to round to before counting distinct values.
-
-        Returns:
-            periods:
-                One count per swept value.
-        """
-        return np.asarray([np.unique(np.round(points, decimals)).size for points in self.points], dtype=np.int64)
 
 
 def _ensemble(
@@ -82,85 +48,6 @@ def _stability(labels: Sequence[Any], n: int) -> 'BasinStability':
     fractions = {key: count / n for key, count in counts.items()}
     errors = {key: float(np.sqrt(value * (1 - value) / n)) for key, value in fractions.items()}
     return BasinStability(fractions, errors, n)
-
-
-def orbit_diagram(
-    source: Source,
-    parameter: str,
-    values: Sequence[float],
-    observable: str,
-    *,
-    transient: float,
-    keep: int,
-    dt: float | None = None,
-    executor: str | Executor = 'serial',
-    vectorized: bool = False,
-    **arguments: Any,  # noqa: ANN401
-) -> OrbitDiagram:
-    """Return the values an observable visits after a transient, over a range of a parameter.
-
-    Args:
-        source:
-            A registered model name, a factory, or a system.
-
-        parameter:
-            The dotted path or factory argument to sweep.
-
-        values:
-            The values of the parameter.
-
-        observable:
-            The state or observable path whose values are kept.
-
-        transient:
-            The simulated time discarded before keeping values.
-
-        keep:
-            The number of frames kept after the transient.
-
-        dt:
-            The time between frames, or `None` for the model's default, 1 for maps.
-
-        executor:
-            `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
-
-        vectorized:
-            Whether to run the sweep as one simulation of the system replicated over the values, which needs a dotted
-            parameter path and a system of single elements.
-
-        **arguments:
-            Other `Experiment` arguments, or `random_state` for a vectorised sweep.
-
-    Returns:
-        diagram:
-            The kept values for every value of the parameter.
-
-    Examples:
-        >>> from skcomplex.analysis import orbit_diagram
-        >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
-        >>> diagram = orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20, dt=1)
-        >>> diagram.periods().tolist()
-        [1, 2]
-    """
-    step = dt if dt is not None else 1.0
-    if vectorized:
-        settings = {'dt': step, 'random_state': arguments.get('random_state')}
-        trajectory, _ = _ensemble(source, {parameter: list(values)}, transient + (keep - 1) * step, settings)
-        series = np.asarray(trajectory.values(observable))[np.asarray(trajectory.times) >= transient - 1e-9]
-        points = [series[:, index] for index in range(len(values))]
-        return OrbitDiagram(parameter, np.asarray(values, dtype=float), points)
-    experiment = Experiment(
-        source,
-        GridDesign(**{parameter: list(values)}),
-        until=transient + (keep - 1) * step,
-        dt=dt,
-        warmup=transient,
-        outputs=[observable],
-        executor=executor,
-        **arguments,
-    )
-    result = experiment.run()
-    return OrbitDiagram(parameter, np.asarray(values, dtype=float), [run.series[observable] for run in result.runs])
 
 
 @dataclass(frozen=True)
