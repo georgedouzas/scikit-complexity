@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import as_graph, fit_power_law
+from skcomplex.analysis import FitAnalysis, as_graph
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import CapacityError
 from skcomplex.core.interactions import Interaction, NeighborInteraction
@@ -144,8 +144,8 @@ def test_preferential_attachment_gives_a_tail_exponent_near_three():
     snapshot = simulation.trajectory_.network(-1)
     degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
     assert snapshot.nodes.size == 10_003
-    fit = fit_power_law(degrees[degrees > 0], xmin=10, discrete=True, bootstrap=0)
-    assert abs(fit.alpha - 3) < 0.3
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(degrees[degrees > 0]).run()
+    assert abs(fit.exponent_ - 3) < 0.3
 
 
 def test_growth_runs_on_numba_and_agrees_with_numpy():

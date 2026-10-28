@@ -21,8 +21,8 @@
 ## 2. Remaining analysis families
 
 - [x] 2.1 Convert the information families: `InformationAnalysis`, `LocalInformationAnalysis`, `PartialInformationAnalysis`, `EmergenceAnalysis`, and `EpsilonMachineAnalysis`. Verify that each has a test module mirroring its source and reproduces the deleted functions' values.
-- [ ] 2.2 Convert the series and scaling families: `CorrelationAnalysis`, `SpectrumAnalysis`, `ScalingAnalysis`, `CollapseAnalysis`, `RecurrenceAnalysis`, `EmbeddingAnalysis`, `EarlyWarningAnalysis`, and `EventAnalysis`. Verify with their test modules.
-- [ ] 2.3 Convert the fit and criticality families: `FitAnalysis`, `AvalancheAnalysis`, `ClusterAnalysis`, and `BinderAnalysis`.
+- [x] 2.2 Convert the series and scaling families: `CorrelationAnalysis`, `SpectrumAnalysis`, `ScalingAnalysis`, `CollapseAnalysis`, `RecurrenceAnalysis`, `EmbeddingAnalysis`, `EarlyWarningAnalysis`, and `EventAnalysis`. Verify with their test modules.
+- [x] 2.3 Convert the fit and criticality families: `FitAnalysis`, `AvalancheAnalysis`, `ClusterAnalysis`, and `BinderAnalysis`.
   - Map every method of `PowerLawFit` and the other fit result classes to a setting or an attribute.
   - Verify with their test modules.
 - [x] 2.4 Convert the field, agent, and network families: `DomainAnalysis`, `OrderAnalysis`, `DisplacementAnalysis`, `NeighborAnalysis`, `FluctuationAnalysis`, `NetworkAnalysis`, and `MotifAnalysis`. Verify with their test modules.

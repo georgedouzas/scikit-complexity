@@ -15,7 +15,7 @@ thermal cloud of the trap.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import histogram
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -40,7 +40,8 @@ positions = simulation.trajectory_.values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()
-    edges, density = histogram(values, bins=40)
+    histogram = DistributionAnalysis('histogram', bins=40).check().prepare(values).run()
+    edges, density = histogram.edges_, histogram.density_
     grid = np.linspace(edges[0], edges[-1], 200)
     ax.stairs(density, edges, color=color, label=f'axis {axis}, measured k = {1 / values.var():.2f}')
     gaussian = np.sqrt(stiffness / (2 * np.pi)) * np.exp(-stiffness * grid**2 / 2)

@@ -15,7 +15,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import correlation_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -56,13 +56,13 @@ observer.recording_.flush()
 orbit = np.column_stack([simulation.trajectory_.values('map.x'), simulation.trajectory_.values('map.y')])[10:]
 long_orbit = Simulation(create(MODEL), dt=1).run(until=100_000).trajectory_
 long_orbit = np.column_stack([long_orbit.values('map.x'), long_orbit.values('map.y')])[10:]
-dimension = correlation_dimension(long_orbit[:20000])
+dimension = ScalingAnalysis('correlation-dimension').check().prepare(long_orbit[:20000]).run().exponent_
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))
 whole.plot(orbit[:, 0], orbit[:, 1], ',', color='C0')
 whole.add_patch(plt.Rectangle((0.55, 0.15), 0.15, 0.05, fill=False, color='C3'))
 whole.set_xlabel('x')
 whole.set_ylabel('y')
-whole.set_title(f'Attractor, correlation dimension {dimension.dimension:.2f}')
+whole.set_title(f'Attractor, correlation dimension {dimension:.2f}')
 box = (long_orbit[:, 0] > 0.55) & (long_orbit[:, 0] < 0.7) & (long_orbit[:, 1] > 0.15) & (long_orbit[:, 1] < 0.2)
 zoom.plot(long_orbit[box, 0], long_orbit[box, 1], '.', markersize=1, color='C3')
 zoom.set_xlabel('x')

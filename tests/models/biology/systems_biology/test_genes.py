@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.analysis import autocorrelation
+from skcomplex.analysis import CorrelationAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.systems_biology import (
     negative_autoregulation,
@@ -15,7 +15,7 @@ from ..conftest import TOLERANCE
 
 def _autocorrelation_period(series, dt):
     """Return the period of a noisy oscillation, the lag of the first autocorrelation peak after its first zero."""
-    correlation = autocorrelation(np.asarray(series) - np.mean(series))
+    correlation = CorrelationAnalysis().check().prepare(np.asarray(series) - np.mean(series)).run().correlation_[0]
     first_negative = int(np.argmax(correlation < 0))
     window = correlation[first_negative : first_negative + len(correlation) // 2]
     return (first_negative + int(np.argmax(window))) * dt

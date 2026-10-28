@@ -14,7 +14,7 @@ fluctuates around one state for a while and then switches to the other, again an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import histogram
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -39,7 +39,8 @@ drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 
 roots = np.sort(drift.roots().real)
 trajectory = simulation.trajectory_
 x = trajectory.values('reactor.x')
-edges, density = histogram(x[trajectory.times > 5], bins=40)
+histogram = DistributionAnalysis('histogram', bins=40).check().prepare(x[trajectory.times > 5]).run()
+edges, density = histogram.edges_, histogram.density_
 fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, x, linewidth=0.5)
 for root in roots:

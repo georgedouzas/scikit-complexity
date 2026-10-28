@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import fit_power_law
+from skcomplex.analysis import FitAnalysis
 from skcomplex.models import create
 from skcomplex.models.mathematics.networks import (
     barabasi_albert,
@@ -21,8 +21,8 @@ def test_barabasi_albert_grows_a_scale_free_network():
     assert graph.number_of_nodes() == 3003
     assert graph.number_of_edges() == 3 + 2 * 3000
     degrees = np.array([degree for _, degree in graph.degree])
-    fit = fit_power_law(degrees, xmin=8, discrete=True, bootstrap=0)
-    assert abs(fit.alpha - 3) < 0.4
+    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).check().prepare(degrees).run()
+    assert abs(fit.exponent_ - 3) < 0.4
     assert np.nanmax(trajectory.values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
 
 

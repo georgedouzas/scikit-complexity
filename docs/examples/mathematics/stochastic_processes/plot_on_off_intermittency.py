@@ -13,7 +13,7 @@ by short bursts in which it rises to values of order one and falls back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import detect_events, histogram
+from skcomplex.analysis import DistributionAnalysis, EventAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -37,13 +37,13 @@ simulation.run(until=598)
 
 ensemble = Simulation(create(MODEL, n_realizations=50), dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=1)
 values = ensemble.run(until=500).trajectory_.values('variables.x')
-durations = np.concatenate(
-    [
-        detect_events(-values[:, index], threshold=-0.05, times=ensemble.trajectory_.times).durations[1:-1]
-        for index in range(values.shape[1])
-    ],
+step = float(np.median(np.diff(ensemble.trajectory_.times)))
+events = EventAnalysis(threshold=-0.05).check()
+durations = step * np.concatenate(
+    [events.prepare(-values[:, index]).run().durations_[1:-1] for index in range(values.shape[1])],
 )
-edges, density = histogram(durations[durations >= 0.5], bins=12, log=True)
+histogram = DistributionAnalysis('histogram', bins=12, log=True).check().prepare(durations[durations >= 0.5]).run()
+edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 
 fig, (laminar, logarithm) = plt.subplots(1, 2, figsize=(10, 4))

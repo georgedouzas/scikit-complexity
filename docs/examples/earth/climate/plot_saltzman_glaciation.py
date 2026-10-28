@@ -12,7 +12,7 @@ Ice volume, carbon dioxide, and the deep ocean temperature drive each other arou
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import power_spectrum
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -32,7 +32,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 run = Simulation(create(MODEL), dt=0.05).run(until=400).trajectory_
 settled = run.times > 20
 ice, carbon = run.values('climate.x')[settled], run.values('climate.y')[settled]
-frequencies, density = power_spectrum(ice, dt=0.05)
+spectrum = SpectrumAnalysis(dt=0.05).check().prepare(ice).run()
+frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 loop.plot(ice, carbon)

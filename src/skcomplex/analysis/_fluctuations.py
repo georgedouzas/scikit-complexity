@@ -1,4 +1,4 @@
-"""Measure fluctuations: number, relative, and velocity fluctuations, Fano factors, and counts."""
+"""Measure fluctuations: number, relative, and velocity fluctuations, and Fano factors."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,7 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind, analysis
+from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('number', 'relative', 'fano', 'kinetic-temperature', 'maxwell-boltzmann')
@@ -261,36 +261,3 @@ class FluctuationAnalysis(BaseAnalysis):
             tests = [_maxwell_boltzmann(frame, self.mass, self.temperature) for frame in self.values_]
             self.temperature_, self.statistic_, self.p_value_ = np.asarray(tests).T
         return self
-
-
-@analysis(DataKind.PATH)
-def event_counts(event_times: npt.ArrayLike, window: float, *, start: float = 0.0, end: float | None = None) -> Array:
-    """Return the number of events in consecutive windows of equal length.
-
-    Args:
-        event_times:
-            The times of the events.
-
-        window:
-            The length of every window.
-
-        start:
-            The start of the first window.
-
-        end:
-            The end of the last full window, or `None` for the last event.
-
-    Returns:
-        counts:
-            The number of events in every window.
-
-    Examples:
-        >>> from skcomplex.analysis import event_counts
-        >>> event_counts([0.1, 0.2, 1.5, 2.2], 1.0, end=3.0).tolist()
-        [2.0, 1.0, 1.0]
-    """
-    times = np.asarray(event_times, dtype=float)
-    last = float(times.max()) if end is None else end
-    count = int((last - start) // window)
-    edges = start + window * np.arange(count + 1)
-    return np.histogram(times, bins=edges)[0].astype(float)

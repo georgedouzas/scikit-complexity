@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import gini
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.core.system import Observable
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -23,6 +23,12 @@ from skcomplex.models import create
 
 MODEL = 'boltzmann_wealth'
 STEPS = 200
+
+
+def gini(wealth: np.ndarray) -> float:
+    """Return the Gini coefficient of the wealth."""
+    return DistributionAnalysis('gini').check().prepare(wealth).run().gini_
+
 
 system = create(MODEL, n_agents=300)
 observables = [Observable('gini', group='traders', variable='wealth', reduce=gini)]
