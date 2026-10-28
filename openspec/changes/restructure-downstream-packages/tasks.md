@@ -69,6 +69,13 @@
 - [x] 5.4 Audit the public classes and choices of the core, the engine, and experiments for names taken from one application field, list them with a general name and a realization, and convert them the same way. Verify that the surface tests of every package pass.
 - [ ] 5.5 Place every realization of every field by its users: a realization used by one model package lives in that package beside its models, one shared by several packages of a field lives in a family package of the field's `common` package, and fields with nothing shared have no `common` package. Delete field-measure classes that only fix a choice of a general analysis, and move specialized code with logic of its own instead of removing it. Verify with lint-imports, the full test session, and the user guide.
 
+## 7. Engine design
+
+- [ ] 7.1 List the dead code of the engine: classes, methods, functions, constants, and attributes that nothing in `src`, `tests`, or `docs` reaches, found with `vulture` and with the coverage of the full test session, and delete it. Verify with the full test session and the gallery build.
+- [ ] 7.2 Write the engine's concept model in the design: what the engine is (system, compiled problem, trajectory), its bases (compiler and passes, problem values, solvers, backends, observers and visuals, simulation), the class tree, and a verdict for every engine class and dataclass: a class of the tree, a frozen value, merged into another class, or removed.
+- [ ] 7.3 Stop for the user's review of the concept model.
+- [ ] 7.4 Restructure the engine to the reviewed class tree: every class under one base of its package, dataclasses only for frozen values, and no public function outside the pipeline the design keeps. Verify with the full test session, the user guide, lint-imports, and the gallery build.
+
 ## 6. Layering and integration
 
 - [x] 6.1 Set the import-linter layers to `experiments`, `analysis`, `engine`, `core`, and verify that `lint-imports` passes and fails on a planted import of `experiments` from `analysis`.
