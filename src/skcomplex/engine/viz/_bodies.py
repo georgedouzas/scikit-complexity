@@ -15,8 +15,8 @@ import rerun.blueprint as rrb
 from ...core.errors import ValidationError
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._points import TRAIL_LENGTH
-from ._utils import UPWARD, _radius_of, log_scalars
+from ._points import _TRAIL_LENGTH
+from ._utils import _UPWARD, _radius_of, log_scalars
 from ._visuals import BaseVisual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
@@ -24,22 +24,22 @@ type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
 type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 
-BODY_COLOR = (250, 180, 60)
-ROD_COLOR = (220, 220, 220)
-TRAIL_COLOR = (90, 170, 230)
-OUTLINE_COLOR = (200, 200, 200)
-MARK_COLOR = (150, 150, 150)
-FAINTEST = 20
-ROD_SHARE = 0.25
-TRAIL_SHARE = 0.1
+_BODY_COLOR = (250, 180, 60)
+_ROD_COLOR = (220, 220, 220)
+_TRAIL_COLOR = (90, 170, 230)
+_OUTLINE_COLOR = (200, 200, 200)
+_MARK_COLOR = (150, 150, 150)
+_FAINTEST = 20
+_ROD_SHARE = 0.25
+_TRAIL_SHARE = 0.1
 MARGIN = 0.1
 PAIR = 2
-SPACE = 3
+_SPACE = 3
 
 
 def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """Return points as logged: with the vertical axis up in two dimensions, unchanged in three."""
-    return points * UPWARD if points.shape[-1] == PAIR else points
+    return points * _UPWARD if points.shape[-1] == PAIR else points
 
 
 def _points(
@@ -51,51 +51,6 @@ def _points(
     if points.shape[-1] == PAIR:
         return rr.Points2D(_shown(points), radii=radius, colors=colors)
     return rr.Points3D(points, radii=radius, colors=colors)
-
-
-def _strips(
-    strips: Sequence[npt.NDArray[np.float64]],
-    radius: float | None,
-    colors: Colors,
-) -> rr.LineStrips2D | rr.LineStrips3D:
-    """Return the line strips archetype of the dimension of some polylines."""
-    if strips and strips[0].shape[-1] == SPACE:
-        return rr.LineStrips3D(list(strips), radii=radius, colors=colors)
-    return rr.LineStrips2D([_shown(strip) for strip in strips], radii=radius, colors=colors)
-
-
-def _values_of(element: CompiledElement, read: Callable[[str], Any]) -> dict[str, Any]:
-    """Return the parameters and states of an element by their short names, read by dotted name."""
-    names = {**element.parameters, **element.states}
-    return {name: read(dotted) for name, dotted in names.items()}
-
-
-def _fading_segments(
-    paths: Sequence[npt.NDArray[np.float64]],
-) -> tuple[list[npt.NDArray[np.float64]], list[tuple[int, int, int, int]]]:
-    """Return the segments of paths and their colors, more transparent for older segments."""
-    segments: list[npt.NDArray[np.float64]] = []
-    colors: list[tuple[int, int, int, int]] = []
-    for path in paths:
-        count = len(path) - 1
-        for index in range(count):
-            segments.append(path[index : index + 2])
-            alpha = round(FAINTEST + (255 - FAINTEST) * (index + 1) / count)
-            colors.append((*TRAIL_COLOR, alpha))
-    return segments, colors
-
-
-def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
-    """Return 2D view bounds around points with a margin, in logged coordinates, or `None` for one point."""
-    low, high = points.min(axis=0), points.max(axis=0)
-    extent = float((high - low).max())
-    if extent <= 0:
-        return None
-    center, half = (low + high) / 2, (1 + MARGIN) * extent / 2
-    return rrb.VisualBounds2D(
-        x_range=(center[0] - half, center[0] + half),
-        y_range=(-(center[1] + half), -(center[1] - half)),
-    )
 
 
 class BodiesVisual(BaseVisual):
@@ -156,7 +111,7 @@ class BodiesVisual(BaseVisual):
         pivot: Sequence[float] | None = None,
         rods: bool = False,
         traced: Sequence[int] | None = None,
-        trail: int | None = TRAIL_LENGTH,
+        trail: int | None = _TRAIL_LENGTH,
         outline: Outline = (),
         marks: Marks = (),
         radius: float | None = None,
@@ -183,7 +138,7 @@ class BodiesVisual(BaseVisual):
         else:
             points = np.array([[float(np.ravel(values[name])[0]) for name in self.positions]])
         points = np.atleast_2d(points)
-        if points.ndim != PAIR or points.shape[1] not in {PAIR, SPACE}:
+        if points.ndim != PAIR or points.shape[1] not in {PAIR, _SPACE}:
             error_msg = (
                 f'The positions of the bodies visual have shape {points.shape}, but they must be pairs of coordinates, '
                 'one row (x, y) per body, or triples, one row (x, y, z) per body.'
@@ -231,9 +186,9 @@ class BodiesVisual(BaseVisual):
         dimension, radius = sizes
         strips, marks = self._static(values, dimension)
         if strips:
-            recording.log(f'{path}/outline', _strips(strips, None, OUTLINE_COLOR), static=True)
+            recording.log(f'{path}/outline', self._strips(strips, None, _OUTLINE_COLOR), static=True)
         if len(marks):
-            recording.log(f'{path}/marks', _points(marks, radius, MARK_COLOR), static=True)
+            recording.log(f'{path}/marks', _points(marks, radius, _MARK_COLOR), static=True)
 
     def _log_trail(
         self,
@@ -250,8 +205,8 @@ class BodiesVisual(BaseVisual):
         if len(self.history_) < PAIR:
             return
         history = np.stack(self.history_)
-        segments, colors = _fading_segments([history[:, column] for column in range(len(traced))])
-        recording.log(f'{path}/trail', _strips(segments, width, colors))
+        segments, colors = self._fading_segments([history[:, column] for column in range(len(traced))])
+        recording.log(f'{path}/trail', self._strips(segments, width, colors))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the bodies, the rods, the trails, the outline, and the states of an element at one frame.
@@ -271,18 +226,18 @@ class BodiesVisual(BaseVisual):
                 The positions are not pairs of coordinates.
         """
         path = element.path
-        values = _values_of(element, frame.value)
+        values = self._values_of(element, frame.value)
         bodies = self._bodies(values)
         share = _radius_of(self._scale(bodies, values), len(bodies))
         radius = share if self.radius is None else float(self.radius)
         self._log_static(recording, path, values, (bodies.shape[1], radius))
-        recording.log(f'{path}/bodies', _points(bodies, radius, BODY_COLOR))
+        recording.log(f'{path}/bodies', _points(bodies, radius, _BODY_COLOR))
         if self.rods:
             recording.log(
                 f'{path}/rods',
-                _strips([self._chain(bodies)], share * ROD_SHARE, ROD_COLOR),
+                self._strips([self._chain(bodies)], share * _ROD_SHARE, _ROD_COLOR),
             )
-        self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
+        self._log_trail(recording, path, bodies, share * _TRAIL_SHARE)
         for state, name in element.states.items():
             log_scalars(recording, f'{path}/{state}', frame.value(name))
 
@@ -312,19 +267,64 @@ class BodiesVisual(BaseVisual):
             )
             return layout.read(vector, name)
 
-        values = _values_of(element, read)
+        values = self._values_of(element, read)
         bodies = self._bodies(values)
         path = element.path
         contents = [f'+ {path}/{state}/**' for state in element.states]
         series = rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states')
-        if bodies.shape[1] == SPACE:
+        if bodies.shape[1] == _SPACE:
             return [rrb.Spatial3DView(origin=path, name=path), series]
         chain = self._chain(bodies)
         strips, marks = self._static(values, PAIR)
         bounds = None
         if self.rods and self.pivot is not None:
             half = self._scale(bodies, values) / 2
-            bounds = _bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
+            bounds = self._bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
         elif strips:
-            bounds = _bounds_of(np.vstack([chain, *strips, marks]))
+            bounds = self._bounds_of(np.vstack([chain, *strips, marks]))
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds), series]
+
+    @staticmethod
+    def _strips(
+        strips: Sequence[npt.NDArray[np.float64]],
+        radius: float | None,
+        colors: Colors,
+    ) -> rr.LineStrips2D | rr.LineStrips3D:
+        """Return the line strips archetype of the dimension of some polylines."""
+        if strips and strips[0].shape[-1] == _SPACE:
+            return rr.LineStrips3D(list(strips), radii=radius, colors=colors)
+        return rr.LineStrips2D([_shown(strip) for strip in strips], radii=radius, colors=colors)
+
+    @staticmethod
+    def _values_of(element: CompiledElement, read: Callable[[str], Any]) -> dict[str, Any]:
+        """Return the parameters and states of an element by their short names, read by dotted name."""
+        names = {**element.parameters, **element.states}
+        return {name: read(dotted) for name, dotted in names.items()}
+
+    @staticmethod
+    def _fading_segments(
+        paths: Sequence[npt.NDArray[np.float64]],
+    ) -> tuple[list[npt.NDArray[np.float64]], list[tuple[int, int, int, int]]]:
+        """Return the segments of paths and their colors, more transparent for older segments."""
+        segments: list[npt.NDArray[np.float64]] = []
+        colors: list[tuple[int, int, int, int]] = []
+        for path in paths:
+            count = len(path) - 1
+            for index in range(count):
+                segments.append(path[index : index + 2])
+                alpha = round(_FAINTEST + (255 - _FAINTEST) * (index + 1) / count)
+                colors.append((*_TRAIL_COLOR, alpha))
+        return segments, colors
+
+    @staticmethod
+    def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
+        """Return 2D view bounds around points with a margin, in logged coordinates, or `None` for one point."""
+        low, high = points.min(axis=0), points.max(axis=0)
+        extent = float((high - low).max())
+        if extent <= 0:
+            return None
+        center, half = (low + high) / 2, (1 + MARGIN) * extent / 2
+        return rrb.VisualBounds2D(
+            x_range=(center[0] - half, center[0] + half),
+            y_range=(-(center[1] + half), -(center[1] - half)),
+        )
