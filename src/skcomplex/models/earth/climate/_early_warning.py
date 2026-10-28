@@ -59,7 +59,7 @@ class EarlyWarningAnalysis(RollingAnalysis):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.earth.realizations import EarlyWarningAnalysis
+        >>> from skcomplex.models.earth.climate import EarlyWarningAnalysis
         >>> rng = np.random.default_rng(0)
         >>> x = np.zeros(2000)
         >>> for t in range(1, 2000):

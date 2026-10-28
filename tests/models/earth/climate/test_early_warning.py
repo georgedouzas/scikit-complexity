@@ -1,9 +1,9 @@
-"""Test the `_early_warning` module of `skcomplex.models.earth.realizations`."""
+"""Test the `_early_warning` module of `skcomplex.models.earth.climate`."""
 
 import numpy as np
 
 from skcomplex.analysis import RollingAnalysis
-from skcomplex.models.earth.realizations import EarlyWarningAnalysis
+from skcomplex.models.earth.climate import EarlyWarningAnalysis
 
 
 def _approaching_fold(rng: np.random.Generator) -> np.ndarray:

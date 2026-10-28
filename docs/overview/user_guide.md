@@ -3984,7 +3984,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
-trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.realizations` gathers them with spectral reddening as early
+trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.climate` gathers them with spectral reddening as early
 warnings of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
