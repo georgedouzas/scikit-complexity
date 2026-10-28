@@ -12,20 +12,20 @@ from matplotlib.figure import Figure
 from skcomplex.analysis import SignatureAnalysis
 
 if TYPE_CHECKING:
-    from skcomplex.analysis._base import Signature
+    from skcomplex.specs import SignatureSpec
 
 PANEL_WIDTH = 5.0
 PANEL_HEIGHT = 4.0
 STATED_VALUES = 3
 
 
-def _caption(signature: 'Signature') -> str:
+def _caption(signature: 'SignatureSpec') -> str:
     """Return the title of a signature followed by the first stated values."""
     stated = [f'{name} = {value:.3g}' for name, value in list(signature.values.items())[:STATED_VALUES]]
     return '\n'.join([signature.title, ', '.join(stated)]) if stated else signature.title
 
 
-def plot_signature(signature: 'Signature', axes: Axes) -> Axes:
+def plot_signature(signature: 'SignatureSpec', axes: Axes) -> Axes:
     """Draw one signature on axes: its curves, its scales, its labels, and its title with values.
 
     Args:

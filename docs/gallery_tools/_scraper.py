@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from skcomplex.engine.problems import Problem
 from skcomplex.engine.viz import RerunObserver
+from skcomplex.specs import ProblemSpec
 
 from ._cache import ScreenshotCache
 from ._errors import GalleryError
@@ -35,7 +35,7 @@ _REDIRECT = _Redirect()
 _PREPARE = RerunObserver._prepare
 
 
-def _prepare(observer: RerunObserver, problem: Problem) -> None:
+def _prepare(observer: RerunObserver, problem: ProblemSpec) -> None:
     """Fit an observer, moving the relative recording path of an example that runs in its folder to its run."""
     path, target = observer.save_path, _REDIRECT.target
     in_example = Path.cwd().resolve() == _REDIRECT.source
