@@ -5,26 +5,28 @@
 
 import math
 from abc import abstractmethod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
 from typing import cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, ProblemSpec
 from ...specs._control_problem_spec import _ControlProblemSpec
-from ...types import Array, Cost, FormKind
+from ...specs._control_spec import _ControlSpec
+from ...types import Array, Cost, FormKind, GridFunction
+from .._utils import symbols_of
+from ..compile import ObservableEvaluator
+from ..problems import ExpressionPrinter
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9
 _SENSES = ('min', 'max')
 _NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
-
-
-
-
 
 
 class OptimalControlSolver(Solver):
@@ -53,6 +55,7 @@ class OptimalControlSolver(Solver):
     def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
         return FormKind.ODE
+
     objective: Cost | None
     terminal: Cost
     sense: str
@@ -137,15 +140,15 @@ class OptimalControlSolver(Solver):
                 differentiate symbolically, or the run has no end.
         """
         super()._prepare(problem)
-        control_problem = _ControlProblemSpec.of(problem, cast('Cost', self.objective), self.terminal, self.sense)
+        control_problem = self._control_problem(problem)
         if not math.isfinite(self.until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
             raise SolverError(error_msg)
         self.control_problem_ = control_problem
         self.horizon_ = float(self.until)
-        self.rates_ = control_problem.function(control_problem.rates)
-        self.running_ = control_problem.function([control_problem.running])
-        self.terminal_ = control_problem.function([control_problem.terminal])
+        self.rates_ = self._function(control_problem, control_problem.rates)
+        self.running_ = self._function(control_problem, [control_problem.running])
+        self.terminal_ = self._function(control_problem, [control_problem.terminal])
         self._set_up_control(control_problem)
         self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
         self.initial_state_ = self.solution_.state_at(0.0)
@@ -191,6 +194,139 @@ class OptimalControlSolver(Solver):
                 The optimal control problem.
         """
         del control_problem
+
+    @staticmethod
+    def _function(
+        control_problem: _ControlProblemSpec,
+        expressions: Sequence[Expression],
+        extra: Sequence[Expression] = (),
+    ) -> GridFunction:
+        """Return a function `f(t, x, u, p, *extra)` of expressions, whose last axes run over symbols and values."""
+        arguments = [*control_problem.states, *control_problem.control_symbols, *control_problem.parameters, *extra]
+        printer = ExpressionPrinter(time=control_problem.time, compiled=True).check().prepare(arguments)
+        compiled = printer.run([SR(item) for item in expressions])
+        count = len(expressions)
+
+        def evaluate(t: float | Array, x: Array, u: Array, p: Array, *values: Array) -> npt.NDArray[np.float64]:
+            if np.ndim(x) == 1 and np.ndim(t) == 0:
+                return np.array(compiled(t, *x, *u, *p, *(item for value in values for item in value)), dtype=float)
+            times = np.asarray(t, dtype=float)
+            columns = [*np.moveaxis(x, -1, 0), *np.moveaxis(u, -1, 0), *p]
+            columns += [item for value in values for item in np.moveaxis(value, -1, 0)]
+            shape = np.broadcast_shapes(times.shape, *(np.shape(item) for item in columns))
+            if not count:
+                return np.zeros((*shape, 0))
+            results = compiled(times, *columns)
+            return np.stack([np.broadcast_to(np.asarray(item, dtype=float), shape) for item in results], axis=-1)
+
+        return evaluate
+
+    @staticmethod
+    def _check_symbols(control_problem: _ControlProblemSpec) -> None:
+        """Raise an error for a rate or a cost that reads a symbol other than states, controls, parameters, and time."""
+        expressions = [*control_problem.rates, control_problem.running, control_problem.terminal]
+        known = {
+            *control_problem.states,
+            *control_problem.control_symbols,
+            *control_problem.parameters,
+            control_problem.time,
+        }
+        unknown = sorted({str(item) for item in symbols_of([SR(value) for value in expressions]) - known})
+        if unknown:
+            error_msg = (
+                f'The dynamics or the objective read {", ".join(unknown)}, which are not variables of single '
+                'elements or interactions. Optimal control solvers take systems of single elements.'
+            )
+            raise SolverError(error_msg)
+
+    def _control_problem(self, problem: ProblemSpec) -> _ControlProblemSpec:
+        """Return the optimal control problem of a compiled problem, with its bounded controls and the objective."""
+        self._check_supported(problem)
+        symbols = self._single_symbols(problem)
+        controls = self._controls(problem, symbols)
+        rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
+        controlled = {control.index for control in controls}
+        indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
+        names = [name for entry in problem.states.entries for name in entry.component_names]
+        sign = 1.0 if self.sense == 'min' else -1.0
+        namespace = ObservableEvaluator._namespace_of(problem)
+        control_problem = _ControlProblemSpec(
+            problem=problem,
+            names=tuple(names[index] for index in indices),
+            indices=indices,
+            states=tuple(symbols[index] for index in indices),
+            controls=controls,
+            parameters=tuple(problem.parameter_symbols),
+            rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
+            running=sign * self._cost_value(cast('Cost', self.objective), namespace),
+            terminal=sign * self._cost_value(self.terminal, namespace),
+            sign=sign,
+            lower=self._lower_bounds(problem, indices),
+        )
+        self._check_symbols(control_problem)
+        return control_problem
+
+    @staticmethod
+    def _cost_value(cost: Cost, namespace: SimpleNamespace) -> Expression:
+        """Return the expression of a cost, a function of the namespace of the system or a number."""
+        return SR(cost(namespace) if callable(cost) else cost)
+
+    @staticmethod
+    def _single_symbols(problem: ProblemSpec) -> list[Expression]:
+        """Return the state symbols in state vector order, after checking that every state is a real element scalar."""
+        if any(element.members is not None for element in problem.elements):
+            error_msg = 'Optimal control solvers take systems of single elements, but the system has groups.'
+            raise SolverError(error_msg)
+        symbols = problem.state_symbols
+        if len(symbols) != problem.states.size:
+            error_msg = 'Optimal control solvers take real states, but the system has complex states.'
+            raise SolverError(error_msg)
+        return symbols
+
+    @staticmethod
+    def _check_supported(problem: ProblemSpec) -> None:
+        """Raise an error for a problem with laws that have no symbolic vector field or no finite state space."""
+        if problem.form != FormKind.ODE:
+            error_msg = (
+                f'Optimal control solvers take ordinary differential equations, but the system is a {problem.form}.'
+            )
+            raise SolverError(error_msg)
+        if problem.has_callables or problem.has_group_sums or problem.delays or problem.events:
+            error_msg = (
+                'Optimal control solvers derive the costates and the stationarity condition symbolically, so they take '
+                'symbolic rate laws without callables, sums over members, delays, or events.'
+            )
+            raise SolverError(error_msg)
+
+    @staticmethod
+    def _lower_bounds(problem: ProblemSpec, indices: Sequence[int] | npt.NDArray[np.intp]) -> Array:
+        """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
+        lower = np.full(problem.states.size, -np.inf)
+        for entry in problem.states.entries:
+            if entry.domain in _NONNEGATIVE_DOMAINS:
+                lower[entry.indices] = 0.0
+        return lower[list(indices)]
+
+    @staticmethod
+    def _controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_ControlSpec, ...]:
+        """Return the bounded adaptive parameters of a problem as its controls."""
+        controls = []
+        for name, declaration in problem.adaptive_parameters.items():
+            if declaration.bounds is None:
+                continue
+            entry = problem.states.entry(name)
+            if entry.size != 1:
+                error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
+                raise SolverError(error_msg)
+            lower, upper = declaration.bounds
+            controls.append(_ControlSpec(name, entry.start, symbols[entry.start], lower, upper))
+        if not controls:
+            error_msg = (
+                'The system has no bounded adaptive parameter to control. Declare a control input with '
+                '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
+            )
+            raise SolverError(error_msg)
+        return tuple(controls)
 
     @abstractmethod
     def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:

@@ -5,17 +5,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import KW_ONLY, dataclass, field, replace
-from typing import TYPE_CHECKING, Self
+from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass, field
+from typing import TYPE_CHECKING
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ..errors import ValidationError
-from ..types import Array, Getter
+from ..types import Array
 from ._base_spec import BaseSpec
-from ._observable_spec import ObservableSpec
 
 if TYPE_CHECKING:
     from ..core.spaces import BaseSpace
@@ -28,6 +26,7 @@ if TYPE_CHECKING:
     from ._compiled_element_spec import CompiledElementSpec
     from ._compiled_interaction_spec import CompiledInteractionSpec
     from ._layout_spec import LayoutSpec
+    from ._observable_spec import ObservableSpec
     from ._partition_spec import PartitionSpec
     from ._transfer_network_spec import TransferNetworkSpec
     from ._variable_spec import VariableSpec
@@ -98,13 +97,18 @@ class BaseProblemSpec(BaseSpec):
         topology:
             The topology requests of the laws and the networks they change, or `None` for a problem without them.
 
+        observables:
+            The observables of the system tree, each with the path of the system that declares it, empty for the
+            root, which the compiler collects.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.types import FormKind
         >>> from skcomplex.engine._utils import symbol
         >>> from skcomplex.specs import LayoutSpec
         >>> from skcomplex.specs import BaseProblemSpec
-        >>> problem = BaseProblemSpec(FormKind.ODE, LayoutSpec(()), LayoutSpec(()), np.zeros(0), np.zeros(0), symbol('t'))
+        >>> layout = LayoutSpec(())
+        >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
         >>> problem.stochastic, problem.adaptive_parameters, problem.lattice_shape('a.n')
         (False, {}, None)
     """
@@ -128,24 +132,12 @@ class BaseProblemSpec(BaseSpec):
     matrices: tuple[MarkovKernel, ...] = field(default=(), repr=False)
     transfer_network: TransferNetworkSpec | None = field(default=None, repr=False)
     topology: TopologyKernel | None = field(default=None, repr=False)
+    observables: tuple[tuple[str, ObservableSpec], ...] = field(default=(), repr=False)
 
     @property
     def stochastic(self) -> bool:
         """Whether the problem draws random values, so its solver takes the random number generator."""
         return False
-
-    @property
-    def observables(self) -> list[tuple[str, ObservableSpec]]:
-        """The observables of the system, each with the path of the system that declares it, empty for the root."""
-        found: list[tuple[str, ObservableSpec]] = []
-        pending = [('', self.system)] if self.system is not None else []
-        while pending:
-            scope, system = pending.pop()
-            found += [(scope, item) for item in getattr(system, 'observables', ())]
-            pending += [
-                (f'{scope}/{child.label}' if scope else child.label, child) for child in reversed(system.systems)
-            ]
-        return found
 
     @property
     def adaptive_parameters(self) -> dict[str, VariableSpec]:
@@ -165,56 +157,3 @@ class BaseProblemSpec(BaseSpec):
         """
         del name
         return None
-
-    def observable_getters(self, observables: Iterable[tuple[str, ObservableSpec]]) -> dict[str, Getter] | None:
-        """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
-
-        Args:
-            observables:
-                The path of the declaring system and the observable, for every observable of the system tree.
-
-        Returns:
-            getters:
-                The getters by observable path, or `None` for the shared evaluator, which reads the fields of the
-                problem.
-        """
-        del observables
-        return None
-
-    @staticmethod
-    def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
-        """Raise an error for initial values of states the problem does not have."""
-        if unknown:
-            error_msg = (
-                f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the '
-                f'dotted names of states, such as {", ".join(list(names)[:3])}.'
-            )
-            raise ValidationError(error_msg)
-
-    def with_initial_state(self, initial_state: Mapping[str, object]) -> Self:
-        """Return a problem whose initial state takes given values of some states.
-
-        Args:
-            initial_state:
-                The initial values by dotted state name.
-
-        Returns:
-            problem:
-                The problem with the new initial state, or the same problem when no value is given.
-
-        Raises:
-            ValidationError:
-                A name is not a state of the problem, or a value has the wrong shape.
-        """
-        if not initial_state:
-            return self
-        self._check_initial_names(set(initial_state) - set(self.states.names), self.states.names)
-        state = self.initial_state.copy()
-        for name, value in initial_state.items():
-            entry = self.states.entry(name)
-            try:
-                state[entry.indices] = entry.encode(value)
-            except ValueError as error:
-                error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
-                raise ValidationError(error_msg) from error
-        return replace(self, initial_state=state)

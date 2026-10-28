@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
+from ....core.spaces import LatticeSpace
 from ....errors import ValidationError
 from ....specs import (
     CompiledElementSpec,
@@ -103,10 +104,22 @@ class ProblemPass(BasePass):
                 },
                 visual=ProblemPass._visual_of(block.node),
                 members=block.node.members,
+                adaptive={
+                    name: declaration
+                    for name, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items()
+                    if declaration.adaptive
+                },
+                lattice_shape=ProblemPass._lattice_shape(block.node.component),
             )
             for block in blocks
             if not block.node._is_interaction() and not block.node.is_agent
         )
+
+    @staticmethod
+    def _lattice_shape(component: object) -> tuple[int, ...] | None:
+        """Return the number of sites along every dimension of the lattice an element lives on, or `None` off one."""
+        space = getattr(component, 'space', None)
+        return space.shape_ if isinstance(space, LatticeSpace) else None
 
     @staticmethod
     def _compiled_interactions(
@@ -394,7 +407,10 @@ class ProblemPass(BasePass):
         for item in delays:
             spec = item['spec']
             tau = ProblemPass._scalar_function(
-                [item['tau']], ProblemPass._flat_sources(spec.references, spec.owner), time, spec.owner,
+                [item['tau']],
+                ProblemPass._flat_sources(spec.references, spec.owner),
+                time,
+                spec.owner,
             )
             hidden = item['entry']
             compiled.append(
@@ -490,7 +506,12 @@ class ProblemPass(BasePass):
                 label = f'{spec.owner}:switch:{index}'
                 compiled.append(
                     EventKernel(
-                        label, reductions.wrap(ProblemPass._first_value(guard)), None, 0, False, hidden=True,
+                        label,
+                        reductions.wrap(ProblemPass._first_value(guard)),
+                        None,
+                        0,
+                        False,
+                        hidden=True,
                     ).check(),
                 )  # type: ignore[arg-type]
         return tuple(compiled)

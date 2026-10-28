@@ -219,7 +219,7 @@ class Simulation(BaseConfig):
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
         self.problem_ = (
-            self.system.with_initial_state(initial)
+            PassCompiler._with_initial_state(self.system, initial)
             if isinstance(self.system, BaseProblemSpec)
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )

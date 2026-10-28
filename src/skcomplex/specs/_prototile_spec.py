@@ -49,3 +49,8 @@ class PrototileSpec(BaseSpec):
             error_msg = f'Prototile {self.name!r} needs at least two vertices in the plane, but got {self.vertices!r}.'
             raise RewritingError(error_msg)
         return self
+
+    @property
+    def is_segment(self) -> bool:
+        """Whether the prototile is a segment, with two vertices, rather than a polygon."""
+        return len(self.vertices) == 2  # noqa: PLR2004

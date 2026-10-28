@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ._base_spec import BaseSpec
@@ -14,6 +14,7 @@ from ._visual_spec import VisualSpec
 
 if TYPE_CHECKING:
     from ..core.elements import Element, GroupElement
+    from ._variable_spec import VariableSpec
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,13 @@ class CompiledElementSpec(BaseSpec):
 
         members:
             The size of a group, or `None` for a single element.
+
+        adaptive:
+            The declarations of the adaptive parameters, states that a schedule may set, by state name.
+
+        lattice_shape:
+            The number of sites along every dimension of the lattice the element or group lives on, or `None` off a
+            lattice.
     """
 
     path: str
@@ -46,3 +54,5 @@ class CompiledElementSpec(BaseSpec):
     parameters: Mapping[str, str]
     visual: VisualSpec
     members: int | None = None
+    adaptive: Mapping[str, VariableSpec] = field(default_factory=dict)
+    lattice_shape: tuple[int, ...] | None = None

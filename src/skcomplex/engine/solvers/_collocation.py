@@ -213,15 +213,21 @@ class CollocationSolver(OptimalControlSolver):
         """
         states, controls = control_problem.states, control_problem.control_symbols
         rates, running = control_problem.rates, control_problem.running
-        self._rates_states: GridFunction = control_problem.function(
+        self._rates_states: GridFunction = self._function(
+            control_problem,
             [rate.diff(item) for rate in rates for item in states],
         )
-        self._rates_controls: GridFunction = control_problem.function(
+        self._rates_controls: GridFunction = self._function(
+            control_problem,
             [rate.diff(item) for rate in rates for item in controls],
         )
-        self._running_states: GridFunction = control_problem.function([running.diff(item) for item in states])
-        self._running_controls: GridFunction = control_problem.function([running.diff(item) for item in controls])
-        self._terminal_states: GridFunction = control_problem.function(
+        self._running_states: GridFunction = self._function(control_problem, [running.diff(item) for item in states])
+        self._running_controls: GridFunction = self._function(
+            control_problem,
+            [running.diff(item) for item in controls],
+        )
+        self._terminal_states: GridFunction = self._function(
+            control_problem,
             [control_problem.terminal.diff(item) for item in states],
         )
 

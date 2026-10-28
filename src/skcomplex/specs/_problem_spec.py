@@ -14,7 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
-from ..types import Array, VariableKind, VectorFunction
+from ..types import Array, VectorFunction
 from ._accelerated_spec import AcceleratedSpec
 from ._base_problem_spec import BaseProblemSpec
 from ._breakpoints_spec import _BreakpointsSpec
@@ -251,16 +251,12 @@ class ProblemSpec(BaseProblemSpec):
     @property
     def adaptive_parameters(self) -> dict[str, VariableSpec]:
         """Declarations of the adaptive parameters of the elements and groups, by dotted state name."""
-        from ..core.elements import GroupElement
-        from ..engine._utils import declarations_of
-        found = {}
-        for compiled in self.elements:
-            component = compiled.element
-            kind = component.element if isinstance(component, GroupElement) else type(component)
-            for name, declaration in declarations_of(kind, VariableKind.STATE).items():
-                if declaration.adaptive and name in compiled.states:
-                    found[compiled.states[name]] = declaration
-        return found
+        return {
+            compiled.states[name]: declaration
+            for compiled in self.elements
+            for name, declaration in compiled.adaptive.items()
+            if name in compiled.states
+        }
 
     @property
     def stochastic(self) -> bool:
@@ -277,39 +273,6 @@ class ProblemSpec(BaseProblemSpec):
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
 
-    def max_speed(self, x: Array, p: Array) -> float | None:
-        """Return the largest wave speed of the conservation laws, or `None` without them.
-
-        Args:
-            x:
-                The state vector.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            speed:
-                The largest wave speed over the cells, the dimensions, and the finite-volume fields.
-        """
-        if not self.volumes:
-            return None
-        return max(volume.max_speed(x, p) for volume in self.volumes)
-
-    def diffusive_step(self, p: Array) -> float | None:
-        """Return the largest stable explicit step for the diffusion of finite-volume fields, or `None` without it.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            step:
-                The smallest limit over the finite-volume fields at the parameter values.
-        """
-        if not self.diffusive_limits:
-            return None
-        return min(limit.step(p) for limit in self.diffusive_limits)
-
     def lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lattice laws read or change, or `None` for other states.
 
@@ -321,40 +284,15 @@ class ProblemSpec(BaseProblemSpec):
             shape:
                 The number of sites along every dimension.
         """
-        from ..core.spaces import LatticeSpace
         for step in self.lattice:
             for state in step.targets:
                 if state.name == name:
                     return state.shape
         owner = name.rpartition('.')[0]
         for element in self.elements:
-            space = getattr(element.element, 'space', None)
-            if element.path == owner and isinstance(space, LatticeSpace):
-                return space.shape_  # type: ignore[union-attr]
+            if element.path == owner and element.lattice_shape is not None:
+                return element.lattice_shape
         return None
-
-    def draw_increments(self, rng: np.random.Generator, scale: float) -> Array:
-        """Return the Wiener increment that every noise amplitude multiplies, drawn for one step.
-
-        The increments of the processes are normal with the standard deviation `scale`, correlated within every block
-        by its covariance factor. Amplitudes that share a process take its increment.
-
-        Args:
-            rng:
-                The random number generator of the run.
-
-            scale:
-                The square root of the step.
-
-        Returns:
-            increments:
-                One increment per noise amplitude, in the order of `noise_rows`.
-        """
-        increments = rng.normal(0.0, scale, size=self.n_processes)
-        for block in self.noise_blocks:
-            part = slice(block.start, block.start + block.size)
-            increments[part] = block.factor @ increments[part]
-        return increments[self.noise_columns]
 
     @property
     def stoichiometry(self) -> Array:

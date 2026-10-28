@@ -15,7 +15,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.compile._field_lowering import FieldLowering
-from skcomplex.engine.solvers._split_operator import SplitOperator
+from skcomplex.engine.solvers import IMEXEulerSolver
 from skcomplex.errors import ValidationError
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
@@ -193,10 +193,12 @@ def test_mesh_pattern():
 
 
 @pytest.mark.parametrize('system', [heat_diffusion((12, 12)), heat_l_shape(2)], ids=['lattice', 'mesh'])
-def test_pattern_agrees_with_split_operator(system):
+def test_pattern_agrees_with_split_solver(system):
     """Test that the pattern holds every entry of the sparse linear part of linear lattice and mesh fields."""
     problem = compile_system(system)
-    operator = SplitOperator.build(problem, problem.initial_parameters).sparse
+    solver = IMEXEulerSolver().check().prepare(problem)
+    solver._build_operator(problem.initial_parameters)
+    operator = solver.sparse_
     pattern = problem.jacobian.pattern().toarray()
     assert pattern[operator.toarray() != 0].all()
 

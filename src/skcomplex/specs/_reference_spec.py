@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ..errors import ValidationError
 from ..types import Array, Indices, ReadKind
 from ._base_spec import BaseSpec
 from ._entry_spec import EntrySpec
@@ -82,89 +81,6 @@ class ReferenceSpec(BaseSpec):
     def flat_indices(self) -> Indices:
         """Indices of the component of every member in the flat vector."""
         return self.entry.start + np.arange(self.entry.rows) * self.entry.columns + self.column
-
-    @staticmethod
-    def _add_into(output: Array, target: ReferenceSpec, values: Array, pairs: tuple[Indices, Indices] | None) -> None:
-        """Add the values of one output to the target component of a flat vector.
-
-        Args:
-            output:
-                The flat vector to add to.
-
-            target:
-                The target component.
-
-            values:
-                One value per evaluation index.
-
-            pairs:
-                The pairs of a pair kernel, or `None` in member mode.
-        """
-        if target.source is ReadKind.SINGLE:
-            output[target.index] += values.sum()
-            return
-        column = output[target.members]
-        if target.source is ReadKind.MEMBER:
-            column += values
-        else:
-            assert pairs is not None
-            np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
-
-    @staticmethod
-    def _assign_into(output: Array, target: ReferenceSpec, values: Array) -> None:
-        """Set the target component of a flat vector to the values of one output.
-
-        Args:
-            output:
-                The flat vector to write to.
-
-            target:
-                The target component, read per member or as a single element.
-
-            values:
-                One value per evaluation index.
-        """
-        if target.source is not ReadKind.MEMBER:
-            output[target.index] = values[0]
-            return
-        output[target.members] = values
-
-    def _member_indices(self, rows: int, pairs: Search | None = None) -> Indices:
-        """Return the flat index of a target component for every evaluation index of a member or edge kernel.
-
-        Args:
-            rows:
-                The number of evaluation indices of the kernel.
-
-            pairs:
-                The edges of an edge kernel, whose ends targets of the source and target roles index, or `None`.
-
-        Returns:
-            indices:
-                One flat index per evaluation index.
-
-        Raises:
-            ValidationError:
-                A target of an end of an edge lies on a network whose edges change.
-        """
-        from ..engine.problems._edge_search import EdgeSearch
-        if self.source is ReadKind.MEMBER:
-            return self.flat_indices
-        if self.source in {ReadKind.FIRST, ReadKind.SECOND} and isinstance(pairs, EdgeSearch):
-            if pairs.source is not None:
-                error_msg = (
-                    f'A law targets {self.entry.name} at an end of the edges of a network whose edges change, whose '
-                    'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
-                )
-                raise ValidationError(error_msg)
-            ends = pairs.sources if self.source is ReadKind.FIRST else pairs.targets
-            return (self.entry.start + ends * self.entry.columns + self.column).astype(np.intp)
-        if self.source is ReadKind.NEIGHBOR:
-            table = np.asarray(self.neighbor.table, dtype=np.intp)
-            inside = table < self.entry.rows
-            flat = self.entry.start + table * self.entry.columns + self.column
-            return np.where(inside, flat, -1).astype(np.intp)
-        return np.full(rows, self.entry.start + self.column, dtype=np.intp)
 
 
 type Search = PairSearch | EdgeSearch

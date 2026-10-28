@@ -10,7 +10,7 @@
 
 - [x] 3.1 Turn `skcomplex/specs.py` into a package with one module per spec, add `BaseSpec(BaseConfig)` as a frozen dataclass base whose `check()` validates the fields, and derive the existing specs from it. Set `exclude_type_checking_imports = true` in the import-linter contracts. Verify with `pytest tests/test_specs.py` and lint-imports.
 - [x] 3.2 Move the dataclasses of `core.laws.utils`, `analysis`, and `experiments` into `skcomplex.specs` as `*Spec` under `BaseSpec`, moving any method that does work into the class that uses the spec. Verify with the tests of those packages.
-- [ ] 3.3 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
+- [x] 3.3 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
 - [ ] 3.4 Do the same for `engine.compile` and its passes, making `Block`, `Declarations`, `TableValues`, `FiniteVolume`, and `Topology` frozen and having the passes return copies. Verify with `pytest tests/engine/compile`.
 - [ ] 3.5 Do the same for `engine.solvers`, `engine.backends`, `engine.runtime`, and `engine.viz`. Verify with `pytest tests/engine`.
 - [ ] 3.6 Turn the acting mutable dataclasses (`Observer`, `Kernel`, `PairSearch`, `EdgeSearch`, `SplitOperator`, `Lowering`, `ReductionSchedule`, `_Printer`, and the rest of the audit) into classes under their package's base. Add a test that no module outside the models and `skcomplex.specs` defines a dataclass. Verify with the full test session.

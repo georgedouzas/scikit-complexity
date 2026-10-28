@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import dataclasses
 import heapq
 from collections import defaultdict
 from collections.abc import Collection, Iterator, Mapping, Sequence
@@ -239,10 +240,49 @@ class PassCompiler(BaseCompiler):
         """
         compilation = cast('Compilation', self.compilation_)
         if self.partition == 'subsystems':
-            return self._subsystem_problem(compilation).with_initial_state(initial_state)
+            return self._with_initial_state(self._subsystem_problem(compilation), initial_state)
         problem = self._planned_problem(compilation)
         _check_held_reads(problem, list(compilation.held))
-        return problem.with_initial_state(initial_state)
+        return self._with_initial_state(problem, initial_state)
+
+    @staticmethod
+    def _with_initial_state(problem: BaseProblemSpec, initial_state: Mapping[str, object]) -> BaseProblemSpec:
+        """Return a problem whose initial state takes given values of some states.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            initial_state:
+                The initial values by dotted state name.
+
+        Returns:
+            problem:
+                The problem with the new initial state, or the same problem when no value is given.
+
+        Raises:
+            ValidationError:
+                A name is not a state of the problem, or a value has the wrong shape.
+        """
+        if not initial_state:
+            return problem
+        names = problem.states.names
+        unknown = set(initial_state) - set(names)
+        if unknown:
+            error_msg = (
+                f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the '
+                f'dotted names of states, such as {", ".join(list(names)[:3])}.'
+            )
+            raise ValidationError(error_msg)
+        state = problem.initial_state.copy()
+        for name, value in initial_state.items():
+            entry = problem.states.entry(name)
+            try:
+                state[entry.indices] = entry.encode(value)
+            except ValueError as error:
+                error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
+                raise ValidationError(error_msg) from error
+        return dataclasses.replace(problem, initial_state=state)
 
     def _new_compilation(self, system: System, held: tuple[str, ...] = ()) -> Compilation:
         """Return a new compilation of a system, with no pass run yet."""
