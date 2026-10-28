@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.analysis import ccdf
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -50,7 +50,8 @@ def moment(alpha):
 alpha = brentq(moment, 0.1, 10.0)
 trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS - 100, STEPS + 1)])
-values, probabilities = ccdf(sizes.ravel())
+ccdf = DistributionAnalysis('ccdf').check().prepare(sizes.ravel()).run()
+values, probabilities = ccdf.support_, ccdf.survival_
 anchor = np.searchsorted(values, 100.0)
 fig, (tail, mean) = plt.subplots(1, 2, figsize=(10, 4))
 tail.loglog(values, probabilities, label='simulation')

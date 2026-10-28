@@ -1,17 +1,11 @@
-"""Test the scaling analysis of series, cells, and points, and Binder cumulants of the Ising transition."""
-
-import math
+"""Test the scaling analysis of series, cells, and points."""
 
 import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.analysis import ScalingAnalysis, binder_crossings, binder_cumulant
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.errors import AnalysisError
-
-from .conftest import ISING_SIZES, ISING_TEMPERATURES
-
-CRITICAL = 2 / math.log(1 + math.sqrt(2))
 
 
 def _scaling(kind: str, source: object, **settings: object) -> ScalingAnalysis:
@@ -110,12 +104,3 @@ def test_unknown_kind_and_ignored_setting():
         ScalingAnalysis('wavelet').check()
     with pytest.raises(AnalysisError, match='does not read order'):
         ScalingAnalysis('box-counting', order=2).check()
-
-
-def test_binder_crossings_ising_critical_point(ising_magnetizations):
-    """Test that the Binder cumulants of Ising lattices of sides 16, 32, and 64 cross within 1 percent of T_c."""
-    cumulants = {side: [binder_cumulant(samples) for samples in ising_magnetizations[side]] for side in ISING_SIZES}
-    crossings = binder_crossings(ISING_TEMPERATURES, cumulants)
-    np.testing.assert_allclose(crossings, CRITICAL, rtol=0.01)
-    with pytest.raises(AnalysisError, match='at least 2 sizes'):
-        binder_crossings(ISING_TEMPERATURES, {16: cumulants[16]})

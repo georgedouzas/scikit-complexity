@@ -16,8 +16,8 @@ from ..core.errors import AnalysisError
 from ..core.spaces import NetworkSpace
 from ..engine.problems import NetworkSnapshot
 from ._base import BaseAnalysis, Source
+from ._fit import FitAnalysis
 from ._kinds import DataKind
-from ._statistics import fit_power_law
 
 KINDS = ('degrees', 'assortativity', 'centrality', 'communities', 'neighbor-degree', 'summary')
 CENTRALITIES = ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank')
@@ -74,7 +74,8 @@ def _degree_exponent(graph: nx.Graph) -> float:
     values = _degrees(graph)
     if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
         return float('nan')
-    return fit_power_law(values[values > 0], discrete=True, bootstrap=0, candidates=FIT_CANDIDATES).alpha
+    fit = FitAnalysis(discrete=True, bootstrap=0, candidates=FIT_CANDIDATES, compare_with=())
+    return fit.check().prepare(values[values > 0]).run().exponent_
 
 
 def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:

@@ -67,8 +67,8 @@ def test_analyses_for_arrays_without_a_simulation():
     """Test that every listed analysis of a measured series runs on the array alone."""
     values = np.random.default_rng(0).standard_normal(2000)
     found = {item.name for item in analyses_for(values)}
-    assert {'ccdf', 'fit_stable'} <= found
-    assert ANALYSES.resolve('fit_stable').function(values).alpha > 1
+    assert 'complexity_entropy' in found
+    assert 0 < ANALYSES.resolve('complexity_entropy').function(values).entropy <= 1
 
 
 def test_series_of_an_ode():
@@ -145,10 +145,10 @@ def test_ensemble_of_replicates():
 
 
 def test_analyses_for_lattice_model():
-    """Test that an Ising system lists field analyses and no agent analysis."""
-    found = analyses_for(create('ising', size=16))
-    fields = {item.name for item in found if item.kind == DataKind.FIELD}
-    assert {'cluster_sizes', 'percolation', 'binder_cumulant'} <= fields
+    """Test that an Ising system has the field kind and lists no agent analysis."""
+    system = create('ising', size=16)
+    assert data_kinds(system) == [DataKind.FIELD]
+    found = analyses_for(system)
     assert all(item.kind != DataKind.AGENTS for item in found)
     assert all(item.adapter == 'fields_of' for item in found if item.kind == DataKind.FIELD)
 
@@ -161,10 +161,9 @@ def test_analyses_for_agent_model():
 
 
 def test_analyses_for_plain_array():
-    """Test that a two-dimensional array lists field analyses and series analyses with their readings."""
-    found = analyses_for(np.zeros((16, 16)))
-    readings = {(item.kind, item.reading) for item in found}
-    assert (DataKind.FIELD, 'the array as one grid') in readings
+    """Test that a two-dimensional array is a field and a set of series, and lists series analyses by column."""
+    assert data_kinds(np.zeros((16, 16))) == [DataKind.FIELD, DataKind.SERIES]
+    readings = {(item.kind, item.reading) for item in analyses_for(np.zeros((16, 16)))}
     assert (DataKind.SERIES, 'every column of the array as a series') in readings
     assert data_kinds(np.zeros(5)) == [DataKind.SERIES]
 

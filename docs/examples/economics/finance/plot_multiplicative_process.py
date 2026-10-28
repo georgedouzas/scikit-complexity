@@ -15,7 +15,7 @@ with a power-law, Pareto tail, whose exponent is set by the floor alone.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ccdf
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -42,7 +42,8 @@ simulation = Simulation(
 trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 relative = sizes / sizes.mean(axis=1, keepdims=True)
-values, probabilities = ccdf(relative[-100:].ravel())
+ccdf = DistributionAnalysis('ccdf').check().prepare(relative[-100:].ravel()).run()
+values, probabilities = ccdf.support_, ccdf.survival_
 alpha = 1 / (1 - FLOOR)
 fig, (tail, spread) = plt.subplots(1, 2, figsize=(10, 4))
 tail.loglog(values, probabilities, label='simulation')

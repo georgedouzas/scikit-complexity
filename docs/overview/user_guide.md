@@ -3608,21 +3608,22 @@ section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200
 print(len(np.unique(np.round(section.states_, 4), axis=0)))
 ```
 
-**Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law`, `hill`, and `gini` describe
-heavy tails, and `EventAnalysis` turns series into avalanches or bursts with sizes, durations, and waiting times.
-`fit_power_law` adapts the `powerlaw` library: it chooses the lower cutoff by Clauset, Shalizi, and Newman's
-Kolmogorov-Smirnov criterion, accepts an upper cutoff, uses the exact discrete likelihood for integers, gives a
-bootstrap p-value, and compares the power law with exponential, log-normal, stretched exponential, and truncated
-power-law tails.
+**Distributions and events.** `DistributionAnalysis` describes heavy tails by its `kind`: a `'histogram'` with
+logarithmic bins, the `'ccdf'`, the Hill `'tail-index'`, and the `'gini'` coefficient. `EventAnalysis` turns series
+into avalanches or bursts with sizes, durations, and waiting times. `FitAnalysis(law='power')` adapts the `powerlaw`
+library: it chooses the lower cutoff by Clauset, Shalizi, and Newman's Kolmogorov-Smirnov criterion, accepts an upper
+cutoff, uses the exact discrete likelihood for integers, gives a bootstrap p-value, and compares the power law with the
+exponential, log-normal, stretched exponential, and truncated power-law tails of `compare_with`.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import EventAnalysis, fit_power_law, gini
+from skcomplex.analysis import DistributionAnalysis, EventAnalysis, FitAnalysis
 
 samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
-fit = fit_power_law(samples, bootstrap=20, random_state=0)
-print(round(fit.alpha, 2), fit.p_value, round(gini(samples), 2))
+fit = FitAnalysis('power', bootstrap=20, random_state=0).check().prepare(samples).run()
+gini = DistributionAnalysis('gini').check().prepare(samples).run().gini_
+print(round(fit.exponent_, 2), fit.p_value_, round(gini, 2))
 print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_)
 ```
 
@@ -3652,7 +3653,7 @@ transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([driv
 print(round(transfer.information_[0, 1], 2))
 ```
 
-**Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `CorrelationAnalysis`
+**Space and networks.** `ClusterAnalysis` labels clusters of a grid, with periodic edges, `CorrelationAnalysis`
 gives radially averaged correlations, and `ScalingAnalysis` measures fractals. `NetworkAnalysis` measures the
 degrees, the summary, and the centralities of NetworkX graphs and of the networks of trajectories.
 
@@ -3661,10 +3662,10 @@ import numpy as np
 
 import networkx as nx
 
-from skcomplex.analysis import NetworkAnalysis, ScalingAnalysis, label_clusters
+from skcomplex.analysis import ClusterAnalysis, NetworkAnalysis, ScalingAnalysis
 
-clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
-print(clusters.spans(0), clusters.sizes.max())
+clusters = ClusterAnalysis('labels').check().prepare(np.random.default_rng(3).random((100, 100)) < 0.6).run()
+print(clusters.spanning_, clusters.sizes_.max())
 rows, columns = np.indices((512, 512))
 print(round(ScalingAnalysis('box-counting').check().prepare((rows & columns) == columns).run().exponent_, 2))
 print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
@@ -3674,7 +3675,7 @@ print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6,
 
 Every analysis consumes one kind of data, never a model or a field of science: a series, a jump path, a field, agent
 snapshots, a network, or an ensemble of runs. The same `SpectrumAnalysis` serves an Ising lattice and a reaction-diffusion
-field, and the same `avalanches` serves a sandpile and an earthquake model. Every analysis takes plain arrays or graphs,
+field, and the same `AvalancheAnalysis` serves a sandpile and an earthquake model. Every analysis takes plain arrays or graphs,
 so it works on measured data as well.
 
 The adapters `series_of`, `path_of`, `fields_of`, `snapshots_of`, `networks_of`, and `ensemble_of` extract each kind from
@@ -3886,8 +3887,9 @@ gives the response to a field and the fluctuation-dissipation ratio. `LargeDevia
 generating function from a tilted generator, from blocks of one run, or by cloning a population of trajectories of a
 model through the simulation's steppers, for systems whose tilted generators are too large to write down, and its
 Legendre transform at `values`. It also gives rate functions from histograms at several sizes and reweights samples.
-`CorrelationAnalysis('two-time')` and `CollapseAnalysis` measure aging, and `fit_extreme_values`,
-`record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
+`CorrelationAnalysis('two-time')` and `CollapseAnalysis` measure aging. `FitAnalysis` with the laws `'extreme-value'`,
+`'stable'`, and the named laws such as `'exponential'`, and `DistributionAnalysis('records')` describe extremes and
+limit laws.
 
 ```python
 import numpy as np
@@ -3989,10 +3991,10 @@ for runs in (mixing, frozen):
 and `CorrelationAnalysis('length')` fits its Ornstein-Zernike form or the decay of the correlation function.
 `DomainAnalysis` measures coarsening with the kinds `'size'` and `'growth'`, the wavelength and orientation of patterns
 with `'wavelength'`, and the interfaces between domains with `'interface-density'`, and `FluctuationAnalysis('number')`
-the giant number fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe
-clusters of grids and components of graphs, and `binder_cumulant`, `binder_crossings`, and `CollapseAnalysis` locate
-transitions by finite-size scaling. `SpectrumAnalysis('dispersion')` predicts patterns from a field model's laws before
-running it: it
+the giant number fluctuations of density fields. `ClusterAnalysis` with the kinds `'sizes'`, `'percolation'`, and
+`'spanning'` describes clusters of grids and components of graphs, and `BinderAnalysis` with the kinds `'cumulant'` and
+`'crossings'`, and `CollapseAnalysis`, locate transitions by finite-size scaling. `SpectrumAnalysis('dispersion')`
+predicts patterns from a field model's laws before running it: it
 linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
 and returns the growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes
 is a Turing instability, and a growing mode with a nonzero frequency travels.
@@ -4000,7 +4002,7 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, binder_cumulant, percolation
+from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, DomainAnalysis, SpectrumAnalysis
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
 relation = SpectrumAnalysis('dispersion').check().prepare(brusselator((128,), b=1.9)).run()
@@ -4008,8 +4010,10 @@ print(relation.band_.min().round(2), relation.band_.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
 print(DomainAnalysis('wavelength').check().prepare(stripes).run().wavelength_)
-print(percolation(np.random.default_rng(2).random((128, 128)) < 0.7).spanning)
-print(round(binder_cumulant(np.random.default_rng(3).standard_normal(10_000)), 1))
+grid = np.random.default_rng(2).random((128, 128)) < 0.7
+print(ClusterAnalysis('percolation').check().prepare(grid).run().spanning_)
+samples = np.random.default_rng(3).standard_normal(10_000)
+print(BinderAnalysis('cumulant').check().prepare(samples).run().cumulant_.round(1))
 ```
 
 ### Agents
@@ -4037,26 +4041,27 @@ print(ratio.round(1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
 
 ### Criticality
 
-`avalanches` extracts avalanches from activity series or relaxation records, `fit_avalanches` fits their size and
-duration laws, and `crackling_noise` checks the scaling relation between the exponents and collapses mean shapes.
-`branching_ratio` estimates the branching ratio by the multistep regression of `mrestimator`, which stays unbiased under
-subsampling. `order_parameter_sweep` gives the order parameter, the susceptibility, and the Binder cumulant over a
-sweep with the peak of the susceptibility, `fit_order_exponent` fits the order-parameter exponent, and
-`replica_overlap` compares replicas.
+`AvalancheAnalysis` extracts avalanches from activity series or relaxation records with the kind `'sizes'`, and
+`FitAnalysis(law='power')` fits their size and duration laws. The kind `'crackling'` checks the scaling relation
+between the exponents and collapses mean shapes, and the kind `'branching'` estimates the branching ratio by the
+multistep regression of `mrestimator`, which stays unbiased under subsampling. `BinderAnalysis('sweep')` gives the
+order parameter, the susceptibility, and the Binder cumulant over a sweep with the peak of the susceptibility,
+`FitAnalysis(law='order-exponent')` fits the order-parameter exponent, and `BinderAnalysis('overlap')` compares
+replicas.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import avalanches, branching_ratio
+from skcomplex.analysis import AvalancheAnalysis
 
-found = avalanches([0, 1, 3, 2, 0, 0, 4, 1, 0])
-print(found.sizes, found.durations)
+found = AvalancheAnalysis('sizes').check().prepare([0, 1, 3, 2, 0, 0, 4, 1, 0]).run()
+print(found.sizes_, found.durations_)
 rng = np.random.default_rng(5)
 activity = np.zeros(5000)
 activity[0] = 50
 for t in range(1, activity.size):
     activity[t] = rng.poisson(0.8 * activity[t - 1] + 10)
-print(round(branching_ratio(activity), 1))
+print(round(AvalancheAnalysis('branching').check().prepare(activity).run().branching_ratio_, 1))
 ```
 
 ### Networks

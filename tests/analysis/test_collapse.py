@@ -5,13 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.analysis import (
-    CollapseAnalysis,
-    CorrelationAnalysis,
-    fields_of,
-    order_parameter_sweep,
-    spanning_probability,
-)
+from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, fields_of
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
@@ -30,14 +24,18 @@ def _collapse(kind: str, source: object, **settings: object) -> CollapseAnalysis
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
     """Return the susceptibility of every size at every temperature."""
     return {
-        side: order_parameter_sweep(
-            ISING_TEMPERATURES,
-            samples,
-            side**2,
-            temperatures=ISING_TEMPERATURES,
-        ).susceptibility
+        side: BinderAnalysis('sweep', parameters=ISING_TEMPERATURES, size=side**2, temperatures=ISING_TEMPERATURES)
+        .check()
+        .prepare(np.column_stack(samples))
+        .run()
+        .susceptibility_
         for side, samples in magnetizations.items()
     }
+
+
+def _spanning(grids: list[np.ndarray]) -> float:
+    """Return the share of grids with a cluster joining the opposite edges of their first axis."""
+    return ClusterAnalysis('spanning').check().prepare(grids).run().probability_
 
 
 def _trap_renewals(rng: np.random.Generator, walkers: int, horizon: float) -> list[np.ndarray]:
@@ -72,7 +70,7 @@ def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
     probabilities = np.linspace(0.56, 0.62, 13)
     spanning = {
         side: np.asarray(
-            [spanning_probability([rng.random((side, side)) < p for _ in range(600)]) for p in probabilities],
+            [_spanning([rng.random((side, side)) < p for _ in range(600)]) for p in probabilities],
         )
         for side in (16, 32, 64)
     }

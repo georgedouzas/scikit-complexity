@@ -18,7 +18,7 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.analysis import ccdf, gini
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.core.system import Observable
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -26,6 +26,12 @@ from skcomplex.models import create, describe
 
 MODEL = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
+
+
+def gini(wealth: np.ndarray) -> float:
+    """Return the Gini coefficient of the wealth."""
+    return DistributionAnalysis('gini').check().prepare(wealth).run().gini_
+
 
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
@@ -57,7 +63,8 @@ relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][
 mu = 1 + 2 * J / SIGMA**2
 law = stats.invgamma(mu, scale=mu - 1)
 grid = np.logspace(-1.5, 1.5, 200)
-values, probabilities = ccdf(relative)
+ccdf = DistributionAnalysis('ccdf').check().prepare(relative).run()
+values, probabilities = ccdf.support_, ccdf.survival_
 fig, (density, tail) = plt.subplots(1, 2, figsize=(10, 4))
 density.hist(relative, bins=np.logspace(-1.5, 1.5, 50), density=True, alpha=0.5, label='simulation')
 density.plot(grid, law.pdf(grid), 'k', label=f'inverse gamma, mu = {mu:.0f}')

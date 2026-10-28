@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import EventAnalysis, FluctuationAnalysis, fit_power_law
+from skcomplex.analysis import EventAnalysis, FitAnalysis, FluctuationAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -49,7 +49,8 @@ def test_laminar_durations_of_on_off_intermittency():
     for t in range(1, size):
         values[t] = max(factors[t] * values[t - 1] * (1 - values[t - 1]), 1e-12)
     durations = _events('laminar-durations', values, threshold=1e-3).durations_
-    assert fit_power_law(durations, xmin=10, discrete=True, bootstrap=0).alpha == pytest.approx(1.5, abs=0.1)
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(durations).run()
+    assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
     assert _events('laminar-durations', [1, 0, 0, 1, 0, 1], threshold=0.5).durations_.tolist() == [2.0, 1.0]
 
 
