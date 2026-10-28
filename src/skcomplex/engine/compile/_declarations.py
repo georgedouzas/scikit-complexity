@@ -11,13 +11,14 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, RR, Expression, I
+from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.real_set import RealSet
 
 from ...core.elements import Element, GroupElement
-from ...core.errors import LabelError, ValidationError
+from ...core.errors import SpaceError, ValidationError
 from ...core.interactions import BaseInteraction
-from ...core.spaces import NetworkSpace
+from ...core.spaces import BaseSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ...core.types import Vector
 from ..problems import (
@@ -27,31 +28,17 @@ from ..problems import (
     Variable,
     VariableKind,
     components_of,
+    contains,
     declarations_of,
     domain_of,
     symbol,
     vector,
 )
-from ._tree import Node, _coerce_value, _noise_processes, _shape_of
+from ._tree import Node, _coerce_value, _noise_processes
 
 _ACTIVE = '_active'
 ENDS = ('_source', '_target')
 _MEMBERS = '~members'
-
-
-def _check_symbol_names(blocks: dict[str, 'Block']) -> None:
-    """Raise an error when two variables produce the same symbol name."""
-    seen: dict[str, str] = {}
-    for block in blocks.values():
-        for item, reference in block.references.items():
-            name = str(item)
-            if name in seen and seen[name] != reference.entry.name:
-                error_msg = (
-                    f'{reference.entry.name} and {seen[name]} produce the same symbol {name}. Rename one '
-                    'of their labels or variables.'
-                )
-                raise LabelError(error_msg)
-            seen[name] = reference.entry.name
 
 
 def _is_interaction(node: Node) -> bool:
@@ -191,7 +178,7 @@ class Declarations:
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
         if declaration.per is None:
-            member_shape = _shape_of(name, declaration, node.space)
+            member_shape = self._shape_of(name, declaration, node.space)
         else:
             member_shape = self._per_entry_shape(node, variable, declaration)
             block.per.add(variable)
@@ -404,3 +391,38 @@ class Declarations:
             )
             raise ValidationError(error_msg)
         return (entries,)
+
+    @staticmethod
+    def _shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
+        """Return the shape of a declared variable in its space.
+
+        Args:
+            name:
+                The dotted name of the variable.
+
+            declaration:
+                The declaration of the variable.
+
+            space:
+                The nearest enclosing space.
+
+        Returns:
+            shape:
+                `()` for a scalar and `(n_dim,)` for a vector.
+
+        Raises:
+            SpaceError:
+                A vector variable has no enclosing space.
+
+            ValidationError:
+                The space dimension is not a positive integer.
+        """
+        if not declaration.vector:
+            return ()
+        if space is None:
+            error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
+            raise SpaceError(error_msg)
+        if not contains(RealSet.open(0, oo), space.n_dim_) or not contains(ZZ, space.n_dim_):
+            error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
+            raise ValidationError(error_msg)
+        return (int(space.n_dim_),)

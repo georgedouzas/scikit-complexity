@@ -4,27 +4,38 @@
 # License: MIT
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, solve
+from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.elements import FieldElement
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.types import Vector
-from ...problems import Layout, Output, Problem, Source, VariableKind, declarations_of
+from ...problems import (
+    Layout,
+    NoiseProcess,
+    Output,
+    Problem,
+    Reference,
+    Source,
+    VariableKind,
+    declarations_of,
+    numpy_function,
+)
 from .._census import Census, CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations
-from .._field_conserved import conserved_outputs
+from .._field_conserved import Indices
 from .._field_lowering import FieldLowering, _has_operators
-from .._field_splitting import LinearTerm, _linear_terms
-from .._field_volumes import FiniteVolume, _compile_volumes
+from .._field_splitting import OPERATORS, LinearTerm, Terms
+from .._field_volumes import TIME, FiniteVolume
 from .._issues import Issue
 from .._laws import replaced
 from .._pipeline import BasePass
@@ -118,7 +129,7 @@ class LowerFieldsPass(BasePass):
                 continue
             for reference in target_references(law._get_targets()[0], spec):
                 if reference.entry.name in places and reference.source is Source.MEMBER:
-                    terms += _linear_terms(law.value, reference, spec.references, places)
+                    terms += LowerFieldsPass._linear_terms(law.value, reference, spec.references, places)
         return terms
 
     @staticmethod
@@ -154,6 +165,119 @@ class LowerFieldsPass(BasePass):
         facts['limits'] += lowering.limits
         facts['volume_limits'] += lowering.volume_limits
         return result
+
+    @staticmethod
+    def _name_of(operator: object) -> str:
+        """Return the name of a Python operator of a Sage expression, or an empty string."""
+        return getattr(operator, '__name__', '')
+
+    @staticmethod
+    def _sum_terms(operands: list[Any], states: Mapping[Expression, Any]) -> Terms | None:
+        """Return the linear terms of a sum, or `None` when a summand is not linear."""
+        terms: Terms = []
+        for item in operands:
+            part = LowerFieldsPass._linear(item, states)
+            if part is None:
+                return None
+            terms += part
+        return terms
+
+    @staticmethod
+    def _product_terms(operands: list[Any], states: Mapping[Expression, Any]) -> Terms | None:
+        """Return the linear terms of a constant times a linear expression, or `None`."""
+        constant, variable = SR(1), []
+        for item in operands:
+            if any(symbol in states for symbol in item.variables()):
+                variable.append(item)
+            else:
+                constant *= item
+        if len(variable) != 1:
+            return None
+        part = LowerFieldsPass._linear(variable[0], states)
+        return None if part is None else [(constant * coefficient, chain, state) for coefficient, chain, state in part]
+
+    @staticmethod
+    def _operator_terms(name: str, operands: list[Any], states: Mapping[Expression, Any]) -> Terms | None:
+        """Return the linear terms of an operator applied to a linear expression, or `None`."""
+        inner = LowerFieldsPass._linear(operands[0], states)
+        if inner is None:
+            return None
+        axis = int(operands[1]) if name == 'partial' else 0
+        return [(coefficient, ((name, axis), *chain), state) for coefficient, chain, state in inner]
+
+    @staticmethod
+    def _linear(expression: Any, states: Mapping[Expression, Any]) -> Terms | None:  # noqa: ANN401
+        """Return the linear terms of an expression in field states, or `None` when it is not linear."""
+        expression = SR(expression)
+        if not any(item in states for item in expression.variables()):
+            return []
+        if expression in states:
+            return [(SR(1), (), expression)]
+        operator = expression.operator()
+        name = getattr(operator, 'name', lambda: '')()
+        if name in OPERATORS:
+            return LowerFieldsPass._operator_terms(name, expression.operands(), states)
+        combine = {'add_vararg': LowerFieldsPass._sum_terms, 'mul_vararg': LowerFieldsPass._product_terms}.get(
+            LowerFieldsPass._name_of(operator),
+        )
+        return None if combine is None else combine(expression.operands(), states)
+
+    @staticmethod
+    def _linear_terms(
+        value: object,
+        target: Reference,
+        references: Mapping[Expression, Reference],
+        fields: Mapping[str, FieldElement],
+    ) -> list[LinearTerm]:
+        """Return the linear terms with constant coefficients of the rate of a field state.
+
+        Additive terms that are not linear in the field's states, or whose coefficients depend on states, are left out,
+        and solvers treat them as the nonlinear remainder.
+
+        Args:
+            value:
+                The rate as written, with its operators.
+
+            target:
+                The component the rate belongs to.
+
+            references:
+                The references of the symbols of the rate's component.
+
+            fields:
+                The field of every member entry by entry name.
+
+        Returns:
+            terms:
+                The linear terms.
+        """
+        if not isinstance(value, Expression):
+            return []
+        states = {
+            item: reference
+            for item, reference in references.items()
+            if reference.is_state and reference.source is Source.MEMBER and reference.entry.name in fields
+        }
+        expanded = SR(value).expand()
+        parts = expanded.operands() if LowerFieldsPass._name_of(expanded.operator()) == 'add_vararg' else [expanded]
+        terms = []
+        for part in parts:
+            found = LowerFieldsPass._linear(part, states)
+            for coefficient, chain, state in found or []:
+                if any(item in states or references.get(item, None) is None for item in coefficient.variables()):
+                    continue
+                source = states[state]
+                terms.append(
+                    LinearTerm(
+                        target,
+                        source,
+                        fields[source.entry.name],
+                        chain,
+                        coefficient,
+                        {item: references[item] for item in coefficient.variables()},
+                    ),
+                )
+        return terms
 
 
 class FieldFunctionsPass(BasePass):
@@ -218,7 +342,7 @@ class FieldFunctionsPass(BasePass):
                     error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                     raise ValidationError(error_msg)
                 mine = [(law, reference) for law, reference in targets if reference.entry.name.startswith(f'{owner}.')]
-                volumes.append(_compile_volumes(mine, spec.references, place, owner))
+                volumes.append(FieldFunctionsPass._compile_volumes(mine, spec.references, place, owner))
         return tuple(volumes)
 
     @staticmethod
@@ -342,6 +466,113 @@ class FieldFunctionsPass(BasePass):
             functions['accelerated'] = None
         return volumes, (constrained, fixed)
 
+    @staticmethod
+    def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
+        """Return the member symbol of a flux target after checking it is a member state."""
+        reference = references.get(target)
+        if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+            error_msg = f'A flux targets {target}, which is not a state of a field.'
+            raise ValidationError(error_msg)
+        return target
+
+    @staticmethod
+    def _compile_volumes(
+        laws: Sequence[tuple[FluxLaw, Reference]],
+        references: Mapping[Expression, Reference],
+        place: FieldElement,
+        owner: str,
+    ) -> FiniteVolume:
+        """Return the conservation laws of one finite-volume field.
+
+        Args:
+            laws:
+                The flux laws of the field with the references of their targets.
+
+            references:
+                The references of the symbols of the field's namespace.
+
+            place:
+                The field.
+
+            owner:
+                The path of the field.
+
+        Returns:
+            volumes:
+                The compiled conservation laws.
+
+        Raises:
+            ValidationError:
+                The field is not a finite-volume field on a lattice, or the fluxes are not one per dimension.
+        """
+        space = place.space
+        if place.discretization != 'finite-volume' or not isinstance(space, LatticeSpace):
+            error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
+            raise ValidationError(error_msg)
+        states = [FieldFunctionsPass._symbol(law._get_targets()[0], references) for law, _ in laws]
+        n_dim = space.n_dim_
+        expressions = []
+        for law, _ in laws:
+            components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
+            if len(components) != n_dim:
+                error_msg = f'A flux of {owner} has {len(components)} components for a {n_dim}D lattice.'
+                raise ValidationError(error_msg)
+            expressions.append([SR(item) for item in components])
+        parameters = sorted(
+            {
+                item
+                for row in expressions
+                for value in row
+                for item in value.variables()
+                if item not in states and item in references
+            },
+            key=str,
+        )
+        unknown = {
+            item for row in expressions for value in row for item in value.variables() if item not in states
+        } - set(
+            parameters,
+        )
+        if unknown:
+            error_msg = (
+                f'The fluxes of {owner} read {", ".join(map(str, unknown))}, which are not states or parameters.'
+            )
+            raise ValidationError(error_msg)
+        columns = list(zip(*expressions, strict=True))
+        fluxes = tuple(numpy_function(TIME, [*states, *parameters], list(column)) for column in columns)
+        jacobians = tuple(
+            numpy_function(TIME, [*states, *parameters], [value.diff(state) for value in column for state in states])
+            for column in columns
+        )
+        first = laws[0][0]
+        critical: tuple[Callable[..., Any], ...] = ()
+        if first.riemann == 'godunov':
+            if len(states) != 1:
+                error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
+                raise ValidationError(error_msg)
+            roots = []
+            for column in columns:
+                found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
+                roots.append(numpy_function(TIME, parameters, found) if found else numpy_function(TIME, parameters, []))
+            critical = tuple(roots)
+        boundaries = tuple(
+            (kind, float(value) if not callable(value) else 0.0)
+            for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
+        )
+        return FiniteVolume(
+            owner,
+            tuple(reference.entry.start for _, reference in laws),
+            space.shape_,
+            space.spacings_,
+            boundaries,
+            fluxes,
+            jacobians,
+            tuple(references[item] for item in parameters),
+            first.limiter,
+            first.riemann,
+            critical,
+        )
+
 
 class FieldJacobianPass(BasePass):
     """Pass that adds the conservation laws, symmetries, and fixed nodes of the fields to the exact Jacobian."""
@@ -419,5 +650,134 @@ class ConservedNoisePass(BasePass):
             for law in laws:
                 if isinstance(law, NoiseLaw) and law.conserved:
                     targets = target_references(law._get_targets()[0], spec)
-                    outputs[id(law)] = conserved_outputs(spec.owner, law, targets, places, spec.references)
+                    outputs[id(law)] = ConservedNoisePass._law_outputs(
+                        spec.owner, law, targets, places, spec.references,
+                    )
+        return outputs
+
+    @staticmethod
+    def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, Reference]) -> Expression:
+        """Return the amplitude of a conserved noise, or raise an error when it reads a state or is not symbolic."""
+        if not isinstance(law.value, Expression | int | float):
+            error_msg = (
+                f'The conserved noise law of {owner} has the value {law.value!r}. Give a number or an expression.'
+            )
+            raise ValidationError(error_msg)
+        amplitude = SR(law.value)
+        reads = [item for item in amplitude.variables() if item in references and references[item].is_state]
+        if reads:
+            error_msg = (
+                f'The amplitude of the conserved noise law of {owner} reads the states {", ".join(map(str, reads))}. '
+                'Write it as a number or an expression of parameters.'
+            )
+            raise ValidationError(error_msg)
+        return amplitude
+
+    @staticmethod
+    def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpace:
+        """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
+        space = getattr(place, 'space', None)
+        is_lattice = (
+            isinstance(place, FieldElement)
+            and isinstance(space, LatticeSpace)
+            and space.geometry == 'square'
+            and place.discretization == 'finite-difference'
+            and reference.source is Source.MEMBER
+        )
+        if not is_lattice:
+            error_msg = (
+                f'The conserved noise law of {owner} drives {reference.entry.name}, which is not a state of a '
+                'finite-difference field on a square lattice. Declare the state on a `FieldElement` of a '
+                '`LatticeSpace`.'
+            )
+            raise ValidationError(error_msg)
+        return space  # type: ignore[return-value]
+
+    @staticmethod
+    def _link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
+        """Return the links of every site along every dimension of a lattice, numbered `k n + i` for site `i`.
+
+        The link `(i, k)` joins site `i` to its next neighbour along dimension `k`. Without periodic edges, the links
+        that leave the lattice carry no process.
+
+        Args:
+            dimensions:
+                The number of sites along every dimension.
+
+            periodic:
+                Whether opposite edges are joined.
+
+        Returns:
+            tables:
+                For every dimension, the link to the next neighbour and the link from the previous neighbour of every
+                site in member order, or -1 where the link carries no process.
+        """
+        size = int(np.prod(dimensions))
+        sites = np.arange(size, dtype=np.intp).reshape(dimensions)
+        tables = []
+        for axis in range(len(dimensions)):
+            following = axis * size + sites
+            preceding = np.roll(following, 1, axis=axis)
+            if not periodic:
+                following = following.copy()
+                np.moveaxis(following, axis, 0)[-1] = -1
+                np.moveaxis(preceding, axis, 0)[0] = -1
+            tables.append((following.ravel(), preceding.ravel()))
+        return tables
+
+    @staticmethod
+    def _law_outputs(
+        owner: str,
+        law: NoiseLaw,
+        targets: list[Reference],
+        places: Mapping[str, FieldElement],
+        references: Mapping[Expression, Reference],
+    ) -> list[Output]:
+        """Return the outputs of a conserved noise law, the divergence of a random flux on the links of a lattice.
+
+        Every target component gets one process per link. Site `i` takes `a / h` times the increment of the link from
+        its previous neighbour and `-a / h` times the increment of the link to its next neighbour along every dimension.
+
+        Args:
+            owner:
+                The path of the component that returned the law.
+
+            law:
+                The conserved noise law.
+
+            targets:
+                The target components of the law.
+
+            places:
+                The fields by the name of each of their entries.
+
+            references:
+                A mapping from every symbol the law may use to the component it stands for.
+
+        Returns:
+            outputs:
+                Two outputs per dimension and target component, with the link process of every site.
+
+        Raises:
+            ValidationError:
+                A target is not a state of a finite-difference field on a square lattice, or the amplitude reads a
+                state.
+        """
+        amplitude = ConservedNoisePass._amplitude(owner, law, references)
+        outputs = []
+        for reference in targets:
+            place = places.get(reference.entry.name)
+            space = ConservedNoisePass._check_place(owner, reference, place)
+            kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])  # type: ignore[arg-type]
+            tables = ConservedNoisePass._link_tables(space.shape_, kind == 'periodic')
+            key = ('conserved', reference.entry.name, reference.column)
+            dimension = len(tables) * space.size_
+            for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):
+                scaled = amplitude / spacing
+                outputs.append(
+                    Output(reference, -scaled, process=NoiseProcess(key, dimension=dimension, links=following)),
+                )
+                outputs.append(
+                    Output(reference, scaled, process=NoiseProcess(key, dimension=dimension, links=preceding)),
+                )
         return outputs

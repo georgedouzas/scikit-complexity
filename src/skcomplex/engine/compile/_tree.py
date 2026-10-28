@@ -10,16 +10,15 @@ from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC, ZZ, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import CC
 
 from ...core.elements import Element, GroupElement
-from ...core.errors import LabelError, RoleError, SkcomplexError, SpaceError, ValidationError
+from ...core.errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ...core.system import System
-from ..problems import Variable, VariableKind, contains, declarations_of, default_of, encode
+from ..problems import VariableKind, contains, declarations_of, default_of, encode
 from ._laws import _AGENT_LAWS
 from ._probe import probe_laws
 
@@ -467,41 +466,6 @@ def _declared_times(system: System, scope: str = '', inherited: type | None = No
     for child in system.systems:
         times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
     return times
-
-
-def _shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
-    """Return the shape of a declared variable in its space.
-
-    Args:
-        name:
-            The dotted name of the variable.
-
-        declaration:
-            The declaration of the variable.
-
-        space:
-            The nearest enclosing space.
-
-    Returns:
-        shape:
-            `()` for a scalar and `(n_dim,)` for a vector.
-
-    Raises:
-        SpaceError:
-            A vector variable has no enclosing space.
-
-        ValidationError:
-            The space dimension is not a positive integer.
-    """
-    if not declaration.vector:
-        return ()
-    if space is None:
-        error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
-        raise SpaceError(error_msg)
-    if not contains(RealSet.open(0, oo), space.n_dim_) or not contains(ZZ, space.n_dim_):
-        error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
-        raise ValidationError(error_msg)
-    return (int(space.n_dim_),)
 
 
 def _coerce_value(

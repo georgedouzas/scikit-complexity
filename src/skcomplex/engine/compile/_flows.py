@@ -27,7 +27,7 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...core.types import Vector
-from ..problems import Entry, LoopTerm, Reference, StockFlow, VariableKind, declarations_of, symbol, symbols_of
+from ..problems import Entry, LoopTerm, Reference, StockFlow, symbol, symbols_of
 from ..problems import Source as Read
 from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
 from ._laws import replaced
@@ -78,45 +78,6 @@ class _Spec(Protocol):
     owner: str
     references: dict[Expression, Reference]
     rows: int
-
-
-def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
-    """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
-    states = np.concatenate([np.zeros(0), *declarations.initial_states])
-    parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-    values: dict[Expression, float] = {declarations.time: 0.0}
-    for name in symbols_of([item]) - {declarations.time}:
-        reference = spec.references.get(name)
-        if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
-            error_msg = (
-                f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or interaction. '
-                'Delays and smoothings start from the initial value of their input, read from single elements.'
-            )
-            raise ValidationError(error_msg)
-        vector = states if reference.is_state else parameters
-        values[name] = float(vector[reference.entry.start + reference.column])
-    return float(SR(item).subs(values))
-
-
-def _quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
-    """Return the quantity of every state tagged with one, by entry name.
-
-    Args:
-        blocks:
-            The blocks of the declared components by path.
-
-    Returns:
-        quantities:
-            The quantity of every tagged state.
-    """
-    quantities = {}
-    for block in blocks.values():
-        if block.node.is_agent:
-            continue
-        for variable, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items():
-            if declaration.quantity is not None:
-                quantities[block.entries[variable].name] = declaration.quantity
-    return quantities
 
 
 @dataclass
@@ -347,8 +308,8 @@ class StockFlowPass:
             material, order = self._delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
-            start = _initial(value, spec, declarations)
-            each = _initial(SR(time), spec, declarations) / order if material else 1.0
+            start = self._initial(value, spec, declarations)
+            each = self._initial(SR(time), spec, declarations) / order if material else 1.0
             entry = declarations.declare_state(
                 f'{spec.owner}.{kind}_{counter}',
                 np.full(order, start * each),
@@ -515,3 +476,22 @@ class StockFlowPass:
             error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
             raise LabelError(error_msg)
         labels.add(label)
+
+    @staticmethod
+    def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
+        """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
+        states = np.concatenate([np.zeros(0), *declarations.initial_states])
+        parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        values: dict[Expression, float] = {declarations.time: 0.0}
+        for name in symbols_of([item]) - {declarations.time}:
+            reference = spec.references.get(name)
+            if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
+                error_msg = (
+                    f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or '
+                    'interaction. Delays and smoothings start from the initial value of their input, read from single '
+                    'elements.'
+                )
+                raise ValidationError(error_msg)
+            vector = states if reference.is_state else parameters
+            values[name] = float(vector[reference.entry.start + reference.column])
+        return float(SR(item).subs(values))

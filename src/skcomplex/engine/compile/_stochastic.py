@@ -10,43 +10,16 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
-from ...core.errors import IncompatibleLawsError, ValidationError
-from ...core.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    CrossingLaw,
-    EmissionLaw,
-    EquationLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...core.laws.utils import Call, Draw, categorical, draws_in, where
+from ...core.errors import ValidationError
+from ...core.laws import BaseLaw, UpdateLaw
+from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
-from ..problems import (
-    DomainKind,
-    Draws,
-    Entry,
-    Reference,
-    Source,
-    components_of,
-    domain_kind,
-    labels_of,
-    numpy_function,
-    symbol,
-    symbols_of,
-    vector,
-)
-from ..problems._problem import SampledDraw, _MarkovMatrix
-from ._laws import values_of
-from ._renewal_law import RenewalLaw
+from ..problems import Draws, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
+from ..problems._problem import SampledDraw
 
 _NORMAL_KINDS = frozenset({'normal'})
 _RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
@@ -62,60 +35,6 @@ DISTRIBUTIONS = tuple(
 def _is_symbolic(value: object) -> bool:
     """Check whether a law value is symbolic, as opposed to a call or a Python function."""
     return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, Call) or callable(value))
-
-
-def _alphabet_size(description: str, reference: Reference | None) -> int | None:
-    """Return the number of values of a state over a finite alphabet, or `None` for the integers."""
-    if reference is None or not reference.is_state:
-        error_msg = f'The {description} must target a scalar state of its component.'
-        raise ValidationError(error_msg)
-    domain = reference.entry.domain
-    labels = labels_of(domain)
-    if labels is not None:
-        return len(labels)
-    if domain_kind(domain) == DomainKind.BOOLEAN:
-        return 2
-    if domain_kind(domain) == DomainKind.INTEGER:
-        return None
-    error_msg = (
-        f'The {description} moves {reference.entry.name}, whose domain {domain} is not a finite alphabet. Declare the '
-        'state with a categorical or an integer domain.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _check_shape(
-    description: str,
-    matrix: Sequence[Sequence[object]],
-    rows: int | None,
-    columns: int | None,
-) -> None:
-    """Raise an error when a matrix does not have the rows and columns its alphabets need."""
-    shape = (len(matrix), len(matrix[0]))
-    if (rows is None or shape[0] == rows) and (columns is None or shape[1] == columns):
-        return
-    needed = f'{rows if rows is not None else shape[0]} rows and {columns if columns is not None else shape[1]} columns'
-    error_msg = (
-        f'The matrix of the {description} has {shape[0]} rows and {shape[1]} columns, but it needs {needed}, one row '
-        'per value of the selecting state and one column per value of the target.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _selected_row(selector: Expression, matrix: Sequence[Sequence[object]]) -> list[Expression]:
-    """Return the row of a matrix that the value of a selecting expression picks, as nested conditions."""
-    weights = []
-    for column in range(len(matrix[0])):
-        weight = SR(matrix[-1][column])
-        for row in range(len(matrix) - 2, -1, -1):
-            weight = where(selector == row, matrix[row][column], weight)
-        weights.append(weight)
-    return weights
-
-
-def _draw_name(kind: str, target: Expression) -> str:
-    """Return the draw name of a Markov law, which no user draw name starts with."""
-    return f'_{kind}_{re.sub(r"[^0-9A-Za-z]", "_", str(target))}'
 
 
 @dataclass(frozen=True)
@@ -136,50 +55,6 @@ class MatrixLaw:
     owner: str
     description: str
     matrix: Sequence[Sequence[object]]
-
-
-def _transition(owner: str, law: TransitionLaw, references: dict[Expression, Reference]) -> tuple[UpdateLaw, MatrixLaw]:
-    """Return the update law a transition law becomes and its matrix."""
-    description = f'transition law of {owner}.{law._get_targets()[0]}'
-    size = _alphabet_size(description, references.get(law._get_targets()[0]))
-    _check_shape(description, law.matrix, size, size)
-    _check_shape(description, law.matrix, len(law.matrix), len(law.matrix))
-    value = categorical(
-        _draw_name('transition', law._get_targets()[0]),
-        _selected_row(law._get_targets()[0], law.matrix),
-    )
-    return UpdateLaw(law._get_targets()[0], value), MatrixLaw(owner, description, law.matrix)
-
-
-def _emission(
-    owner: str,
-    law: EmissionLaw,
-    references: dict[Expression, Reference],
-    updates: dict[str, object],
-) -> tuple[UpdateLaw, MatrixLaw]:
-    """Return the update law an emission law becomes, reading the hidden state's next value, and its matrix."""
-    description = f'emission law of {owner}.{law._get_targets()[0]}'
-    columns = _alphabet_size(description, references.get(law._get_targets()[0]))
-    rows = _alphabet_size(description, references.get(law.source))
-    _check_shape(description, law.matrix, rows, columns)
-    hidden = updates.get(str(law.source))
-    if hidden is None:
-        error_msg = (
-            f'The {description} reads the next value of {law.source}, which no update or transition law of {owner} '
-            'sets. Give the hidden state a transition law in the same component.'
-        )
-        raise ValidationError(error_msg)
-    value = categorical(_draw_name('emission', law._get_targets()[0]), _selected_row(SR(hidden), law.matrix))
-    return UpdateLaw(law._get_targets()[0], value), MatrixLaw(owner, description, law.matrix)
-
-
-def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
-    """Return the function that reads a parameter of a matrix for every evaluation row."""
-    if reference.source is Source.MEMBER:
-        members = reference.members
-        return lambda p: p[members]
-    index = reference.index
-    return lambda p: p[index]
 
 
 @dataclass
@@ -276,167 +151,6 @@ def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random
     distribution = getattr(stats, str(draw.distribution))
     sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
     return np.asarray(sampled, dtype=float)
-
-
-def _check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
-    """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
-
-    Args:
-        owner:
-            The path of the component the laws belong to.
-
-        laws:
-            The laws of the component.
-
-    Raises:
-        IncompatibleLawsError:
-            A rate, noise, jump, boundary, equation, or event law holds a draw.
-
-        ValidationError:
-            A draw names a distribution that `scipy.stats` does not provide, or keywords it does not take.
-    """
-    for law in laws:
-        if not isinstance(
-            law,
-            RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
-        ):
-            continue
-        values = [value for value in values_of(law, include=_RANDOM_FIELDS) if _is_symbolic(value)]
-        found = draws_in(values)
-        if found and not isinstance(law, UpdateLaw | RenewalLaw):
-            error_msg = (
-                f'The {type(law).__name__} of {owner} holds the random draw {found[0].call}, but only update and '
-                'renewal laws take random draws. Model randomness in continuous time with Noise laws for Wiener '
-                'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
-            )
-            raise IncompatibleLawsError(error_msg)
-        for item in found:
-            if item.kind == 'draw':
-                _distribution_of(owner, f'{type(law).__name__}', item)
-
-
-def _markov_laws(
-    owner: str,
-    laws: list[BaseLaw],
-    references: dict[Expression, Reference],
-) -> tuple[list[BaseLaw], list[MatrixLaw]]:
-    """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
-
-    Args:
-        owner:
-            The path of the component.
-
-        laws:
-            The laws of the component.
-
-        references:
-            The references of the symbols the laws read.
-
-    Returns:
-        rewritten:
-            The laws with every Markov law replaced by its update law, in the same order, and the matrices.
-
-    Raises:
-        ValidationError:
-            A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or an
-            emission reads a hidden state that no update law of the component sets.
-    """
-    matrices: list[MatrixLaw] = []
-    rewritten: list[BaseLaw] = []
-    for law in laws:
-        if isinstance(law, TransitionLaw):
-            update, matrix = _transition(owner, law, references)
-            rewritten.append(update)
-            matrices.append(matrix)
-        else:
-            rewritten.append(law)
-    updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
-    for index, law in enumerate(rewritten):
-        if isinstance(law, EmissionLaw):
-            rewritten[index], matrix = _emission(owner, law, references, updates)
-            matrices.append(matrix)
-    return rewritten, matrices
-
-
-def _compile_matrix(
-    law: MatrixLaw,
-    references: dict[Expression, Reference],
-    rows: int,
-    time: Expression,
-) -> _MarkovMatrix:
-    """Return the matrix of a Markov law as a function of the parameter vector.
-
-    Args:
-        law:
-            The matrix of the law.
-
-        references:
-            The references of the symbols of the component.
-
-        rows:
-            The number of evaluation rows, the members of a group.
-
-        time:
-            The time symbol.
-
-    Returns:
-        matrix:
-            The matrix as a function of the parameter vector.
-
-    Raises:
-        ValidationError:
-            An entry of the matrix reads a state, time, or a symbol of another component.
-    """
-    entries = [SR(entry) for row in law.matrix for entry in row]
-    arguments = sorted(symbols_of(entries), key=str)
-    for item in arguments:
-        reference = references.get(item)
-        if reference is None or reference.is_state:
-            error_msg = (
-                f'The matrix of the {law.description} reads {item}, but its entries must be numbers or expressions of '
-                'the parameters of its component.'
-            )
-            raise ValidationError(error_msg)
-    function = numpy_function(time, arguments, entries)
-    readers = [_matrix_reader(references[item]) for item in arguments]
-    shape = (len(law.matrix), len(law.matrix[0]))
-    reads = frozenset(
-        int(index)
-        for item in arguments
-        for index in (
-            references[item].flat_indices if references[item].source is Source.MEMBER else [references[item].index]
-        )
-    )
-
-    def evaluate(p: Vector) -> npt.NDArray[np.float64]:
-        values = function(0.0, *(reader(p) for reader in readers))
-        stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
-        return stacked.reshape(rows, *shape)
-
-    return _MarkovMatrix(law.description, evaluate, reads)
-
-
-def _stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
-    """Return the update of a stochastic map, which draws its values from a generator before every step.
-
-    Args:
-        update:
-            The update `F(t, x, q)` of the extended parameter vector.
-
-        draws:
-            The draws of the map.
-
-    Returns:
-        update:
-            The update `F(t, x, p, rng)`.
-    """
-
-    def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
-        extended = draws.extend(p)
-        draws.fill(extended, rng, t, x)
-        return update(t, x, extended)
-
-    return stochastic
 
 
 @dataclass

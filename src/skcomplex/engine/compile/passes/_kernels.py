@@ -4,20 +4,24 @@
 # License: MIT
 
 from collections import defaultdict
+from collections.abc import Mapping
 from typing import cast
 
+import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
-from ...problems import Kernel, Layout, Lowered, Output, Reference, Source, components_of, symbols_of
+from ....core.specs import WienerProcessSpec
+from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
 from .._census import _kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._laws import _KERNEL_FREE_LAWS
 from .._lowering import _symbolic_components
-from .._noise import _noise_process, _process_keys
+from .._noise import ProcessKey, _process_keys
 from .._pipeline import BasePass
 from .._specs import KernelSpec, target_references
 
@@ -139,7 +143,7 @@ class KernelsPass(BasePass):
         outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
         if isinstance(law, NoiseLaw) and law.process is not None:
             for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):
-                item.process = _noise_process(key, declarations.wieners)
+                item.process = KernelsPass._noise_process(key, declarations.wieners)
         return outputs
 
     @staticmethod
@@ -186,3 +190,25 @@ class KernelsPass(BasePass):
                     ).check(),
                 )
         return lowered
+
+    @staticmethod
+    def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
+        matrix = np.asarray(covariance, dtype=float)
+        try:
+            return np.linalg.cholesky(matrix)
+        except np.linalg.LinAlgError:
+            values, vectors = np.linalg.eigh(matrix)
+            return vectors * np.sqrt(np.maximum(values, 0.0))
+
+    @staticmethod
+    def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
+        """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
+        if key is None:
+            return None
+        kind, owner, item = key
+        if kind == 'local':
+            return NoiseProcess(key)
+        wiener = wieners[owner]
+        factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
+        return NoiseProcess(owner, item, wiener.dimension, factor)

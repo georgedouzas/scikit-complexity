@@ -42,7 +42,7 @@ from ..problems import (
 from ..problems._quantities import _Recorded
 from ..problems._reads import Read
 from ..problems._reductions import CompiledReduction
-from ._complex import _joined_complex
+from ._complex import _is_zero, _split_complex
 from ._declarations import Block, Declarations
 from ._flows import _delay_calls
 from ._specs import Observed
@@ -710,7 +710,7 @@ class ObservableEvaluator:
         members: Mapping[Expression, Callable[[Vector, Vector], Any]],
     ) -> Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
-        expression = _joined_complex(expression, f'observable {path}')
+        expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
         readers: list[Callable[[Vector, Vector, Mapping[str, Any]], Any]] = []
         for item in arguments:
@@ -934,6 +934,28 @@ class ObservableEvaluator:
             return float(np.sum(x[counts]))
 
         return count_renewals
+
+    @staticmethod
+    def _joined_complex(expression: object, owner: str) -> Expression:
+        """Return an expression as its real part plus the imaginary unit times its imaginary part, both real.
+
+        Args:
+            expression:
+                The expression, whose symbols are all real.
+
+            owner:
+                The owner of the expression, used in error messages.
+
+        Returns:
+            expression:
+                The expression with every complex function written out, ready to print with complex numbers.
+
+        Raises:
+            ValidationError:
+                The expression cannot be split into real and imaginary parts.
+        """
+        real, imaginary = _split_complex(expression, owner)
+        return real if _is_zero(imaginary) else real + I * imaginary
 
 
 @dataclass

@@ -5,9 +5,10 @@
 
 from typing import cast
 
+from ....core.errors import LabelError
 from ...problems import symbol
 from .._compilation import Compilation
-from .._declarations import Declarations, _check_symbol_names
+from .._declarations import Block, Declarations
 from .._pipeline import BasePass
 from .._tree import Node
 
@@ -28,5 +29,20 @@ class LayoutPass(BasePass):
         declarations = Declarations(time=symbol('t'))
         for node in cast('list[Node]', compilation.nodes):
             declarations.declare_component(node)
-        _check_symbol_names(declarations.blocks)
+        self._check_symbol_names(declarations.blocks)
         compilation.layout = declarations
+
+    @staticmethod
+    def _check_symbol_names(blocks: dict[str, 'Block']) -> None:
+        """Raise an error when two variables produce the same symbol name."""
+        seen: dict[str, str] = {}
+        for block in blocks.values():
+            for item, reference in block.references.items():
+                name = str(item)
+                if name in seen and seen[name] != reference.entry.name:
+                    error_msg = (
+                        f'{reference.entry.name} and {seen[name]} produce the same symbol {name}. Rename one '
+                        'of their labels or variables.'
+                    )
+                    raise LabelError(error_msg)
+                seen[name] = reference.entry.name

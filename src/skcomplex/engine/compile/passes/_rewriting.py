@@ -51,11 +51,6 @@ def structure_of(element_type: type) -> str | None:
     return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
 
-def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
-    """Check that a host node or edge has the label of a pattern node or edge, where the pattern gives one."""
-    return 'label' not in pattern or attributes.get('label') == pattern['label']
-
-
 def _type_of(component: object) -> type:
     """Return the element type of a group, or the type of any other component."""
     return component.element if isinstance(component, GroupElement) else type(component)
@@ -429,7 +424,7 @@ class CompiledGraph:
     ) -> list[dict[Any, Any]]:
         """Return a maximal set of parallel independent matches that satisfy the dangling condition."""
         matcher_type = isomorphism.DiGraphMatcher if graph.is_directed() else isomorphism.GraphMatcher
-        matcher = matcher_type(graph, production.left, node_match=_matches, edge_match=_matches)
+        matcher = matcher_type(graph, production.left, node_match=self._matches, edge_match=self._matches)
         found = [
             {pattern: host for host, pattern in item.items()}
             for item in itertools.islice(matcher.subgraph_monomorphisms_iter(), self.max_matches)
@@ -511,6 +506,11 @@ class CompiledGraph:
                 )
                 raise RewritingError(error_msg)
         return GraphStructure(graph, structure.generation + 1)
+
+    @staticmethod
+    def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
+        """Check that a host node or edge has the label of a pattern node or edge, where the pattern gives one."""
+        return 'label' not in pattern or attributes.get('label') == pattern['label']
 
 
 @dataclass(frozen=True)

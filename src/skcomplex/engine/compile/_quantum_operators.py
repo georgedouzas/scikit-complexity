@@ -3,8 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
-import operator
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -12,12 +10,7 @@ from typing import Any
 import numpy as np
 import qutip
 import scipy.sparse as sp
-from sage.all__sagemath_symbolics import SR, ZZ, Expression
-from sage.symbolic.operators import add_vararg, mul_vararg
-
-from ...core.errors import ValidationError
-from ...core.laws.utils import dagger, has_operator, operator_product
-from ...core.laws.utils._quantum import LOCAL_OPERATOR
+from sage.all__sagemath_symbolics import SR, Expression
 
 _ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 _ADJOINT_SUFFIX = '.dag'
@@ -229,89 +222,3 @@ class Operator:
         terms[key] = terms[key] + coefficient if key in terms else coefficient
 
 
-def _acted_on(operator: Operator) -> set[str]:
-    """Return the keys of the subsystems any term of an operator acts on."""
-    return {subsystem for key in operator.terms for subsystem, _ in key}
-
-
-def _local_of(
-    expression: Expression,
-    subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
-) -> Operator:
-    """Return the operator of a call `local_operator(subsystem, name)`."""
-    subsystem, name = expression.operands()
-    if subsystem not in subsystems:
-        error_msg = f'{expression} acts on {subsystem}, which is not the state of a quantum element of the system.'
-        raise ValidationError(error_msg)
-    key, locals_ = subsystems[subsystem]
-    if str(name) not in locals_:
-        error_msg = f'{expression} names the operator {name}, but {key} has the operators {", ".join(locals_)}.'
-        raise ValidationError(error_msg)
-    return Operator({((key, locals_[str(name)]),): 1})
-
-
-def _product_of(factors: list[Operator], expression: Expression) -> Operator:
-    """Return the product of the factors of a Sage product, which commute only on distinct subsystems."""
-    acting = [_acted_on(factor) for factor in factors if any(key for key in factor.terms)]
-    if sum(len(item) for item in acting) != len(set().union(*acting)):
-        error_msg = (
-            f'{expression} multiplies operators that act on the same subsystem with `*`, which commutes. Write the '
-            'product in its order with `operator_product`.'
-        )
-        raise ValidationError(error_msg)
-    return functools.reduce(Operator.__mul__, factors, Operator({(): 1}))
-
-
-def operator_of(
-    expression: object,
-    subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
-) -> Operator:
-    """Return the operator of a Sage expression of local operators, products, and adjoints.
-
-    Args:
-        expression:
-            A Sage expression built with `local_operator`, `operator_product`, and `dagger`, or a number or a scalar
-            expression, which stands for that multiple of the identity.
-
-        subsystems:
-            A mapping from the state symbol of every quantum subsystem to its key and its local operators by name.
-
-    Returns:
-        operator:
-            The operator.
-
-    Raises:
-        ValidationError:
-            A local operator acts on an unknown subsystem or names an unknown operator, or a Sage product multiplies
-            operators of the same subsystem.
-
-    Examples:
-        >>> import qutip
-        >>> from sage.all__sagemath_symbolics import SR, var
-        >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.engine.compile import LocalOperator
-        >>> from skcomplex.engine.compile._quantum_operators import operator_of
-        >>> q = SR.symbol('q')
-        >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-        >>> operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
-        'h*q.z'
-    """
-    value = SR(expression)
-    if not has_operator(value):
-        return Operator({(): value})
-    function, operands = value.operator(), value.operands()
-    if function == LOCAL_OPERATOR:
-        return _local_of(value, subsystems)
-    if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
-        function, operands = operator_product, [operands[0]] * int(operands[1])
-    parts = [operator_of(item, subsystems) for item in operands]
-    if function == dagger:
-        return parts[0].adjoint()
-    if function == operator_product:
-        return functools.reduce(Operator.__mul__, parts)
-    if function is add_vararg:
-        return functools.reduce(Operator.__add__, parts)
-    if function is mul_vararg:
-        return _product_of(parts, value)
-    error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'
-    raise ValidationError(error_msg)

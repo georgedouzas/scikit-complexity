@@ -12,7 +12,7 @@ from ....core.laws import EncounterLaw, ProliferationLaw
 from .._census import Census
 from .._compilation import Compilation
 from .._issues import Issue
-from .._kinetic_encounters import kinetic_table
+from ..passes._kinetics import CompileEncountersPass
 
 PROBABILITY_TOLERANCE = 1e-9
 _LISTED_ENCOUNTERS = 3
@@ -29,8 +29,8 @@ def _unnormalized(law: EncounterLaw | ProliferationLaw) -> list[tuple[int, int, 
     value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
     if value is None:
         return []
-    sums = kinetic_table(value).sum(axis=2)
-    rates = np.broadcast_to(kinetic_table(law.rate), sums.shape)
+    sums = CompileEncountersPass._kinetic_table(value).sum(axis=2)
+    rates = np.broadcast_to(CompileEncountersPass._kinetic_table(law.rate), sums.shape)
     found = []
     for (candidate, field_activity), total in np.ndenumerate(sums):
         rate = rates[candidate, field_activity]

@@ -25,27 +25,6 @@ from .._pipeline import BasePass
 from .._specs import KernelSpec
 
 
-def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[_NoiseTerm]:
-    """Return every component of every noise law, an independent process standing for itself alone."""
-    terms = []
-    for spec, laws in specs:
-        for law in laws:
-            if not isinstance(law, NoiseLaw):
-                continue
-            targets = components_of(law._get_targets()[0])
-            values = (
-                components_of(law.value)
-                if isinstance(law.value, FreeModuleElement | list | tuple)
-                else [law.value] * len(targets)
-            )
-            keys = _process_keys(spec, law, declarations)
-            for index, (target, value, key) in enumerate(zip(targets, values, keys, strict=True)):
-                reference = spec.references[target]
-                process = key if key is not None else ('independent', id(law), index)
-                terms.append(_NoiseTerm(spec, law, target, (reference.entry.name, reference.column), value, process))
-    return terms
-
-
 @dataclass(frozen=True)
 class _NoiseTerm:
     """Amplitude of a noise law on one state component, with the process it draws."""
@@ -133,7 +112,7 @@ class NoisePass(BasePass):
         declarations: Declarations,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return laws with the drift correction of every noise law of a convention after it, in the Itô form."""
-        terms = _noise_terms(specs, declarations)
+        terms = NoisePass._noise_terms(specs, declarations)
         by_law: dict[int, list[_NoiseTerm]] = defaultdict(list)
         for term in terms:
             by_law[id(term.law)].append(term)
@@ -148,3 +127,26 @@ class NoisePass(BasePass):
                         corrected.append(correction)
             result.append((spec, corrected))
         return result
+
+    @staticmethod
+    def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[_NoiseTerm]:
+        """Return every component of every noise law, an independent process standing for itself alone."""
+        terms = []
+        for spec, laws in specs:
+            for law in laws:
+                if not isinstance(law, NoiseLaw):
+                    continue
+                targets = components_of(law._get_targets()[0])
+                values = (
+                    components_of(law.value)
+                    if isinstance(law.value, FreeModuleElement | list | tuple)
+                    else [law.value] * len(targets)
+                )
+                keys = _process_keys(spec, law, declarations)
+                for index, (target, value, key) in enumerate(zip(targets, values, keys, strict=True)):
+                    reference = spec.references[target]
+                    process = key if key is not None else ('independent', id(law), index)
+                    terms.append(
+                        _NoiseTerm(spec, law, target, (reference.entry.name, reference.column), value, process),
+                    )
+        return terms

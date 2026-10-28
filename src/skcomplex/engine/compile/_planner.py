@@ -3,49 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from ...core.errors import IncompatibleLawsError
-from ...core.system import System
 from ..problems import Form
-from ._census import Census
-from ._forms import _fits_form
+from ._forms import _FORMS, _form_kinds
 from ._issues import Issue
-
-
-def _solved(kinds: set[type], solvers: list[Any]) -> bool:
-    """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
-
-    Co-simulation is left out, since it runs partitions that each need a solver of their own.
-    """
-    single = [solver for solver in solvers if solver.form != Form.COUPLED]
-    return not single or any(not solver.supports.missing('laws', kinds) for solver in single)
-
-
-def _listed(owners: Mapping[str, Iterable[object]]) -> str:
-    """Return the components of every law kind or class as one list."""
-    classes: dict[str, list[str]] = {}
-    for owner, kinds in owners.items():
-        for kind in kinds:
-            classes.setdefault(getattr(kind, '__name__', f'{kind}'), []).append(owner)
-    return '; '.join(f'{kind}: {", ".join(sorted(set(paths)))}' for kind, paths in sorted(classes.items()))
-
-
-def _mixed_issue(
-    path: str,
-    declared: Mapping[str, set[type]],
-    lowered: Mapping[str, set[type]],
-    solvers: list[Any],
-) -> Issue:
-    """Return the issue of a system whose own laws no solver runs, or that compile to no form, by law kind or class."""
-    fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
-    if not _solved(set().union(*declared.values()), solvers):
-        message = f'No solver runs the laws of this system together ({_listed(declared)}).'
-    else:
-        message = f'No form takes the laws of this system together ({_listed(lowered)}).'
-    return Issue('laws-mixed', path, message, fix, error=IncompatibleLawsError)
 
 
 @dataclass(frozen=True)
@@ -69,40 +33,30 @@ class _Owners:
 
     def fit(self, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
         """Check whether laws compile to one form and one solver runs them."""
-        return _fits_form(lowered.values()) and _solved(set().union(*declared.values()), self.solvers)
+        return self._fits_form(lowered.values()) and self._solved(set().union(*declared.values()), self.solvers)
 
+    @staticmethod
+    def _fits_form(owners: Iterable[set[type]]) -> bool:
+        """Check whether the law classes of components compile to one form.
 
-def _planned(system: System, owners: _Owners, scope: str = '') -> tuple[list['_PlannedPartition'], list[Issue]]:
-    """Return the partitions of a system tree and the issues of the subsystems whose own laws fit no form."""
-    name = scope.rstrip('/') or system.label
-    declared, lowered = owners.under(scope, nested=True)
-    if owners.fit(declared, lowered):
-        return ([_PlannedPartition(name, scope, nested=True)] if declared or lowered else []), []
-    own_declared, own_lowered = owners.under(scope, nested=False)
-    if not system.systems or not owners.fit(own_declared, own_lowered):
-        mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
-        return [], [_mixed_issue(name, *mixed, owners.solvers)]
-    partitions = [_PlannedPartition(name, scope, nested=False)] if own_declared or own_lowered else []
-    issues: list[Issue] = []
-    for child in system.systems:
-        found, mixed_issues = _planned(child, owners, f'{scope}{child.label}/')
-        partitions += found
-        issues += mixed_issues
-    return partitions, issues
+        Args:
+            owners:
+                The law classes of every component.
 
+        Returns:
+            fits:
+                Whether a form takes the law classes.
+        """
+        return _form_kinds(owners) in _FORMS
 
-def _plan_partitions(
-    census: Census,
-    kinds: Mapping[str, set[type]],
-    solvers: Iterable[Any] | None = None,
-) -> '_Plan':
-    """Return the partitions of a system, the subsystems whose laws compile to one form that one solver runs."""
-    declared: dict[str, set[type]] = {}
-    for record in census.records:
-        declared.setdefault(record.owner, set()).add(type(record.law))
-    found = list(solvers or ())
-    partitions, issues = _planned(census.system, _Owners(declared, dict(kinds), found))
-    return _Plan(tuple(partitions), tuple(issues))
+    @staticmethod
+    def _solved(kinds: set[type], solvers: list[Any]) -> bool:
+        """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
+
+        Co-simulation is left out, since it runs partitions that each need a solver of their own.
+        """
+        single = [solver for solver in solvers if solver.form != Form.COUPLED]
+        return not single or any(not solver.supports.missing('laws', kinds) for solver in single)
 
 
 @dataclass(frozen=True)

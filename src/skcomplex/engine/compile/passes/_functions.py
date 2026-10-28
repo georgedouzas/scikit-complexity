@@ -18,6 +18,7 @@ from ....core.types import Vector
 from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
 from ...problems import (
     Accelerated,
+    Draws,
     Form,
     Kernel,
     Layout,
@@ -31,9 +32,9 @@ from ...problems import (
 )
 from .._compilation import Compilation
 from .._declarations import Declarations, _member_count
-from .._forms import _is_stepwise
+from .._forms import STEPWISE_FORMS
 from .._pipeline import BasePass
-from .._stochastic import DrawLowering, _stochastic_update
+from .._stochastic import DrawLowering
 
 
 class FunctionsPass(BasePass):
@@ -116,7 +117,7 @@ class FunctionsPass(BasePass):
     def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseBackend:
         """Return the backend that lowers a form, NumPy for a stepwise form, warning when it is not the one asked."""
         requested = resolve_backend(compilation.backend, members)
-        if not _is_stepwise(form):
+        if not FunctionsPass._is_stepwise(form):
             return requested
         chosen = NumpyBackend()
         if compilation.backend is not None and requested.name != chosen.name:
@@ -152,7 +153,9 @@ class FunctionsPass(BasePass):
         )
         functions: dict[str, object] = vars(lowering).copy()
         if draws is not None and functions.get('update') is not None:
-            functions['update'] = _stochastic_update(cast('Callable[..., Vector]', functions['update']), draws)
+            functions['update'] = FunctionsPass._stochastic_update(
+                cast('Callable[..., Vector]', functions['update']), draws,
+            )
         accelerated = cast('Accelerated | None', functions.get('accelerated'))
         if draws is not None and draws.sampled and accelerated is not None:
             functions['accelerated'] = replace(accelerated, iterate=None)
@@ -181,3 +184,40 @@ class FunctionsPass(BasePass):
             states,
         )
         return functions
+
+    @staticmethod
+    def _is_stepwise(form: Form) -> bool:
+        """Check whether the solvers of a form evaluate its kernels step by step on the NumPy backend.
+
+        Args:
+            form:
+                The form.
+
+        Returns:
+            stepwise:
+                Whether the form is stepwise.
+        """
+        return form in STEPWISE_FORMS.values()
+
+    @staticmethod
+    def _stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
+        """Return the update of a stochastic map, which draws its values from a generator before every step.
+
+        Args:
+            update:
+                The update `F(t, x, q)` of the extended parameter vector.
+
+            draws:
+                The draws of the map.
+
+        Returns:
+            update:
+                The update `F(t, x, p, rng)`.
+        """
+
+        def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+            extended = draws.extend(p)
+            draws.fill(extended, rng, t, x)
+            return update(t, x, extended)
+
+        return stochastic

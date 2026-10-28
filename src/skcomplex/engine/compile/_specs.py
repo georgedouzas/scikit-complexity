@@ -17,21 +17,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...core.elements import GroupElement
 from ...core.errors import LabelError, RoleError, ValidationError
 from ...core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
-from ...core.laws import BaseLaw, JumpLaw
-from ...core.laws.utils import neighborhoods_in, reductions_in
 from ...core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
-from ..problems import (
-    EdgeSearch,
-    Problem,
-    Reference,
-    Source,
-    VariableKind,
-    components_of,
-    declarations_of,
-    symbol,
-    vector,
-)
+from ..problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol, vector
 from ..problems._kernels import PairSearch, Search
 from ._declarations import _ACTIVE, ENDS, Block, Declarations, _is_interaction
 from ._tree import Node
@@ -237,36 +225,6 @@ def _interaction_specs(
     return specs
 
 
-def _outside_reductions(value: object) -> set[Expression]:
-    """Return the symbols of a law value that occur outside its reductions."""
-    expressions = [item for item in components_of(value) if isinstance(item, Expression)]
-    found = [reduction.call for item in expressions for reduction in reductions_in(item)]
-    found += [reduction.call for item in expressions for reduction in neighborhoods_in(item)]
-    calls, operators = {str(call) for call in found}, {call.operator() for call in found}
-    symbols: set[Expression] = set()
-    stack = list(expressions)
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            symbols |= set(item.variables())
-        elif item.operator() not in operators or str(item) not in calls:
-            stack.extend(item.operands())
-    return symbols
-
-
-def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
-    """Raise an error when the groups an interaction reads member by member differ in size."""
-    sizes = {group: spec.groups[group] for group in groups}
-    if len(set(sizes.values())) <= 1:
-        return
-    described = ', '.join(f'{group} of {size} members' for group, size in sizes.items())
-    error_msg = (
-        f'Interaction {spec.owner} reads the groups {described} member by member, which needs groups of one size. '
-        "Read the other groups through reductions, or couple every pair of members with an interaction over 'pairs'."
-    )
-    raise RoleError(error_msg)
-
-
 def _edge_roles(node: Node, elements: dict[str, Block]) -> tuple[Block, Block | None]:
     """Return the group of nodes and the group on edges, if any, that an interaction over neighbours binds."""
     blocks = [_resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)]
@@ -437,32 +395,6 @@ def _member_spec(block: Block, time: Expression) -> KernelSpec:
     namespace = _with_other(block, namespace, references)
     group = block.node.path if block.node.members is not None else None
     return KernelSpec(block.node.path, SimpleNamespace(t=time, **vars(namespace)), references, block.rows, group=group)
-
-
-def _settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
-    """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
-
-    Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
-    the sum over the members. Groups of one size that laws read outside reductions are read member by member, row `i` of
-    each together.
-    """
-    values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
-    if not spec.groups or (len(spec.groups) == 1 and not any(reductions_in(value) for value in values)):
-        return
-    read: set[Expression] = set()
-    for law, value in zip(laws, values, strict=True):
-        read |= _outside_reductions(value)
-        read |= {item for target in law._get_targets() for item in components_of(target)}
-    owners = {
-        reference.entry.name.rpartition('.')[0]
-        for item in read
-        if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
-    }
-    groups = sorted(owners & set(spec.groups))
-    _check_aligned(spec, groups)
-    spec.group = next(iter(groups), None)
-    spec.aligned = tuple(groups)
-    spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
 def _group_space(block: Block) -> BaseSpace | None:

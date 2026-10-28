@@ -6,7 +6,6 @@
 import itertools
 from collections.abc import Iterable
 
-from ...core.errors import IncompatibleLawsError
 from ...core.laws import (
     DriveLaw,
     ExtremalLaw,
@@ -70,58 +69,3 @@ def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
     return frozenset(kinds)
 
 
-def _fits_form(owners: Iterable[set[type]]) -> bool:
-    """Check whether the law classes of components compile to one form.
-
-    Args:
-        owners:
-            The law classes of every component.
-
-    Returns:
-        fits:
-            Whether a form takes the law classes.
-    """
-    return _form_kinds(owners) in _FORMS
-
-
-def _infer_form(owners: Iterable[set[type]]) -> Form:
-    """Return the form that the law classes of the components of a system determine.
-
-    A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
-    component has laws of that class alone.
-
-    Args:
-        owners:
-            The law classes of every component.
-
-    Returns:
-        form:
-            The form.
-
-    Raises:
-        IncompatibleLawsError:
-            No form takes the law classes.
-    """
-    kinds = _form_kinds(owners)
-    if kinds not in _FORMS:
-        found = ', '.join(sorted(kind.__name__ for kind in kinds))
-        supported = '; '.join(
-            ', '.join(sorted(kind.__name__ for kind in combination)) for combination in _FORMS if combination
-        )
-        error_msg = f'The system mixes the law kinds {found}. Supported combinations are: {supported}.'
-        raise IncompatibleLawsError(error_msg)
-    return _FORMS[kinds]
-
-
-def _is_stepwise(form: Form) -> bool:
-    """Check whether the solvers of a form evaluate its kernels step by step on the NumPy backend.
-
-    Args:
-        form:
-            The form.
-
-    Returns:
-        stepwise:
-            Whether the form is stepwise.
-    """
-    return form in STEPWISE_FORMS.values()

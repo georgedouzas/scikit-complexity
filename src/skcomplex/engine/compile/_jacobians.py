@@ -24,13 +24,6 @@ type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 _PATTERN_LIMIT = 4_000_000
 
 
-def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
-    """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
-    matrix = scipy.sparse.csr_array(matrix)
-    matrix.eliminate_zeros()
-    return scipy.sparse.csr_array((np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape)
-
-
 class _TooDense(Exception):  # noqa: N818
     """Raised internally when the dense blocks of a pattern exceed the size limit."""
 
@@ -372,9 +365,9 @@ class ExactJacobian:
         total = scipy.sparse.csr_array((self.size, self.size))
         for block in blocks:
             total = total + scipy.sparse.csr_array(block, dtype=float)
-        pattern = _boolean(total)
+        pattern = self._boolean(total)
         for projection in self._mirror_projections(self.symmetries, self.size):
-            pattern = self._product(_boolean(projection), pattern)
+            pattern = self._product(self._boolean(projection), pattern)
         return self._product(self._free_rows(), pattern)
 
     def _note_dense(self, entries: int) -> None:
@@ -428,7 +421,7 @@ class ExactJacobian:
             block = self._symbol_support(kernel, symbol, supports)
             if block is not None:
                 operand = operand + scipy.sparse.csr_array(block, dtype=float)
-        return self._product(_boolean(read.matrix), operand)
+        return self._product(self._boolean(read.matrix), operand)
 
     def _state_support(self, kernel: Kernel, reference: Reference) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
@@ -509,7 +502,9 @@ class ExactJacobian:
     @staticmethod
     def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
         """Return the structure of the product of two boolean structures."""
-        return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
+        return ExactJacobian._boolean(
+            scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float),
+        )
 
     @staticmethod
     def _output_symbols(output: Output) -> set[Expression] | None:
@@ -552,3 +547,12 @@ class ExactJacobian:
     def _is_variable(reference: Reference) -> bool:
         """Check whether a reference is a state, a reduction, or a derived read, so derivatives reach the state."""
         return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
+
+    @staticmethod
+    def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
+        """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
+        matrix = scipy.sparse.csr_array(matrix)
+        matrix.eliminate_zeros()
+        return scipy.sparse.csr_array(
+            (np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape,
+        )

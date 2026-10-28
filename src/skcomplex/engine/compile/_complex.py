@@ -334,28 +334,6 @@ def _split_complex(expression: object, owner: str) -> Parts:
     return real.subs(stand_ins), imaginary.subs(stand_ins)
 
 
-def _joined_complex(expression: object, owner: str) -> Expression:
-    """Return an expression as its real part plus the imaginary unit times its imaginary part, both real expressions.
-
-    Args:
-        expression:
-            The expression, whose symbols are all real.
-
-        owner:
-            The owner of the expression, used in error messages.
-
-    Returns:
-        expression:
-            The expression with every complex function written out, ready to print with complex numbers.
-
-    Raises:
-        ValidationError:
-            The expression cannot be split into real and imaginary parts.
-    """
-    real, imaginary = _split_complex(expression, owner)
-    return real if _is_zero(imaginary) else real + I * imaginary
-
-
 def _split_law(law: BaseLaw, owner: str, state_of: Callable[[Expression], str]) -> list[BaseLaw]:
     """Return the laws of real states and real values that a law of complex states and values stands for.
 

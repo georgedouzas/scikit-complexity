@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import dataclasses
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
@@ -12,13 +13,28 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
 from ....core.specs import TopologyRequestSpec
-from ...problems import EdgeSearch, Kernel, Layout, Lowered, Output, Problem, ReductionSchedule
-from .._capacity import _capacity_rows
+from ....core.types import Vector
+from ...problems import (
+    EdgeSearch,
+    Entry,
+    Kernel,
+    Layout,
+    Lowered,
+    Output,
+    Problem,
+    ReductionSchedule,
+    VariableKind,
+    declarations_of,
+    declared_variables,
+    default_of,
+)
+from .._capacity import CapacityRows
 from .._compilation import BlockLaws, Compilation, Laws
-from .._declarations import Block, Declarations
+from .._declarations import _ACTIVE, ENDS, Block, Declarations
 from .._pipeline import BasePass
 from .._specs import KernelSpec, _group_space, _mask_of, _masked_value, _member_spec
 from .._topology import CompiledRequest, NetworkRows, Topology, _request_of, changes_edges
+from .._tree import _coerce_value
 
 
 def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
@@ -38,33 +54,6 @@ def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[obje
         'network `variable=True`.'
     )
     raise ValidationError(error_msg)
-
-
-def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
-    """Return the variable groups of every network whose groups are variable, by the identity of the space."""
-    spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
-    networks = {}
-    for key, space in spaces.items():
-        nodes = tuple(
-            _capacity_rows(block, declarations)
-            for block in declarations.capacity.values()
-            if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
-        )
-        if not nodes:
-            continue
-        sizes = {group.active.rows for group in nodes}
-        if len(sizes) > 1:
-            error_msg = (
-                f'The variable groups on the nodes of one network, {", ".join(group.path for group in nodes)}, have '
-                'different capacities. Give them one capacity.'
-            )
-            raise ValidationError(error_msg)
-        edges = {
-            layer: _capacity_rows(block, declarations) for layer, block in declarations.changing_edges(space).items()
-        }
-        directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
-        networks[key] = NetworkRows(nodes, edges, directed)
-    return networks
 
 
 @dataclass(frozen=True, eq=False)
@@ -298,7 +287,7 @@ class TopologyFunctionsPass(BasePass):
         jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]],
     ) -> Topology | None:
         """Return the topology pass of the variable groups of networks and the requests of laws, or `None` if none."""
-        networks = _networks(declarations)
+        networks = TopologyFunctionsPass._networks(declarations)
         if not networks:
             return None
         towards = [(spec, laws) for spec, laws in apart if all(TopologyFunctionsPass._is_weight(law) for law in laws)]
@@ -336,6 +325,64 @@ class TopologyFunctionsPass(BasePass):
                     channels[index] = TopologyFunctionsPass._compiled_request(*found, networks, weights, declarations)
                 index += 1
         return Topology(tuple(networks.values()), tuple(requests), channels, reductions)
+
+    @staticmethod
+    def _capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
+        """Return the rows of a variable group with the values of one new member.
+
+        Args:
+            block:
+                The block of the variable group.
+
+            declarations:
+                The declarations of the compilation.
+
+        Returns:
+            rows:
+                The capacity rows of the group.
+        """
+        node = block.node
+        element = node.component_type
+        states = declarations_of(element, VariableKind.STATE)
+        variables: dict[str, tuple[Entry, bool]] = {}
+        defaults: dict[str, Vector] = {}
+        for name, entry in block.entries.items():
+            if name in {_ACTIVE, *ENDS}:
+                continue
+            variables[name] = (entry, name in states)
+            default = default_of(element, name) if name in declared_variables(element) else 0.0
+            default = 0.0 if default is dataclasses.MISSING else default
+            defaults[name] = _coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
+        source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
+        return CapacityRows(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
+
+    @staticmethod
+    def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
+        """Return the variable groups of every network whose groups are variable, by the identity of the space."""
+        spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
+        networks = {}
+        for key, space in spaces.items():
+            nodes = tuple(
+                TopologyFunctionsPass._capacity_rows(block, declarations)
+                for block in declarations.capacity.values()
+                if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
+            )
+            if not nodes:
+                continue
+            sizes = {group.active.rows for group in nodes}
+            if len(sizes) > 1:
+                error_msg = (
+                    f'The variable groups on the nodes of one network, {", ".join(group.path for group in nodes)}, '
+                    'have different capacities. Give them one capacity.'
+                )
+                raise ValidationError(error_msg)
+            edges = {
+                layer: TopologyFunctionsPass._capacity_rows(block, declarations)
+                for layer, block in declarations.changing_edges(space).items()
+            }
+            directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
+            networks[key] = NetworkRows(nodes, edges, directed)
+        return networks
 
 
 class TopologyProblemPass(BasePass):

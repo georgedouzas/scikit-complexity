@@ -7,13 +7,12 @@ from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import ValidationError
 from ...core.laws import NoiseLaw
 from ...core.specs import WienerProcessSpec
-from ..problems import NoiseProcess, components_of
+from ..problems import components_of
 from ._declarations import Declarations
 from ._specs import KernelSpec
 
@@ -64,23 +63,3 @@ def _process_covariance(first: object, second: object, wieners: Mapping[str, Wie
     return float(np.asarray(covariance, dtype=float)[first[2], second[2]])
 
 
-def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
-    """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
-    matrix = np.asarray(covariance, dtype=float)
-    try:
-        return np.linalg.cholesky(matrix)
-    except np.linalg.LinAlgError:
-        values, vectors = np.linalg.eigh(matrix)
-        return vectors * np.sqrt(np.maximum(values, 0.0))
-
-
-def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
-    """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
-    if key is None:
-        return None
-    kind, owner, item = key
-    if kind == 'local':
-        return NoiseProcess(key)
-    wiener = wieners[owner]
-    factor = None if wiener.covariance is None else _covariance_factor(wiener.covariance)
-    return NoiseProcess(owner, item, wiener.dimension, factor)

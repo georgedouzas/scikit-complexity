@@ -5,6 +5,7 @@
 
 import functools
 import math
+import operator
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -15,13 +16,15 @@ import numpy as np
 import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
-from sage.all__sagemath_symbolics import CC, SR, Expression
+from sage.all__sagemath_symbolics import CC, SR, ZZ, Expression
+from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.elements import GroupElement
 from ....core.errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
-from ....core.laws.utils import has_operator, local_operator
+from ....core.laws.utils import dagger, has_operator, local_operator, operator_product
+from ....core.laws.utils._quantum import LOCAL_OPERATOR
 from ....core.specs import HilbertSpec, ObservableSpec
 from ....core.system import System
 from ....core.types import Vector
@@ -40,7 +43,7 @@ from ...problems import (
     vector,
 )
 from ...problems._reductions import CompiledReduction
-from .._quantum_operators import LocalOperator, Operator, operator_of
+from .._quantum_operators import LocalOperator, Operator
 from .._quantum_views import QuantumView, _is_quantum, hilbert_state
 from .._system_compilers import BaseSystemCompiler
 from .._tree import Node, _coerce_value, flatten_system
@@ -60,11 +63,6 @@ def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
     for matrix in matrices:
         total = total + matrix
     return sp.csr_array(total)
-
-
-def _name_of(path: str) -> str:
-    """Return a path, such as `chain[3]`, as a valid part of a symbol name, such as `chain_3`."""
-    return '_'.join(part for part in re.split(r'\W+', path) if part)
 
 
 class HilbertSpaceError(SkcomplexError):
@@ -117,29 +115,6 @@ def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> 
     return _sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
 
 
-def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str, Any]]:
-    """Return the parameter entries, the initial values, and the symbols of every component, per member for groups."""
-    entries: list[Entry] = []
-    values: list[Vector] = []
-    symbols: dict[str, Any] = {}
-    for node in nodes:
-        for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
-            name = f'{node.path}.{variable}'
-            if declaration.vector:
-                error_msg = f'{name} is a vector parameter, which quantum systems do not hold. Use scalar parameters.'
-                raise ValidationError(error_msg)
-            members = node.members
-            shape = () if members is None else (members,)
-            values.append(_coerce_value(name, node.value_of(variable), (), declaration.domain, members))
-            entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
-            base = f'{variable}_{_name_of(node.path)}'
-            if members is None:
-                symbols[name] = symbol(base, declaration.domain)
-            else:
-                symbols[name] = vector([symbol(f'{base}_{member}', declaration.domain) for member in range(members)])
-    return entries, values, symbols
-
-
 @dataclass
 class _Laws:
     """Hamiltonian and dissipator laws collected from the components, with the description of their owner."""
@@ -188,7 +163,7 @@ class _Lowering:
         """
         subsystems = {item.symbol: (item.key, item.operators) for item in self.subsystems.values()}
         try:
-            return operator_of(expression, subsystems)
+            return self._operator_of(expression, subsystems)
         except ValidationError as error:
             error_msg = f'The operator of {owner} is invalid: {error}'
             raise ValidationError(error_msg) from error
@@ -296,6 +271,94 @@ class _Lowering:
         for coefficient, matrices in grouped.items():
             terms.append(QuantumTerm(_sum_matrices(matrices, size), coefficient, self.function(coefficient, owner)))
         return tuple(terms)
+
+    @staticmethod
+    def _acted_on(operator: Operator) -> set[str]:
+        """Return the keys of the subsystems any term of an operator acts on."""
+        return {subsystem for key in operator.terms for subsystem, _ in key}
+
+    @staticmethod
+    def _local_of(
+        expression: Expression,
+        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
+    ) -> Operator:
+        """Return the operator of a call `local_operator(subsystem, name)`."""
+        subsystem, name = expression.operands()
+        if subsystem not in subsystems:
+            error_msg = f'{expression} acts on {subsystem}, which is not the state of a quantum element of the system.'
+            raise ValidationError(error_msg)
+        key, locals_ = subsystems[subsystem]
+        if str(name) not in locals_:
+            error_msg = f'{expression} names the operator {name}, but {key} has the operators {", ".join(locals_)}.'
+            raise ValidationError(error_msg)
+        return Operator({((key, locals_[str(name)]),): 1})
+
+    @staticmethod
+    def _product_of(factors: list[Operator], expression: Expression) -> Operator:
+        """Return the product of the factors of a Sage product, which commute only on distinct subsystems."""
+        acting = [_Lowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
+        if sum(len(item) for item in acting) != len(set().union(*acting)):
+            error_msg = (
+                f'{expression} multiplies operators that act on the same subsystem with `*`, which commutes. Write the '
+                'product in its order with `operator_product`.'
+            )
+            raise ValidationError(error_msg)
+        return functools.reduce(Operator.__mul__, factors, Operator({(): 1}))
+
+    @staticmethod
+    def _operator_of(
+        expression: object,
+        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
+    ) -> Operator:
+        """Return the operator of a Sage expression of local operators, products, and adjoints.
+
+        Args:
+            expression:
+                A Sage expression built with `local_operator`, `operator_product`, and `dagger`, or a number or a scalar
+                expression, which stands for that multiple of the identity.
+
+            subsystems:
+                A mapping from the state symbol of every quantum subsystem to its key and its local operators by name.
+
+        Returns:
+            operator:
+                The operator.
+
+        Raises:
+            ValidationError:
+                A local operator acts on an unknown subsystem or names an unknown operator, or a Sage product multiplies
+                operators of the same subsystem.
+
+        Examples:
+            >>> import qutip
+            >>> from sage.all__sagemath_symbolics import SR, var
+            >>> from skcomplex.core.laws.utils import local_operator
+            >>> from skcomplex.engine.compile import LocalOperator
+            >>> from skcomplex.engine.compile.passes._quantum import _Lowering
+            >>> q = SR.symbol('q')
+            >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
+            >>> _Lowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
+            'h*q.z'
+        """
+        value = SR(expression)
+        if not has_operator(value):
+            return Operator({(): value})
+        function, operands = value.operator(), value.operands()
+        if function == LOCAL_OPERATOR:
+            return _Lowering._local_of(value, subsystems)
+        if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
+            function, operands = operator_product, [operands[0]] * int(operands[1])
+        parts = [_Lowering._operator_of(item, subsystems) for item in operands]
+        if function == dagger:
+            return parts[0].adjoint()
+        if function == operator_product:
+            return functools.reduce(Operator.__mul__, parts)
+        if function is add_vararg:
+            return functools.reduce(Operator.__add__, parts)
+        if function is mul_vararg:
+            return _Lowering._product_of(parts, value)
+        error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'
+        raise ValidationError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -775,13 +838,13 @@ class QuantumCompiler(BaseSystemCompiler):
     def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumTerm, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
-        for owner, operator, rate in laws.dissipators:
+        for owner, collapse, rate in laws.dissipators:
             value = SR(rate)
             initial = lowering.function(value, owner)(0.0, p) if value.variables() else complex(value)
             if initial.real < 0 or abs(initial.imag) > REAL_TOLERANCE:
                 error_msg = f'The dissipator of {owner} has the rate {initial}, which is not a non-negative number.'
                 raise ValidationError(error_msg)
-            collapses.append(lowering.terms(operator * value.sqrt(), owner))
+            collapses.append(lowering.terms(collapse * value.sqrt(), owner))
         return tuple(collapses)
 
     @staticmethod
@@ -848,7 +911,7 @@ class QuantumCompiler(BaseSystemCompiler):
         subsystems: dict[str, _Subsystem] = {}
         for node in quantum:
             for key, element in QuantumCompiler._members_of(node):
-                state = symbol(f'{element.state}_{_name_of(key)}', CC)
+                state = symbol(f'{element.state}_{QuantumCompiler._name_of(key)}', CC)
                 subsystems[key] = _Subsystem(key, element, len(subsystems), state, element.local_operators())
         return subsystems
 
@@ -975,7 +1038,7 @@ class QuantumCompiler(BaseSystemCompiler):
         subsystems = QuantumCompiler._subsystems_of(quantum)
         dimensions = tuple(item.element.dimension for item in subsystems.values())
         QuantumCompiler._check_dimension(nodes, list(dimensions), max_dimension)
-        entries, values, symbols = _parameters(nodes)
+        entries, values, symbols = QuantumCompiler._parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
         lowering = _Lowering(time, subsystems, dimensions, QuantumCompiler._arguments_of(entries, symbols))
         groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
@@ -1016,3 +1079,35 @@ class QuantumCompiler(BaseSystemCompiler):
             lowering=lowering,
             hamiltonian_operator=total,
         )
+
+    @staticmethod
+    def _name_of(path: str) -> str:
+        """Return a path, such as `chain[3]`, as a valid part of a symbol name, such as `chain_3`."""
+        return '_'.join(part for part in re.split(r'\W+', path) if part)
+
+    @staticmethod
+    def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str, Any]]:
+        """Return the parameter entries, initial values, and symbols of every component, per member for groups."""
+        entries: list[Entry] = []
+        values: list[Vector] = []
+        symbols: dict[str, Any] = {}
+        for node in nodes:
+            for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
+                name = f'{node.path}.{variable}'
+                if declaration.vector:
+                    error_msg = (
+                        f'{name} is a vector parameter, which quantum systems do not hold. Use scalar parameters.'
+                    )
+                    raise ValidationError(error_msg)
+                members = node.members
+                shape = () if members is None else (members,)
+                values.append(_coerce_value(name, node.value_of(variable), (), declaration.domain, members))
+                entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
+                base = f'{variable}_{QuantumCompiler._name_of(node.path)}'
+                if members is None:
+                    symbols[name] = symbol(base, declaration.domain)
+                else:
+                    symbols[name] = vector(
+                        [symbol(f'{base}_{member}', declaration.domain) for member in range(members)],
+                    )
+        return entries, values, symbols
