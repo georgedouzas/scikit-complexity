@@ -27,11 +27,13 @@ from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 type Source = Trajectory | System | nx.Graph | NetworkSnapshot | npt.ArrayLike
+type SurrogateSource = Trajectory | npt.ArrayLike | list[Trajectory | npt.ArrayLike]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
 VELOCITY_STATE = 'v'
 SERIES_DIMENSIONS = 1
+STEP_TOLERANCE = 1e-6
 KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
 
 
@@ -113,6 +115,26 @@ class Snapshots:
     states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
     box: Array | None = None
     periodic: bool = False
+
+
+@dataclass(frozen=True)
+class Samples:
+    """Uniformly sampled series that a surrogate is fitted to.
+
+    Args:
+        series:
+            The values of every series, one row per sample and one column per variable.
+
+        labels:
+            The name of every variable.
+
+        dt:
+            The time between consecutive samples.
+    """
+
+    series: list[Array]
+    labels: list[str]
+    dt: float
 
 
 @dataclass(frozen=True)
@@ -729,3 +751,69 @@ class BaseAnalysis(BaseEstimator, ABC):
             )
             raise ValidationError(error_msg)
         return np.asarray(array, dtype=float)
+
+    @staticmethod
+    def _runs_of(source: SurrogateSource) -> list[Trajectory | npt.ArrayLike]:
+        """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or itself."""
+        if isinstance(source, list) and all(isinstance(item, Trajectory | np.ndarray) for item in source):
+            return source
+        if not isinstance(source, Trajectory) and np.ndim(source) == 3:  # noqa: PLR2004
+            return list(np.asarray(source, dtype=float))
+        return [source]
+
+    @staticmethod
+    def _step_of(series: Series) -> float:
+        """Return the time between the samples of a series, after checking that it is uniform."""
+        steps = np.diff(np.asarray(series.times, dtype=float))
+        if steps.size == 0 or not np.allclose(steps, steps[0], rtol=STEP_TOLERANCE, atol=0.0):
+            error_msg = (
+                f'The series of {series.labels} are not sampled at a uniform step with at least two samples. Record '
+                'them at a fixed interval, such as with the `dt` of `Simulation`.'
+            )
+            raise AnalysisError(error_msg)
+        return float(steps[0])
+
+    def _read_samples(
+        self,
+        source: SurrogateSource,
+        variables: Sequence[str] | None,
+        dt: float,
+    ) -> Samples:
+        """Return the uniformly sampled series of the runs of a source, with common variables and step.
+
+        Args:
+            source:
+                A trajectory, an array with one row per sample, or several runs as a list or a 3-D array.
+
+            variables:
+                The variables of trajectories, or `None` for every scalar state or observable.
+
+            dt:
+                The time between the rows of an array.
+
+        Returns:
+            samples:
+                The values of every series, the names of the variables, and the step.
+
+        Raises:
+            AnalysisError:
+                No run is given, or the runs differ in variables or step, or are not uniformly sampled.
+        """
+        found = []
+        for run in self._runs_of(source):
+            series = self._read_series(run, variables)
+            found.append(
+                series if isinstance(run, Trajectory) else Series(series.times * dt, series.values, series.labels),
+            )
+        if not found:
+            error_msg = 'No series is given. Pass a trajectory, an array, or a list of them.'
+            raise AnalysisError(error_msg)
+        steps = [self._step_of(series) for series in found]
+        labels = found[0].labels
+        if any(series.labels != labels for series in found) or not np.allclose(steps, steps[0], rtol=STEP_TOLERANCE):
+            error_msg = (
+                f'The series have the variables {[series.labels for series in found]} and the steps {steps}. Give '
+                'series of the same variables sampled at the same step.'
+            )
+            raise AnalysisError(error_msg)
+        return Samples([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])

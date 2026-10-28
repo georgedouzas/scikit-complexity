@@ -3,65 +3,31 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+import inspect
+import keyword
+import math
+import re
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self
+from typing import Annotated, Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ..core.elements import Element
+from ..core.errors import AnalysisError
 from ..core.laws import BaseLaw, RateLaw
-from ..core.spaces import ContinuousTime
+from ..core.spaces import BaseTime, ContinuousTime
+from ..core.specs import StateSpec
+from ..core.system import System
 from ..engine.runtime import Simulation
-from ._base import BaseAnalysis
+from ._base import BaseAnalysis, SurrogateSource
 from ._kinds import DataKind
-from ._surrogate_systems import (
-    SurrogateSource,
-    _check_horizon,
-    _check_validation,
-    _read_samples,
-    _relative_error,
-    _split_samples,
-    _state_names,
-    _surrogate_system,
-    _symbols_of,
-)
 
 type Array = npt.NDArray[np.float64]
 DIFFERENCE_POINTS = 3
-
-
-def _term(symbols: Sequence[Expression], powers: npt.NDArray[np.int_]) -> Expression:
-    """Return the monomial of the symbols with the given powers."""
-    return np.prod([item ** int(power) for item, power in zip(symbols, powers, strict=True) if power], initial=1)
-
-
-def _sparse_laws(
-    names: Sequence[str],
-    coefficients: Array,
-    powers: npt.NDArray[np.int_],
-) -> Callable[[SimpleNamespace], list[BaseLaw]]:
-    """Return the function that gives one rate law per state, a sum of the monomials with nonzero coefficients."""
-
-    def laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sparse rate laws."""
-        symbols = _symbols_of(s, names)
-        terms = [_term(symbols, row) for row in powers]
-        rates = [
-            sum(float(value) * term for value, term in zip(row, terms, strict=True) if value) for row in coefficients
-        ]
-        return [RateLaw(item, rate) for item, rate in zip(symbols, rates, strict=True)]
-
-    return laws
-
-
-def _derivatives(model: object, parts: list[Array], dt: float) -> tuple[list[Array], list[Array]]:
-    """Return the derivatives a model predicts and those its differentiation method estimates from the series."""
-    usable = [values for values in parts if len(values) >= DIFFERENCE_POINTS]
-    predicted = [np.asarray(model.predict(values), dtype=float) for values in usable]
-    measured = [np.asarray(model.differentiation_method(values, dt), dtype=float) for values in usable]
-    return predicted, measured
+RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})
 
 
 class SparseIdentificationAnalysis(BaseAnalysis):
@@ -165,8 +131,8 @@ class SparseIdentificationAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Raise an error for a validation share outside `[0, 1)` or a negative horizon."""
-        _check_validation(self.validation)
-        _check_horizon(self.horizon)
+        self._check_validation(self.validation)
+        self._check_horizon(self.horizon)
         return self
 
     def _get_data_kind(self) -> DataKind:
@@ -175,14 +141,14 @@ class SparseIdentificationAnalysis(BaseAnalysis):
 
     def _prepare(self, source: SurrogateSource) -> Self:
         """Read the uniformly sampled series of every run."""
-        self.samples_ = _read_samples(self, source, self.variables, self.dt)
+        self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
 
     def _run(self) -> Self:
         """Fit the sparse model and set the surrogate system, its errors, its coefficients, and the forecast."""
         samples = self.samples_
-        states = _state_names(samples.labels)
-        training, held = _split_samples(samples.series, self.validation)
+        states = self._state_names(samples.labels)
+        training, held = self._split_samples(samples.series, self.validation)
         sindy = self._import('pysindy')
         model = sindy.SINDy(
             optimizer=sindy.STLSQ(threshold=self.threshold, alpha=self.alpha),
@@ -190,19 +156,19 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         ).fit(training, t=samples.dt, feature_names=states)
         coefficients = np.asarray(model.coefficients(), dtype=float)
         powers = np.asarray(model.feature_library.powers_, dtype=int)
-        self.system_ = _surrogate_system(
+        self.system_ = self._surrogate_system(
             'SparseSurrogate',
             self.label,
             dict(zip(states, map(float, samples.series[0][0]), strict=True)),
-            _sparse_laws(states, coefficients, powers),
+            self._sparse_laws(states, coefficients, powers),
             ContinuousTime(),
         )
         self.labels_ = samples.labels
         self.states_ = states
         self.last_state_ = np.asarray(samples.series[-1][-1], dtype=float)
         self.dt_ = samples.dt
-        self.training_error_ = _relative_error(*_derivatives(model, training, samples.dt))
-        self.validation_error_ = _relative_error(*_derivatives(model, held, samples.dt))
+        self.training_error_ = self._relative_error(*self._derivatives(model, training, samples.dt))
+        self.validation_error_ = self._relative_error(*self._derivatives(model, held, samples.dt))
         self.features_ = [str(name) for name in model.get_feature_names()]
         self.coefficients_ = coefficients
         self.forecast_ = self._forecast()
@@ -219,3 +185,207 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         trajectory = simulation.run(until=self.horizon * self.dt_).trajectory_
         values = np.column_stack([trajectory.values(name) for name in names])
         return values[1 : self.horizon + 1].reshape(self.horizon, len(names))
+
+    @staticmethod
+    def _term(symbols: Sequence[Expression], powers: npt.NDArray[np.int_]) -> Expression:
+        """Return the monomial of the symbols with the given powers."""
+        return np.prod([item ** int(power) for item, power in zip(symbols, powers, strict=True) if power], initial=1)
+
+    @staticmethod
+    def _sparse_laws(
+        names: Sequence[str],
+        coefficients: Array,
+        powers: npt.NDArray[np.int_],
+    ) -> Callable[[SimpleNamespace], list[BaseLaw]]:
+        """Return the function that gives one rate law per state, a sum of the monomials with nonzero coefficients."""
+
+        def laws(s: SimpleNamespace) -> list[BaseLaw]:
+            """Return the sparse rate laws."""
+            symbols = SparseIdentificationAnalysis._symbols_of(s, names)
+            terms = [SparseIdentificationAnalysis._term(symbols, row) for row in powers]
+            rates = [
+                sum(float(value) * term for value, term in zip(row, terms, strict=True) if value)
+                for row in coefficients
+            ]
+            return [RateLaw(item, rate) for item, rate in zip(symbols, rates, strict=True)]
+
+        return laws
+
+    @staticmethod
+    def _derivatives(model: object, parts: list[Array], dt: float) -> tuple[list[Array], list[Array]]:
+        """Return the derivatives a model predicts and those its differentiation method estimates from the series."""
+        usable = [values for values in parts if len(values) >= DIFFERENCE_POINTS]
+        predicted = [np.asarray(model.predict(values), dtype=float) for values in usable]
+        measured = [np.asarray(model.differentiation_method(values, dt), dtype=float) for values in usable]
+        return predicted, measured
+
+    @staticmethod
+    def _identifier(text: str) -> str:
+        """Return a valid state name made from a label, which is neither a keyword nor a name an element reserves."""
+        cleaned = re.sub(r'\W+', '_', text).strip('_') or 'v'
+        cleaned = f'v_{cleaned}' if cleaned[0].isdigit() else cleaned
+        return f'{cleaned}_' if keyword.iskeyword(cleaned) or cleaned in RESERVED_NAMES else cleaned
+
+    @staticmethod
+    def _check_validation(validation: float) -> None:
+        """Raise an error for a validation share outside `[0, 1)`.
+
+        Args:
+            validation:
+                The share of the samples of every series held out at its end.
+
+        Raises:
+            AnalysisError:
+                The share is outside `[0, 1)`.
+        """
+        if not 0.0 <= validation < 1.0:
+            error_msg = f'The validation share must lie in [0, 1), but got {validation}.'
+            raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _check_horizon(horizon: int) -> None:
+        """Raise an error for a forecast horizon that is not a nonnegative integer.
+
+        Args:
+            horizon:
+                The number of samples to forecast.
+
+        Raises:
+            AnalysisError:
+                The horizon is not a nonnegative integer.
+        """
+        if isinstance(horizon, bool) or not isinstance(horizon, int | np.integer) or horizon < 0:
+            error_msg = f'The horizon must be a nonnegative number of samples, but got {horizon!r}.'
+            raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _split_samples(series: list[Array], validation: float) -> tuple[list[Array], list[Array]]:
+        """Return the leading training part and the trailing validation part of every series.
+
+        Args:
+            series:
+                The values of every series.
+
+            validation:
+                The share of the samples of every series held out at its end, from 0 to below 1.
+
+        Returns:
+            parts:
+                The training parts and the validation parts, each validation part starting at the last training sample.
+
+        Raises:
+            AnalysisError:
+                The share is outside `[0, 1)`.
+        """
+        SparseIdentificationAnalysis._check_validation(validation)
+        cuts = [len(values) - math.floor(validation * (len(values) - 1)) for values in series]
+        return [values[:cut] for values, cut in zip(series, cuts, strict=True)], [
+            values[cut - 1 :] for values, cut in zip(series, cuts, strict=True)
+        ]
+
+    @staticmethod
+    def _relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> float:
+        """Return the relative error `||predicted - actual|| / ||actual||` over every row of every array.
+
+        Args:
+            predicted:
+                The predicted increments or derivatives.
+
+            actual:
+                The measured increments or derivatives.
+
+        Returns:
+            error:
+                The relative error, or NaN when there is no row.
+        """
+        rows = [np.asarray(item, dtype=float) for item in actual if len(item)]
+        if not rows:
+            return math.nan
+        estimate = np.concatenate([np.asarray(item, dtype=float) for item in predicted if len(item)])
+        measured = np.concatenate(rows)
+        return float(np.linalg.norm(estimate - measured) / np.linalg.norm(measured))
+
+    @staticmethod
+    def _state_names(labels: Sequence[str]) -> list[str]:
+        """Return state names for variables: the last part of every dotted label, or the whole label where those clash.
+
+        Args:
+            labels:
+                The names of the variables, such as `lorenz.x` or `cells.n[0]`.
+
+        Returns:
+            names:
+                Valid and distinct identifiers, one per variable.
+        """
+        short = [SparseIdentificationAnalysis._identifier(label.rpartition('.')[2]) for label in labels]
+        if len(set(short)) == len(short):
+            return short
+        full = [SparseIdentificationAnalysis._identifier(label) for label in labels]
+        return full if len(set(full)) == len(full) else [f'{name}_{index}' for index, name in enumerate(full)]
+
+    @staticmethod
+    def _surrogate_system(
+        kind: str,
+        label: str,
+        initial: Mapping[str, float],
+        laws: Callable[[SimpleNamespace], list[BaseLaw]],
+        time: BaseTime,
+    ) -> System:
+        """Return a system of one surrogate element with the given states, laws, and time.
+
+        Args:
+            kind:
+                The name of the element type, such as `LinearSurrogate`.
+
+            label:
+                The label of the element.
+
+            initial:
+                The initial value of every state, by state name.
+
+            laws:
+                The function that returns the laws from the namespace of the element.
+
+            time:
+                The time of the system.
+
+        Returns:
+            system:
+                The system.
+        """
+        states = [
+            inspect.Parameter(
+                name,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=value,
+                annotation=Annotated[float, StateSpec()],
+            )
+            for name, value in initial.items()
+        ]
+
+        def initialize(self: Element, label: str, **values: float) -> None:
+            Element.__init__(self, label)
+            for name, value in {**initial, **values}.items():
+                setattr(self, name, value)
+
+        first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
+        initialize.__signature__ = inspect.Signature([*first, *states])  # type: ignore[attr-defined]
+        element_type = type(kind, (Element,), {'__init__': initialize, '_get_laws': lambda self, s: laws(s)})
+        return System(elements=[element_type(label)], time=time)
+
+    @staticmethod
+    def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
+        """Return the symbols of the named states of a namespace.
+
+        Args:
+            s:
+                The namespace of the element.
+
+            names:
+                The state names.
+
+        Returns:
+            symbols:
+                The symbols, in order.
+        """
+        return [getattr(s, name) for name in names]
