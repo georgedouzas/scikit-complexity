@@ -31,7 +31,7 @@ from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
 from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
 from ..engine.runtime import MODELS, Simulation, Trajectory
-from ..engine.utils import BaseEstimator
+from ..engine.base import BaseEstimator
 
 type Source = str | Callable[..., System] | System
 type Factory = Callable[..., System] | System

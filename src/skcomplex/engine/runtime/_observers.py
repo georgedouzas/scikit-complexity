@@ -7,7 +7,7 @@ import numpy as np
 
 from ...core.errors import SimulationError
 from ..problems import BaseProblem
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 from ._frames import Frame
 from ._trajectories import Trajectory
 

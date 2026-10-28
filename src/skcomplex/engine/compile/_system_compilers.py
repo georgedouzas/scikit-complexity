@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 from ...core.system import System
 from ..problems import BaseProblem
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 
 
 class BaseSystemCompiler(BaseEstimator):

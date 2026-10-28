@@ -17,7 +17,7 @@ from ..problems._problem import VectorFunction
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
 from ..problems._source import Source
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 from ._lowering import Lowering
 
 _AUTO_MEMBERS = 1000

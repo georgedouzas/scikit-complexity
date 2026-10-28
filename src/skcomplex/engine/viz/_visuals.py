@@ -14,7 +14,7 @@ from ...core.spaces import BaseSpace, NetworkSpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 
 _UPWARD = np.array([1.0, -1.0])
 _LAYOUT_SEED = 0

@@ -5,7 +5,7 @@
 
 import time
 
-from ..utils import BaseEstimator
+from ..base import BaseEstimator
 
 
 class BaseClock(BaseEstimator):
