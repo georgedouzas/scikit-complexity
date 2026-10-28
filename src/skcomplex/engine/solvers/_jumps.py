@@ -13,7 +13,7 @@ from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, R
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
 from ..problems import Form, NoiseKind, OrderKind, Problem, SupportSpec
-from ._hybrid import reject_hybrid
+from ._hybrid import _reject_hybrid
 from ._stepper import Solver
 
 
@@ -66,7 +66,7 @@ class GillespieSolver(Solver):
                 The problem has another form, delays, or events.
         """
         super()._prepare(problem, rng, until)
-        reject_hybrid(problem, type(self).__name__)
+        _reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Fire random events from time `t` until the next event falls after `until`.

@@ -19,10 +19,10 @@ type Interpolant = Callable[[float], Vector]
 type Bounded = Callable[[float, Vector, Vector], Vector]
 type Take = Callable[[float, Vector, float, float], tuple[Vector, Interpolant]]
 SEPARATION = 1e-10
-RESTART = 1e-12
+_RESTART = 1e-12
 
 
-def find_bounds(problem: Problem, t: float, until: float) -> list[float]:
+def _find_bounds(problem: Problem, t: float, until: float) -> list[float]:
     """Return the breakpoints between two times followed by the end time.
 
     Args:
@@ -42,7 +42,7 @@ def find_bounds(problem: Problem, t: float, until: float) -> list[float]:
     return [*problem.breakpoints.between(t, until), until]
 
 
-def find_left_limit(bound: float) -> float:
+def _find_left_limit(bound: float) -> float:
     """Return the last time before a bound, where inputs that jump at the bound still take their earlier value.
 
     Args:
@@ -56,7 +56,7 @@ def find_left_limit(bound: float) -> float:
     return float(np.nextafter(bound, -math.inf))
 
 
-def find_smallest_delay(problem: Problem) -> float:
+def _find_smallest_delay(problem: Problem) -> float:
     """Return the smallest delay of a problem, or infinity without delays.
 
     Args:
@@ -70,7 +70,7 @@ def find_smallest_delay(problem: Problem) -> float:
     return min((delay.minimum for delay in problem.delays), default=math.inf)
 
 
-def is_hybrid(problem: Problem, t: float, until: float) -> bool:
+def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
     """Check whether a problem needs the hybrid path between two times: delays, events, or breakpoints up to the end.
 
     Args:
@@ -90,7 +90,7 @@ def is_hybrid(problem: Problem, t: float, until: float) -> bool:
     return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
 
 
-def reject_hybrid(problem: Problem, solver: str) -> None:
+def _reject_hybrid(problem: Problem, solver: str) -> None:
     """Raise an error when a solver without a hybrid path receives delays or events.
 
     Args:
@@ -264,7 +264,7 @@ class History:
         return np.asarray(interpolant(min(time, last)), dtype=float)[indices]
 
 
-def with_delays(problem: Problem, history: History | None, t: float, x: Vector, p: Vector) -> Vector:
+def _with_delays(problem: Problem, history: History | None, t: float, x: Vector, p: Vector) -> Vector:
     """Return the parameter vector with every delayed state read from the history.
 
     Args:
@@ -430,7 +430,7 @@ class EventLocator:
         return after
 
 
-def open_history(problem: Problem, history: History | None, t: float, x: Vector) -> History | None:
+def _open_history(problem: Problem, history: History | None, t: float, x: Vector) -> History | None:
     """Return the history of a run, started at a time and state when the problem has delays and none is kept yet.
 
     Args:
@@ -455,7 +455,7 @@ def open_history(problem: Problem, history: History | None, t: float, x: Vector)
     return history
 
 
-def advance_fixed_steps(
+def _advance_fixed_steps(
     t: float,
     x: Vector,
     p: Vector,
@@ -507,13 +507,13 @@ def advance_fixed_steps(
             The step exceeds the smallest delay.
     """
     problem = locator.problem
-    if dt > find_smallest_delay(problem):
-        error_msg = f'dt = {dt} exceeds the smallest delay {find_smallest_delay(problem)}. Take a smaller step.'
+    if dt > _find_smallest_delay(problem):
+        error_msg = f'dt = {dt} exceeds the smallest delay {_find_smallest_delay(problem)}. Take a smaller step.'
         raise SolverError(error_msg)
     state, time = x.copy(), t
-    for bound in find_bounds(problem, t, until):
-        ceiling = find_left_limit(bound)
-        while time < bound - RESTART * max(1.0, abs(bound)):
+    for bound in _find_bounds(problem, t, until):
+        ceiling = _find_left_limit(bound)
+        while time < bound - _RESTART * max(1.0, abs(bound)):
             step = min(dt, bound - time)
             following, interpolant = take(time, state, step, ceiling)
             if history is not None:

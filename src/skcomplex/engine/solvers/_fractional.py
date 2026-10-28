@@ -18,72 +18,11 @@ from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._stepper import Solver
 
 GRID_TOLERANCE = 1e-9
-CHANGE_TOLERANCE = 1e-12
-SLOWEST_MODE = 1e-7
-FASTEST_MODE = 60.0
-MODE_SPACING = 0.35
-INITIAL_ROWS = 64
-
-
-def _grunwald_letnikov_weights(alpha: Vector, count: int) -> Vector:
-    """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
-    lags = np.arange(1, count + 1, dtype=float)[:, None]
-    factors = 1 - (alpha[None, :] + 1) / lags
-    return np.vstack([np.ones((1, alpha.size)), np.cumprod(factors, axis=0)])
-
-
-def _l1_weights(alpha: Vector, count: int) -> Vector:
-    """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements from the start, one column per order.
-
-    The weights are the differences `b_j - b_(j-1)` of the L1 weights `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)` on
-    the increments, with `b_0 = 1`, so the sums run over the displacements from the initial state.
-    """
-    lags = np.arange(count + 1, dtype=float)[:, None]
-    exponent = 1 - alpha[None, :]
-    increments = (lags + 1) ** exponent - lags**exponent
-    increments[0] = 1.0
-    return np.vstack([np.ones((1, alpha.size)), np.diff(increments, axis=0)])
-
-
-def _tail_rates(window: int) -> Vector:
-    """Return the decay rates per step of the exponential modes that hold the history older than a window."""
-    exponents = np.arange(math.log(SLOWEST_MODE), math.log(FASTEST_MODE / (window + 1)), MODE_SPACING)
-    return np.exp(exponents)
-
-
-def _grunwald_letnikov_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
-    """Return the coefficients of the exponential modes whose sum gives the Grünwald-Letnikov weights past a window.
-
-    The weights have the Laplace representation `w_j = -(sin(pi alpha) / pi) int exp(-s j) exp(s alpha)
-    (1 - exp(-s))^alpha ds`, discretised with the trapezoidal rule in `log s`.
-    """
-    s, a = rates[:, None], alpha[None, :]
-    density = -np.sin(np.pi * a) / np.pi * np.exp(-s * (window + 1 - a)) * (-np.expm1(-s)) ** a
-    return MODE_SPACING * s * density
-
-
-def _l1_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
-    """Return the coefficients of the exponential modes whose sum gives the L1 weights past a window.
-
-    The weights have the Laplace representation `a_j = -((1 - alpha) / Gamma(alpha)) int exp(-s j) s^(alpha - 2)
-    (1 - exp(-s))^2 exp(s) ds`, discretised with the trapezoidal rule in `log s`.
-    """
-    s, a = rates[:, None], alpha[None, :]
-    density = -(1 - a) / gamma(a) * s ** (a - 2) * np.expm1(-s) ** 2 * np.exp(-s * window)
-    return MODE_SPACING * s * density
-
-
-def _predictor_weights(alpha: Vector, count: int) -> Vector:
-    """Return the weights `(m + 1)^alpha - m^alpha` of the predictor at lags 0 to `count`, one column per order."""
-    lags = np.arange(count + 1, dtype=float)[:, None]
-    return (lags + 1) ** alpha[None, :] - lags ** alpha[None, :]
-
-
-def _corrector_weights(alpha: Vector, count: int) -> Vector:
-    """Return the weights of the corrector at lags 0 to `count` for every value but the first, one column per order."""
-    lags = np.arange(count + 1, dtype=float)[:, None]
-    power = alpha[None, :] + 1
-    return (lags + 2) ** power + lags**power - 2 * (lags + 1) ** power
+_CHANGE_TOLERANCE = 1e-12
+_SLOWEST_MODE = 1e-7
+_FASTEST_MODE = 60.0
+_MODE_SPACING = 0.35
+_INITIAL_ROWS = 64
 
 
 class _Rows:
@@ -91,7 +30,7 @@ class _Rows:
 
     def __init__(self, first: Vector, keep: int | None) -> None:
         self.keep = keep
-        self.values = np.zeros((INITIAL_ROWS if keep is None else 2 * keep + 2, first.size))
+        self.values = np.zeros((_INITIAL_ROWS if keep is None else 2 * keep + 2, first.size))
         self.values[0] = first
         self.start = 0
         self.stop = 1
@@ -188,7 +127,7 @@ class CaputoSolver(Solver):
         if not self._state.size or not math.isclose(t, self._origin + self._step_index * self.dt, abs_tol=1e-12):
             return False
         fractional = self._fractional
-        return bool(np.allclose(x[fractional], self._state[fractional], rtol=CHANGE_TOLERANCE, atol=0.0))
+        return bool(np.allclose(x[fractional], self._state[fractional], rtol=_CHANGE_TOLERANCE, atol=0.0))
 
     def _convolve(self, weights: Vector, rows: Vector) -> Vector:
         """Return the sum over rows of every column weighted by the column of its order."""
@@ -373,10 +312,10 @@ class ConvolutionSolver(CaputoSolver):
             raise SolverError(error_msg)
         self._window = None if self.memory is None else max(1, round(self.memory / self.dt))
         self._rows = _Rows(np.zeros(x.size), self._window)
-        self._table = self._weights(self._unique, INITIAL_ROWS if self._window is None else self._window)
+        self._table = self._weights(self._unique, _INITIAL_ROWS if self._window is None else self._window)
         self._scale = self._per_state(self._gain(self._unique) * self.dt**self._unique)
         if self._window is not None:
-            rates = _tail_rates(self._window)
+            rates = self._tail_rates(self._window)
             self._decay = np.exp(-rates)[:, None]
             self._modes = self._tail(self._unique, rates, self._window)[:, self._groups]
             self._amplitudes = np.zeros((rates.size, x.size))
@@ -407,6 +346,12 @@ class ConvolutionSolver(CaputoSolver):
         displacement = self._scale * drift - self._history_sum(step)
         self._state = self._bounded(time + self.dt, self._initial + displacement, p)
         self._rows.append(self._state - self._initial)
+
+    @staticmethod
+    def _tail_rates(window: int) -> Vector:
+        """Return the decay rates per step of the exponential modes that hold the history older than a window."""
+        exponents = np.arange(math.log(_SLOWEST_MODE), math.log(_FASTEST_MODE / (window + 1)), _MODE_SPACING)
+        return np.exp(exponents)
 
 
 class GrunwaldLetnikovSolver(ConvolutionSolver):
@@ -452,15 +397,33 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
 
     def _weights(self, alpha: Vector, count: int) -> Vector:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
-        return _grunwald_letnikov_weights(alpha, count)
+        return self._grunwald_letnikov_weights(alpha, count)
 
     def _tail(self, alpha: Vector, rates: Vector, window: int) -> Vector:
         """Return the coefficients of the exponential modes of the Grünwald-Letnikov weights past a window."""
-        return _grunwald_letnikov_tail(alpha, rates, window)
+        return self._grunwald_letnikov_tail(alpha, rates, window)
 
     def _gain(self, alpha: Vector) -> Vector:
         """Return the factor 1 of the drift of every order."""
         return np.ones_like(alpha)
+
+    @staticmethod
+    def _grunwald_letnikov_weights(alpha: Vector, count: int) -> Vector:
+        """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
+        lags = np.arange(1, count + 1, dtype=float)[:, None]
+        factors = 1 - (alpha[None, :] + 1) / lags
+        return np.vstack([np.ones((1, alpha.size)), np.cumprod(factors, axis=0)])
+
+    @staticmethod
+    def _grunwald_letnikov_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
+        """Return the coefficients of the exponential modes whose sum gives the Grünwald-Letnikov weights past a window.
+
+        The weights have the Laplace representation `w_j = -(sin(pi alpha) / pi) int exp(-s j) exp(s alpha)
+        (1 - exp(-s))^alpha ds`, discretised with the trapezoidal rule in `log s`.
+        """
+        s, a = rates[:, None], alpha[None, :]
+        density = -np.sin(np.pi * a) / np.pi * np.exp(-s * (window + 1 - a)) * (-np.expm1(-s)) ** a
+        return _MODE_SPACING * s * density
 
 
 class L1Solver(ConvolutionSolver):
@@ -507,15 +470,39 @@ class L1Solver(ConvolutionSolver):
 
     def _weights(self, alpha: Vector, count: int) -> Vector:
         """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements, one column per order."""
-        return _l1_weights(alpha, count)
+        return self._l1_weights(alpha, count)
 
     def _tail(self, alpha: Vector, rates: Vector, window: int) -> Vector:
         """Return the coefficients of the exponential modes of the L1 weights past a window."""
-        return _l1_tail(alpha, rates, window)
+        return self._l1_tail(alpha, rates, window)
 
     def _gain(self, alpha: Vector) -> Vector:
         """Return the factor `Gamma(2 - alpha)` of the drift of every order."""
         return np.asarray(gamma(2 - alpha))
+
+    @staticmethod
+    def _l1_weights(alpha: Vector, count: int) -> Vector:
+        """Return the weights `a_0` to `a_count` of the L1 scheme on displacements from the start, one column per order.
+
+        The weights are the differences `b_j - b_(j-1)` of the L1 weights `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)` on
+        the increments, with `b_0 = 1`, so the sums run over the displacements from the initial state.
+        """
+        lags = np.arange(count + 1, dtype=float)[:, None]
+        exponent = 1 - alpha[None, :]
+        increments = (lags + 1) ** exponent - lags**exponent
+        increments[0] = 1.0
+        return np.vstack([np.ones((1, alpha.size)), np.diff(increments, axis=0)])
+
+    @staticmethod
+    def _l1_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
+        """Return the coefficients of the exponential modes whose sum gives the L1 weights past a window.
+
+        The weights have the Laplace representation `a_j = -((1 - alpha) / Gamma(alpha)) int exp(-s j) s^(alpha - 2)
+        (1 - exp(-s))^2 exp(s) ds`, discretised with the trapezoidal rule in `log s`.
+        """
+        s, a = rates[:, None], alpha[None, :]
+        density = -(1 - a) / gamma(a) * s ** (a - 2) * np.expm1(-s) ** 2 * np.exp(-s * window)
+        return _MODE_SPACING * s * density
 
 
 class FractionalABMSolver(CaputoSolver):
@@ -562,15 +549,15 @@ class FractionalABMSolver(CaputoSolver):
         """Start the history of drifts and the weights of the predictor and the corrector."""
         del t, x
         self._drifts: _Rows | None = None
-        self._resize(INITIAL_ROWS)
+        self._resize(_INITIAL_ROWS)
         alpha = self._unique
         self._predictor_scale = self._per_state(self.dt**alpha / gamma(alpha + 1))
         self._corrector_scale = self._per_state(self.dt**alpha / gamma(alpha + 2))
 
     def _resize(self, count: int) -> None:
         """Compute the weights of the predictor and the corrector up to a lag."""
-        self._predictor = _predictor_weights(self._unique, count)
-        self._corrector = _corrector_weights(self._unique, count)
+        self._predictor = self._predictor_weights(self._unique, count)
+        self._corrector = self._corrector_weights(self._unique, count)
 
     def _carry(self, x: Vector) -> None:
         """Take the states of order 1 that changed between frames, which the Heun steps start from."""
@@ -600,3 +587,16 @@ class FractionalABMSolver(CaputoSolver):
         corrected = self._initial + self._corrector_scale * (following + first + past)
         corrected[ordinary] = self._state[ordinary] + self.dt / 2 * (current[ordinary] + following[ordinary])
         self._state = self._bounded(time + self.dt, corrected, p)
+
+    @staticmethod
+    def _predictor_weights(alpha: Vector, count: int) -> Vector:
+        """Return the weights `(m + 1)^alpha - m^alpha` of the predictor at lags 0 to `count`, one column per order."""
+        lags = np.arange(count + 1, dtype=float)[:, None]
+        return (lags + 1) ** alpha[None, :] - lags ** alpha[None, :]
+
+    @staticmethod
+    def _corrector_weights(alpha: Vector, count: int) -> Vector:
+        """Return the corrector weights at lags 0 to `count` for every value but the first, one column per order."""
+        lags = np.arange(count + 1, dtype=float)[:, None]
+        power = alpha[None, :] + 1
+        return (lags + 2) ** power + lags**power - 2 * (lags + 1) ** power

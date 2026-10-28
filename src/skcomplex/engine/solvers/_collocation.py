@@ -23,45 +23,6 @@ MIN_NODES = 2
 type Matrix = npt.NDArray[np.float64]
 
 
-def _trapezoidal(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
-    """Return the points, the defect coefficients of states and rates, and the quadrature weights of trapezoids."""
-    steps = np.diff(times)
-    rows = np.arange(steps.size)
-    states = np.zeros((steps.size, times.size))
-    rates = np.zeros((steps.size, times.size))
-    states[rows, rows], states[rows, rows + 1] = -1.0, 1.0
-    rates[rows, rows], rates[rows, rows + 1] = -steps / 2, -steps / 2
-    weights = np.zeros(times.size)
-    np.add.at(weights, rows, steps / 2)
-    np.add.at(weights, rows + 1, steps / 2)
-    return times, states, rates, weights
-
-
-def _hermite_simpson(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
-    """Return the points with midpoints, the defect coefficients of states and rates, and Simpson's weights."""
-    steps = np.diff(times)
-    points = np.empty(2 * times.size - 1)
-    points[0::2], points[1::2] = times, times[:-1] + steps / 2
-    intervals = np.arange(steps.size)
-    first, middle, last = 2 * intervals, 2 * intervals + 1, 2 * intervals + 2
-    interpolation, quadrature = 2 * intervals, 2 * intervals + 1
-    states = np.zeros((2 * steps.size, points.size))
-    rates = np.zeros((2 * steps.size, points.size))
-    states[interpolation, middle], states[interpolation, first], states[interpolation, last] = 1.0, -0.5, -0.5
-    rates[interpolation, first], rates[interpolation, last] = -steps / 8, steps / 8
-    states[quadrature, last], states[quadrature, first] = 1.0, -1.0
-    rates[quadrature, first], rates[quadrature, middle], rates[quadrature, last] = (
-        -steps / 6,
-        -2 * steps / 3,
-        -steps / 6,
-    )
-    weights = np.zeros(points.size)
-    np.add.at(weights, first, steps / 6)
-    np.add.at(weights, middle, 2 * steps / 3)
-    np.add.at(weights, last, steps / 6)
-    return points, states, rates, weights
-
-
 class CollocationSolver(OptimalControlSolver):
     """Optimal control by direct collocation, a transcription of the problem solved by nonlinear programming.
 
@@ -280,7 +241,7 @@ class CollocationSolver(OptimalControlSolver):
                 The optimiser does not converge.
         """
         control_problem = self.control_problem_
-        transcribe = _trapezoidal if self.scheme == 'trapezoidal' else _hermite_simpson
+        transcribe = self._trapezoidal if self.scheme == 'trapezoidal' else self._hermite_simpson
         points, states, rates, weights = transcribe(np.linspace(0.0, horizon, self.nodes))
         lower, upper = control_problem.bounds
         initial = x0[control_problem.indices]
@@ -313,3 +274,42 @@ class CollocationSolver(OptimalControlSolver):
             raise SolverError(error_msg)
         x, u = self._unpack(result.x, points.size)
         return self._solution(x0, points, x, u, p, iterations=int(result.nit))
+
+    @staticmethod
+    def _trapezoidal(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
+        """Return the points, the defect coefficients of states and rates, and the quadrature weights of trapezoids."""
+        steps = np.diff(times)
+        rows = np.arange(steps.size)
+        states = np.zeros((steps.size, times.size))
+        rates = np.zeros((steps.size, times.size))
+        states[rows, rows], states[rows, rows + 1] = -1.0, 1.0
+        rates[rows, rows], rates[rows, rows + 1] = -steps / 2, -steps / 2
+        weights = np.zeros(times.size)
+        np.add.at(weights, rows, steps / 2)
+        np.add.at(weights, rows + 1, steps / 2)
+        return times, states, rates, weights
+
+    @staticmethod
+    def _hermite_simpson(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
+        """Return the points with midpoints, the defect coefficients of states and rates, and Simpson's weights."""
+        steps = np.diff(times)
+        points = np.empty(2 * times.size - 1)
+        points[0::2], points[1::2] = times, times[:-1] + steps / 2
+        intervals = np.arange(steps.size)
+        first, middle, last = 2 * intervals, 2 * intervals + 1, 2 * intervals + 2
+        interpolation, quadrature = 2 * intervals, 2 * intervals + 1
+        states = np.zeros((2 * steps.size, points.size))
+        rates = np.zeros((2 * steps.size, points.size))
+        states[interpolation, middle], states[interpolation, first], states[interpolation, last] = 1.0, -0.5, -0.5
+        rates[interpolation, first], rates[interpolation, last] = -steps / 8, steps / 8
+        states[quadrature, last], states[quadrature, first] = 1.0, -1.0
+        rates[quadrature, first], rates[quadrature, middle], rates[quadrature, last] = (
+            -steps / 6,
+            -2 * steps / 3,
+            -steps / 6,
+        )
+        weights = np.zeros(points.size)
+        np.add.at(weights, first, steps / 6)
+        np.add.at(weights, middle, 2 * steps / 3)
+        np.add.at(weights, last, steps / 6)
+        return points, states, rates, weights

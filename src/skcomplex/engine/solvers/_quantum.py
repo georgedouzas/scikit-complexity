@@ -21,7 +21,7 @@ from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
 
 MAX_SEED = 2**32
-PURITY_TOLERANCE = 1e-8
+_PURITY_TOLERANCE = 1e-8
 
 
 def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
@@ -372,7 +372,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         if problem.pure:
             return self._ket(state)
         weights, vectors = np.linalg.eigh(state)
-        if abs(weights[-1] - 1) > PURITY_TOLERANCE:
+        if abs(weights[-1] - 1) > _PURITY_TOLERANCE:
             error_msg = (
                 f'Quantum trajectories start from a pure state, but the state has purity {np.sum(weights**2):.6g}. '
                 'Use the lindblad solver for mixed states.'
