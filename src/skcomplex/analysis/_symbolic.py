@@ -32,10 +32,9 @@ from sage.symbolic.function_factory import function as formal_function
 
 from ..core.errors import AnalysisError, ConservationError
 from ..engine.compile import compile_system, compiled_problem
-from ..engine.problems import BaseProblem, Form, Problem, components_of, domain_of
+from ..engine.problems import BaseProblem, Form, Problem, StockFlow, components_of, domain_of
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._loops import LoopAnalysis
 from ._quantum import QuantumAnalysis
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
@@ -610,9 +609,19 @@ class SymbolicAnalysis(BaseAnalysis):
         return solutions
 
     @staticmethod
+    def _stock_flow(problem: Problem) -> StockFlow:
+        """Return the stock-flow description of a problem, or raise an error for problems without one."""
+        if problem.stock_flow is None:
+            error_msg = (
+                'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
+            )
+            raise AnalysisError(error_msg)
+        return problem.stock_flow
+
+    @staticmethod
     def _conservation(problem: Problem) -> dict[str, Expression]:
         """Return the net inflow from the environment of every quantity, after checking that internal flows cancel."""
-        stock_flow = LoopAnalysis._stock_flow(problem)
+        stock_flow = SymbolicAnalysis._stock_flow(problem)
         amounts = {record.path: record.expression for record in stock_flow.recorded}
         net: dict[str, Expression] = defaultdict(lambda: SR(0))
         boundary: dict[str, Expression] = defaultdict(lambda: SR(0))

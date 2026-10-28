@@ -1222,9 +1222,11 @@ outflow it returns, and with `conserved=False` an information smoothing. It adds
 equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
 realizations in `skcomplex.models.engineering.processes`.
 
-`LoopAnalysis('loops')` derives the signed dependency graph of states and flows of a system from the laws, and lists
-its feedback loops with their polarity, and `LoopAnalysis('dominance')` ranks the loops by their gains at every frame
-of a trajectory.
+`LoopAnalysis('loops')` derives the signed dependency graph of a system from the laws, and lists its feedback loops
+with their polarity, and `LoopAnalysis('dominance')` ranks the loops by their gains at every frame of a trajectory. An
+edge goes from one state to another when the rate of the second depends on the first, with the sign of the entry of
+the Jacobian, and through the flows of systems that declare them, from a state to every flow it drives and from a
+flow to its sink, `+`, and its source, `-`.
 
 ```python continuation
 from skcomplex.analysis import LoopAnalysis
@@ -1234,6 +1236,16 @@ for nodes, polarity in zip(analysis.loops_, analysis.polarities_, strict=True):
     print(polarity, ' -> '.join(nodes))
 dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
 print(dominance.polarities_[int(dominance.dominant_[-1])])
+```
+
+The graph is that of any system with a vector field or a map. At one prey and one predator, prey growth closes a
+reinforcing self-loop, predator death a balancing one, and predation a balancing loop through both populations.
+
+```python continuation
+from skcomplex.models import create
+
+predation = LoopAnalysis(at=[1.0, 1.0]).check().prepare(create('lotka_volterra')).run()
+print(dict(zip(predation.loops_, predation.polarities_, strict=True)))
 ```
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
