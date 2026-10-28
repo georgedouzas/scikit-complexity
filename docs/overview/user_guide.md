@@ -8,29 +8,29 @@
     - An **element** is an entity that carries state, such as a particle, a population, a compartment, or a market.
     - A **group** holds many identical elements of one type as arrays.
     - An **interaction** couples elements through **roles** and describes its effect with **laws**.
-    - A **system** holds elements, interactions, child systems, and an optional space.
+    - A **system** holds elements, interactions, nested systems, an optional space, and an optional time.
 - Every part speaks three verbs. `check()` validates it, `prepare(...)` prepares it against what it works on, and
   `run(...)` returns what it contributes: an element, an interaction, or a system returns its laws, and a law returns
-  its contribution at given values, such as the rate of a `RateLaw`. Elements, interactions, and systems return
-  themselves from `check` and `prepare`; laws are values, so they return checked and prepared copies.
+  its value at given values of the symbols it reads, such as the rate of a `RateLaw`. `check` and `prepare` return
+  the part itself, and a part must be checked before it is prepared or run.
 - A run records **observables**, named values computed from the states at every frame, and checks the
   **invariants** it is given.
-- A **law** says how a state changes. Every law has a kind, and the four most common kinds are these.
+- A **law** says how a state changes. Every law is a class, and the four most common laws are these.
     - `RateLaw` adds a term to the time derivative of a state. Rates on one state add up.
     - `NoiseLaw` drives a state with a Wiener process, independent unless laws name a shared or correlated one.
     - `JumpLaw` fires a random event that changes states by fixed increments.
     - `UpdateLaw` gives the next value of a state after one discrete step.
-- A **space** gives vector states, such as positions, their dimension.
-- A **formalism** adds the laws, components, compilation, and solvers of one kind of dynamics, such as lattice
-  dynamics or quantum dynamics, to the shared core.
+- A **space** gives vector states, such as positions, their dimension, and a **time** says whether the system evolves
+  continuously, in discrete steps, or not at all.
 
 These concepts carry no field-specific meaning. A population, a particle, a firm, and a cell are all elements, so a
 model from any science is a configuration of the same interface, and every ready-made model in `skcomplex.models` is a
 factory that builds such a configuration.
 
-Compiling a system infers its mathematical form from its law kinds and builds fast numeric functions.
+`skcomplex.core` holds these parts. `skcomplex.engine` compiles a system, infers its mathematical form from its laws,
+and builds fast numeric functions that its solvers advance.
 
-| Law kinds | Form | Default solver |
+| Laws | Form | Default solver |
 | --- | --- | --- |
 | `RateLaw` | ordinary differential equations | `ScipyODESolver` with `LSODA` |
 | `RateLaw` and `NoiseLaw` | stochastic differential equations | `EulerMaruyamaSolver` |
@@ -39,33 +39,52 @@ Compiling a system infers its mathematical form from its law kinds and builds fa
 
 ## Defining elements
 
-Every element type derives from `Element`, and every interaction type from `BaseInteraction`; both, like laws and
-systems, derive from `BasePart`. A type declares its variables as class attributes made by `state`, `parameter`, and `role`.
+Every element type derives from `Element`, and every interaction type from `Interaction`; both, like laws and
+systems, derive from `BasePart`, which is a scikit-learn estimator. A type declares its variables as arguments of its
+`__init__`, annotated with `typing.Annotated` and a spec from `skcomplex.core.specs`.
 
-- The constructor takes the label first, and then the value of every declared name by keyword.
-- The constructor stores each value unmodified under its own name, and the declared default for a name it is not given.
-- A value for a name the type does not declare raises `ArgumentError`, and so does a missing role.
-- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
+- `StateSpec` marks a state, `ParameterSpec` a parameter, and `RoleSpec` a role of an interaction. The default of the
+  argument is the initial value of a state or the default of a parameter, and a role has no default.
+- The constructor takes the label first and every other argument by keyword, and stores each value unmodified under
+  its own name.
+- The domain of a state or a parameter is a Sage set, such as `RR`, `ZZ`, `CC`, `RealSet.closed_open(0, oo)`, or
+  `FiniteEnumeratedSet(['S', 'I', 'R'])`.
+- `_get_laws(s)` returns the laws of the type, and returns none by default.
+- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every part clones
   with its values.
 
 ```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
-from skcomplex.core.base import NumericDomain, parameter, role, state
-from skcomplex.core.components import Element
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import JumpLaw, RateLaw
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class SpeciesElement(Element):
-    n: float = state(10.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(self, label, *, n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0):
+        super().__init__(label)
+        self.n = n
 
 
-class BirthInteraction(BaseInteraction):
-    target: str = role()
-    rate: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
+class BirthInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
 
-    def laws(self, s):
+    def _get_laws(self, s):
         return [RateLaw(s.target.n, s.rate * s.target.n)]
 
 
@@ -74,34 +93,33 @@ birth = BirthInteraction('birth', target='deer', rate=0.2)
 print(deer.n, clone(birth).rate)
 ```
 
-Inside `laws`, `s.rate` is the symbol of the parameter and `s.target.n` is the symbol of the state of the element bound
-to the role `target`. Because parameters stay symbols, a running simulation can change them without compiling again.
+Inside `_get_laws`, `s.rate` is the symbol of the parameter and `s.target.n` is the symbol of the state of the element
+bound to the role `target`. Because parameters stay symbols, a running simulation can change them without compiling
+again.
 
 ### Constructor settings
 
 A setting that is neither a state, a parameter, nor a role, such as a switch between two sets of laws, a radius, or a
-layer, needs an explicit `__init__` on its type.
+layer, is an argument of `__init__` without a spec.
 
-- The `__init__` takes the label first and the setting as a keyword-only argument with a default.
-- It passes the label and the remaining values to `super().__init__(label, **values)`.
-- It stores the setting unmodified under its own name.
-
-`get_params` reads the keyword arguments of these constructors along the class hierarchy, so a setting clones and
-prints like a declared value.
+- The setting is a keyword-only argument with a default.
+- `__init__` stores it unmodified under its own name, like every other argument.
+- A subclass that adds a setting repeats the arguments of its base in its own `__init__`, so that `get_params` sees
+  them all. An argument repeated without its annotation keeps the spec of the base.
 
 ```python continuation
 from skcomplex.core.laws import JumpLaw
-from sklearn.base import clone
+
 
 class SwitchedBirthInteraction(BirthInteraction):
-    def __init__(self, label, *, stochastic=False, **values):
-        super().__init__(label, **values)
+    def __init__(self, label, *, target, rate=0.5, stochastic=False):
+        super().__init__(label, target=target, rate=rate)
         self.stochastic = stochastic
 
-    def laws(self, s):
+    def _get_laws(self, s):
         if self.stochastic:
             return [JumpLaw(s.rate * s.target.n, {s.target.n: 1})]
-        return super().laws(s)
+        return super()._get_laws(s)
 
 
 print(clone(SwitchedBirthInteraction('birth', target='deer', stochastic=True)))
@@ -109,90 +127,100 @@ print(clone(SwitchedBirthInteraction('birth', target='deer', stochastic=True)))
 
 ### Laws
 
-Every law class derives from `BaseLaw` and is a frozen dataclass. It declares what it is as class variables, which the
-compiler and validation read instead of lists of their own.
+Every law class derives from `BaseLaw`. A law takes the states it changes and the expressions it reads as arguments of
+its `__init__`, and an optional `label` by keyword.
 
-- `law_kind` is the registered kind of the law, such as `LawKind.RATE`. Solvers and backends name the kinds they
-  support.
-- `time_class` is the time the law is valid under: continuous, event, discrete, constraint, or any.
-- `traits` is a set of registered facts about the class.
-    - `Trait.DECLARABLE` marks a law that the `laws` method of a component may return.
-    - `Trait.FORMLESS` marks a law, such as `BoundaryLaw`, that joins the form of the other laws of its component and
-      chooses no form of its own.
-    - `Trait.KERNEL_FREE` marks a law, such as `TransferLaw`, that the compiler lowers into other laws and that needs no
-      numeric function of its own.
-- `requires` states what the law needs from the system: the time, the space, and the domains of the states it
-  targets.
+- `check()` validates the arguments, such as a value that is a NumPy array instead of an expression.
+- `prepare(owner)` sets `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`, the path
+  of the element or interaction that returns it.
+- `run(values)` returns the value of the law at the values of the symbols it reads, given by name.
+- Every law states what it requires of a system, such as continuous time for `RateLaw` and discrete time for
+  `UpdateLaw`, and validation reports a system whose laws require different times.
 
-Every law also has the field `targets`, the states it changes, which `BaseLaw` defines. A law of one state, such as
-`RateLaw`, takes the state as its first argument, alone or in a one-element tuple, and checking the law turns it into a
-tuple. A law that updates several states together, such as `LocalRuleLaw`, takes a tuple of them. Laws that name their
-states in other values, such as the increments of a `JumpLaw`, leave it empty.
+A law of one state, such as `RateLaw`, takes the state as its first argument. A law that updates several states
+together, such as `LocalRuleLaw`, takes a tuple of them. Laws that name their states in other values, such as the
+increments of a `JumpLaw`, change the states they name.
 
-A system holds only laws of registered classes. The shared core registers its general laws, which are `RateLaw`,
-`NoiseLaw`, `JumpLaw`, `UpdateLaw`, `TransitionLaw`, `EmissionLaw`, `EventLaw`, `BoundaryLaw`, `EquationLaw`, and
-`TransferLaw`. Each formalism registers its own law classes when it is imported. `law_classes(trait)` lists the
-registered classes, optionally only those with a trait.
-
-A system is defined by its elements, its interactions, and the laws they return from `laws(s)`, and by nothing else.
-A value that only names an expression is a Python expression in the laws, such as `leverage = s.debt / s.equity`, and
-a function of the namespace shares it between laws. What a run records or checks is an argument of the run:
+A system is defined by its elements, its interactions, and the laws they return from `_get_laws(s)`, and by nothing
+else. A value that only names an expression is a Python expression in the laws, such as `leverage = s.debt / s.equity`,
+and a function of the namespace shares it between laws. What a run records or checks is an argument of the run:
 `Simulation(observables=[...])` records named values, and `Simulation(invariants={name: tolerance})` checks that the
 observables it names stay constant.
 
 ```python
-from skcomplex.core.laws import RateLaw
+from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.base import LawKind, Trait
-from skcomplex.core.laws import BoundaryLaw
-from skcomplex.core.base import BaseLaw, law_classes
+from skcomplex.core.laws import BaseLaw, RateLaw
 
-print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class)
-print(Trait.FORMLESS in BoundaryLaw.traits, RateLaw in law_classes(Trait.DECLARABLE))
-
-from skcomplex.core.base import symbol
-
-x = symbol('x')
-print(RateLaw(x, -x).check().targets)
+x, k = var('x k')
+law = RateLaw(x, -k * x).check().prepare('decay')
+print(issubclass(RateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.owner_)
+print(law.run({'x': 2.0, 'k': 0.5}))
 ```
 
-A law can also be a Python function of time and current values, which covers rules that have no closed form.
+A law can also be a Python function of time and current values, which covers rules that have no closed form. The
+values are keyed by dotted state and parameter name.
 
 ```python
-from skcomplex.core.base import role
-from skcomplex.core.base import BaseInteraction, parameter, role
+from typing import Annotated
+
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import RoleSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.ecology import PopulationElement
 
-class ThresholdInteraction(BaseInteraction):
-    target: str = role()
 
-    def laws(self, s):
+class ThresholdInteraction(Interaction):
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s):
         name = f'{self.target}.n'
         return [RateLaw(s.target.n, lambda t, values: -1.0 if values[name] > 50 else 0.0)]
+
+
+culled = System(
+    elements=[PopulationElement('deer', n=60.0)],
+    interactions=[ThresholdInteraction('cull', target='deer')],
+)
+print(round(float(Simulation(culled, dt=1.0).run(until=20).trajectory_.values('deer.n')[-1])))
 ```
 
 ### Symbolic expressions
 
 Laws are Sage expressions. The symbols in `s` are Sage symbols that carry the domains of their variables, vector states
 are Sage vectors, and mathematical functions come from Sage. Sage has no condition-based piecewise expression or
-symbolic remainder, so `skcomplex.core.laws` adds `where`, `either`, `both`, and `mod`, which every backend lowers, LAMMPS
-included.
+symbolic remainder, so `skcomplex.core.laws.utils` adds `where`, `either`, `both`, and `mod`, which every backend
+lowers, LAMMPS included.
 
 ```python
-from skcomplex.core.base import NumericDomain, parameter, role
-from skcomplex.core.base import BaseInteraction
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import exp, oo, sqrt
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-
-from sage.all__sagemath_symbolics import exp, sqrt
-
-from skcomplex.core.laws import where
+from skcomplex.core.laws.utils import where
+from skcomplex.core.specs import ParameterSpec, RoleSpec
 
 
-class CrowdingInteraction(BaseInteraction):
-    target: str = role()
-    capacity: float = parameter(100.0, domain=NumericDomain.POSITIVE)
+class CrowdingInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        capacity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.capacity = capacity
 
-    def laws(self, s):
+    def _get_laws(self, s):
         n = s.target.n
         return [RateLaw(n, where(n > s.capacity, -sqrt(n - s.capacity), 0.1 * n * exp(-n / s.capacity)))]
 ```
@@ -203,8 +231,8 @@ Models written with SymPy move to Sage as follows. A SymPy expression in a law r
 | SymPy | Sage and `skcomplex` |
 | --- | --- |
 | `sympy.sqrt`, `sympy.exp`, `sympy.sin`, and other functions | `sqrt`, `exp`, `sin`, and others from `sage.all__sagemath_symbolics` |
-| `sympy.Symbol('x', positive=True)` | `skcomplex.core.base.symbol('x', NumericDomain.POSITIVE)` |
-| `sympy.Matrix([...])` and `a.dot(b)` | `skcomplex.core.base.vector([...])` and `a.dot_product(b)` |
+| `sympy.Symbol('x', positive=True)` | `var('x', domain='positive')` from `sage.all__sagemath_symbolics` |
+| `sympy.Matrix([...])` and `a.dot(b)` | `vector([...])` from `sage.all__sagemath_symbolics` and `a.dot_product(b)` |
 | `sympy.Piecewise((a, condition), (b, True))` | `where(condition, a, b)` |
 | `condition1 \| condition2` and `condition1 & condition2` | `either(condition1, condition2)` and `both(condition1, condition2)` |
 | `sympy.Mod(x, m)` | `mod(x, m)` |
@@ -213,122 +241,158 @@ Models written with SymPy move to Sage as follows. A SymPy expression in a law r
 
 ### State domains
 
-Besides real, positive, nonnegative, and integer values, a state takes booleans, angles, or the labels of a finite
-alphabet. Values are stored as floats: booleans as 0 and 1, labels as their index, and angles wrapped into one turn
-after every frame. Trajectories return booleans and labels, and `Simulation(..., checked=True)` raises an error naming
-any state that leaves its domain.
+Besides real, nonnegative, and integer values, a state takes the labels of a finite alphabet, a
+`FiniteEnumeratedSet`, or angles, a state with `StateSpec(period=2 * pi)`. Values are stored as floats: labels as
+their index, and angles wrapped into one turn after every frame. Trajectories return labels, and
+`Simulation(..., checked=True)` raises an error naming any state that leaves its domain.
 
 ```python
-from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
+from typing import Annotated
 
-health = NumericDomain.categorical('susceptible', 'infected', 'recovered')
+from sage.all__sagemath_symbolics import pi
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from skcomplex.core.elements import Element
+from skcomplex.core.specs import StateSpec
+
+HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+
+
 class PersonElement(Element):
-    """Person element."""
+    def __init__(self, label, *, health: Annotated[str, StateSpec(domain=HEALTH)] = 'susceptible'):
+        super().__init__(label)
+        self.health = health
 
-    health = state('susceptible', domain=health)
+
 class RotorElement(Element):
-    """Rotor element."""
+    def __init__(self, label, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
+        super().__init__(label)
+        self.theta = theta
 
-    theta = state(0.0, domain=NumericDomain.ANGLE)
+
+print(PersonElement('ada').check().health, RotorElement('rotor').check().theta)
 ```
 
 ### Complex states
 
-A state or parameter of `NumericDomain.COMPLEX` takes complex values, and its laws use the imaginary unit `I`, arithmetic,
+A state or parameter of the domain `CC` takes complex values, and its laws use the imaginary unit `I`, arithmetic,
 the elementary functions over the complex plane, and `real_part`, `imag_part`, `conjugate`, `abs`, and `arg`. The
 compiler writes every complex law as the laws of its real and imaginary parts, which every solver, stepper, and backend
 runs as a real system. A real state takes only real values, so `abs(z)` or `real_part(z)` turns a complex value into
 one, and a condition compares the modulus or a part, since complex values have no order. Trajectories and frames return
-complex arrays, whose `.real`, `.imag`, `np.abs`, and `np.angle` are the real views that the analysis functions take.
+complex arrays, whose `.real`, `.imag`, `np.abs`, and `np.angle` are the real views that the analyses take.
 
 ```python
-import numpy as np
-from sage.all__sagemath_symbolics import I
+from typing import Annotated
 
-from skcomplex.core.base import NumericDomain, parameter, state
-from skcomplex.core.components import Element
+import numpy as np
+from sage.all__sagemath_symbolics import CC, I
+
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
+
 class PhaseElement(Element):
-    """Phase element."""
+    def __init__(
+        self,
+        label,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
+        omega: Annotated[float, ParameterSpec()] = 2.0,
+    ):
+        super().__init__(label)
+        self.z = z
+        self.omega = omega
 
-    z = state(1.0, domain=NumericDomain.COMPLEX)
-    omega = parameter(2.0)
-
-    def laws(self, s):
-        """Return the laws of the phase element."""
+    def _get_laws(self, s):
         return [RateLaw(s.z, I * s.omega * s.z)]
+
+
 z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).run(until=10).trajectory_.values('osc.z')
-assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
+print(z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4)))
 ```
 
-Agent states stay real, and the LAMMPS backend raises an error naming a complex state.
+Agent states stay real, and the LAMMPS solver raises an error naming a complex state.
 
 ### Equations of any order
 
-Laws give the highest time derivative of a state, and a state declares how high that is with `order`. Newton's second
-law for a pendulum, `m l θ'' = -m g sin θ`, is written as it reads. The angular velocity is the companion state
-`theta_d1`, which the type derives from the declaration of `theta`, and the compiler reduces the equation to first
-order for the solvers.
+Laws give the highest time derivative of a state, and a state declares how high that is with `StateSpec(order=k)`.
+Newton's second law for a pendulum, `m l θ'' = -m g sin θ`, is written as it reads with an `EquationLaw`. The angular
+velocity is the companion state `theta_d1`, and the compiler reduces the equation to first order for the solvers.
 
-- A companion is a constructor argument with a default of zero, so `PendulumElement('bob', theta_d1=0.5)` starts the
-  pendulum with an angular velocity.
-- A companion is not a class attribute. The fitted `declarations_` of a pendulum list it after its state.
+- A companion is a constructor argument without a spec, named `<state>_d<j>`, whose value is the initial value of the
+  derivative of order `j`, so `PendulumElement('bob', theta_d1=0.5)` starts the pendulum with an angular velocity.
+- `StateSpec(initial=...)` gives the initial values of the derivatives instead, for a type without companion arguments.
 
 ```python
-from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import pi, sin
 
-from skcomplex.core.laws import EquationLaw, derivative
-from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import EquationLaw
+from skcomplex.core.laws.utils import derivative
+from skcomplex.core.specs import ParameterSpec, StateSpec
+
 
 class PendulumElement(Element):
-    """Pendulum element."""
+    def __init__(
+        self,
+        label,
+        *,
+        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.5,
+        theta_d1: float = 0.0,
+        m: Annotated[float, ParameterSpec()] = 1.0,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+        l: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.m = m
+        self.g = g
+        self.l = l
 
-    theta = state(default=0.5, domain=NumericDomain.ANGLE, order=2)
-    m = parameter(1.0)
-    g = parameter(9.81)
-    l = parameter(1.0)
-
-    def laws(self, s):
-        """Return the laws of the pendulum element."""
+    def _get_laws(self, s):
         return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
-bob = PendulumElement('bob', theta_d1=0.5).prepare()
-print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumElement, 'theta_d1'))
+
+
+bob = PendulumElement('bob', theta_d1=0.5).check()
+print(list(bob.get_params()), bob.theta_d1)
 ```
 
 - On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up, so separate interactions
   supply separate forces, voltages, or growth terms: `RateLaw(s.target.x, -s.k * s.target.x / s.target.m)` from a spring
   and `RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)` from a damper superpose.
-- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `EquationLaw` may contain the derivative of
-  the state's own order, linearly, and the compiler solves all equations of a system jointly for those derivatives,
+- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `EquationLaw` may contain the derivative
+  of the state's own order, linearly, and the compiler solves all equations of a system jointly for those derivatives,
   which couples, for example, the two angles of a double pendulum.
 - Any order works the same way, such as Sprott's chaotic jerk equation `x''' = -A x'' - x' + |x| - 1` on a state of
   order 3.
-- Difference equations keep past values with `lags`. `lag(x, j)` reads the value `j` steps before the current one, and
-  an update law gives the next value, so `UpdateLaw(s.x, s.x + lag(s.x, 1))` with one lag is the Fibonacci recurrence.
+- Difference equations keep past values with `StateSpec(lags=m)`. `lag(x, j)` reads the value `j` steps before the
+  current one, and an update law gives the next value, so `UpdateLaw(s.x, s.x + lag(s.x, 1))` with one lag is the
+  Fibonacci recurrence.
 
 `SymbolicAnalysis('equations')` returns these equations in the order they were written, and
-`SymbolicAnalysis('solve')` takes the initial values of every derivative and returns a solution only when it has a
-closed form.
+`SymbolicAnalysis('solve', use_initial_state=True)` takes the initial values of every derivative and returns a solution
+only when it has a closed form.
 
 ## Composing systems
 
-Systems nest. An interaction refers to an element of a child system by a slash-separated path.
+Systems nest. A system holds nested systems in `systems`, and an interaction refers to an element of a nested system by
+a slash-separated path.
 
 ```python
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
 
 landscape = System(
-    elements=[
-        System('forest', components=[PopulationElement('foxes', n=5)]),
-        System('meadow', components=[PopulationElement('rabbits', n=50)]),
+    systems=[
+        System('forest', elements=[PopulationElement('foxes', n=5)]),
+        System('meadow', elements=[PopulationElement('rabbits', n=50)]),
     ],
     interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
 )
@@ -339,14 +403,14 @@ States and parameters are named by their path, such as `meadow/rabbits.n` and `h
 ## Simulating
 
 `Simulation` compiles the system, picks the solver of its form, and advances it in frames of `dt`. The default ODE
-solver is `ScipyODESolver` with SciPy's `LSODA`, which starts with Adams methods and switches to BDF methods while the system
-is stiff, so stiff systems also run with the default solver.
+solver is `ScipyODESolver` with SciPy's `LSODA`, which starts with Adams methods and switches to BDF methods while the
+system is stiff, so stiff systems also run with the default solver.
 
 ```python continuation
-from skcomplex.engine.runtime import RealTimeClock, Simulation
+from skcomplex.engine.runtime import Simulation
 
 trajectory = Simulation(landscape, dt=0.1).run(until=10).trajectory_
-print(trajectory.values('meadow/rabbits.n')[-1])
+print(round(float(trajectory.values('meadow/rabbits.n')[-1]), 3))
 
 simulation = Simulation(landscape, dt=0.1).run(until=10)
 simulation.update_parameters({'hunt.a': 0.0})
@@ -367,44 +431,63 @@ print(len(simulation.extend(until=20).trajectory_.times))
   appends the new frames to the trajectory, while `run` starts again from time 0.
 - `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
   slow ramp of a control parameter.
+- `initial_state={'meadow/rabbits.n': 20}` replaces initial values of the elements for one simulation.
 
 ## Delays, events, drivers, and noise
 
 Laws can read the past, change states at discrete events, follow inputs that switch in time, and take noise in the
 convention of the field.
 
-**Delays.** `delayed(x, tau)` is the state `x` at `t - tau`, for a constant or a state-dependent delay. The solvers keep
-a history of dense output and step no further than the smallest delay, by the method of steps. Before the start the
-history is the initial value, or what the state declares with `state(..., history=value or function of time)`.
+**Delays.** `delayed(x, tau)` from `skcomplex.core.laws.utils` is the state `x` at `t - tau`, for a constant or a
+state-dependent delay. The solvers keep a history of dense output and step no further than the smallest delay, by the
+method of steps. Before the start the history is the initial value, or what the state declares with
+`StateSpec(history=...)`, a number or a function of time.
 
 ```python
-from skcomplex.core.base import state
-from skcomplex.core.components import Element
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.laws import EventLaw, NoiseLaw, RateLaw, delayed, step
-from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import delayed
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+
+def wavy_history(t):
+    return 0.5 + 0.1 * np.sin(t)
+
 
 class MackeyGlassElement(Element):
-    """Mackey glass element."""
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec(history=wavy_history)] = 0.5,
+        beta: Annotated[float, ParameterSpec()] = 0.2,
+        gamma: Annotated[float, ParameterSpec()] = 0.1,
+        n: Annotated[float, ParameterSpec()] = 10.0,
+        tau: Annotated[float, ParameterSpec()] = 17.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.beta = beta
+        self.gamma = gamma
+        self.n = n
+        self.tau = tau
 
-    x = state(0.5, history=lambda t: 0.5 + 0.1 * np.sin(t))
-    beta = parameter(0.2)
-    gamma = parameter(0.1)
-    n = parameter(10.0)
-    tau = parameter(17.0)
+    def _get_laws(self, s):
+        past = delayed(s.x, s.tau)
+        return [RateLaw(s.x, s.beta * past / (1 + past**s.n) - s.gamma * s.x)]
 
-    def laws(self, s):
-        """Return the laws of the mackey glass element."""
-        return [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)]
+
 cells = System(elements=[MackeyGlassElement('cells')])
-print(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1])
+print(round(float(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1]), 3))
 ```
 
-**Events.** `EventLaw(guard, reset, direction, terminal, label=None)` fires when the guard crosses zero, upward for
+**Events.** `CrossingLaw(guard, reset, direction, terminal, label='')` fires when the guard crosses zero, upward for
 `direction=1`, downward for `-1`, and either way for `0`. The solver locates the crossing on its interpolant to the
 precision of the root finder, applies the reset to every named state at once, and restarts from there. A terminal
 event ends the run at the crossing. Every frame carries the events since the previous one, and the trajectory keeps
@@ -412,117 +495,158 @@ them all with their times and the states before and after the reset. A guard tha
 raises an error that names the chattering event.
 
 ```python
-from skcomplex.core.base import state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import EventLaw, RateLaw, derivative
-from skcomplex.engine.runtime import Simulation
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import CrossingLaw, RateLaw
+from skcomplex.core.laws.utils import derivative
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.core.declarations import parameter
+from skcomplex.engine.runtime import Simulation
+
 
 class BallElement(Element):
-    """Ball element."""
+    def __init__(
+        self,
+        label,
+        *,
+        h: Annotated[float, StateSpec(order=2)] = 1.0,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+        e: Annotated[float, ParameterSpec()] = 0.8,
+    ):
+        super().__init__(label)
+        self.h = h
+        self.g = g
+        self.e = e
 
-    h = state(default=1.0, order=2)
-    g = parameter(9.81)
-    e = parameter(0.8)
+    def _get_laws(self, s):
+        bounce = {derivative(s.h, 1): -s.e * derivative(s.h, 1)}
+        return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
-    def laws(self, s):
-        """Return the laws of the ball element."""
-        return [
-        RateLaw(s.h, -s.g),
-        EventLaw(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
-    ]
+
 trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).run(until=3).trajectory_
 print([round(event.time, 6) for event in trajectory.events])
 ```
 
-**Drivers.** `step`, `ramp`, `pulse`, `pulse_train`, and `series` with `'linear'` or `'previous'` interpolation are
-inputs of time `s.t`. The compiler finds the times where they jump or bend, including the periodic edges of pulse
-trains, and the solvers stop at every one and evaluate the inputs on the correct side of it, so a step response is
-exact to the solver tolerance.
+**Drivers.** `step`, `ramp`, `pulse`, `pulse_train`, and `series` with `'linear'` or `'previous'` interpolation, from
+`skcomplex.core.laws.utils`, are inputs of time `s.t`. The compiler finds the times where they jump or bend, including
+the periodic edges of pulse trains, and the solvers stop at every one and evaluate the inputs on the correct side of
+it, so a step response is exact to the solver tolerance.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw, step
-from skcomplex.engine.runtime import Simulation
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import step
+from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.core.declarations import parameter, state
+from skcomplex.engine.runtime import Simulation
+
 
 class FilterElement(Element):
-    """Filter element."""
+    def __init__(
+        self,
+        label,
+        *,
+        y: Annotated[float, StateSpec()] = 0.0,
+        k: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.y = y
+        self.k = k
 
-    y = state(0.0)
-    k = parameter(1.0)
-
-    def laws(self, s):
-        """Return the laws of the filter element."""
+    def _get_laws(self, s):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
-print(Simulation(System(elements=[FilterElement('filter')]), dt=0.5).run(until=10).trajectory_.values('filter.y')[-1])
+
+
+filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).run(until=10).trajectory_
+print(round(float(filtered.values('filter.y')[-1]), 4))
 ```
 
 **Noise conventions.** `NoiseLaw(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read. The
 compiler adds the drift correction `α g ∂g/∂x`, with `α = 1/2` and `1`, so every SDE solver integrates the equivalent
-Itô equation. `EulerMaruyamaSolver` has strong order 1/2. `MilsteinSolver`, in Platen's derivative-free form, has strong order 1 for
-diagonal noise, and `HeunSolver` averages the drift over every step.
+Itô equation. `EulerMaruyamaSolver` has strong order 1/2. `MilsteinSolver`, in Platen's derivative-free form, has strong
+order 1 for diagonal noise, and `HeunSolver` averages the drift over every step.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import NoiseLaw, RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import MilsteinSolver
-from skcomplex.core.declarations import parameter, state
+
 
 class GrowthElement(Element):
-    """Growth element."""
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        mu: Annotated[float, ParameterSpec()] = 0.5,
+        sigma: Annotated[float, ParameterSpec()] = 0.8,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.mu = mu
+        self.sigma = sigma
 
-    x = state(1.0)
-    mu = parameter(0.5)
-    sigma = parameter(0.8)
-
-    def laws(self, s):
-        """Return the laws of the growth element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')]
+
+
 growth = System(elements=[GrowthElement('asset')])
-print(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).run(until=1).state_)
+print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).run(until=1).state_[0]), 3))
 ```
 
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
-every component and every group member takes its own independent process. Laws of one component, or of one member,
-that name the same label share one increment, so a reaction can drive every species it changes with one process. A
-`WienerProcessSpec(label, dimension, covariance)` declares processes whose increments over a step `h` have the covariance
-`h C`. It is no component: an interaction binds it through a role declared with `role(noise=True)`, and its noise laws
-name process `k` with `s.<role>.dW[k]`, which every component, and every member of a group, can share. Interactions of
-one system that bind processes of one label share them and their correlations. The covariance is fixed when the system
-compiles, and NumPy factors it once, so the steppers scale standard normal increments drawn from the run's random
-generator.
+every element and every group member takes its own independent process. Laws of one element, or of one member, that
+name the same label share one increment, so a reaction can drive every species it changes with one process. A
+`WienerProcessSpec(label, dimension, covariance)` from `skcomplex.core.specs` declares processes whose increments over
+a step `h` have the covariance `h C`. It is no element: an interaction binds it through a role annotated with
+`RoleSpec(noise=True)`, and its noise laws name process `k` with `s.<role>.dW[k]`, which every element, and every
+member of a group, can share. Interactions of one system that bind processes of one label share them and their
+correlations. The covariance is fixed when the system compiles, and NumPy factors it once, so the steppers scale
+standard normal increments drawn from the run's random generator.
 
 ```python
-import numpy as np
-from skcomplex.core.components import Element
-from skcomplex.core.laws import NoiseLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.base import role
-from skcomplex.core.specs import WienerProcessSpec
-from skcomplex.core.base import BaseInteraction
+import numpy as np
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import NoiseLaw
+from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.declarations import state
+
 
 class StockElement(Element):
-    """Stock element."""
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.n = n
 
-    n = state(0.0)
 
+class MarketInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ):
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.noise = noise
 
-class MarketInteraction(BaseInteraction):
-    first: str = role()
-    second: str = role()
-    noise: WienerProcessSpec = role(noise=True)
-
-    def laws(self, s):
+    def _get_laws(self, s):
         return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
 
 
@@ -531,17 +655,18 @@ market = System(
     elements=[StockElement('a'), StockElement('b')],
     interactions=[MarketInteraction('drive', first='a', second='b', noise=processes)],
 )
-trajectory = Simulation(market, solver=EulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
-print(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1])
+solver = EulerMaruyamaSolver(dt=1.0)
+trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).run(until=2000).trajectory_
+print(round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1))
 ```
 
 The Stratonovich and anti-Itô corrections of each law use the full diffusion matrix and the covariance, so a state
 that several laws drive and laws that share a process are corrected exactly. Laws that share a process declare one
 convention, and validation reports laws of different conventions on one process, a Stratonovich or anti-Itô amplitude
-that reads a state another component drives through its process, a covariance that is not symmetric positive
+that reads a state another element drives through its process, a covariance that is not symmetric positive
 semidefinite, and a handle `dW` used anywhere but as the process of a noise law.
 
-**Conserved noise.** `NoiseLaw(targets, value, conserved=True)` on a state of a field on a lattice adds the
+**Conserved noise.** `NoiseLaw(target, value, conserved=True)` on a state of a field on a lattice adds the
 divergence of a random flux, `div(value eta)`, the thermal noise of Model B and of active field theories. Every link
 between neighbouring sites draws one Wiener process, and site `i` gains `value / h` times the increment of the link
 from its previous neighbour and loses the same amount on the link to its next one, along every dimension of spacing
@@ -551,40 +676,51 @@ on every link, and the field uses finite differences on a square lattice. Valida
 any other state with the code `noise-unsupported`.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.system import System
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.elements import FieldElement
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import laplacian
-from skcomplex.core.spaces import GeneratorNeighborhood, LatticeSpace, MooreNeighborhood, TriangularNeighborhood, VonNeumannNeighborhood
-from skcomplex.core.declarations import parameter, state
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyamaSolver
+
 
 class DensityElement(Element):
-    """Density element."""
+    def __init__(
+        self,
+        label,
+        *,
+        rho: Annotated[float, StateSpec()] = 1.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+        T: Annotated[float, ParameterSpec()] = 0.1,
+    ):
+        super().__init__(label)
+        self.rho = rho
+        self.D = D
+        self.T = T
 
-    rho = state(1.0)
-    D = parameter(1.0)
-    T = parameter(0.1)
-
-    def laws(self, s):
-        """Return the laws of the density element."""
+    def _get_laws(self, s):
         return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)]
-gas = System(elements=[FieldElement('gas', DensityElement, LatticeSpace((16, 16)))])
-density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_.values('gas.rho')
-print(density[-1].sum(), density[-1].std() > 0)
+
+
+gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
+solver = EulerMaruyamaSolver(dt=0.01)
+density = Simulation(gas, solver=solver, random_state=0).run(until=5).trajectory_.values('gas.rho')
+print(round(float(density[-1].sum()), 6), bool(density[-1].std() > 0))
 ```
 
 Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
 that drives several states, `'correlated'`, the processes of a `WienerProcessSpec` with a covariance, and `'conserved'`,
-the link processes of conserved noise. `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four.
-`MilsteinSolver`, whose derivative-free correction holds for diagonal noise only, and the LAMMPS backend support diagonal
-noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists the declarations. In the library,
-`Binding` and `DissociationInteraction` take `langevin=True` for chemical Langevin equations, as in `chemical_langevin_network`,
+the link processes of conserved noise. `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support
+all four. `MilsteinSolver`, whose derivative-free correction holds for diagonal noise only, and `LammpsSolver` support
+diagonal noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling
+it. The compatibility page lists the declarations. In the library, `BindingInteraction` and `DissociationInteraction`
+take `langevin=True` for chemical Langevin equations, as in `chemical_langevin_network`,
 `correlated_geometric_brownian_motion` drives two assets with correlated processes, and `active_model_b` and
 `cahn_hilliard` with a `temperature` take conserved noise.
 
