@@ -188,7 +188,8 @@ class Experiment(BaseExperiment):
         self.observables = observables
 
     def _check(self) -> None:
-        """Raise an error for replicates that are not a positive integer, an unknown executor, or a bad analysis."""
+        """Raise an error for a model name as the source, bad replicates, executor, bounds, or analysis."""
+        self._check_source(self.source)
         if isinstance(self.replicates, bool) or not isinstance(self.replicates, int) or self.replicates < 1:
             error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
             raise ValidationError(error_msg)

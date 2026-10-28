@@ -102,7 +102,8 @@ class OrbitDiagramExperiment(BaseExperiment):
         self.vectorized = vectorized
 
     def _check(self) -> None:
-        """Raise an error for no values or a number of kept frames that is not a positive integer."""
+        """Raise an error for a model name as the source, no values, or a bad number of kept frames."""
+        self._check_source(self.source)
         if not len(self.values):
             error_msg = 'An orbit diagram needs at least one value of the parameter.'
             raise ValidationError(error_msg)

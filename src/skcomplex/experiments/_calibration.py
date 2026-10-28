@@ -116,7 +116,8 @@ class CalibrationExperiment(BaseExperiment):
         self.arguments = arguments
 
     def _check(self) -> None:
-        """Raise an error for an unknown loss, no data, or replicates that are not a positive integer."""
+        """Raise an error for a model name as the source, an unknown loss, no data, or bad replicates."""
+        self._check_source(self.source)
         if self.loss not in LOSSES:
             error_msg = f'Unknown loss {self.loss!r}. Use one of {", ".join(LOSSES)}.'
             raise ValidationError(error_msg)

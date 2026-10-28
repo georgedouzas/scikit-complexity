@@ -5,7 +5,6 @@ from ._compile import compile_system, compiled_problem, partition_system
 from ._compiled_extremal import CompiledExtremal
 from ._extremal_record import ExtremalRecord
 from ._issue import Issue
-from ._kinetic_distributions import distribution_from, members_from
 from ._local_operator import LocalOperator
 from ._observables import ObservableEvaluator, observables_of
 from ._operator import Operator
@@ -36,8 +35,6 @@ __all__: list[str] = [
     'claiming_compiler',
     'compile_system',
     'compiled_problem',
-    'distribution_from',
-    'members_from',
     'observables_of',
     'order_passes',
     'partition_system',

@@ -188,8 +188,15 @@ class Simulation(BaseEstimator):
 
         Raises:
             ValidationError:
-                The system cannot be compiled or run, with every problem found.
+                The system is not a system or a compiled problem, such as a model name, or it cannot be compiled or
+                run, with every problem found.
         """
+        if not isinstance(self.system, System | BaseProblem):
+            error_msg = (
+                f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a model of the '
+                'library with `skcomplex.models.create`, or simulate it by name with `skcomplex.models.run`.'
+            )
+            raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
 

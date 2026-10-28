@@ -8,8 +8,6 @@ FUNCTIONS = {
     'claiming_compiler',
     'compile_system',
     'compiled_problem',
-    'distribution_from',
-    'members_from',
     'observables_of',
     'order_passes',
     'partition_system',

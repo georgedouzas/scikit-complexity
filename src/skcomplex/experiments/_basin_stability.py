@@ -70,7 +70,7 @@ class BasinStabilityExperiment(BaseExperiment):
         >>> from skcomplex.experiments import BasinStabilityExperiment
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> experiment = BasinStabilityExperiment(
-        ...     'logistic_growth', {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
+        ...     logistic_growth, {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
         ... )
         >>> experiment.check().prepare().run().fractions_
         {'capacity': 1.0}
@@ -100,7 +100,8 @@ class BasinStabilityExperiment(BaseExperiment):
         self.vectorized = vectorized
 
     def _check(self) -> None:
-        """Raise an error for no bounds or a number of initial states that is not a positive integer."""
+        """Raise an error for a model name as the source, no bounds, or a bad number of initial states."""
+        self._check_source(self.source)
         if not self.bounds:
             error_msg = 'Basin stability needs the bounds of at least one initial state.'
             raise ValidationError(error_msg)

@@ -137,8 +137,8 @@ class BaseExperiment(BaseEstimator, ABC):
         ...
         ...     def _run(self):
         ...         return self
-        >>> SystemExperiment(logistic_growth).check().prepare().run().factory_().label
-        'logistic_growth'
+        >>> len(SystemExperiment(logistic_growth).check().prepare().run().factory_().elements)
+        1
     """
 
     @abstractmethod
