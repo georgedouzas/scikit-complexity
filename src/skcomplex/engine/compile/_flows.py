@@ -32,28 +32,7 @@ from ..problems import Source as Read
 from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
 from ._laws import replaced
 
-BOUNDARY_PREFIX = '__boundary'
-
-
-def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
-    """Return a symbolic value with symbols replaced, and any other value unchanged."""
-    if not mapping or not hasattr(value, 'subs'):
-        return value
-    return value.subs(mapping)
-
-
-def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
-    """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden stocks."""
-    if not mapping:
-        return law
-    if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-        return replaced(law, value=_substituted(law.value, mapping))
-    if isinstance(law, JumpLaw):
-        return JumpLaw(_substituted(law.rate, mapping), law.changes)
-    if isinstance(law, CrossingLaw):
-        reset = None if law.reset is None else {key: _substituted(item, mapping) for key, item in law.reset.items()}
-        return replaced(law, guard=_substituted(law.guard, mapping), reset=reset)
-    return law
+_BOUNDARY_PREFIX = '__boundary'
 
 
 def _delay_calls(expression: object) -> list[Expression]:
@@ -119,84 +98,7 @@ def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
     return float(SR(item).subs(values))
 
 
-def _delay_parts(kind: str) -> tuple[bool, int]:
-    """Return whether a delay function conserves its input, and its order, for a name known to be a delay."""
-    parts = delay_parts(kind)
-    if parts is None:
-        error_msg = f'{kind} is not a delay function.'
-        raise ValidationError(error_msg)
-    return parts
-
-
-def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
-    """Return the rate laws of the hidden stocks of a delay or a smoothing."""
-    each = time / len(stages)
-    if _delay_parts(kind)[0]:
-        inflows = [value, *(stage / each for stage in stages[:-1])]
-        return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
-    inputs = [value, *stages[:-1]]
-    return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
-
-
-def _holder(
-    holder: object,
-    references: Mapping[Expression, Reference],
-    owner: str,
-) -> tuple[str | None, str]:
-    """Return the state name of a holder, or `None` for the environment, and its name in flow matrices."""
-    if isinstance(holder, Source | Sink):
-        return None, holder.label
-    reference = references.get(holder)
-    if reference is None or not reference.is_state:
-        error_msg = (
-            f'A flow of {owner} moves a quantity to or from {holder}, which is not a state of its namespace `s`.'
-        )
-        raise ValidationError(error_msg)
-    return reference.entry.name, reference.entry.name
-
-
-def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -> tuple[list[BaseLaw] | None, int]:
-    """Return the laws holding the update law of a state component and its index, or `None`."""
-    for spec, laws in specs:
-        for index, law in enumerate(laws):
-            if not isinstance(law, UpdateLaw) or not isinstance(law._get_targets()[0], Expression):
-                continue
-            reference = spec.references.get(law._get_targets()[0])
-            if reference is None:
-                continue
-            found: tuple[Any, ...] = (reference.entry.name, reference.column)
-            if reference.entry.members is not None:
-                found = (*found, id(spec))
-            if found == key:
-                return laws, index
-    return None, 0
-
-
-def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
-    """Add the references of an expression's symbols from one spec to another, which lowers it."""
-    for item in symbols_of([value]):
-        reference = spec.references.get(item)
-        if reference is None:
-            continue
-        known = host.references.get(item)
-        if known is not None and known != reference:
-            error_msg = (
-                f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. Declare '
-                'the flow in the component that updates the state.'
-            )
-            raise ValidationError(error_msg)
-        host.references[item] = reference
-
-
-def _claim_label(labels: set[str], owner: str, label: str) -> None:
-    """Add the label of a flow of a component, raising an error for a label it already declares."""
-    if label in labels:
-        error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
-        raise LabelError(error_msg)
-    labels.add(label)
-
-
-def quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
+def _quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
     """Return the quantity of every state tagged with one, by entry name.
 
     Args:
@@ -265,8 +167,8 @@ class StockFlowPass:
         label: str,
     ) -> list[BaseLaw]:
         """Return the rate or jump laws of a flow, after recording it."""
-        source, source_label = _holder(flow.source, spec.references, spec.owner)
-        sink, sink_label = _holder(flow.sink, spec.references, spec.owner)
+        source, source_label = self._holder(flow.source, spec.references, spec.owner)
+        sink, sink_label = self._holder(flow.sink, spec.references, spec.owner)
         tags = {self.quantities.get(name) for name in (source, sink) if name is not None}
         if len(tags) > 1:
             error_msg = (
@@ -318,7 +220,7 @@ class StockFlowPass:
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
-                _claim_label(labels, spec.owner, label)
+                self._claim_label(labels, spec.owner, label)
                 expanded.extend(self._expand_flow(spec, law, label))
                 continue
             if (
@@ -368,7 +270,7 @@ class StockFlowPass:
                     key = (*key, id(spec))
                 increments[key].append((spec, target, SR(law.value)))
         for key, items in increments.items():
-            host, index = _update_of(key, specs)
+            host, index = self._update_of(key, specs)
             if host is None:
                 host_spec, target = items[0][0], items[0][1]
                 host = next(laws for spec, laws in specs if spec is host_spec)
@@ -380,7 +282,7 @@ class StockFlowPass:
                 found: Any = host[index]
                 target, value = found.targets[0], SR(found.value)
             for spec, _, increment in items:
-                _merge_references(host_spec, spec, increment)
+                self._merge_references(host_spec, spec, increment)
                 value += increment
             host[index] = UpdateLaw(target, value)
 
@@ -400,7 +302,7 @@ class StockFlowPass:
         for quantity, items in boundary.items():
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
-            name = f'{BOUNDARY_PREFIX}.{quantity}'
+            name = f'{_BOUNDARY_PREFIX}.{quantity}'
             entry = declarations.declare_state(name, np.zeros(1), RR)
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
@@ -409,7 +311,7 @@ class StockFlowPass:
             if discrete:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
-                    _merge_references(items[0].spec, born.spec, born.amount)
+                    self._merge_references(items[0].spec, born.spec, born.amount)
                 laws_of[id(items[0].spec)].append(UpdateLaw(accumulator, accumulator + total))
                 continue
             for born in items:
@@ -442,7 +344,7 @@ class StockFlowPass:
             call = calls[0]
             kind = str(call.operator().name())
             value, time = call.operands()
-            material, order = _delay_parts(kind)
+            material, order = self._delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
             start = _initial(value, spec, declarations)
@@ -458,8 +360,8 @@ class StockFlowPass:
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
             self._delays.append(_CompiledDelay(call, output, {stage: spec.references[stage] for stage in stages}))
-            laws[:] = [_substituted_law(law, mapping) for law in laws]
-            laws.extend(_delay_laws(kind, stages, value, time))
+            laws[:] = [self._substituted_law(law, mapping) for law in laws]
+            laws.extend(self._delay_laws(kind, stages, value, time))
             for record in records:
                 record.expression = SR(record.expression).subs(mapping)
             counter += 1
@@ -511,3 +413,105 @@ class StockFlowPass:
             discrete=discrete,
             delays=tuple(self._delays),
         )
+
+    @staticmethod
+    def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
+        """Return a symbolic value with symbols replaced, and any other value unchanged."""
+        if not mapping or not hasattr(value, 'subs'):
+            return value
+        return value.subs(mapping)
+
+    @staticmethod
+    def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
+        """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden stocks."""
+        if not mapping:
+            return law
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            return replaced(law, value=StockFlowPass._substituted(law.value, mapping))
+        if isinstance(law, JumpLaw):
+            return JumpLaw(StockFlowPass._substituted(law.rate, mapping), law.changes)
+        if isinstance(law, CrossingLaw):
+            reset = (
+                None
+                if law.reset is None
+                else {key: StockFlowPass._substituted(item, mapping) for key, item in law.reset.items()}
+            )
+            return replaced(law, guard=StockFlowPass._substituted(law.guard, mapping), reset=reset)
+        return law
+
+    @staticmethod
+    def _delay_parts(kind: str) -> tuple[bool, int]:
+        """Return whether a delay function conserves its input, and its order, for a name known to be a delay."""
+        parts = delay_parts(kind)
+        if parts is None:
+            error_msg = f'{kind} is not a delay function.'
+            raise ValidationError(error_msg)
+        return parts
+
+    @staticmethod
+    def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
+        """Return the rate laws of the hidden stocks of a delay or a smoothing."""
+        each = time / len(stages)
+        if StockFlowPass._delay_parts(kind)[0]:
+            inflows = [value, *(stage / each for stage in stages[:-1])]
+            return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
+        inputs = [value, *stages[:-1]]
+        return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
+
+    @staticmethod
+    def _holder(
+        holder: object,
+        references: Mapping[Expression, Reference],
+        owner: str,
+    ) -> tuple[str | None, str]:
+        """Return the state name of a holder, or `None` for the environment, and its name in flow matrices."""
+        if isinstance(holder, Source | Sink):
+            return None, holder.label
+        reference = references.get(holder)
+        if reference is None or not reference.is_state:
+            error_msg = (
+                f'A flow of {owner} moves a quantity to or from {holder}, which is not a state of its namespace `s`.'
+            )
+            raise ValidationError(error_msg)
+        return reference.entry.name, reference.entry.name
+
+    @staticmethod
+    def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -> tuple[list[BaseLaw] | None, int]:
+        """Return the laws holding the update law of a state component and its index, or `None`."""
+        for spec, laws in specs:
+            for index, law in enumerate(laws):
+                if not isinstance(law, UpdateLaw) or not isinstance(law._get_targets()[0], Expression):
+                    continue
+                reference = spec.references.get(law._get_targets()[0])
+                if reference is None:
+                    continue
+                found: tuple[Any, ...] = (reference.entry.name, reference.column)
+                if reference.entry.members is not None:
+                    found = (*found, id(spec))
+                if found == key:
+                    return laws, index
+        return None, 0
+
+    @staticmethod
+    def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
+        """Add the references of an expression's symbols from one spec to another, which lowers it."""
+        for item in symbols_of([value]):
+            reference = spec.references.get(item)
+            if reference is None:
+                continue
+            known = host.references.get(item)
+            if known is not None and known != reference:
+                error_msg = (
+                    f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. '
+                    'Declare the flow in the component that updates the state.'
+                )
+                raise ValidationError(error_msg)
+            host.references[item] = reference
+
+    @staticmethod
+    def _claim_label(labels: set[str], owner: str, label: str) -> None:
+        """Add the label of a flow of a component, raising an error for a label it already declares."""
+        if label in labels:
+            error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
+            raise LabelError(error_msg)
+        labels.add(label)

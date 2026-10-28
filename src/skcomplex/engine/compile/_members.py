@@ -11,17 +11,8 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...core.errors import ValidationError
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
-from ._lowering import SHIFT, calls_of
+from ._lowering import _SHIFT, _calls_of
 from ._shifts import shift_arguments
-
-
-def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
-    """Return the read of the member at an offset of every member of a group of `rows` members."""
-    lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).check().prepare()
-    table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
-    ghost = fill if boundary == 'fixed' else None
-    kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
-    return NeighborRead(table, ghost, (rows,), (offset,), MODES[kind])
 
 
 @dataclass
@@ -68,7 +59,7 @@ class MemberShifts:
                 return item
         reference = self.references[base]
         target = symbol(f'{base}__shift{len(self.shifted)}', domain_of(base))
-        read = _neighbor_read(reference.entry.rows, offset, boundary, fill)
+        read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
         self.references[target] = Reference(
             reference.entry,
             reference.is_state,
@@ -136,10 +127,19 @@ class MemberShifts:
         """
         if isinstance(value, FreeModuleElement):
             return vector(self.lower(item) for item in value)
-        if not isinstance(value, Expression) or not calls_of(value, SHIFT):
+        if not isinstance(value, Expression) or not _calls_of(value, _SHIFT):
             return value
         operator = value.operator()
-        if getattr(operator, 'name', lambda: '')() != SHIFT:
+        if getattr(operator, 'name', lambda: '')() != _SHIFT:
             return operator(*(self.lower(item) for item in value.operands()))
         expression, offset, boundary, fill = shift_arguments(value)
         return self.shift(SR(self.lower(expression)), offset, boundary, fill)
+
+    @staticmethod
+    def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
+        """Return the read of the member at an offset of every member of a group of `rows` members."""
+        lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).check().prepare()
+        table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
+        ghost = fill if boundary == 'fixed' else None
+        kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
+        return NeighborRead(table, ghost, (rows,), (offset,), MODES[kind])

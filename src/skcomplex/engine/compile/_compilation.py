@@ -26,8 +26,8 @@ from ._tree import Node
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], Block]]
 
-INPUTS = ('system', 'backend', 'solver', 'owners', 'held')
-PLANNING = frozenset({'nodes', 'census', 'plan'})
+_INPUTS = ('system', 'backend', 'solver', 'owners', 'held')
+_PLANNING = frozenset({'nodes', 'census', 'plan'})
 
 
 @dataclass
@@ -214,6 +214,6 @@ class Compilation:
             compilation:
                 The compilation of the partition.
         """
-        kept = {name: getattr(self, name) for name in (*INPUTS, *PLANNING)}
-        done = {item for item in self.done if set(getattr(item, 'writes', ())) <= PLANNING}
+        kept = {name: getattr(self, name) for name in (*_INPUTS, *_PLANNING)}
+        done = {item for item in self.done if set(getattr(item, 'writes', ())) <= _PLANNING}
         return Compilation(**{**kept, 'owners': owners}, done=done)

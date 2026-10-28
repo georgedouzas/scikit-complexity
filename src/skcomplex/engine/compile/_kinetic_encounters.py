@@ -15,7 +15,7 @@ from ...core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ..problems import Reference, Source, symbols_of
 from ._kinetic_contractions import CompiledEncounter, Indices, TableValues
 
-KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
+_KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 
 
@@ -127,7 +127,7 @@ def _checked_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> n
     return rate
 
 
-def compile_encounter(
+def _compile_encounter(
     law: KineticLaw,
     owner: str,
     references: Mapping[Expression, Reference],
@@ -189,7 +189,7 @@ def compile_encounter(
     )
 
 
-def compile_encounters(
+def _compile_encounters(
     components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[BaseLaw]]],
     time: Expression,
     *,
@@ -212,8 +212,8 @@ def compile_encounters(
             The compiled laws.
     """
     return tuple(
-        compile_encounter(law, owner, references, time, fused=fused)
+        _compile_encounter(law, owner, references, time, fused=fused)
         for owner, references, laws in components
         for law in laws
-        if isinstance(law, KINETIC_LAWS)
+        if isinstance(law, _KINETIC_LAWS)
     )

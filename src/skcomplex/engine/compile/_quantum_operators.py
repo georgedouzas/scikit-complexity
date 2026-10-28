@@ -19,31 +19,14 @@ from ...core.errors import ValidationError
 from ...core.laws.utils import dagger, has_operator, operator_product
 from ...core.laws.utils._quantum import LOCAL_OPERATOR
 
-ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
-ADJOINT_SUFFIX = '.dag'
+_ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
+_ADJOINT_SUFFIX = '.dag'
 
 type Factor = tuple[str, 'LocalOperator']
 type Term = tuple[Factor, ...]
 
 
-def _coefficient(value: object) -> Expression | None:
-    """Return a number or a symbolic expression as a Sage expression, or `None` for any other value."""
-    if isinstance(value, np.ndarray | Operator | str):
-        return None
-    if isinstance(value, np.generic):
-        value = value.item()
-    try:
-        return SR(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _added(terms: dict[Term, Expression], key: Term, coefficient: Expression) -> None:
-    """Add a coefficient to the term of a key, in place."""
-    terms[key] = terms[key] + coefficient if key in terms else coefficient
-
-
-def sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
+def _sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
     """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
     if isinstance(matrix, qutip.Qobj):
         matrix = matrix.full()
@@ -84,13 +67,13 @@ class LocalOperator:
         """
         if self.hermitian:
             return self
-        if self.name in ADJOINT_NAMES:
-            name = ADJOINT_NAMES[self.name]
-        elif self.name.endswith(ADJOINT_SUFFIX):
-            name = self.name.removesuffix(ADJOINT_SUFFIX)
+        if self.name in _ADJOINT_NAMES:
+            name = _ADJOINT_NAMES[self.name]
+        elif self.name.endswith(_ADJOINT_SUFFIX):
+            name = self.name.removesuffix(_ADJOINT_SUFFIX)
         else:
-            name = f'{self.name}{ADJOINT_SUFFIX}'
-        matrix = sparse_matrix(self.matrix).conj().T.tocsr()
+            name = f'{self.name}{_ADJOINT_SUFFIX}'
+        matrix = _sparse_matrix(self.matrix).conj().T.tocsr()
         return LocalOperator(name, matrix, hermitian=False)
 
 
@@ -134,7 +117,7 @@ class Operator:
         """Return an operator, or a scalar as a multiple of the identity, or `None` for any other value."""
         if isinstance(other, Operator):
             return other
-        coefficient = _coefficient(other)
+        coefficient = self._coefficient(other)
         return None if coefficient is None else Operator({(): coefficient})
 
     def __add__(self, other: object) -> 'Operator':
@@ -144,7 +127,7 @@ class Operator:
             return NotImplemented
         terms = self._items()
         for key, value in operand._items().items():
-            _added(terms, key, value)
+            self._added(terms, key, value)
         return self._combined(terms)
 
     def __radd__(self, other: object) -> 'Operator':
@@ -172,7 +155,7 @@ class Operator:
         terms: dict[Term, Expression] = {}
         for left, first in self._items().items():
             for right, second in operand._items().items():
-                _added(terms, left + right, first * second)
+                self._added(terms, left + right, first * second)
         return self._combined(terms)
 
     def __rmul__(self, other: object) -> 'Operator':
@@ -182,7 +165,7 @@ class Operator:
 
     def __truediv__(self, other: object) -> 'Operator':
         """Return the operator divided by a scalar."""
-        coefficient = _coefficient(other)
+        coefficient = self._coefficient(other)
         return NotImplemented if coefficient is None else self * (1 / coefficient)
 
     @property
@@ -227,6 +210,23 @@ class Operator:
     def subsystems(self) -> list[set[str]]:
         """Keys of the subsystems every term acts on, in term order."""
         return [{subsystem for subsystem, _ in key} for key in self.terms]
+
+    @staticmethod
+    def _coefficient(value: object) -> Expression | None:
+        """Return a number or a symbolic expression as a Sage expression, or `None` for any other value."""
+        if isinstance(value, np.ndarray | Operator | str):
+            return None
+        if isinstance(value, np.generic):
+            value = value.item()
+        try:
+            return SR(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _added(terms: dict[Term, Expression], key: Term, coefficient: Expression) -> None:
+        """Add a coefficient to the term of a key, in place."""
+        terms[key] = terms[key] + coefficient if key in terms else coefficient
 
 
 def _acted_on(operator: Operator) -> set[str]:

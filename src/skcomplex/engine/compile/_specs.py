@@ -24,11 +24,11 @@ from ...core.specs import WienerProcessSpec
 from ..problems import EdgeSearch, Reference, Source, VariableKind, components_of, declarations_of, symbol, vector
 from ..problems._kernels import PairSearch, Search
 from ..problems._problem import real_components_of
-from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
+from ._declarations import _ACTIVE, ENDS, Block, Declarations, _is_interaction
 from ._tree import Node
 
-MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
-EDGE_NAMES = ('source', 'target', 'edge')
+_MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
+_EDGE_NAMES = ('source', 'target', 'edge')
 
 type Observe = Callable[[Node, object], Observed | None]
 
@@ -49,7 +49,7 @@ def _resolve_path(node: Node, role: str, label: object, elements: dict[str, Bloc
 
 def _resolve_member(node: Node, role: str, reference: str, elements: dict[str, Block]) -> tuple[Block, int] | None:
     """Return the group block and the member index of a member reference such as `sites[3]`, or `None` for a path."""
-    match = MEMBER_REFERENCE.match(reference)
+    match = _MEMBER_REFERENCE.match(reference)
     if match is None or f'{node.scope}{reference}' in elements:
         return None
     block = _resolve_path(node, role, match['path'], elements)
@@ -169,7 +169,7 @@ def _interaction_specs(
         if (member := _resolve_member(node, role, label, elements)) is not None
     }
     bound = {
-        role: resolve_role(node, role, elements)
+        role: _resolve_role(node, role, elements)
         for role in labels
         if role not in sets and role not in observed and role not in variadic and role not in single_members
     }
@@ -208,7 +208,7 @@ def _interaction_specs(
             role_namespace, role_references = item.namespace(
                 Source.MEMBER if item.node.members is not None else Source.SINGLE,
             )
-            namespaces[role] = with_other(item, role_namespace, role_references)
+            namespaces[role] = _with_other(item, role_namespace, role_references)
             references.update(role_references)
         specs.append(
             KernelSpec(
@@ -258,7 +258,7 @@ def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
 
 def _edge_roles(node: Node, elements: dict[str, Block]) -> tuple[Block, Block | None]:
     """Return the group of nodes and the group on edges, if any, that an interaction over neighbours binds."""
-    blocks = [resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)]
+    blocks = [_resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)]
     edges = [block for block in blocks if getattr(block.node.component, 'on', None) == 'edges']
     nodes = [block for block in blocks if block not in edges]
     if len(nodes) != 1 or len(edges) > 1 or nodes[0].node.members is None:
@@ -276,7 +276,7 @@ def _edge_layer(node: Node, nodes: Block, edges: Block | None) -> str | None:
     declared = getattr(node.component, 'layer', None)
     if edges is None:
         return declared
-    space, edge_space = group_space(nodes), group_space(edges)
+    space, edge_space = _group_space(nodes), _group_space(edges)
     if edge_space is not space:
         error_msg = (
             f'Interaction {node.path} binds the edge group {edges.node.path}, which lives on another space than the '
@@ -318,7 +318,7 @@ def _edge_search(
     elements: dict[str, Block],
 ) -> EdgeSearch:
     """Return the edges an interaction over neighbours runs on, after checking the sizes of its groups."""
-    space = group_space(nodes)
+    space = _group_space(nodes)
     layer = _edge_layer(node, nodes, edges)
     changing = next(
         (
@@ -373,7 +373,7 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     nodes, edges = _edge_roles(node, elements)
     search = _edge_search(node, nodes, edges, elements)
     parameters, references = block.namespace(Source.SINGLE)
-    clashes = sorted(set(vars(parameters)) & {*EDGE_NAMES, 't'})
+    clashes = sorted(set(vars(parameters)) & {*_EDGE_NAMES, 't'})
     if clashes:
         error_msg = (
             f'Interaction {node.path} over neighbours declares the parameters {", ".join(clashes)}, whose names its '
@@ -396,19 +396,19 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     elif search.source is not None:
         changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
         activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', RR)
-        references[activity] = Reference(changing.entries[ACTIVE], False, 0, Source.MEMBER)
+        references[activity] = Reference(changing.entries[_ACTIVE], False, 0, Source.MEMBER)
         paths['edge'] = changing.node.path
     namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
     group = edges.node.path if edges is not None else None
     return KernelSpec(node.path, namespace, references, search.size, search, roles=paths, group=group, groups=groups)
 
 
-def resolve_role(node: Node, role: str, elements: dict[str, Block]) -> Block:
+def _resolve_role(node: Node, role: str, elements: dict[str, Block]) -> Block:
     """Return the block of the element or group bound to a role of an interaction."""
     return _resolve_path(node, role, getattr(node.component, role), elements)
 
 
-def with_other(block: Block, namespace: SimpleNamespace, references: dict[Expression, Reference]) -> SimpleNamespace:
+def _with_other(block: Block, namespace: SimpleNamespace, references: dict[Expression, Reference]) -> SimpleNamespace:
     """Return the namespace of a group's member with `other`, the namespace of a neighbour in reductions over them.
 
     A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
@@ -420,15 +420,15 @@ def with_other(block: Block, namespace: SimpleNamespace, references: dict[Expres
     return SimpleNamespace(**vars(namespace), other=other)
 
 
-def member_spec(block: Block, time: Expression) -> KernelSpec:
+def _member_spec(block: Block, time: Expression) -> KernelSpec:
     """Return the kernel spec of the intrinsic laws of an element or group."""
     namespace, references = block.namespace(Source.MEMBER)
-    namespace = with_other(block, namespace, references)
+    namespace = _with_other(block, namespace, references)
     group = block.node.path if block.node.members is not None else None
     return KernelSpec(block.node.path, SimpleNamespace(t=time, **vars(namespace)), references, block.rows, group=group)
 
 
-def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
+def _settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
     """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
 
     Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
@@ -454,7 +454,7 @@ def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
     spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
-def group_space(block: Block) -> BaseSpace | None:
+def _group_space(block: Block) -> BaseSpace | None:
     """Return the space of a group, its own or the enclosing one, shared by the groups of one network."""
     return block.node.space
 
@@ -475,14 +475,14 @@ def target_references(target: object, spec: KernelSpec) -> list[Reference]:
     return references  # type: ignore[return-value]
 
 
-def component_of(node: Node) -> object:
+def _component_of(node: Node) -> object:
     """Return the object whose `laws` method describes a node, a representative member for a group."""
     if isinstance(node.component, GroupElement):
         return node.component.element(node.component.label, **(node.component.values or {})).check()
     return node.component
 
 
-def activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
+def _activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
     """Return the symbol of the activity of the rows of a capacity group that a spec reads per member, or `None`.
 
     Args:
@@ -496,7 +496,7 @@ def activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
         activity:
             The symbol, or `None`.
     """
-    name = f'{group}.{ACTIVE}'
+    name = f'{group}.{_ACTIVE}'
     return next(
         (
             item
@@ -507,7 +507,7 @@ def activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
     )
 
 
-def mask_of(spec: KernelSpec, declarations: Declarations) -> Expression | None:
+def _mask_of(spec: KernelSpec, declarations: Declarations) -> Expression | None:
     """Return the activity of the rows a spec runs on, the edges of a changing layer or a capacity group's members.
 
     Args:
@@ -523,13 +523,13 @@ def mask_of(spec: KernelSpec, declarations: Declarations) -> Expression | None:
     """
     if isinstance(spec.pairs, EdgeSearch) and spec.pairs.source is not None:
         name = spec.pairs.source.name.rpartition('.')[0]
-        return activity_symbol(spec, name)
+        return _activity_symbol(spec, name)
     if spec.group in declarations.capacity:
-        return activity_symbol(spec, spec.group)
+        return _activity_symbol(spec, spec.group)
     return None
 
 
-def masked_value(value: object, mask: Expression) -> object:
+def _masked_value(value: object, mask: Expression) -> object:
     """Return a law value that vanishes on the free rows of a capacity layout.
 
     Args:
@@ -568,7 +568,7 @@ def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
     node = block.node
     interaction: BaseInteraction = node.component
-    first, second = resolve_role(node, 'first', elements), resolve_role(node, 'second', elements)
+    first, second = _resolve_role(node, 'first', elements), _resolve_role(node, 'second', elements)
     position = getattr(type(interaction), 'position', 'x')
     for bound in (first, second):
         entry = bound.entries.get(position)
@@ -588,7 +588,7 @@ def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
-def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe: Observe) -> list[KernelSpec]:
+def _specs_of(block: Block, elements: dict[str, Block], time: Expression, observe: Observe) -> list[KernelSpec]:
     """Return the kernel specs of a component: its intrinsic laws, its edges, its pairs, or its roles.
 
     Args:
@@ -608,8 +608,8 @@ def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe
         specs:
             The kernel specs.
     """
-    if not is_interaction(block.node):
-        return [member_spec(block, time)]
+    if not _is_interaction(block.node):
+        return [_member_spec(block, time)]
     if isinstance(block.node.component, NeighborInteraction):
         return [_edge_spec(block, elements, time)]
     if isinstance(block.node.component, PairInteraction):

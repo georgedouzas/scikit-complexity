@@ -55,36 +55,36 @@ from ..problems import (
 from ..problems._neighbourhoods import cone_heading, position_state
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
-from ._issues import ERROR, WARNING, Issue, ValidationWarning
+from ._issues import _ERROR, _WARNING, Issue, ValidationWarning
 from ._laws import values_of
-from ._noise import process_covariance
+from ._noise import _process_covariance
 from ._observables import (
+    _held_observables,
+    _held_reduction,
     _HeldReduction,
+    _with_held_observables,
+    _with_held_reductions,
     _with_observables,
-    held_observables,
-    held_reduction,
-    with_held_observables,
-    with_held_reductions,
 )
 from ._pipeline import run_passes
 from ._planner import _Plan
-from ._tree import Node, declared_times, noise_processes
-from .passes._core import CHECKS, PASSES, claiming_compiler
+from ._tree import Node, _declared_times, _noise_processes
+from .passes._core import _CHECKS, _PASSES, claiming_compiler
 
-COVARIANCE_TOLERANCE = 1e-12
-TIME_CLASSES = {
+_COVARIANCE_TOLERANCE = 1e-12
+_TIME_CLASSES = {
     ContinuousTime: 'ContinuousTime()',
     DiscreteTime: 'DiscreteTime()',
     StaticTime: 'StaticTime()',
 }
-OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace, MeshSpace)
-FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
+_OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace, MeshSpace)
+_FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
 }
-REPLACEMENTS = {
+_REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
     DomainKind.INTEGER: 'a jump or update law',
     DomainKind.BOOLEAN: 'a jump or update law',
@@ -226,7 +226,7 @@ def _law_issues(records: list[CensusRecord], times: dict[str, type | None]) -> l
             issues.append(Issue('law-space', record.path, message, 'Give the system a space of a supported class.'))
         if time is not None and requires.time and not issubclass(time, requires.time):
             message = f'The {name} needs {_names(requires.time)}, but its system declares {time.__name__}.'
-            classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
+            classes = ' or '.join(f'`{_TIME_CLASSES[item]}`' for item in requires.time)
             fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
             issues.append(Issue('law-time', record.path, message, fix))
     return issues
@@ -284,7 +284,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
-            spaces = OWN_NEIGHBORHOOD if over is None else spaces_of(over)
+            spaces = _OWN_NEIGHBORHOOD if over is None else spaces_of(over)
             described = 'the neighbours of its space' if over is None else repr(over)
             if not isinstance(record.space, spaces):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
@@ -327,7 +327,7 @@ def _solver_issues(solver: object, census: Census, system: System) -> list[Issue
     records = census.records
     stepper = type(solver)
     needs = {
-        'time': {kind for kind in declared_times(system).values() if kind is not None},
+        'time': {kind for kind in _declared_times(system).values() if kind is not None},
         'laws': {type(record.law) for record in records},
         'space': {None if record.space is None else type(record.space) for record in records},
     }
@@ -349,11 +349,11 @@ def _solver_issues(solver: object, census: Census, system: System) -> list[Issue
 def _matrix_problem(matrix: np.ndarray) -> str | None:
     """Return why a square covariance matrix is not symmetric positive semidefinite, or `None` when it is."""
     asymmetry = np.abs(matrix - matrix.T)
-    if np.max(asymmetry) > COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(matrix)))):
+    if np.max(asymmetry) > _COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(matrix)))):
         row, column = np.unravel_index(int(np.argmax(asymmetry)), matrix.shape)
         return f'Its covariance is not symmetric: entry ({row}, {column}) is {matrix[row, column]}.'
     values = np.linalg.eigvalsh(matrix)
-    if values[0] < -COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(values)))):
+    if values[0] < -_COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(values)))):
         return f'Its covariance is not positive semidefinite: it has the negative eigenvalue {values[0]:.6g}.'
     return None
 
@@ -376,9 +376,9 @@ def _covariance_problem(wiener: WienerProcessSpec) -> str | None:
 
 def _wiener_issues(system: System, nodes: list[Node]) -> list[Issue]:
     """Return the Wiener processes outside continuous time or with an invalid covariance."""
-    times = declared_times(system)
+    times = _declared_times(system)
     issues = []
-    for path, wiener in noise_processes(nodes).items():
+    for path, wiener in _noise_processes(nodes).items():
         time = times.get(path.rpartition('/')[0])
         if time is not None and not issubclass(time, ContinuousTime):
             message = f'The Wiener processes {path} exist only in continuous time.'
@@ -454,7 +454,7 @@ def _sharer(
             if item.path == record.path:
                 continue
             for state, process in zip(item.driven, item.processes, strict=True):
-                if process is not None and state in reads and process_covariance(key, process, wieners):
+                if process is not None and state in reads and _process_covariance(key, process, wieners):
                     return item
     return None
 
@@ -542,7 +542,7 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
     """Return the problems of the Wiener processes and the noise laws of a system."""
     nodes = cast('list[Node]', compilation.nodes)
     solver, backend = compilation.solver, compilation.backend
-    wieners = noise_processes(nodes)
+    wieners = _noise_processes(nodes)
     issues = _wiener_issues(compilation.system, nodes) + _handle_issues(records)
     if any(issue.code == 'wiener-covariance' for issue in issues):
         return issues
@@ -566,7 +566,7 @@ def _held_reductions(census: Census, time: Expression) -> list[_HeldReduction]:
     for record in census.records:
         for value in _law_values(record):
             for reduction in reductions_in(value):
-                held = held_reduction(reduction, census.agents, time, record.path)
+                held = _held_reduction(reduction, census.agents, time, record.path)
                 if held is not None:
                     found.setdefault(held.key, held)
     return list(found.values())
@@ -587,31 +587,31 @@ def _counted(
         observed = _with_observables(system, observables)
     except ValidationError as error:
         return None, [Issue('observable-path', system.label, str(error), 'Label observables by their path.')]
-    passes = PASSES
+    passes = _PASSES
     compilation = Compilation(observed, cast('BaseBackend | None', backend), solver)
     try:
         run_passes(compilation, passes, until='nodes')
     except SkcomplexError as error:
-        code, fix = FIXES.get(
+        code, fix = _FIXES.get(
             type(error),
             ('structure', 'Pass elements, groups, interactions, and systems as children.'),
         )
         return None, [Issue(code, system.label, str(error), fix, error=type(error))]
     if claiming_compiler(observed) is not None:
         return compilation, []
-    held = held_observables(observed, cast('list[Node]', compilation.nodes))
+    held = _held_observables(observed, cast('list[Node]', compilation.nodes))
     if held:
-        tree, paths = with_held_observables(observed, held)
+        tree, paths = _with_held_observables(observed, held)
         compilation = Compilation(tree, cast('BaseBackend | None', backend), solver, held=tuple(paths))
     run_passes(compilation, passes, until='census')
     try:
         reductions = _held_reductions(cast('Census', compilation.census), symbol('t'))
     except ValidationError as error:
-        code, fix = FIXES.get(type(error), ('reduction', 'Reduce an expression of the agents of one group.'))
+        code, fix = _FIXES.get(type(error), ('reduction', 'Reduce an expression of the agents of one group.'))
         return None, [Issue(code, system.label, str(error), fix, error=type(error))]
     if not reductions:
         return compilation, []
-    tree = with_held_reductions(compilation.system, reductions)
+    tree = _with_held_reductions(compilation.system, reductions)
     compilation = Compilation(tree, cast('BaseBackend | None', backend), solver, held=compilation.held)
     return run_passes(compilation, passes, until='census'), []
 
@@ -619,9 +619,9 @@ def _counted(
 def _plan_issues(compilation: Compilation) -> list[Issue]:
     """Return the issues of the partitions of a system, lowering its laws as far as their classes decide its form."""
     try:
-        run_passes(compilation, PASSES, until='plan')
+        run_passes(compilation, _PASSES, until='plan')
     except SkcomplexError as error:
-        code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
+        code, fix = _FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
         return [Issue(code, compilation.system.label, str(error), fix, error=type(error))]
     return list(cast('_Plan', compilation.plan).issues)
 
@@ -635,7 +635,7 @@ def _census_issues(compilation: Compilation) -> list[Issue]:
     for path, failure in census.errors:
         if path in unbound:
             continue
-        code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+        code, fix = _FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
         issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
     return issues + bindings
 
@@ -647,10 +647,10 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     records = cast('Census', compilation.census).records
     issues = _census_issues(compilation)
     issues += _bound_issues(nodes)
-    issues += _law_issues(records, declared_times(system))
+    issues += _law_issues(records, _declared_times(system))
     issues += _neighborhood_issues(records, nodes)
     issues += _space_issues(system, nodes)
-    issues += [issue for check in CHECKS for issue in check(compilation)]
+    issues += [issue for check in _CHECKS for issue in check(compilation)]
     if solver is not None:
         issues += _solver_issues(solver, cast('Census', compilation.census), system)
     issues += _noise_issues(compilation, records)
@@ -703,7 +703,7 @@ def validate(
     if compilation is None or compilation.census is None:
         return ValidationReport(issues, compilation)
     issues = _issues_of(compilation)
-    if not any(issue.severity == ERROR for issue in issues):
+    if not any(issue.severity == _ERROR for issue in issues):
         issues += _plan_issues(compilation)
     return ValidationReport(issues, compilation)
 
@@ -733,12 +733,12 @@ class ValidationReport:
     @property
     def errors(self) -> list[Issue]:
         """Return the problems that stop compilation."""
-        return [issue for issue in self.issues if issue.severity == ERROR]
+        return [issue for issue in self.issues if issue.severity == _ERROR]
 
     @property
     def warnings(self) -> list[Issue]:
         """Return the problems that do not stop compilation."""
-        return [issue for issue in self.issues if issue.severity == WARNING]
+        return [issue for issue in self.issues if issue.severity == _WARNING]
 
     @property
     def ok(self) -> bool:

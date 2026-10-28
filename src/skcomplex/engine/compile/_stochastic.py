@@ -48,8 +48,8 @@ from ..problems._problem import SampledDraw, _MarkovMatrix
 from ._laws import values_of
 from ._renewal_law import RenewalLaw
 
-NORMAL_KINDS = frozenset({'normal'})
-RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
+_NORMAL_KINDS = frozenset({'normal'})
+_RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 DISTRIBUTIONS = tuple(
     sorted(
         name
@@ -182,36 +182,6 @@ def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
     return lambda p: p[index]
 
 
-def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
-    """Return the expression of a draw in terms of a uniform or standard normal value, or its sampled value."""
-    if draw.kind == 'draw':
-        return slot
-    if draw.kind == 'uniform':
-        low, high = arguments
-        return low + (high - low) * slot
-    if draw.kind == 'normal':
-        mean, deviation = arguments
-        return mean + deviation * slot
-    if draw.kind == 'bernoulli':
-        return where(slot < arguments[0], 1, 0)
-    total = sum(arguments[1:], arguments[0])
-    cumulative, index = SR(0), SR(0)
-    for weight in arguments[:-1]:
-        cumulative = cumulative + weight
-        index = index + where(slot * total >= cumulative, 1, 0)
-    return index
-
-
-def _lowered(expression: Expression, slots: dict[str, Expression]) -> Expression:
-    """Return an expression with every draw replaced by its expression of the draw's value, innermost draws first."""
-    found = draws_in(expression)
-    while found:
-        draw = next(item for item in found if not draws_in(list(item.arguments)))
-        expression = expression.subs({draw.call: _replacement(draw, list(draw.arguments), slots[draw.name])})
-        found = draws_in(expression)
-    return expression
-
-
 @dataclass
 class _Request:
     """Draw of a component that needs a value per evaluation row at every step."""
@@ -226,35 +196,7 @@ class _Request:
     slots: dict[str, Expression] = field(default_factory=dict)
 
 
-def _sampler(request: _Request, time: Expression) -> Callable[[float, Vector, Vector, np.random.Generator], Vector]:
-    """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
-    draw = cast('Draw', request.draw)
-    if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
-        error_msg = (
-            f'The draw {draw.name!r} of {request.owner} takes another draw from a scipy.stats distribution as an '
-            'argument. Give its arguments as states, parameters, and uniform, normal, Bernoulli, or categorical draws.'
-        )
-        raise ValidationError(error_msg)
-    arguments = [_lowered(SR(item), request.slots) for item in draw.arguments]
-    symbols = sorted(symbols_of(arguments) - {time}, key=str)
-    readers = [request.references.get(item) for item in symbols]
-    if any(reader is None or reader.source not in {Source.SINGLE, Source.MEMBER} for reader in readers):
-        error_msg = (
-            f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
-            'component. Give the arguments of draws as expressions of the states and parameters of the member.'
-        )
-        raise ValidationError(error_msg)
-    function = numpy_function(time, symbols, arguments)
-    rows = request.rows
-
-    def sample(t: float, x: Vector, q: Vector, rng: np.random.Generator) -> Vector:
-        values = function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
-        return sample_draw(draw, values, rows, rng)
-
-    return sample
-
-
-def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
+def _distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
     """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
 
     Args:
@@ -299,7 +241,7 @@ def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: A
     return distribution
 
 
-def sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
+def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
     """Return values of a draw for a number of members, with arguments that hold one value or one per member.
 
     Args:
@@ -336,7 +278,7 @@ def sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.
     return np.asarray(sampled, dtype=float)
 
 
-def check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
+def _check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
     """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
 
     Args:
@@ -359,7 +301,7 @@ def check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
             RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
         ):
             continue
-        values = [value for value in values_of(law, include=RANDOM_FIELDS) if _is_symbolic(value)]
+        values = [value for value in values_of(law, include=_RANDOM_FIELDS) if _is_symbolic(value)]
         found = draws_in(values)
         if found and not isinstance(law, UpdateLaw | RenewalLaw):
             error_msg = (
@@ -370,10 +312,10 @@ def check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
             raise IncompatibleLawsError(error_msg)
         for item in found:
             if item.kind == 'draw':
-                distribution_of(owner, f'{type(law).__name__}', item)
+                _distribution_of(owner, f'{type(law).__name__}', item)
 
 
-def markov_laws(
+def _markov_laws(
     owner: str,
     laws: list[BaseLaw],
     references: dict[Expression, Reference],
@@ -416,7 +358,7 @@ def markov_laws(
     return rewritten, matrices
 
 
-def compile_matrix(
+def _compile_matrix(
     law: MatrixLaw,
     references: dict[Expression, Reference],
     rows: int,
@@ -474,7 +416,7 @@ def compile_matrix(
     return _MarkovMatrix(law.description, evaluate, reads)
 
 
-def stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
+def _stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
     """Return the update of a stochastic map, which draws its values from a generator before every step.
 
     Args:
@@ -545,7 +487,7 @@ class DrawLowering:
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
-            request = _Request(owner, name, draw.kind in NORMAL_KINDS, rows, slot, references, sampled, slots)
+            request = _Request(owner, name, draw.kind in _NORMAL_KINDS, rows, slot, references, sampled, slots)
             self.requests.append(request)
         return slots
 
@@ -587,7 +529,7 @@ class DrawLowering:
             if not isinstance(law, UpdateLaw) or not _is_symbolic(law.value):
                 lowered.append(law)
                 continue
-            values = [_lowered(SR(item), slots) for item in components_of(law.value)]
+            values = [self._lowered(SR(item), slots) for item in components_of(law.value)]
             value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
             lowered.append(UpdateLaw(law._get_targets()[0], value))
         return lowered
@@ -615,6 +557,69 @@ class DrawLowering:
         position = self.offset + len(flags)
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDraw(position, request.rows, _sampler(request, self.time)))
+                sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time)))
                 position += request.rows
         self.draws = Draws(self.offset, np.array(flags, dtype=bool), tuple(sampled))
+
+    @staticmethod
+    def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
+        """Return the expression of a draw in terms of a uniform or standard normal value, or its sampled value."""
+        if draw.kind == 'draw':
+            return slot
+        if draw.kind == 'uniform':
+            low, high = arguments
+            return low + (high - low) * slot
+        if draw.kind == 'normal':
+            mean, deviation = arguments
+            return mean + deviation * slot
+        if draw.kind == 'bernoulli':
+            return where(slot < arguments[0], 1, 0)
+        total = sum(arguments[1:], arguments[0])
+        cumulative, index = SR(0), SR(0)
+        for weight in arguments[:-1]:
+            cumulative = cumulative + weight
+            index = index + where(slot * total >= cumulative, 1, 0)
+        return index
+
+    @staticmethod
+    def _lowered(expression: Expression, slots: dict[str, Expression]) -> Expression:
+        """Return an expression with every draw replaced by its expression of its value, innermost draws first."""
+        found = draws_in(expression)
+        while found:
+            draw = next(item for item in found if not draws_in(list(item.arguments)))
+            expression = expression.subs(
+                {draw.call: DrawLowering._replacement(draw, list(draw.arguments), slots[draw.name])},
+            )
+            found = draws_in(expression)
+        return expression
+
+    @staticmethod
+    def _sampler(request: _Request, time: Expression) -> Callable[[float, Vector, Vector, np.random.Generator], Vector]:
+        """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
+        draw = cast('Draw', request.draw)
+        if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
+            error_msg = (
+                f'The draw {draw.name!r} of {request.owner} takes another draw from a scipy.stats distribution as an '
+                'argument. Give its arguments as states, parameters, and uniform, normal, Bernoulli, or categorical '
+                'draws.'
+            )
+            raise ValidationError(error_msg)
+        arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
+        symbols = sorted(symbols_of(arguments) - {time}, key=str)
+        readers = [request.references.get(item) for item in symbols]
+        if any(reader is None or reader.source not in {Source.SINGLE, Source.MEMBER} for reader in readers):
+            error_msg = (
+                f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
+                'component. Give the arguments of draws as expressions of the states and parameters of the member.'
+            )
+            raise ValidationError(error_msg)
+        function = numpy_function(time, symbols, arguments)
+        rows = request.rows
+
+        def sample(t: float, x: Vector, q: Vector, rng: np.random.Generator) -> Vector:
+            values = (
+                function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
+            )
+            return _sample_draw(draw, values, rows, rng)
+
+        return sample

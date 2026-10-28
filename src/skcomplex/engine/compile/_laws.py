@@ -26,10 +26,10 @@ from ...core.laws import (
 )
 from ...core.laws.utils import Call
 
-FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, ProliferationLaw, DestructionLaw, FluxLaw)
+_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, ProliferationLaw, DestructionLaw, FluxLaw)
 """Laws that leave the form of a system as the other laws decide it."""
 
-KERNEL_FREE_LAWS = (
+_KERNEL_FREE_LAWS = (
     TransferLaw,
     EncounterLaw,
     ProliferationLaw,
@@ -46,7 +46,7 @@ KERNEL_FREE_LAWS = (
 LATTICE_LAWS = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, SampleLaw)
 """Laws that update the sites of lattices and networks."""
 
-AGENT_LAWS = (RuleLaw,)
+_AGENT_LAWS = (RuleLaw,)
 """Laws that make an element an agent, run on the agent stepper."""
 
 

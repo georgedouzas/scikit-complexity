@@ -22,20 +22,7 @@ from ..problems._reductions import CompiledReduction
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 
-PATTERN_LIMIT = 4_000_000
-
-
-def _selection(
-    rows: npt.NDArray[np.intp],
-    columns: npt.NDArray[np.intp],
-    values: Any,  # noqa: ANN401
-    size: int,
-    height: int | None = None,
-) -> Sparse:
-    """Return the sparse matrix with the given values at the given rows and columns, summing duplicates."""
-    shape = (int(rows.max(initial=-1)) + 1 if height is None else height, size)
-    data = np.broadcast_to(np.asarray(values, dtype=float), rows.shape)
-    return scipy.sparse.csr_array((data, (rows, columns)), shape=shape)
+_PATTERN_LIMIT = 4_000_000
 
 
 def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
@@ -43,51 +30,6 @@ def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
     matrix = scipy.sparse.csr_array(matrix)
     matrix.eliminate_zeros()
     return scipy.sparse.csr_array((np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape)
-
-
-def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
-    """Return the structure of the product of two boolean structures."""
-    return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
-
-
-def _output_symbols(output: Output) -> set[Expression] | None:
-    """Return the symbols an output reads, or `None` for a callable law, which reads every state."""
-    if output.expression is not None:
-        return set(SR(output.expression).variables())
-    if output.arguments is not None:
-        return symbols_of(list(output.arguments))
-    return None
-
-
-def _neighbor_columns(reference: Reference) -> tuple[Indices, Indices]:
-    """Return the members that read a neighbour and the flat index of the neighbour each reads."""
-    read = reference.neighbor
-    table = np.asarray(read.table, dtype=np.intp)
-    entry = reference.entry
-    members = np.arange(table.size, dtype=np.intp)
-    inside = table < entry.rows
-    columns = entry.start + table[inside] * entry.columns + reference.column
-    return members[inside], columns.astype(np.intp)
-
-
-def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Sparse]:
-    """Return the matrices that project the rates of symmetric states onto their odd or even parts, axis by axis."""
-    projections = []
-    for indices, dimensions, signs in symmetries:
-        grid = np.arange(int(np.prod(dimensions))).reshape(dimensions)
-        free = np.setdiff1d(np.arange(size), indices)
-        for axis, sign in signs:
-            mirror = np.roll(np.flip(grid, axis=axis), 1, axis=axis).ravel()
-            rows = np.concatenate([free, indices, indices])
-            columns = np.concatenate([free, indices, indices[mirror]])
-            values = np.concatenate([np.ones(free.size), np.full(indices.size, 0.5), np.full(indices.size, sign / 2)])
-            projections.append(scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size)))
-    return projections
-
-
-def _is_variable(reference: Reference) -> bool:
-    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
-    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
 
 
 class _TooDense(Exception):  # noqa: N818
@@ -241,7 +183,7 @@ class ExactJacobian:
         kernel_partials = []
         for kernel in self.kernels:
             expressions = [output.expression for output in kernel.outputs]
-            by = [item for item in kernel.arguments if _is_variable(kernel.references[item])]
+            by = [item for item in kernel.arguments if self._is_variable(kernel.references[item])]
             kernel_partials.append(_Partials(self.time, kernel.arguments, expressions, by))
         for reduction in self.reductions.reductions:
             by = [item for item in reduction.symbols if reduction.reads[item].is_state or item in self._by_symbol]
@@ -279,7 +221,7 @@ class ExactJacobian:
                 total = total + scipy.sparse.diags_array(derivative) @ block
                 continue
             columns = np.broadcast_to(np.asarray(read.index, dtype=np.intp), (reduction.size,))
-            total = total + _selection(members, columns, derivative, self.size)
+            total = total + self._selection(members, columns, derivative, self.size)
         return scipy.sparse.csr_array(total)
 
     def _reduction_gradient(
@@ -336,7 +278,7 @@ class ExactJacobian:
             read = reference.neighbor
             key = id(read)
             if key not in self._operand_partials:
-                by = [symbol for symbol in read.symbols if _is_variable(kernel.references[symbol])]
+                by = [symbol for symbol in read.symbols if self._is_variable(kernel.references[symbol])]
                 self._operand_partials[key] = _Partials(self.time, read.symbols, [read.operand], by)
             values = [kernel.read(symbol, t, x, q) for symbol in read.symbols]
             total = scipy.sparse.csr_array((kernel.rows, self.size))
@@ -349,9 +291,9 @@ class ExactJacobian:
         if not reference.is_state:
             return None
         if reference.source is Source.NEIGHBOR:
-            members, columns = _neighbor_columns(reference)
-            return _selection(members, columns, 1.0, self.size, height=kernel.rows)
-        return _selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
+            members, columns = self._neighbor_columns(reference)
+            return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
+        return self._selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
 
     def evaluate(self, t: float, x: Vector, p: Vector) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
@@ -386,10 +328,10 @@ class ExactJacobian:
                 if gradient is None:
                     continue
                 target = member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
-                scatter = _selection(np.arange(kernel.rows), target, 1.0, self.size).T
+                scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
-        for projection in _mirror_projections(self.symmetries, self.size):
+        for projection in self._mirror_projections(self.symmetries, self.size):
             jacobian = projection @ jacobian
         return scipy.sparse.csr_array(self._free_rows() @ jacobian)
 
@@ -405,7 +347,7 @@ class ExactJacobian:
         Returns:
             pattern:
                 A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
-                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries or the
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `_PATTERN_LIMIT` entries or the
                 laws reduce over neighbourhoods, whose neighbours can change.
         """
         if not self._patterned:
@@ -432,21 +374,21 @@ class ExactJacobian:
         for block in blocks:
             total = total + scipy.sparse.csr_array(block, dtype=float)
         pattern = _boolean(total)
-        for projection in _mirror_projections(self.symmetries, self.size):
-            pattern = _product(_boolean(projection), pattern)
-        return _product(self._free_rows(), pattern)
+        for projection in self._mirror_projections(self.symmetries, self.size):
+            pattern = self._product(_boolean(projection), pattern)
+        return self._product(self._free_rows(), pattern)
 
     def _note_dense(self, entries: int) -> None:
         """Count the entries of a dense block and stop above the size limit."""
         self._dense += entries
-        if self._dense > PATTERN_LIMIT:
+        if self._dense > _PATTERN_LIMIT:
             raise _TooDense
 
     def _dense_rows(self, rows: int, columns: Indices) -> Sparse:
         """Return the block where every evaluation index reads every one of the columns."""
         columns = np.unique(columns)
         self._note_dense(rows * columns.size)
-        return _selection(np.repeat(np.arange(rows), columns.size), np.tile(columns, rows), 1.0, self.size, rows)
+        return self._selection(np.repeat(np.arange(rows), columns.size), np.tile(columns, rows), 1.0, self.size, rows)
 
     def _all_columns(self, kernel: Kernel, item: Expression, supports: dict[Expression, Sparse]) -> Indices:
         """Return every state index a symbol can read at any evaluation index."""
@@ -487,18 +429,18 @@ class ExactJacobian:
             block = self._symbol_support(kernel, symbol, supports)
             if block is not None:
                 operand = operand + scipy.sparse.csr_array(block, dtype=float)
-        return _product(_boolean(read.matrix), operand)
+        return self._product(_boolean(read.matrix), operand)
 
     def _state_support(self, kernel: Kernel, reference: Reference) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
         rows = kernel.rows
         if reference.source is Source.NEIGHBOR:
-            members, columns = _neighbor_columns(reference)
-            return _selection(members, columns, 1.0, self.size, height=rows)
+            members, columns = self._neighbor_columns(reference)
+            return self._selection(members, columns, 1.0, self.size, height=rows)
         if reference.source is Source.SINGLE:
-            return _selection(np.arange(rows), np.full(rows, reference.index, dtype=np.intp), 1.0, self.size, rows)
+            return self._selection(np.arange(rows), np.full(rows, reference.index, dtype=np.intp), 1.0, self.size, rows)
         if reference.source is Source.MEMBER and reference.entry.rows == rows:
-            return _selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
+            return self._selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
         return self._dense_rows(rows, reference.flat_indices)
 
     def _kernel_pattern(self, kernel: Kernel, supports: dict[Expression, Sparse]) -> list[Sparse]:
@@ -507,7 +449,7 @@ class ExactJacobian:
         everything = np.arange(self.size, dtype=np.intp)
         for output in kernel.outputs:
             target: Reference = output.target  # type: ignore[assignment]
-            used = _output_symbols(output)
+            used = self._output_symbols(output)
             if kernel.pairs is not None or target.source in {Source.FIRST, Source.SECOND}:
                 targets = np.unique(target.flat_indices if target.source is not Source.SINGLE else [target.index])
                 columns = (
@@ -521,9 +463,9 @@ class ExactJacobian:
                     )
                 )
                 block = self._dense_rows(targets.size, columns)
-                blocks.append(_selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
+                blocks.append(self._selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
                 continue
-            scatter = _selection(np.arange(kernel.rows), member_indices(target, kernel.rows), 1.0, self.size).T
+            scatter = self._selection(np.arange(kernel.rows), member_indices(target, kernel.rows), 1.0, self.size).T
             if used is None:
                 blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
                 continue
@@ -545,9 +487,69 @@ class ExactJacobian:
                 support = support + (block != 0)
             elif read.is_state:
                 columns = np.broadcast_to(np.asarray(read.index, dtype=np.intp), (reduction.size,))
-                support = support + (_selection(members, columns, 1.0, self.size) != 0)
+                support = support + (self._selection(members, columns, 1.0, self.size) != 0)
         if reduction.kind == 'count':
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
             return scipy.sparse.csr_array((abs(reduction.weights) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
+
+    @staticmethod
+    def _selection(
+        rows: npt.NDArray[np.intp],
+        columns: npt.NDArray[np.intp],
+        values: Any,  # noqa: ANN401
+        size: int,
+        height: int | None = None,
+    ) -> Sparse:
+        """Return the sparse matrix with the given values at the given rows and columns, summing duplicates."""
+        shape = (int(rows.max(initial=-1)) + 1 if height is None else height, size)
+        data = np.broadcast_to(np.asarray(values, dtype=float), rows.shape)
+        return scipy.sparse.csr_array((data, (rows, columns)), shape=shape)
+
+    @staticmethod
+    def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
+        """Return the structure of the product of two boolean structures."""
+        return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
+
+    @staticmethod
+    def _output_symbols(output: Output) -> set[Expression] | None:
+        """Return the symbols an output reads, or `None` for a callable law, which reads every state."""
+        if output.expression is not None:
+            return set(SR(output.expression).variables())
+        if output.arguments is not None:
+            return symbols_of(list(output.arguments))
+        return None
+
+    @staticmethod
+    def _neighbor_columns(reference: Reference) -> tuple[Indices, Indices]:
+        """Return the members that read a neighbour and the flat index of the neighbour each reads."""
+        read = reference.neighbor
+        table = np.asarray(read.table, dtype=np.intp)
+        entry = reference.entry
+        members = np.arange(table.size, dtype=np.intp)
+        inside = table < entry.rows
+        columns = entry.start + table[inside] * entry.columns + reference.column
+        return members[inside], columns.astype(np.intp)
+
+    @staticmethod
+    def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Sparse]:
+        """Return the matrices that project the rates of symmetric states onto their odd or even parts, axis by axis."""
+        projections = []
+        for indices, dimensions, signs in symmetries:
+            grid = np.arange(int(np.prod(dimensions))).reshape(dimensions)
+            free = np.setdiff1d(np.arange(size), indices)
+            for axis, sign in signs:
+                mirror = np.roll(np.flip(grid, axis=axis), 1, axis=axis).ravel()
+                rows = np.concatenate([free, indices, indices])
+                columns = np.concatenate([free, indices, indices[mirror]])
+                values = np.concatenate(
+                    [np.ones(free.size), np.full(indices.size, 0.5), np.full(indices.size, sign / 2)],
+                )
+                projections.append(scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size)))
+        return projections
+
+    @staticmethod
+    def _is_variable(reference: Reference) -> bool:
+        """Check whether a reference is a state, a reduction, or a derived read, so derivatives reach the state."""
+        return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state

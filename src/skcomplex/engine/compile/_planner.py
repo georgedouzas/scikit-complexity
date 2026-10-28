@@ -11,7 +11,7 @@ from ...core.errors import IncompatibleLawsError
 from ...core.system import System
 from ..problems import Form
 from ._census import Census
-from ._forms import fits_form
+from ._forms import _fits_form
 from ._issues import Issue
 
 
@@ -69,7 +69,7 @@ class _Owners:
 
     def fit(self, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
         """Check whether laws compile to one form and one solver runs them."""
-        return fits_form(lowered.values()) and _solved(set().union(*declared.values()), self.solvers)
+        return _fits_form(lowered.values()) and _solved(set().union(*declared.values()), self.solvers)
 
 
 def _planned(system: System, owners: _Owners, scope: str = '') -> tuple[list['_PlannedPartition'], list[Issue]]:

@@ -7,7 +7,7 @@ from typing import cast
 
 from ...problems import symbol
 from .._compilation import Compilation
-from .._declarations import Declarations, check_symbol_names
+from .._declarations import Declarations, _check_symbol_names
 from .._pipeline import BasePass
 from .._tree import Node
 
@@ -28,5 +28,5 @@ class LayoutPass(BasePass):
         declarations = Declarations(time=symbol('t'))
         for node in cast('list[Node]', compilation.nodes):
             declarations.declare_component(node)
-        check_symbol_names(declarations.blocks)
+        _check_symbol_names(declarations.blocks)
         compilation.layout = declarations

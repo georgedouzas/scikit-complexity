@@ -19,7 +19,7 @@ from ...core.laws.utils import parse_word
 from ...core.specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
 from ..problems import numpy_function, symbols_of
 from ._rewriting_kernels import (
-    ACTION_CODES,
+    _ACTION_CODES,
     DRAW,
     LEFT,
     MOVE,
@@ -31,61 +31,19 @@ from ._rewriting_kernels import (
     RIGHT,
     ROLL_LEFT,
     ROLL_RIGHT,
+    _walk_word,
     neighbors,
-    walk_word,
 )
 from ._structures import WordStructure
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9
-TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
+_TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 
 type Arrays = list[npt.NDArray[Any]]
 
 
-def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
-    """Return the arity of every symbol, declared or taken from the axiom and the productions."""
-    if isinstance(word.alphabet, Mapping):
-        return {str(name): int(arity) for name, arity in word.alphabet.items()}
-    declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
-    found: dict[str, int] = {}
-    parts: list[Any] = [word.axiom, *word.ignore]
-    for production in productions:
-        parts += [production.predecessor, production.successor, production.left or '', production.right or '']
-    for part in parts:
-        for module in parse_word(part, list(declared)):
-            found[module.name] = max(found.get(module.name, 0), len(module.parameters))
-    if word.alphabet is None:
-        return found
-    unknown = sorted(set(found) - set(declared))
-    if unknown:
-        error_msg = (
-            f'Word {word.label!r} uses the symbol {unknown[0]!r}, which is not in its alphabet {word.alphabet!r}.'
-        )
-        raise RewritingError(error_msg)
-    return {name: found.get(name, 0) for name in declared}
-
-
-def _written(module: ModuleSpec) -> str:
-    """Return a module as written, such as `A(x, 2)`."""
-    if not module.parameters:
-        return module.name
-    return f'{module.name}({", ".join(str(item) for item in module.parameters)})'
-
-
-def _production_text(production: ProductionLaw) -> str:
-    """Return a production as written, such as `B < A → B`, for error messages."""
-    head = _written(parse_word(production.predecessor)[0])
-    if production.left is not None:
-        head = f'{"".join(_written(module) for module in parse_word(production.left))} < {head}'
-    if production.right is not None:
-        head = f'{head} > {"".join(_written(module) for module in parse_word(production.right))}'
-    modules = parse_word(production.successor)
-    separator = ' ' if any(module.parameters for module in modules) else ''
-    return f'{head} → {separator.join(_written(module) for module in modules)}'
-
-
-def interpret(
+def _interpret(
     geometry: GeometrySpec,
     actions: npt.NDArray[np.int64],
     table: npt.NDArray[np.float64],
@@ -116,10 +74,10 @@ def interpret(
     step = geometry.step * geometry.contraction**generation
     angle, heading = np.deg2rad(geometry.angle), np.deg2rad(geometry.heading)
     values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
-    turns = np.isin(actions, TURNS)
+    turns = np.isin(actions, _TURNS)
     values[turns] = np.deg2rad(values[turns])
     if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
-        segments, depths = walk_word(actions, values, step, angle, heading)
+        segments, depths = _walk_word(actions, values, step, angle, heading)
         return segments[..., : geometry.dimension], depths
     turn = np.where(np.isnan(values), angle, values)
     turn = np.select([actions == LEFT, actions == RIGHT, actions == REVERSE], [turn, -turn, np.pi], 0.0)
@@ -241,7 +199,7 @@ class CompiledWord:
         self.path = path
         self.max_size = int(word.max_size)
         self.parameters = parameters
-        arities = _alphabet_of(word, productions)
+        arities = self._alphabet_of(word, productions)
         self.names = tuple(arities)
         self.arities = arities
         self.width = max(arities.values(), default=0)
@@ -256,7 +214,7 @@ class CompiledWord:
         if word.geometry is not None:
             meanings = {**TURTLE_SYMBOLS, **(word.geometry.symbols or {})}
             self.actions = np.array(
-                [ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
+                [_ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
             )
         self.successors: list[_Successor] = []
@@ -280,8 +238,8 @@ class CompiledWord:
         arity = self.arities.get(module.name)
         if arity is None or len(module.parameters) > arity:
             error_msg = (
-                f'{_written(module)} in {where} of word {self.path!r} does not fit the alphabet, whose symbols and '
-                f'numbers of parameters are {self.arities}.'
+                f'{self._written(module)} in {where} of word {self.path!r} does not fit the alphabet, whose symbols '
+                f'and numbers of parameters are {self.arities}.'
             )
             raise RewritingError(error_msg)
         return self.names.index(module.name)
@@ -289,7 +247,7 @@ class CompiledWord:
     def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
         modules = parse_word(production.successor, self.names)
-        text = _production_text(production)
+        text = self._production_text(production)
         codes = np.array([self._code(module, text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
@@ -301,7 +259,7 @@ class CompiledWord:
         """Return the groups of productions in the order they are tried."""
         groups: dict[tuple[str, ...] | int, _Group] = {}
         for order, production in enumerate(productions):
-            text = _production_text(production)
+            text = self._production_text(production)
             predecessor = production.predecessor
             module = predecessor if isinstance(predecessor, ModuleSpec) else ModuleSpec(predecessor)
             variables = [SR(item) for item in module.parameters]
@@ -315,8 +273,8 @@ class CompiledWord:
             key: tuple[str, ...] | int = (
                 (
                     module.name,
-                    ' '.join(_written(item) for item in left),
-                    ' '.join(_written(item) for item in right),
+                    ' '.join(self._written(item) for item in left),
+                    ' '.join(self._written(item) for item in right),
                     str(condition),
                 )
                 if production.probability is not None
@@ -496,5 +454,47 @@ class CompiledWord:
         """Return a word with the segments its geometry draws."""
         if self.geometry is None:
             return WordStructure(self.names, codes, table, generation)
-        segments, depths = interpret(self.geometry, self.actions[codes], table, generation)
+        segments, depths = _interpret(self.geometry, self.actions[codes], table, generation)
         return WordStructure(self.names, codes, table, generation, segments=segments, depths=depths)
+
+    @staticmethod
+    def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
+        """Return the arity of every symbol, declared or taken from the axiom and the productions."""
+        if isinstance(word.alphabet, Mapping):
+            return {str(name): int(arity) for name, arity in word.alphabet.items()}
+        declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
+        found: dict[str, int] = {}
+        parts: list[Any] = [word.axiom, *word.ignore]
+        for production in productions:
+            parts += [production.predecessor, production.successor, production.left or '', production.right or '']
+        for part in parts:
+            for module in parse_word(part, list(declared)):
+                found[module.name] = max(found.get(module.name, 0), len(module.parameters))
+        if word.alphabet is None:
+            return found
+        unknown = sorted(set(found) - set(declared))
+        if unknown:
+            error_msg = (
+                f'Word {word.label!r} uses the symbol {unknown[0]!r}, which is not in its alphabet {word.alphabet!r}.'
+            )
+            raise RewritingError(error_msg)
+        return {name: found.get(name, 0) for name in declared}
+
+    @staticmethod
+    def _written(module: ModuleSpec) -> str:
+        """Return a module as written, such as `A(x, 2)`."""
+        if not module.parameters:
+            return module.name
+        return f'{module.name}({", ".join(str(item) for item in module.parameters)})'
+
+    @staticmethod
+    def _production_text(production: ProductionLaw) -> str:
+        """Return a production as written, such as `B < A → B`, for error messages."""
+        head = CompiledWord._written(parse_word(production.predecessor)[0])
+        if production.left is not None:
+            head = f'{"".join(CompiledWord._written(module) for module in parse_word(production.left))} < {head}'
+        if production.right is not None:
+            head = f'{head} > {"".join(CompiledWord._written(module) for module in parse_word(production.right))}'
+        modules = parse_word(production.successor)
+        separator = ' ' if any(module.parameters for module in modules) else ''
+        return f'{head} → {separator.join(CompiledWord._written(module) for module in modules)}'

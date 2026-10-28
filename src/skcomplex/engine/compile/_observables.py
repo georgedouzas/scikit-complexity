@@ -43,7 +43,7 @@ from ..problems._problem import real_components_of
 from ..problems._quantities import _Recorded
 from ..problems._reads import Read
 from ..problems._reductions import CompiledReduction, reduce_values
-from ._complex import joined_complex
+from ._complex import _joined_complex
 from ._declarations import Block, Declarations
 from ._flows import _delay_calls
 from ._specs import Observed
@@ -51,7 +51,7 @@ from ._tree import Node
 
 type AgentsOf = Callable[[str], list[Any] | None]
 
-REDUCERS: dict[str, Callable[..., Expression]] = {
+_REDUCERS: dict[str, Callable[..., Expression]] = {
     'sum': total,
     'mean': mean,
     'max': maximum,
@@ -61,36 +61,6 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 
 
 type Declared = dict[str, tuple[str, ObservableSpec]]
-
-
-def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
-    """Return a reader of an observable computed earlier in the same frame."""
-    return lambda x, p, done: done[name]
-
-
-def _from_members(read: Callable[[Vector, Vector], Any]) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
-    """Return a reader of one member variable over a group."""
-    return lambda x, p, done: read(x, p)
-
-
-def _read_of(read: Read) -> Callable[[Vector, Vector], Any]:
-    """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
-    return _from_vector(read.is_state, read.index)
-
-
-def _from_vector(is_state: bool, indices: Any) -> Callable[[Vector, Vector], Any]:  # noqa: ANN401
-    """Return a reader of components of the state or the parameter vector."""
-    return lambda x, p: (x if is_state else p)[indices]
-
-
-def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
-    """Return the getter of the number of renewals of a renewal law over all its members."""
-
-    def count_renewals(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> float:
-        del t, p, done
-        return float(np.sum(x[counts]))
-
-    return count_renewals
 
 
 def _join(scope: str, path: str) -> str:
@@ -187,34 +157,6 @@ def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, Node]
     return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
 
-def _source_of(block: Block) -> Source:
-    """Return how laws read the variables of a block from outside it, per member for a group."""
-    return Source.MEMBER if block.node.members is not None else Source.SINGLE
-
-
-def _reduced_value(path: str, observable: ObservableSpec, block: Block) -> object:
-    """Return an observable that reduces a group as a reduction over the group's member symbols."""
-    namespace, _ = block.namespace(_source_of(block))
-    if observable.reduce == 'count':
-        return count(over=namespace)
-    if observable.variable is not None:
-        if observable.variable not in block.symbols:
-            error_msg = (
-                f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
-            )
-            raise ValidationError(error_msg)
-        value: Any = block.symbols[observable.variable]
-    elif observable.expression is None:
-        error_msg = f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
-        raise ValidationError(error_msg)
-    else:
-        value = observable.expression(namespace) if callable(observable.expression) else observable.expression
-    reducer = REDUCERS[str(observable.reduce)]
-    if isinstance(value, FreeModuleElement):
-        return vector(reducer(item, over=namespace) for item in value)
-    return reducer(value, over=namespace)
-
-
 def _role_paths(system: System, scope: str = '') -> set[str]:
     """Return the paths from the root of everything that roles of a system tree bind to."""
     paths = set()
@@ -302,7 +244,7 @@ def namespace_of(problem: BaseProblem, scope: str = '') -> SimpleNamespace:
     return _tree(items, t=problem.time)
 
 
-def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
+def _lowerable_observables(system: System, nodes: list[Node]) -> Declared:
     """Return every observable of a system tree that laws can read at the current state, by path.
 
     An expression of a system's symbols is lowerable when every observable declared before it in its system is.
@@ -318,7 +260,7 @@ def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
     return lowerable
 
 
-def held_reduction(
+def _held_reduction(
     reduction: Reduction,
     agents: Mapping[Expression, tuple[str, str]],
     time: Expression,
@@ -382,7 +324,7 @@ def held_reduction(
     )
 
 
-def with_held_reductions(system: System, reductions: Sequence['_HeldReduction'], scope: str = '') -> System:
+def _with_held_reductions(system: System, reductions: Sequence['_HeldReduction'], scope: str = '') -> System:
     """Return a system tree that holds every reduction of agents in an element of the system of its group.
 
     Args:
@@ -400,7 +342,7 @@ def with_held_reductions(system: System, reductions: Sequence['_HeldReduction'],
             The system tree with the elements that hold the reductions.
     """
     own = [reduction for reduction in reductions if reduction.group.rpartition('/')[0] == scope]
-    children = [with_held_reductions(child, reductions, _join(scope, child.label)) for child in system.systems]
+    children = [_with_held_reductions(child, reductions, _join(scope, child.label)) for child in system.systems]
     if not own and all(new is old for new, old in zip(children, system.systems, strict=True)):
         return system
     labels = {part.label for part in (*system.elements, *system.interactions, *system.systems)}
@@ -415,7 +357,7 @@ def with_held_reductions(system: System, reductions: Sequence['_HeldReduction'],
     return copied
 
 
-def with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
+def _with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
     """Return a system tree in which every observable in `read` is also held in an element, and their paths."""
     held: list[str] = []
     elements = []
@@ -436,7 +378,7 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
         held.append(path)
     children = []
     for child in system.systems:
-        new_child, child_held = with_held_observables(child, read, f'{scope}/{child.label}' if scope else child.label)
+        new_child, child_held = _with_held_observables(child, read, f'{scope}/{child.label}' if scope else child.label)
         children.append(new_child)
         held += child_held
     if not held:
@@ -447,7 +389,7 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
     return copied, held
 
 
-def held_observables(system: System, nodes: list[Node]) -> set[str]:
+def _held_observables(system: System, nodes: list[Node]) -> set[str]:
     """Return the paths of the observables that roles bind to and laws read only at synchronisation points.
 
     Args:
@@ -461,7 +403,7 @@ def held_observables(system: System, nodes: list[Node]) -> set[str]:
         paths:
             The paths of the held observables.
     """
-    lowerable = lowerable_observables(system, nodes)
+    lowerable = _lowerable_observables(system, nodes)
     declared = {_join(scope, observable.label) for scope, observable in observables_of(system)}
     return (_role_paths(system) & declared) - set(lowerable)
 
@@ -493,7 +435,7 @@ def held_reductions_of(problem: BaseProblem) -> list[tuple[str, '_HeldReduction'
     ]
 
 
-def check_held_reads(problem: Problem, held: list[str]) -> None:
+def _check_held_reads(problem: Problem, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
     groups = {
         _join(scope, observable.label): _join(scope, observable.group or '')
@@ -744,7 +686,7 @@ class ObservableEvaluator:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
         problems = (self.problem, *(partition.problem for partition in self.problem.partitions))
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
-            self.getters_[f'{renewal.label}.renewals'] = _renewal_counter(renewal.counts)
+            self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
         stock_flow = self.problem.stock_flow
         for recorded in stock_flow.recorded if stock_flow is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
@@ -769,17 +711,17 @@ class ObservableEvaluator:
         members: Mapping[Expression, Callable[[Vector, Vector], Any]],
     ) -> Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
-        expression = joined_complex(expression, f'observable {path}')
+        expression = _joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
         readers: list[Callable[[Vector, Vector, Mapping[str, Any]], Any]] = []
         for item in arguments:
             if item in observables:
-                readers.append(_from_done(observables[item]))
+                readers.append(self._from_done(observables[item]))
             elif item in members:
-                readers.append(_from_members(members[item]))
+                readers.append(self._from_members(members[item]))
             elif item in self._scalars:
                 vector, index = self._scalars[item]
-                readers.append(_from_members(_from_vector(vector == 'x', index)))
+                readers.append(self._from_members(self._from_vector(vector == 'x', index)))
             else:
                 error_msg = (
                     f'ObservableSpec {path} uses the symbol {item}, which is neither a variable of a single element or '
@@ -810,7 +752,7 @@ class ObservableEvaluator:
             indices: Any = entry.start + reference.column
             if reference.entry.members is not None:
                 indices = entry.start + np.arange(entry.members or 1) * entry.columns + reference.column
-            members[item] = _from_vector(reference.is_state, indices)
+            members[item] = self._from_vector(reference.is_state, indices)
         return self._compile(recorded.path, recorded.expression, {}, members)
 
     def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
@@ -848,7 +790,7 @@ class ObservableEvaluator:
             )
             raise ValidationError(error_msg)
         stages = {
-            item: _from_vector(True, references[item].entry.start + references[item].column)
+            item: self._from_vector(True, references[item].entry.start + references[item].column)
             for item in symbols_of([expression])
             if item in references
         }
@@ -907,7 +849,7 @@ class ObservableEvaluator:
             len(self.problem.initial_parameters),
         )
         expression = lowering.lower(expression)
-        readers = {item: _read_of(read) for item, read in lowering.reads.items() if item not in scalars}
+        readers = {item: self._read_of(read) for item, read in lowering.reads.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
         reductions = ReductionSchedule(tuple(lowering.found.values()), lowering.parameters)
 
@@ -962,6 +904,36 @@ class ObservableEvaluator:
         del done['__agents__']
         return done
 
+    @staticmethod
+    def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
+        """Return a reader of an observable computed earlier in the same frame."""
+        return lambda x, p, done: done[name]
+
+    @staticmethod
+    def _from_members(read: Callable[[Vector, Vector], Any]) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
+        """Return a reader of one member variable over a group."""
+        return lambda x, p, done: read(x, p)
+
+    @staticmethod
+    def _read_of(read: Read) -> Callable[[Vector, Vector], Any]:
+        """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
+        return ObservableEvaluator._from_vector(read.is_state, read.index)
+
+    @staticmethod
+    def _from_vector(is_state: bool, indices: Any) -> Callable[[Vector, Vector], Any]:  # noqa: ANN401
+        """Return a reader of components of the state or the parameter vector."""
+        return lambda x, p: (x if is_state else p)[indices]
+
+    @staticmethod
+    def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
+        """Return the getter of the number of renewals of a renewal law over all its members."""
+
+        def count_renewals(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> float:
+            del t, p, done
+            return float(np.sum(x[counts]))
+
+        return count_renewals
+
 
 @dataclass
 class Observer:
@@ -1012,8 +984,8 @@ class Observer:
             self.values[path] = self._system_value(path, scope, observable)
             return self.values[path]
         block = self.declarations.blocks[_join(scope, observable.group)]
-        _, references = block.namespace(_source_of(block))
-        self.values[path] = (_reduced_value(path, observable, block), references)
+        _, references = block.namespace(self._source_of(block))
+        self.values[path] = (self._reduced_value(path, observable, block), references)
         return self.values[path]
 
     def evaluate(self, node: Node, label: object) -> Observed | None:
@@ -1024,3 +996,33 @@ class Observer:
         scope, observable = self.live[path]
         value, references = self.value(path, scope, observable)
         return Observed(SimpleNamespace(value=value), dict(references))
+
+    @staticmethod
+    def _source_of(block: Block) -> Source:
+        """Return how laws read the variables of a block from outside it, per member for a group."""
+        return Source.MEMBER if block.node.members is not None else Source.SINGLE
+
+    @staticmethod
+    def _reduced_value(path: str, observable: ObservableSpec, block: Block) -> object:
+        """Return an observable that reduces a group as a reduction over the group's member symbols."""
+        namespace, _ = block.namespace(Observer._source_of(block))
+        if observable.reduce == 'count':
+            return count(over=namespace)
+        if observable.variable is not None:
+            if observable.variable not in block.symbols:
+                error_msg = (
+                    f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+                )
+                raise ValidationError(error_msg)
+            value: Any = block.symbols[observable.variable]
+        elif observable.expression is None:
+            error_msg = (
+                f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
+            )
+            raise ValidationError(error_msg)
+        else:
+            value = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        reducer = _REDUCERS[str(observable.reduce)]
+        if isinstance(value, FreeModuleElement):
+            return vector(reducer(item, over=namespace) for item in value)
+        return reducer(value, over=namespace)

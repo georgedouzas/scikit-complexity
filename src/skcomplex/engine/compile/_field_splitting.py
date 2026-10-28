@@ -104,7 +104,7 @@ def _linear(expression: Any, states: Mapping[Expression, Any]) -> Terms | None: 
     return None if combine is None else combine(expression.operands(), states)
 
 
-def linear_terms(
+def _linear_terms(
     value: object,
     target: Reference,
     references: Mapping[Expression, Reference],

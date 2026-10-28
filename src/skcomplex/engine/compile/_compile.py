@@ -14,18 +14,18 @@ from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import BaseProblem, Form, Partition, Problem, with_initial_state
 from ._compilation import Compilation
-from ._declarations import is_interaction
-from ._observables import _with_observables, check_held_reads
+from ._declarations import _is_interaction
+from ._observables import _check_held_reads, _with_observables
 from ._pipeline import run_passes
 from ._planner import _Plan
 from ._tree import Node
 from ._validation import validate
-from .passes._core import PASSES, claiming_compiler
+from .passes._core import _PASSES, claiming_compiler
 
 
 def _compiled(compilation: Compilation) -> Problem:
     """Return the problem of a compilation, running every pass it has not run yet."""
-    return cast('Problem', run_passes(compilation, PASSES).problem)
+    return cast('Problem', run_passes(compilation, _PASSES).problem)
 
 
 def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> Problem:
@@ -78,7 +78,7 @@ def _planned_problem(compilation: Compilation) -> Problem:
     plan = cast('_Plan', compilation.plan)
     if len(plan.partitions) <= 1:
         return _compiled(compilation)
-    kinds = cast('dict[str, set[type]]', run_passes(compilation, PASSES, until='kinds').kinds)
+    kinds = cast('dict[str, set[type]]', run_passes(compilation, _PASSES, until='kinds').kinds)
     owners = [(item.name, frozenset(owner for owner in kinds if item.holds(owner))) for item in plan.partitions]
     return _partitioned(compilation, owners)
 
@@ -203,7 +203,7 @@ def compile_system(
         return cast('BaseProblem', compiler.run(observed, backend=backend, solver=solver, initial_state=initial))
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
-    check_held_reads(problem, list(compilation.held))
+    _check_held_reads(problem, list(compilation.held))
     return with_initial_state(problem, initial)
 
 
@@ -250,8 +250,8 @@ def partition_system(system: System, backend: BaseBackend | None = None) -> Prob
         ['a', 'b']
     """
     system = _with_observables(system, ())
-    compilation = run_passes(Compilation(system, backend), PASSES, until='nodes')
-    elements = {node.path for node in cast('list[Node]', compilation.nodes) if not is_interaction(node)}
+    compilation = run_passes(Compilation(system, backend), _PASSES, until='nodes')
+    elements = {node.path for node in cast('list[Node]', compilation.nodes) if not _is_interaction(node)}
     own = frozenset(path for path in elements if '/' not in path)
     plan = [(system.label, own)] if own else []
     for child in system.systems:

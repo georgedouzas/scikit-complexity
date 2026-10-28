@@ -7,8 +7,8 @@ from typing import cast
 
 from .._compilation import BlockLaws, Compilation, Laws
 from .._pipeline import BasePass
-from .._specs import settle_rows
-from .._stochastic import check_draw_placement
+from .._specs import _settle_rows
+from .._stochastic import _check_draw_placement
 
 
 class RowsPass(BasePass):
@@ -26,5 +26,5 @@ class RowsPass(BasePass):
         """
         apart = cast('Laws', compilation.apart)
         for spec, laws, _ in cast('BlockLaws', compilation.lowered):
-            check_draw_placement(spec.owner, laws)
-            settle_rows(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            _check_draw_placement(spec.owner, laws)
+            _settle_rows(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])

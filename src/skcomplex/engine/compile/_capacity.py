@@ -14,8 +14,8 @@ from ...core.errors import CapacityError
 from ...core.types import Indices, Vector
 from ..problems import Entry, VariableKind, declarations_of, declared_variables, default_of
 from ..problems._neighbourhoods import ACTIVE_THRESHOLD
-from ._declarations import ACTIVE, ENDS, Block, Declarations
-from ._tree import coerce_value
+from ._declarations import _ACTIVE, ENDS, Block, Declarations
+from ._tree import _coerce_value
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,7 @@ class CapacityRows:
         return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
 
 
-def capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
+def _capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
     """Return the rows of a variable group with the values of one new member.
 
     Args:
@@ -157,11 +157,11 @@ def capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
     variables: dict[str, tuple[Entry, bool]] = {}
     defaults: dict[str, Vector] = {}
     for name, entry in block.entries.items():
-        if name in {ACTIVE, *ENDS}:
+        if name in {_ACTIVE, *ENDS}:
             continue
         variables[name] = (entry, name in states)
         default = default_of(element, name) if name in declared_variables(element) else 0.0
         default = 0.0 if default is dataclasses.MISSING else default
-        defaults[name] = coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
+        defaults[name] = _coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
     source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
-    return CapacityRows(node.path, variables, defaults, block.entries[ACTIVE], source, target)
+    return CapacityRows(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
