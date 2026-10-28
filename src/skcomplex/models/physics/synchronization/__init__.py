@@ -28,7 +28,6 @@ from ._kuramoto import (
     nonlocal_ring_chimera,
     ott_antonsen,
 )
-from ._kuramoto_order import KuramotoOrderAnalysis
 from ._networks import (
     EdgeCouplingInteraction,
     LinkElement,
@@ -52,7 +51,6 @@ __all__: list[str] = [
     'EdgeCouplingInteraction',
     'GlobalCouplingInteraction',
     'IntegrateAndFireOscillatorElement',
-    'KuramotoOrderAnalysis',
     'LinkElement',
     'LogisticNodeElement',
     'LogisticUnitElement',

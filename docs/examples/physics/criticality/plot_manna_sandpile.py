@@ -16,11 +16,10 @@ empty (dark) or holding one grain (bright), between avalanches.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
+from skcomplex.analysis import DistributionAnalysis, EventAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 MODEL = 'manna_sandpile'
 
@@ -38,7 +37,7 @@ simulation = Simulation(system, dt=30, observers=[observer], random_state=0).run
 
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
 found = (
-    AvalancheAnalysis()
+    EventAnalysis('excursions')
     .check()
     .prepare([record for record in simulation.trajectory_.events if record.time > 3000 and record.size > 0])
     .run()

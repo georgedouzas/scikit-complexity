@@ -25,7 +25,7 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 from ...conftest import _correlated, _summed

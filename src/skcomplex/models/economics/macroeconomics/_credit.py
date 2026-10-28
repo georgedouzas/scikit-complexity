@@ -19,7 +19,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations.markets import MarketInteraction, SampleAndSwitch, Trade
+from ..common.markets import MarketInteraction, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
 

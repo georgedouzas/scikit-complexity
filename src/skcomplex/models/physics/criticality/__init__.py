@@ -1,7 +1,6 @@
 """Criticality: sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches."""
 
 from ._absorbing import ActiveFieldElement, directed_percolation_langevin
-from ._avalanches import AvalancheAnalysis
 from ._crackling_noise import CracklingNoiseAnalysis
 from ._criticality import (
     ForestElement,
@@ -18,7 +17,6 @@ from ._learning import LearningAgentElement, sk_game
 
 __all__: list[str] = [
     'ActiveFieldElement',
-    'AvalancheAnalysis',
     'CracklingNoiseAnalysis',
     'ForestElement',
     'LearnerElement',

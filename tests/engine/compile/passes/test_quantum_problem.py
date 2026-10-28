@@ -10,7 +10,7 @@ from skcomplex.engine.compile import (
 )
 from skcomplex.engine.compile.passes import QuantumProblem
 from skcomplex.engine.problems import BaseProblem, Form, Problem
-from skcomplex.models.physics.realizations.quantum import (
+from skcomplex.models.physics.common.quantum import (
     ModeElement,
     SpinElement,
     mode_space,

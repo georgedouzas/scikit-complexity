@@ -19,7 +19,7 @@ from ....core.spaces import LatticeSpace
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ..realizations.quantum import SpinElement
+from ..common.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}

@@ -33,7 +33,7 @@ from skcomplex.engine.solvers import (
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
-from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
 
 CUTOFF = 2.5
 

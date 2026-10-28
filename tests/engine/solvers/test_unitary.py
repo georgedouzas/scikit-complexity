@@ -17,7 +17,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LindbladSolver, QuantumTrajectoriesSolver, UnitarySolver
-from skcomplex.models.physics.realizations.quantum import QUBIT, QubitElement, SpinElement
+from skcomplex.models.physics.common.quantum import QUBIT, QubitElement, SpinElement
 
 OMEGA = 2.0
 

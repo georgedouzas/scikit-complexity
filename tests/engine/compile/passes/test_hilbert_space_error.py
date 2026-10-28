@@ -9,7 +9,7 @@ from skcomplex.engine.compile import (
 )
 from skcomplex.engine.compile.passes import HilbertSpaceError
 from skcomplex.engine.solvers import LindbladSolver
-from skcomplex.models.physics.realizations.quantum import (
+from skcomplex.models.physics.common.quantum import (
     SpinElement,
 )
 

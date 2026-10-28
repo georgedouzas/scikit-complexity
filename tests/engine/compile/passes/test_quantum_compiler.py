@@ -26,7 +26,7 @@ from skcomplex.engine.compile import (
 from skcomplex.engine.compile.passes import QuantumCompiler
 from skcomplex.engine.problems import symbol
 from skcomplex.models.biology.ecology import PopulationElement
-from skcomplex.models.physics.realizations.quantum import (
+from skcomplex.models.physics.common.quantum import (
     QUBIT,
     QubitElement,
     SpinElement,

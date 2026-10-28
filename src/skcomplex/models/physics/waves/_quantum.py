@@ -20,7 +20,7 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
-from ..realizations.quantum import SiteElement, site_space
+from ..common.quantum import SiteElement, site_space
 
 
 class WaveFunctionElement(Element):
