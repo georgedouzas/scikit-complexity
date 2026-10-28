@@ -33,7 +33,7 @@ class RenewalLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws.utils import draw
-        >>> from skcomplex.engine.compile import RenewalLaw
+        >>> from skcomplex.engine.compile._renewal_law import RenewalLaw
         >>> n = var('n')
         >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).check().prepare().targets_
         (n,)

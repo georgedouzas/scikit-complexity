@@ -35,7 +35,7 @@ def affine_matrix(affine: AffineSpec, values: Mapping[object, float]) -> npt.NDA
 
     Examples:
         >>> from skcomplex.core.specs import AffineSpec
-        >>> from skcomplex.engine.compile import affine_matrix
+        >>> from skcomplex.engine.compile._structures import affine_matrix
         >>> affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
         [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
     """
@@ -441,7 +441,7 @@ class GraphStructure(Structure):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.engine.compile import GraphStructure
+        >>> from skcomplex.engine.compile._structures import GraphStructure
         >>> GraphStructure(nx.cycle_graph(4), 0).parts
         4
     """

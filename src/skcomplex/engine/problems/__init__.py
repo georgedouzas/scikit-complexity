@@ -1,6 +1,6 @@
 """Define what a system compiles to: the problem, and the kernels its numeric functions are written from."""
 
-from ._domains import contains, decode, domain_kind, encode, labels_of, sage_assumption, wrap_angle
+from ._domains import contains, decode, domain_kind, encode, labels_of, wrap_angle
 from ._hybrid import CompiledEvent, EventRecord
 from ._kernels import (
     LATTICE_BOUNDARIES,
@@ -14,7 +14,7 @@ from ._kernels import (
     Reference,
     Source,
 )
-from ._kinds import NUMERIC_DOMAINS, DomainKind, ElementKind, Form, NoiseKind, OrderKind
+from ._kinds import DomainKind, ElementKind, Form, NoiseKind, OrderKind
 from ._layouts import Entry, Layout
 from ._neighbourhoods import spaces_of
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
@@ -45,7 +45,6 @@ from ._variables import Variable, VariableKind, declarations_of, declared_variab
 __all__: list[str] = [
     'LATTICE_BOUNDARIES',
     'MODES',
-    'NUMERIC_DOMAINS',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
     'Accelerated',
@@ -98,7 +97,6 @@ __all__: list[str] = [
     'labels_of',
     'numpy_function',
     'print_expressions',
-    'sage_assumption',
     'spaces_of',
     'step_count',
     'symbol',

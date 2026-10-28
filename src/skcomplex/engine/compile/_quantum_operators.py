@@ -289,7 +289,8 @@ def operator_of(
         >>> import qutip
         >>> from sage.all__sagemath_symbolics import SR, var
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.engine.compile import LocalOperator, operator_of
+        >>> from skcomplex.engine.compile import LocalOperator
+        >>> from skcomplex.engine.compile._quantum_operators import operator_of
         >>> q = SR.symbol('q')
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
         >>> operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
