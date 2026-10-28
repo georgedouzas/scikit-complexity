@@ -45,10 +45,10 @@ from ...core.types import Vector
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, partition_system
 from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
+from ._agent_state import AgentState
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
-from ._snapshots import AgentState
-from ._stepper import Solver
+from ._solver import Solver
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
 TOLERANCE = 1e-9

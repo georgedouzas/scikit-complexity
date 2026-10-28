@@ -14,7 +14,7 @@ from ...core.types import Vector
 from ..compile.passes._rewriting import RewritingProblem
 from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
-from ._snapshots import StructureState
+from ._structure_state import StructureState
 
 
 class RewritingSolver(BaseSolver[RewritingProblem]):

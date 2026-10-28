@@ -16,7 +16,8 @@ from ..problems._base_problem import BaseProblem
 from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ..utils import BaseEstimator
-from ._hybrid import _RESTART, Bounded, EventLocator, History, Take
+from ._event_locator import EventLocator
+from ._history import _RESTART, Bounded, History, Take
 
 
 class BaseSolver[P: BaseProblem](BaseEstimator):

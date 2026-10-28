@@ -39,8 +39,9 @@ from ..problems import (
     symbol,
     symbols_of,
 )
+from ._external import ExternalSolver
+from ._lammps_fix import LammpsFix
 from ._lepton import LeptonPrinter
-from ._stepper import ExternalSolver
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
@@ -60,34 +61,6 @@ class _Atoms:
     velocities: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros((0, 0), dtype=np.intp))
     atom_types: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     n_dim: int = 0
-
-
-@dataclass(frozen=True)
-class LammpsFix:
-    """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
-
-    Args:
-        name:
-            The unique name of the fix.
-
-        group:
-            The LAMMPS group of the atoms the fix acts on.
-
-        value:
-            The function that returns the current value of a parameter of the interaction by name.
-
-        mass:
-            The function that returns the mass of the atoms of the interaction's target.
-
-        seed:
-            The function that draws a random seed.
-    """
-
-    name: str
-    group: str
-    value: Callable[[str], Vector]
-    mass: Callable[[], float]
-    seed: Callable[[], int]
 
 
 class LammpsSolver(ExternalSolver):

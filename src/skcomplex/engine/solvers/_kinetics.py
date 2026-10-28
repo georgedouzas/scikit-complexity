@@ -17,7 +17,7 @@ from ...core.types import Vector
 from ..compile._kinetic_contractions import CompiledEncounter
 from ..compile.passes._kinetics import KineticProblem
 from ..problems import Form, OrderKind, Problem, SupportSpec
-from ._stepper import Solver
+from ._solver import Solver
 
 type Counts = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]

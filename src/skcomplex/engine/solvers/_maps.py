@@ -13,7 +13,7 @@ from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSp
 from ...core.types import Vector
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._base import BaseSolver
-from ._stepper import Solver
+from ._solver import Solver
 
 
 class IterationSolver(Solver):

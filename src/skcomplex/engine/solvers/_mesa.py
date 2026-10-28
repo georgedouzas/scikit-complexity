@@ -33,8 +33,9 @@ from ..problems import (
     declarations_of,
     default_of,
 )
-from ._snapshots import AgentSnapshot, AgentState
-from ._stepper import Solver
+from ._agent_snapshot import AgentSnapshot
+from ._agent_state import AgentState
+from ._solver import Solver
 
 _DEFAULT_PHASE = 'default'
 
