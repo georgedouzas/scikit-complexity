@@ -17,7 +17,6 @@ from rerun import bindings
 
 from ...core.errors import ValidationError
 from ...core.spaces import NetworkSpace
-from ..compile import observables_of
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, RenewalRecord
 from ..runtime import BaseObserver, Frame
 from ._agents import AgentsVisual
@@ -291,12 +290,7 @@ class RerunObserver(BaseObserver):
     def _summary_views(self, problem: BaseProblem) -> list[rrb.View]:
         """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
         views: list[rrb.View] = []
-        system = problem.system
-        paths = (
-            [f'{scope}/{item.label}' if scope else item.label for scope, item in observables_of(system)]
-            if system
-            else []
-        )
+        paths = [f'{scope}/{item.label}' if scope else item.label for scope, item in problem.observables]
         problems = (problem, *(partition.problem for partition in problem.partitions))
         paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
         if paths:

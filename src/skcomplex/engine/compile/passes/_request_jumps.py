@@ -7,26 +7,27 @@ from typing import cast
 
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.specs import TopologyRequestSpec
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._topology import Topology
 
 
 class RequestJumpsPass(BasePass):
     """Pass that turns the jumps that request topology changes into jumps of no state change, noting the requests."""
 
-    reads = ('reduced',)
-    writes = ('reduced', 'request_jumps')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('reduced',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Note the requests of the jumps.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('reduced', 'request_jumps')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        compilation.reduced, compilation.facts['request_jumps'] = self._set_request_jumps_apart(
+    def _run(self, inputs: object = None) -> None:
+        """Note the requests of the jumps."""
+        compilation = self.compilation_
+        compilation.reduced, compilation.request_jumps = self._set_request_jumps_apart(
             cast('Laws', compilation.reduced),
         )
 

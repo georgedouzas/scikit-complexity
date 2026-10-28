@@ -16,27 +16,28 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ...problems import components_of
-from .._compilation import BlockLaws, Compilation
+from .._base import BasePass
+from .._compilation import BlockLaws
 from .._complex import _is_zero, _real, _split_complex
 from .._kernel_spec import KernelSpec
 from .._laws import _AGENT_LAWS
-from .._pipeline import BasePass
 from ._kernels import KernelsPass
 
 
 class LowerComplexPass(BasePass):
     """Pass that splits every law of a complex state into the laws of its real and imaginary parts."""
 
-    reads = ('collected',)
-    writes = ('lowered',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Split the collected laws of complex states.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('lowered',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Split the collected laws of complex states."""
+        compilation = self.compilation_
         compilation.lowered = [
             (
                 spec,

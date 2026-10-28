@@ -5,30 +5,25 @@
 
 from typing import cast
 
-from .._compilation import Compilation, Laws
-from .._declarations import Declarations
+from .._base import BasePass
+from .._compilation import Laws
 from .._draw_lowering import DrawLowering
-from .._pipeline import BasePass
 
 
 class DrawsPass(BasePass):
     """Pass that replaces the draws of update laws by values drawn after the parameters."""
 
-    reads = ('drawn', 'layout')
-    writes = ('drawn', 'drawing')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the draws of the laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn', 'drawing')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        declarations = cast('Declarations', compilation.layout)
-        drawing = DrawLowering(declarations.ends[False], declarations.time)
-        compilation.drawn = [
-            (spec, drawing.lower(spec.owner, spec.rows, laws, spec.references))
-            for spec, laws in cast('Laws', compilation.drawn)
-        ]
-        drawing.allocate()
+    def _run(self, inputs: object = None) -> None:
+        """Lower the draws of the laws."""
+        compilation = self.compilation_
+        drawing = DrawLowering().check().prepare(compilation)
+        compilation.drawn = drawing.run(cast('Laws', compilation.drawn))
         compilation.drawing = drawing

@@ -8,11 +8,10 @@ from typing import Any, cast
 
 from ....core.errors import IncompatibleLawsError
 from ....core.system import System
+from .._base import BasePass
 from .._census import Census
-from .._compilation import Compilation
 from .._issue import Issue
 from .._owners import _Owners
-from .._pipeline import BasePass
 from .._plan import _Plan
 from .._planned_partition import _PlannedPartition
 
@@ -20,16 +19,17 @@ from .._planned_partition import _PlannedPartition
 class PlanPass(BasePass):
     """Pass that plans the partitions of the system with the registered forms and solvers."""
 
-    reads = ('census', 'kinds')
-    writes = ('plan',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('census', 'kinds')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Plan the partitions of the system.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('plan',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Plan the partitions of the system."""
+        compilation = self.compilation_
         compilation.plan = self._plan_partitions(
             cast('Census', compilation.census),
             cast('dict[str, set[type]]', compilation.kinds),

@@ -14,25 +14,26 @@ from ...problems import (
     Source,
     vector,
 )
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._declarations import _ACTIVE, Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 class MaskRequestsPass(BasePass):
     """Pass that makes the requests of update laws vanish on the free rows of capacity layouts."""
 
-    reads = ('drawn_apart', 'layout')
-    writes = ('drawn_apart',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn_apart', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Mask the requests of the update laws set apart.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn_apart',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Mask the requests of the update laws set apart."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         compilation.drawn_apart = [
             (spec, self._masked_requests(spec, laws, declarations))

@@ -20,7 +20,7 @@ from ...core.specs import ObservableSpec
 from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
-from ..compile import ObservableEvaluator, compile_system, validate
+from ..compile import ObservableEvaluator, PassCompiler, compile_system
 from ..problems import BaseProblem, Entry, Form, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -194,7 +194,8 @@ class Simulation(BaseConfig):
                 The system cannot be compiled or run, with every problem found.
         """
         if not isinstance(self.system, BaseProblem):
-            validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+            compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
+            compiler.check().prepare(self.system).report_.check()
 
     def _prepare(self, context: None = None) -> None:
         """Compile the system, choose the solver, and gather the clock and the observers of a run."""

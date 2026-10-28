@@ -14,7 +14,7 @@ from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, 
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import KineticSolver
 from skcomplex.experiments import Experiment
@@ -186,10 +186,10 @@ def test_particles_sample_proliferation_and_destruction():
 def test_particle_solver_rejects_rate_laws_in_validation():
     """Test that validation reports a rate law with the particle solver."""
     system = _system(DecayInteraction('decay', population='wealth'))
-    report = validate(system, solver=KineticSolver())
+    report = PassCompiler(solver=KineticSolver()).check().prepare(system).report_
     issue = next(item for item in report.errors if item.code == 'solver-unsupported')
     assert 'KineticSolver does not support the laws RateLaw' in issue.message
-    assert validate(_system(), solver=KineticSolver()).ok
+    assert PassCompiler(solver=KineticSolver()).check().prepare(_system()).report_.ok
 
 
 def test_particle_solver_rejects_rate_laws_when_run():

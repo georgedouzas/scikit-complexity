@@ -14,10 +14,10 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ...backends import BaseBackend, resolve_backend
 from ...problems import Reference, Source, symbols_of
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
-from .._pipeline import BasePass
 from .._table_values import Indices, TableValues
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
@@ -28,19 +28,20 @@ type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 class CompileEncountersPass(BasePass):
     """Pass that compiles the encounter laws before reductions prune the groups they read, and takes them out."""
 
-    reads = ('drawn', 'layout')
-    writes = ('drawn', 'encounters')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Compile the encounter laws of the drawn laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn', 'encounters')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Compile the encounter laws of the drawn laws."""
+        compilation = self.compilation_
         specs = cast('Laws', compilation.drawn)
         declarations = cast('Declarations', compilation.layout)
-        compilation.facts['encounters'] = self._compiled_encounters(specs, declarations, compilation.backend)
+        compilation.encounters = self._compiled_encounters(specs, declarations, compilation.backend)
         compilation.drawn = [
             (spec, [law for law in laws if not isinstance(law, _KINETIC_LAWS)]) for spec, laws in specs
         ]

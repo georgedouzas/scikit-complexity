@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
@@ -43,7 +43,7 @@ from ...core.spaces import (
 )
 from ...core.types import Vector
 from ..backends import NumbaBackend, NumpyBackend
-from ..compile import ObservableEvaluator, partition_system
+from ..compile import ObservableEvaluator, PassCompiler
 from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
 from ._agent_state import AgentState
 from ._base import BaseSolver
@@ -176,7 +176,8 @@ class CoSimulationSolver(Solver):
                 )
                 raise SolverError(error_msg)
             backend = NumbaBackend() if problem.backend == NumbaBackend.name else NumpyBackend()
-            problem = partition_system(problem.system, backend)
+            compiler = PassCompiler(backend=backend, partition='subsystems')
+            problem = cast('Problem', compiler.check().prepare(problem.system).run())
         self.problem_, self.rng_ = problem, rng
         generators = rng.spawn(len(problem.partitions))
         given = dict(self.solvers or {})

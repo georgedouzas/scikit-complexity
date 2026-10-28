@@ -17,25 +17,26 @@ from ...problems import (
     components_of,
     symbols_of,
 )
-from .._compilation import BlockLaws, Compilation
+from .._base import BasePass
+from .._compilation import BlockLaws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 class CheckFractionalNoisePass(BasePass):
     """Pass that checks the Hurst index and amplitude of fractional noise laws, with Hurst index 1/2 as noise laws."""
 
-    reads = ('lowered', 'layout')
-    writes = ('lowered',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('lowered', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Check the fractional noise laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('lowered',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Check the fractional noise laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         compilation.lowered = [
             (spec, self._checked_fractional(spec, laws, declarations), block)

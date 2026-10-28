@@ -31,7 +31,7 @@ from sage.symbolic.assumptions import assume, forget
 from sage.symbolic.function_factory import function as formal_function
 
 from ..core.errors import AnalysisError, ConservationError
-from ..engine.compile import compile_system, compiled_problem
+from ..engine.compile import compile_system
 from ..engine.problems import BaseProblem, Form, Problem, TransferNetwork, components_of, domain_of
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
@@ -189,7 +189,7 @@ class SymbolicAnalysis(BaseAnalysis):
                 "`SymbolicAnalysis('hamiltonian')`."
             )
             raise AnalysisError(error_msg)
-        self.problem_ = compiled_problem(problem, PURPOSES[self.kind])
+        self.problem_ = self._compiled_problem(problem, PURPOSES[self.kind])
         return self
 
     def _run(self, inputs: object = None) -> Self:

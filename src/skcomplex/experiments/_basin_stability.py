@@ -11,7 +11,8 @@ from typing import Self
 import numpy as np
 
 from ..core.errors import ValidationError
-from ..engine.compile import compiled_problem
+from ..engine.compile import compile_system
+from ..engine.problems import Problem
 from ..engine.runtime import Trajectory
 from ._base import BaseExperiment, Source
 from ._experiment import Experiment
@@ -145,5 +146,8 @@ class BasinStabilityExperiment(BaseExperiment):
         """Return the label of every member of one simulation of the system replicated over the initial states."""
         values = {path: [row[path] for row in self.rows_] for path in self.bounds}
         trajectory, system = self._run_replicated(self.source, values, self.until, self.dt, self.random_state)
-        problem = compiled_problem(system, 'A vectorised basin')
+        problem = compile_system(system)
+        if not isinstance(problem, Problem):
+            error_msg = f'A vectorised basin reads the members of a general problem, not of a {type(problem).__name__}.'
+            raise ValidationError(error_msg)
         return [self.classifier(trajectory.member(index, problem)) for index in range(self.n)]

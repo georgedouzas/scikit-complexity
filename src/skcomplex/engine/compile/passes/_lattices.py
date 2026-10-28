@@ -30,6 +30,7 @@ from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
 from .._arguments import Arguments, Indices
+from .._base import BasePass
 from .._census import Census
 from .._compilation import Compilation, Laws
 from .._compiled_drive import CompiledDrive
@@ -44,54 +45,26 @@ from .._lattice_context import LatticeContext
 from .._lattice_state import LatticeState
 from .._laws import LATTICE_LAWS
 from .._lookup import Lookup, Vector
-from .._pipeline import BasePass
 
 _COLORING_STRATEGY = 'largest_first'
 
 type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
-def _schedule_of(law: object) -> str | None:
-    """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
-    if isinstance(law, LocalRuleLaw):
-        return law.schedule
-    if isinstance(law, SampleLaw):
-        return (law.sampler or SamplerSpec()).schedule
-    return None
-
-
-def _schedule_issues(compilation: Compilation) -> list[Issue]:
-    """Return the lattice laws whose checkerboard schedule needs a square lattice that their space is not."""
-    records = cast('Census', compilation.census).records
-    issues = []
-    for record in records:
-        square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'
-        if not square and _schedule_of(record.law) == 'checkerboard':
-            message = (
-                f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs a '
-                f'square lattice, but the component lives on {record.space!r}.'
-            )
-            fix = (
-                "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
-                "'random-sequential' or the 'colored' schedule of a sampler."
-            )
-            issues.append(Issue('schedule-unsupported', record.path, message, fix))
-    return issues
-
-
 class LatticeProblemPass(BasePass):
     """Pass that adds the steps of local rules, drives, relaxations, extremal updates, and Monte Carlo sampling."""
 
-    reads = ('problem', 'reduced', 'layout')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'reduced', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the lattice steps to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the lattice steps to the problem."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         members = Declarations._member_count(list(declarations.blocks.values()))
         fused = resolve_backend(compilation.backend, members).name == 'numba'
@@ -99,6 +72,41 @@ class LatticeProblemPass(BasePass):
             cast('Problem', compilation.problem),
             lattice=self._compile_lattice(cast('Laws', compilation.reduced), declarations, fused),
         )
+
+    @staticmethod
+    def _lattice_state(context: LatticeContext, item: Expression, law: str) -> LatticeState:
+        """Return the lattice state of a target symbol, or raise an error naming the law."""
+        if item not in context.states:
+            error_msg = f'{law} of {context.owner} targets {item}, which is not a state of a lattice group.'
+            raise ValidationError(error_msg)
+        return context.states[item]
+
+    @staticmethod
+    def _keywords(context: LatticeContext, function: Callable[..., object]) -> Arguments:
+        """Return the parameters a function accepts by keyword."""
+        by_name = {
+            name: (is_state, start, size) for name, is_state, start, size in context.arguments.values() if not is_state
+        }
+        names = LatticeProblemPass._accepted(function, list(by_name))
+        return Arguments(
+            names,
+            tuple(by_name[name][0] for name in names),
+            tuple(by_name[name][1] for name in names),
+            tuple(by_name[name][2] for name in names),
+        )
+
+    @staticmethod
+    def _accepted(function: Callable[..., object], names: Sequence[str]) -> tuple[str, ...]:
+        """Return the keyword names a function accepts among some names."""
+        try:
+            signature = inspect.signature(function)
+        except (TypeError, ValueError):
+            return tuple(names)
+        parameters = signature.parameters.values()
+        if any(item.kind == inspect.Parameter.VAR_KEYWORD for item in parameters):
+            return tuple(names)
+        keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
+        return tuple(name for name in names if name in keywords)
 
     @staticmethod
     def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) -> LatticeContext:
@@ -446,9 +454,9 @@ class LatticeProblemPass(BasePass):
         """
         return CompiledDrive(
             context.owner,
-            context.state(law._get_targets()[0], 'A drive'),
+            LatticeProblemPass._lattice_state(context, law._get_targets()[0], 'A drive'),
             law.function,
-            context.keywords(law.function),
+            LatticeProblemPass._keywords(context, law.function),
         )
 
     @staticmethod
@@ -467,8 +475,13 @@ class LatticeProblemPass(BasePass):
                 The compiled rule.
         """
         owner = f'The local rule of {context.owner}'
-        targets = tuple(context.state(item, 'A local rule') for item in law._get_targets())
-        reads = tuple(context.state(item, 'A local rule') for item in (law.reads or law._get_targets()))
+        targets = tuple(
+            LatticeProblemPass._lattice_state(context, item, 'A local rule') for item in law._get_targets()
+        )
+        reads = tuple(
+            LatticeProblemPass._lattice_state(context, item, 'A local rule')
+            for item in (law.reads or law._get_targets())
+        )
         spaces = {id(state.space) for state in (*targets, *reads)}
         if len(spaces) > 1:
             error_msg = f'{owner} reads and updates states of different lattices.'
@@ -492,7 +505,7 @@ class LatticeProblemPass(BasePass):
                 'code with a table() method.'
             )
             raise ValidationError(error_msg)
-        reads_degree = lookup is None and 'degree' in LatticeContext._accepted(law.rule, ['degree'])  # type: ignore[arg-type]
+        reads_degree = lookup is None and 'degree' in LatticeProblemPass._accepted(law.rule, ['degree'])  # type: ignore[arg-type]
         return CompiledRule(
             context.owner,
             targets,
@@ -502,7 +515,7 @@ class LatticeProblemPass(BasePass):
             lookup,
             law.schedule,
             law.stochastic,
-            context.keywords(law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
+            LatticeProblemPass._keywords(context, law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
             context.fused and lookup is not None and law.schedule == 'synchronous',
             LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
             LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
@@ -540,7 +553,7 @@ class LatticeProblemPass(BasePass):
             law.label or context.owner,
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
-            tuple(context.state(item, 'A relaxation') for item in law._get_targets()),
+            tuple(LatticeProblemPass._lattice_state(context, item, 'A relaxation') for item in law._get_targets()),
             law.stable,
             int(law.max_iterations),
             law.activity,
@@ -566,15 +579,17 @@ class LatticeProblemPass(BasePass):
                 The targets and the key are not states of one lattice, or the neighbourhood does not fit it.
         """
         owner = f'The extremal law of {context.owner}'
-        targets = tuple(context.state(item, 'An extremal law') for item in law._get_targets())
-        key = context.state(law._get_key(), 'An extremal law')
+        targets = tuple(
+            LatticeProblemPass._lattice_state(context, item, 'An extremal law') for item in law._get_targets()
+        )
+        key = LatticeProblemPass._lattice_state(context, law._get_key(), 'An extremal law')
         if len({id(state.space) for state in (*targets, key)}) > 1:
             error_msg = f'{owner} reads and updates states of different lattices.'
             raise ValidationError(error_msg)
         members, counts = LatticeProblemPass._extremal_members(
             LatticeProblemPass._index_table(key.space, law.over, owner),
         )
-        arguments = context.keywords(law.rule)
+        arguments = LatticeProblemPass._keywords(context, law.rule)
         maximum = law.extremum == 'max'
         loop = LatticeProblemPass._extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
         return CompiledExtremal(
@@ -618,7 +633,7 @@ class LatticeProblemPass(BasePass):
                 The compiled sampling.
         """
         owner = f'The Monte Carlo laws of {context.owner}'
-        target = context.state(move.target, 'A move')
+        target = LatticeProblemPass._lattice_state(context, move.target, 'A move')
         if sampler.kind == 'heat-bath' and move.kind == 'rotate':
             error_msg = (
                 f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
@@ -672,3 +687,31 @@ class LatticeProblemPass(BasePass):
             classes,
             masked,
         )
+
+    @staticmethod
+    def _schedule_of(law: object) -> str | None:
+        """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
+        if isinstance(law, LocalRuleLaw):
+            return law.schedule
+        if isinstance(law, SampleLaw):
+            return (law.sampler or SamplerSpec()).schedule
+        return None
+
+    @staticmethod
+    def _schedule_issues(compilation: Compilation) -> list[Issue]:
+        """Return the lattice laws whose checkerboard schedule needs a square lattice that their space is not."""
+        records = cast('Census', compilation.census).records
+        issues = []
+        for record in records:
+            square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'
+            if not square and LatticeProblemPass._schedule_of(record.law) == 'checkerboard':
+                message = (
+                    f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs a '
+                    f'square lattice, but the component lives on {record.space!r}.'
+                )
+                fix = (
+                    "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
+                    "'random-sequential' or the 'colored' schedule of a sampler."
+                )
+                issues.append(Issue('schedule-unsupported', record.path, message, fix))
+        return issues

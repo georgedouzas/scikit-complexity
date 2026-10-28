@@ -11,8 +11,7 @@ from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
 from ...problems import VariableKind, declarations_of
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 from .._probe import probe_laws
 from .._tree import Node
 
@@ -27,16 +26,17 @@ class AgentsPass(BasePass):
     hyperedges of a space are never passive agents.
     """
 
-    reads = ('nodes',)
-    writes = ('nodes',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('nodes',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Mark the agent nodes.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('nodes',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Mark the agent nodes."""
+        compilation = self.compilation_
         nodes = cast('list[Node]', compilation.nodes)
         agents = self._agent_paths(nodes)
         compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]

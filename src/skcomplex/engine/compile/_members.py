@@ -3,49 +3,99 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass, field
+from collections import defaultdict
+from typing import Self, cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.errors import ValidationError
+from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
-from ._pipeline import BasePass
+from ._base import BaseLowering, BasePass
+from ._declarations import Declarations
+from ._kernel_spec import KernelSpec
 
 _SHIFT = 'shift_member'
 
 
-@dataclass
-class MemberShifts:
-    """Member offset reads of the laws of one component, with the symbols that read the offset members.
+class MemberLowering(BaseLowering):
+    """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
+
+    `prepare(compilation)` reads the time of the compilation, and `run(laws)` returns the laws with every member offset
+    read replaced by a symbol that reads the offset member, whose reference it adds to the spec.
 
     Args:
-        owner:
-            The path of the component.
+        spec:
+            The kernel spec of the component, whose references receive the offset reads.
 
-        references:
-            The references of the component's symbols, extended with the offset reads.
-
-        time:
+    Attributes:
+        time_:
             The time symbol.
+
+        shifted_:
+            The member symbol, offset, boundary, and fill that every offset read reads.
     """
 
-    owner: str
-    references: dict[Expression, Reference]
-    time: Expression
-    shifted: dict[Expression, tuple[Expression, int, str, float]] = field(default_factory=dict)
+    time_: Expression
+    shifted_: dict[Expression, tuple[Expression, int, str, float]]
+
+    def __init__(self, spec: KernelSpec) -> None:
+        self.spec = spec
+
+    def _prepare(self, context: object) -> Self:
+        """Read the time of the compilation and start with no offset reads.
+
+        Args:
+            context:
+                The compilation.
+
+        Returns:
+            self:
+                The prepared lowering.
+        """
+        super()._prepare(context)
+        self.time_ = cast('Declarations', self.compilation_.layout).time
+        self.shifted_ = {}
+        return self
+
+    def _run(self, inputs: object) -> list[BaseLaw]:
+        """Return laws whose member offset reads are lowered to neighbour reads of the group's index table.
+
+        A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
+
+        Args:
+            inputs:
+                The laws of the component.
+
+        Returns:
+            laws:
+                The lowered laws.
+        """
+        result: list[BaseLaw] = []
+        for law in cast('list[BaseLaw]', inputs):
+            if isinstance(law, JumpLaw):
+                changes: dict[Expression, float] = defaultdict(float)
+                for target, increment in law.changes.items():
+                    changes[SR(self._lower(target)) if isinstance(target, Expression) else target] += increment
+                result.append(JumpLaw(self._lower(law.rate), dict(changes)))
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+                result.append(BasePass._replaced(law, value=self._lower(law.value)))
+            else:
+                result.append(law)
+        return result
 
     def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
         """Return the member symbol a symbol reads, with the offset, boundary, and fill it is already read at."""
-        if item in self.shifted:
-            return self.shifted[item]
-        reference = self.references.get(item)
+        if item in self.shifted_:
+            return self.shifted_[item]
+        reference = self.spec.references.get(item)
         if reference is None or reference.source is not Source.MEMBER:
             name = reference.entry.name if reference is not None else str(item)
             error_msg = (
-                f'A law of {self.owner} reads {name} at a member offset, but shift_member reads only states and '
+                f'A law of {self.spec.owner} reads {name} at a member offset, but shift_member reads only states and '
                 'parameters of group members, bound through a role.'
             )
             raise ValidationError(error_msg)
@@ -56,23 +106,23 @@ class MemberShifts:
         if not offset:
             return base
         key = (base, offset, boundary, fill)
-        for item, value in self.shifted.items():
+        for item, value in self.shifted_.items():
             if value == key:
                 return item
-        reference = self.references[base]
-        target = symbol(f'{base}__shift{len(self.shifted)}', domain_of(base))
+        reference = self.spec.references[base]
+        target = symbol(f'{base}__shift{len(self.shifted_)}', domain_of(base))
         read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
-        self.references[target] = Reference(
+        self.spec.references[target] = Reference(
             reference.entry,
             reference.is_state,
             reference.column,
             Source.NEIGHBOR,
             read,
         )
-        self.shifted[target] = key
+        self.shifted_[target] = key
         return target
 
-    def shift(self, expression: Expression, offset: int, boundary: str, fill: float) -> Expression:
+    def _shift(self, expression: Expression, offset: int, boundary: str, fill: float) -> Expression:
         """Return an expression read at the member an offset along the group order of every member.
 
         Args:
@@ -97,11 +147,11 @@ class MemberShifts:
                 The expression reads a single element, two groups, or nests reads with different boundaries.
         """
         expression = SR(expression)
-        members = {item: self._member(item) for item in expression.variables() if item != self.time}
-        groups = {self.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
+        members = {item: self._member(item) for item in expression.variables() if item != self.time_}
+        groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (
-                f'A law of {self.owner} reads the groups {", ".join(sorted(groups))} at one member offset. '
+                f'A law of {self.spec.owner} reads the groups {", ".join(sorted(groups))} at one member offset. '
                 'shift_member reads the members of one group.'
             )
             raise ValidationError(error_msg)
@@ -109,14 +159,14 @@ class MemberShifts:
         for item, (base, current, inner, inner_fill) in members.items():
             if inner is not None and (inner, inner_fill) != (boundary, fill):
                 error_msg = (
-                    f'A law of {self.owner} nests member offsets with the boundaries {inner!r} and {boundary!r}. '
+                    f'A law of {self.spec.owner} nests member offsets with the boundaries {inner!r} and {boundary!r}. '
                     'Nested offsets add and take one boundary.'
                 )
                 raise ValidationError(error_msg)
             replacements[item] = self._read(base, current + offset, boundary, fill)
         return expression.subs(replacements)
 
-    def lower(self, value: object) -> object:
+    def _lower(self, value: object) -> object:
         """Return a law value with every member offset read replaced by symbols that read the offset members.
 
         Args:
@@ -128,14 +178,14 @@ class MemberShifts:
                 The value with neighbour reads.
         """
         if isinstance(value, FreeModuleElement):
-            return vector(self.lower(item) for item in value)
+            return vector(self._lower(item) for item in value)
         if not isinstance(value, Expression) or not BasePass._calls_of(value, _SHIFT):
             return value
         operator = value.operator()
         if getattr(operator, 'name', lambda: '')() != _SHIFT:
-            return operator(*(self.lower(item) for item in value.operands()))
+            return operator(*(self._lower(item) for item in value.operands()))
         expression, offset, boundary, fill = self._shift_arguments(value)
-        return self.shift(SR(self.lower(expression)), offset, boundary, fill)
+        return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
     def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
@@ -161,9 +211,9 @@ class MemberShifts:
 
         Examples:
             >>> from skcomplex.engine.problems import symbol
-            >>> from skcomplex.engine.compile._members import MemberShifts
+            >>> from skcomplex.engine.compile._members import MemberLowering
             >>> from skcomplex.core.laws.utils import shift_member
-            >>> MemberShifts._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
+            >>> MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
             (x, -2, 'fixed', 1.0)
         """
         expression, offset, boundary, fill = call.operands()

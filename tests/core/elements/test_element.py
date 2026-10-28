@@ -15,7 +15,7 @@ from skcomplex.core.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 
 
@@ -233,7 +233,9 @@ def test_element_clones_and_pickles_with_its_values():
 
 def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
     """Test that validating a system reports a nested element whose label is not a string."""
-    (issue,) = validate(System(systems=[System('meadow', elements=[TallyElement(1)])])).errors
+    system = System(systems=[System('meadow', elements=[TallyElement(1)])])
+    report = PassCompiler().check().prepare(system).report_
+    (issue,) = report.errors
     assert issue.code == 'label'
     assert issue.message.startswith('Label 1 in meadow/ is not valid')
 

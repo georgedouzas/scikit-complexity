@@ -20,8 +20,8 @@ from ..core.base import BaseConfig
 from ..core.errors import AnalysisError, ValidationError
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
-from ..engine.compile import compile_system, observables_of
-from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, domain_kind
+from ..engine.compile import compile_system
+from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, Problem, domain_kind
 from ..engine.runtime import Trajectory
 from ._kinds import DataKind
 
@@ -273,6 +273,34 @@ class BaseAnalysis(BaseConfig, ABC):
         return source
 
     @staticmethod
+    def _compiled_problem(system: System | BaseProblem, purpose: str) -> Problem:
+        """Return the general compiler's problem of a system, or the problem itself, for work that reads its fields.
+
+        Args:
+            system:
+                A system, or a problem compiled from one.
+
+            purpose:
+                What needs the general compiler's problem, such as `'Linear stability'`, for the error message.
+
+        Returns:
+            problem:
+                The problem of the general compiler.
+
+        Raises:
+            ValidationError:
+                A compiler of whole systems compiles the system to a problem of its own, which the work cannot read.
+        """
+        problem = system if isinstance(system, BaseProblem) else compile_system(system)
+        if isinstance(problem, Problem):
+            return problem
+        error_msg = (
+            f'{purpose} reads the problem of the general compiler, but the system compiles to a '
+            f'{type(problem).__name__} of the {problem.form.value} form.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
     def _get_lattice_names(problem: BaseProblem) -> list[str]:
         """Return the states of a problem that live on lattices or grids."""
         return [name for name in problem.states.names if problem.lattice_shape(name) is not None]
@@ -336,8 +364,7 @@ class BaseAnalysis(BaseConfig, ABC):
         """Check whether a source records scalar series: observables, reporters, or scalar states."""
         if isinstance(source, Trajectory):
             return bool(BaseAnalysis._get_scalar_series(source))
-        system = problem.system
-        if system is not None and any(True for _ in observables_of(system)):
+        if problem.observables:
             return True
         lattice = set(BaseAnalysis._get_lattice_names(problem))
         return any(

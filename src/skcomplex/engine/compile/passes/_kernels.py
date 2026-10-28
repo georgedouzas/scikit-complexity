@@ -18,12 +18,12 @@ from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, Upda
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
 from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
+from .._base import BasePass
 from .._census_record import ProcessKey
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
-from .._pipeline import BasePass
 from ._noise import NoisePass
 
 _ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
@@ -32,16 +32,17 @@ _ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
 class KernelsPass(BasePass):
     """Pass that lowers the reduced laws into the kernels of every law kind."""
 
-    reads = ('reduced', 'layout', 'outputs')
-    writes = ('kernels',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('reduced', 'layout', 'outputs')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the reduced laws into kernels.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('kernels',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the reduced laws into kernels."""
+        compilation = self.compilation_
         compilation.kernels = self._lower_laws(
             cast('Laws', compilation.reduced),
             cast('Declarations', compilation.layout),

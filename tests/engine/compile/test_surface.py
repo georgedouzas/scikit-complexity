@@ -1,34 +1,30 @@
-"""Test that the public names of the compile package are its classes, bases, and pipeline functions."""
+"""Test that the public names of the compile package are its bases, its compilers, its values, and `compile_system`."""
 
 import inspect
 
 from skcomplex.engine import compile as package
 
-FUNCTIONS = {
-    'claiming_compiler',
-    'compile_system',
-    'compiled_problem',
-    'distribution_from',
-    'members_from',
-    'observables_of',
-    'order_passes',
-    'partition_system',
-    'run_passes',
-    'validate',
-}
+FUNCTIONS = {'compile_system', 'distribution_from', 'members_from'}
 
 
-def test_public_names_are_classes_or_pipeline_functions():
-    """Every public name is a class or one of the pipeline functions."""
+def test_public_names_are_classes_or_compile_system():
+    """Every public name is a class, or `compile_system`."""
     for name in package.__all__:
         assert inspect.isclass(getattr(package, name)) or name in FUNCTIONS, name
 
 
-def test_pipeline_functions_are_public():
-    """Every pipeline function is public and callable."""
-    for name in FUNCTIONS:
+def test_compilers_are_public():
+    """The bases and the compilers are public, and every compiler derives from the compiler base."""
+    for name in ('BaseCompiler', 'BasePass', 'BaseLowering', 'PassCompiler', 'QuantumCompiler', 'RewritingCompiler'):
         assert name in package.__all__
-        assert callable(getattr(package, name))
+    for compiler in (package.PassCompiler, package.QuantumCompiler, package.RewritingCompiler):
+        assert issubclass(compiler, package.BaseCompiler)
+
+
+def test_removed_functions_are_not_public():
+    """The functions that became methods of the compiler are not public."""
+    removed = {'validate', 'claiming_compiler', 'compiled_problem', 'observables_of', 'order_passes', 'run_passes'}
+    assert not (removed | {'partition_system'}) & set(package.__all__)
 
 
 def test_helpers_of_one_pass_are_not_public():

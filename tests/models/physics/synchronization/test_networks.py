@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 from skcomplex.models.physics.synchronization import coupled_map_lattices_on_networks, kuramoto_on_networks
 
 from ..conftest import _run_observed
@@ -25,7 +25,7 @@ def test_kuramoto_on_networks_builds_its_network(network):
     system = kuramoto_on_networks(40, network=network, degree=4)
     space = system.elements[0].space
     assert system.elements[1].check().prepare().size_ == space.graph.number_of_edges()
-    assert validate(system).ok
+    assert PassCompiler().check().prepare(system).report_.ok
 
 
 def test_kuramoto_on_networks_rejects_an_unknown_network():
