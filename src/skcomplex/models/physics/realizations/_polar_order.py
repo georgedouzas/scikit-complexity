@@ -37,7 +37,4 @@ class PolarOrderAnalysis(AlignmentAnalysis):
         group: str | None = None,
         vectors: bool = False,
     ) -> None:
-        self.kind = 'mean-vector'
-        self.variables = variables
-        self.group = group
-        self.vectors = vectors
+        super().__init__('mean-vector', variables, group=group, vectors=vectors)

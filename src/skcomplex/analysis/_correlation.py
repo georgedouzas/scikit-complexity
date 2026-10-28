@@ -1,4 +1,4 @@
-"""Measure correlations: autocorrelations of series, two-time correlations of ensembles, and spatial correlations."""
+"""Measure correlations: autocorrelations of series, two-time correlations, spatial correlations, and overlaps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,16 +16,18 @@ from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
-KINDS = ('auto', 'two-time', 'function', 'length')
+KINDS = ('auto', 'two-time', 'function', 'length', 'overlap')
 METHODS = ('moment', 'fit')
 SETTINGS = {
     'auto': {'max_lag', 'dt'},
     'two-time': {'waiting', 'lags', 'connected'},
     'function': {'max_distance'},
     'length': {'method', 'spacing', 'frames'},
+    'overlap': set(),
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 MOMENT_ITERATIONS = 8
+REPLICAS = 2
 
 
 class CorrelationAnalysis(BaseAnalysis):
@@ -41,8 +43,11 @@ class CorrelationAnalysis(BaseAnalysis):
     - `'length'`: the correlation length of a field. The `'moment'` method fits the Ornstein-Zernike form
       `1 / S(q) ∝ 1 + xi² Σ 4 sin²(q_i / 2)` over the modes with `q̂² xi² <= 1`, and the `'fit'` method fits
       `C(r) ~ r^-a exp(-r / xi)`. Several frames are taken as fluctuations about their common mean.
+    - `'overlap'`: the overlap `q = <s_i t_i>` of two configurations `s` and `t` of the same sites, ±1 for identical or
+      reversed configurations of ±1 values and near 0 for independent ones, per frame for frames. It reads a pair of
+      trajectories, whose fields it compares at every frame, or two arrays stacked on the first axis.
 
-    A field kind reads the last frame of a trajectory, or every frame when `frames` is true.
+    The kinds `'function'` and `'length'` read the last frame of a trajectory, or every frame when `frames` is true.
 
     Args:
         kind:
@@ -80,10 +85,10 @@ class CorrelationAnalysis(BaseAnalysis):
 
     Attributes:
         values_:
-            The series, one per column, the ensemble, or the field.
+            The series, one per column, the ensemble, the field, or the two configurations.
 
         labels_:
-            The label of every series, or of the ensemble or field.
+            The label of every series, of the ensemble or field, or of the two configurations.
 
         lags_:
             The lags in time of `'auto'`.
@@ -101,6 +106,9 @@ class CorrelationAnalysis(BaseAnalysis):
         length_:
             The correlation length, for `'length'`.
 
+        overlap_:
+            The overlap of the two configurations, one per frame for frames.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import CorrelationAnalysis
@@ -110,6 +118,8 @@ class CorrelationAnalysis(BaseAnalysis):
         >>> two_time = CorrelationAnalysis('two-time', waiting=[2], lags=[0, 3])
         >>> two_time.check().prepare(np.ones((4, 10))).run().correlation_.tolist()
         [[1.0, 1.0]]
+        >>> CorrelationAnalysis('overlap').check().prepare([[1, -1, 1, 1], [1, -1, -1, 1]]).run().overlap_
+        0.5
     """
 
     def __init__(
@@ -160,6 +170,19 @@ class CorrelationAnalysis(BaseAnalysis):
             return DataKind.ENSEMBLE
         return DataKind.FIELD
 
+    def _prepare_replicas(self, source: Source, name: str | None) -> Self:
+        """Read the fields of two trajectories, or two configurations stacked on the first axis of an array."""
+        if isinstance(source, Trajectory) or len(source) != REPLICAS:  # type: ignore[arg-type]
+            count = 1 if isinstance(source, Trajectory) else len(source)  # type: ignore[arg-type]
+            error_msg = (
+                f'An overlap reads {REPLICAS} replicas, a pair of trajectories or two arrays stacked on the first '
+                f'axis, but the source has {count}. Give two replicas.'
+            )
+            raise AnalysisError(error_msg)
+        self.values_ = np.stack([self._read_fields(replica, name) for replica in source])  # type: ignore[union-attr]
+        self.labels_ = ['first', 'second']
+        return self
+
     def _prepare(self, source: Source) -> Self:
         """Read the series as columns, the ensemble as an array, or the frames of a field."""
         if self.kind == 'auto':
@@ -172,6 +195,8 @@ class CorrelationAnalysis(BaseAnalysis):
             self.values_ = np.asarray(source, dtype=float)
             self.labels_ = [name or 'ensemble']
             return self
+        if self.kind == 'overlap':
+            return self._prepare_replicas(source, name)
         field = self._read_fields(source, name)
         if isinstance(source, Trajectory) and not self.frames:
             field = field[-1]
@@ -194,9 +219,14 @@ class CorrelationAnalysis(BaseAnalysis):
             )
         elif self.kind == 'function':
             self.distances_, self.correlation_ = self._correlation_function(self.values_, self.max_distance)
-        else:
+        elif self.kind == 'length':
             grids = self.values_ if self.frames else self.values_[None]
             self.length_ = self._correlation_length(grids, self.method, self.spacing)
+        else:
+            product = self.values_[0] * self.values_[1]
+            self.overlap_ = (
+                float(product.mean()) if product.ndim == 1 else product.reshape(product.shape[0], -1).mean(axis=1)
+            )
         return self
 
     @staticmethod

@@ -24,14 +24,14 @@ def _names(analyses: list) -> set[tuple[str, str | None]]:
 
 
 def test_discovery_of_a_lattice_model():
-    """Test that an Ising system lists the structure factor, correlation length, clusters, and Binder cumulant."""
+    """Test that an Ising system lists the structure factor, correlation length, clusters, and variance-mean law."""
     discovery = _discover(create('ising', size=16))
     assert discovery.kinds_ == ['field']
     assert {
         ('SpectrumAnalysis', 'structure-factor'),
         ('CorrelationAnalysis', 'length'),
         ('ClusterAnalysis', 'sizes'),
-        ('BinderAnalysis', 'cumulant'),
+        ('ScalingAnalysis', 'variance-mean'),
     } <= _names(discovery.analyses_['field'])
     assert 'agents' not in discovery.analyses_
     assert discovery.readings_['field'] == 'a grid of values, or frames of grids'

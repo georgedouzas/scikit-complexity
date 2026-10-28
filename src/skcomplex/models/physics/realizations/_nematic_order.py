@@ -29,7 +29,4 @@ class NematicOrderAnalysis(AlignmentAnalysis):
     """
 
     def __init__(self, variables: Sequence[str] | None = None, *, group: str | None = None) -> None:
-        self.kind = 'axial'
-        self.variables = variables
-        self.group = group
-        self.vectors = False
+        super().__init__('axial', variables, group=group)

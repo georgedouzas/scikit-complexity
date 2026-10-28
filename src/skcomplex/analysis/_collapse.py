@@ -1,4 +1,4 @@
-"""Measure collapses of curves: finite-size scaling, aging on the ratio of times, and distributions scaled by age."""
+"""Measure collapses of curves: finite-size scaling, aging, distributions scaled by age, and crossings of curves."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,12 +16,13 @@ from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
-KINDS = ('scaling', 'aging', 'distribution')
+KINDS = ('scaling', 'aging', 'distribution', 'crossings')
 FITTED = ('critical', 'nu', 'exponent')
 SETTINGS = {
     'scaling': {'parameters', 'critical', 'nu', 'exponent', 'fit'},
     'aging': {'waiting', 'lags'},
     'distribution': {'ratios'},
+    'crossings': {'parameters'},
 }
 """Settings every kind reads, besides `kind`."""
 MIN_SIZES = 2
@@ -40,13 +41,15 @@ class CollapseAnalysis(BaseAnalysis):
       `tau / t_w`, from one curve per waiting time, as the two-time correlation of `CorrelationAnalysis` gives them.
     - `'distribution'`: the densities `t P(tau, t)` of samples of `tau` at several ages `t` against `tau / t`, which
       collapse under aging.
+    - `'crossings'`: where the curves of consecutive sizes cross against the control `parameters`, by linear
+      interpolation of their difference, such as the Binder cumulants of several lattice sizes at the critical point.
 
     Args:
         kind:
             The collapse to compute, one of the kinds above.
 
         parameters:
-            The control parameter values, shared by every curve of `'scaling'`.
+            The control parameter values, shared by every curve of `'scaling'` and `'crossings'`.
 
         critical:
             The critical value, or the starting value of a fit.
@@ -104,6 +107,9 @@ class CollapseAnalysis(BaseAnalysis):
         spread_:
             The largest relative difference between the rows where every row is positive.
 
+        crossings_:
+            The first crossing of the curves of every pair of consecutive sizes, `nan` where they do not cross.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import CollapseAnalysis
@@ -117,6 +123,9 @@ class CollapseAnalysis(BaseAnalysis):
         >>> aging = CollapseAnalysis('aging', waiting=[10, 100], lags=lags).check().prepare(curves).run()
         >>> round(aging.ratio_spread_, 2), aging.time_spread_ > 0.5
         (0.0, True)
+        >>> curves = {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}
+        >>> CollapseAnalysis('crossings', parameters=[1.0, 2.0, 3.0]).check().prepare(curves).run().crossings_.tolist()
+        [2.0]
     """
 
     def __init__(
@@ -151,6 +160,9 @@ class CollapseAnalysis(BaseAnalysis):
         if self.kind == 'scaling' and (self.parameters is None or self.critical is None or self.nu is None):
             error_msg = f'{type(self).__name__} of kind scaling needs parameters, critical, and nu. Give all three.'
             raise AnalysisError(error_msg)
+        if self.kind == 'crossings' and self.parameters is None:
+            error_msg = f'{type(self).__name__} of kind crossings needs the control parameter values. Set `parameters`.'
+            raise AnalysisError(error_msg)
         if self.kind == 'aging' and (self.waiting is None or self.lags is None):
             error_msg = f'{type(self).__name__} of kind aging needs waiting times and lags. Give both.'
             raise AnalysisError(error_msg)
@@ -172,10 +184,12 @@ class CollapseAnalysis(BaseAnalysis):
 
     def _run(self) -> Self:
         """Compute the collapse of the kind."""
+        if self.kind in {'scaling', 'crossings'} and len(self.values_) < MIN_SIZES:
+            error_msg = (
+                f'{type(self).__name__} needs at least {MIN_SIZES} sizes, not {len(self.values_)}. Give more sizes.'
+            )
+            raise AnalysisError(error_msg)
         if self.kind == 'scaling':
-            if len(self.values_) < MIN_SIZES:
-                error_msg = f'A collapse needs at least {MIN_SIZES} sizes, not {len(self.values_)}. Give more sizes.'
-                raise AnalysisError(error_msg)
             start = {'critical': self.critical, 'nu': self.nu, 'exponent': self.exponent}
             grid = np.asarray(self.parameters, dtype=float)
             values, self.quality_ = self._scaling_collapse(grid, self.values_, start, self.fit)
@@ -187,6 +201,10 @@ class CollapseAnalysis(BaseAnalysis):
             self.ratio_spread_ = self._spread(
                 [(grid / start, row) for start, row in zip(self.waiting, curves, strict=True)],
             )
+        elif self.kind == 'crossings':
+            values = self.values_
+            curves = [values[size] for size in sorted(values)] if isinstance(values, dict) else values
+            self.crossings_ = self._crossings(np.asarray(self.parameters, dtype=float), np.asarray(curves, dtype=float))
         else:
             edges = np.geomspace(0.01, 10, 21) if self.ratios is None else np.asarray(self.ratios, dtype=float)
             self.densities_, self.spread_ = self._scaled_densities(self.values_, edges)
@@ -269,3 +287,19 @@ class CollapseAnalysis(BaseAnalysis):
             kept = densities[:, positive]
             spread = float(np.max((kept.max(axis=0) - kept.min(axis=0)) / kept.mean(axis=0)))
         return densities, spread
+
+    @staticmethod
+    def _crossings(grid: Array, curves: Array) -> Array:
+        """Return the first crossing of every pair of consecutive curves, one per row, `nan` without one."""
+        crossings = []
+        for small, large in itertools.pairwise(curves):
+            difference = large - small
+            changes = np.flatnonzero(np.sign(difference[:-1]) * np.sign(difference[1:]) <= 0)
+            if not changes.size:
+                crossings.append(np.nan)
+                continue
+            index = int(changes[0])
+            left, right = difference[index], difference[index + 1]
+            share = left / (left - right) if left != right else 0.0
+            crossings.append(grid[index] + share * (grid[index + 1] - grid[index]))
+        return np.asarray(crossings, dtype=float)
