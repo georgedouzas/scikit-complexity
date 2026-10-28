@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).check().run(until=20)
 # there.
 
 alive = simulation.trajectory_.values('cells.alive')
-quotient = CayleySpace(lamplighter(), quotient=3).prepare()
+quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).check().prepare()
 parity = LinearAutomaton(quotient, MemoryNeighborhood(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
 invertible = AutomatonAnalysis('injective').check().prepare(parity).run().injective_
 fig, ax = plt.subplots(figsize=(6, 4))

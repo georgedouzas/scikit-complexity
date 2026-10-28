@@ -128,7 +128,7 @@ class MarkovPass(BasePass):
         for column in range(len(matrix[0])):
             weight = SR(matrix[-1][column])
             for row in range(len(matrix) - 2, -1, -1):
-                weight = where(selector == row, matrix[row][column], weight)
+                weight = where(selector == row, SR(matrix[row][column]), weight)
             weights.append(weight)
         return weights
 

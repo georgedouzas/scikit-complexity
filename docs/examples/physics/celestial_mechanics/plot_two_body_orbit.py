@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -21,7 +22,7 @@ MODEL = 'two_body_orbit'
 
 system = create(MODEL, eccentricity=0.6, mass=1000.0, radius=10.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, solver='rk4', observers=[observer]).check().run(until=24.8)
+simulation = Simulation(system, dt=0.05, solver=RK4Solver(), observers=[observer]).check().run(until=24.8)
 
 # %%
 # Kepler's first and second laws

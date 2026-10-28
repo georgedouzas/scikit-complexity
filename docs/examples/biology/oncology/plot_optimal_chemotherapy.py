@@ -41,7 +41,7 @@ simulation = Simulation(
 
 untreated = (
 
-        Simulation(System(components=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
+        Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
         .check()
         .run(until=30)
         .trajectory_

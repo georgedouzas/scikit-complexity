@@ -38,7 +38,7 @@ channels = np.stack([trajectory.values(f'gas.n{direction}').astype(float) for di
 angles = np.arange(6) * np.pi / 3
 totals = channels.sum(axis=2)
 momentum = np.stack([np.cos(angles) @ totals, np.sin(angles) @ totals])
-positions = LatticeSpace((64, 64), geometry='triangular').prepare().positions_
+positions = LatticeSpace((64, 64), geometry='triangular').check().prepare().positions_
 disc = np.linalg.norm(positions - positions.mean(axis=0), axis=1) < 64 / 6
 density = trajectory.values('gas.density')
 

@@ -20,6 +20,7 @@ from skcomplex.engine.compile import QuantumCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe, run
+from skcomplex.models.physics.statistical_mechanics import total_magnetization
 
 MODEL = 'quantum_heisenberg'
 
@@ -47,13 +48,8 @@ simulation = Simulation(
 magnon = run(MODEL, delta=0.0, settings={'until': 4.0, 'dt': 0.05}).trajectory_
 
 
-def magnetization(s):
-    """Return the total magnetisation of the chain."""
-    return sum((member.z for member in s.chain), start=0 * s.chain[0].z)
-
-
 sizes = np.arange(4, 15, 2)
-ground = QuantumAnalysis(n_states=1, sector=(magnetization, 0.0)).check()
+ground = QuantumAnalysis(n_states=1, sector=(total_magnetization, 0.0)).check()
 energies = [ground.prepare(create(MODEL, n_sites=int(n))).run().energies_[0] / n for n in sizes]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):

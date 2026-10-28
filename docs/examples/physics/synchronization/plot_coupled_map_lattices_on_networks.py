@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], observables=observ
 # synchronize exactly where `|1 - epsilon lambda_k| < 1 / 2` for every nonzero eigenvalue, the window between the dashed
 # lines, and the late variance of the states should vanish inside it only.
 
-space = system.components[0].space
+space = system.elements[0].space
 eigenvalues = np.sort(nx.normalized_laplacian_spectrum(space.graph))
 low, high = 0.5 / eigenvalues[1], 1.5 / eigenvalues[-1]
 couplings = np.linspace(0.05, 1.0, 20)
