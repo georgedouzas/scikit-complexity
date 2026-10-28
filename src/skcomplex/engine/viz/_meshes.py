@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._visuals import _MODULUS, _PHASE, BaseVisual
+from ._base import _MODULUS, _PHASE, BaseVisual
 
 
 class MeshVisual(BaseVisual):
@@ -31,6 +31,12 @@ class MeshVisual(BaseVisual):
         high:
             The value of the brightest color, or `None` for the largest value of every frame.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Examples:
         >>> from skcomplex.engine.viz import MeshVisual
         >>> MeshVisual(low=0.0)
@@ -42,10 +48,15 @@ class MeshVisual(BaseVisual):
         states: Sequence[str] | None = None,
         low: float | None = None,
         high: float | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.states = states
         self.low = low
         self.high = high
+        self.path = path
+        self.recording = recording
 
     @staticmethod
     def _log_mesh(

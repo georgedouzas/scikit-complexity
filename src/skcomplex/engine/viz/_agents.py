@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..solvers import AgentSnapshot
-from ._visuals import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
+from ._base import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
 
 _PATH_COLOR = (86, 180, 233)
 _PATH_WIDTH = 1.0
@@ -48,6 +48,12 @@ class AgentsVisual(BaseVisual):
         position:
             The name of a state that holds the position of every agent, or `None` for the location in the space.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         styled_:
             The entity paths whose series style is logged.
@@ -68,17 +74,21 @@ class AgentsVisual(BaseVisual):
         radius: float | None = None,
         *,
         position: str | None = None,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.color_by = color_by
         self.color_range = color_range
         self.radius = radius
         self.position = position
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
         self.styled_: set[str] = set()
         self.span_: tuple[float, float] | None = None
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _agent_colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""

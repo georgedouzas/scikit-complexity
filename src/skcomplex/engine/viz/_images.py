@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._visuals import _MODULUS, _PHASE, BaseVisual
+from ._base import _MODULUS, _PHASE, BaseVisual
 
 _MIN_HISTORY = 64
 _MAX_HISTORY = 256
@@ -40,6 +40,12 @@ class ImageVisual(BaseVisual):
             The largest number of rows of the space-time image of a one-dimensional lattice, 0 for no space-time
             image, or `None` for as many rows as the lattice has sites, between 64 and 256.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         rows_:
             The recent rows of the space-time image of every state, by entity path.
@@ -56,16 +62,21 @@ class ImageVisual(BaseVisual):
         low: float | None = None,
         high: float | None = None,
         history: int | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.states = states
         self.low = low
         self.high = high
         self.history = history
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the element, forget the rows of earlier runs, and set the views."""
         self.rows_: dict[str, deque[npt.NDArray[np.float64]]] = {}
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _history_of(self, sites: int) -> int:
         """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""

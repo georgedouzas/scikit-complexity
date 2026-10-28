@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 from ...core.spaces import LatticeSpace, NetworkSpace
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
 from ..runtime import Frame
-from ._visuals import _GRID_RADIUS, _NODE_SPACING, BaseVisual
+from ._base import _GRID_RADIUS, _NODE_SPACING, BaseVisual
 
 _HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
 _CHANGING_REACH = 10.0
@@ -41,6 +41,12 @@ class SiteVisual(BaseVisual):
         high:
             The value of the brightest color, or `None` for the largest value of every frame.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         edges_:
             The entity paths whose static edges are logged.
@@ -59,16 +65,21 @@ class SiteVisual(BaseVisual):
         states: Sequence[str] | None = None,
         low: float | None = None,
         high: float | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
     ) -> None:
         self.states = states
         self.low = low
         self.high = high
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
         self.changing_: dict[str, int] = {}
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _log_graph(
         self,
