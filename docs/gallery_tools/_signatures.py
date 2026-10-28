@@ -3,31 +3,34 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from skcomplex.analysis import Signature
+from skcomplex.analysis import SignatureAnalysis
+
+if TYPE_CHECKING:
+    from skcomplex.analysis._base import Signature
 
 PANEL_WIDTH = 5.0
 PANEL_HEIGHT = 4.0
 STATED_VALUES = 3
 
 
-def _caption(signature: Signature) -> str:
+def _caption(signature: 'Signature') -> str:
     """Return the title of a signature followed by the first stated values."""
     stated = [f'{name} = {value:.3g}' for name, value in list(signature.values.items())[:STATED_VALUES]]
     return '\n'.join([signature.title, ', '.join(stated)]) if stated else signature.title
 
 
-def plot_signature(signature: Signature, axes: Axes) -> Axes:
-    """Draw one signature on axes: its curves, its band, its scales, its labels, and its title with values.
+def plot_signature(signature: 'Signature', axes: Axes) -> Axes:
+    """Draw one signature on axes: its curves, its scales, its labels, and its title with values.
 
     Args:
         signature:
-            The signature analysis.
+            One signature of `SignatureAnalysis.signatures_`.
 
         axes:
             The Matplotlib axes.
@@ -36,9 +39,6 @@ def plot_signature(signature: Signature, axes: Axes) -> Axes:
         axes:
             The axes drawn on.
     """
-    if signature.band is not None:
-        abscissas, low, high = signature.band
-        axes.fill_between(abscissas, low, high, alpha=0.3, label='5 to 95 percent')
     for label, (abscissas, ordinates) in signature.curves.items():
         if signature.points:
             axes.plot(abscissas, ordinates, '.', markersize=2, label=label)
@@ -49,22 +49,23 @@ def plot_signature(signature: Signature, axes: Axes) -> Axes:
     axes.set_xlabel(signature.xlabel)
     axes.set_ylabel(signature.ylabel)
     axes.set_title(_caption(signature), fontsize='medium')
-    if len(signature.curves) + (signature.band is not None) > 1:
+    if len(signature.curves) > 1:
         axes.legend(fontsize='small')
     return axes
 
 
-def plot_signatures(signatures: Sequence[Signature]) -> Figure:
-    """Return a figure with one panel per signature, side by side.
+def plot_signatures(analysis: SignatureAnalysis) -> Figure:
+    """Return a figure with one panel per signature of a run signature analysis, side by side.
 
     Args:
-        signatures:
-            The signature analyses of a run, as `signature_analysis` returns them.
+        analysis:
+            The signature analysis of a run, prepared and run.
 
     Returns:
         figure:
             The figure.
     """
+    signatures = analysis.signatures_
     count = max(len(signatures), 1)
     figure, panels = plt.subplots(1, count, figsize=(PANEL_WIDTH * count, PANEL_HEIGHT), squeeze=False)
     for signature, axes in zip(signatures, panels[0], strict=False):

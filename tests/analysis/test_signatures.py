@@ -1,16 +1,22 @@
 """Test the signature analysis of every data kind."""
 
 import numpy as np
+import pytest
 
-from skcomplex.analysis import DataKind, signature_analysis
-from skcomplex.experiments import Experiment
+from skcomplex.analysis import SignatureAnalysis
+from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
+
+
+def _signatures(trajectory: object) -> list:
+    """Return the signatures of a trajectory."""
+    return SignatureAnalysis().check().prepare(trajectory).run().signatures_
 
 
 def test_signature_analysis_of_a_series():
     """Test that a series gives its power spectrum on log axes with the autocorrelation time."""
-    (signature,) = signature_analysis(run('lotka_volterra', settings={'until': 50.0}).trajectory_)
-    assert signature.kind == DataKind.SERIES
+    (signature,) = _signatures(run('lotka_volterra', settings={'until': 50.0}).trajectory_)
+    assert signature.kind == 'series'
     assert signature.title == 'Power spectrum'
     assert (signature.xscale, signature.yscale) == ('log', 'log')
     assert set(signature.curves) == {'prey.n', 'predators.n'}
@@ -19,7 +25,7 @@ def test_signature_analysis_of_a_series():
 
 def test_signature_analysis_of_a_map():
     """Test that a map gives its return map as points."""
-    (signature,) = signature_analysis(run('logistic_map', settings={'until': 100}).trajectory_)
+    (signature,) = _signatures(run('logistic_map', settings={'until': 100}).trajectory_)
     assert signature.points
     assert signature.title == 'Return map'
 
@@ -27,8 +33,8 @@ def test_signature_analysis_of_a_map():
 def test_signature_analysis_of_a_jump_path():
     """Test that a jump path gives its waiting-time distribution with the Fano factor."""
     trajectory = run('poisson_process', settings={'until': 30.0, 'random_state': 0}).trajectory_
-    (signature,) = signature_analysis(trajectory)
-    assert signature.kind == DataKind.PATH
+    (signature,) = _signatures(trajectory)
+    assert signature.kind == 'path'
     assert 'Fano factor of jumps per frame' in signature.values
     ((_, survival),) = signature.curves.values()
     assert survival[0] == 1
@@ -36,8 +42,8 @@ def test_signature_analysis_of_a_jump_path():
 
 def test_signature_analysis_of_a_field():
     """Test that a field gives the structure factor of its last frame with a length."""
-    (signature,) = signature_analysis(run('ising', size=32, settings={'until': 10}).trajectory_)
-    assert signature.kind == DataKind.FIELD
+    (signature,) = _signatures(run('ising', size=32, settings={'until': 10}).trajectory_)
+    assert signature.kind == 'field'
     assert signature.ylabel == 'S(k)'
     assert {'correlation length', 'peak wavelength'} & set(signature.values)
 
@@ -45,40 +51,34 @@ def test_signature_analysis_of_a_field():
 def test_signature_analysis_of_agents():
     """Test that agents with velocities give their polar and milling orders over time."""
     trajectory = run('boids', settings={'until': 5}).trajectory_
-    signature = signature_analysis(trajectory)[0]
-    assert signature.kind == DataKind.AGENTS
+    signature = _signatures(trajectory)[0]
+    assert signature.kind == 'agents'
     assert set(signature.curves) == {'polar order', 'milling order'}
     assert signature.curves['polar order'][1].size == len(trajectory.times)
 
 
 def test_signature_analysis_of_agents_without_motion():
     """Test that agents without velocities or headings give nearest-neighbour distances against the Poisson law."""
-    signature = signature_analysis(run('diffusion_limited_aggregation', settings={'until': 3}).trajectory_)[0]
+    signature = _signatures(run('diffusion_limited_aggregation', settings={'until': 3}).trajectory_)[0]
     assert signature.title in {'Nearest-neighbour distances', 'Agents present'}
 
 
 def test_signature_analysis_of_a_network():
     """Test that a network gives its degree distribution with its moments."""
-    (signature,) = signature_analysis(run('network_diffusion', settings={'until': 0.5}).trajectory_)
-    assert signature.kind == DataKind.NETWORK
+    (signature,) = _signatures(run('network_diffusion', settings={'until': 0.5}).trajectory_)
+    assert signature.kind == 'network'
     assert signature.values['mean degree'] > 0
     assert 'clustering' in signature.values
 
 
-def test_signature_analysis_of_an_ensemble():
-    """Test that an ensemble gives the mean and the 5 to 95 percent band over runs."""
-    result = Experiment('hasselmann', replicates=50, until=2.0, random_state=0).prepare().run().result_
-    (signature,) = signature_analysis(result)
-    _, low, high = signature.band
-    _, mean = signature.curves['mean']
-    assert np.all(low <= mean + 1e-12)
-    assert np.all(mean <= high + 1e-12)
-    assert signature.values['runs'] == 50
+def test_signature_analysis_reads_a_trajectory():
+    """Test that the signature analysis rejects a source that is not a trajectory."""
+    with pytest.raises(AnalysisError, match='reads a trajectory'):
+        SignatureAnalysis().check().prepare(np.zeros(10))
 
 
 def test_signature_analysis_of_a_model_with_several_kinds():
     """Test that an agent model on a lattice with reporters gives agents, field, then series signatures."""
     trajectory = run('pheromone_foraging', settings={'until': 5}).trajectory_
-    kinds = [signature.kind for signature in signature_analysis(trajectory)]
-    assert kinds[:2] == [DataKind.AGENTS, DataKind.FIELD]
-    assert kinds == sorted(kinds, key=[DataKind.AGENTS, DataKind.FIELD, DataKind.SERIES].index)
+    kinds = [signature.kind for signature in _signatures(trajectory)]
+    assert kinds == ['agents', 'field', 'series']
