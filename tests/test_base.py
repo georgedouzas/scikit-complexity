@@ -1,8 +1,13 @@
 """Test the `base` module of `skcomplex`."""
 
+import importlib
+import inspect
+import pkgutil
+
 import pytest
 from sklearn.base import clone
 
+import skcomplex
 from skcomplex.base import BaseConfig
 from skcomplex.errors import NotCheckedError
 
@@ -74,3 +79,24 @@ def test_settings_follow_scikit_learn():
     config = ScalingConfig(4)
     assert config.get_params() == {'factor': 4}
     assert clone(config.set_params(factor=5)).factor == 5
+
+
+def test_every_base_derives_from_the_root():
+    """Test that every class named `Base*` outside the models derives from `BaseConfig`."""
+    outside = []
+    for module in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
+        if module.name.startswith('skcomplex.models'):
+            continue
+        try:
+            loaded = importlib.import_module(module.name)
+        except ImportError:
+            continue
+        for name, value in vars(loaded).items():
+            if (
+                inspect.isclass(value)
+                and value.__module__ == loaded.__name__
+                and name.lstrip('_').startswith('Base')
+                and not issubclass(value, BaseConfig | BaseException)
+            ):
+                outside.append(f'{loaded.__name__}.{name}')
+    assert outside == []

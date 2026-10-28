@@ -7,12 +7,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ...core.elements import Element, GroupElement
-from ...specs import VisualSpec
-from ._base import BaseValue
+from ...specs import BaseSpec, VisualSpec
 
 
 @dataclass(frozen=True)
-class CompiledElement(BaseValue):
+class CompiledElement(BaseSpec):
     """Element or group of a compiled problem with the dotted names of its variables.
 
     Args:

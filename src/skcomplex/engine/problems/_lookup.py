@@ -5,12 +5,12 @@
 
 from dataclasses import dataclass
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class Lookup(BaseValue):
+class Lookup(BaseSpec):
     """Lookup array of a table or totalistic rule.
 
     Args:

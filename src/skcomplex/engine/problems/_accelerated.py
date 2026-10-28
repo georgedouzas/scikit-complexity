@@ -6,12 +6,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class Accelerated(BaseValue):
+class Accelerated(BaseSpec):
     """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
 
     Every loop takes `(t, x, p, until, ...)` and returns the state at `until`. A loop is `None` when the problem's form

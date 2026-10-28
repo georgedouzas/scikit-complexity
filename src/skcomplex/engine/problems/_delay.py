@@ -10,12 +10,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class _Delay(BaseValue):
+class _Delay(BaseSpec):
     """Delayed state read by laws through a hidden parameter that solvers fill from the run's history."""
 
     parameters: npt.NDArray[np.intp]

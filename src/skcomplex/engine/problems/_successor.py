@@ -9,12 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...specs import BaseSpec
 from ...types import Arrays
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class _Successor(BaseValue):
+class _Successor(BaseSpec):
     """Successor of a production, as symbol codes and the function of its parameters."""
 
     codes: npt.NDArray[np.int64]

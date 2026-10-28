@@ -8,12 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class SampledDraw(BaseValue):
+class SampledDraw(BaseSpec):
     """Draw from a `scipy.stats` distribution that a stochastic map takes for every member at every step.
 
     Args:

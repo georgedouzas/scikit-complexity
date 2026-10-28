@@ -8,12 +8,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class _JumpChannels(BaseValue):
+class _JumpChannels(BaseSpec):
     """Random events of one jump law, one channel per evaluation index."""
 
     offset: int

@@ -11,10 +11,10 @@ from skcomplex.engine.problems import (
     BaseRecord,
     BaseSearch,
     BaseStructure,
-    BaseValue,
 )
+from skcomplex.specs import BaseSpec
 
-BASES = (BaseValue, BaseKernel, BaseSearch, BasePrinter)
+BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter)
 
 
 def test_public_names_are_classes_under_the_bases():
@@ -27,9 +27,9 @@ def test_public_names_are_classes_under_the_bases():
 
 def test_value_bases_derive_from_the_value_base():
     """The problem, record, and structure bases are values."""
-    assert issubclass(BaseProblem, BaseValue)
-    assert issubclass(BaseRecord, BaseValue)
-    assert issubclass(BaseStructure, BaseValue)
+    assert issubclass(BaseProblem, BaseSpec)
+    assert issubclass(BaseRecord, BaseSpec)
+    assert issubclass(BaseStructure, BaseSpec)
 
 
 def test_kernel_search_and_printer_bases_are_configurable():

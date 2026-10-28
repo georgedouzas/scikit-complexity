@@ -9,15 +9,15 @@ from typing import Any
 
 import numpy as np
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 from ._neighborhood_kernel import NeighborhoodKernel
 from ._reduction_kernel import ReductionKernel
 from ._state import State
 
 
 @dataclass(frozen=True)
-class ReductionSchedule(BaseValue):
+class ReductionSchedule(BaseSpec):
     """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
 
     Args:

@@ -6,12 +6,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ...specs import BaseSpec
 from ...types import Arrays
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class _Group(BaseValue):
+class _Group(BaseSpec):
     """Productions of one predecessor, context, and condition, one of which a matching module takes."""
 
     code: int

@@ -9,15 +9,15 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.elements import FieldElement
+from ...specs import BaseSpec
 from ...types import Chain
-from ._base import BaseValue
 from ._reference import Reference
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')
 
 
 @dataclass(frozen=True, eq=False)
-class LinearTerm(BaseValue):
+class LinearTerm(BaseSpec):
     """Term of the rate of a field state that applies a chain of operators to a state, times a constant coefficient.
 
     Args:

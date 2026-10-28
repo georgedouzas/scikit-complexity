@@ -5,12 +5,12 @@
 
 from dataclasses import dataclass
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 from ._reads import Read
 
 
 @dataclass(frozen=True)
-class PairRead(BaseValue):
+class PairRead(BaseSpec):
     """How a neighbourhood reduction reads one symbol for every pair of a member and a neighbour.
 
     Args:

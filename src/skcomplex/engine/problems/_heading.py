@@ -7,13 +7,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 from ._entry import Entry
 
 
 @dataclass(frozen=True)
-class Heading(BaseValue):
+class Heading(BaseSpec):
     """State that holds the heading of the members, a vector or a heading angle in two dimensions.
 
     Args:

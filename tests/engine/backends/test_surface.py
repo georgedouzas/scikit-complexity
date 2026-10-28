@@ -4,7 +4,7 @@ import inspect
 
 from skcomplex.engine import backends as package
 from skcomplex.engine.backends import BaseBackend
-from skcomplex.engine.problems import BaseValue
+from skcomplex.specs import BaseSpec
 
 
 def test_public_names_are_classes_under_the_bases():
@@ -12,7 +12,7 @@ def test_public_names_are_classes_under_the_bases():
     for name in package.__all__:
         item = getattr(package, name)
         assert inspect.isclass(item), name
-        assert issubclass(item, BaseBackend | BaseValue), name
+        assert issubclass(item, BaseBackend | BaseSpec), name
 
 
 def test_backends_name_themselves_and_their_support():

@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...specs import BaseSpec
 from ...types import Indices, VectorFunction
-from ..problems import BaseValue
 from ..problems._accelerated import Accelerated
 from ..problems._jump_channels import _JumpChannels
 from ..problems._wiener_block import WienerBlock
@@ -25,7 +25,7 @@ _FUNCTION_KINDS: dict[str, type] = {
 
 
 @dataclass(frozen=True)
-class LoweredFunctions(BaseValue):
+class LoweredFunctions(BaseSpec):
     """Numeric functions of a form produced by a backend.
 
     Args:

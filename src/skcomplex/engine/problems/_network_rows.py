@@ -9,14 +9,14 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...specs import BaseSpec
 from ...types import Array, Indices, Pair
-from ._base import BaseValue
 from ._capacity_rows import CapacityRows
 from ._network_snapshot import NetworkSnapshot
 
 
 @dataclass(frozen=True)
-class NetworkRows(BaseValue):
+class NetworkRows(BaseSpec):
     """Variable groups of one network: the groups on its nodes and the edge group of every changing layer.
 
     Args:

@@ -4,11 +4,11 @@
 
 ## 2. One root
 
-- [ ] 2.1 Put `BaseBackend`, `BaseSolver`, and `BaseProblem` under `BaseConfig`, delete `engine/base.py` and any `BaseValue`, and add a test that every class named `Base*` outside the models derives from `BaseConfig`. Verify with `pytest tests/engine` and the new test.
+- [x] 2.1 Put `BaseBackend`, `BaseSolver`, and `BaseProblem` under `BaseConfig`, delete `engine/base.py` and any `BaseValue`, and add a test that every class named `Base*` outside the models derives from `BaseConfig`. Verify with `pytest tests/engine` and the new test.
 
 ## 3. Specs package
 
-- [ ] 3.1 Turn `skcomplex/specs.py` into a package with one module per spec, add `BaseSpec(BaseConfig)` as a frozen dataclass base whose `check()` validates the fields, and derive the existing specs from it. Set `exclude_type_checking_imports = true` in the import-linter contracts. Verify with `pytest tests/test_specs.py` and lint-imports.
+- [x] 3.1 Turn `skcomplex/specs.py` into a package with one module per spec, add `BaseSpec(BaseConfig)` as a frozen dataclass base whose `check()` validates the fields, and derive the existing specs from it. Set `exclude_type_checking_imports = true` in the import-linter contracts. Verify with `pytest tests/test_specs.py` and lint-imports.
 - [ ] 3.2 Move the dataclasses of `core.laws.utils`, `analysis`, and `experiments` into `skcomplex.specs` as `*Spec` under `BaseSpec`, moving any method that does work into the class that uses the spec. Verify with the tests of those packages.
 - [ ] 3.3 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
 - [ ] 3.4 Do the same for `engine.compile` and its passes, making `Block`, `Declarations`, `TableValues`, `FiniteVolume`, and `Topology` frozen and having the passes return copies. Verify with `pytest tests/engine/compile`.

@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 
 from ...errors import ValidationError
+from ...specs import BaseSpec
 from ...types import Array, Indices
-from ._base import BaseValue
 from ._edge_search import EdgeSearch
 from ._entry import Entry
 from ._pair_search import PairSearch
@@ -19,7 +19,7 @@ from ._read_kind import ReadKind
 
 
 @dataclass(frozen=True)
-class Reference(BaseValue):
+class Reference(BaseSpec):
     """Component of a state or parameter that a symbol stands for.
 
     Args:

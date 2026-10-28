@@ -10,6 +10,7 @@ import pytest
 from sage.all__sagemath_symbolics import I, exp, pi, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from skcomplex.base import BaseConfig
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
@@ -21,6 +22,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import RewritingError, RoleError, ValidationError
 from skcomplex.specs import (
     AffineSpec,
+    BaseSpec,
     EnergySpec,
     GeometrySpec,
     HilbertSpec,
@@ -346,9 +348,10 @@ def test_role_spec_is_variadic_or_a_noise_role():
 
 
 def test_specs_are_frozen_records():
-    """Test that the specs are frozen dataclasses that derive from no base but the schedule specs."""
+    """Test that the specs are frozen dataclasses that derive from the spec base, itself a configurable object."""
+    assert issubclass(BaseSpec, BaseConfig)
     for spec in (StateSpec, ParameterSpec, RoleSpec, ObservableSpec, HilbertSpec, TopologyRequestSpec):
-        assert spec.__bases__ == (object,)
+        assert spec.__bases__ == (BaseSpec,)
         assert spec.__dataclass_params__.frozen
     assert PhasesScheduleSpec.__bases__ == (ScheduleSpec,)
     with pytest.raises(dataclasses.FrozenInstanceError):

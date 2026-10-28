@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 from ._local_operator import LocalOperator
 
 type Factor = tuple[str, 'LocalOperator']
@@ -19,7 +19,7 @@ type Term = tuple[Factor, ...]
 
 
 @dataclass(frozen=True, eq=False)
-class Operator(BaseValue):
+class Operator(BaseSpec):
     """Sum of products of local operators of subsystems, each product with a symbolic coefficient.
 
     The compiler lowers the Sage operator expressions of laws and observables to operators with `operator_of`. Operators

@@ -5,12 +5,12 @@
 
 from dataclasses import dataclass
 
+from ...specs import BaseSpec
 from ...types import Array
-from ..problems import BaseValue
 
 
 @dataclass(frozen=True)
-class Step(BaseValue):
+class Step(BaseSpec):
     """Step of a run: the state at one time and the time a solver advances it to.
 
     Args:

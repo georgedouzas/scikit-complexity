@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from ...core.laws import BaseLaw
-from ._base import BaseValue
+from ...specs import BaseSpec
 from ._draw_kernel import DrawKernel
 from ._form import Form
 from ._law_kernel import LawKernel
@@ -16,7 +16,7 @@ from ._reference import Reference
 
 
 @dataclass(frozen=True)
-class LoweredKernels(BaseValue):
+class LoweredKernels(BaseSpec):
     """Kernels of every law kind, with the changes of every jump output and the law of every output.
 
     Args:

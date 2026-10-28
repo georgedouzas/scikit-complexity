@@ -10,12 +10,12 @@ from typing import Any
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ...specs import BaseSpec
 from ...types import Indices
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class TableValues(BaseValue):
+class TableValues(BaseSpec):
     """Values of selected entries of a table of numbers or parameter expressions at a parameter vector.
 
     Args:

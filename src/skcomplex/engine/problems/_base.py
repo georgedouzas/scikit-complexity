@@ -18,7 +18,7 @@ from ...base import BaseConfig
 from ...core.spaces import BaseSpace
 from ...core.system import System
 from ...errors import ValidationError
-from ...specs import ObservableSpec
+from ...specs import BaseSpec, ObservableSpec
 from ...types import AnyArray, Array, Getter
 
 if TYPE_CHECKING:
@@ -33,34 +33,6 @@ if TYPE_CHECKING:
     from ._topology_kernel import TopologyKernel
     from ._transfer_network import TransferNetwork
     from ._variable import Variable
-
-
-@dataclass(frozen=True)
-class BaseValue:
-    """Base of the frozen values of the engine: their fields hold what they are, and readers derive the rest.
-
-    A value is created once, never changes, and acts on nothing. `check()` validates its fields; the values of the
-    engine are built by the compiler, so their fields are valid by construction and `check()` returns the value.
-
-    Examples:
-        >>> from dataclasses import dataclass
-        >>> from skcomplex.engine.problems import BaseValue
-        >>> @dataclass(frozen=True)
-        ... class SpanValue(BaseValue):
-        ...     start: float
-        ...     end: float
-        >>> SpanValue(0.0, 1.0).check().end
-        1.0
-    """
-
-    def check(self) -> Self:
-        """Validate the fields of the value.
-
-        Returns:
-            self:
-                The value.
-        """
-        return self
 
 
 class BaseKernel(BaseConfig):
@@ -105,7 +77,7 @@ class BasePrinter(BaseConfig):
 
 
 @dataclass(frozen=True)
-class BaseRecord(BaseValue):
+class BaseRecord(BaseSpec):
     """Base of the records: something that happened at one time of a run, such as an event or a relaxation.
 
     Every record has the readers `label`, the name of what happened, and `time`, the time it happened at.
@@ -113,7 +85,7 @@ class BaseRecord(BaseValue):
 
 
 @dataclass(frozen=True)
-class BaseStructure(BaseValue):
+class BaseStructure(BaseSpec):
     """Base of the structures of a rewriting element at one generation: a word, a patch of tiles, or a graph.
 
     The readers `parts`, `segments`, `polygons`, `geometry`, and `raster` describe the structure; subclasses give the
@@ -268,7 +240,7 @@ class BaseStructure(BaseValue):
 
 
 @dataclass(frozen=True)
-class BaseProblem(BaseValue):
+class BaseProblem(BaseSpec):
     """Base of the problems a system compiles to: what every solver, observer, and visual reads of one.
 
     A problem is a value. Its fields hold what the runtime reads, with trivial defaults for what a form does not have,

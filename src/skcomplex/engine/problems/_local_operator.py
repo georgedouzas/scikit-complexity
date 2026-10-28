@@ -10,7 +10,7 @@ import numpy as np
 import qutip
 import scipy.sparse as sp
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 _ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 
@@ -19,7 +19,7 @@ _ADJOINT_SUFFIX = '.dag'
 
 
 @dataclass(frozen=True)
-class LocalOperator(BaseValue):
+class LocalOperator(BaseSpec):
     """Operator that acts on the Hilbert space of one subsystem, identified by its name.
 
     Args:

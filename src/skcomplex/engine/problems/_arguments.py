@@ -6,12 +6,12 @@
 from dataclasses import dataclass
 from typing import Any
 
+from ...specs import BaseSpec
 from ...types import Array, Indices
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class Arguments(BaseValue):
+class Arguments(BaseSpec):
     """Parameters and states that a lattice law reads besides its neighbourhoods, by name.
 
     Args:

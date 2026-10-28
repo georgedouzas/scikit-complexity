@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from ...errors import BackendError, ValidationError
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 _PYTHON_RELATIONS = {
     'lt': '({0} < {1})',
@@ -20,7 +20,7 @@ _PYTHON_RELATIONS = {
 
 
 @dataclass(frozen=True)
-class Dialect(BaseValue):
+class Dialect(BaseSpec):
     """Syntax of a target language for printed expressions.
 
     Templates take their arguments as `{0}`, `{1}`, and so on, receive every argument that is not an atom in

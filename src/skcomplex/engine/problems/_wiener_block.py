@@ -8,11 +8,11 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 
 @dataclass(frozen=True)
-class WienerBlock(BaseValue):
+class WienerBlock(BaseSpec):
     """Correlated Wiener processes of one `WienerProcessSpec`, a contiguous block of the processes of a problem.
 
     Args:

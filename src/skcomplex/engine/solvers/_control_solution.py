@@ -8,12 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...specs import BaseSpec
 from ...types import Array
-from ..problems import BaseValue
 
 
 @dataclass(frozen=True)
-class ControlSolution(BaseValue):
+class ControlSolution(BaseSpec):
     """Optimal control of a run over its horizon, sampled on a grid of times.
 
     Args:

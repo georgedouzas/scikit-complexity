@@ -7,11 +7,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ...core.interactions import BaseInteraction
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 
 @dataclass(frozen=True)
-class CompiledInteraction(BaseValue):
+class CompiledInteraction(BaseSpec):
     """Interaction of a compiled problem with the paths its roles are bound to.
 
     Args:

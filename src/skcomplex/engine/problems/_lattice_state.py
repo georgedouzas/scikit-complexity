@@ -9,11 +9,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from ...core.spaces import BaseSpace
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 
 @dataclass(frozen=True)
-class LatticeState(BaseValue):
+class LatticeState(BaseSpec):
     """State of a lattice group in the state vector.
 
     Args:

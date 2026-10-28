@@ -10,14 +10,14 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import RewritingError
+from ...specs import BaseSpec
 from ...types import Arrays
 from .._utils import symbols_of
-from ._base import BaseValue
 from ._expression_printer import ExpressionPrinter
 
 
 @dataclass(frozen=True)
-class Parameters(BaseValue):
+class Parameters(BaseSpec):
     """Parameter symbols of the rewritten elements, in the order of the parameter vector.
 
     Args:

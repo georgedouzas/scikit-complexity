@@ -3,9 +3,9 @@
 import inspect
 
 from skcomplex.engine import solvers as package
-from skcomplex.engine.problems import BaseValue
 from skcomplex.engine.solvers import AgentView, BaseSolver, ModelView, Step
 from skcomplex.errors import SkcomplexError
+from skcomplex.specs import BaseSpec
 
 VIEWS = {AgentView, ModelView}
 
@@ -15,7 +15,7 @@ def test_public_names_are_classes_under_the_bases():
     for name in package.__all__:
         item = getattr(package, name)
         assert inspect.isclass(item), name
-        assert issubclass(item, BaseSolver | BaseValue | SkcomplexError) or item in VIEWS, name
+        assert issubclass(item, BaseSolver | BaseSpec | SkcomplexError) or item in VIEWS, name
 
 
 def test_concrete_solvers_answer_their_hooks():
@@ -34,4 +34,4 @@ def test_concrete_solvers_answer_their_hooks():
 
 def test_a_solver_runs_on_a_step():
     """A step holds the state, the parameters, and the time to advance to."""
-    assert issubclass(Step, BaseValue)
+    assert issubclass(Step, BaseSpec)

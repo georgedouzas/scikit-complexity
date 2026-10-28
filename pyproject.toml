@@ -239,6 +239,7 @@ DEP004 = ["pandas"]
 
 [tool.importlinter]
 root_package = "skcomplex"
+exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
@@ -248,8 +249,9 @@ layers = [
     "skcomplex.analysis",
     "skcomplex.engine",
     "skcomplex.core",
-    "skcomplex.base | skcomplex.types",
+    "skcomplex.types",
     "skcomplex.specs",
+    "skcomplex.base",
     "skcomplex.errors",
 ]
 

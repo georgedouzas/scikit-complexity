@@ -8,12 +8,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 from ._problem import Problem
 
 
 @dataclass(frozen=True)
-class Partition(BaseValue):
+class Partition(BaseSpec):
     """Part of a co-simulation problem, compiled with the laws of its own elements.
 
     The partition's problem has the state layout of the whole system. The states of other partitions have no laws in

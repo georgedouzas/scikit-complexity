@@ -47,7 +47,7 @@ class BaseElement(BasePart):
         ...
         ...     def _get_laws(self, namespace):
         ...         return []
-        >>> PopulationElement('rabbits', n=40).get_params()
+        >>> PopulationElement('rabbits', n=40).get_params(deep=False)
         {'label': 'rabbits', 'n': 40, 'r': 0.5, 'visual': VisualSpec(kind='line', options={})}
     """
 

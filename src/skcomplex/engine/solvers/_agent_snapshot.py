@@ -10,11 +10,11 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..problems import BaseValue
+from ...specs import BaseSpec
 
 
 @dataclass(frozen=True)
-class AgentSnapshot(BaseValue):
+class AgentSnapshot(BaseSpec):
     """Agents of one group alive at one frame.
 
     Args:

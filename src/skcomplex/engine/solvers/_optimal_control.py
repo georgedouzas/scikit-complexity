@@ -16,10 +16,11 @@ from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import SolverError, ValidationError
+from ...specs import BaseSpec
 from ...types import Array, Cost, GridFunction
 from .._utils import symbols_of
 from ..compile import ObservableEvaluator
-from ..problems import BaseValue, ExpressionPrinter, Form, Problem
+from ..problems import ExpressionPrinter, Form, Problem
 from ._control_solution import ControlSolution
 from ._solver import Solver
 
@@ -29,7 +30,7 @@ _NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo
 
 
 @dataclass(frozen=True)
-class _Control(BaseValue):
+class _Control(BaseSpec):
     """Control of an optimal control problem: its dotted name, state index, symbol, and bounds."""
 
     name: str
@@ -40,7 +41,7 @@ class _Control(BaseValue):
 
 
 @dataclass(frozen=True)
-class _ControlProblem(BaseValue):
+class _ControlProblem(BaseSpec):
     """Optimal control problem of a compiled system, with its cost written to be minimised."""
 
     problem: Problem

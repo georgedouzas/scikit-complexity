@@ -10,14 +10,14 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import CapacityError
+from ...specs import BaseSpec
 from ...types import Array, Indices
-from ._base import BaseValue
 from ._edge_row_search import ACTIVE_THRESHOLD
 from ._entry import Entry
 
 
 @dataclass(frozen=True)
-class CapacityRows(BaseValue):
+class CapacityRows(BaseSpec):
     """Rows of a variable group on the nodes or edges of a network, with the values a new member starts from.
 
     Args:

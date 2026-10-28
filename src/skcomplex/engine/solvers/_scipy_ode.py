@@ -26,8 +26,9 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
+from ...specs import BaseSpec
 from ...types import Array
-from ..problems import BaseValue, Form, OrderKind, Problem, State, SupportSpec
+from ..problems import Form, OrderKind, Problem, State, SupportSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._solver import Solver
@@ -90,7 +91,7 @@ _FALLBACK_STEP = 1e-6
 
 
 @dataclass(frozen=True)
-class _Segment(BaseValue):
+class _Segment(BaseSpec):
     """Accepted step of an integrator, with its states at both ends and its dense output."""
 
     start: float

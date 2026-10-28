@@ -1,6 +1,6 @@
 """Define what a system compiles to: the problem, its kernels, and the values the runtime reads."""
 
-from ._base import BaseKernel, BasePrinter, BaseProblem, BaseRecord, BaseSearch, BaseStructure, BaseValue
+from ._base import BaseKernel, BasePrinter, BaseProblem, BaseRecord, BaseSearch, BaseStructure
 from ._compiled_agents import CompiledAgents
 from ._compiled_element import CompiledElement
 from ._compiled_interaction import CompiledInteraction
@@ -41,7 +41,6 @@ __all__: list[str] = [
     'BaseRecord',
     'BaseSearch',
     'BaseStructure',
-    'BaseValue',
     'CompiledAgents',
     'CompiledElement',
     'CompiledInteraction',

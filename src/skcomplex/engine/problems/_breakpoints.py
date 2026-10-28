@@ -6,11 +6,11 @@
 import math
 from dataclasses import dataclass, field
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 
 
 @dataclass(frozen=True)
-class _Breakpoints(BaseValue):
+class _Breakpoints(BaseSpec):
     """Times where time-dependent inputs jump, at which solvers restart."""
 
     fixed: tuple[float, ...] = ()

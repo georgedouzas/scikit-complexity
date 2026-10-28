@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from typing import Self
 
 from ...errors import ValidationError
+from ...specs import BaseSpec
 from ._issue import _ERROR, _WARNING, Issue
 from ._validation_warning import ValidationWarning
 
 
 @dataclass(frozen=True)
-class ValidationReport:
+class ValidationReport(BaseSpec):
     """Every issue that a compiler found in a system, its solver, and its backend.
 
     `check()` emits the warnings of the report and raises one error that lists its errors, so a valid report passes
@@ -47,7 +48,7 @@ class ValidationReport:
         """Check whether the report holds no error."""
         return not self.errors
 
-    def check(self) -> Self:
+    def _check(self) -> Self:
         """Emit the warnings of the report and raise one error that lists every error of the report.
 
         Returns:

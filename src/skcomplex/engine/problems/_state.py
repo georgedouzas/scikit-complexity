@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class State(BaseValue):
+class State(BaseSpec):
     """State of a run at one time, which kernels and searches act at.
 
     Args:

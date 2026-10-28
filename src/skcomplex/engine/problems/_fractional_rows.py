@@ -9,12 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ...specs import BaseSpec
 from ...types import Array
-from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class FractionalRows(BaseValue):
+class FractionalRows(BaseSpec):
     """Noise rows of one fractional noise law, driven by fractional Brownian motion of a Hurst index.
 
     Args:

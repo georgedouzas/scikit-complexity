@@ -11,12 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR
 
-from ._base import BaseValue
+from ...specs import BaseSpec
 from ._entry import Entry
 
 
 @dataclass(frozen=True)
-class Layout(BaseValue):
+class Layout(BaseSpec):
     """Ordered collection of named variables stored in one flat vector.
 
     Args:
