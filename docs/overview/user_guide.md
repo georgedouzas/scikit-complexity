@@ -3169,7 +3169,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LammpsSolver
-from skcomplex.models.physics.realizations.particles import (
+from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
     LAMMPS_PAIRS,
     LangevinThermostatInteraction,
@@ -3354,13 +3354,13 @@ agents learn from their past.
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
 - `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from
-  `skcomplex.models.economics.realizations.markets`, matches two groups. Buyers state their limit `bid` and
+  `skcomplex.models.economics.common.markets`, matches two groups. Buyers state their limit `bid` and
   `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearch`, `SampleAndSwitch` (partner
   choice with switching), `RationedQueue`, `Walrasian` (tâtonnement), `OrderBook` (price-time priority), `CallAuction`
   (one uniform price), and `DeferredAcceptance` (stable matching by the `matching` library). Every trade moves
   `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
   `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
-- An `InstitutionInteraction`, from `skcomplex.models.economics.realizations.institutions`, acts once per round of its
+- An `InstitutionInteraction`, from `skcomplex.models.economics.common.institutions`, acts once per round of its
   phase with its method `act`. It reads `model.observable(name)`, reporters through `model.history(name, window)`, and
   agents, and it sets parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the
   change at once, and the trajectory records it. A subclass that declares its own parameters takes them as annotated
@@ -3369,7 +3369,7 @@ agents learn from their past.
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `memory(agent, state, window)`, from `skcomplex.engine.solvers`, returns the past values of a state
-  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations.learning`, `heuristics` has
+  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.learning`, `heuristics` has
   adaptive, trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past
   performance, and `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
   `skcomplex.models.social.cooperation`, copies the best neighbour.
@@ -3385,8 +3385,8 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.realizations.institutions import InstitutionInteraction
-from skcomplex.models.economics.realizations.markets import CallAuction, MarketInteraction
+from skcomplex.models.economics.common.institutions import InstitutionInteraction
+from skcomplex.models.economics.common.markets import CallAuction, MarketInteraction
 
 
 class TraderElement(Element):
@@ -3642,7 +3642,7 @@ print(Simulation(ring, random_state=0).run(until=3).trajectory_.values('ring.siz
 
 A quantum system is a set of quantum subsystems whose state is one vector of their joint Hilbert space. Every
 subsystem holds its state `psi` in the Hilbert space of a `HilbertSpec`, which names its operators. The realizations of
-`skcomplex.models.physics.realizations.quantum` hold the common subsystems: `SpinElement` has the components `x`, `y`,
+`skcomplex.models.physics.common.quantum` hold the common subsystems: `SpinElement` has the components `x`, `y`,
 `z` and the ladder operators `plus` and `minus` of spin `j`, `QubitElement` has the Pauli matrices, `ModeElement` has
 `annihilate`, `create`, and `number` truncated at `quanta`, and `SiteElement` is a particle on the sites of a lattice
 or a network with its `laplacian` and its `adjacency`. A group of subsystems, such as a `LatticeElement` of spins, is
@@ -3673,7 +3673,7 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.realizations.quantum import SpinElement
+from skcomplex.models.physics.common.quantum import SpinElement
 
 
 class CouplingInteraction(NeighborInteraction):
@@ -3777,7 +3777,7 @@ from pathlib import Path
 
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.elements import ParticleElement
-from skcomplex.models.physics.realizations.particles import SpringInteraction
+from skcomplex.models.physics.common.particles import SpringInteraction
 from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
@@ -3912,7 +3912,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
 
 oscillator = System(
     elements=[ParticleElement('p', x=1.0)],
@@ -4351,10 +4351,8 @@ with `'wavelength'`, and the interfaces between domains with `'interface-density
 `ScalingAnalysis('variance-mean')` the number fluctuations of density fields in boxes of growing side. `ClusterAnalysis`
 with the kinds `'sizes'`, `'percolation'`, and `'spanning'` describes clusters of grids and components of graphs, and
 `DistributionAnalysis('moment-ratio')` with `CollapseAnalysis` of the kinds `'crossings'` and `'scaling'` locate
-transitions by finite-size scaling. The physics models name these measures next to the models they measure:
-`BinderCumulantAnalysis`, `SusceptibilityAnalysis`, and `ReplicaOverlapAnalysis` in
-`skcomplex.models.physics.statistical_mechanics`, and `GiantNumberFluctuationAnalysis` in
-`skcomplex.models.physics.active_matter`.
+transitions by finite-size scaling. `SusceptibilityAnalysis` of `skcomplex.models.physics.statistical_mechanics`
+locates the peak of the susceptibility over a temperature sweep of the spin models.
 `StabilityAnalysis('dispersion')` predicts patterns from a field model's laws before running it: it linearises them
 around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice, and returns the
 growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes is a Turing
@@ -4389,7 +4387,7 @@ open or periodic boxes by their nearest-neighbour `'distances'`, their `'clark-e
 `'radial-distribution'`, and `CoarseGrainAnalysis` turns agents into density or polarization fields for the field
 analyses. `NeighborAnalysis('like-share')` and `DomainAnalysis('interface-density')` measure segregation on grids and
 networks, and `DistributionAnalysis('total-variation')` gives the distance between the distributions of two groups
-across units, the dissimilarity index that `DissimilarityIndexAnalysis` of the segregation models names.
+across units, the dissimilarity index of segregation studies.
 
 ```python
 import numpy as np
@@ -4409,9 +4407,9 @@ print(ratio.round(1).tolist(), float(field.sum()))
 
 `EventAnalysis('excursions')` extracts avalanches from activity series or relaxation records, and
 `FitAnalysis(law='power')` fits their size and duration laws. `EventAnalysis('branching')` estimates the branching
-ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling. The sandpiles of
-`skcomplex.models.physics.criticality` name the excursions `AvalancheAnalysis`, and `CracklingNoiseAnalysis` checks
-the scaling relation between the exponents and collapses mean shapes. `DistributionAnalysis('moments')` gives the
+ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling.
+`CracklingNoiseAnalysis` of `skcomplex.models.physics.criticality` checks the scaling relation between the exponents of
+the sandpiles' avalanches and collapses their mean shapes. `DistributionAnalysis('moments')` gives the
 order parameter and its variance over a sweep, `ScalingAnalysis('power')` fits the order-parameter exponent, and
 `CorrelationAnalysis('overlap')` compares replicas.
 

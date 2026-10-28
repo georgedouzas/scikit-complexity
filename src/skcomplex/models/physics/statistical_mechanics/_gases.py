@@ -12,7 +12,7 @@ from ....core.specs import VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ..realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
+from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 
 @register_model(

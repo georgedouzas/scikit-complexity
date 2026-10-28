@@ -18,7 +18,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations.institutions import InstitutionInteraction
+from ..common.institutions import InstitutionInteraction
 
 TOLERANCE = 1e-9
 

@@ -20,7 +20,7 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ..realizations.particles import SpringInteraction
+from ..common.particles import SpringInteraction
 
 
 class WaveStringElement(Element):

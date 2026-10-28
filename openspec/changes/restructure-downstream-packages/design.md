@@ -114,26 +114,17 @@ Target grouping. Every class is one mathematical operation, named after the oper
 | `DiscoveryAnalysis` | | `analyses_for`, `data_kinds` |
 | `SignatureAnalysis` | | `signature_analysis` |
 
-`AvalancheAnalysis`, `BinderAnalysis`, `FluctuationAnalysis`, `OrderAnalysis`, `MixingAnalysis`, and `EarlyWarningAnalysis` are classes named after a field. They dissolve into the general operations above, and the field measures they named become realizations in the models library:
+`AvalancheAnalysis`, `BinderAnalysis`, `FluctuationAnalysis`, `OrderAnalysis`, `MixingAnalysis`, and `EarlyWarningAnalysis` are classes named after a field. They dissolve into the general operations above. A measure that only picks a choice of a general operation, such as the Binder cumulant (`DistributionAnalysis('moment-ratio')`), the polar order (`AlignmentAnalysis('mean-vector')`), or the avalanches (`EventAnalysis('excursions')`), gets no class: a model, an example, or a test uses the general operation, and its docstring names the field measure. A measure with logic of its own moves to the models library, into the package of the models it measures:
 
-| Realization | Field package | Subclass of | Fixed settings |
+| Class | Package | Subclass of | Its own logic |
 |---|---|---|---|
-| `BinderCumulantAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moment-ratio, orders 4 and 2 |
-| `SusceptibilityAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moments, the variance times the size |
-| `ReplicaOverlapAnalysis` | `models.physics.statistical_mechanics` | `CorrelationAnalysis` | kind overlap |
-| `KineticTemperatureAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moments of the speeds, with the mass |
-| `MaxwellBoltzmannAnalysis` | `models.physics.statistical_mechanics` | `FitAnalysis` | law maxwell, on the speeds |
-| `GiantNumberFluctuationAnalysis` | `models.physics.active_matter` | `ScalingAnalysis` | kind variance-mean, of box counts |
-| `CriticalExponentAnalysis` | `models.physics.statistical_mechanics` | `ScalingAnalysis` | kind power, around the critical point |
-| `AvalancheAnalysis` | `models.physics.criticality` | `EventAnalysis` | kind excursions |
-| `KuramotoOrderAnalysis` | `models.physics.synchronization` | `AlignmentAnalysis` | kind mean-phase |
-| `PolarOrderAnalysis`, `MillingOrderAnalysis`, `NematicOrderAnalysis` | `models.physics.active_matter` | `AlignmentAnalysis` | kinds mean-vector, mean-rotation, axial |
-| `DissimilarityIndexAnalysis` | `models.social.segregation` | `DistributionAnalysis` | kind total-variation, between two groups across units |
-| `EarlyWarningAnalysis` | `models.earth.climate` | `RollingAnalysis` | the variance, the lag-one autocorrelation, and the skewness |
+| `SusceptibilityAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | the variance times the size over the temperature, and the refined peak of a sweep |
+| `KineticTemperatureAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | the mean squared speed times the mass over the dimension |
+| `MaxwellBoltzmannAnalysis` | `models.physics.statistical_mechanics` | `FitAnalysis` | the test of the speeds against the chi law of their dimension |
+| `CracklingNoiseAnalysis` | `models.physics.criticality` | `EventAnalysis` | the scaling relation between the size and duration exponents, and the collapse of mean shapes |
+| `EarlyWarningAnalysis` | `models.earth.climate` | `RollingAnalysis` | the variance, autocorrelation, skewness, and reddening with their trends |
 
-Each realization lives in its own private module next to the models it measures, exported from their package: the spin and gas measures with the Ising, spin-glass, and gas models of statistical mechanics, the avalanche measures with the sandpiles, the orders and number fluctuations with the active matter models, the Kuramoto order with the synchronization models, the dissimilarity index with the Schelling models, and the early warnings with the tipping models. A realization that several packages of one field share lives in that field's `realizations`, in a family package such as `physics.realizations.particles` or `economics.realizations.markets`, and a field with no shared realization has no `realizations` package.
-
-A realization usually only fixes settings in its constructor and documents the field's name, so the general operation's tests cover it. A field measure that composes general analyses, such as the crackling-noise relation between the fitted exponents of avalanche sizes and durations, keeps its own logic as private methods of a realization (`CracklingNoiseAnalysis` in `models.physics.criticality`). No specialized code is removed by this regrouping: whatever does not map onto a general choice moves to the models library, which also serves as worked examples for developers who extend the library.
+Code that one model package uses lives in that package, next to the model definitions. Code that several packages of one field share lives in the field's `common` package, grouped in family packages such as `physics.common.particles` or `economics.common.markets`, and a field with no shared code has no `common` package. No specialized code with logic of its own is removed by this regrouping, and the models library also serves as worked examples for developers who extend the library.
 
 ### Library packages hold general operations
 The core, the engine, analysis, and experiments hold general operations named mathematically: a class names what it computes or simulates, and its choices name variants of that operation. Eponymous names are kept where mathematics uses them for the operation itself, such as Shannon, Rényi, Gini, Lyapunov, or Kramers-Moyal. A name taken from one application field, such as the Binder cumulant, the polar order, or the segregation index, belongs to the models library, which subclasses the general class next to the models of that field that use it and fixes its settings. This is the rule the core already follows for laws and interactions, applied to every package.

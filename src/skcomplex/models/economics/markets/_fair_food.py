@@ -19,7 +19,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations.learning import logit_choice
+from ..common.learning import logit_choice
 
 
 class ConsumerElement(Element):

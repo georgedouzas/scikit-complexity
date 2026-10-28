@@ -18,7 +18,7 @@ from ....core.spaces import ContinuousSpace
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ..realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
+from ..common.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
 
 GRAVITY = 9.81
 WALL_POINTS = 200

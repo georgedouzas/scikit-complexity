@@ -21,10 +21,7 @@ from ._flocks import (
     gregoire_chate,
     vicsek,
 )
-from ._giant_number_fluctuation import GiantNumberFluctuationAnalysis
-from ._milling_order import MillingOrderAnalysis
 from ._model_b import ActiveScalarElement, active_model_b
-from ._nematic_order import NematicOrderAnalysis
 from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
 from ._particles import (
     ActiveParticleElement,
@@ -37,7 +34,6 @@ from ._particles import (
     depot_brownian_particles,
     run_and_tumble,
 )
-from ._polar_order import PolarOrderAnalysis
 
 __all__: list[str] = [
     'ActiveParticleElement',
@@ -48,16 +44,12 @@ __all__: list[str] = [
     'CuckerSmaleAlignmentInteraction',
     'DepotParticleElement',
     'FlockerElement',
-    'GiantNumberFluctuationAnalysis',
-    'MillingOrderAnalysis',
-    'NematicOrderAnalysis',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
     'OrnsteinUhlenbeckParticleElement',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
-    'PolarOrderAnalysis',
     'SoftRepulsionInteraction',
     'TumblerElement',
     'VicsekParticleElement',

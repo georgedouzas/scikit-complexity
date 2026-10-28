@@ -22,7 +22,7 @@ from skcomplex.models.biology.ecology import LogisticGrowthInteraction, Populati
 from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 
 from ..conftest import CallableGrowthInteraction
 
