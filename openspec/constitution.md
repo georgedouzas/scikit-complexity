@@ -295,9 +295,9 @@ to fill in as the project takes shape.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
   are examples built only from the public names of `core`, `engine`, and `formalisms`. Every model package is self-contained, so no model
-  package imports another, except that the packages of one field may import its shared realizations from
-  `skcomplex.models.<field>.realizations`, such as named potentials or market protocols, which never live in the
-  core. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
+  package imports another, except that the packages of one field may import the code they share from
+  `skcomplex.models.<field>.common`, grouped in family packages such as named potentials or market protocols, which
+  never live in the core. Code that one model package uses lives in that package, next to its models. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
   missing general capability, never worked around inside the model package. Models exist first to probe the core: a
   survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
   combinations before models that repeat covered patterns. The import contracts enforce the import rules.
