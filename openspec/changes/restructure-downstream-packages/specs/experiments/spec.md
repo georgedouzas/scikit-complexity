@@ -48,7 +48,8 @@ series and keeps the estimates with R², RMSE, MAE, and MAPE as fitted attribute
 ## ADDED Requirements
 
 ### Requirement: Experiments are estimators with three verbs
-Every experiment SHALL store its source, design, scenarios, replicates, and analyses in its constructor, validate them in
+Every experiment SHALL take a system or a factory of systems as its source, never a model name, since experiments
+cannot import the model library. Every experiment SHALL store its source, design, scenarios, replicates, and analyses in its constructor, validate them in
 `check()`, resolve the source and the runs in `prepare()`, and execute the runs in `run()`, keeping the result in
 `result_`.
 
@@ -77,3 +78,9 @@ the experiment result, and the bases a user subclasses, and SHALL hold no functi
 #### Scenario: Surface listing
 - **WHEN** a user lists the public names of the experiments package
 - **THEN** every name is a class, and none of `calibrate`, `sensitivity`, `run_task`, or `resolve_source` exists
+
+#### Scenario: Model of the library as a source
+- **WHEN** a user runs an experiment of a library model
+- **THEN** they pass the model's factory or a system created by `skcomplex.models`, and a model name raises a named error
+  that says to pass a system or a factory
+
