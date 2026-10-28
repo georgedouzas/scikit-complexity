@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.types import Vector
-from ..problems import BaseProblem, Record
+from ..problems import BaseProblem, BaseRecord
 from ..solvers import AgentSnapshot
 
 
@@ -59,7 +59,7 @@ class Frame:
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
-    events: tuple[Record, ...] = ()
+    events: tuple[BaseRecord, ...] = ()
     structures: Mapping[str, Any] = field(default_factory=dict)
 
     def value(self, name: str) -> npt.NDArray[Any] | float | complex:

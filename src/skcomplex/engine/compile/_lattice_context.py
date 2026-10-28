@@ -11,8 +11,8 @@ from typing import Any
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import ValidationError
-from ._arguments import Arguments
-from ._lattice_state import LatticeState
+from ..problems._arguments import Arguments
+from ..problems._lattice_state import LatticeState
 
 
 @dataclass

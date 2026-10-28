@@ -6,10 +6,11 @@
 from dataclasses import dataclass
 
 from ...core.types import Vector
+from ._base import BaseRecord
 
 
 @dataclass(frozen=True)
-class EventRecord:
+class EventRecord(BaseRecord):
     """Event that happened during a run.
 
     Args:

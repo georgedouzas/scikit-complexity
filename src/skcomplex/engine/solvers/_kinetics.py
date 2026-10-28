@@ -14,9 +14,9 @@ from ...core.errors import SolverError
 from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
 from ...core.spaces import ContinuousTime, LatticeSpace
 from ...core.types import Vector
-from ..compile._compiled_encounter import CompiledEncounter
-from ..compile.passes._kinetic_problem import KineticProblem
 from ..problems import Form, OrderKind, Problem, SupportSpec
+from ..problems._encounter_kernel import EncounterKernel
+from ..problems._kinetic_problem import KineticProblem
 from ._solver import Solver
 
 type Counts = npt.NDArray[np.int64]
@@ -126,7 +126,7 @@ class KineticSolver(Solver):
             state[indices] = self._counts[tuple(indices.tolist())] * self.mass_
         return state
 
-    def _move(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _move(self, encounter: EncounterKernel, p: Vector, step: float) -> None:
         """Move the candidates that encounter in one step to their outcome activities."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
@@ -142,7 +142,7 @@ class KineticSolver(Solver):
             counts[activity] -= movers[activity]
             np.add.at(test, outcomes[selected], shares)
 
-    def _proliferate(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _proliferate(self, encounter: EncounterKernel, p: Vector, step: float) -> None:
         """Add the particles that encounters create in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
@@ -151,7 +151,7 @@ class KineticSolver(Solver):
         births = self.rng_.poisson(counts[candidates] * encounter.weights(p) * field[fields] * step)
         np.add.at(test, outcomes, births)
 
-    def _destroy(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _destroy(self, encounter: EncounterKernel, p: Vector, step: float) -> None:
         """Remove the particles that encounters destroy in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
@@ -202,7 +202,7 @@ class KineticSolver(Solver):
         return self._state(x)
 
     @staticmethod
-    def _densities(encounters: tuple[CompiledEncounter, ...]) -> list[Indices]:
+    def _densities(encounters: tuple[EncounterKernel, ...]) -> list[Indices]:
         """Return the state indices of every density the encounters read or change, each once."""
         found: dict[tuple[int, ...], Indices] = {}
         for encounter in encounters:

@@ -46,9 +46,9 @@ from ...core.spaces import (
     StaticTime,
 )
 from ..problems import (
-    Draws,
+    DrawKernel,
     Form,
-    Kernel,
+    LawKernel,
     NoiseKind,
     OrderKind,
     ReductionSchedule,
@@ -111,11 +111,11 @@ class NumpyBackend(BaseBackend):
 
     def _run(
         self,
-        kernels: Mapping[type, list[Kernel]],
+        kernels: Mapping[type, list[LawKernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         *,
         reductions: ReductionSchedule | None = None,
-        draws: Draws | None = None,
+        draws: DrawKernel | None = None,
     ) -> Lowering:
         """Return the numeric functions of the prepared form evaluated with NumPy.
 
@@ -146,11 +146,11 @@ class NumpyBackend(BaseBackend):
             lowering.drift = BaseBackend._adding_function(kernels.get(RateLaw, []), size)
         if form == Form.SDE:
             lowering.diffusion = BaseBackend._concatenating_function(kernels.get(NoiseLaw, []))
-            noise = Kernel._lower_noise(kernels.get(NoiseLaw, []))
+            noise = LawKernel._lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
             lowering.propensities = BaseBackend._concatenating_function(kernels.get(JumpLaw, []))
-            lowering.jumps = Kernel._jump_channels(kernels.get(JumpLaw, []), changes)
+            lowering.jumps = LawKernel._jump_channels(kernels.get(JumpLaw, []), changes)
         if form == Form.DISCRETE:
             lowering.update = BaseBackend._assigning_function(kernels.get(UpdateLaw, []))
         return self._with_reductions(lowering, reductions, kernels)
@@ -159,7 +159,7 @@ class NumpyBackend(BaseBackend):
     def _with_reductions(
         lowering: Lowering,
         reductions: ReductionSchedule | None,
-        kernels: Mapping[type, list[Kernel]] | None = None,
+        kernels: Mapping[type, list[LawKernel]] | None = None,
     ) -> Lowering:
         """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
 

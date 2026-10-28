@@ -14,11 +14,11 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ...backends import BaseBackend, resolve_backend
 from ...problems import Reference, Source, symbols_of
+from ...problems._encounter_kernel import EncounterKernel
+from ...problems._table_values import Indices, TableValues
 from .._compilation import Compilation, Laws
-from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
 from .._pipeline import BasePass
-from .._table_values import Indices, TableValues
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 
@@ -50,7 +50,7 @@ class CompileEncountersPass(BasePass):
         specs: Laws,
         declarations: Declarations,
         backend: BaseBackend | None,
-    ) -> tuple[CompiledEncounter, ...]:
+    ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered for their members."""
         if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
             return ()
@@ -153,7 +153,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
-    ) -> CompiledEncounter:
+    ) -> EncounterKernel:
         """Return an encounter law lowered to sparse contractions over the densities its roles bind.
 
         Args:
@@ -193,15 +193,15 @@ class CompileEncountersPass(BasePass):
         rate = TableValues(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
         if table is None:
             empty = np.zeros(0, dtype=np.intp)
-            return CompiledEncounter(
+            return EncounterKernel(
                 owner, CompileEncountersPass._effect(law), candidate, field_indices, test, rate, (empty,) * 3, None,
-            )
+            ).check()
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
         probabilities = TableValues(
             table, positions, CompileEncountersPass._parameter_indices(table, references, owner), time,
         )
-        return CompiledEncounter(
+        return EncounterKernel(
             owner,
             CompileEncountersPass._effect(law),
             candidate,
@@ -211,7 +211,7 @@ class CompileEncountersPass(BasePass):
             entries,
             probabilities,
             fused,
-        )
+        ).check()
 
     @staticmethod
     def _compile_encounters(
@@ -219,7 +219,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
-    ) -> tuple[CompiledEncounter, ...]:
+    ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered in declaration order.
 
         Args:

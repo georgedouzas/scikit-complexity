@@ -17,7 +17,7 @@ from ..problems import (
     SCALAR_DIALECT,
     EdgeSearch,
     Entry,
-    Kernel,
+    LawKernel,
     Output,
     ReductionSchedule,
     Reference,
@@ -25,12 +25,12 @@ from ..problems import (
     print_expressions,
     symbols_of,
 )
-from ..problems._compiled_neighborhood import CompiledNeighborhood
-from ..problems._compiled_reduction import CompiledReduction
-from ..problems._edge_rows import EdgeRows
+from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._metric_search import MetricSearch
+from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._pair_search import PairSearch
 from ..problems._reads import Read
+from ..problems._reduction_kernel import ReductionKernel
 from ..problems._static_search import StaticSearch
 
 INDENT = '    '
@@ -171,7 +171,7 @@ class _Source:
             values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
         return lines, values
 
-    def _single_reads(self, kernel: Kernel, outputs: list[Output]) -> list[str]:
+    def _single_reads(self, kernel: LawKernel, outputs: list[Output]) -> list[str]:
         """Return the lines that read every single-element symbol of outputs once, before the member loops."""
         expressions = [output.expression for output in outputs if output.expression is not None]
         arguments = [argument for output in outputs for argument in output.arguments or ()]
@@ -196,7 +196,7 @@ class _Source:
         second = self.data_slot(f'__edge_targets_{digest}', search.targets)
         return f'_L{2 * first + 1}_', [f'{pad}_a_ = L[_L{2 * first}_ + _m_]', f'{pad}_b_ = L[_L{2 * second}_ + _m_]']
 
-    def _output_count(self, kernel: Kernel) -> str:
+    def _output_count(self, kernel: LawKernel) -> str:
         """Return the code of the number of values a member kernel writes, its outputs times its rows."""
         if isinstance(kernel.pairs, EdgeSearch):
             rows, _ = self._edge_rows(kernel.pairs)
@@ -208,7 +208,7 @@ class _Source:
 
     def _pair_block(
         self,
-        kernel: Kernel,
+        kernel: LawKernel,
         selected: list[tuple[int, Output]],
         *,
         first: str,
@@ -244,7 +244,7 @@ class _Source:
         ]
         return lines
 
-    def _pair_loop(self, kernel: Kernel, outputs: list[tuple[int, Output]], loop: str, same: bool) -> list[str]:
+    def _pair_loop(self, kernel: LawKernel, outputs: list[tuple[int, Output]], loop: str, same: bool) -> list[str]:
         """Return the lines of one loop over members and their neighbours that accumulates pair outputs.
 
         The loop over `_a_` runs over the first members and computes the outputs of first members with `first=_a_` and
@@ -312,7 +312,7 @@ class _Source:
         lines += [f'{INDENT * 2}out[{self._index(output.target, loop)}] += _acc{index}_' for index, output in outputs]  # type: ignore[arg-type]
         return lines
 
-    def _member_kernel(self, kernel: Kernel, name: str, mode: str, parallel: bool) -> None:
+    def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
         """Add the source of a kernel evaluated once per member, for adding, assigning, or concatenating outputs."""
         member_entry = next(
             (reference.entry for reference in kernel.references.values() if reference.source is Source.MEMBER),
@@ -364,7 +364,7 @@ class _Source:
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
         self.lines += ['', '', *_Source._hoist_layout(lines)]
 
-    def _pair_kernel(self, kernel: Kernel, name: str, parallel: bool) -> None:
+    def _pair_kernel(self, kernel: LawKernel, name: str, parallel: bool) -> None:
         """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
         pairs = kernel.pairs
         assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
@@ -403,7 +403,7 @@ class _Source:
         text = text.replace('PERIOD', repr(float(period)))
         self.lines += ['', '', text]
 
-    def _edge_kernel(self, kernel: Kernel, name: str, mode: str) -> None:
+    def _edge_kernel(self, kernel: LawKernel, name: str, mode: str) -> None:
         """Add the source of a kernel evaluated once per edge, whose laws read the ends and the edge member."""
         search = kernel.pairs
         assert isinstance(search, EdgeSearch)
@@ -476,7 +476,7 @@ class _Source:
             return f'{name} = {vector}[{start} + _m_ * {read.stride} + {read.column}]'
         return f'{name} = {vector}[{start} + {read.column}]'
 
-    def _reduction_rows(self, reduction: CompiledReduction) -> str:
+    def _reduction_rows(self, reduction: ReductionKernel) -> str:
         """Return the code of the number of members a reduction reduces over."""
         if reduction.members is not None:
             return f'_L{2 * self.slot(reduction.members) + 1}_'
@@ -484,7 +484,7 @@ class _Source:
 
     def _reduction_loop(
         self,
-        reduction: CompiledReduction,
+        reduction: ReductionKernel,
         index: int,
         body: list[str],
         *,
@@ -511,7 +511,7 @@ class _Source:
             *(f'{INDENT * 2}{line}' for line in body),
         ]
 
-    def _reduction_lines(self, reduction: CompiledReduction, index: int) -> list[str]:
+    def _reduction_lines(self, reduction: ReductionKernel, index: int) -> list[str]:
         """Return the lines that compute one reduction and store it in the extended parameter vector."""
         start = f'_L{2 * self.slot(reduction.entry)}_'
         acc, cnt = f'_acc{index}_', f'_cnt{index}_'
@@ -559,7 +559,7 @@ class _Source:
         value = {'sum': acc, 'count': cnt, 'mean': mean}[reduction.kind]
         return [*lines, f'{INDENT}p[{start}] = {value}']
 
-    def _search_lines(self, reduction: CompiledNeighborhood, index: int) -> list[str]:
+    def _search_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
         """Return the lines that find the neighbours of every member, as rows `_ip<k>_` and neighbours `_ix<k>_`."""
         search = reduction.search
         if isinstance(search, StaticSearch):
@@ -573,7 +573,7 @@ class _Source:
                 edges = self.data_slot(f'__neighbours_{index}_edges', search.edges)
                 lines.append(f'{INDENT}_ie{index}_ = L[_L{2 * edges}_ : _L{2 * edges}_ + _L{2 * edges + 1}_]')
             return lines
-        if isinstance(search, EdgeRows):
+        if isinstance(search, EdgeRowSearch):
             starts = ', '.join(f'_L{2 * self.slot(entry)}_' for entry in (search.source, search.target, search.active))
             call = (
                 f'edge_neighbours(p, ({starts}), _L{2 * self.slot(search.source) + 1}_, {search.size}, '
@@ -622,7 +622,7 @@ class _Source:
         )
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
 
-    def _pair_read_code(self, reduction: CompiledNeighborhood, item: Expression, index: int) -> str:
+    def _pair_read_code(self, reduction: NeighborhoodKernel, item: Expression, index: int) -> str:
         """Return the code of one symbol of a neighbourhood reduction for the reader `_i_` and the neighbour `_j_`."""
         pair = reduction.reads[item]
         read = pair.read
@@ -643,7 +643,7 @@ class _Source:
         del index
         return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'
 
-    def _neighborhood_lines(self, reduction: CompiledNeighborhood, index: int) -> list[str]:
+    def _neighborhood_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
         """Return the lines that compute a neighbourhood reduction of every member into the extended parameters."""
         lines = self._search_lines(reduction, index)
         sides = {item: reduction.reads[item].side for item in reduction.symbols}
@@ -710,7 +710,7 @@ class _Source:
             f'{INDENT}p[: p0.size] = p0',
         ]
         for index, reduction in enumerate(reductions.steps):
-            if isinstance(reduction, CompiledNeighborhood):
+            if isinstance(reduction, NeighborhoodKernel):
                 lines += self._neighborhood_lines(reduction, index)
             else:
                 lines += self._reduction_lines(reduction, index)

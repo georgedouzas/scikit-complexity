@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ...core.laws import BaseLaw
-from ._kernel import Kernel
+from ._law_kernel import LawKernel
 from ._reference import Reference
 
 
@@ -27,6 +27,6 @@ class Lowered:
             The kernel spec and the law every output was lowered from, keyed by the output's identity.
     """
 
-    kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
+    kernels: dict[type, list[LawKernel]] = field(default_factory=lambda: defaultdict(list))
     jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
     laws: dict[int, tuple[Any, BaseLaw]] = field(default_factory=dict)

@@ -13,7 +13,7 @@ from ...core.errors import SolverError
 from ...core.types import Vector
 from ..base import BaseEstimator
 from ..problems import Problem
-from ..problems._base_problem import BaseProblem
+from ..problems._base import BaseProblem
 from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ._event_locator import EventLocator

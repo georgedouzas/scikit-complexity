@@ -7,9 +7,9 @@ from typing import cast
 
 from ....core.laws import RateLaw
 from ...problems import Form, Lowered, ReductionSchedule
+from ...problems._jacobian_kernel import JacobianKernel
 from .._compilation import Compilation
 from .._declarations import Declarations
-from .._jacobians import ExactJacobian
 from .._pipeline import BasePass
 
 
@@ -28,12 +28,12 @@ class JacobianPass(BasePass):
         """
         declarations = cast('Declarations', compilation.layout)
         compilation.jacobian = (
-            ExactJacobian(
+            JacobianKernel(
                 tuple(cast('Lowered', compilation.kernels).kernels[RateLaw]),
                 cast('ReductionSchedule', compilation.reductions),
                 declarations.ends[True],
                 declarations.time,
-            )
+            ).check()
             if compilation.form == Form.ODE
             else None
         )

@@ -20,7 +20,7 @@ from ...core.types import Vector
 from ..backends import BaseBackend
 from ..base import BaseEstimator
 from ..compile import ObservableEvaluator, compile_system, validate
-from ..problems import BaseProblem, Entry, Form, contains
+from ..problems import BaseProblem, Entry, Form, State, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
 from ._clocks import AsFastAsPossibleClock, BaseClock
 from ._conservation import InvariantObserver
@@ -366,7 +366,7 @@ class Simulation(BaseEstimator):
             changed.update(dict.fromkeys(positions[indices].tolist(), name))
         for matrix in matrices:
             names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.violation(candidate) if names else None
+            violation = matrix.run(State(self.time_, self.state_, candidate)) if names else None
             if violation is not None:
                 error_msg = (
                     f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '

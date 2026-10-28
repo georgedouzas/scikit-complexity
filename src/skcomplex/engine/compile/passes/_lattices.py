@@ -29,26 +29,26 @@ from ....core.spaces import (
 from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
-from .._arguments import Arguments, Indices
+from ...problems._arguments import Arguments, Indices
+from ...problems._drive_kernel import DriveKernel
+from ...problems._extremal_kernel import ExtremalKernel
+from ...problems._lattice_state import LatticeState
+from ...problems._lookup import Lookup, Vector
+from ...problems._monte_carlo_kernel import MonteCarloKernel
+from ...problems._relaxation_kernel import RelaxationKernel
+from ...problems._rule_kernel import RuleKernel
 from .._census import Census
 from .._compilation import Compilation, Laws
-from .._compiled_drive import CompiledDrive
-from .._compiled_extremal import CompiledExtremal
-from .._compiled_monte_carlo import CompiledMonteCarlo
-from .._compiled_relaxation import CompiledRelaxation
-from .._compiled_rule import CompiledRule
 from .._declarations import Declarations
 from .._issue import Issue
 from .._kernel_spec import KernelSpec
 from .._lattice_context import LatticeContext
-from .._lattice_state import LatticeState
 from .._laws import LATTICE_LAWS
-from .._lookup import Lookup, Vector
 from .._pipeline import BasePass
 
 _COLORING_STRATEGY = 'largest_first'
 
-type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
+type LatticeStep = RuleKernel | DriveKernel | RelaxationKernel | MonteCarloKernel | ExtremalKernel
 
 
 def _schedule_of(law: object) -> str | None:
@@ -430,7 +430,7 @@ class LatticeProblemPass(BasePass):
         return SR(expression).subs(replacements) if replacements else SR(expression)
 
     @staticmethod
-    def _compile_drive(law: DriveLaw, context: LatticeContext) -> CompiledDrive:
+    def _compile_drive(law: DriveLaw, context: LatticeContext) -> DriveKernel:
         """Return a drive compiled for its lattice state.
 
         Args:
@@ -444,15 +444,15 @@ class LatticeProblemPass(BasePass):
             drive:
                 The compiled drive.
         """
-        return CompiledDrive(
+        return DriveKernel(
             context.owner,
             context.state(law._get_targets()[0], 'A drive'),
             law.function,
             context.keywords(law.function),
-        )
+        ).check()
 
     @staticmethod
-    def _compile_rule(law: LocalRuleLaw, context: LatticeContext) -> CompiledRule:
+    def _compile_rule(law: LocalRuleLaw, context: LatticeContext) -> RuleKernel:
         """Return a local rule compiled for its lattice.
 
         Args:
@@ -493,7 +493,7 @@ class LatticeProblemPass(BasePass):
             )
             raise ValidationError(error_msg)
         reads_degree = lookup is None and 'degree' in LatticeContext._accepted(law.rule, ['degree'])  # type: ignore[arg-type]
-        return CompiledRule(
+        return RuleKernel(
             context.owner,
             targets,
             reads,
@@ -506,10 +506,10 @@ class LatticeProblemPass(BasePass):
             context.fused and lookup is not None and law.schedule == 'synchronous',
             LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
             LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
-        )
+        ).check()
 
     @staticmethod
-    def _compile_part(law: object, context: LatticeContext) -> CompiledRule | CompiledDrive:
+    def _compile_part(law: object, context: LatticeContext) -> RuleKernel | DriveKernel:
         """Return a law of a relaxation compiled."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
@@ -519,7 +519,7 @@ class LatticeProblemPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _compile_relaxation(law: RelaxationLaw, context: LatticeContext) -> CompiledRelaxation:
+    def _compile_relaxation(law: RelaxationLaw, context: LatticeContext) -> RelaxationKernel:
         """Return a relaxation compiled for its lattice.
 
         Args:
@@ -536,7 +536,7 @@ class LatticeProblemPass(BasePass):
         if not law.relax:
             error_msg = f'A relaxation of {context.owner} has no relaxation laws.'
             raise ValidationError(error_msg)
-        return CompiledRelaxation(
+        return RelaxationKernel(
             law.label or context.owner,
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
@@ -544,10 +544,10 @@ class LatticeProblemPass(BasePass):
             law.stable,
             int(law.max_iterations),
             law.activity,
-        )
+        ).check()
 
     @staticmethod
-    def _compile_extremal(law: ExtremalLaw, context: LatticeContext) -> CompiledExtremal:
+    def _compile_extremal(law: ExtremalLaw, context: LatticeContext) -> ExtremalKernel:
         """Return an extremal law compiled for its lattice or network.
 
         Args:
@@ -577,7 +577,7 @@ class LatticeProblemPass(BasePass):
         arguments = context.keywords(law.rule)
         maximum = law.extremum == 'max'
         loop = LatticeProblemPass._extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
-        return CompiledExtremal(
+        return ExtremalKernel(
             law.label or context.owner,
             context.owner,
             targets,
@@ -589,7 +589,7 @@ class LatticeProblemPass(BasePass):
             maximum,
             int(law.repeat),
             loop,
-        )
+        ).check()
 
     @staticmethod
     def _compile_monte_carlo(
@@ -597,7 +597,7 @@ class LatticeProblemPass(BasePass):
         move: MoveSpec,
         sampler: SamplerSpec,
         context: LatticeContext,
-    ) -> CompiledMonteCarlo:
+    ) -> MonteCarloKernel:
         """Return Monte Carlo sampling compiled from a local energy, a move, and a sampler.
 
         Args:
@@ -660,7 +660,7 @@ class LatticeProblemPass(BasePass):
             tuple(item[3] for item in found),
         )
         time = symbol('_time')
-        return CompiledMonteCarlo(
+        return MonteCarloKernel(
             context.owner,
             target,
             table,
@@ -671,4 +671,4 @@ class LatticeProblemPass(BasePass):
             sampler,
             classes,
             masked,
-        )
+        ).check()

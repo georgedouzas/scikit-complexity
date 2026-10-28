@@ -17,9 +17,9 @@ from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, Subs
 from skcomplex.core.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.core.types import Letters
-from skcomplex.engine.compile import PatchStructure, WordStructure, claiming_compiler, compile_system
+from skcomplex.engine.compile import claiming_compiler, compile_system
 from skcomplex.engine.compile.passes import RewritingCompiler
-from skcomplex.engine.problems import Form, symbol
+from skcomplex.engine.problems import Form, PatchStructure, WordStructure, symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
 from skcomplex.models.biology.ecology import PopulationElement
@@ -268,7 +268,7 @@ def test_benchmark_of_a_large_word():
     compiled = problem.rewriting[0]
     word = WordStructure(compiled.names, np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
-    rewritten = compiled.rewrite(word, problem.initial_parameters, np.random.default_rng(0))
+    rewritten = compiled._rewrite(word, problem.initial_parameters, np.random.default_rng(0))
     assert time.perf_counter() - start < 0.1
     assert len(rewritten) == 8 * 10**6
 

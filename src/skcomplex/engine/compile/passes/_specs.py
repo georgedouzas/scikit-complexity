@@ -214,7 +214,7 @@ class SpecsPass(BasePass):
             )
             raise RoleError(error_msg)
         empty = np.zeros(0, dtype=np.intp)
-        return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]])
+        return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).check()
 
     @staticmethod
     def _edge_layer(node: Node, nodes: Block, edges: Block | None) -> str | None:
@@ -309,7 +309,7 @@ class SpecsPass(BasePass):
                 f'{sources.size} edges. Give the edge group one member per edge of its layer.'
             )
             raise RoleError(error_msg)
-        return EdgeSearch(sources, targets)
+        return EdgeSearch(sources, targets).check()
 
     @staticmethod
     def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> KernelSpec:
@@ -381,7 +381,7 @@ class SpecsPass(BasePass):
         references.update(second_references)
         period = getattr(interaction, 'period', None)
         period = period if period is not None else SpecsPass._space_period(node)
-        pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
+        pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period).check()
         namespace = SimpleNamespace(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
         paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
         return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)

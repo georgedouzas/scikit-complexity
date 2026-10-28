@@ -42,7 +42,7 @@ from ...core.specs import ObservableSpec, WienerProcessSpec
 from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import DomainKind, NoiseKind, SupportSpec, VariableKind, declarations_of, symbol
-from ..problems._compiled_neighborhood import CompiledNeighborhood
+from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ._census import Census
 from ._census_record import CensusRecord
 from ._compilation import Compilation
@@ -259,7 +259,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
-            spaces = _OWN_NEIGHBORHOOD if over is None else CompiledNeighborhood._spaces_of(over)
+            spaces = _OWN_NEIGHBORHOOD if over is None else NeighborhoodKernel._spaces_of(over)
             described = 'the neighbours of its space' if over is None else repr(over)
             if not isinstance(record.space, spaces):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
@@ -277,7 +277,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
             if node is None or not isinstance(record.space, ContinuousSpace) or over is None:
                 continue
             states = declarations_of(node.component_type, VariableKind.STATE)
-            if CompiledNeighborhood._position_state(states) is None:
+            if NeighborhoodKernel._position_state(states) is None:
                 message = (
                     f'The {name} reduces over {over!r}, which measures distances between positions, but '
                     f'{record.owner} declares no vector position state.'
@@ -287,7 +287,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
                 continue
             if isinstance(over, ConeNeighborhood):
                 try:
-                    CompiledNeighborhood._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
+                    NeighborhoodKernel._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
                 except ValidationError as error:
                     fix = (
                         "Declare a vector velocity, `StateSpec(vector=True, velocity_of='x')`, or name a heading "

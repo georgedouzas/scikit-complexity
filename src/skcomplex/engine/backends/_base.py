@@ -11,9 +11,9 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.types import Vector
 from ..base import BaseEstimator
-from ..problems import Form, SupportSpec
-from ..problems._draws import Draws
-from ..problems._kernel import Kernel
+from ..problems import Form, State, SupportSpec
+from ..problems._draw_kernel import DrawKernel
+from ..problems._law_kernel import LawKernel
 from ..problems._problem import VectorFunction
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
@@ -55,11 +55,11 @@ class BaseBackend(BaseEstimator):
 
     def _run(
         self,
-        kernels: Mapping[type, list[Kernel]],
+        kernels: Mapping[type, list[LawKernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         *,
         reductions: ReductionSchedule | None = None,
-        draws: Draws | None = None,
+        draws: DrawKernel | None = None,
     ) -> Lowering:
         """Return the numeric functions of the prepared form.
 
@@ -88,7 +88,7 @@ class BaseBackend(BaseEstimator):
         raise NotImplementedError
 
     @staticmethod
-    def _adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
+    def _adding_function(kernels: list[LawKernel], size: int) -> VectorFunction:
         """Return the function that sums the outputs of kernels into a zero vector.
 
         Args:
@@ -107,7 +107,7 @@ class BaseBackend(BaseEstimator):
             """Sum every kernel's outputs into their targets."""
             output = np.zeros(size)
             for kernel in kernels:
-                _, pairs, values = kernel.evaluate(t, x, p)
+                _, pairs, values = kernel.run(State(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
                     Reference._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
             return output
@@ -115,7 +115,7 @@ class BaseBackend(BaseEstimator):
         return evaluate
 
     @staticmethod
-    def _assigning_function(kernels: list[Kernel]) -> VectorFunction:
+    def _assigning_function(kernels: list[LawKernel]) -> VectorFunction:
         """Return the function that sets the outputs of kernels on a copy of the state vector.
 
         Args:
@@ -131,7 +131,7 @@ class BaseBackend(BaseEstimator):
             """Set every kernel's outputs on a copy of the state."""
             output = x.copy()
             for kernel in kernels:
-                _, _, values = kernel.evaluate(t, x, p)
+                _, _, values = kernel.run(State(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
                     Reference._assign_into(output, item.target, value)  # type: ignore[arg-type]
             return output
@@ -139,7 +139,7 @@ class BaseBackend(BaseEstimator):
         return evaluate
 
     @staticmethod
-    def _concatenating_function(kernels: list[Kernel]) -> VectorFunction:
+    def _concatenating_function(kernels: list[LawKernel]) -> VectorFunction:
         """Return the function that concatenates the outputs of kernels, one value per evaluation index.
 
         Args:
@@ -153,13 +153,13 @@ class BaseBackend(BaseEstimator):
 
         def evaluate(t: float, x: Vector, p: Vector) -> Vector:
             """Concatenate every kernel's outputs."""
-            values = [value for kernel in kernels for value in kernel.evaluate(t, x, p)[2]]
+            values = [value for kernel in kernels for value in kernel.run(State(t, x, p))[2]]
             return np.concatenate([np.zeros(0), *values])
 
         return evaluate
 
     @staticmethod
-    def _reads_reduction(kernel: Kernel, item: Expression) -> bool:
+    def _reads_reduction(kernel: LawKernel, item: Expression) -> bool:
         """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
         reference = kernel.references[item]
         if reference.source is Source.REDUCED:
@@ -169,7 +169,7 @@ class BaseBackend(BaseEstimator):
         return False
 
     @staticmethod
-    def _reads_reductions(kernels: list[Kernel]) -> bool:
+    def _reads_reductions(kernels: list[LawKernel]) -> bool:
         """Check whether the outputs of kernels read reductions, so their function evaluates the reductions first.
 
         Args:

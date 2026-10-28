@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -15,15 +14,16 @@ from ...core.spaces import (
     RadiusNeighborhood,
 )
 from ...core.types import Indices, Vector
-from ._edge_rows import Found
+from ._base import BaseSearch
+from ._edge_row_search import Found
 from ._entry import Entry
 from ._heading import Heading
+from ._state import State
 
 type Rows = tuple[Indices, Indices]
 
 
-@dataclass(frozen=True)
-class MetricSearch:
+class MetricSearch(BaseSearch):
     """Neighbours in a continuous space found from the positions at every evaluation with a k-d tree.
 
     Args:
@@ -40,10 +40,17 @@ class MetricSearch:
             The heading state of a cone, or `None`.
     """
 
-    neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood
-    positions: Entry
-    periods: tuple[float, ...] | None = None
-    heading: Heading | None = None
+    def __init__(
+        self,
+        neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood,
+        positions: Entry,
+        periods: tuple[float, ...] | None = None,
+        heading: Heading | None = None,
+    ) -> None:
+        self.neighbourhood = neighbourhood
+        self.positions = positions
+        self.periods = periods
+        self.heading = heading
 
     def wrapped(self, x: Vector) -> Vector:
         """Return the positions of the members, wrapped into a periodic box.
@@ -87,20 +94,9 @@ class MetricSearch:
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every member at the current positions.
-
-        Args:
-            x:
-                The state vector.
-
-            q:
-                The extended parameter vector, which the neighbours do not depend on.
-
-        Returns:
-            rows:
-                The row starts and the neighbours, sorted by neighbour within every row, without edges.
-        """
+    def _run(self, inputs: State) -> Found:
+        """Return the neighbours of every member at the current positions."""
+        x, q = inputs.x, inputs.p
         del q
         positions = self.wrapped(x)
         size = positions.shape[0]

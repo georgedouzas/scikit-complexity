@@ -11,8 +11,8 @@ import numpy as np
 from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile.passes._rewriting_problem import RewritingProblem
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import Form, OrderKind, State, SupportSpec
+from ..problems._rewriting_problem import RewritingProblem
 from ._base import BaseSolver
 from ._structure_state import StructureState
 
@@ -62,9 +62,8 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
                 The end time of the run.
         """
         super()._prepare(problem, rng, until)
-        values = problem.initial_parameters
         self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
-        self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}
+        self.structures_: dict[str, Any] = {item.path: item.prepare(problem).structure_ for item in self.systems_}
         self._collect()
 
     def _state(self) -> Vector:
@@ -92,11 +91,9 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
             state:
                 The counts and sizes at generation `until`.
         """
-        del x
-        for _ in range(round(until - t)):
-            self.structures_ = {
-                item.path: item.rewrite(self.structures_[item.path], p, self.rng_) for item in self.systems_
-            }
+        for generation in range(round(until - t)):
+            state = State(t + generation, x, p, self.rng_)
+            self.structures_ = {item.path: item.run(state) for item in self.systems_}
         return self._state()
 
     def _collect(self) -> None:

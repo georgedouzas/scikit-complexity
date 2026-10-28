@@ -28,11 +28,11 @@ from ...problems import (
     symbols_of,
     vector,
 )
-from ...problems._compiled_neighborhood import CompiledNeighborhood
-from ...problems._compiled_reduction import CompiledReduction
-from ...problems._edge_rows import ACTIVE_THRESHOLD
+from ...problems._edge_row_search import ACTIVE_THRESHOLD
+from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._pair_read import PairRead
 from ...problems._reads import Read
+from ...problems._reduction_kernel import ReductionKernel
 from .._compilation import Compilation, Laws
 from .._complex import _modulus_form
 from .._declarations import Declarations
@@ -50,12 +50,12 @@ class _Reductions:
 
     declarations: Declarations
     drawn: int = 0
-    found: dict[tuple[Any, ...], CompiledReduction] = field(default_factory=dict)
-    by_symbol: dict[Expression, CompiledReduction] = field(default_factory=dict)
+    found: dict[tuple[Any, ...], ReductionKernel] = field(default_factory=dict)
+    by_symbol: dict[Expression, ReductionKernel] = field(default_factory=dict)
     readers: dict[Expression, str | None] = field(default_factory=dict)
-    neighbourhoods: dict[tuple[Any, ...], CompiledNeighborhood] = field(default_factory=dict)
-    local: dict[Expression, CompiledNeighborhood] = field(default_factory=dict)
-    sequence: list[CompiledReduction | CompiledNeighborhood] = field(default_factory=list)
+    neighbourhoods: dict[tuple[Any, ...], NeighborhoodKernel] = field(default_factory=dict)
+    local: dict[Expression, NeighborhoodKernel] = field(default_factory=dict)
+    sequence: list[ReductionKernel | NeighborhoodKernel] = field(default_factory=list)
 
     @property
     def parameters(self) -> int:
@@ -256,7 +256,7 @@ class _Reductions:
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
             }
-            compiled = CompiledReduction(
+            compiled = ReductionKernel(
                 placeholder,
                 reduction.kind,
                 argument_key,
@@ -268,7 +268,7 @@ class _Reductions:
                 reads,
                 self.declarations.time,
                 members,
-            )
+            ).check()
             self.found[key] = compiled
             self.sequence.append(compiled)
             self.by_symbol[placeholder] = compiled
@@ -381,7 +381,7 @@ class _Reductions:
         over = (
             reduction.over
             if reduction.over is not None
-            else CompiledNeighborhood._default_neighborhood(block.node.space)
+            else NeighborhoodKernel._default_neighborhood(block.node.space)
         )
         if over is None:
             error_msg = (
@@ -398,13 +398,13 @@ class _Reductions:
                 else None
             )
             over = over.check() if isinstance(over, BaseNeighborhood) else over
-            search = CompiledNeighborhood._neighbor_search(
+            search = NeighborhoodKernel._neighbor_search(
                 over, block.node.space, block.rows, block.entries, states, changing=changing,
             )
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), RR, block.rows)
-            compiled = CompiledNeighborhood(
+            compiled = NeighborhoodKernel(
                 symbol(f'_neighbours_{index}'),
                 reduction.kind,
                 argument,
@@ -414,7 +414,7 @@ class _Reductions:
                 search,
                 reads,
                 self.declarations.time,
-            )
+            ).check()
             self.neighbourhoods[key] = compiled
             self.sequence.append(compiled)
             self.local[compiled.symbol] = compiled

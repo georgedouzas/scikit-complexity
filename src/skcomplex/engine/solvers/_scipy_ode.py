@@ -27,7 +27,7 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ..problems import Form, OrderKind, Problem, State, SupportSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._solver import Solver
@@ -257,7 +257,7 @@ class ScipyODESolver(Solver):
         jacobian = problem.jacobian
         assert jacobian is not None
         if self.jacobian == 'exact':
-            jacobian.validate()
+            jacobian.prepare(problem)
             self._exact = True
             self.jacobian_pattern_ = jacobian.pattern()
             return
@@ -285,7 +285,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
-            matrix = jacobian.evaluate(time, state, History._with_delays(problem, history, time, state, p))
+            matrix = jacobian.run(State(time, state, History._with_delays(problem, history, time, state, p)))
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}

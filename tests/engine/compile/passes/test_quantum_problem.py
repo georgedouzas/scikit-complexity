@@ -8,8 +8,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import (
     compile_system,
 )
-from skcomplex.engine.compile.passes import QuantumProblem
-from skcomplex.engine.problems import BaseProblem, Form, Problem
+from skcomplex.engine.problems import BaseProblem, Form, Problem, QuantumProblem
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
     SpinElement,

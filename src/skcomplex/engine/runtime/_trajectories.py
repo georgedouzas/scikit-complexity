@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..problems import BaseProblem, NetworkSnapshot, Record, decode
+from ..problems import BaseProblem, BaseRecord, NetworkSnapshot, decode
 from ..solvers import AgentSnapshot
 
 
@@ -71,7 +71,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[Record] = (),
+        events: Sequence[BaseRecord] = (),
         structures: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem

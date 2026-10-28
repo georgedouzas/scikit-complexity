@@ -21,6 +21,7 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import State
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CrankNicolsonSolver,
@@ -669,7 +670,8 @@ def test_exact_jacobian_follows_parameter_changes():
         states[option] = stepper.run(0.5, x, changed, 1.0)
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()
-            np.testing.assert_allclose(jacobian, problem.jacobian.evaluate(0.5, x, changed).toarray())
+            exact = problem.jacobian.prepare(problem).run(State(0.5, x, changed)).toarray()
+            np.testing.assert_allclose(jacobian, exact)
     assert _relative(states['exact'], states['dense']) < 1e-5
 
 

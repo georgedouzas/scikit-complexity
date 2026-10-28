@@ -17,9 +17,9 @@ from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
 from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
-from ..compile.passes._quantum_problem import QuantumProblem
-from ..compile.passes._quantum_term import QuantumTerm
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import Form, OrderKind, State, SupportSpec
+from ..problems._quantum_kernel import QuantumKernel
+from ..problems._quantum_problem import QuantumProblem
 from ._base import BaseSolver
 
 
@@ -65,7 +65,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         self.nsteps = nsteps
         self.max_dimension = max_dimension
 
-    def _operator(self, terms: Sequence[QuantumTerm], p: Vector) -> qutip.Qobj | qutip.QobjEvo:
+    def _operator(self, terms: Sequence[QuantumKernel], p: Vector) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
         problem = self.quantum_
         dims = [list(problem.dimensions)] * 2
@@ -77,7 +77,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             if term.time_dependent:
                 varying.append([matrix, self._coefficient(term, p)])
             else:
-                constant = constant + complex(term.value(0.0, p)) * matrix
+                constant = constant + complex(term.run(State(0.0, np.zeros(0), p))) * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
@@ -188,12 +188,12 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
-    def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
+    def _coefficient(term: QuantumKernel, p: Vector) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 
         def value(t: float) -> complex:
-            return term.value(t, parameters)
+            return term.run(State(t, np.zeros(0), parameters))
 
         return value
 

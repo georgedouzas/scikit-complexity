@@ -16,10 +16,10 @@ from ...problems import (
     Reference,
     Source,
 )
+from ...problems._linear_term import OPERATORS, LinearTerm, Terms
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._field_splitting import OPERATORS, LinearTerm, Terms
 from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
 

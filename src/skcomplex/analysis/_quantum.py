@@ -17,9 +17,8 @@ from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
 from ..core.types import Vector
 from ..engine.compile import compile_system
-from ..engine.compile.passes import QuantumProblem
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
-from ..engine.problems import BaseProblem
+from ..engine.problems import BaseProblem, QuantumProblem, State
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
@@ -236,7 +235,7 @@ class QuantumAnalysis(BaseAnalysis):
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         expression, value = sector
         terms = problem.lowering.terms(expression(problem.namespaces['']), 'the sector')
-        matrix = sum((term.value(0.0, p) * term.matrix for term in terms), start=0 * terms[0].matrix)
+        matrix = sum((term.run(State(0.0, np.zeros(0), p)) * term.matrix for term in terms), start=0 * terms[0].matrix)
         diagonal = matrix.diagonal()
         if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
             error_msg = (

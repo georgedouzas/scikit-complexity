@@ -7,9 +7,9 @@ from dataclasses import fields
 from typing import cast
 
 from ...problems import Problem
+from ...problems._kinetic_problem import KineticProblem
 from .._compilation import Compilation
 from .._pipeline import BasePass
-from ._kinetic_problem import KineticProblem
 
 
 class EncounterProblemPass(BasePass):

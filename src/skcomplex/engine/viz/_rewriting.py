@@ -11,11 +11,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..compile._graph_structure import GraphStructure
-from ..compile._patch_structure import PatchStructure
-from ..compile._structure import Structure
-from ..compile._word_structure import WordStructure
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems._graph_structure import GraphStructure
+from ..problems._patch_structure import PatchStructure
+from ..problems._structure import Structure
+from ..problems._word_structure import WordStructure
 from ..runtime import Frame
 from ._visuals import BaseVisual
 

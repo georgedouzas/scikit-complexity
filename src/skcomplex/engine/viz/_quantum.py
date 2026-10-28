@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
-from ..compile._quantum_views import QuantumView
-from ..compile.passes._quantum_problem import QuantumProblem
-from ..compile.passes._quantum_term import QuantumTerm
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems._quantum_kernel import QuantumKernel
+from ..problems._quantum_problem import QuantumProblem
+from ..problems._quantum_view import QuantumView
 from ..runtime import Frame
 from ._images import _SPACE_TIME, ImageVisual
 from ._visuals import BaseVisual
@@ -173,13 +173,14 @@ class ExpectationVisual(ImageVisual):
             return {'probability': shaped.sum(axis=others)}
         if element.members is not None and display is not None:
             matrices = ExpectationVisual._local_matrices(problem, path, display)
-            values = [problem._expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
+            terms = [QuantumKernel(matrix, SR(1)).check() for matrix in matrices]
+            values = [problem._expect([term], 0.0, x, np.zeros(0)) for term in terms]
             return {display: np.real(np.asarray(values))}
         names = [
             name for name, local in ExpectationVisual._view_of(element).local_operators().items() if local.hermitian
         ]
         return {
-            name: float(np.real(problem._expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
+            name: float(np.real(problem._expect([QuantumKernel(matrix, SR(1)).check()], 0.0, x, np.zeros(0))))
             for name in names
             for matrix in ExpectationVisual._local_matrices(problem, path, name)
         }

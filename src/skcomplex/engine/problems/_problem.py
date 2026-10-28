@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -17,50 +17,23 @@ from ...core.laws import BaseLaw
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
 from ._accelerated import Accelerated
-from ._base_problem import BaseProblem
-from ._compiled_event import CompiledEvent, _Breakpoints, _Delay
-from ._compiled_reduction import CompiledReduction
-from ._draws import Draws
+from ._base import BaseKernel, BaseProblem
+from ._breakpoints import _Breakpoints
+from ._delay import _Delay
+from ._draw_kernel import DrawKernel
+from ._event_kernel import EventKernel
 from ._fractional_rows import FractionalRows
-from ._jacobian import Jacobian
+from ._jump_channels import _JumpChannels
 from ._layout import Layout
+from ._reduction_kernel import ReductionKernel
 from ._variable import Variable, declarations_of
 from ._variable_kind import VariableKind
 from ._wiener_block import WienerBlock
 
+if TYPE_CHECKING:
+    from ._jacobian_kernel import JacobianKernel
+
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
-@dataclass(frozen=True)
-class _JumpChannels:
-    """Random events of one jump law, one channel per evaluation index."""
-
-    offset: int
-    targets: npt.NDArray[np.intp]
-    increments: Vector
-
-    @property
-    def size(self) -> int:
-        """Number of channels."""
-        return int(self.targets.shape[1])
-
-
-class _SiteState(Protocol):
-    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
-
-    @property
-    def name(self) -> str:
-        """Dotted name of the state."""
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Number of sites along every dimension."""
-
-
-class _SiteStep(Protocol):
-    """Step that changes the states of the sites of a group once per step of a stepwise form."""
-
-    @property
-    def targets(self) -> tuple[_SiteState, ...]:
-        """States the step changes."""
 
 
 @dataclass(frozen=True)
@@ -244,17 +217,17 @@ class Problem(BaseProblem):
     has_group_sums: bool
     model_rules: tuple[tuple[str, BaseLaw], ...] = ()
     delays: tuple[_Delay, ...] = ()
-    events: tuple[CompiledEvent, ...] = ()
+    events: tuple[EventKernel, ...] = ()
     breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
-    lattice: tuple[_SiteStep, ...] = field(default=(), repr=False)
+    lattice: tuple[BaseKernel, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
     volumes: tuple[Any, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
-    reductions: tuple[CompiledReduction, ...] = field(default=(), repr=False)
-    jacobian: Jacobian | None = field(default=None, repr=False)
+    reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
+    jacobian: 'JacobianKernel | None' = field(default=None, repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
@@ -265,7 +238,7 @@ class Problem(BaseProblem):
     jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
-    draws: Draws | None = field(default=None, repr=False)
+    draws: DrawKernel | None = field(default=None, repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 

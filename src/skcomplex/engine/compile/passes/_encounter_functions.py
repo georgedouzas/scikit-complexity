@@ -8,8 +8,9 @@ from typing import Any, cast
 import numpy as np
 
 from ....core.types import Vector
+from ...problems import State
+from ...problems._encounter_kernel import EncounterKernel
 from .._compilation import Compilation
-from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
 from .._pipeline import BasePass
 
@@ -34,7 +35,7 @@ class EncounterFunctionsPass(BasePass):
         )
 
     @staticmethod
-    def _with_encounters(functions: dict[str, Any], encounters: tuple[CompiledEncounter, ...], size: int) -> None:
+    def _with_encounters(functions: dict[str, Any], encounters: tuple[EncounterKernel, ...], size: int) -> None:
         """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled steppers."""
         if not encounters:
             return
@@ -43,7 +44,7 @@ class EncounterFunctionsPass(BasePass):
         def encountered(t: float, x: Vector, p: Vector) -> Vector:
             rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
             for encounter in encounters:
-                rates += encounter.rates(x, p)
+                rates += encounter.run(State(t, x, p))
             return rates
 
         functions['drift'] = encountered

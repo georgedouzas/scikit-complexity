@@ -18,15 +18,16 @@ from ....core.types import Vector
 from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
 from ...problems import (
     Accelerated,
-    Draws,
+    DrawKernel,
     Form,
-    Kernel,
+    LawKernel,
     Layout,
     Lowered,
     Output,
     Problem,
     ReductionSchedule,
     Source,
+    State,
     VectorFunction,
     wrap_angle,
 )
@@ -53,7 +54,7 @@ class FunctionsPass(BasePass):
         compilation.functions = self._lower(compilation)
 
     @staticmethod
-    def _sums_over_members(kernel: Kernel, item: Output) -> bool:
+    def _sums_over_members(kernel: LawKernel, item: Output) -> bool:
         """Check whether an output sums over the pairs or the members of a group."""
         if kernel.pairs is not None:
             return True
@@ -61,7 +62,7 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _equations_of(
-        kernels: list[Kernel],
+        kernels: list[LawKernel],
         declarations: Declarations,
         form: Form,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
@@ -129,7 +130,9 @@ class FunctionsPass(BasePass):
         return chosen
 
     @staticmethod
-    def _backends_of(form: Form, kernels: Mapping[type, list[Kernel]], name: str, lowering: Lowering) -> dict[str, str]:
+    def _backends_of(
+        form: Form, kernels: Mapping[type, list[LawKernel]], name: str, lowering: Lowering,
+    ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
         backends = {form.name: name}
         backends.update({cast('type', kind).__name__: name for kind, items in kernels.items() if items})
@@ -202,7 +205,7 @@ class FunctionsPass(BasePass):
         return form in STEPWISE_FORMS.values()
 
     @staticmethod
-    def _stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
+    def _stochastic_update(update: Callable[..., Vector], draws: DrawKernel) -> Callable[..., Vector]:
         """Return the update of a stochastic map, which draws its values from a generator before every step.
 
         Args:
@@ -219,7 +222,7 @@ class FunctionsPass(BasePass):
 
         def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
             extended = draws.extend(p)
-            draws.fill(extended, rng, t, x)
+            draws.run(State(t, x, extended, rng))
             return update(t, x, extended)
 
         return stochastic

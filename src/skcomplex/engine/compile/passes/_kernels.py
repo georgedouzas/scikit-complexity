@@ -17,7 +17,7 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
-from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
+from ...problems import LawKernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
 from .._census_record import ProcessKey
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -184,7 +184,7 @@ class KernelsPass(BasePass):
                 outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():
                 lowered.kernels[kind].append(
-                    Kernel(
+                    LawKernel(
                         spec.owner,
                         declarations.time,
                         KernelsPass._single_references(spec) if once else spec.references,

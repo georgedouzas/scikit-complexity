@@ -209,7 +209,7 @@ def test_no_class_defines_magic_methods():
                 continue
             extra = set(_hand_written(cls)) - {'__init__'}
             if cls.__qualname__ == 'Operator' and module.__name__.startswith(
-                'skcomplex.engine.compile._operator',
+                'skcomplex.engine.problems._operator',
             ):
                 extra -= ARITHMETIC
             if extra:

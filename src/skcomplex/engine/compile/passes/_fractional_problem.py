@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....core.types import Vector
-from ...problems import Form, FractionalRows, Kernel, Layout, Lowered, Problem
+from ...problems import Form, FractionalRows, LawKernel, Layout, Lowered, Problem
 from .._compilation import Compilation
 from .._pipeline import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
@@ -48,7 +48,7 @@ class FractionalProblemPass(BasePass):
         )
 
     @staticmethod
-    def _hurst_function(kernel: Kernel, hurst: object) -> Callable[[Vector], Vector]:
+    def _hurst_function(kernel: LawKernel, hurst: object) -> Callable[[Vector], Vector]:
         """Return the function of the parameter vector that gives the Hurst index of every row of a noise kernel."""
         rows = kernel.rows
         if SR(hurst).is_numeric():

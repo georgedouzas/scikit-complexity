@@ -62,11 +62,11 @@ from ...core.types import Vector
 from ..problems import (
     SCALAR_DIALECT,
     Accelerated,
-    Draws,
+    DrawKernel,
     EdgeSearch,
     Entry,
     Form,
-    Kernel,
+    LawKernel,
     NoiseKind,
     OrderKind,
     ReductionSchedule,
@@ -76,7 +76,7 @@ from ..problems import (
     print_expressions,
     step_count,
 )
-from ..problems._edge_rows import EdgeRows
+from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._metric_search import MetricSearch
 from . import _numba_neighbours, _numba_stencils
 from ._base import _AUTO_MEMBERS, BaseBackend
@@ -196,7 +196,7 @@ class NumbaBackend(BaseBackend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _is_parallel(self, kernel: Kernel, form: Form) -> bool:
+    def _is_parallel(self, kernel: LawKernel, form: Form) -> bool:
         """Check whether a kernel runs in parallel threads: outside event loops, over groups of many members."""
         if not self.parallel or form in _EVENT_FORMS:
             return False
@@ -210,7 +210,7 @@ class NumbaBackend(BaseBackend):
     def _kind(
         self,
         source: _Source,
-        kernels: list[Kernel],
+        kernels: list[LawKernel],
         label: str,
         mode: str,
         *,
@@ -235,11 +235,11 @@ class NumbaBackend(BaseBackend):
 
     def _run(
         self,
-        kernels: Mapping[type, list[Kernel]],
+        kernels: Mapping[type, list[LawKernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         *,
         reductions: ReductionSchedule | None = None,
-        draws: Draws | None = None,
+        draws: DrawKernel | None = None,
     ) -> Lowering:
         """Return the numeric functions of the prepared form compiled with Numba.
 
@@ -263,7 +263,7 @@ class NumbaBackend(BaseBackend):
                 The numeric functions.
         """
         form, size = self.form_, self.size_
-        used: dict[type, list[Kernel]] = {
+        used: dict[type, list[LawKernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == Form.SDE else [],
@@ -337,7 +337,7 @@ class NumbaBackend(BaseBackend):
         form: Form,
         needed: list[type],
         *,
-        used: Mapping[type, list[Kernel]],
+        used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
@@ -345,7 +345,7 @@ class NumbaBackend(BaseBackend):
         layout: np.ndarray,
         loop: str | None,
         reductions: ReductionSchedule,
-        draws: Draws | None,
+        draws: DrawKernel | None,
     ) -> Lowering:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
@@ -380,11 +380,11 @@ class NumbaBackend(BaseBackend):
             lowering.drift = functions[RateLaw]
         if form == Form.SDE:
             lowering.diffusion = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
-            noise = Kernel._lower_noise(used[NoiseLaw])
+            noise = LawKernel._lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
             lowering.propensities = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
-            lowering.jumps = Kernel._jump_channels(used[JumpLaw], changes)
+            lowering.jumps = LawKernel._jump_channels(used[JumpLaw], changes)
         if form == Form.DISCRETE:
             lowering.update = functions[UpdateLaw]
         if loop is not None:
@@ -397,7 +397,7 @@ class NumbaBackend(BaseBackend):
         module: ModuleType,
         layout: np.ndarray,
         lowering: Lowering,
-        draws: Draws | None,
+        draws: DrawKernel | None,
     ) -> Accelerated:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
@@ -434,7 +434,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _search_entries(search: object) -> dict[str, Entry]:
         """Return the entries a neighbourhood search reads, the edges of a changing layer or positions and headings."""
-        if isinstance(search, EdgeRows):
+        if isinstance(search, EdgeRowSearch):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):
             return {}
@@ -444,7 +444,7 @@ class NumbaBackend(BaseBackend):
         return found
 
     @staticmethod
-    def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
+    def _layout_entries(used: Mapping[type, list[LawKernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
         entries = {
             reference.entry.name: reference.entry
@@ -472,7 +472,7 @@ class NumbaBackend(BaseBackend):
         return entries
 
     @staticmethod
-    def _is_compilable(kernel: Kernel) -> bool:
+    def _is_compilable(kernel: LawKernel) -> bool:
         """Check whether every output of a kernel can be compiled, so it has no Python callable."""
         lattice = all(
             (reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None)
@@ -551,7 +551,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _report_fallbacks(
         name: str,
-        used: Mapping[type, list[Kernel]],
+        used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
         reductions: ReductionSchedule,
     ) -> dict[str, str]:

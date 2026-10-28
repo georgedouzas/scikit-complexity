@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
 
-from ...core.types import Indices, Vector
-from ._edge_rows import Found
+from ...core.types import Indices
+from ._base import BaseSearch
+from ._edge_row_search import Found
+from ._state import State
 
 
-@dataclass(frozen=True)
-class StaticSearch:
+class StaticSearch(BaseSearch):
     """Neighbours that do not change during a run, the edges of a network or the offsets of a lattice.
 
     Args:
@@ -24,23 +24,12 @@ class StaticSearch:
             The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
     """
 
-    indptr: Indices
-    indices: Indices
-    edges: Indices | None = None
+    def __init__(self, indptr: Indices, indices: Indices, edges: Indices | None = None) -> None:
+        self.indptr = indptr
+        self.indices = indices
+        self.edges = edges
 
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every member.
-
-        Args:
-            x:
-                The state vector, which the neighbours do not depend on.
-
-            q:
-                The extended parameter vector, which the neighbours do not depend on.
-
-        Returns:
-            rows:
-                The row starts, the neighbours, and the edge of every neighbour on a network.
-        """
-        del x, q
+    def _run(self, inputs: State) -> Found:
+        """Return the neighbours of every member."""
+        del inputs
         return self.indptr, self.indices, self.edges

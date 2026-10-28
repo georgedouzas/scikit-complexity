@@ -18,8 +18,8 @@ from ....core.specs import VisualSpec
 from ....core.types import Vector
 from ...problems import (
     CompiledElement,
-    CompiledEvent,
     CompiledInteraction,
+    EventKernel,
     Form,
     Layout,
     Problem,
@@ -33,8 +33,9 @@ from ...problems import (
     numpy_function,
     symbols_of,
 )
-from ...problems._base_problem import _MarkovMatrix
-from ...problems._compiled_event import _Breakpoints, _Delay
+from ...problems._breakpoints import _Breakpoints
+from ...problems._delay import _Delay
+from ...problems._markov_kernel import MarkovKernel
 from .._block import Block
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -164,7 +165,7 @@ class ProblemPass(BasePass):
             jacobian=compilation.jacobian,
             breakpoints=ProblemPass._breakpoints_in(reduced, compilation.events, time),
             history=ProblemPass._history(blocks),
-            matrices=cast('tuple[_MarkovMatrix, ...]', compilation.matrices),
+            matrices=cast('tuple[MarkovKernel, ...]', compilation.matrices),
             **functions,
         )
 
@@ -419,7 +420,7 @@ class ProblemPass(BasePass):
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
         reductions: ReductionSchedule,
-    ) -> tuple[CompiledEvent, ...]:
+    ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions of the state vector.
 
         Args:
@@ -445,13 +446,13 @@ class ProblemPass(BasePass):
             sources = ProblemPass._flat_sources(spec.references, spec.owner)
             guard = ProblemPass._scalar_function([event.guard], sources, time, spec.owner)
             compiled.append(
-                CompiledEvent(
+                EventKernel(
                     event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
                     reductions.wrap(ProblemPass._first_value(guard)),  # type: ignore[arg-type]
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
-                ),
+                ).check(),
             )
         return tuple(compiled)
 
@@ -460,7 +461,7 @@ class ProblemPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
         reductions: ReductionSchedule,
-    ) -> tuple[CompiledEvent, ...]:
+    ) -> tuple[EventKernel, ...]:
         """Return one hidden event per condition on the states of single components that switches a law of a flow.
 
         Args:
@@ -493,7 +494,9 @@ class ProblemPass(BasePass):
                 guard = ProblemPass._scalar_function([condition], sources, time, spec.owner)
                 label = f'{spec.owner}:switch:{index}'
                 compiled.append(
-                    CompiledEvent(label, reductions.wrap(ProblemPass._first_value(guard)), None, 0, False, hidden=True),
+                    EventKernel(
+                        label, reductions.wrap(ProblemPass._first_value(guard)), None, 0, False, hidden=True,
+                    ).check(),
                 )  # type: ignore[arg-type]
         return tuple(compiled)
 

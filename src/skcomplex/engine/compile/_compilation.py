@@ -13,13 +13,13 @@ from ...core.laws import BaseLaw, CrossingLaw
 from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import Form, Lowered, Output, Problem, ReductionSchedule
-from ..problems._base_problem import _MarkovMatrix
+from ..problems._jacobian_kernel import JacobianKernel
+from ..problems._markov_kernel import MarkovKernel
 from ._block import Block
 from ._bound_renewal import BoundRenewal
 from ._census import Census
 from ._declarations import Declarations
 from ._draw_lowering import DrawLowering
-from ._jacobians import ExactJacobian
 from ._kernel_spec import KernelSpec
 from ._matrix_law import MatrixLaw
 from ._plan import _Plan
@@ -170,7 +170,7 @@ class Compilation:
     apart: Laws | None = None
     lowered: BlockLaws | None = None
     markov: list[tuple[KernelSpec, MatrixLaw]] | None = None
-    matrices: tuple[_MarkovMatrix, ...] | None = None
+    matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
     corrected: Laws | None = None
@@ -185,7 +185,7 @@ class Compilation:
     reductions: ReductionSchedule | None = None
     kernels: Lowered | None = None
     functions: dict[str, Any] | None = None
-    jacobian: ExactJacobian | None = None
+    jacobian: JacobianKernel | None = None
     problem: Problem | None = None
     delays: list[dict[str, Any]] = field(default_factory=list)
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)

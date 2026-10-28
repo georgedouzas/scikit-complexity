@@ -9,10 +9,9 @@ from typing import ClassVar, cast
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile._compiled_extremal import CompiledExtremal
-from ..compile._compiled_relaxation import CompiledRelaxation
-from ..compile.passes._lattices import LatticeStep
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import BaseKernel, Form, OrderKind, State, SupportSpec
+from ..problems._extremal_kernel import ExtremalKernel
+from ..problems._relaxation_kernel import RelaxationKernel
 from ._solver import Solver
 
 
@@ -64,14 +63,12 @@ class LatticeSolver(Solver):
         """
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            for item in cast('tuple[LatticeStep, ...]', self.problem_.lattice):
-                if isinstance(item, CompiledRelaxation):
-                    record = item.apply(state, p, self.rng_, float(step + 1))
-                    if record is not None:
-                        self.locator_.records.append(record)
-                elif isinstance(item, CompiledExtremal):
-                    self.locator_.records.extend(item.apply(state, p, self.rng_, float(step + 1)))
-                else:
-                    item.apply(state, p, self.rng_)
+            current = State(float(step + 1), state, p, self.rng_)
+            for item in cast('tuple[BaseKernel, ...]', self.problem_.lattice):
+                result = item.run(current)
+                if isinstance(item, RelaxationKernel) and result is not None:
+                    self.locator_.records.append(result)
+                elif isinstance(item, ExtremalKernel):
+                    self.locator_.records.extend(result)
             state = self._bounded(float(step + 1), state, p)
         return state

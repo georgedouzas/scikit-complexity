@@ -9,7 +9,7 @@ from collections.abc import Callable
 import numpy as np
 
 from ...core.types import Vector
-from ..problems import Problem
+from ..problems import Problem, State
 from ._event_locator import EventLocator
 
 type Step = Callable[[float, Vector, Vector, Vector], Vector]
@@ -59,7 +59,7 @@ class RenewalClock:
                 The parameter vector.
         """
         if not self.following:
-            self.following = [law.start(t, x, p, self.rng) for law in self.problem.renewals]
+            self.following = [law.run(State(t, x, p, self.rng)) for law in self.problem.renewals]
 
     def earliest(self) -> float:
         """Return the earliest pending renewal time of any member.
@@ -79,7 +79,7 @@ class RenewalClock:
             due = np.flatnonzero((times <= limits[index]) & (times <= first))
             if not due.size:
                 continue
-            state, following, record = law.fire(times[due], due, state, p, self.rng)
+            state, following, record = law._fire(times[due], due, state, p, self.rng)
             times[due] = following
             self.locator.records.append(record)
             fired = True

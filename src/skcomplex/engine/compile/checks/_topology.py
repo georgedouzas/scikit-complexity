@@ -9,11 +9,11 @@ from ....core.elements import GroupElement
 from ....core.errors import ValidationError
 from ....core.spaces import NetworkSpace
 from ....core.specs import TopologyRequestSpec
+from ...problems._topology_kernel import TopologyKernel
 from .._census import Census
 from .._census_record import CensusRecord
 from .._compilation import Compilation
 from .._issue import Issue
-from .._topology import Topology
 from .._tree import Node
 
 
@@ -26,14 +26,14 @@ def _fixed_groups(
     edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
     sites = [node for node in groups if node.component.on == 'sites']
     changed = []
-    if Topology._changes_edges(request):
+    if TopologyKernel._changes_edges(request):
         changed += edges
     if request.kind in {'add-node', 'remove-node'}:
         changed += sites
     if owner is not None:
         changed.append(owner)
     fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-    return fixed, Topology._changes_edges(request) and not edges
+    return fixed, TopologyKernel._changes_edges(request) and not edges
 
 
 def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
@@ -42,7 +42,7 @@ def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issu
     issues = []
     for record in records:
         try:
-            request = Topology._request_of(record.law)
+            request = TopologyKernel._request_of(record.law)
         except ValidationError as error:
             issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
             continue

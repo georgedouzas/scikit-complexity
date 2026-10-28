@@ -15,8 +15,8 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.types import Vector
-from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
-from ...problems._base_problem import _MarkovMatrix
+from ...problems import DomainKind, Reference, Source, State, domain_kind, labels_of, numpy_function, symbols_of
+from ...problems._markov_kernel import MarkovKernel
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
@@ -51,13 +51,13 @@ class MarkovPass(BasePass):
     def _checked_matrices(
         markov: list[tuple[KernelSpec, MatrixLaw]],
         declarations: Declarations,
-    ) -> tuple[_MarkovMatrix, ...]:
+    ) -> tuple[MarkovKernel, ...]:
         """Return the matrices of the Markov laws after checking them at the initial parameter values."""
         initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         matrices = []
         for spec, law in markov:
             matrix = MarkovPass._compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
-            violation = matrix.violation(initial)
+            violation = matrix.run(State(0.0, np.zeros(0), initial))
             if violation is not None:
                 error_msg = (
                     f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows '
@@ -138,7 +138,7 @@ class MarkovPass(BasePass):
         references: dict[Expression, Reference],
         rows: int,
         time: Expression,
-    ) -> _MarkovMatrix:
+    ) -> MarkovKernel:
         """Return the matrix of a Markov law as a function of the parameter vector.
 
         Args:
@@ -188,7 +188,7 @@ class MarkovPass(BasePass):
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)
 
-        return _MarkovMatrix(law.description, evaluate, reads)
+        return MarkovKernel(law.description, evaluate, reads).check()
 
     @staticmethod
     def _emission(

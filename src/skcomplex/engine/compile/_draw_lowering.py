@@ -5,7 +5,7 @@
 
 import difflib
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -18,7 +18,7 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
-from ..problems import Draws, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
+from ..problems import DrawKernel, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
 from ..problems._sampled_draw import SampledDraw
 
 _NORMAL_KINDS = frozenset({'normal'})
@@ -62,7 +62,7 @@ class DrawLowering:
     offset: int
     time: Expression
     requests: list[_Request] = field(default_factory=list)
-    draws: Draws | None = None
+    draws: DrawKernel | None = None
 
     def _slots(
         self,
@@ -167,7 +167,7 @@ class DrawLowering:
             if request.draw is not None:
                 sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time)))
                 position += request.rows
-        self.draws = Draws(self.offset, np.array(flags, dtype=bool), tuple(sampled))
+        self.draws = DrawKernel(self.offset, np.array(flags, dtype=bool), tuple(sampled)).check()
 
     @staticmethod
     def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
@@ -228,7 +228,7 @@ class DrawLowering:
             values = (
                 function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
             )
-            return DrawLowering._sample_draw(draw, values, rows, rng)
+            return DrawKernel._sample_draw(draw, values, rows, rng)
 
         return sample
 
@@ -281,40 +281,3 @@ class DrawLowering:
             )
             raise ValidationError(error_msg)
         return distribution
-
-    @staticmethod
-    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
-        """Return values of a draw for a number of members, with arguments that hold one value or one per member.
-
-        Args:
-            draw:
-                The draw.
-
-            arguments:
-                The values of the draw's arguments, numbers or arrays with one value per member.
-
-            size:
-                The number of values.
-
-            rng:
-                The random number generator.
-
-        Returns:
-            values:
-                One value per member.
-        """
-        values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
-        if draw.kind == 'uniform':
-            return values[0] + (values[1] - values[0]) * rng.random(size)
-        if draw.kind == 'normal':
-            return values[0] + values[1] * rng.standard_normal(size)
-        if draw.kind == 'bernoulli':
-            return (rng.random(size) < values[0]).astype(float)
-        if draw.kind == 'categorical':
-            weights = np.stack(values, axis=-1)
-            cumulative = np.cumsum(weights, axis=-1)
-            chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
-            return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
-        distribution = getattr(stats, str(draw.distribution))
-        sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
-        return np.asarray(sampled, dtype=float)

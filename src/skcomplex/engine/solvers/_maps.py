@@ -99,7 +99,7 @@ class IterationSolver(Solver):
         for step in range(round(t), math.floor(until + 1e-9)):
             following = update(float(step), state, p, *drawn)
             if topology is not None:
-                fired = topology.decide(float(step), state, p, self.rng_)
-                following = topology.apply(fired, float(step), following, p, self.rng_)
+                fired = topology._decide(float(step), state, p, self.rng_)
+                following = topology._apply(fired, float(step), following, p, self.rng_)
             state = self._bounded(float(step + 1), following, p)
         return state

@@ -26,7 +26,6 @@ from ..problems import (
     BaseProblem,
     Entry,
     Form,
-    Getter,
     Problem,
     ReductionSchedule,
     Reference,
@@ -37,8 +36,9 @@ from ..problems import (
     symbol,
     symbols_of,
 )
-from ..problems._compiled_reduction import CompiledReduction
+from ..problems._base import _Getter
 from ..problems._reads import Read
+from ..problems._reduction_kernel import ReductionKernel
 from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferPass
@@ -312,7 +312,7 @@ class _HeldReduction:
 
             def reduce_values_of(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
                 del t
-                return float(np.real(CompiledReduction._reduce_values(columns[0] if columns else members, reduce)))
+                return float(np.real(ReductionKernel._reduce_values(columns[0] if columns else members, reduce)))
 
             return reduce_values_of
         condition = SR(1) if self.condition is None else self.condition
@@ -323,7 +323,7 @@ class _HeldReduction:
             argument, selected = (
                 np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
             )
-            return float(np.real(CompiledReduction._reduce_values(argument[selected.astype(bool)], reduce)))
+            return float(np.real(ReductionKernel._reduce_values(argument[selected.astype(bool)], reduce)))
 
         return reduce_expression
 
@@ -403,7 +403,7 @@ class _MemberReductions:
     reads: dict[Expression, Read]
     time: Expression
     parameters: int
-    found: dict[str, CompiledReduction] = field(default_factory=dict)
+    found: dict[str, ReductionKernel] = field(default_factory=dict)
 
     @property
     def extent(self) -> int:
@@ -472,7 +472,7 @@ class _MemberReductions:
         entry = Entry(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
-        self.found[key] = CompiledReduction(
+        self.found[key] = ReductionKernel(
             placeholder,
             reduction.kind,
             argument,
@@ -483,7 +483,7 @@ class _MemberReductions:
             self.group,
             reads,
             self.time,
-        )
+        ).check()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
         self.reads[placeholder] = Read(False, indices, entry)
         return placeholder
@@ -539,7 +539,7 @@ class ObservableEvaluator:
                 Two observables share a path, an observable has neither an expression nor a group, or an expression
                 reads a symbol it cannot.
         """
-        self.getters_: dict[str, Getter] = {}
+        self.getters_: dict[str, _Getter] = {}
         system = self.problem.system
         observables = observables_of(system) if system is not None else ()
         own = self.problem.observable_getters(observables)
@@ -585,7 +585,7 @@ class ObservableEvaluator:
         expression: Any,  # noqa: ANN401
         observables: Mapping[Expression, str],
         members: Mapping[Expression, Callable[[Vector, Vector], Any]],
-    ) -> Getter:
+    ) -> _Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
         expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
@@ -613,7 +613,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: _Recorded) -> Getter:
+    def _recorded_getter(self, recorded: _Recorded) -> _Getter:
         """Return the getter of a flow or an objective, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
@@ -631,7 +631,7 @@ class ObservableEvaluator:
             members[item] = self._from_vector(reference.is_state, indices)
         return self._compile(recorded.path, recorded.expression, {}, members)
 
-    def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
+    def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> _Getter:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         earlier = {
@@ -676,7 +676,7 @@ class ObservableEvaluator:
         """Return the entry of a state or parameter by name, or `None`."""
         return self._entry_of(self.problem, name)
 
-    def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
+    def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> _Getter:
         """Return the getter of a reduction over a group of elements or agents."""
         group = self._join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
@@ -694,7 +694,7 @@ class ObservableEvaluator:
             def read_variable(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
-                return CompiledReduction._reduce_values(
+                return ReductionKernel._reduce_values(
                     values if element.members is not None else values[np.newaxis], observable.reduce,
                 )
 
@@ -733,11 +733,11 @@ class ObservableEvaluator:
 
         def read_expression(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
-            return CompiledReduction._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_expression
 
-    def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> Getter:
+    def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> _Getter:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partitions:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
@@ -752,7 +752,7 @@ class ObservableEvaluator:
                 values = [observable.expression(agent) for agent in agents]
             else:
                 values = agents
-            return CompiledReduction._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_agents
 
@@ -803,7 +803,7 @@ class ObservableEvaluator:
         return lambda x, p: (x if is_state else p)[indices]
 
     @staticmethod
-    def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
+    def _renewal_counter(counts: npt.NDArray[np.intp]) -> _Getter:
         """Return the getter of the number of renewals of a renewal law over all its members."""
 
         def count_renewals(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> float:

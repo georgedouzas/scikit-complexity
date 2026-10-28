@@ -122,8 +122,8 @@ class GillespieSolver(Solver):
             channel = int(np.searchsorted(offsets, event, side='right')) - 1
             channels = jumps[channel]
             topology = self.problem_.topology
-            if topology is not None and channel in topology.channels:
-                state = topology.fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
+            if topology is not None and channel in (topology.channels or {}):
+                state = topology._fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
                 state = self._bounded(t, state, p)
                 continue
             targets = channels.targets[:, event - channels.offset]

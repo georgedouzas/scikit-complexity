@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
 
 import numpy as np
 from scipy.spatial import cKDTree
 
 from ...core.types import Indices, Vector
+from ._base import BaseSearch
 from ._entry import Entry
+from ._state import State
 
 
-@dataclass
-class PairSearch:
+class PairSearch(BaseSearch):
     """Neighbour search that returns the pairs of members closer than a cutoff.
 
     Args:
@@ -30,25 +30,15 @@ class PairSearch:
             The side of a periodic box, or `None` for an open space.
     """
 
-    first: Entry
-    second: Entry
-    cutoff: Entry
-    period: float | None
+    def __init__(self, first: Entry, second: Entry, cutoff: Entry, period: float | None) -> None:
+        self.first = first
+        self.second = second
+        self.cutoff = cutoff
+        self.period = period
 
-    def find(self, x: Vector, p: Vector) -> tuple[Indices, Indices]:
-        """Return the indices of the first and second members of every pair within the cutoff.
-
-        Args:
-            x:
-                The state vector.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            pairs:
-                The first and second member indices.
-        """
+    def _run(self, inputs: State) -> tuple[Indices, Indices]:
+        """Return the indices of the first and second members of every pair within the cutoff."""
+        x, p = inputs.x, inputs.p
         cutoff = float(self.cutoff.view(p)[0, 0])
         first, second = self._positions(self.first.view(x)), self._positions(self.second.view(x))
         boxsize = self.period

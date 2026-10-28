@@ -41,16 +41,16 @@ from ...problems import (
     symbol,
     vector,
 )
+from ...problems._local_operator import LocalOperator
+from ...problems._operator import Operator
+from ...problems._quantum_kernel import QuantumKernel
+from ...problems._quantum_problem import REAL_TOLERANCE, QuantumProblem
+from ...problems._quantum_view import QuantumView
 from .._declarations import Declarations
-from .._local_operator import LocalOperator
-from .._operator import Operator
-from .._quantum_views import QuantumView
 from .._system_compilers import BaseSystemCompiler
 from .._tree import Node
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
-from ._quantum_problem import REAL_TOLERANCE, QuantumProblem
-from ._quantum_term import QuantumTerm
 
 DENSE_LIMIT = 1024
 
@@ -195,7 +195,7 @@ class _Lowering:
 
         return evaluate
 
-    def terms(self, expression: object, owner: str) -> tuple[QuantumTerm, ...]:
+    def terms(self, expression: object, owner: str) -> tuple[QuantumKernel, ...]:
         """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
 
         Args:
@@ -219,12 +219,12 @@ class _Lowering:
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumTerm(QuantumProblem._sum_matrices(constant, size), SR(1))] if constant else []
+        terms = [QuantumKernel(QuantumProblem._sum_matrices(constant, size), SR(1)).check()] if constant else []
         for coefficient, matrices in grouped.items():
             terms.append(
-                QuantumTerm(
+                QuantumKernel(
                     QuantumProblem._sum_matrices(matrices, size), coefficient, self.function(coefficient, owner),
-                ),
+                ).check(),
             )
         return tuple(terms)
 
@@ -289,7 +289,7 @@ class _Lowering:
             >>> import qutip
             >>> from sage.all__sagemath_symbolics import SR, var
             >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.compile import LocalOperator
+            >>> from skcomplex.engine.problems import LocalOperator
             >>> from skcomplex.engine.compile.passes._quantum_compiler import _Lowering
             >>> q = SR.symbol('q')
             >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
@@ -532,7 +532,7 @@ class QuantumCompiler(BaseSystemCompiler):
         rng = np.random.default_rng(0)
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
-        def asymmetry(terms: Iterable[QuantumTerm]) -> float:
+        def asymmetry(terms: Iterable[QuantumKernel]) -> float:
             matrix = QuantumProblem._matrix_at(terms, _SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
@@ -548,7 +548,7 @@ class QuantumCompiler(BaseSystemCompiler):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumTerm, ...], ...]:
+    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumKernel, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
         for owner, collapse, rate in laws.dissipators:
@@ -672,7 +672,7 @@ class QuantumCompiler(BaseSystemCompiler):
         system: System,
         initial: object,
         subsystems: Mapping[str, _Subsystem],
-        hamiltonian: tuple[QuantumTerm, ...],
+        hamiltonian: tuple[QuantumKernel, ...],
         p: Vector,
         is_open: bool,
     ) -> npt.NDArray[np.complex128]:

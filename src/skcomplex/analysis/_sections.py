@@ -13,7 +13,7 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ..core.types import Vector
 from ..engine.compile import compiled_problem
-from ..engine.problems import CompiledEvent, EventRecord, Form, Problem
+from ..engine.problems import EventKernel, EventRecord, Form, Problem
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ._base import BaseAnalysis, Source
@@ -179,7 +179,7 @@ class SectionAnalysis(BaseAnalysis):
             return float(x[index] - value)
 
         transient = self.transient if self.transient is not None else 0.0
-        event = CompiledEvent(SECTION, guard, None, int(self.direction), False)
+        event = EventKernel(SECTION, guard, None, int(self.direction), False).check()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
             Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)

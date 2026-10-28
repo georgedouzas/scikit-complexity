@@ -20,14 +20,15 @@ from ...problems import (
     Layout,
     Reference,
     Source,
+    State,
     VariableKind,
     declarations_of,
     numpy_function,
 )
+from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from .._block import Block
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._field_volumes import TIME, FiniteVolume
 from .._kernel_spec import KernelSpec
 from .._pipeline import BasePass
 
@@ -78,7 +79,7 @@ class FieldFunctionsPass(BasePass):
     def _compile_fluxes(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: Declarations,
-    ) -> tuple[FiniteVolume, ...]:
+    ) -> tuple[FiniteVolumeKernel, ...]:
         """Return the conservation laws of every finite-volume field from the flux laws of its component."""
         volumes = []
         for spec, laws in specs:
@@ -186,7 +187,7 @@ class FieldFunctionsPass(BasePass):
         return constrained
 
     @staticmethod
-    def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa: ANN401
+    def _with_volumes(drift: Any, volumes: tuple[FiniteVolumeKernel, ...]) -> Any:  # noqa: ANN401
         """Return the drift with the flux differences of finite-volume fields added."""
         if not volumes or drift is None:
             return drift
@@ -194,7 +195,7 @@ class FieldFunctionsPass(BasePass):
         def conserved(t: float, x: Vector, p: Vector) -> Vector:
             rates = drift(t, x, p)
             for volume in volumes:
-                rates = rates + volume.rates(x, p)
+                rates = rates + volume.run(State(t, x, p))
             return rates
 
         return conserved
@@ -205,7 +206,7 @@ class FieldFunctionsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: Declarations,
         blocks: list[Block],
-    ) -> tuple[tuple[FiniteVolume, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
+    ) -> tuple[tuple[FiniteVolumeKernel, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
         """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning laws and fixed nodes."""
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)
         symmetries = FieldFunctionsPass._symmetries(blocks)
@@ -233,7 +234,7 @@ class FieldFunctionsPass(BasePass):
         references: Mapping[Expression, Reference],
         place: FieldElement,
         owner: str,
-    ) -> FiniteVolume:
+    ) -> FiniteVolumeKernel:
         """Return the conservation laws of one finite-volume field.
 
         Args:
@@ -311,7 +312,7 @@ class FieldFunctionsPass(BasePass):
             (kind, float(value) if not callable(value) else 0.0)
             for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
         )
-        return FiniteVolume(
+        return FiniteVolumeKernel(
             owner,
             tuple(reference.entry.start for _, reference in laws),
             space.shape_,
@@ -323,4 +324,4 @@ class FieldFunctionsPass(BasePass):
             first.limiter,
             first.riemann,
             critical,
-        )
+        ).check()

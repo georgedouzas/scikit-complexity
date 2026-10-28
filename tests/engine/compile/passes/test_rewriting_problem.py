@@ -1,7 +1,6 @@
 """Test the `RewritingProblem` class."""
 
-from skcomplex.engine.compile.passes import RewritingProblem
-from skcomplex.engine.problems import BaseProblem, Problem
+from skcomplex.engine.problems import BaseProblem, Problem, RewritingProblem
 
 
 def test_rewriting_problem_is_a_base_problem_and_not_the_compilers():
