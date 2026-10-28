@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.analysis import equations_of, mittag_leffler, solve_symbolically
+from skcomplex.analysis import SymbolicAnalysis, mittag_leffler
 from skcomplex.core.elements import Element
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import RateLaw
@@ -98,22 +98,23 @@ def test_mittag_leffler_rejects_nonpositive_alpha():
 def test_solve_symbolically_fractional_relaxation():
     """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
     system = System(elements=[RelaxingElement('r')])
-    solution = solve_symbolically(system, use_initial_state=True)['r.x']
+    solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['r.x']
     assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
     symbols = {str(item): item for item in solution.rhs().variables()}
     value = float(solution.rhs().subs({symbols['t']: 2.0, symbols['lam_r']: 0.5}))
     assert value == pytest.approx(2 * float(mittag_leffler(0.6, 1.0, -0.5 * 2.0**0.6)), rel=1e-12)
-    assert 'x_r(0)' in str(solve_symbolically(system)['r.x'])
+    assert 'x_r(0)' in str(SymbolicAnalysis('solve').check().prepare(system).run().solutions_['r.x'])
 
 
 def test_equations_of_fractional_state_write_caputo_derivative():
     """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
     assert (
-        str(equations_of(System(elements=[RelaxingElement('r')]))['r.x']) == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
+        str(SymbolicAnalysis().check().prepare(System(elements=[RelaxingElement('r')])).run().equations_['r.x'])
+        == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
     )
 
 
 def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
-        solve_symbolically(System(elements=[SaturatingElement('s')]))
+        SymbolicAnalysis('solve').check().prepare(System(elements=[SaturatingElement('s')])).run()

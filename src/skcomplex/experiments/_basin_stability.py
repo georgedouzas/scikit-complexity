@@ -11,11 +11,9 @@ from typing import Self
 import numpy as np
 
 from ..core.errors import ValidationError
-from ..core.system import System
 from ..engine.compile import compiled_problem
-from ..engine.runtime import Simulation, Trajectory
+from ..engine.runtime import Trajectory
 from ._base import BaseExperiment, Source
-from ._ensembles import _replicate
 from ._experiment import Experiment
 from ._random import RandomDesign
 
@@ -145,13 +143,7 @@ class BasinStabilityExperiment(BaseExperiment):
 
     def _label_members(self) -> list[object]:
         """Return the label of every member of one simulation of the system replicated over the initial states."""
-        factory, defaults = self._resolve_source(self.source)
-        system = factory if isinstance(factory, System) else factory()
         values = {path: [row[path] for row in self.rows_] for path in self.bounds}
-        options = {key: value for key, value in defaults.items() if key in ('solver', 'backend')}
-        dt = self.dt if self.dt is not None else defaults.get('dt', 1.0)
-        until = self.until if self.until is not None else defaults.get('until', 10.0)
-        simulation = Simulation(_replicate(system, self.n, values), dt=dt, random_state=self.random_state, **options)
-        trajectory = simulation.run(until=until).trajectory_
+        trajectory, system = self._run_replicated(self.source, values, self.until, self.dt, self.random_state)
         problem = compiled_problem(system, 'A vectorised basin')
         return [self.classifier(trajectory.member(index, problem)) for index in range(self.n)]

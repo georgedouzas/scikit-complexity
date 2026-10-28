@@ -1,4 +1,4 @@
-"""Derive the feedback loops of systems of stocks and flows, their dominance, and their transaction-flow matrices."""
+"""Derive the feedback loops of a system of stocks and flows, their dominance, and its transaction-flow matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,103 +6,39 @@
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Self
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ..core.errors import AnalysisError, ConservationError
+from ..core.errors import AnalysisError
 from ..core.laws.utils import delay_parts
-from ..core.system import System
 from ..engine.compile import compiled_problem
 from ..engine.problems import LoopTerm, Problem, StockFlow, numpy_function, symbols_of
 from ..engine.runtime import Trajectory
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
+from ._utils import check_kind, system_of
 
+KINDS = ('loops', 'dominance', 'flow-matrix')
+SETTINGS = {
+    'loops': {'at'},
+    'dominance': set(),
+    'flow-matrix': {'frame', 'quantity'},
+}
+"""Settings every kind reads, besides `kind`."""
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
 
 
 @dataclass(frozen=True)
-class Loop:
-    """Feedback loop of a system, a cycle of the signed dependency graph.
-
-    Args:
-        nodes:
-            The states and flows of the loop, in the order of their influence, starting at its first
-            state by name, or at its first node by name when it holds no state.
-
-        polarity:
-            `'reinforcing'` for a positive product of edge signs, `'balancing'` for a negative one, or `'neutral'`
-            when an edge has no influence at the point of evaluation.
-
-        gain:
-            The product of the partial derivatives along the loop at the point of evaluation.
-    """
+class _Loop:
+    """Feedback loop: its nodes from its first state, its polarity, and its gain at the point of evaluation."""
 
     nodes: tuple[str, ...]
     polarity: str
     gain: float
-
-
-@dataclass(frozen=True)
-class Loops:
-    """Signed dependency graph of a system and its feedback loops.
-
-    Args:
-        graph:
-            The directed graph from each state or flow to every node whose value or rate it enters, with
-            the edge attributes `sign` and `gain`.
-
-        loops:
-            The feedback loops.
-    """
-
-    graph: nx.DiGraph
-    loops: tuple[Loop, ...]
-
-
-@dataclass(frozen=True)
-class LoopDominance:
-    """Loop gains along a trajectory.
-
-    Args:
-        times:
-            The time of every frame.
-
-        loops:
-            The loops, with their polarity at the first frame.
-
-        gains:
-            The gain of every loop at every frame, one row per frame.
-
-        dominant:
-            The index of the loop with the largest absolute gain at every frame.
-    """
-
-    times: npt.NDArray[np.float64]
-    loops: tuple[Loop, ...]
-    gains: npt.NDArray[np.float64]
-    dominant: npt.NDArray[np.intp]
-
-
-@dataclass(frozen=True)
-class FlowMatrix:
-    """Transaction-flow matrix of one frame, with flows as rows and holders as columns, whose rows sum to zero.
-
-    Args:
-        flows:
-            The paths of the flows.
-
-        holders:
-            The states and environments the flows connect.
-
-        values:
-            The outflow, negative, and the inflow, positive, of every flow for every holder.
-    """
-
-    flows: tuple[str, ...]
-    holders: tuple[str, ...]
-    values: npt.NDArray[np.float64]
 
 
 def _stock_flow(problem: Problem) -> StockFlow:
@@ -192,7 +128,7 @@ class _Graph:
         return np.broadcast_to(np.asarray(function(times, *values)[0], dtype=float), np.shape(times)).copy()
 
 
-def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, tuple[Loop, ...]]:
+def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_Loop]]:
     """Return the signed graph with edge gains and its loops with polarity and gain."""
     directed = nx.DiGraph()
     for (start, end), derivative in graph.edges.items():
@@ -208,174 +144,180 @@ def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tupl
         cycle = [*found[start:], *found[:start]]
         pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
         gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
-        loops.append(Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
-    return directed, tuple(sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes)))
+        loops.append(_Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
+    return directed, sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes))
 
 
-def _problem_of(system: System | Problem) -> Problem:
-    """Return the compiled problem of a system, or the problem itself."""
-    return compiled_problem(system, 'The feedback loop analysis')
+class LoopAnalysis(BaseAnalysis):
+    """Feedback loops of a system of stocks and flows, their dominance along a trajectory, or its flow matrix.
 
+    The kinds read a system or a trajectory:
 
-def loops(system: System | Problem, at: npt.ArrayLike | None = None) -> Loops:
-    """Return the signed dependency graph of a system and its feedback loops.
-
-    An edge goes from each state or flow to every flow or state rate whose expression reads it, with the sign of the
-    partial derivative, and from each flow to its sink with sign `+` and its source with sign `-`. Delays and smoothings
-    pass their input with gain one. The loops are the cycles of the graph, found with Johnson's algorithm, and a loop's
-    polarity is the product of its edge signs.
+    - `'loops'`: the signed dependency graph of a system and its feedback loops. An edge goes from each state or flow
+      to every flow or state rate whose expression reads it, with the sign of the partial derivative, and from each
+      flow to its sink with sign `+` and its source with sign `-`. Delays and smoothings pass their input with gain
+      one. The loops are the cycles of the graph, found with Johnson's algorithm, and the polarity of a loop is the
+      product of its edge signs.
+    - `'dominance'`: the gains of the loops along a trajectory, the products of the partial derivatives along them at
+      every frame, and the dominant loop, with the largest absolute gain, at every frame.
+    - `'flow-matrix'`: the transaction-flow matrix of one frame of a trajectory, with flows as rows and holders as
+      columns. Every row holds the outflow of its flow at the source, negative, and the inflow at the sink, positive,
+      so every row sums to zero. Flows of a group sum over its members.
 
     Args:
-        system:
-            The system, or its compiled problem.
+        kind:
+            The analysis of the loops, one of the kinds above.
 
         at:
-            The state vector the signs are evaluated at, or `None` for the initial state.
-
-    Returns:
-        loops:
-            The graph and the loops.
-
-    Raises:
-        AnalysisError:
-            The system is partitioned, or a law reads a group.
-
-    Examples:
-        >>> from skcomplex.analysis import loops
-        >>> from skcomplex.models import create
-        >>> [loop.polarity for loop in loops(create('bass_diffusion')).loops]
-        ['reinforcing', 'balancing']
-    """
-    problem = _problem_of(system)
-    graph = _Graph(problem)
-    state = np.asarray(problem.initial_state if at is None else at, dtype=float)[np.newaxis]
-    parameters, times = problem.initial_parameters[np.newaxis], np.zeros(1)
-    gains = {edge: float(graph.evaluate(SR(value), state, parameters, times)[0]) for edge, value in graph.edges.items()}
-    return Loops(*_signed_loops(graph, gains))
-
-
-def loop_dominance(trajectory: Trajectory) -> LoopDominance:
-    """Return the gains of the loops of a system along a trajectory and the dominant loop at every frame.
-
-    The gain of a loop is the product of the partial derivatives along it, evaluated at every frame, and the dominant
-    loop has the largest absolute gain.
-
-    Args:
-        trajectory:
-            The trajectory of a system with stocks and flows.
-
-    Returns:
-        dominance:
-            The loops, their gains, and the dominant loop at every frame.
-
-    Raises:
-        AnalysisError:
-            The system has no feedback loop.
-
-    Examples:
-        >>> from skcomplex.analysis import loop_dominance
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.models import create
-        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).run(2).trajectory_
-        >>> loop_dominance(trajectory).gains.shape
-        (3, 2)
-    """
-    problem = compiled_problem(trajectory.problem, 'Loop dominance')
-    graph = _Graph(problem)
-    states, parameters = np.atleast_2d(trajectory.states), np.atleast_2d(trajectory.parameters)
-    times = np.asarray(trajectory.times, dtype=float)
-    values = {edge: graph.evaluate(SR(value), states, parameters, times) for edge, value in graph.edges.items()}
-    _, found = _signed_loops(graph, {edge: float(value[0]) for edge, value in values.items()})
-    if not found:
-        error_msg = 'The system has no feedback loop, so no loop dominates.'
-        raise AnalysisError(error_msg)
-    gains = np.column_stack(
-        [
-            np.prod([values[pair] for pair in zip(loop.nodes, [*loop.nodes[1:], loop.nodes[0]], strict=True)], axis=0)
-            for loop in found
-        ],
-    )
-    return LoopDominance(times, found, gains, np.argmax(np.abs(gains), axis=1))
-
-
-def conservation(system: System | Problem) -> dict[str, Expression]:
-    """Return the net inflow from the environment of every quantity, after checking that internal flows cancel.
-
-    The sum of the contributions of all flows to the states of a quantity must equal the sum of its flows with the
-    environment, so the total changes only through the boundary.
-
-    Args:
-        system:
-            The system, or its compiled problem.
-
-    Returns:
-        boundary:
-            The symbolic rate, or amount per step, at which each quantity enters the system from the environment.
-
-    Raises:
-        ConservationError:
-            The internal flows of a quantity do not cancel.
-
-    Examples:
-        >>> from skcomplex.analysis import conservation
-        >>> from skcomplex.models import create
-        >>> conservation(create('bathtub'))
-        {'water': inflow_tub*where(t >= 5.0, 1.0, 0) - where(water_tub > 0, outflow_tub, 0)}
-    """
-    problem = _problem_of(system)
-    stock_flow = _stock_flow(problem)
-    amounts = {record.path: record.expression for record in stock_flow.recorded}
-    net: dict[str, Expression] = defaultdict(lambda: SR(0))
-    boundary: dict[str, Expression] = defaultdict(lambda: SR(0))
-    for flow in stock_flow.flows:
-        if flow.quantity is None:
-            continue
-        amount = SR(amounts[flow.path])
-        net[flow.quantity] += (flow.sink is not None) * amount - (flow.source is not None) * amount
-        boundary[flow.quantity] += (flow.source is None) * amount - (flow.sink is None) * amount
-    for quantity, value in net.items():
-        if not bool((value - boundary[quantity]).simplify_full().is_trivial_zero()):
-            error_msg = f'The internal flows of {quantity!r} do not cancel: the total changes by {value}.'
-            raise ConservationError(error_msg)
-    return {quantity: boundary[quantity] for quantity in stock_flow.quantities if quantity in boundary} | {
-        quantity: SR(0) for quantity in stock_flow.quantities if quantity not in boundary
-    }
-
-
-def flow_matrix(trajectory: Trajectory, frame: int = -1, quantity: str | None = None) -> FlowMatrix:
-    """Return the transaction-flow matrix of one frame, with flows as rows and holders as columns.
-
-    Every row holds the outflow of its flow at the source, negative, and the inflow at the sink, positive, so every
-    row sums to zero. Flows of a group sum over its members.
-
-    Args:
-        trajectory:
-            The trajectory of a system with flows.
+            The state vector the signs of `'loops'` are evaluated at, or `None` for the initial state.
 
         frame:
-            The index of the frame.
+            The index of the frame of the flow matrix.
 
         quantity:
-            The quantity whose flows form the rows, or `None` for every flow.
+            The quantity whose flows form the rows of the flow matrix, or `None` for every flow.
 
-    Returns:
-        matrix:
-            The transaction-flow matrix.
+    Attributes:
+        problem_:
+            The compiled problem.
+
+        trajectory_:
+            The trajectory of `'dominance'` and `'flow-matrix'`.
+
+        graph_:
+            The directed graph from each state or flow to every node whose value or rate it enters, with the edge
+            attributes `sign` and `gain`, for `'loops'`.
+
+        loops_:
+            The nodes of every loop, in the order of their influence, starting at its first state by name, or at its
+            first node by name when it holds no state.
+
+        polarities_:
+            The polarity of every loop, at the first frame for `'dominance'`: `'reinforcing'` for a positive product
+            of edge signs, `'balancing'` for a negative one, or `'neutral'` when an edge has no influence.
+
+        gains_:
+            The gain of every loop, with one row per frame for `'dominance'`.
+
+        times_:
+            The time of every frame of `'dominance'`.
+
+        dominant_:
+            The index of the loop with the largest absolute gain at every frame of `'dominance'`.
+
+        flows_:
+            The paths of the flows of the flow matrix.
+
+        holders_:
+            The states and environments the flows connect.
+
+        matrix_:
+            The outflow, negative, and the inflow, positive, of every flow for every holder.
 
     Examples:
-        >>> from skcomplex.analysis import flow_matrix
+        >>> from skcomplex.analysis import LoopAnalysis
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models import create
-        >>> trajectory = Simulation(create('bathtub', water=20.0), dt=1).run(6).trajectory_
-        >>> flow_matrix(trajectory).values.sum(axis=1).tolist()
-        [0.0, 0.0]
+        >>> LoopAnalysis().check().prepare(create('bass_diffusion')).run().polarities_
+        ['reinforcing', 'balancing']
+        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).run(2).trajectory_
+        >>> LoopAnalysis('dominance').check().prepare(trajectory).run().gains_.shape
+        (3, 2)
     """
-    stock_flow = _stock_flow(compiled_problem(trajectory.problem, 'The flow matrix'))
-    flows = [flow for flow in stock_flow.flows if quantity is None or flow.quantity == quantity]
-    holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
-    values = np.zeros((len(flows), len(holders)))
-    for row, flow in enumerate(flows):
-        amount = float(np.sum(trajectory.values(flow.path)[frame]))
-        values[row, holders.index(flow.source_label)] -= amount
-        values[row, holders.index(flow.sink_label)] += amount
-    return FlowMatrix(tuple(flow.path for flow in flows), tuple(holders), values)
+
+    def __init__(
+        self,
+        kind: str = 'loops',
+        *,
+        at: npt.ArrayLike | None = None,
+        frame: int = -1,
+        quantity: str | None = None,
+    ) -> None:
+        self.kind = kind
+        self.at = at
+        self.frame = frame
+        self.quantity = quantity
+
+    def _check(self) -> Self:
+        """Validate the kind and that the kind reads every changed setting."""
+        check_kind(self, KINDS, SETTINGS)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the system kind."""
+        return DataKind.SYSTEM
+
+    def _prepare(self, source: Source) -> Self:
+        """Compile the system of the source, and keep the trajectory that dominance and the flow matrix read."""
+        if self.kind != 'loops' and not isinstance(source, Trajectory):
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
+            raise AnalysisError(error_msg)
+        self.trajectory_ = source if isinstance(source, Trajectory) else None
+        self.problem_ = compiled_problem(system_of(source), 'The feedback loop analysis')
+        _stock_flow(self.problem_)
+        return self
+
+    def _set_loops(self, found: list[_Loop]) -> None:
+        """Set the nodes and the polarities of loops."""
+        self.loops_ = [loop.nodes for loop in found]
+        self.polarities_ = [loop.polarity for loop in found]
+
+    def _run_loops(self) -> None:
+        """Set the signed graph and its loops at a state."""
+        problem = self.problem_
+        graph = _Graph(problem)
+        state = np.asarray(problem.initial_state if self.at is None else self.at, dtype=float)[np.newaxis]
+        parameters, times = problem.initial_parameters[np.newaxis], np.zeros(1)
+        gains = {
+            edge: float(graph.evaluate(SR(value), state, parameters, times)[0]) for edge, value in graph.edges.items()
+        }
+        self.graph_, found = _signed_loops(graph, gains)
+        self._set_loops(found)
+        self.gains_ = np.asarray([loop.gain for loop in found], dtype=float)
+
+    def _run_dominance(self, trajectory: Trajectory) -> None:
+        """Set the gains of the loops along a trajectory and the dominant loop at every frame."""
+        graph = _Graph(self.problem_)
+        states, parameters = np.atleast_2d(trajectory.states), np.atleast_2d(trajectory.parameters)
+        times = np.asarray(trajectory.times, dtype=float)
+        values = {edge: graph.evaluate(SR(value), states, parameters, times) for edge, value in graph.edges.items()}
+        _, found = _signed_loops(graph, {edge: float(value[0]) for edge, value in values.items()})
+        if not found:
+            error_msg = 'The system has no feedback loop, so no loop dominates. Analyse a system with a loop.'
+            raise AnalysisError(error_msg)
+        self._set_loops(found)
+        self.times_ = times
+        self.gains_ = np.column_stack(
+            [
+                np.prod(
+                    [values[pair] for pair in zip(loop.nodes, [*loop.nodes[1:], loop.nodes[0]], strict=True)],
+                    axis=0,
+                )
+                for loop in found
+            ],
+        )
+        self.dominant_ = np.argmax(np.abs(self.gains_), axis=1)
+
+    def _run_flow_matrix(self, trajectory: Trajectory) -> None:
+        """Set the transaction-flow matrix of one frame."""
+        stock_flow = _stock_flow(self.problem_)
+        flows = [flow for flow in stock_flow.flows if self.quantity is None or flow.quantity == self.quantity]
+        holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
+        values = np.zeros((len(flows), len(holders)))
+        for row, flow in enumerate(flows):
+            amount = float(np.sum(trajectory.values(flow.path)[self.frame]))
+            values[row, holders.index(flow.source_label)] -= amount
+            values[row, holders.index(flow.sink_label)] += amount
+        self.flows_ = tuple(flow.path for flow in flows)
+        self.holders_ = tuple(holders)
+        self.matrix_ = values
+
+    def _run(self) -> Self:
+        """Derive the loops, their dominance, or the flow matrix."""
+        if self.kind == 'loops':
+            self._run_loops()
+        elif self.kind == 'dominance':
+            self._run_dominance(self.trajectory_)  # type: ignore[arg-type]
+        else:
+            self._run_flow_matrix(self.trajectory_)  # type: ignore[arg-type]
+        return self

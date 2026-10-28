@@ -14,7 +14,7 @@ import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import stroboscopic
+from skcomplex.analysis import SectionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -32,9 +32,10 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=200)
 # leave a few isolated points, while the chaotic Duffing oscillator should fill a folded, layered set, Ueda's strange
 # attractor, with points in both wells.
 
-section = stroboscopic(create(MODEL), 2 * math.pi / 1.2, n_points=3000, transient=50)
+section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=3000, transient=50)
+section.check().prepare(create(MODEL)).run()
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(section.values('duffing.x'), section.values('duffing.x_d1'), ',', color='black', alpha=0.6)
+ax.plot(section.values_['duffing.x'], section.values_['duffing.x_d1'], ',', color='black', alpha=0.6)
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Stroboscopic section: a strange attractor')

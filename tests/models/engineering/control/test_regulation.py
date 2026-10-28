@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import controllability, linearize
+from skcomplex.analysis import LinearizationAnalysis
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
@@ -40,5 +40,4 @@ def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
     plant = run('lqr_oscillator', settings={'until': 0.1}).system
     plant = System(elements=list(plant.elements))
-    model = linearize(plant)
-    assert controllability(model.A, model.B) == 2
+    assert LinearizationAnalysis().check().prepare(plant).run().controllability_ == 2

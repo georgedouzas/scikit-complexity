@@ -1,19 +1,17 @@
-"""Analyse quantum systems: spectra, ground states, purity, and entanglement entropy."""
+"""Analyse a quantum system: its spectrum, its ground state, and the purity and entanglement of its trajectories."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
-from sage.all__sagemath_symbolics import Expression
 
 from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
@@ -22,27 +20,22 @@ from ..engine.compile import compile_system
 from ..engine.compile.passes._quantum import DENSE_LIMIT, QuantumProblem, hamiltonian_at
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
+from ._utils import check_kind, system_of
 
+KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
+SETTINGS = {
+    'spectrum': {'n_states', 'parameters', 'sector'},
+    'ground-state': {'parameters'},
+    'purity': set(),
+    'entanglement': {'subsystems'},
+}
+"""Settings every kind reads, besides `kind`."""
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
 
 type Sector = tuple[Callable[[SimpleNamespace], Any], float]
-
-
-@dataclass(frozen=True)
-class Spectrum:
-    """Lowest eigenvalues and eigenstates of the Hamiltonian of a quantum system.
-
-    Args:
-        energies:
-            The eigenvalues in increasing order.
-
-        states:
-            The eigenstates as columns over the whole space.
-    """
-
-    energies: npt.NDArray[np.float64]
-    states: npt.NDArray[np.complex128]
 
 
 def _quantum_problem(system: System | BaseProblem) -> QuantumProblem:
@@ -116,220 +109,8 @@ def _lowest_states(
     return np.real(np.asarray(energies)), states
 
 
-def spectrum(
-    system: System | BaseProblem,
-    k: int = 6,
-    *,
-    parameters: Mapping[str, Any] | None = None,
-    sector: Sector | None = None,
-) -> Spectrum:
-    """Return the lowest eigenvalues and eigenstates of the Hamiltonian of a quantum system, by exact diagonalisation.
-
-    QuTiP diagonalises small spaces densely and larger ones with a sparse eigensolver. A sector restricts the basis to
-    the states with a given eigenvalue of a conserved operator that is diagonal in the product basis, such as the total
-    magnetisation.
-
-    Args:
-        system:
-            The quantum system, or its compiled problem.
-
-        k:
-            The number of eigenvalues.
-
-        parameters:
-            Parameter values by dotted name that replace the initial ones.
-
-        sector:
-            A function of the system namespace that returns the conserved operator, and its eigenvalue, or `None`.
-
-    Returns:
-        spectrum:
-            The eigenvalues and eigenstates.
-
-    Raises:
-        AnalysisError:
-            The system is not quantum, or the sector operator is not diagonal or has no such eigenvalue.
-
-        ParameterError:
-            A parameter name is not part of the system.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
-        >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
-        >>> from skcomplex.core.system import System
-        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
-        ...     def __init__(
-        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> from skcomplex.analysis import spectrum
-        >>> spectrum(System(elements=[QubitElement('q')]), k=2).energies.round(6).tolist()
-        [-1.0, 1.0]
-    """
-    problem = _quantum_problem(system)
-    p = _parameters_of(problem, parameters)
-    basis = None if sector is None else _sector_basis(problem, sector, p)
-    energies, states = _lowest_states(problem, p, k, basis)
-    return Spectrum(energies, states)
-
-
-def ground_state(
-    system: System | BaseProblem,
-    *,
-    parameters: Mapping[str, Any] | None = None,
-) -> tuple[float, npt.NDArray[np.complex128]]:
-    """Return the lowest eigenvalue and eigenstate of the Hamiltonian of a quantum system.
-
-    Args:
-        system:
-            The quantum system, or its compiled problem.
-
-        parameters:
-            Parameter values by dotted name that replace the initial ones.
-
-    Returns:
-        ground:
-            The ground state energy and the ground state vector.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
-        >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
-        >>> from skcomplex.core.system import System
-        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
-        ...     def __init__(
-        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> from skcomplex.analysis import ground_state
-        >>> energy, state = ground_state(System(elements=[QubitElement('q')]))
-        >>> round(energy, 6), np.abs(state).round(6).tolist()
-        (-1.0, [0.0, 1.0])
-    """
-    found = spectrum(system, 1, parameters=parameters)
-    return float(found.energies[0]), found.states[:, 0]
-
-
-def purity(trajectory: Trajectory) -> npt.NDArray[np.float64]:
-    """Return the purity `Tr(rho^2)` of the state of a quantum trajectory at every frame.
-
-    Args:
-        trajectory:
-            The trajectory of a quantum system.
-
-    Returns:
-        purity:
-            One value per frame, 1 for pure states.
-
-    Raises:
-        AnalysisError:
-            The trajectory is not quantum.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
-        >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
-        >>> from skcomplex.core.system import System
-        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
-        ...     def __init__(
-        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
-        >>> from skcomplex.analysis import purity
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> trajectory = Simulation(System(elements=[QubitElement('q')]), dt=1.0).run(until=1.0).trajectory_
-        >>> bool(purity(trajectory)[-1] < 1)
-        True
-    """
-    problem, states = _states_of(trajectory)
-    if problem.pure:
-        return np.sum(np.abs(states) ** 2, axis=1) ** 2
-    return np.sum(np.abs(states) ** 2, axis=(1, 2))
-
-
-def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> npt.NDArray[np.float64]:
-    """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats.
-
-    Args:
-        trajectory:
-            The trajectory of a quantum system.
-
-        subsystems:
-            The keys of the subsystems to keep, such as `chain[0]`, or the path of a whole element or group.
-
-    Returns:
-        entropy:
-            One value per frame.
-
-    Raises:
-        AnalysisError:
-            The trajectory is not quantum, or a subsystem is not part of it.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
-        >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
-        >>> from skcomplex.core.system import System
-        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
-        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
-        ...     def __init__(
-        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.psi = psi
-        ...         self.hilbert = hilbert
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> from skcomplex.analysis import entanglement_entropy
-        >>> from skcomplex.core.elements import GroupElement
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> system = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
-        >>> trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
-        >>> bool(np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2)))
-        True
-    """
-    problem, states = _states_of(trajectory)
+def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Vector:
+    """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
     keep = []
     for name in subsystems:
         found = [index for index, key in enumerate(problem.subsystems) if key == name or key.startswith(f'{name}[')]
@@ -350,50 +131,166 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
     return np.asarray(values, dtype=float)
 
 
-def hamiltonian_of(system: System | BaseProblem) -> Expression:
-    """Return the Hamiltonian of a quantum system, the sum of the operators of its generator laws.
+class QuantumAnalysis(BaseAnalysis):
+    """Spectrum and ground state of a quantum system, or the purity and entanglement of the states of its trajectory.
+
+    The kinds read a system or a trajectory:
+
+    - `'spectrum'`: the lowest eigenvalues and eigenstates of the Hamiltonian, by exact diagonalisation. QuTiP
+      diagonalises small spaces densely and larger ones with a sparse eigensolver. A sector restricts the basis to the
+      states with a given eigenvalue of a conserved operator that is diagonal in the product basis, such as the total
+      magnetisation.
+    - `'ground-state'`: the lowest eigenvalue and eigenstate of the Hamiltonian.
+    - `'purity'`: the purity `Tr(rho^2)` of the state of a trajectory at every frame, 1 for pure states.
+    - `'entanglement'`: the von Neumann entropy of the reduced state of some subsystems at every frame of a
+      trajectory, in nats.
 
     Args:
-        system:
-            The quantum system, or its compiled problem.
+        kind:
+            The quantity to compute, one of the kinds above.
 
-    Returns:
-        hamiltonian:
-            A Sage expression of local operators, whose subsystems are the symbols of the states of the elements,
-            named `<state>_<path>`, and whose parameters are named `<parameter>_<path>`.
+        n_states:
+            The number of eigenvalues of the spectrum.
+
+        parameters:
+            Parameter values by dotted name that replace the initial ones.
+
+        sector:
+            A function of the system namespace that returns the conserved operator, and its eigenvalue, or `None`.
+
+        subsystems:
+            The keys of the subsystems to keep, such as `chain[0]`, or the path of a whole element or group.
+
+    Attributes:
+        problem_:
+            The compiled quantum problem.
+
+        trajectory_:
+            The trajectory of `'purity'` and `'entanglement'`.
+
+        energies_:
+            The eigenvalues of the spectrum in increasing order.
+
+        states_:
+            The eigenstates of the spectrum as columns over the whole space.
+
+        energy_:
+            The ground state energy.
+
+        state_:
+            The ground state vector.
+
+        purity_:
+            The purity at every frame.
+
+        entropy_:
+            The entanglement entropy at every frame.
 
     Raises:
         AnalysisError:
-            The system is not quantum.
+            The system or the trajectory is not quantum, the sector operator is not diagonal or has no such eigenvalue,
+            or a subsystem is not part of the trajectory.
+
+        ParameterError:
+            A parameter name is not part of the system.
 
     Examples:
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.analysis import QuantumAnalysis
+        >>> from skcomplex.core.elements import Element, GroupElement
+        >>> from skcomplex.core.laws import GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
         >>> class QubitElement(Element):
         ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         psi: Annotated[object, StateSpec(domain=CC**2)] = 'up',
-        ...         omega: Annotated[float, ParameterSpec()] = 1.0,
-        ...         hilbert=QUBIT,
+        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
         ...     ):
         ...         super().__init__(label)
         ...         self.psi = psi
-        ...         self.omega = omega
         ...         self.hilbert = hilbert
         ...
         ...     def _get_laws(self, s):
-        ...         return [GeneratorLaw(s.omega / 2 * local_operator(s.psi, SR.symbol('z')))]
-        >>> from skcomplex.analysis import hamiltonian_of
-        >>> hamiltonian_of(System(elements=[QubitElement('q')]))
-        1/2*omega_q*local_operator(psi_q, z)
+        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
+        >>> system = System(elements=[QubitElement('q')])
+        >>> QuantumAnalysis(n_states=2).check().prepare(system).run().energies_.round(6).tolist()
+        [-1.0, 1.0]
+        >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
+        >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
+        >>> trajectory = Simulation(pair, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
+        >>> analysis = QuantumAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
+        >>> bool(np.allclose(analysis.entropy_, np.log(2)))
+        True
     """
-    return _quantum_problem(system).hamiltonian_operator
+
+    def __init__(
+        self,
+        kind: str = 'spectrum',
+        *,
+        n_states: int = 6,
+        parameters: Mapping[str, Any] | None = None,
+        sector: Sector | None = None,
+        subsystems: Sequence[str] | None = None,
+    ) -> None:
+        self.kind = kind
+        self.n_states = n_states
+        self.parameters = parameters
+        self.sector = sector
+        self.subsystems = subsystems
+
+    def _check(self) -> Self:
+        """Validate the kind, that the kind reads every changed setting, and the subsystems of the entanglement."""
+        check_kind(self, KINDS, SETTINGS)
+        if self.kind == 'entanglement' and not self.subsystems:
+            error_msg = f'{type(self).__name__} of kind entanglement needs the subsystems to keep. Give subsystems.'
+            raise AnalysisError(error_msg)
+        if self.n_states < 1:
+            error_msg = f'{type(self).__name__} has n_states={self.n_states!r}. Use 1 or more.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the system kind."""
+        return DataKind.SYSTEM
+
+    def _prepare(self, source: Source) -> Self:
+        """Compile the quantum system, or read the quantum problem of a trajectory."""
+        if self.kind in {'purity', 'entanglement'}:
+            if not isinstance(source, Trajectory):
+                error_msg = (
+                    f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
+                )
+                raise AnalysisError(error_msg)
+            self.problem_, _ = _states_of(source)
+            self.trajectory_ = source
+            return self
+        self.problem_ = _quantum_problem(system_of(source))
+        return self
+
+    def _run(self) -> Self:
+        """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
+        if self.kind == 'purity':
+            problem, states = _states_of(self.trajectory_)
+            if problem.pure:
+                self.purity_ = np.sum(np.abs(states) ** 2, axis=1) ** 2
+            else:
+                self.purity_ = np.sum(np.abs(states) ** 2, axis=(1, 2))
+            return self
+        if self.kind == 'entanglement':
+            problem, states = _states_of(self.trajectory_)
+            self.entropy_ = _entanglement(problem, states, self.subsystems)  # type: ignore[arg-type]
+            return self
+        p = _parameters_of(self.problem_, self.parameters)
+        if self.kind == 'ground-state':
+            energies, states = _lowest_states(self.problem_, p, 1, None)
+            self.energy_ = float(energies[0])
+            self.state_ = states[:, 0]
+            return self
+        basis = None if self.sector is None else _sector_basis(self.problem_, self.sector, p)
+        self.energies_, self.states_ = _lowest_states(self.problem_, p, self.n_states, basis)
+        return self

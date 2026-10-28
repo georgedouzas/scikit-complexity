@@ -11,7 +11,7 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=100)
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 10
-exponents = lyapunov_spectrum(system, until=500.0, dt=0.01)
+exponents = LyapunovAnalysis(until=500.0, dt=0.01).check().prepare(system).run().exponents_
 fig, (attractor, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 attractor.plot(trajectory.values('atmosphere.x')[settled], trajectory.values('atmosphere.y')[settled], linewidth=0.5)
 attractor.set_xlabel('jet x')

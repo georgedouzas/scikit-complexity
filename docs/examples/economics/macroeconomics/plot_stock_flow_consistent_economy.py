@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import flow_matrix
+from skcomplex.analysis import LoopAnalysis
 from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -50,7 +50,7 @@ money = (
     trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
 )
 created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
-matrix = flow_matrix(trajectory, 10)
+matrix = LoopAnalysis('flow-matrix', frame=10).check().prepare(trajectory).run()
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')
 totals.plot(times[1:], np.cumsum(created[:-1]), '--', color='black', label='cumulative lending - repayment')
@@ -59,13 +59,13 @@ totals.set_ylabel('money')
 totals.set_title('Money is created and destroyed only by the bank')
 totals.legend()
 image = table.imshow(
-    matrix.values,
+    matrix.matrix_,
     cmap='coolwarm',
-    vmin=-np.abs(matrix.values).max(),
-    vmax=np.abs(matrix.values).max(),
+    vmin=-np.abs(matrix.matrix_).max(),
+    vmax=np.abs(matrix.matrix_).max(),
 )
-table.set_xticks(range(len(matrix.holders)), [holder.split('.')[0] for holder in matrix.holders], rotation=30)
-table.set_yticks(range(len(matrix.flows)), [flow.split('.')[1] for flow in matrix.flows])
+table.set_xticks(range(len(matrix.holders_)), [holder.split('.')[0] for holder in matrix.holders_], rotation=30)
+table.set_yticks(range(len(matrix.flows_)), [flow.split('.')[1] for flow in matrix.flows_])
 table.set_title('Transaction-flow matrix at period 10')
 fig.colorbar(image, ax=table)
 fig.tight_layout()

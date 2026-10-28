@@ -17,7 +17,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -54,7 +54,7 @@ observer.recording_.flush()
 x = Simulation(create(MODEL), dt=0.05).run(until=3000).trajectory_.values('jerk.x')[2000:]
 maxima = x[find_peaks(x)[0]]
 # The symbolic Jacobian of `|x|` divides by `|x|`, so the tangent dynamics start off `x = 0` (see fix-core-defects).
-exponents = lyapunov_spectrum(create(MODEL, x=0.1), until=3000)
+exponents = LyapunovAnalysis(until=3000).check().prepare(create(MODEL, x=0.1)).run().exponents_
 fig, ax = plt.subplots(figsize=(5.5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=4)
 ax.set_xlabel('maximum $x_n$')

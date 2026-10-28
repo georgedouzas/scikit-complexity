@@ -1,10 +1,10 @@
-"""Linearise systems into state-space matrices and analyse their controllability, observability, and optimal gains."""
+"""Linearise a system into state-space matrices, with its controllability, observability, and optimal gain."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -12,10 +12,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
 from ..core.errors import AnalysisError, ValidationError
-from ..core.system import System
 from ..engine.compile import compiled_problem
 from ..engine.problems import Form, Problem
-from ._stability import dynamics_of
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
+from ._stability import _dynamics_of
+from ._utils import system_of
 
 type Matrix = npt.NDArray[np.float64]
 
@@ -44,148 +46,33 @@ def _evaluated(rows: list[list[Expression]], values: Mapping[Expression, float])
     return np.array([[float(SR(item).subs(values)) for item in row] for row in rows]).reshape(len(rows), columns)
 
 
-@dataclass(frozen=True)
-class StateSpace:
-    """Linear state-space model `x' = A x + B u`, `y = C x + D u` of a system near an operating point.
-
-    Args:
-        A:
-            The state matrix, the Jacobian of the rates by the states.
-
-        B:
-            The input matrix, the Jacobian of the rates by the controls.
-
-        C:
-            The output matrix, the Jacobian of the outputs by the states.
-
-        D:
-            The feedthrough matrix, the Jacobian of the outputs by the controls.
-
-        states:
-            The names of the state components, in the order of the rows of `A`.
-
-        controls:
-            The names of the controls, the adaptive parameters, in the order of the columns of `B`.
-
-        outputs:
-            The names of the outputs, in the order of the rows of `C`.
-    """
-
-    A: Matrix
-    B: Matrix
-    C: Matrix
-    D: Matrix
-    states: tuple[str, ...]
-    controls: tuple[str, ...]
-    outputs: tuple[str, ...]
-
-
-def controllability(A: npt.ArrayLike, B: npt.ArrayLike) -> int:
-    """Return the rank of the controllability matrix `[B, AB, ..., A^(n-1) B]` of a linear system.
-
-    The system is controllable when the rank equals the number of states.
-
-    Args:
-        A:
-            The state matrix.
-
-        B:
-            The input matrix.
-
-    Returns:
-        rank:
-            The rank of the controllability matrix.
-
-    Examples:
-        >>> from skcomplex.analysis import controllability
-        >>> controllability([[0, 1], [-1, 0]], [[0], [1]])
-        2
-    """
-    state = np.atleast_2d(np.asarray(A, dtype=float))
-    inputs = np.asarray(B, dtype=float).reshape(state.shape[0], -1)
+def _controllability(state: Matrix, inputs: Matrix) -> int:
+    """Return the rank of the controllability matrix `[B, AB, ..., A^(n-1) B]`."""
     blocks = [inputs]
     for _ in range(state.shape[0] - 1):
         blocks.append(state @ blocks[-1])
     return int(np.linalg.matrix_rank(np.hstack(blocks)))
 
 
-def observability(A: npt.ArrayLike, C: npt.ArrayLike) -> int:
-    """Return the rank of the observability matrix `[C; CA; ...; C A^(n-1)]` of a linear system.
-
-    The system is observable when the rank equals the number of states.
-
-    Args:
-        A:
-            The state matrix.
-
-        C:
-            The output matrix.
-
-    Returns:
-        rank:
-            The rank of the observability matrix.
-
-    Examples:
-        >>> from skcomplex.analysis import observability
-        >>> observability([[0, 1], [-1, 0]], [[0, 1]])
-        2
-    """
-    state = np.atleast_2d(np.asarray(A, dtype=float))
-    return controllability(state.T, np.asarray(C, dtype=float).reshape(-1, state.shape[0]).T)
-
-
-def lqr(A: npt.ArrayLike, B: npt.ArrayLike, Q: npt.ArrayLike, R: npt.ArrayLike) -> Matrix:
-    """Return the gain `K` of the linear-quadratic regulator `u = -K x` of a linear system.
-
-    The gain minimises `∫ (x' Q x + u' R u) dt` over an infinite horizon, with `K = R^-1 B' P` from the solution `P`
-    of the continuous algebraic Riccati equation, which SciPy solves.
-
-    Args:
-        A:
-            The state matrix.
-
-        B:
-            The input matrix.
-
-        Q:
-            The weight of the states, a symmetric positive semidefinite matrix.
-
-        R:
-            The weight of the controls, a symmetric positive definite matrix.
-
-    Returns:
-        gain:
-            The gain matrix, one row per control and one column per state.
-
-    Examples:
-        >>> from skcomplex.analysis import lqr
-        >>> lqr([[0.0]], [[1.0]], [[1.0]], [[1.0]]).round(6).tolist()
-        [[1.0]]
-    """
-    state = np.atleast_2d(np.asarray(A, dtype=float))
-    inputs = np.asarray(B, dtype=float).reshape(state.shape[0], -1)
-    weights = np.atleast_2d(np.asarray(R, dtype=float))
-    riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(Q, dtype=float)), weights)
+def _lqr(state: Matrix, inputs: Matrix, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Matrix:
+    """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator, from the Riccati solution `P` of SciPy."""
+    weights = np.atleast_2d(np.asarray(control_weights, dtype=float))
+    riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(state_weights, dtype=float)), weights)
     gain: Matrix = np.linalg.solve(weights, inputs.T @ riccati)
     return gain
 
 
-def linearize(
-    system: System,
-    controls: Sequence[str] | None = None,
-    outputs: Sequence[str] | None = None,
-    at: Mapping[str, float] | None = None,
-) -> StateSpace:
-    """Return the linearisation of a system near an operating point as state-space matrices.
+class LinearizationAnalysis(BaseAnalysis):
+    """Linear state-space model `x' = A x + B u`, `y = C x + D u` of a system near an operating point.
 
     The matrices are the Jacobians of the rates and of the outputs, derived symbolically and evaluated at the
     operating point. The controls are adaptive parameters, named by their dotted names, and the outputs are states or
-    controls.
+    controls. The system is controllable when the rank of `[B, AB, ..., A^(n-1) B]` equals the number of states, and
+    observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With weights of the states and the controls, the gain
+    `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q x + u' R u) dt` over an infinite horizon, from
+    the continuous algebraic Riccati equation that SciPy solves.
 
     Args:
-        system:
-            The system under continuous time.
-
         controls:
             The dotted names of the adaptive parameters that are inputs, or `None` for the bounded ones.
 
@@ -195,20 +82,51 @@ def linearize(
         at:
             The values of states and controls at the operating point, by dotted name, or `None` for the initial values.
 
-    Returns:
-        state_space:
-            The matrices with the names of their states, controls, and outputs.
+        state_weights:
+            The weight `Q` of the states in the cost of the regulator, a symmetric positive semidefinite matrix, or
+            `None` for no regulator.
 
-    Raises:
-        ValidationError:
-            The system is not valid, or not under continuous time.
+        control_weights:
+            The weight `R` of the controls in the cost of the regulator, a symmetric positive definite matrix, or
+            `None` for no regulator.
 
-        AnalysisError:
-            A name is not an adaptive parameter, a state, or a control, or the system has no symbolic vector field.
+    Attributes:
+        problem_:
+            The compiled problem.
+
+        A_:
+            The state matrix, the Jacobian of the rates by the states.
+
+        B_:
+            The input matrix, the Jacobian of the rates by the controls.
+
+        C_:
+            The output matrix, the Jacobian of the outputs by the states.
+
+        D_:
+            The feedthrough matrix, the Jacobian of the outputs by the controls.
+
+        states_:
+            The names of the state components, in the order of the rows of `A_`.
+
+        controls_:
+            The names of the controls, in the order of the columns of `B_`.
+
+        outputs_:
+            The names of the outputs, in the order of the rows of `C_`.
+
+        controllability_:
+            The rank of the controllability matrix.
+
+        observability_:
+            The rank of the observability matrix.
+
+        gain_:
+            The gain of the regulator, one row per control and one column per state, or `None` without weights.
 
     Examples:
         >>> from typing import Annotated
-        >>> from skcomplex.analysis import controllability, linearize
+        >>> from skcomplex.analysis import LinearizationAnalysis
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -228,43 +146,93 @@ def linearize(
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
-        >>> model = linearize(System(elements=[CartElement('cart')]))
-        >>> model.B.tolist(), controllability(model.A, model.B)
+        >>> analysis = LinearizationAnalysis().check().prepare(System(elements=[CartElement('cart')])).run()
+        >>> analysis.B_.tolist(), analysis.controllability_
         ([[0.0], [1.0]], 2)
     """
-    problem = compiled_problem(system, 'Linearization')
-    if problem.form != Form.ODE:
-        error_msg = f'linearize takes systems under continuous time, but the system is a {problem.form.value}.'
-        raise ValidationError(error_msg)
-    adaptive = problem.adaptive_parameters
-    chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
-    inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
-    dynamics = dynamics_of(problem)
-    states = [name for name in dynamics.names if name not in inputs]
-    observed = _checked_names(states if outputs is None else outputs, [*states, *inputs], 'states or controls')
-    values = _initial_values(problem)
-    values.update(at or {})
-    by_name = dict(zip(dynamics.names, dynamics.symbols, strict=True))
-    rates = dict(zip(dynamics.names, dynamics.rates, strict=True))
-    point = {by_name[name]: float(value) for name, value in values.items() if name in by_name}
-    point.update(dynamics.parameters)
-    point[dynamics.time] = 0.0
-    state_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
-    input_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
-    output_matrix = np.array([[float(row == column) for column in states] for row in observed]).reshape(
-        len(observed),
-        len(states),
-    )
-    feedthrough = np.array([[float(row == column) for column in inputs] for row in observed]).reshape(
-        len(observed),
-        len(inputs),
-    )
-    return StateSpace(
-        state_matrix,
-        input_matrix,
-        output_matrix,
-        feedthrough,
-        tuple(states),
-        tuple(inputs),
-        tuple(observed),
-    )
+
+    def __init__(
+        self,
+        controls: Sequence[str] | None = None,
+        outputs: Sequence[str] | None = None,
+        at: Mapping[str, float] | None = None,
+        *,
+        state_weights: npt.ArrayLike | None = None,
+        control_weights: npt.ArrayLike | None = None,
+    ) -> None:
+        self.controls = controls
+        self.outputs = outputs
+        self.at = at
+        self.state_weights = state_weights
+        self.control_weights = control_weights
+
+    def _check(self) -> Self:
+        """Check that the weights of the regulator are given together."""
+        if (self.state_weights is None) != (self.control_weights is None):
+            error_msg = (
+                f'{type(self).__name__} computes the regulator from both state_weights and control_weights. Give both, '
+                'or neither.'
+            )
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the system kind."""
+        return DataKind.SYSTEM
+
+    def _prepare(self, source: Source) -> Self:
+        """Compile the system of the source, checking that it runs in continuous time."""
+        problem = compiled_problem(system_of(source), 'Linearization')
+        if problem.form != Form.ODE:
+            error_msg = (
+                f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form.value}.'
+            )
+            raise ValidationError(error_msg)
+        self.problem_ = problem
+        return self
+
+    def _run(self) -> Self:
+        """Derive the state-space matrices, their ranks, and the gain of the regulator."""
+        problem = self.problem_
+        adaptive = problem.adaptive_parameters
+        chosen = (
+            [name for name, item in adaptive.items() if item.bounds is not None]
+            if self.controls is None
+            else self.controls
+        )
+        inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
+        dynamics = _dynamics_of(problem)
+        states = [name for name in dynamics.names if name not in inputs]
+        observed = _checked_names(
+            states if self.outputs is None else self.outputs,
+            [*states, *inputs],
+            'states or controls',
+        )
+        values = _initial_values(problem)
+        values.update(self.at or {})
+        by_name = dict(zip(dynamics.names, dynamics.symbols, strict=True))
+        rates = dict(zip(dynamics.names, dynamics.rates, strict=True))
+        point = {by_name[name]: float(value) for name, value in values.items() if name in by_name}
+        point.update(dynamics.parameters)
+        point[dynamics.time] = 0.0
+        self.A_ = _evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
+        self.B_ = _evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
+        self.C_ = np.array([[float(row == column) for column in states] for row in observed]).reshape(
+            len(observed),
+            len(states),
+        )
+        self.D_ = np.array([[float(row == column) for column in inputs] for row in observed]).reshape(
+            len(observed),
+            len(inputs),
+        )
+        self.states_ = tuple(states)
+        self.controls_ = tuple(inputs)
+        self.outputs_ = tuple(observed)
+        self.controllability_ = _controllability(self.A_, self.B_)
+        self.observability_ = _controllability(self.A_.T, self.C_.T)
+        self.gain_ = (
+            None
+            if self.state_weights is None
+            else _lqr(self.A_, self.B_, self.state_weights, self.control_weights)  # type: ignore[arg-type]
+        )
+        return self

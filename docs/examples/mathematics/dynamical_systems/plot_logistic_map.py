@@ -16,9 +16,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import lyapunov_spectrum, orbit_diagram
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
+from skcomplex.experiments import OrbitDiagramExperiment
 from skcomplex.models import create
 
 MODEL = 'logistic_map'
@@ -44,9 +45,22 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).run(until=200)
 rates = np.linspace(2.8, 4.0, 400)
-diagram = orbit_diagram(MODEL, 'map.r', rates, 'map.x', transient=500, keep=100, dt=1)
+diagram = (
+    OrbitDiagramExperiment(
+        MODEL,
+        'map.r',
+        rates,
+        'map.x',
+        transient=500,
+        keep=100,
+        dt=1,
+    )
+    .check()
+    .prepare()
+    .run()
+)
 points = np.array(
-    [(100 * r, -100 * x) for r, values in zip(diagram.values, diagram.points, strict=True) for x in values],
+    [(100 * r, -100 * x) for r, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -58,7 +72,10 @@ observer.recording_.flush()
 # the periodic windows, and turn positive where the orbit diagram fills bands, reaching `ln 2` at `r = 4`.
 
 sample = np.linspace(2.8, 4.0, 41)
-exponents = [lyapunov_spectrum(simulation.system, until=1000, parameters={'map.r': r})[0] for r in sample]
+exponents = [
+    LyapunovAnalysis(until=1000, parameters={'map.r': r}).check().prepare(simulation.system).run().exponents_[0]
+    for r in sample
+]
 fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
