@@ -16,7 +16,6 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
 from ..problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function, symbols_of
-from ..problems._kernels import member_indices
 from ..problems._reductions import CompiledReduction
 
 type Sparse = scipy.sparse.csr_array
@@ -293,7 +292,7 @@ class ExactJacobian:
         if reference.source is Source.NEIGHBOR:
             members, columns = self._neighbor_columns(reference)
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
-        return self._selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
+        return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
 
     def evaluate(self, t: float, x: Vector, p: Vector) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
@@ -327,7 +326,7 @@ class ExactJacobian:
                 gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
                 if gradient is None:
                     continue
-                target = member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
+                target = kernel.outputs[index].target._member_indices(kernel.rows)  # type: ignore[arg-type]
                 scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
@@ -465,7 +464,7 @@ class ExactJacobian:
                 block = self._dense_rows(targets.size, columns)
                 blocks.append(self._selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
                 continue
-            scatter = self._selection(np.arange(kernel.rows), member_indices(target, kernel.rows), 1.0, self.size).T
+            scatter = self._selection(np.arange(kernel.rows), target._member_indices(kernel.rows), 1.0, self.size).T
             if used is None:
                 blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
                 continue

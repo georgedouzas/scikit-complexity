@@ -23,12 +23,12 @@ from ...problems import (
     Layout,
     Lowered,
     Output,
+    Problem,
     ReductionSchedule,
     Source,
     VectorFunction,
     wrap_angle,
 )
-from ...problems._problem import real_components_of
 from .._compilation import Compilation
 from .._declarations import Declarations, _member_count
 from .._forms import _is_stepwise
@@ -80,7 +80,7 @@ class FunctionsPass(BasePass):
                 if entry not in declarations.states:
                     continue
                 components = block.symbols[variable]
-                for column, item in enumerate(real_components_of(components)):
+                for column, item in enumerate(Problem._real_components_of(components)):
                     key = (entry.name, column)
                     if key in excluded:
                         continue

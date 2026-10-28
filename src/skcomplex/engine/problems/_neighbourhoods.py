@@ -42,220 +42,10 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
 """Spaces every kind of neighbourhood is read on."""
 
 
-def spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
-    """Return the classes of the spaces a neighbourhood is read on.
-
-    Args:
-        neighborhood:
-            The neighbourhood.
-
-    Returns:
-        spaces:
-            The space classes.
-
-    Examples:
-        >>> from skcomplex.core.spaces import RadiusNeighborhood
-        >>> from skcomplex.engine.problems import spaces_of
-        >>> spaces_of(RadiusNeighborhood(1.0))
-        (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)
-    """
-    return next(spaces for neighborhoods, spaces in _SPACES_OF if isinstance(neighborhood, neighborhoods))
-
-
 type Rows = tuple[Indices, Indices]
 type Found = tuple[Indices, Indices, Indices | None]
 
 ACTIVE_THRESHOLD = 0.5
-
-
-def _rows(readers: Indices, others: Indices, size: int) -> Rows:
-    """Return the row starts and the neighbours, sorted by reader and then by neighbour, of a list of pairs."""
-    order = np.lexsort((others, readers))
-    counts = np.bincount(readers, minlength=size)
-    indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-    return indptr, others[order].astype(np.intp)
-
-
-def _with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices, Indices]:
-    """Return pairs with every member paired with itself."""
-    own = np.arange(size, dtype=np.intp)
-    return np.concatenate([readers, own]), np.concatenate([others, own])
-
-
-def network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tuple[Indices, Indices, Indices]:
-    """Return the neighbours of every node of a layer in CSR form, successors on a directed graph, with their edges.
-
-    Args:
-        space:
-            The network space.
-
-        neighborhood:
-            The graph neighbourhood of a layer, with the node itself when it is centred.
-
-    Returns:
-        rows:
-            The row starts and the neighbours of every node, in node order, and the edge of the layer that joins every
-            node to every neighbour, -1 for the node itself.
-
-    Examples:
-        >>> import networkx as nx
-        >>> from skcomplex.engine.problems._neighbourhoods import network_rows
-        >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-        >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
-        >>> [item.tolist() for item in network_rows(space, AdjacencyNeighborhood())]
-        [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
-    """
-    indptr, others, edges = space.adjacency_[neighborhood.layer]
-    size = space.size_
-    if not neighborhood.center:
-        return indptr, others, edges
-    readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(indptr))
-    keep = readers != others
-    readers, others = _with_center(readers[keep], others[keep], size)
-    edges = np.concatenate([edges[keep], np.full(size, -1, dtype=np.intp)])
-    order = np.lexsort((others, readers))
-    counts = np.bincount(readers, minlength=size)
-    indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-    return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
-
-
-def lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Rows:
-    """Return the neighbours of every site of a space in CSR form, in neighbourhood order, without outside sites.
-
-    Args:
-        space:
-            The prepared lattice or other space of sites.
-
-        neighborhood:
-            The neighbourhood of offsets, or the memory set of a group space.
-
-    Returns:
-        rows:
-            The row starts and the neighbours of every site.
-
-    Examples:
-        >>> from skcomplex.engine.problems._neighbourhoods import lattice_rows
-        >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').check().prepare(), LatticeNeighborhood(((-1,), (1,))))
-        >>> [item.tolist() for item in rows]
-        [[0, 1, 3, 4], [1, 0, 2, 1]]
-    """
-    table = space._index_table(neighborhood)
-    inside = table < len(table)
-    indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(inside.sum(axis=1))]).astype(np.intp)
-    return indptr, table[inside].astype(np.intp)
-
-
-def default_neighborhood(
-    space: object,
-) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
-    """Return the neighbourhood a reduction without one reads: the graph of a network, or a lattice's or group's own.
-
-    Args:
-        space:
-            The prepared space of the group.
-
-    Returns:
-        neighbourhood:
-            The neighbourhood, or `None` for a space without one of its own.
-
-    Examples:
-        >>> from skcomplex.engine.problems._neighbourhoods import default_neighborhood
-        >>> from sage.all__sagemath_gap import libgap
-        >>> from skcomplex.core.spaces import CayleySpace, LatticeSpace
-        >>> len(default_neighborhood(LatticeSpace((4, 4)).check().prepare()).check().prepare().offsets_)
-        8
-        >>> default_neighborhood(CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).check().prepare()).elements
-        ('a', 'a^-1', 'b', 'b^-1')
-    """
-    if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
-        return space._default_neighborhood()
-    return None
-
-
-def position_state(states: Mapping[str, Variable]) -> str | None:
-    """Return the position state of an element type: the vector state declared as position, else the vector `x`.
-
-    Args:
-        states:
-            The state declarations by name.
-
-    Returns:
-        name:
-            The name of the position state, or `None` without one.
-    """
-    declared = next((name for name, item in states.items() if item.position and item.vector), None)
-    if declared is not None:
-        return declared
-    found = states.get('x')
-    return 'x' if found is not None and found.vector else None
-
-
-def cone_heading(cone: ConeNeighborhood, states: Mapping[str, Variable], n_dim: int) -> str:
-    """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
-
-    Args:
-        cone:
-            The cone neighbourhood.
-
-        states:
-            The state declarations of the element type of the members.
-
-        n_dim:
-            The dimension of the space.
-
-    Returns:
-        name:
-            The name of the heading state, a vector state or in two dimensions a scalar angle.
-
-    Raises:
-        ValidationError:
-            The members have no such state.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.engine.problems._neighbourhoods import cone_heading
-        >>> from skcomplex.engine.problems import VariableKind, declarations_of
-        >>> from skcomplex.core.spaces import ConeNeighborhood
-        >>> class BoidElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
-        ...         theta: Annotated[float, StateSpec()] = 0.0,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.theta = theta
-        >>> states = declarations_of(BoidElement, VariableKind.STATE)
-        >>> cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), states, 2)
-        'theta'
-    """
-    if cone.heading is not None:
-        declaration = states.get(cone.heading)
-        if declaration is not None and (declaration.vector or n_dim == 2):  # noqa: PLR2004
-            return cone.heading
-        error_msg = (
-            f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
-            'angle state in two dimensions.'
-        )
-        raise ValidationError(error_msg)
-    position = position_state(states)
-    velocity = next(
-        (name for name, item in states.items() if item.vector and position and item.velocity_of == position),
-        None,
-    )
-    if velocity is None and position is not None and states[position].order > 1:
-        velocity = f'{position}_d1'
-    if velocity is None:
-        error_msg = (
-            'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
-            "`state(vector=True, velocity_of='x')`, or name a heading state, such as `Cone(r, angle, heading='theta')`."
-        )
-        raise ValidationError(error_msg)
-    return velocity
 
 
 @dataclass(frozen=True)
@@ -447,8 +237,8 @@ class MetricSearch:
                 keep = self._inside(x, readers, others, neighbourhood)
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
-            readers, others = _with_center(readers, others, size)
-        return (*_rows(readers, others, size), None)
+            readers, others = self._with_center(readers, others, size)
+        return (*self._rows(readers, others, size), None)
 
     @staticmethod
     def _nearest(tree: cKDTree, positions: Vector, k: int) -> tuple[Indices, Indices]:
@@ -471,6 +261,20 @@ class MetricSearch:
         dot = np.sum(heading * direction, axis=1)
         norms = np.sqrt(np.sum(heading * heading, axis=1)) * np.sqrt(np.sum(direction * direction, axis=1))
         return dot >= np.cos(cone.angle) * norms
+
+    @staticmethod
+    def _rows(readers: Indices, others: Indices, size: int) -> Rows:
+        """Return the row starts and the neighbours, sorted by reader and then by neighbour, of a list of pairs."""
+        order = np.lexsort((others, readers))
+        counts = np.bincount(readers, minlength=size)
+        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+        return indptr, others[order].astype(np.intp)
+
+    @staticmethod
+    def _with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices, Indices]:
+        """Return pairs with every member paired with itself."""
+        own = np.arange(size, dtype=np.intp)
+        return np.concatenate([readers, own]), np.concatenate([others, own])
 
 
 @dataclass(frozen=True)
@@ -511,146 +315,6 @@ class StaticSearch:
 
 
 type Search = StaticSearch | EdgeRows | MetricSearch
-
-
-def neighbor_search(
-    over: (
-        AdjacencyNeighborhood
-        | LatticeNeighborhood
-        | MemoryNeighborhood
-        | RadiusNeighborhood
-        | NearestNeighborhood
-        | ConeNeighborhood
-    ),
-    space: object,
-    rows: int,
-    entries: Mapping[str, Entry],
-    states: Mapping[str, Variable],
-    *,
-    changing: Mapping[str | None, tuple[Entry, Entry, Entry]] | None = None,
-) -> Search:
-    """Return the search of the neighbours of the members of a group in its space.
-
-    Args:
-        over:
-            The neighbourhood.
-
-        space:
-            The space of the group.
-
-        rows:
-            The number of members.
-
-        entries:
-            The layout entries of the group's variables by name.
-
-        states:
-            The state declarations of the element type of the members.
-
-        changing:
-            The source, target, and activity entries of the variable edge group of every layer of a network whose
-            edges change, or `None` for fixed edges.
-
-    Returns:
-        search:
-            The search, static on a fixed network or a lattice, by edge rows on a changing network, and by positions
-            in a continuous space.
-
-    Raises:
-        ValidationError:
-            The space does not offer the neighbourhood, the group does not hold one member per node or site, or the
-            members lack a position or a heading.
-    """
-    offered = spaces_of(over)
-    if not isinstance(space, offered):
-        names = ' or '.join(item.__name__ for item in offered)
-        error_msg = f'The neighbourhood {over!r} needs a {names}, but the group lives on {space!r}.'
-        raise ValidationError(error_msg)
-    if isinstance(over, AdjacencyNeighborhood) and changing is not None and over.layer in changing:
-        source, target, active = changing[over.layer]
-        directed = cast('NetworkSpace', space).graphs_[over.layer].is_directed()
-        return EdgeRows(source, target, active, rows, directed, over.center)
-    if isinstance(over, AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood):
-        size = getattr(space, 'size_', None)
-        if rows != size:
-            error_msg = (
-                f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
-                f'group has {rows} members.'
-            )
-            raise ValidationError(error_msg)
-        if isinstance(over, AdjacencyNeighborhood):
-            return StaticSearch(*network_rows(space, over))  # type: ignore[arg-type]
-        return StaticSearch(*lattice_rows(space, over))  # type: ignore[arg-type]
-    position = position_state(states)
-    if position is None:
-        error_msg = (
-            f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
-            "position state. Declare one with `state(vector=True, position=True)`."
-        )
-        raise ValidationError(error_msg)
-    continuous: ContinuousSpace = space  # type: ignore[assignment]
-    periods = continuous.extent_ if continuous.periodic_ else None
-    heading = None
-    if isinstance(over, ConeNeighborhood):
-        name = cone_heading(over, states, continuous.n_dim_)
-        heading = Heading(entries[name], not states[name].vector) if name in entries else None
-        if heading is None:
-            error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
-            raise ValidationError(error_msg)
-    return MetricSearch(over, entries[position], periods, heading)
-
-
-def reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, counts: Indices) -> Vector:
-    """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
-
-    Args:
-        kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
-
-        readers:
-            The member of every pair, in increasing order.
-
-        weight:
-            The weight of every pair.
-
-        argument:
-            The value of every pair.
-
-        counts:
-            The number of neighbours of every member.
-
-    Returns:
-        values:
-            One value per member.
-
-    Raises:
-        ValidationError:
-            The kind is unknown.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.engine.problems._neighbourhoods import reduce_pairs
-        >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
-        >>> reduce_pairs('mean', readers, np.ones(3), np.array([1.0, 3.0, 5.0]), counts).tolist()
-        [2.0, 0.0, 5.0]
-    """
-    size = counts.size
-    if kind in {'max', 'min'}:
-        values = np.full(size, -np.inf if kind == 'max' else np.inf)
-        (np.maximum if kind == 'max' else np.minimum).at(values, readers, weight * argument)
-        return np.where(counts > 0, values, 0.0)
-    if kind == 'count':
-        return np.bincount(readers, weights=weight * (argument != 0), minlength=size).astype(float)
-    total = np.bincount(readers, weights=weight * argument, minlength=size).astype(float)
-    if kind == 'sum':
-        return total
-    if kind == 'mean':
-        return np.divide(total, counts, out=np.zeros(size), where=counts > 0)
-    if kind == 'normalized-mean':
-        weights = np.bincount(readers, weights=weight, minlength=size).astype(float)
-        return np.divide(total, weights, out=np.zeros(size), where=weights != 0)
-    error_msg = f'Unknown neighbourhood reduction {kind!r}.'
-    raise ValidationError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -781,4 +445,344 @@ class CompiledNeighborhood:
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
-        q[self.entry.indices] = reduce_pairs(self.kind, readers, weight, argument, counts)
+        q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
+
+    @staticmethod
+    def _reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, counts: Indices) -> Vector:
+        """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
+
+        Args:
+            kind:
+                One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
+
+            readers:
+                The member of every pair, in increasing order.
+
+            weight:
+                The weight of every pair.
+
+            argument:
+                The value of every pair.
+
+            counts:
+                The number of neighbours of every member.
+
+        Returns:
+            values:
+                One value per member.
+
+        Raises:
+            ValidationError:
+                The kind is unknown.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
+            >>> values = np.array([1.0, 3.0, 5.0])
+            >>> CompiledNeighborhood._reduce_pairs('mean', readers, np.ones(3), values, counts).tolist()
+            [2.0, 0.0, 5.0]
+        """
+        size = counts.size
+        if kind in {'max', 'min'}:
+            values = np.full(size, -np.inf if kind == 'max' else np.inf)
+            (np.maximum if kind == 'max' else np.minimum).at(values, readers, weight * argument)
+            return np.where(counts > 0, values, 0.0)
+        if kind == 'count':
+            return np.bincount(readers, weights=weight * (argument != 0), minlength=size).astype(float)
+        total = np.bincount(readers, weights=weight * argument, minlength=size).astype(float)
+        if kind == 'sum':
+            return total
+        if kind == 'mean':
+            return np.divide(total, counts, out=np.zeros(size), where=counts > 0)
+        if kind == 'normalized-mean':
+            weights = np.bincount(readers, weights=weight, minlength=size).astype(float)
+            return np.divide(total, weights, out=np.zeros(size), where=weights != 0)
+        error_msg = f'Unknown neighbourhood reduction {kind!r}.'
+        raise ValidationError(error_msg)
+
+    @staticmethod
+    def _network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tuple[Indices, Indices, Indices]:
+        """Return the neighbours of every node of a layer in CSR form, successors on a directed graph, with their edges.
+
+        Args:
+            space:
+                The network space.
+
+            neighborhood:
+                The graph neighbourhood of a layer, with the node itself when it is centred.
+
+        Returns:
+            rows:
+                The row starts and the neighbours of every node, in node order, and the edge of the layer that joins
+                every node to every neighbour, -1 for the node itself.
+
+        Examples:
+            >>> import networkx as nx
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
+            >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
+            >>> [item.tolist() for item in CompiledNeighborhood._network_rows(space, AdjacencyNeighborhood())]
+            [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
+        """
+        indptr, others, edges = space.adjacency_[neighborhood.layer]
+        size = space.size_
+        if not neighborhood.center:
+            return indptr, others, edges
+        readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(indptr))
+        keep = readers != others
+        readers, others = MetricSearch._with_center(readers[keep], others[keep], size)
+        edges = np.concatenate([edges[keep], np.full(size, -1, dtype=np.intp)])
+        order = np.lexsort((others, readers))
+        counts = np.bincount(readers, minlength=size)
+        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+        return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
+
+    @staticmethod
+    def _lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Rows:
+        """Return the neighbours of every site of a space in CSR form, in neighbourhood order, without outside sites.
+
+        Args:
+            space:
+                The prepared lattice or other space of sites.
+
+            neighborhood:
+                The neighbourhood of offsets, or the memory set of a group space.
+
+        Returns:
+            rows:
+                The row starts and the neighbours of every site.
+
+        Examples:
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+            >>> space = LatticeSpace(3, boundary='fixed').check().prepare()
+            >>> rows = CompiledNeighborhood._lattice_rows(space, LatticeNeighborhood(((-1,), (1,))))
+            >>> [item.tolist() for item in rows]
+            [[0, 1, 3, 4], [1, 0, 2, 1]]
+        """
+        table = space._index_table(neighborhood)
+        inside = table < len(table)
+        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(inside.sum(axis=1))]).astype(np.intp)
+        return indptr, table[inside].astype(np.intp)
+
+    @staticmethod
+    def _default_neighborhood(
+        space: object,
+    ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
+        """Return the neighbourhood a reduction without one reads: a network's graph, or a lattice's or group's own.
+
+        Args:
+            space:
+                The prepared space of the group.
+
+        Returns:
+            neighbourhood:
+                The neighbourhood, or `None` for a space without one of its own.
+
+        Examples:
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from sage.all__sagemath_gap import libgap
+            >>> from skcomplex.core.spaces import CayleySpace, LatticeSpace
+            >>> lattice = LatticeSpace((4, 4)).check().prepare()
+            >>> len(CompiledNeighborhood._default_neighborhood(lattice).check().prepare().offsets_)
+            8
+            >>> cayley = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).check().prepare()
+            >>> CompiledNeighborhood._default_neighborhood(cayley).elements
+            ('a', 'a^-1', 'b', 'b^-1')
+        """
+        if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
+            return space._default_neighborhood()
+        return None
+
+    @staticmethod
+    def _position_state(states: Mapping[str, Variable]) -> str | None:
+        """Return the position state of an element type: the vector state declared as position, else the vector `x`.
+
+        Args:
+            states:
+                The state declarations by name.
+
+        Returns:
+            name:
+                The name of the position state, or `None` without one.
+        """
+        declared = next((name for name, item in states.items() if item.position and item.vector), None)
+        if declared is not None:
+            return declared
+        found = states.get('x')
+        return 'x' if found is not None and found.vector else None
+
+    @staticmethod
+    def _cone_heading(cone: ConeNeighborhood, states: Mapping[str, Variable], n_dim: int) -> str:
+        """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
+
+        Args:
+            cone:
+                The cone neighbourhood.
+
+            states:
+                The state declarations of the element type of the members.
+
+            n_dim:
+                The dimension of the space.
+
+        Returns:
+            name:
+                The name of the heading state, a vector state or in two dimensions a scalar angle.
+
+        Raises:
+            ValidationError:
+                The members have no such state.
+
+        Examples:
+            >>> from typing import Annotated
+            >>> from skcomplex.core.elements import Element
+            >>> from skcomplex.core.specs import StateSpec
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems import VariableKind, declarations_of
+            >>> from skcomplex.core.spaces import ConeNeighborhood
+            >>> class BoidElement(Element):
+            ...     def __init__(
+            ...         self,
+            ...         label,
+            ...         x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+            ...         theta: Annotated[float, StateSpec()] = 0.0,
+            ...     ):
+            ...         super().__init__(label)
+            ...         self.x = x
+            ...         self.theta = theta
+            >>> states = declarations_of(BoidElement, VariableKind.STATE)
+            >>> CompiledNeighborhood._cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), states, 2)
+            'theta'
+        """
+        if cone.heading is not None:
+            declaration = states.get(cone.heading)
+            if declaration is not None and (declaration.vector or n_dim == 2):  # noqa: PLR2004
+                return cone.heading
+            error_msg = (
+                f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
+            'angle state in two dimensions.'
+            )
+            raise ValidationError(error_msg)
+        position = CompiledNeighborhood._position_state(states)
+        velocity = next(
+            (name for name, item in states.items() if item.vector and position and item.velocity_of == position),
+            None,
+        )
+        if velocity is None and position is not None and states[position].order > 1:
+            velocity = f'{position}_d1'
+        if velocity is None:
+            error_msg = (
+                'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
+            "`state(vector=True, velocity_of='x')`, or name a heading state, such as `Cone(r, angle, heading='theta')`."
+            )
+            raise ValidationError(error_msg)
+        return velocity
+
+    @staticmethod
+    def _neighbor_search(
+        over: (
+            AdjacencyNeighborhood
+            | LatticeNeighborhood
+            | MemoryNeighborhood
+            | RadiusNeighborhood
+            | NearestNeighborhood
+            | ConeNeighborhood
+        ),
+        space: object,
+        rows: int,
+        entries: Mapping[str, Entry],
+        states: Mapping[str, Variable],
+        *,
+        changing: Mapping[str | None, tuple[Entry, Entry, Entry]] | None = None,
+    ) -> Search:
+        """Return the search of the neighbours of the members of a group in its space.
+
+        Args:
+            over:
+                The neighbourhood.
+
+            space:
+                The space of the group.
+
+            rows:
+                The number of members.
+
+            entries:
+                The layout entries of the group's variables by name.
+
+            states:
+                The state declarations of the element type of the members.
+
+            changing:
+                The source, target, and activity entries of the variable edge group of every layer of a network whose
+                edges change, or `None` for fixed edges.
+
+        Returns:
+            search:
+                The search, static on a fixed network or a lattice, by edge rows on a changing network, and by positions
+                in a continuous space.
+
+        Raises:
+            ValidationError:
+                The space does not offer the neighbourhood, the group does not hold one member per node or site, or the
+                members lack a position or a heading.
+        """
+        offered = CompiledNeighborhood._spaces_of(over)
+        if not isinstance(space, offered):
+            names = ' or '.join(item.__name__ for item in offered)
+            error_msg = f'The neighbourhood {over!r} needs a {names}, but the group lives on {space!r}.'
+            raise ValidationError(error_msg)
+        if isinstance(over, AdjacencyNeighborhood) and changing is not None and over.layer in changing:
+            source, target, active = changing[over.layer]
+            directed = cast('NetworkSpace', space).graphs_[over.layer].is_directed()
+            return EdgeRows(source, target, active, rows, directed, over.center)
+        if isinstance(over, AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood):
+            size = getattr(space, 'size_', None)
+            if rows != size:
+                error_msg = (
+                    f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
+                f'group has {rows} members.'
+                )
+                raise ValidationError(error_msg)
+            if isinstance(over, AdjacencyNeighborhood):
+                return StaticSearch(*CompiledNeighborhood._network_rows(space, over))  # type: ignore[arg-type]
+            return StaticSearch(*CompiledNeighborhood._lattice_rows(space, over))  # type: ignore[arg-type]
+        position = CompiledNeighborhood._position_state(states)
+        if position is None:
+            error_msg = (
+                f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
+            "position state. Declare one with `state(vector=True, position=True)`."
+            )
+            raise ValidationError(error_msg)
+        continuous: ContinuousSpace = space  # type: ignore[assignment]
+        periods = continuous.extent_ if continuous.periodic_ else None
+        heading = None
+        if isinstance(over, ConeNeighborhood):
+            name = CompiledNeighborhood._cone_heading(over, states, continuous.n_dim_)
+            heading = Heading(entries[name], not states[name].vector) if name in entries else None
+            if heading is None:
+                error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
+                raise ValidationError(error_msg)
+        return MetricSearch(over, entries[position], periods, heading)
+
+    @staticmethod
+    def _spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
+        """Return the classes of the spaces a neighbourhood is read on.
+
+        Args:
+            neighborhood:
+                The neighbourhood.
+
+        Returns:
+            spaces:
+                The space classes.
+
+        Examples:
+            >>> from skcomplex.core.spaces import RadiusNeighborhood
+            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> CompiledNeighborhood._spaces_of(RadiusNeighborhood(1.0))
+            (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)
+        """
+        return next(spaces for neighborhoods, spaces in _SPACES_OF if isinstance(neighborhood, neighborhoods))

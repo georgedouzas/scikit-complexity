@@ -39,10 +39,9 @@ from ..problems import (
     symbols_of,
     vector,
 )
-from ..problems._problem import real_components_of
 from ..problems._quantities import _Recorded
 from ..problems._reads import Read
-from ..problems._reductions import CompiledReduction, reduce_values
+from ..problems._reductions import CompiledReduction
 from ._complex import _joined_complex
 from ._declarations import Block, Declarations
 from ._flows import _delay_calls
@@ -501,7 +500,7 @@ class _HeldReduction:
 
             def reduce_values_of(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
                 del t
-                return float(np.real(reduce_values(columns[0] if columns else members, reduce)))
+                return float(np.real(CompiledReduction._reduce_values(columns[0] if columns else members, reduce)))
 
             return reduce_values_of
         condition = SR(1) if self.condition is None else self.condition
@@ -512,7 +511,7 @@ class _HeldReduction:
             argument, selected = (
                 np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
             )
-            return float(np.real(reduce_values(argument[selected.astype(bool)], reduce)))
+            return float(np.real(CompiledReduction._reduce_values(argument[selected.astype(bool)], reduce)))
 
         return reduce_expression
 
@@ -699,7 +698,7 @@ class ObservableEvaluator:
             for entry in layout.entries:
                 if entry.members is not None or entry.name not in self.problem.symbols:
                     continue
-                for column, item in enumerate(real_components_of(self.problem.symbols[entry.name])):
+                for column, item in enumerate(Problem._real_components_of(self.problem.symbols[entry.name])):
                     sources[item] = (name, entry.start + column)
         return sources
 
@@ -818,7 +817,9 @@ class ObservableEvaluator:
             def read_variable(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
-                return reduce_values(values if element.members is not None else values[np.newaxis], observable.reduce)
+                return CompiledReduction._reduce_values(
+                    values if element.members is not None else values[np.newaxis], observable.reduce,
+                )
 
             return read_variable
         size = element.members or 1
@@ -831,7 +832,7 @@ class ObservableEvaluator:
         for name in names.values():
             entry = self._entry(name)
             is_state = self.problem.states.has(name)
-            for column, item in enumerate(real_components_of(self.problem.symbols[name])):
+            for column, item in enumerate(Problem._real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
                 members[item] = Read(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
@@ -855,7 +856,7 @@ class ObservableEvaluator:
 
         def read_expression(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
-            return reduce_values(values, observable.reduce)
+            return CompiledReduction._reduce_values(values, observable.reduce)
 
         return read_expression
 
@@ -874,7 +875,7 @@ class ObservableEvaluator:
                 values = [observable.expression(agent) for agent in agents]
             else:
                 values = agents
-            return reduce_values(values, observable.reduce)
+            return CompiledReduction._reduce_values(values, observable.reduce)
 
         return read_agents
 
@@ -958,7 +959,7 @@ class Observer:
                 if entry.members is None and entry.name.startswith(prefix):
                     items[entry.name[len(prefix) :]] = block.symbols[variable]
                     references.update(
-                        {item: block.references[item] for item in real_components_of(block.symbols[variable])},
+                        {item: block.references[item] for item in Problem._real_components_of(block.symbols[variable])},
                     )
         namespace = _tree(items)
         for other, (other_scope, earlier) in self.live.items():

@@ -21,9 +21,18 @@ from ...core.laws import BaseLaw, JumpLaw
 from ...core.laws.utils import neighborhoods_in, reductions_in
 from ...core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
-from ..problems import EdgeSearch, Reference, Source, VariableKind, components_of, declarations_of, symbol, vector
+from ..problems import (
+    EdgeSearch,
+    Problem,
+    Reference,
+    Source,
+    VariableKind,
+    components_of,
+    declarations_of,
+    symbol,
+    vector,
+)
 from ..problems._kernels import PairSearch, Search
-from ..problems._problem import real_components_of
 from ._declarations import _ACTIVE, ENDS, Block, Declarations, _is_interaction
 from ._tree import Node
 
@@ -129,11 +138,13 @@ def _set_symbols(members: list[Block], index: int) -> dict[Expression, SetSymbol
     label = ', '.join(member.node.path for member in members)
     symbols = {}
     for variable, value in members[index].symbols.items():
-        for column, item in enumerate(real_components_of(value)):
+        for column, item in enumerate(Problem._real_components_of(value)):
             references = tuple(
-                member.references[real_components_of(member.symbols[variable])[column]] for member in members
+                member.references[Problem._real_components_of(member.symbols[variable])[column]] for member in members
             )
-            symbols[item] = SetSymbol(real_components_of(members[0].symbols[variable])[column], references, label)
+            symbols[item] = SetSymbol(
+                Problem._real_components_of(members[0].symbols[variable])[column], references, label,
+            )
     return symbols
 
 
@@ -467,7 +478,7 @@ def state_name(spec: KernelSpec, target: Expression) -> str:
 
 def target_references(target: object, spec: KernelSpec) -> list[Reference]:
     """Return the references of the state components a law targets."""
-    components = real_components_of(target)
+    components = Problem._real_components_of(target)
     references = [spec.references.get(component) for component in components]
     if not all(reference is not None and reference.is_state for reference in references):
         error_msg = f'A law of {spec.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'

@@ -41,7 +41,7 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.problems._reductions import reduce_values
+from skcomplex.engine.problems._reductions import CompiledReduction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 
@@ -106,8 +106,8 @@ def test_malformed_reductions_are_rejected(call, match):
 
 def test_count_reduces_values():
     """Test that the reduction table counts members, also none."""
-    assert reduce_values([1.0, 2.0], 'count') == 2.0
-    assert reduce_values([], 'count') == 0.0
+    assert CompiledReduction._reduce_values([1.0, 2.0], 'count') == 2.0
+    assert CompiledReduction._reduce_values([], 'count') == 0.0
 
 
 BACKENDS = (NumpyBackend(), NumbaBackend())

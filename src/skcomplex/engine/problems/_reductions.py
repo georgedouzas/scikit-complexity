@@ -30,44 +30,6 @@ REDUCTIONS: dict[str, Callable[[Any], Any]] = {
 }
 
 
-def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # noqa: ANN401
-    """Return the reduction of the values of a group's members.
-
-    Args:
-        values:
-            One value per member, or one row per member for vector values.
-
-        reduce:
-            `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, or a function of the array of values.
-
-    Returns:
-        value:
-            The reduction, a number for scalar values and an array for vector values. The reductions of no members
-            are 0, except the count.
-
-    Raises:
-        ValidationError:
-            The reduction is unknown.
-
-    Examples:
-        >>> from skcomplex.engine.problems._reductions import reduce_values
-        >>> reduce_values([1.0, 2.0, 6.0], 'mean')
-        3.0
-    """
-    array = np.asarray(values) if reduce != 'count' else np.zeros(len(values))
-    if callable(reduce):
-        return reduce(array)
-    if reduce not in REDUCTIONS:
-        error_msg = f'Unknown reduction {reduce!r}. Use {", ".join(REDUCTIONS)}, or a function of the values.'
-        raise ValidationError(error_msg)
-    if not array.size and reduce != 'count':
-        return 0.0
-    result = np.real_if_close(REDUCTIONS[reduce](array))
-    if np.ndim(result):
-        return result
-    return float(result) if np.isrealobj(result) else complex(result)
-
-
 @dataclass
 class CompiledReduction:
     """Reduction that laws read, compiled into a function of the values of its symbols.
@@ -193,13 +155,51 @@ class CompiledReduction:
         """
         argument, condition = self.values(t, x, q)
         if self.weights is None:
-            q[self.entry.start] = reduce_values(argument[condition], self.kind)
+            q[self.entry.start] = self._reduce_values(argument[condition], self.kind)
             return
         weighted = self.weights @ np.where(condition, argument, 0.0)
         if self.kind == 'mean':
             selected = int(np.count_nonzero(condition))
             weighted = weighted / selected if selected else np.zeros_like(weighted)
         q[self.entry.indices] = weighted
+
+    @staticmethod
+    def _reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # noqa: ANN401
+        """Return the reduction of the values of a group's members.
+
+        Args:
+            values:
+                One value per member, or one row per member for vector values.
+
+            reduce:
+                `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, or a function of the array of values.
+
+        Returns:
+            value:
+                The reduction, a number for scalar values and an array for vector values. The reductions of no members
+                are 0, except the count.
+
+        Raises:
+            ValidationError:
+                The reduction is unknown.
+
+        Examples:
+            >>> from skcomplex.engine.problems._reductions import CompiledReduction
+            >>> CompiledReduction._reduce_values([1.0, 2.0, 6.0], 'mean')
+            3.0
+        """
+        array = np.asarray(values) if reduce != 'count' else np.zeros(len(values))
+        if callable(reduce):
+            return reduce(array)
+        if reduce not in REDUCTIONS:
+            error_msg = f'Unknown reduction {reduce!r}. Use {", ".join(REDUCTIONS)}, or a function of the values.'
+            raise ValidationError(error_msg)
+        if not array.size and reduce != 'count':
+            return 0.0
+        result = np.real_if_close(REDUCTIONS[reduce](array))
+        if np.ndim(result):
+            return result
+        return float(result) if np.isrealobj(result) else complex(result)
 
 
 @dataclass

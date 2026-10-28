@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass, field, replace
-from typing import Any, Protocol
+from typing import Any, Protocol, Self
 
 import networkx as nx
 import numpy as np
@@ -33,48 +33,6 @@ _ROW_TOLERANCE = 1e-9
 
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
-
-
-def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
-    """Raise an error for initial values of states the problem does not have."""
-    if unknown:
-        error_msg = (
-            f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the dotted '
-            f'names of states, such as {", ".join(list(names)[:3])}.'
-        )
-        raise ValidationError(error_msg)
-
-
-def with_initial_state[P: BaseProblem](problem: P, initial_state: Mapping[str, object]) -> P:
-    """Return a problem whose initial state takes given values of some states.
-
-    Args:
-        problem:
-            The compiled problem.
-
-        initial_state:
-            The initial values by dotted state name.
-
-    Returns:
-        problem:
-            The problem with the new initial state, or the same problem when no value is given.
-
-    Raises:
-        ValidationError:
-            A name is not a state of the problem, or a value has the wrong shape.
-    """
-    if not initial_state:
-        return problem
-    _check_initial_names(set(initial_state) - set(problem.states.names), problem.states.names)
-    state = problem.initial_state.copy()
-    for name, value in initial_state.items():
-        entry = problem.states.entry(name)
-        try:
-            state[entry.indices] = entry.encode(value)
-        except ValueError as error:
-            error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
-            raise ValidationError(error_msg) from error
-    return replace(problem, initial_state=state)
 
 
 @dataclass(frozen=True)
@@ -704,6 +662,44 @@ class BaseProblem:
         del observables
         return None
 
+    @staticmethod
+    def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
+        """Raise an error for initial values of states the problem does not have."""
+        if unknown:
+            error_msg = (
+                f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the '
+                f'dotted names of states, such as {", ".join(list(names)[:3])}.'
+            )
+            raise ValidationError(error_msg)
+
+    def with_initial_state(self, initial_state: Mapping[str, object]) -> Self:
+        """Return a problem whose initial state takes given values of some states.
+
+        Args:
+            initial_state:
+                The initial values by dotted state name.
+
+        Returns:
+            problem:
+                The problem with the new initial state, or the same problem when no value is given.
+
+        Raises:
+            ValidationError:
+                A name is not a state of the problem, or a value has the wrong shape.
+        """
+        if not initial_state:
+            return self
+        self._check_initial_names(set(initial_state) - set(self.states.names), self.states.names)
+        state = self.initial_state.copy()
+        for name, value in initial_state.items():
+            entry = self.states.entry(name)
+            try:
+                state[entry.indices] = entry.encode(value)
+            except ValueError as error:
+                error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
+                raise ValidationError(error_msg) from error
+        return replace(self, initial_state=state)
+
 
 @dataclass(frozen=True)
 class Problem(BaseProblem):
@@ -917,7 +913,7 @@ class Problem(BaseProblem):
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        return [item for entry in layout.entries for item in real_components_of(self.symbols[entry.name])]
+        return [item for entry in layout.entries for item in self._real_components_of(self.symbols[entry.name])]
 
     @property
     def adaptive_parameters(self) -> dict[str, Variable]:
@@ -1036,6 +1032,34 @@ class Problem(BaseProblem):
                 np.add.at(matrix, (rows[kept], targets[kept]), increment)
         return matrix
 
+    @staticmethod
+    def _real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
+        """Return the components of a value with every complex component split into its real and imaginary parts.
+
+        Args:
+            value:
+                A vector, an expression, or a number.
+
+        Returns:
+            components:
+                The components, two in a row for a complex component.
+
+        Examples:
+            >>> from sage.all__sagemath_symbolics import I
+            >>> from skcomplex.engine.problems import symbol, vector
+            >>> from skcomplex.engine.problems import Problem
+            >>> x, y = symbol('x'), symbol('y')
+            >>> Problem._real_components_of(vector([x + I * y, 2 * x]))
+            [x, y, 2*x]
+        """
+        components = []
+        for item in (list(value) if isinstance(value, FreeModuleElement) else [value]):
+            if isinstance(item, Expression) and item.has(I):
+                components += [item.real_part(), item.imag_part()]
+            else:
+                components.append(item)
+        return components
+
 
 @dataclass(frozen=True)
 class Partition:
@@ -1064,29 +1088,3 @@ class Partition:
     owners: frozenset[str]
 
 
-def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
-    """Return the components of a value with every complex component split into its real and imaginary parts.
-
-    Args:
-        value:
-            A vector, an expression, or a number.
-
-    Returns:
-        components:
-            The components, two in a row for a complex component.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import I
-        >>> from skcomplex.engine.problems import symbol, vector
-        >>> from skcomplex.engine.problems._problem import real_components_of
-        >>> x, y = symbol('x'), symbol('y')
-        >>> real_components_of(vector([x + I * y, 2 * x]))
-        [x, y, 2*x]
-    """
-    components = []
-    for item in (list(value) if isinstance(value, FreeModuleElement) else [value]):
-        if isinstance(item, Expression) and item.has(I):
-            components += [item.real_part(), item.imag_part()]
-        else:
-            components.append(item)
-    return components

@@ -39,7 +39,7 @@ from ...problems import (
     symbol,
     vector,
 )
-from ...problems._reductions import reduce_values
+from ...problems._reductions import CompiledReduction
 from .._quantum_operators import LocalOperator, Operator, operator_of
 from .._quantum_views import QuantumView, _is_quantum, hilbert_state
 from .._system_compilers import BaseSystemCompiler
@@ -422,7 +422,7 @@ class QuantumProblem(BaseProblem):
         def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del done
             values = np.asarray([expect(self, item, t, x, p) for item in terms])
-            return reduce_values(values, observable.reduce)
+            return CompiledReduction._reduce_values(values, observable.reduce)
 
         return get
 

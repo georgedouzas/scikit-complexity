@@ -16,7 +16,6 @@ from ._kernels import (
 )
 from ._kinds import DomainKind, ElementKind, Form, NoiseKind, OrderKind
 from ._layouts import Entry, Layout
-from ._neighbourhoods import spaces_of
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -33,7 +32,6 @@ from ._problem import (
     Record,
     RenewalRecord,
     VectorFunction,
-    with_initial_state,
 )
 from ._quantities import LoopTerm, StockFlow
 from ._reductions import ReductionSchedule
@@ -97,11 +95,9 @@ __all__: list[str] = [
     'labels_of',
     'numpy_function',
     'print_expressions',
-    'spaces_of',
     'step_count',
     'symbol',
     'symbols_of',
     'vector',
-    'with_initial_state',
     'wrap_angle',
 ]

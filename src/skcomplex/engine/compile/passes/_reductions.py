@@ -29,13 +29,7 @@ from ...problems import (
     symbols_of,
     vector,
 )
-from ...problems._neighbourhoods import (
-    ACTIVE_THRESHOLD,
-    CompiledNeighborhood,
-    PairRead,
-    default_neighborhood,
-    neighbor_search,
-)
+from ...problems._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead
 from ...problems._reads import Read
 from ...problems._reductions import CompiledReduction
 from .._compilation import Compilation, Laws
@@ -382,7 +376,11 @@ class _Reductions:
         symbols = symbols_of([argument, weight]) - {self.declarations.time}
         group = self._neighbor_group(reduction, spec, symbols)
         block = self.declarations.blocks[group]
-        over = reduction.over if reduction.over is not None else default_neighborhood(block.node.space)
+        over = (
+            reduction.over
+            if reduction.over is not None
+            else CompiledNeighborhood._default_neighborhood(block.node.space)
+        )
         if over is None:
             error_msg = (
                 f'The neighbourhood reduction {reduction.call} of {group} names no neighbourhood, but the group lives '
@@ -396,7 +394,9 @@ class _Reductions:
                 self.declarations.changing_entries(_group_space(block)) if block.node.active is not None else None
             )
             over = over.check() if isinstance(over, BaseNeighborhood) else over
-            search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
+            search = CompiledNeighborhood._neighbor_search(
+                over, block.node.space, block.rows, block.entries, states, changing=changing,
+            )
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), RR, block.rows)

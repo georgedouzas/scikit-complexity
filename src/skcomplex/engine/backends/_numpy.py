@@ -55,7 +55,6 @@ from ..problems import (
     Reference,
     SupportSpec,
 )
-from ..problems._kernels import jump_channels, lower_noise
 from ._base import (
     BaseBackend,
     Lowering,
@@ -153,11 +152,11 @@ class NumpyBackend(BaseBackend):
             lowering.drift = _adding_function(kernels.get(RateLaw, []), size)
         if form == Form.SDE:
             lowering.diffusion = _concatenating_function(kernels.get(NoiseLaw, []))
-            noise = lower_noise(kernels.get(NoiseLaw, []))
+            noise = Kernel._lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
             lowering.propensities = _concatenating_function(kernels.get(JumpLaw, []))
-            lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
+            lowering.jumps = Kernel._jump_channels(kernels.get(JumpLaw, []), changes)
         if form == Form.DISCRETE:
             lowering.update = _assigning_function(kernels.get(UpdateLaw, []))
         return _with_reductions(lowering, reductions, kernels)

@@ -12,7 +12,7 @@ from ...core.errors import ValidationError
 from ...core.specs import ObservableSpec
 from ...core.system import System
 from ..backends import BaseBackend
-from ..problems import BaseProblem, Form, Partition, Problem, with_initial_state
+from ..problems import BaseProblem, Form, Partition, Problem
 from ._compilation import Compilation
 from ._declarations import _is_interaction
 from ._observables import _check_held_reads, _with_observables
@@ -204,7 +204,7 @@ def compile_system(
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
     _check_held_reads(problem, list(compilation.held))
-    return with_initial_state(problem, initial)
+    return problem.with_initial_state(initial)
 
 
 def partition_system(system: System, backend: BaseBackend | None = None) -> Problem:

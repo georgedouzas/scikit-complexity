@@ -15,7 +15,7 @@ from ...core.errors import BackendWarning, ValidationError
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.types import Indices, Vector
 from ..problems import Form, SupportSpec
-from ..problems._kernels import Kernel, Reference, Source, add_into, assign_into
+from ..problems._kernels import Kernel, Reference, Source
 from ..problems._printing import SCALAR_DIALECT, print_expressions
 from ..problems._problem import Accelerated, Draws, VectorFunction, WienerBlock, _JumpChannels
 from ..problems._reductions import ReductionSchedule
@@ -80,7 +80,7 @@ def _adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
         for kernel in kernels:
             _, pairs, values = kernel.evaluate(t, x, p)
             for item, value in zip(kernel.outputs, values, strict=True):
-                add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
+                Reference._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
         return output
 
     return evaluate
@@ -104,7 +104,7 @@ def _assigning_function(kernels: list[Kernel]) -> VectorFunction:
         for kernel in kernels:
             _, _, values = kernel.evaluate(t, x, p)
             for item, value in zip(kernel.outputs, values, strict=True):
-                assign_into(output, item.target, value)  # type: ignore[arg-type]
+                Reference._assign_into(output, item.target, value)  # type: ignore[arg-type]
         return output
 
     return evaluate

@@ -71,7 +71,6 @@ from ..problems import (
     SupportSpec,
     step_count,
 )
-from ..problems._kernels import jump_channels, lower_noise
 from ..problems._neighbourhoods import EdgeRows, MetricSearch
 from . import _numba_neighbours, _numba_stencils
 from ._base import (
@@ -404,11 +403,11 @@ class NumbaBackend(BaseBackend):
             lowering.drift = functions[RateLaw]
         if form == Form.SDE:
             lowering.diffusion = functions.get(NoiseLaw, _concatenating_function([]))
-            noise = lower_noise(used[NoiseLaw])
+            noise = Kernel._lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
             lowering.propensities = functions.get(JumpLaw, _concatenating_function([]))
-            lowering.jumps = jump_channels(used[JumpLaw], changes)
+            lowering.jumps = Kernel._jump_channels(used[JumpLaw], changes)
         if form == Form.DISCRETE:
             lowering.update = functions[UpdateLaw]
         if loop is not None:
