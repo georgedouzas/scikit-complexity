@@ -12,7 +12,6 @@ the same, and the width of the bump grows like the square root of time, the sign
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=50)
 # With insulated edges the total heat should stay constant. Away from the edges the variance of the temperature
 # profile along each axis grows as `var(t) = var(0) + 2 D t`, so the measured variance should follow that line.
 
-fields = fields_of(simulation.trajectory_, 'plate.u')
+fields = simulation.trajectory_.lattice('plate.u')
 times = np.asarray(simulation.trajectory_.times)
 coordinates = np.arange(fields.shape[1])
 total = fields.sum(axis=(1, 2))

@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import as_graph
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -43,7 +42,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 def giant_share(trajectory, frame, size):
     """Return the share of the original nodes in the largest component at a frame."""
-    graph = as_graph(trajectory.network(frame))
+    graph = trajectory.network(frame).graph()
     return max((len(component) for component in nx.connected_components(graph)), default=0) / size
 
 

@@ -13,7 +13,6 @@ that keeps its shape and moves around the ring road while the traffic outside it
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.engine.viz import RerunObserver
@@ -32,7 +31,7 @@ simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=
 # falls below it, and the cluster should then keep its shape and travel around the ring.
 
 trajectory = simulation.trajectory_
-rho = fields_of(trajectory, 'road.rho')
+rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) * 10.0 / rho.shape[1]
 fig, (growth, profiles) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(trajectory.times, rho.max(axis=1), label='largest density')

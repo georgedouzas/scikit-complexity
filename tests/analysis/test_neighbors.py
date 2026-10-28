@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import NeighborAnalysis, fields_of, snapshots_of
+from skcomplex.analysis import NeighborAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
@@ -22,11 +22,10 @@ def _neighbors(kind: str, source: object, **settings: object) -> NeighborAnalysi
 def _schelling_grid(side: int) -> np.ndarray:
     """Return the groups of a relaxed Schelling model with tolerance 0.5 on a grid, `EMPTY` for empty cells."""
     trajectory = run('schelling', width=side, height=side, threshold=0.5, random_state=0, settings={'until': 100})
-    snapshot = snapshots_of(trajectory.trajectory_)
-    group = next(values for values in snapshot.states.values())[-1]
+    residents = trajectory.trajectory_.agents('residents', -1)
+    group = next(iter(residents.values.values()))
     grid = np.full((side, side), EMPTY)
-    assert snapshot.positions is not None
-    places = snapshot.positions[-1].astype(int)
+    places = np.asarray(residents.locations).astype(int)
     grid[places[:, 0], places[:, 1]] = group
     return grid
 
@@ -54,20 +53,20 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
     gas = rng.random((20, 4000, 2)) * 20
     density = _neighbors('radial-distribution', gas, box=[20.0, 20.0], bins=20).distribution_
     assert np.all(np.abs(density - 1) < 0.05)
-    snapshots = snapshots_of(run('lennard_jones_fluid').trajectory_)
-    box = snapshots.box
-    fluid = _neighbors('radial-distribution', np.mod(snapshots.positions[-10:], box), box=box, bins=150, r_max=3.0)
+    trajectory = run('lennard_jones_fluid').trajectory_
+    box = np.asarray(trajectory.problem.system.space.extent_, dtype=float)
+    positions = np.mod(np.asarray(trajectory.values('fluid.x'), dtype=float)[-10:], box)
+    fluid = _neighbors('radial-distribution', positions, box=box, bins=150, r_max=3.0)
     assert fluid.radii_[fluid.distribution_.argmax()] == pytest.approx(2 ** (1 / 6), rel=0.05)
 
 
 def test_neighbor_distances_of_every_frame_of_a_trajectory():
     """Test that a flock in a periodic box gives one distance per agent and frame and one ratio per frame."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
-    snapshots = snapshots_of(trajectory)
     distances = _neighbors('distances', trajectory).distances_
-    assert distances.shape == snapshots.positions.shape[:2]
+    assert distances.shape == (len(trajectory.times), trajectory.agents('flock', 0).ids.size)
     assert np.all(distances > 0)
-    if snapshots.periodic:
+    if trajectory.problem.agent_space.periodic_:
         assert _neighbors('clark-evans', trajectory).ratio_.shape == (len(trajectory.times),)
 
 
@@ -75,7 +74,8 @@ def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling model and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
-    ising = fields_of(Simulation(create('ising', size=64, temperature=1.0), dt=1).run(until=200).trajectory_)[-1]
+    quench = Simulation(create('ising', size=64, temperature=1.0), dt=1).run(until=200)
+    ising = quench.trajectory_.lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
         assert _neighbors('like-share', grid, empty=empty).share_[0] > 0.75
         occupied = grid != EMPTY if empty is not None else np.ones(grid.shape, dtype=bool)

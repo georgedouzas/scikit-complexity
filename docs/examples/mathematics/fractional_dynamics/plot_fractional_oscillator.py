@@ -11,11 +11,11 @@ the Mittag-Leffler function `E_(2 alpha)(-omega^2 t^(2 alpha))`, the solution of
 # as a line, next to the closed orbit of order 1, and the blueprint puts this view first, as the primary view.
 
 import matplotlib.pyplot as plt
+import mpmath
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import mittag_leffler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -59,12 +59,22 @@ observer.recording_.flush()
 # --------------------------
 # The Laplace transform of the two equations with `v(0) = 0` gives `x(t) = x(0) E_(2 alpha)(-omega^2 t^(2 alpha))`.
 # The simulated displacement of every order should lie on it, oscillating with an amplitude that decays as a power
-# law for `alpha < 1` and keeping its amplitude for order 1.
+# law for `alpha < 1` and keeping its amplitude for order 1. The Mittag-Leffler function is the power series
+# `E_a(z) = sum_k z^k / Gamma(a k + 1)`, whose terms reach `exp(30)` before they cancel at `t = 30`, so it is summed
+# with 60 digits.
+
+
+def mittag_leffler_series(alpha: float, values: np.ndarray, terms: int = 400) -> np.ndarray:
+    """Return the Mittag-Leffler function `E_alpha(z)` at every value by its power series summed with 60 digits."""
+    with mpmath.workdps(60):
+        coefficients = [1 / mpmath.gamma(alpha * k + 1) for k in reversed(range(terms))]
+        return np.array([float(mpmath.polyval(coefficients, mpmath.mpf(z))) for z in values])
+
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for order, color in ((1.0, 'tab:blue'), (0.9, 'tab:green'), (0.8, 'tab:orange'), (0.6, 'tab:red')):
     run = Simulation(create(MODEL, order=order), dt=0.1).run(until=30).trajectory_
-    exact = mittag_leffler(2 * order, 1.0, -(run.times ** (2 * order)))
+    exact = mittag_leffler_series(2 * order, -(run.times ** (2 * order)))
     ax.plot(run.times, run.values('oscillator.x'), 'o', markersize=1.5, color=color, label=f'order {order}')
     ax.plot(run.times, exact, '-', linewidth=0.8, color='black')
 ax.set_xlabel('time t')

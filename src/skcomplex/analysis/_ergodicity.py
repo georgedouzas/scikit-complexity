@@ -11,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core.errors import AnalysisError
-from ._adapters import Ensemble
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import _stationary_distribution
@@ -36,7 +35,7 @@ BINS = {'distance': 20, 'invariant-density': 100}
 class ErgodicityAnalysis(BaseAnalysis):
     """Ergodicity of an ensemble of runs, or invariant density of a map or a flow, of one kind.
 
-    The ensemble kinds read one row per run and one column per time, or an ensemble of an experiment:
+    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.ensemble` returns:
 
     - `'breaking'`: the variance across runs of the time averages over the variance of all the values, near 0 for
       ergodic runs longer than their relaxation time and near 1 when every run is frozen in its own state.
@@ -63,7 +62,7 @@ class ErgodicityAnalysis(BaseAnalysis):
             The fraction of the run after which the exponent of the metric is fitted, at 50 log-spaced times.
 
         dt:
-            The time between the columns of an array, while an ensemble gives its own times.
+            The time between the columns of the runs.
 
         bins:
             The number of bins or their edges, or `None` for 20 for `'distance'` and 100 for `'invariant-density'`.
@@ -183,8 +182,8 @@ class ErgodicityAnalysis(BaseAnalysis):
         """Return the ensemble kind for runs, and the series kind for densities."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.SERIES
 
-    def _prepare(self, source: Source | Ensemble | Callable[[Array], Array]) -> Self:
-        """Read the runs of an ensemble or an array, the values of a run, or the map."""
+    def _prepare(self, source: Source | Callable[[Array], Array]) -> Self:
+        """Read the runs of an ensemble, one row per run, the values of a run, or the map."""
         if self.kind == 'ulam':
             if not callable(source):
                 error_msg = (
@@ -197,12 +196,8 @@ class ErgodicityAnalysis(BaseAnalysis):
         if self.kind == 'invariant-density':
             self.values_ = self._read_series(source, self.variables).values[:, 0].astype(float)
             return self
-        if isinstance(source, Ensemble):
-            self.values_ = np.asarray(source.values, dtype=float)
-            self.times_ = np.asarray(source.times, dtype=float)
-        else:
-            self.values_ = np.asarray(source, dtype=float)
-            self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
+        self.values_ = np.asarray(source, dtype=float)
+        self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
         if self.values_.ndim != 2 or self.values_.shape[0] < MIN_RUNS:  # noqa: PLR2004
             error_msg = (
                 f'The diagnostics need at least two runs, one row per run, not an array of shape {self.values_.shape}.'

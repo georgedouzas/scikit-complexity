@@ -9,7 +9,7 @@ import pytest
 from scipy import optimize, stats
 from sklearn.base import clone
 
-from skcomplex.analysis import FitAnalysis, snapshots_of
+from skcomplex.analysis import FitAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
@@ -134,8 +134,8 @@ def test_stable_law_of_cauchy_sums():
 
 def test_named_law_boltzmann_law_on_two_domains():
     """Test that gas energies and exchanged money are exponential at the energy per molecule and money per agent."""
-    snapshots = snapshots_of(run('ideal_gas', settings={'random_state': 0}).trajectory_)
-    energies = 0.5 * np.sum(snapshots.velocities**2, axis=-1)
+    velocities = np.asarray(run('ideal_gas', settings={'random_state': 0}).trajectory_.values('gas.v'), dtype=float)
+    energies = 0.5 * np.sum(velocities**2, axis=-1)
     gas = _fit('exponential', energies[-1], fixed={'loc': 0})
     assert gas.p_value_ > 0.05
     assert gas.parameters_['scale'] == pytest.approx(energies[0].mean(), rel=0.02)

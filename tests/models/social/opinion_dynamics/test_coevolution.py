@@ -4,7 +4,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import as_graph
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.social.opinion_dynamics import coevolving_voter, join_a_club
@@ -26,7 +25,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
     slow, fast = (runs[rewiring].trajectory_ for rewiring in (0.1, 0.8))
     assert _discordant(slow, 2) > 0.15
     assert _discordant(fast, 2) < 0.02
-    graph = as_graph(fast.network(-1))
+    graph = fast.network(-1).graph()
     opinions = fast.values('voters.opinion')[-1]
     assert nx.number_connected_components(graph) >= 2
     assert 0 < opinions.mean() < 1
@@ -48,7 +47,7 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     assert _discordant(strong, -1) < 0.02
     assert _discordant(free, -1) > 0.25
     members = strong.values('voters.opinion')[-1]
-    graph = as_graph(strong.network(-1))
+    graph = strong.network(-1).graph()
     assert nx.number_connected_components(graph) >= 2
     assert 0 < members.mean() < 1
 

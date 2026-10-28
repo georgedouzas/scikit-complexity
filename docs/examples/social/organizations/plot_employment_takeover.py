@@ -13,7 +13,6 @@ whose border creeps for a while, then freezes after about forty steps.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
@@ -31,8 +30,8 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
 # colour should drop quickly and then reach zero, and the shares of coloured employers and workers should freeze.
 
 trajectory = simulation.trajectory_
-colours = fields_of(trajectory, 'cells.colour')
-employers = fields_of(trajectory, 'cells.employer')[0] > 0
+colours = trajectory.lattice('cells.colour')
+employers = trajectory.lattice('cells.employer')[0] > 0
 changes = np.sum(colours[1:] != colours[:-1], axis=(1, 2))
 fig, (activity, shares) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(trajectory.times[1:], changes, 'o-', markersize=3)

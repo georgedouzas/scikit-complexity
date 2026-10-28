@@ -1,4 +1,4 @@
-"""Automata: elementary, life-like, noisy, and diffusive rules, turmites, an unbounded alphabet, and group automata."""
+"""Automata: elementary, life-like, noisy, and group automata, turmites, linear automata, and subshifts."""
 
 from ._automata import (
     AntCellElement,
@@ -8,6 +8,7 @@ from ._automata import (
     game_of_life,
     langtons_ant,
 )
+from ._automaton import Automaton
 from ._codes import Wolfram, life
 from ._group_automata import (
     GoldenMeanCellElement,
@@ -23,6 +24,8 @@ from ._group_automata import (
     subshifts,
 )
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
+from ._linear_automaton import LinearAutomaton
+from ._subshift import Subshift
 from ._variants import (
     DiffusionCellElement,
     NoisyElementaryCellElement,
@@ -35,15 +38,18 @@ from ._variants import (
 
 __all__: list[str] = [
     'AntCellElement',
+    'Automaton',
     'DiffusionCellElement',
     'ElementaryCellElement',
     'GoldenMeanCellElement',
     'LaplacianCellElement',
     'LifeCellElement',
+    'LinearAutomaton',
     'MajorityCellElement',
     'NoisyElementaryCellElement',
     'ParityCellElement',
     'PascalCellElement',
+    'Subshift',
     'Wolfram',
     'baumslag_solitar',
     'baumslag_solitar_automaton',

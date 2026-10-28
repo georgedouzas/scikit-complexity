@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import NetworkAnalysis, snapshots_of
+from skcomplex.analysis import NetworkAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -17,10 +17,9 @@ def _network(kind: str, source: object, **settings: object) -> NetworkAnalysis:
 def _schelling_contacts() -> nx.Graph:
     """Return the network of neighbouring residents of a relaxed Schelling model, with their groups."""
     trajectory = run('schelling', width=30, height=30, random_state=0, settings={'until': 100}).trajectory_
-    snapshot = snapshots_of(trajectory)
-    assert snapshot.positions is not None
-    cells = {tuple(int(item) for item in place): index for index, place in enumerate(snapshot.positions[-1])}
-    group = next(values for values in snapshot.states.values())[-1]
+    residents = trajectory.agents('residents', -1)
+    cells = {tuple(int(item) for item in place): index for index, place in enumerate(residents.locations)}
+    group = next(iter(residents.values.values()))
     graph = nx.Graph()
     graph.add_nodes_from((index, {'state': int(group[index])}) for index in cells.values())
     shifts = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if (dx, dy) != (0, 0)]

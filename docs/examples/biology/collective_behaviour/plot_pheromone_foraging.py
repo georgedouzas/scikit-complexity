@@ -13,7 +13,6 @@ coordination through marks left in the environment.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -33,7 +32,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 carrying = [np.sum(trajectory.agents('colony/ants', frame).values['carrying']) for frame in frames]
-pheromone = fields_of(trajectory)
+pheromone = trajectory.lattice('ground/pheromone.level')
 fig, (image, traffic) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(pheromone[-1].T, cmap='magma', origin='lower', aspect='auto')
 image.set_title('Pheromone at the end of the run')

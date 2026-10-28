@@ -4,7 +4,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import as_graph
 from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.mathematics.networks import (
@@ -26,7 +25,7 @@ def test_targeted_attacks_break_the_giant_component_faster_than_failures():
     """Test that removing hubs destroys the giant component while as many random failures leave it mostly whole."""
     trajectory = Simulation(network_attack(500, strategy='targeted'), dt=1, random_state=0).run(until=24).trajectory_
     frame = next(frame for frame in range(25) if len(trajectory.network(frame).nodes) <= 425)
-    attacked = as_graph(trajectory.network(frame))
+    attacked = trajectory.network(frame).graph()
     removed = 500 - attacked.number_of_nodes()
     failures = network_attack(500, strategy='random', rate=removed / 500 / frame)
     failed, _ = _final_graph(failures, frame)
@@ -46,7 +45,7 @@ def test_erdos_renyi_construction_gives_a_giant_component_past_mean_degree_one()
     system = random_graph_ensembles(400, ensemble='erdos_renyi', mean_degree=4, steps=40)
     trajectory = Simulation(system, dt=1.0, random_state=1).run(until=40).trajectory_
     means = np.array([2 * len(trajectory.network(frame).sources) / 400 for frame in range(41)])
-    giants = np.array([_giant(as_graph(trajectory.network(frame))) for frame in range(41)])
+    giants = np.array([_giant(trajectory.network(frame).graph()) for frame in range(41)])
     assert means[-1] == pytest.approx(4, rel=0.1)
     assert giants[np.argmin(np.abs(means - 0.5))] < 0.1
     assert giants[-1] > 0.9

@@ -94,7 +94,7 @@ def _evaluate(alpha: float, beta: float, z: complex) -> complex:
     raise AnalysisError(error_msg)
 
 
-def mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> npt.NDArray[Any]:
+def _mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> npt.NDArray[Any]:
     """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z) = sum_k z^k / Gamma(alpha k + beta)`.
 
     `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)` solves the fractional relaxation `D^alpha x =
@@ -122,10 +122,10 @@ def mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> npt.NDArray[A
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import mittag_leffler
-        >>> bool(np.isclose(mittag_leffler(1.0, 1.0, -2.0), np.exp(-2.0)))
+        >>> from skcomplex.analysis._fractional import _mittag_leffler
+        >>> bool(np.isclose(_mittag_leffler(1.0, 1.0, -2.0), np.exp(-2.0)))
         True
-        >>> round(float(mittag_leffler(0.5, 1.0, -1.0)), 6)
+        >>> round(float(_mittag_leffler(0.5, 1.0, -1.0)), 6)
         0.427584
     """
     if not alpha > 0:

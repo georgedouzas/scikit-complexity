@@ -17,7 +17,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import mittag_leffler
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -54,13 +54,17 @@ observer.recording_.flush()
 # %%
 # Mittag-Leffler decay
 # --------------------
-# Every simulated curve should lie on its Mittag-Leffler function `E_alpha(-t^alpha)`, and at long times on the power
-# law `t^(-alpha) / Gamma(1 - alpha)`, a straight line on logarithmic axes, while order 1 drops as `exp(-t)`.
+# The symbolic analysis solves the relaxation of every order exactly, as the Mittag-Leffler function
+# `E_alpha(-lambda t^alpha)` evaluated at `lambda = 1`. Every simulated curve should lie on it, and at long times on
+# the power law `t^(-alpha) / Gamma(1 - alpha)`, a straight line on logarithmic axes, while order 1 drops as `exp(-t)`.
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
-    exact = mittag_leffler(order, 1.0, -(times**order))
+    solve = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(create(MODEL, order=order)).run()
+    solution = solve.solutions_['relaxation.x'].rhs()
+    symbols = {str(symbol): symbol for symbol in solution.variables()}
+    exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]
     ax.loglog(
         times,
         run.values('relaxation.x')[1:],

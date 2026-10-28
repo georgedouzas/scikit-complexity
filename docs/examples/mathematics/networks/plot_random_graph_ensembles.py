@@ -14,7 +14,6 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import as_graph
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -50,7 +49,7 @@ trajectory = simulation.trajectory_
 
 degrees, giants = [], []
 for frame in range(len(trajectory.times)):
-    graph = as_graph(trajectory.network(frame))
+    graph = trajectory.network(frame).graph()
     degrees.append(2 * graph.number_of_edges() / 200)
     giants.append(max(len(component) for component in nx.connected_components(graph)) / 200)
 mean = np.linspace(0.01, 4, 200)
@@ -63,7 +62,7 @@ ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
     run = Simulation(create(MODEL, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20))
-    graph = as_graph(run.run(until=20).trajectory_.network(-1))
+    graph = run.run(until=20).trajectory_.network(-1).graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))
     clustering.append(nx.average_clustering(graph) / nx.average_clustering(ring))

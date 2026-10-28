@@ -7,10 +7,12 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.analysis import EntropyAnalysis
+from skcomplex.analysis import EntropyAnalysis, MarkovAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
+
+RUNS = 20_000
 
 
 def _entropy(kind: str, source: object, **settings: object) -> np.ndarray:
@@ -194,3 +196,59 @@ def test_clone_keeps_settings_and_drops_results():
     copy = clone(analysis)
     assert copy.get_params() == analysis.get_params()
     assert not hasattr(copy, 'entropy_')
+
+
+def _ehrenfest(rng: np.random.Generator, balls: int, steps: int) -> np.ndarray:
+    """Return an ensemble of lazy Ehrenfest urns of `balls` balls started all in the first urn, runs by steps."""
+    states = np.full(RUNS, balls)
+    frames = [states.copy()]
+    for _ in range(steps):
+        active = rng.random(RUNS) < 0.5
+        moved = rng.random(RUNS) < states / balls
+        states = states + np.where(active, np.where(moved, -1, 1), 0)
+        frames.append(states.copy())
+    return np.asarray(frames).T
+
+
+def _birth_death(rng: np.random.Generator, steps: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return an ensemble of a birth-death chain on 0 to 20 started at 20, and its transition matrix."""
+    size = 21
+    matrix = np.zeros((size, size))
+    for state in range(size):
+        up, down = (0.3 if state < size - 1 else 0.0), (0.4 if state > 0 else 0.0)
+        if state < size - 1:
+            matrix[state, state + 1] = up
+        if state > 0:
+            matrix[state, state - 1] = down
+        matrix[state, state] = 1 - up - down
+    states = np.full(RUNS, size - 1)
+    frames = [states.copy()]
+    cumulative = matrix.cumsum(axis=1)
+    for _ in range(steps):
+        states = (rng.random(RUNS)[:, None] > cumulative[states]).sum(axis=1)
+        frames.append(states.copy())
+    return np.asarray(frames).T, matrix
+
+
+def test_ensemble_entropy_h_theorem_of_a_relaxing_ensemble():
+    """Test that the divergence to the stationary law of two relaxing chains falls and ends below 0.01 bits."""
+    rng = np.random.default_rng(1)
+    balls = 20
+    urn = _ehrenfest(rng, balls, 150)
+    binomial = np.asarray([math.comb(balls, count) for count in range(balls + 1)]) / 2**balls
+    chain, matrix = _birth_death(rng, 600)
+    stationary = MarkovAnalysis('stationary', matrix='transition').check().prepare(matrix).run().stationary_
+    for samples, law in ((urn, binomial), (chain, stationary)):
+        relaxation = EntropyAnalysis('ensemble', reference=law).check().prepare(samples).run()
+        noise = 5 * relaxation.error_
+        assert relaxation.entropy_.shape == relaxation.divergence_.shape == (samples.shape[1],)
+        assert np.all(np.diff(relaxation.divergence_) <= noise)
+        assert relaxation.divergence_[-1] < 0.01
+
+
+def test_ensemble_entropy_checks_the_reference_law():
+    """Test that the ensemble kind needs a reference law and rejects outcomes outside it."""
+    with pytest.raises(AnalysisError, match='needs the reference law'):
+        EntropyAnalysis('ensemble').check()
+    with pytest.raises(AnalysisError, match='Outcomes must lie'):
+        EntropyAnalysis('ensemble', reference=[0.5, 0.5]).check().prepare([[0, 3]])

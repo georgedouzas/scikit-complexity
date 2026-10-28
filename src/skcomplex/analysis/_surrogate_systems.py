@@ -23,7 +23,7 @@ from ..core.spaces import BaseTime
 from ..core.specs import StateSpec
 from ..core.system import System
 from ..engine.runtime import Trajectory
-from ._adapters import Series
+from ._base import Series
 
 if TYPE_CHECKING:
     from ._base import BaseAnalysis

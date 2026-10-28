@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.analysis import CorrelationAnalysis, fields_of
+from skcomplex.analysis import CorrelationAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
@@ -108,7 +108,8 @@ def test_correlation_length_ising_lattice_above_its_critical_temperature():
     """Test that 128 by 128 Ising lattices at temperatures 2.5 and 3 give the exact length within 15 percent."""
     for temperature in (2.5, 3.0):
         system = create('ising', size=128, temperature=temperature, random_state=0)
-        frames = fields_of(Simulation(system, dt=1, random_state=0).run(until=1500).trajectory_)[500::5]
+        trajectory = Simulation(system, dt=1, random_state=0).run(until=1500).trajectory_
+        frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)[500::5]
         length = _correlation('length', frames, frames=True).length_
         assert length == pytest.approx(_exact_correlation_length(temperature), rel=0.15)
 
@@ -123,7 +124,7 @@ def test_correlation_length_reaction_diffusion_field():
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     """Test that a field trajectory gives the length of its last frame, or of every frame."""
     trajectory = Simulation(create('ising', size=32, temperature=3.0), dt=1, random_state=0).run(until=20).trajectory_
-    frames = fields_of(trajectory)
+    frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)
     assert _correlation('length', trajectory).length_ == _correlation('length', frames[-1]).length_
     assert (
         _correlation('length', trajectory, frames=True).length_ == _correlation('length', frames, frames=True).length_

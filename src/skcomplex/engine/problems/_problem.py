@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass, field, replace
 from typing import Any, Protocol
 
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, I
@@ -168,6 +169,26 @@ class NetworkSnapshot:
     sources: npt.NDArray[np.intp]
     targets: npt.NDArray[np.intp]
     edges: npt.NDArray[np.intp]
+
+    def graph(self) -> nx.Graph:
+        """Return the NetworkX graph of the snapshot, whose nodes are the node rows present.
+
+        Returns:
+            graph:
+                The undirected graph of the nodes and edges present.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.engine.problems import NetworkSnapshot
+            >>> rows = np.array([0, 1, 2])
+            >>> snapshot = NetworkSnapshot(rows, np.array([0, 1]), np.array([1, 2]), np.array([0, 1]))
+            >>> sorted(snapshot.graph().edges())
+            [(0, 1), (1, 2)]
+        """
+        graph = nx.Graph()
+        graph.add_nodes_from(self.nodes.tolist())
+        graph.add_edges_from(zip(self.sources.tolist(), self.targets.tolist(), strict=True))
+        return graph
 
 
 class _TopologyChanges(Protocol):

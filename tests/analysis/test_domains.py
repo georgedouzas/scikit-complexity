@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import DomainAnalysis, fields_of
+from skcomplex.analysis import DomainAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
@@ -77,11 +77,11 @@ def test_domain_growth_of_an_ising_trajectory():
 @pytest.mark.slow
 def test_pattern_wavelength_turing_patterns_on_two_domains():
     """Test that Swift-Hohenberg rolls have wavelength 2 pi and a Brusselator its critical Turing wavelength."""
-    rolls = fields_of(run('swift_hohenberg').trajectory_)[-1]
+    rolls = run('swift_hohenberg').trajectory_.lattice('cells.u')[-1]
     wavelength = _domains('wavelength', rolls, spacing=16 * math.pi / 64).wavelength_[0]
     assert wavelength == pytest.approx(2 * math.pi, rel=0.05)
     brusselator = Simulation(create('brusselator', b=1.95), dt=10.0).run(until=400.0).trajectory_
-    spots = fields_of(brusselator)[-1]
+    spots = brusselator.lattice('cells.u')[-1]
     critical = 2 * math.pi / math.sqrt(1 / math.sqrt(1.0 * 8.0))
     assert _domains('wavelength', spots).wavelength_[0] == pytest.approx(critical, rel=0.1)
 

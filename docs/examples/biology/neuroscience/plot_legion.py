@@ -15,7 +15,6 @@ the stimulus take turns, each one a synchronized block.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -34,7 +33,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=290)
 # unstimulated sites never.
 
 trajectory = simulation.trajectory_
-active = fields_of(trajectory, 'oscillators.x') > 0
+active = trajectory.lattice('oscillators.x') > 0
 sites = {'object 1: (0, 0)': (0, 0), 'object 1: (0, 1)': (0, 1), 'object 1: (1, 0)': (1, 0)}
 sites |= {'object 2: (2, 3)': (2, 3), 'object 2: (3, 3)': (3, 3), 'unstimulated: (1, 1)': (1, 1)}
 fig, ax = plt.subplots(figsize=(9, 3.5))

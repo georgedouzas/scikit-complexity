@@ -12,11 +12,12 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AutomatonAnalysis, LinearAutomaton
+from skcomplex.analysis import AutomatonAnalysis
 from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+from skcomplex.models.computer_science.automata import LinearAutomaton
 
 MODEL = 'linear_ring_automaton'
 
