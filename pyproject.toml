@@ -366,10 +366,22 @@ modules = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "Models of earth use only the realizations of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.earth"]
+forbidden_modules = [
+    "skcomplex.models.economics.realizations",
+    "skcomplex.models.engineering.realizations",
+    "skcomplex.models.physics.realizations",
+    "skcomplex.models.social.realizations",
+]
+
+[[tool.importlinter.contracts]]
 name = "Models of economics use only the realizations of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.economics"]
 forbidden_modules = [
+    "skcomplex.models.earth.realizations",
     "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
     "skcomplex.models.social.realizations",
@@ -380,6 +392,7 @@ name = "Models of engineering use only the realizations of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.engineering"]
 forbidden_modules = [
+    "skcomplex.models.earth.realizations",
     "skcomplex.models.economics.realizations",
     "skcomplex.models.physics.realizations",
     "skcomplex.models.social.realizations",
@@ -390,6 +403,7 @@ name = "Models of physics use only the realizations of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.physics"]
 forbidden_modules = [
+    "skcomplex.models.earth.realizations",
     "skcomplex.models.economics.realizations",
     "skcomplex.models.engineering.realizations",
     "skcomplex.models.social.realizations",
@@ -400,6 +414,7 @@ name = "Models of social use only the realizations of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.social"]
 forbidden_modules = [
+    "skcomplex.models.earth.realizations",
     "skcomplex.models.economics.realizations",
     "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",

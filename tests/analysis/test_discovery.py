@@ -3,12 +3,12 @@
 import numpy as np
 
 from skcomplex.analysis import (
+    AlignmentAnalysis,
     DiscoveryAnalysis,
     DisplacementAnalysis,
     EntropyAnalysis,
     MarkovAnalysis,
     NeighborAnalysis,
-    OrderAnalysis,
 )
 from skcomplex.models import create, run
 
@@ -46,10 +46,10 @@ def test_discovery_of_a_model_with_several_kinds():
 
 
 def test_discovery_of_an_agent_model():
-    """Test that a Vicsek trajectory lists the order, nearest-neighbour, and displacement analyses under agents."""
+    """Test that a Vicsek trajectory lists the alignment, nearest-neighbour, and displacement analyses under agents."""
     discovery = _discover(run('vicsek', settings={'until': 3}).trajectory_)
     agents = discovery.analyses_['agents']
-    assert any(isinstance(item, OrderAnalysis) and item.kind == 'polar' for item in agents)
+    assert any(isinstance(item, AlignmentAnalysis) and item.kind == 'mean-vector' for item in agents)
     assert any(isinstance(item, NeighborAnalysis) and item.kind == 'distances' for item in agents)
     assert any(isinstance(item, DisplacementAnalysis) for item in agents)
 

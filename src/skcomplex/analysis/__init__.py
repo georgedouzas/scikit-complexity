@@ -1,7 +1,7 @@
 """Analyse systems, trajectories, and measured data by kind of data: series, paths, fields, agents, and networks."""
 
+from ._alignment import AlignmentAnalysis
 from ._automata import AutomatonAnalysis
-from ._avalanches import AvalancheAnalysis
 from ._base import BaseAnalysis
 from ._binder import BinderAnalysis
 from ._clusters import ClusterAnalysis
@@ -14,7 +14,6 @@ from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
 from ._domains import DomainAnalysis
-from ._early_warning import EarlyWarningAnalysis
 from ._embedding import EmbeddingAnalysis
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
@@ -36,12 +35,12 @@ from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
-from ._order import OrderAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
 from ._quantum import QuantumAnalysis
 from ._recurrence import RecurrenceAnalysis
 from ._reservoirs import ReservoirAnalysis
+from ._rolling import RollingAnalysis
 from ._scaling import ScalingAnalysis
 from ._sections import SectionAnalysis
 from ._signatures import SignatureAnalysis
@@ -52,8 +51,8 @@ from ._surrogates import SurrogateTestAnalysis
 from ._symbolic import SymbolicAnalysis
 
 __all__: list[str] = [
+    'AlignmentAnalysis',
     'AutomatonAnalysis',
-    'AvalancheAnalysis',
     'BaseAnalysis',
     'BinderAnalysis',
     'ClusterAnalysis',
@@ -65,7 +64,6 @@ __all__: list[str] = [
     'DisplacementAnalysis',
     'DistributionAnalysis',
     'DomainAnalysis',
-    'EarlyWarningAnalysis',
     'EmbeddingAnalysis',
     'EmergenceAnalysis',
     'EntropyAnalysis',
@@ -88,12 +86,12 @@ __all__: list[str] = [
     'MotifAnalysis',
     'NeighborAnalysis',
     'NetworkAnalysis',
-    'OrderAnalysis',
     'PartialInformationAnalysis',
     'PassageAnalysis',
     'QuantumAnalysis',
     'RecurrenceAnalysis',
     'ReservoirAnalysis',
+    'RollingAnalysis',
     'ScalingAnalysis',
     'SectionAnalysis',
     'SignatureAnalysis',
