@@ -14,15 +14,14 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
 from ..problems import (
-    SCALAR_DIALECT,
     EdgeSearch,
     Entry,
+    ExpressionPrinter,
     LawKernel,
     Output,
     ReductionSchedule,
     Reference,
     Source,
-    print_expressions,
     symbols_of,
 )
 from ..problems._edge_row_search import EdgeRowSearch
@@ -153,7 +152,7 @@ class _Source:
         symbols = sorted(symbols_of(expressions + arguments), key=str)
         reads = [(str(item), read(item)) for item in symbols if str(item) != 't']
         lines = [f'{pad}{name} = {code}' for name, code in reads if name != code]
-        assignments, codes = print_expressions([*expressions, *arguments], SCALAR_DIALECT)
+        assignments, codes = ExpressionPrinter('scalar').check().prepare().run([*expressions, *arguments])
         lines += [f'{pad}{name} = {code}' for name, code in assignments]
         expression_codes, argument_codes = iter(codes[: len(expressions)]), iter(codes[len(expressions) :])
         values: list[str] = []
@@ -496,11 +495,9 @@ class _Source:
             for item, read in reduction.reads.items()
             if read.per_member
         ]
-        assignments, codes = print_expressions(
-            [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-            SCALAR_DIALECT,
-            prefix=f'_r{index}cse',
-        )
+        condition = reduction.condition if reduction.condition is not None else 1
+        printer = ExpressionPrinter('scalar', prefix=f'_r{index}cse').check().prepare()
+        assignments, codes = printer.run([reduction.argument, condition])
         loop = 'prange' if parallel else 'range'
         return [
             f'{INDENT}for _m_ in {loop}(_n{index}_):',
@@ -651,11 +648,8 @@ class _Source:
         readers = [item for item in reduction.symbols if sides[item] == 'reader']
         others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
         lines += [f'{INDENT}{item} = {self._pair_read_code(reduction, item, index)}' for item in shared]
-        assignments, codes = print_expressions(
-            [reduction.argument, reduction.weight],
-            SCALAR_DIALECT,
-            prefix=f'_n{index}cse',
-        )
+        printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').check().prepare()
+        assignments, codes = printer.run([reduction.argument, reduction.weight])
         acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
         kind = reduction.kind
         if kind in {'max', 'min'}:

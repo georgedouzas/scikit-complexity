@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
 from ._base import BaseKernel
+from ._expression_printer import ExpressionPrinter
 from ._jump_channels import _JumpChannels
 from ._layout import Layout
 from ._noise_process import NoiseProcess
 from ._output import Output
 from ._pair_search import PairSearch
-from ._printing import numpy_function
 from ._reference import Reference, Search
 from ._source import Source
 from ._state import State
@@ -124,7 +124,9 @@ class LawKernel(BaseKernel):
     def _function(self) -> Callable[..., Any] | None:
         """NumPy function of the symbolic outputs and the arguments of calls, or `None` without expressions."""
         expressions = self._plan[1]
-        return numpy_function(self.time, self._arguments, expressions) if expressions else None
+        if not expressions:
+            return None
+        return ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._arguments).run(expressions)
 
     @functools.cached_property
     def _readers(self) -> dict[Expression, Reader]:

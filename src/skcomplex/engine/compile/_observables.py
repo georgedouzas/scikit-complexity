@@ -23,6 +23,7 @@ from ...core.types import Vector
 from ..problems import (
     BaseProblem,
     Entry,
+    ExpressionPrinter,
     Form,
     Problem,
     ReductionSchedule,
@@ -30,7 +31,6 @@ from ..problems import (
     Source,
     VariableKind,
     declarations_of,
-    numpy_function,
     symbol,
     symbols_of,
 )
@@ -258,7 +258,8 @@ class _HeldReduction:
 
             return reduce_values_of
         condition = SR(1) if self.condition is None else self.condition
-        function = numpy_function(time, list(self.symbols), [self.argument, condition])
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(self.symbols))
+        function = printer.run([self.argument, condition])
 
         def reduce_expression(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
             size = len(members)
@@ -546,7 +547,7 @@ class ObservableEvaluator:
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
-        function = numpy_function(self.problem.time, arguments, [expression])
+        function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
 
         def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             value = function(t, *(read(x, p, done) for read in readers))[0]

@@ -16,7 +16,7 @@ from ....core.errors import ValidationError
 from ....core.laws.utils import Draw, draws_in, reductions_in
 from ....core.laws.utils._draws import DRAWS
 from ....core.types import Indices
-from ...problems import Problem, Reference, Source, components_of, numpy_function, symbol, symbols_of
+from ...problems import ExpressionPrinter, Problem, Reference, Source, components_of, symbol, symbols_of
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
 from .._bound_renewal import BoundRenewal
@@ -139,7 +139,8 @@ class RenewalProblemPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             readers.append(reference)
-        return numpy_function(time, arguments, list(expressions)), tuple(readers)
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
+        return printer.run(list(expressions)), tuple(readers)
 
     @staticmethod
     def _ordered(found: list[Draw]) -> list[Draw]:

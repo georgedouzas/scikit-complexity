@@ -13,6 +13,7 @@ from ._element_kind import ElementKind
 from ._entry import Entry
 from ._event_kernel import EventKernel
 from ._event_record import EventRecord
+from ._expression_printer import ExpressionPrinter
 from ._extremal_kernel import ExtremalKernel
 from ._extremal_record import ExtremalRecord
 from ._form import Form
@@ -34,7 +35,6 @@ from ._order_kind import OrderKind
 from ._output import Output
 from ._partition import Partition
 from ._patch_structure import PatchStructure
-from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import Problem, VectorFunction
 from ._quantum_problem import QuantumProblem
 from ._quantum_view import QuantumView
@@ -56,8 +56,6 @@ from ._word_structure import WordStructure
 __all__: list[str] = [
     'LATTICE_BOUNDARIES',
     'MODES',
-    'NUMPY_DIALECT',
-    'SCALAR_DIALECT',
     'Accelerated',
     'BaseKernel',
     'BasePrinter',
@@ -69,7 +67,6 @@ __all__: list[str] = [
     'CompiledAgents',
     'CompiledElement',
     'CompiledInteraction',
-    'Dialect',
     'DomainKind',
     'DrawKernel',
     'EdgeSearch',
@@ -77,6 +74,7 @@ __all__: list[str] = [
     'Entry',
     'EventKernel',
     'EventRecord',
+    'ExpressionPrinter',
     'ExtremalKernel',
     'ExtremalRecord',
     'Form',
@@ -124,8 +122,6 @@ __all__: list[str] = [
     'domain_of',
     'encode',
     'labels_of',
-    'numpy_function',
-    'print_expressions',
     'step_count',
     'symbol',
     'symbols_of',

@@ -28,7 +28,7 @@ from ....core.spaces import (
 )
 from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ...backends import resolve_backend
-from ...problems import Problem, Source, numpy_function, symbol
+from ...problems import ExpressionPrinter, Problem, Source, symbol
 from ...problems._arguments import Arguments, Indices
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
@@ -675,13 +675,14 @@ class LatticeProblemPass(BasePass):
             tuple(item[3] for item in found),
         )
         time = symbol('_time')
+        reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
         return MonteCarloKernel(
             context.owner,
             target,
             table,
-            numpy_function(time, [move.target, *neighbours, proposal, *(masks if masked else []), *extra], [change]),
+            ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]),
             arguments,
-            numpy_function(time, extra, [SR(sampler.temperature)]),
+            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)]),
             move,
             sampler,
             classes,

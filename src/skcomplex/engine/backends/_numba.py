@@ -60,11 +60,11 @@ from ...core.spaces import (
 )
 from ...core.types import Vector
 from ..problems import (
-    SCALAR_DIALECT,
     Accelerated,
     DrawKernel,
     EdgeSearch,
     Entry,
+    ExpressionPrinter,
     Form,
     LawKernel,
     NoiseKind,
@@ -73,7 +73,6 @@ from ..problems import (
     Reference,
     Source,
     SupportSpec,
-    print_expressions,
     step_count,
 )
 from ..problems._edge_row_search import EdgeRowSearch
@@ -489,12 +488,10 @@ class NumbaBackend(BaseBackend):
         """Check whether every reduction prints in Numba's dialect."""
         try:
             for reduction in reductions.reductions:
-                print_expressions(
-                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-                    SCALAR_DIALECT,
-                )
+                condition = reduction.condition if reduction.condition is not None else 1
+                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
             for neighbourhood in reductions.neighbourhoods:
-                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
         except ValidationError:
             return False
         return True
@@ -535,15 +532,13 @@ class NumbaBackend(BaseBackend):
         """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
         for reduction in reductions.reductions:
             try:
-                print_expressions(
-                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-                    SCALAR_DIALECT,
-                )
+                condition = reduction.condition if reduction.condition is not None else 1
+                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
             except ValidationError:
                 return f'the {reduction.kind} reduction {reduction.argument}'
         for neighbourhood in reductions.neighbourhoods:
             try:
-                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
             except ValidationError:
                 return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
         return None

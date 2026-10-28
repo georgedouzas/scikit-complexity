@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ...core.errors import SolverError, ValidationError
 from ...core.types import Vector
 from ..compile import ObservableEvaluator
-from ..problems import Form, Problem, numpy_function, symbols_of
+from ..problems import ExpressionPrinter, Form, Problem, symbols_of
 from ._control_solution import ControlSolution
 from ._solver import Solver
 
@@ -83,7 +83,8 @@ class _ControlProblem:
     def function(self, expressions: Sequence[Any], extra: Sequence[Expression] = ()) -> GridFunction:
         """Return a function `f(t, x, u, p, *extra)` of expressions, whose last axes run over symbols and values."""
         arguments = [*self.states, *self.control_symbols, *self.parameters, *extra]
-        compiled = numpy_function(self.time, arguments, [SR(item) for item in expressions])
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
+        compiled = printer.run([SR(item) for item in expressions])
         count = len(expressions)
 
         def evaluate(t: float | Vector, x: Vector, u: Vector, p: Vector, *values: Vector) -> npt.NDArray[np.float64]:

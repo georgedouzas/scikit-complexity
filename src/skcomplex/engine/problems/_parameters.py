@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...core.errors import RewritingError
-from ._printing import numpy_function
+from ._expression_printer import ExpressionPrinter
 from ._symbols import symbols_of
 
 type Arrays = list[npt.NDArray[Any]]
@@ -67,4 +67,4 @@ class Parameters:
                 'graph.'
             )
             raise RewritingError(error_msg)
-        return numpy_function(self.time, [*variables, *self.symbols], values)
+        return ExpressionPrinter(time=self.time, compiled=True).check().prepare([*variables, *self.symbols]).run(values)

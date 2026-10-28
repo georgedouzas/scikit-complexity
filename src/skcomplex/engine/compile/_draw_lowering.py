@@ -18,7 +18,17 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
-from ..problems import DrawKernel, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
+from ..problems import (
+    DrawKernel,
+    Entry,
+    ExpressionPrinter,
+    Reference,
+    Source,
+    components_of,
+    symbol,
+    symbols_of,
+    vector,
+)
 from ..problems._sampled_draw import SampledDraw
 from ._base import BaseLowering
 from ._declarations import Declarations
@@ -272,7 +282,7 @@ class DrawLowering(BaseLowering):
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
-        function = numpy_function(time, symbols, arguments)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments)
         rows = request.rows
 
         def sample(t: float, x: Vector, q: Vector, rng: np.random.Generator) -> Vector:

@@ -15,10 +15,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
 from ._base import BaseKernel
+from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
 from ._output import Output
-from ._printing import numpy_function
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule import ReductionSchedule
 from ._reference import Reference
@@ -152,7 +152,9 @@ class JacobianKernel(BaseKernel):
             if item in SR(expression).variables()
         ]
         derivatives = [SR(expressions[index]).diff(item) for index, item in pairs]
-        return pairs, numpy_function(self.time, arguments, derivatives) if derivatives else None
+        if not derivatives:
+            return pairs, None
+        return pairs, ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments).run(derivatives)
 
     @staticmethod
     def _derivatives(partials: Partials, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:

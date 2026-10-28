@@ -15,7 +15,7 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.types import Vector
-from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
+from ...problems import DomainKind, ExpressionPrinter, Reference, Source, domain_kind, labels_of, symbols_of
 from ...problems._markov_kernel import MarkovKernel
 from ...problems._state import State
 from .._base import BasePass
@@ -174,7 +174,7 @@ class MarkovPass(BasePass):
                     'of the parameters of its component.'
                 )
                 raise ValidationError(error_msg)
-        function = numpy_function(time, arguments, entries)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries)
         readers = [MarkovPass._matrix_reader(references[item]) for item in arguments]
         shape = (len(law.matrix), len(law.matrix[0]))
         reads = frozenset(

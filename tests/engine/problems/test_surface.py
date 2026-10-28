@@ -15,15 +15,13 @@ FUNCTIONS = {
     'domain_of',
     'encode',
     'labels_of',
-    'numpy_function',
-    'print_expressions',
     'step_count',
     'symbol',
     'symbols_of',
     'vector',
     'wrap_angle',
 }
-VALUES = {'Getter', 'LATTICE_BOUNDARIES', 'MODES', 'NUMPY_DIALECT', 'SCALAR_DIALECT', 'VectorFunction'}
+VALUES = {'LATTICE_BOUNDARIES', 'MODES', 'VectorFunction'}
 
 
 def test_public_names_are_classes_values_or_functions():

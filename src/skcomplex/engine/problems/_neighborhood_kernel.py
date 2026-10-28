@@ -29,10 +29,10 @@ from ...core.types import Indices, Vector
 from ._base import BaseKernel
 from ._edge_row_search import EdgeRowSearch
 from ._entry import Entry
+from ._expression_printer import ExpressionPrinter
 from ._heading import Heading
 from ._metric_search import MetricSearch, Rows
 from ._pair_read import PairRead
-from ._printing import numpy_function
 from ._state import State
 from ._static_search import StaticSearch
 from ._variable import Variable
@@ -110,7 +110,8 @@ class NeighborhoodKernel(BaseKernel):
     @functools.cached_property
     def _function(self) -> Callable[..., list[Any]]:
         """NumPy function of the argument and the weight, compiled once."""
-        return numpy_function(self.time, self._symbols, [self.argument, self.weight])
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
+        return printer.run([self.argument, self.weight])
 
     @property
     def symbols(self) -> list[Expression]:

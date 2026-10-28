@@ -16,14 +16,7 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.types import Vector
-from ...problems import (
-    Layout,
-    Reference,
-    Source,
-    VariableKind,
-    declarations_of,
-    numpy_function,
-)
+from ...problems import ExpressionPrinter, Layout, Reference, Source, VariableKind, declarations_of
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from ...problems._state import State
 from .._base import BasePass
@@ -293,10 +286,10 @@ class FieldFunctionsPass(BasePass):
             )
             raise ValidationError(error_msg)
         columns = list(zip(*expressions, strict=True))
-        fluxes = tuple(numpy_function(TIME, [*states, *parameters], list(column)) for column in columns)
+        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *parameters])
+        fluxes = tuple(printer.run(list(column)) for column in columns)
         jacobians = tuple(
-            numpy_function(TIME, [*states, *parameters], [value.diff(state) for value in column for state in states])
-            for column in columns
+            printer.run([value.diff(state) for value in column for state in states]) for column in columns
         )
         first = laws[0][0]
         critical: tuple[Callable[..., Any], ...] = ()
@@ -305,9 +298,10 @@ class FieldFunctionsPass(BasePass):
                 error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
                 raise ValidationError(error_msg)
             roots = []
+            critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(parameters)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-                roots.append(numpy_function(TIME, parameters, found) if found else numpy_function(TIME, parameters, []))
+                roots.append(critical_printer.run(found))
             critical = tuple(roots)
         boundaries = tuple(
             (kind, float(value) if not callable(value) else 0.0)

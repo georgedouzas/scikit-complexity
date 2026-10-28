@@ -14,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Vector
-from ...problems import Entry, Reference, Source, numpy_function, symbol, vector
+from ...problems import Entry, ExpressionPrinter, Reference, Source, symbol, vector
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -63,7 +63,8 @@ class DelaysPass(BasePass):
         if symbols and all(reference is not None and not reference.is_state for reference in references):
             values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
             columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
-            delays = numpy_function(declarations.time, symbols, [SR(tau)])(0.0, *columns)[0]
+            printer = ExpressionPrinter(time=declarations.time, compiled=True).check().prepare(symbols)
+            delays = printer.run([SR(tau)])(0.0, *columns)[0]
             return float(np.min(delays))
         error_msg = (
             f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '

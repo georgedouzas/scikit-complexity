@@ -16,7 +16,7 @@ from ...core.errors import ValidationError
 from ...core.types import Vector
 from ._base import BaseKernel
 from ._entry import Entry
-from ._printing import numpy_function
+from ._expression_printer import ExpressionPrinter
 from ._reads import Read
 from ._state import State
 
@@ -103,7 +103,7 @@ class ReductionKernel(BaseKernel):
     def _function(self) -> Callable[..., list[Any]]:
         """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
-        return numpy_function(self.time, self._symbols, expressions)
+        return ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols).run(expressions)
 
     @property
     def symbols(self) -> list[Expression]:

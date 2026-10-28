@@ -34,11 +34,11 @@ from ...problems import (
     CompiledElement,
     CompiledInteraction,
     Entry,
+    ExpressionPrinter,
     Form,
     Layout,
     VariableKind,
     declarations_of,
-    numpy_function,
     symbol,
     vector,
 )
@@ -189,7 +189,7 @@ class _Lowering:
                 'parameter of the quantum system. Coefficients may read parameters and time only.'
             )
             raise ValidationError(error_msg)
-        lowered = numpy_function(self.time, variables, [coefficient])
+        lowered = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables).run([coefficient])
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Vector) -> complex:

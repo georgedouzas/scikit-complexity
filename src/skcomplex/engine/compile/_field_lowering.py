@@ -19,7 +19,16 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
-from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
+from ..problems import (
+    LATTICE_BOUNDARIES,
+    MODES,
+    ExpressionPrinter,
+    NeighborRead,
+    Reference,
+    Source,
+    domain_of,
+    symbol,
+)
 from ..problems._diffusive_limit import DiffusiveLimit
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ._base import BaseLowering, BasePass
@@ -410,7 +419,7 @@ class FieldLowering(BaseLowering):
         references = [self.spec.references[item] for item in symbols if item in self.spec.references]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
-        function = numpy_function(TIME, symbols, [coefficient])
+        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])
         self.volume_limits_.append(DiffusiveLimit(function, tuple(references), stiffness))
 
     def _note_limit(self, value: object) -> None:

@@ -20,6 +20,7 @@ from ...problems import (
     CompiledElement,
     CompiledInteraction,
     EventKernel,
+    ExpressionPrinter,
     Form,
     Layout,
     Problem,
@@ -30,7 +31,6 @@ from ...problems import (
     VectorFunction,
     components_of,
     declarations_of,
-    numpy_function,
     symbols_of,
 )
 from ...problems._breakpoints import _Breakpoints
@@ -230,7 +230,7 @@ class ProblemPass(BasePass):
                 'Events and delays read states and parameters of single elements and interactions.'
             )
             raise ValidationError(error_msg)
-        function = numpy_function(time, arguments, values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
         places = [sources[item] for item in arguments]
 
         def evaluate(t: float, x: Vector, p: Vector) -> list[float]:
@@ -277,7 +277,7 @@ class ProblemPass(BasePass):
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
         places = [ProblemPass._reset_indices(reference) for reference in references]  # type: ignore[arg-type]
-        function = numpy_function(time, arguments, values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
 
         def apply(t: float, x: Vector, p: Vector) -> Vector:
             q = reductions.extend(t, x, p)

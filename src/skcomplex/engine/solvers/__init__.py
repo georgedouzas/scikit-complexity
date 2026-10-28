@@ -24,7 +24,6 @@ from ._l1 import L1Solver
 from ._lammps import LammpsSolver
 from ._lammps_fix import LammpsFix
 from ._lattice import LatticeSolver
-from ._lepton import LeptonPrinter
 from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
 from ._mesa import AgentView, MesaSolver, ModelView
@@ -71,7 +70,6 @@ __all__: list[str] = [
     'LammpsFix',
     'LammpsSolver',
     'LatticeSolver',
-    'LeptonPrinter',
     'LindbladSolver',
     'MesaSolver',
     'MilsteinSolver',

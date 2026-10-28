@@ -11,7 +11,7 @@ import numba
 import numpy as np
 
 from ._base import BaseKernel
-from ._printing import numpy_function
+from ._expression_printer import ExpressionPrinter
 from ._state import State
 from ._table_values import Indices, TableValues, Vector
 
@@ -92,7 +92,8 @@ class EncounterKernel(BaseKernel):
             return np.asarray(selected, dtype=float)
         symbols = sorted(table.parameters, key=str)
         if id(table) not in self._functions:
-            self._functions[id(table)] = numpy_function(table.time, symbols, list(selected))
+            printer = ExpressionPrinter(time=table.time, compiled=True).check().prepare(symbols)
+            self._functions[id(table)] = printer.run(list(selected))
         indices = np.asarray([table.parameters[item] for item in symbols], dtype=np.intp)
         return np.asarray(self._functions[id(table)](0.0, *(float(value) for value in p[indices])), dtype=float)
 

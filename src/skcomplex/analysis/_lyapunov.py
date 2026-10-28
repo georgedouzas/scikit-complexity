@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
 from ..core.errors import AnalysisError
 from ..core.system import System
-from ..engine.problems import SCALAR_DIALECT, BaseProblem, print_expressions
+from ..engine.problems import BaseProblem, ExpressionPrinter
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
@@ -311,11 +311,8 @@ class LyapunovAnalysis(BaseAnalysis):
             | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
             | {dynamics.time: 't'}
         )
-        assignments, codes = print_expressions(
-            [SR(item) for item in expressions],
-            SCALAR_DIALECT,
-            lambda item: names[item],
-        )
+        printer = ExpressionPrinter('scalar', names=lambda item: names[item]).check().prepare()
+        assignments, codes = printer.run([SR(item) for item in expressions])
         lines = [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
         lines += [f'    {bound} = {code}' for bound, code in assignments]
         lines += [

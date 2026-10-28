@@ -13,7 +13,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ._base import BaseKernel
-from ._printing import numpy_function
+from ._expression_printer import ExpressionPrinter
 from ._state import State
 from ._symbols import symbol
 
@@ -61,7 +61,7 @@ class FieldOperatorKernel(BaseKernel):
     @functools.cached_property
     def _function(self) -> Callable[..., Any]:
         """NumPy function of the operand, compiled once."""
-        return numpy_function(symbol('t'), self.symbols, [self.operand])
+        return ExpressionPrinter(time=symbol('t'), compiled=True).check().prepare(self.symbols).run([self.operand])
 
     def operand_values(self, t: float, values: list[Any], size: int) -> npt.NDArray[np.float64]:
         """Return the operand at every site, evaluated from the values of its symbols.

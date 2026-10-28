@@ -28,6 +28,7 @@ from ..compile import compile_system
 from ..problems import (
     CompiledElement,
     CompiledInteraction,
+    ExpressionPrinter,
     Form,
     NoiseKind,
     OrderKind,
@@ -41,7 +42,6 @@ from ..problems import (
 )
 from ._external import ExternalSolver
 from ._lammps_fix import LammpsFix
-from ._lepton import LeptonPrinter
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
@@ -603,4 +603,5 @@ class LammpsSolver(ExternalSolver):
             names = ', '.join(sorted(map(str, others)))
             error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
             raise BackendError(error_msg)
-        return LeptonPrinter().doprint(expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand())
+        lepton = expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand()
+        return ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton])[1][0]
