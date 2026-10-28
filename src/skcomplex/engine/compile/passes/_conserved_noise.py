@@ -13,13 +13,20 @@ from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
 from ....errors import ValidationError
-from ....specs import CensusRecordSpec, CensusSpec, IssueSpec, NodeSpec, NoiseProcessSpec, OutputSpec, ReferenceSpec
+from ....specs import (
+    CensusRecordSpec,
+    CensusSpec,
+    DeclarationsSpec,
+    IssueSpec,
+    NodeSpec,
+    NoiseProcessSpec,
+    OutputSpec,
+    ReferenceSpec,
+)
 from ....types import Indices, ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._kernel_spec import KernelSpec
 
 
 class ConservedNoisePass(BasePass):
@@ -36,18 +43,18 @@ class ConservedNoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Set the outputs of the conserved noise laws."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         compilation.outputs = self._conserved_outputs(cast('Laws', compilation.reduced), declarations)
 
     @staticmethod
-    def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[OutputSpec]]:
+    def _conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
         """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
         places = FieldLowering._field_entries(declarations)
         outputs = {}
         for spec, laws in specs:
             for law in laws:
                 if isinstance(law, NoiseLaw) and law.conserved:
-                    targets = KernelSpec._target_references(law._get_targets()[0], spec)
+                    targets = spec._target_references(law._get_targets()[0])
                     outputs[id(law)] = ConservedNoisePass._law_outputs(
                         spec.owner, law, targets, places, spec.references,
                     )

@@ -12,9 +12,12 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.system import System
 from ...specs import (
+    BlockSpec,
     BoundRenewalSpec,
     CensusSpec,
+    DeclarationsSpec,
     DiffusiveLimitSpec,
+    KernelSpec,
     LinearTermSpec,
     LoweredKernelsSpec,
     MatrixLawSpec,
@@ -33,14 +36,11 @@ from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._markov_kernel import MarkovKernel
 from ..problems._topology_kernel import TopologyKernel
-from ._block import Block
-from ._declarations import Declarations
 from ._draw_lowering import DrawLowering
 from ._flows import TransferLowering
-from ._kernel_spec import KernelSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
-type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], Block]]
+type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
@@ -206,8 +206,8 @@ class Compilation:
     nodes: list[NodeSpec] | None = None
     census: CensusSpec | None = None
     plan: _PlanSpec | None = None
-    layout: Declarations | None = None
-    specs: list[tuple[KernelSpec, Block]] | None = None
+    layout: DeclarationsSpec | None = None
+    specs: list[tuple[KernelSpec, BlockSpec]] | None = None
     collected: BlockLaws | None = None
     apart: Laws | None = None
     lowered: BlockLaws | None = None

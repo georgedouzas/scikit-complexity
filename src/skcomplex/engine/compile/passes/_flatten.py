@@ -4,6 +4,7 @@
 # License: MIT
 
 import copy
+import re
 from typing import cast
 
 import numpy as np
@@ -14,13 +15,13 @@ from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import NodeSpec, WienerProcessSpec
-from ....specs._node_spec import _LABEL_PATTERN
 from ....types import VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass
 from .._laws import _AGENT_LAWS
 from .._probe import probe_laws
 
+_LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 
 class FlattenPass(BasePass):
     """Pass that flattens the system tree into its nodes."""
@@ -283,9 +284,21 @@ class FlattenPass(BasePass):
         for element, place in zip(system.elements, places, strict=True):
             element.check().prepare(place)
             sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
-            nodes.append(NodeSpec(f'{scope}{element.label}', scope, sized, place, active=active))
+            if isinstance(sized, GroupElement):
+                path, members = f'{scope}{element.label}', sized.size_
+                node = NodeSpec(path, scope, sized, place, sized.element, members, active=active)
+            else:
+                node = NodeSpec(f'{scope}{element.label}', scope, sized, place, type(sized))
+            nodes.append(node)
         nodes += [
-            NodeSpec(f'{scope}{interaction.label}', scope, interaction.check().prepare(), space)
+            NodeSpec(
+                f'{scope}{interaction.label}',
+                scope,
+                interaction.check().prepare(),
+                space,
+                type(interaction),
+                interaction=True,
+            )
             for interaction in system.interactions
         ]
         for child in system.systems:

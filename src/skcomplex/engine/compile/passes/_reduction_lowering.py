@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Self, cast
 
@@ -17,7 +18,17 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, 
 from ....core.laws.utils import both, neighborhoods_in, reductions_in
 from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
 from ....errors import RoleError, ValidationError
-from ....specs import CallSpec, EntrySpec, NeighborReductionSpec, PairReadSpec, ReadSpec, ReductionSpec, ReferenceSpec
+from ....specs import (
+    CallSpec,
+    DeclarationsSpec,
+    EntrySpec,
+    KernelSpec,
+    NeighborReductionSpec,
+    PairReadSpec,
+    ReadSpec,
+    ReductionSpec,
+    ReferenceSpec,
+)
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
 from ....types import ReadKind, VariableKind
@@ -26,9 +37,7 @@ from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
 from .._base import BaseLowering, BasePass
 from .._complex import _modulus_form
-from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
-from .._kernel_spec import KernelSpec
 from .._observables import _HeldElement
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
@@ -67,7 +76,7 @@ class ReductionLowering(BaseLowering):
             The compiled reductions and neighbourhood reductions in the order they are evaluated.
     """
 
-    declarations_: Declarations
+    declarations_: DeclarationsSpec
     drawn_: int
     found_: dict[tuple[Any, ...], ReductionKernel]
     by_symbol_: dict[Expression, ReductionKernel]
@@ -89,7 +98,7 @@ class ReductionLowering(BaseLowering):
         """
         super()._prepare(context)
         drawing = cast('DrawLowering', self.compilation_.drawing)
-        self.declarations_ = cast('Declarations', self.compilation_.layout)
+        self.declarations_ = cast('DeclarationsSpec', self.compilation_.layout)
         self.drawn_ = drawing.draws_.size if drawing.draws_ else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
@@ -259,11 +268,74 @@ class ReductionLowering(BaseLowering):
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(weights, dtype=float)
 
+    @staticmethod
+    def _held_reduction(
+        reduction: ReductionSpec,
+        agents: Mapping[Expression, tuple[str, str]],
+        time: Expression,
+        owner: str,
+    ) -> _HeldReductionSpec | None:
+        """Return the held reduction of a reduction of agents, or `None` for a reduction of elements.
+
+        Args:
+            reduction:
+                The reduction a law reads.
+
+            agents:
+                The path of the agent group and the variable of every symbol of agents.
+
+            time:
+                The time symbol.
+
+            owner:
+                The path of the component whose law reads the reduction.
+
+        Returns:
+            held:
+                The held reduction, or `None`.
+
+        Raises:
+            RoleError:
+                The reduction reads the agents of more than one group.
+
+            ValidationError:
+                The reduction has weights, or reads a symbol that is not a variable of the agents.
+        """
+        expressions = [SR(reduction.argument), *([SR(reduction.condition)] if reduction.condition is not None else [])]
+        symbols = symbols_of(expressions) - {time}
+        read = symbols | ({reduction.over} if reduction.over is not None else set())
+        groups = {agents[item][0] for item in read if item in agents}
+        if not groups:
+            return None
+        if len(groups) > 1:
+            error_msg = (
+                f'The reduction {reduction.call} of {owner} reads the agents of {" and ".join(sorted(groups))}. A '
+                'reduction reduces over one group, so write one reduction per group.'
+            )
+            raise RoleError(error_msg)
+        group = next(iter(groups))
+        others = sorted(str(item) for item in symbols if item not in agents or agents[item][0] != group)
+        if reduction.weights is not None or others:
+            error_msg = (
+                f'The reduction {reduction.call} of {owner} reduces the agents of {group}, which a co-simulation '
+                'computes at its synchronisation points from the scalar states and parameters of the agents alone, '
+                f'without weights{", but it reads " + ", ".join(others) if others else ""}. Reduce an expression of '
+                'the agents.'
+            )
+            raise ValidationError(error_msg)
+        ordered = tuple(sorted((item for item in symbols if agents[item][1]), key=str))
+        return _HeldReductionSpec(
+            group,
+            reduction.kind,
+            tuple(agents[item][1] for item in ordered),
+            ordered,
+            SR(reduction.argument),
+            None if reduction.condition is None else SR(reduction.condition),
+        )
+
     def _held(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression | None:
         """Return the state of the element that holds a reduction of agents, or `None` for a reduction of elements."""
-        held = _HeldReductionSpec._held_reduction(
-            reduction, self.declarations_.agents, self.declarations_.time, spec.owner,
-        )
+        held = self._held_reduction(reduction, self.declarations_.agents, self.declarations_.time, spec.owner)
         if held is None:
             return None
         block = next(

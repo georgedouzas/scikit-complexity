@@ -33,6 +33,7 @@ from ...problems._patch_kernel import PatchKernel
 from ...problems._word_kernel import WordKernel
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
+from ._layout import LayoutPass
 from ._problem import ProblemPass
 
 _LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
@@ -153,7 +154,7 @@ class RewritingCompiler(BaseCompiler):
         for node in nodes:
             names = {}
             for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
-                value = node.value_of(name)
+                value = LayoutPass._value_of(node, name)
                 if np.ndim(value) or not EntrySpec._contains(declaration.domain, value):
                     error_msg = (
                         f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'

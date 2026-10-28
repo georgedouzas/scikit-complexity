@@ -30,19 +30,17 @@ from ....core.laws import (
 )
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
-from ....specs import CensusRecordSpec, CensusSpec, EntrySpec, NodeSpec
+from ....specs import BlockSpec, CensusRecordSpec, CensusSpec, DeclarationsSpec, EntrySpec, KernelSpec, NodeSpec
 from ....types import ElementKind, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._block import Block
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
+from ._layout import LayoutPass
 from ._noise import NoisePass
 from ._specs import SpecsPass
 
@@ -75,7 +73,7 @@ class CensusPass(BasePass):
         )
 
     @staticmethod
-    def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> dict[str, Any]:
+    def _noise_census(spec: KernelSpec, law: object, declarations: DeclarationsSpec) -> dict[str, Any]:
         """Return the processes, driven states, and read states of every target component of a noise law."""
         if not isinstance(law, NoiseLaw):
             return {}
@@ -93,7 +91,7 @@ class CensusPass(BasePass):
         }
 
     @staticmethod
-    def _is_vector(entry: EntrySpec, elements: dict[str, Block]) -> bool:
+    def _is_vector(entry: EntrySpec, elements: dict[str, BlockSpec]) -> bool:
         """Check whether the state of a layout entry is declared as a vector of the space's dimension."""
         path, _, name = entry.name.rpartition('.')
         block = elements.get(path)
@@ -125,15 +123,15 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _records_of(
-        block: Block,
-        elements: dict[str, Block],
-        observe: Observer,
-        declarations: Declarations,
+        block: BlockSpec,
+        elements: dict[str, BlockSpec],
+        observer: Observer,
+        declarations: DeclarationsSpec,
         agents: set[str],
     ) -> list[CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
-        for spec in SpecsPass._specs_of(block, elements, declarations.time, observe.evaluate):
+        for spec in SpecsPass._specs_of(block, elements, declarations.time, observer):
             component = cast('BaseElement | BaseInteraction', CensusPass._component_of(block.node))
             for law in CensusPass._declared_laws(spec, component):
                 items = [item for target in law._get_targets() for item in components_of(target)]
@@ -176,22 +174,25 @@ class CensusPass(BasePass):
             census:
                 The census.
         """
-        declarations = Declarations(time=symbol('t'))
+        declarations = DeclarationsSpec(time=symbol('t'))
         errors: list[tuple[str, SkcomplexError]] = []
         blocks = []
         for node in nodes:
             try:
-                blocks.append(declarations.declare_component(node))
+                declarations, block = LayoutPass._declare_component(declarations, node)
             except SkcomplexError as error:
                 errors.append((node.path, error))
-        elements = {block.node.path: block for block in blocks if not block.node._is_interaction()}
+                continue
+            blocks.append(block)
+        elements = {block.node.path: block for block in blocks if not block.node.interaction}
         elements.update(declarations.processes)
-        observe = Observer(declarations, ObservableEvaluator._lowerable_observables(system, nodes))
+        live = ObservableEvaluator._lowerable_observables(system, nodes)
+        observer = Observer(declarations, live).check().prepare()
         agents = {block.node.path for block in blocks if block.node.is_agent}
         records = []
         for block in blocks:
             try:
-                records += CensusPass._records_of(block, elements, observe, declarations, agents)
+                records += CensusPass._records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
         return CensusSpec(system, records, errors, declarations.agents)
@@ -263,7 +264,7 @@ class CensusPass(BasePass):
             return spec.owner
         lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | ExtremalLaw)
         target = law._get_targets()[0] if lattice else CensusPass._changed_target(spec, law)
-        return KernelSpec._target_references(target, spec)[0].entry.name.rpartition('.')[0]
+        return spec._target_references(target)[0].entry.name.rpartition('.')[0]
 
     @staticmethod
     def _declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:

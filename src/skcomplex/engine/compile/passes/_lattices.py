@@ -29,8 +29,10 @@ from ....errors import ValidationError
 from ....specs import (
     ArgumentsSpec,
     CensusSpec,
+    DeclarationsSpec,
     EnergySpec,
     IssueSpec,
+    KernelSpec,
     LatticeContextSpec,
     LatticeStateSpec,
     LookupSpec,
@@ -51,8 +53,6 @@ from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from .._laws import LATTICE_LAWS
 
 _COLORING_STRATEGY = 'largest_first'
@@ -74,8 +74,8 @@ class LatticeProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the lattice steps to the problem."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
-        members = Declarations._member_count(list(declarations.blocks.values()))
+        declarations = cast('DeclarationsSpec', compilation.layout)
+        members = declarations.members
         fused = BaseCompiler._resolve_backend(compilation.backend, members)._get_name() == 'numba'
         compilation.problem = replace(
             cast('ProblemSpec', compilation.problem),
@@ -118,7 +118,7 @@ class LatticeProblemPass(BasePass):
         return tuple(name for name in names if name in keywords)
 
     @staticmethod
-    def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) -> LatticeContextSpec:
+    def _lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> LatticeContextSpec:
         """Return the lattice states, the arguments, and the neighbour symbols of the symbols a component reads."""
         states, arguments, others = {}, {}, {}
         for item, reference in spec.references.items():
@@ -169,7 +169,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _compile_lattice(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         fused: bool,
     ) -> tuple[LatticeStep, ...]:
         """Return the steps of local rules, drives, relaxations, extremal laws, and samples in declaration order."""

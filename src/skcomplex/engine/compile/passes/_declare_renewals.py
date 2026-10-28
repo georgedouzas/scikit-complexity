@@ -10,14 +10,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.laws import BaseLaw
-from ....specs import BoundRenewalSpec
+from ....specs import BoundRenewalSpec, DeclarationsSpec, EntrySpec, KernelSpec
 from ..._utils import symbol
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass
+from ._layout import LayoutPass
 
 
 class DeclareRenewalsPass(BasePass):
@@ -34,27 +33,31 @@ class DeclareRenewalsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Declare the counts of the renewal laws."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
-        compilation.renewals = [
-            renewal
-            for spec, laws in cast('Laws', compilation.delayed)
-            for renewal in self._declared_renewals(spec, laws, declarations)
-        ]
+        declarations = cast('DeclarationsSpec', compilation.layout)
+        renewals: list[BoundRenewalSpec] = []
+        for spec, laws in cast('Laws', compilation.delayed):
+            declarations, declared = self._declared_renewals(spec, laws, declarations)
+            renewals += declared
+        compilation.layout, compilation.renewals = declarations, renewals
 
     @staticmethod
-    def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewalSpec:
-        """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
+    def _declare_renewal(
+        spec: KernelSpec,
+        law: RenewalLaw,
+        declarations: DeclarationsSpec,
+        label: str,
+    ) -> tuple[DeclarationsSpec, BoundRenewalSpec]:
+        """Return the declarations with the hidden state that counts the renewals of every member of a renewal law.
+
+        Returns the declarations and the renewal law with its hidden state.
+        """
         group = CensusPass._renewal_group(spec, law)
         rows = spec.rows
         sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
-        entry = declarations.declare_state(
-            f'{group}.{sanitized}~renewals',
-            np.zeros(rows),
-            NN,
-            (rows,) if rows > 1 else (),
-            rows if rows > 1 else None,
-        )
-        return BoundRenewalSpec(
+        shape, members = ((rows,), rows) if rows > 1 else ((), None)
+        entry = EntrySpec(f'{group}.{sanitized}~renewals', declarations.ends[True], shape, NN, members)
+        declarations = LayoutPass._with_entry(declarations, entry, np.zeros(rows), is_state=True)
+        return declarations, BoundRenewalSpec(
             spec,
             law,
             label,
@@ -64,12 +67,17 @@ class DeclareRenewalsPass(BasePass):
         )
 
     @staticmethod
-    def _declared_renewals(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BoundRenewalSpec]:
-        """Return the renewal laws of a spec, each with the hidden state counting its renewals, after declaring it."""
+    def _declared_renewals(
+        spec: KernelSpec,
+        laws: list[BaseLaw],
+        declarations: DeclarationsSpec,
+    ) -> tuple[DeclarationsSpec, list[BoundRenewalSpec]]:
+        """Return the declarations with the hidden states counting the renewals of a spec, and its renewal laws."""
         renewals = [law for law in laws if isinstance(law, RenewalLaw)]
         declared = []
         for law in renewals:
             position = renewals.index(law)
             label = law.label or (spec.owner if len(renewals) == 1 else f'{spec.owner}:{position}')
-            declared.append(DeclareRenewalsPass._declare_renewal(spec, law, declarations, label))
-        return declared
+            declarations, renewal = DeclareRenewalsPass._declare_renewal(spec, law, declarations, label)
+            declared.append(renewal)
+        return declarations, declared

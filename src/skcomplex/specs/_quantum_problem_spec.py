@@ -113,7 +113,7 @@ class QuantumProblemSpec(BaseProblemSpec):
             expression = observable.expression
             value = expression(self.namespaces[scope]) if callable(expression) else expression
             getters[path] = self._expectation_getter(
-                self.lowering.terms(self._operator_of(path, value), path),
+                self.lowering.run((self._operator_of(path, value), path)),
             )
         getters.setdefault('energy', self._expectation_getter(self.hamiltonian))
         if not self.pure:
@@ -129,7 +129,7 @@ class QuantumProblemSpec(BaseProblemSpec):
         if not subsystems:
             error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
             raise ValidationError(error_msg)
-        return [self.lowering.terms(local_operator(item.symbol, SR.symbol(name)), path) for item in subsystems]
+        return [self.lowering.run((local_operator(item.symbol, SR.symbol(name)), path)) for item in subsystems]
 
     def _member_getter(self, path: str, observable: ObservableSpec, group: str) -> Getter:
         """Return the getter of a quantum observable evaluated member by member and reduced.
@@ -146,7 +146,7 @@ class QuantumProblemSpec(BaseProblemSpec):
             terms = self._local_terms(group, observable.variable)
         elif callable(expression):
             members = self.members[group]
-            terms = [self.lowering.terms(self._operator_of(path, expression(member)), path) for member in members]
+            terms = [self.lowering.run((self._operator_of(path, expression(member)), path)) for member in members]
         else:
             error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
             raise ValidationError(error_msg)

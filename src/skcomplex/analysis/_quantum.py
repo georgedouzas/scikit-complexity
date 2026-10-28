@@ -232,7 +232,7 @@ class QuantumAnalysis(BaseAnalysis):
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         expression, value = sector
-        terms = problem.lowering.terms(expression(problem.namespaces['']), 'the sector')
+        terms = problem.lowering.run((expression(problem.namespaces['']), 'the sector'))
         matrix = sum(
             (term.run(RunStateSpec(0.0, np.zeros(0), p)) * term.matrix for term in terms), start=0 * terms[0].matrix,
         )

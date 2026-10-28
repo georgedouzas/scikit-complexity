@@ -6,11 +6,10 @@
 from typing import cast
 
 from ....core.laws import RateLaw
-from ....specs import LoweredKernelsSpec, ReductionScheduleSpec
+from ....specs import DeclarationsSpec, LoweredKernelsSpec, ReductionScheduleSpec
 from ....types import FormKind
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
-from .._declarations import Declarations
 
 
 class JacobianPass(BasePass):
@@ -27,7 +26,7 @@ class JacobianPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Derive the Jacobian of the drift."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         compilation.jacobian = (
             JacobianKernel(
                 tuple(cast('LoweredKernelsSpec', compilation.kernels).kernels[RateLaw]),

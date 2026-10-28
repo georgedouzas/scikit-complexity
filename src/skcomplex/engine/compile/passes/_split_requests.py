@@ -6,10 +6,10 @@
 from typing import cast
 
 from ....core.laws import BaseLaw, UpdateLaw
+from ....specs import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws
-from .._kernel_spec import KernelSpec
 
 
 class SplitRequestsPass(BasePass):

@@ -10,12 +10,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....specs import NodeSpec
+from ....specs import DeclarationsSpec, KernelSpec, NodeSpec
 from ..._utils import vector
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from ._census import CensusPass
 from ._kernels import KernelsPass
 from ._mask_requests import MaskRequestsPass
@@ -35,7 +33,7 @@ class OwnersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Keep the laws of the owners of the compilation and find their kinds."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         agents = {node.path for node in cast('list[NodeSpec]', compilation.nodes) if node.is_agent}
         owned = self._owned(cast('Laws', compilation.shifted), compilation.owners, agents)
         compilation.drawn = [(spec, self._masked(spec, laws, declarations)) for spec, laws in owned]
@@ -57,7 +55,7 @@ class OwnersPass(BasePass):
         return UpdateLaw(law._get_targets()[0], SR(value) + SR(kept))
 
     @staticmethod
-    def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
+    def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
         """Return laws that leave the free rows of a capacity layout unchanged and fire no event for them."""
         mask = MaskRequestsPass._mask_of(spec, declarations)
         if mask is None:

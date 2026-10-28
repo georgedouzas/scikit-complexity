@@ -16,15 +16,13 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs import CallSpec
+from ....specs import BlockSpec, CallSpec, DeclarationsSpec, KernelSpec
 from ....specs._orders_spec import _OrdersSpec
 from ....specs._relation_spec import _RelationSpec
-from ..._utils import components_of, symbol, vector
+from ....types import VariableKind
+from ..._utils import components_of, declarations_of, symbol, vector
 from .._base import BasePass
-from .._block import Block
 from .._compilation import BlockLaws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
@@ -46,14 +44,30 @@ class OrdersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the orders and lags of the laws and solve their equations."""
         compilation = self.compilation_
-        blocks = list(cast('Declarations', compilation.layout).blocks.values())
-        orders = _OrdersSpec.of(blocks)
+        blocks = list(cast('DeclarationsSpec', compilation.layout).blocks.values())
+        orders = self._orders_of(blocks)
         compilation.ordered = self._solve_equations(
             [
                 (spec, self._with_orders(spec, laws, block, orders))
                 for spec, laws, block in cast('BlockLaws', compilation.lowered)
             ],
         )
+
+    @staticmethod
+    def _orders_of(blocks: list[BlockSpec]) -> _OrdersSpec:
+        """Return the orders above 1 and the lags of every state of the blocks."""
+        orders, lags = {}, {}
+        for block in blocks:
+            if block.node.interaction or block.node.is_agent:
+                continue
+            declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+            for variable, entry in block.entries.items():
+                declaration = declarations.get(variable)
+                if declaration is not None and declaration.derivatives:
+                    orders[entry.name] = declaration.derivatives + 1
+                if declaration is not None and declaration.lags:
+                    lags[entry.name] = declaration.lags
+        return _OrdersSpec(orders, lags)
 
     @staticmethod
     def _companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
@@ -139,7 +153,7 @@ class OrdersPass(BasePass):
         return BasePass._replaced(law, target=target)
 
     @staticmethod
-    def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _OrdersSpec) -> list[BaseLaw]:
+    def _intrinsic_laws(spec: KernelSpec, block: BlockSpec, orders: _OrdersSpec) -> list[BaseLaw]:
         """Return the chain `x' = x_d1, ...` of every higher-order state and the shifts of every lagged state."""
         laws: list[BaseLaw] = []
         for variable, entry in block.entries.items():
@@ -208,7 +222,7 @@ class OrdersPass(BasePass):
         return BasePass._replaced(law, value=value)
 
     @staticmethod
-    def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _OrdersSpec) -> list[Any]:
+    def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: BlockSpec, orders: _OrdersSpec) -> list[Any]:
         """Return laws with derivatives and lags replaced, rates retargeted, equations as relations, chains added."""
         if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
             return laws
@@ -220,14 +234,14 @@ class OrdersPass(BasePass):
                 result.append(OrdersPass._relation(spec, law, orders))
             else:
                 result.append(OrdersPass._ordered_law(spec, law, orders))
-        if not block.node._is_interaction():
+        if not block.node.interaction:
             result += [
                 item
                 for law in OrdersPass._intrinsic_laws(spec, block, orders)
                 for item in LowerComplexPass._split_law(
                     law,
                     spec.owner,
-                    lambda target: KernelSpec._state_name(spec, target),
+                    spec._state_name,
                 )
             ]
         return result

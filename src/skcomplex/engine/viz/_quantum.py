@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -12,6 +12,7 @@ import rerun.blueprint as rrb
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
+from ...core.elements import Element
 from ...core.spaces import LatticeSpace
 from ...specs import (
     BaseProblemSpec,
@@ -22,6 +23,7 @@ from ...specs import (
     QuantumViewSpec,
 )
 from ...types import Array
+from ..compile import QuantumCompiler
 from ..problems._quantum_kernel import QuantumKernel
 from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
@@ -118,7 +120,7 @@ class ExpectationVisual(ImageVisual):
     @staticmethod
     def _view_of(element: CompiledElementSpec) -> QuantumViewSpec:
         """Return the quantum view of a compiled element, of its first member for a group."""
-        return QuantumViewSpec(QuantumViewSpec._member_of(element.element))
+        return QuantumCompiler._view_of(cast('Element', QuantumCompiler._member_of(element.element)))
 
     @staticmethod
     def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
@@ -142,7 +144,7 @@ class ExpectationVisual(ImageVisual):
             subsystems = [
                 item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
             ]
-            cached = [problem.lowering.matrix(((item.key, item.operators[name]),), path) for item in subsystems]
+            cached = [problem.lowering._matrix(((item.key, item.operators[name]),), path) for item in subsystems]
             problem.cache[f'{path}:{name}'] = cached
         return cached
 

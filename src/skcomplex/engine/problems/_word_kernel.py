@@ -29,7 +29,9 @@ from ...specs import (
 from ...specs._group_spec import _GroupSpec
 from ...specs._successor_spec import _SuccessorSpec
 from ...types import Arrays
+from .._utils import symbols_of
 from ._base import BaseKernel
+from ._expression_printer import ExpressionPrinter
 from ._rewriting_loops import (
     _ACTION_CODES,
     DRAW,
@@ -155,9 +157,47 @@ class WordKernel(BaseKernel):
         codes = np.array([self._code(module, text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
-        values = self.parameters.function(variables, expressions, text) if slots else None
+        values = self._function(variables, expressions, text) if slots else None
         self.successors.append(_SuccessorSpec(codes, tuple(slots), values, len(variables)))
         return len(self.successors) - 1
+
+    def _function(
+        self,
+        variables: Sequence[Expression],
+        expressions: Sequence[object],
+        owner: str,
+    ) -> Callable[..., Arrays]:
+        """Return a NumPy function of the generation, the variables, and the parameters that evaluates expressions.
+
+        Args:
+            variables:
+                The symbols bound to module parameters.
+
+            expressions:
+                The expressions.
+
+            owner:
+                The production, named in errors.
+
+        Returns:
+            function:
+                The function `f(generation, *variables, *parameters)`.
+
+        Raises:
+            RewritingError:
+                An expression uses a symbol that is neither a variable nor a parameter.
+        """
+        values = [SR(item) for item in expressions]
+        symbols, time = self.parameters.symbols, self.parameters.time
+        free = symbols_of(values) - set(variables) - set(symbols) - {time}
+        if free:
+            error_msg = (
+                f'{owner} uses {", ".join(sorted(map(str, free)))}, which is neither a parameter of its predecessor '
+                'nor a parameter of its element. Declare it as a `ParameterSpec` argument of the word, patch, or host '
+                'graph.'
+            )
+            raise RewritingError(error_msg)
+        return ExpressionPrinter(time=time, compiled=True).check().prepare([*variables, *symbols]).run(values)
 
     def _groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
         """Return the groups of productions in the order they are tried."""
@@ -191,14 +231,14 @@ class WordKernel(BaseKernel):
                     code=code,
                     left=tuple(self._code(item, text) for item in left),
                     right=tuple(self._code(item, text) for item in right),
-                    condition=(None if condition is None else self.parameters.function(variables, [condition], text)),
+                    condition=(None if condition is None else self._function(variables, [condition], text)),
                     variables=len(variables),
                     rank=(0 if left or right else 1, 0 if condition is not None else 1, order),
                 )
             successors, probabilities = members[key]
             successors.append(self._successor(production, variables))
             probability = production.probability
-            probabilities.append(None if probability is None else self.parameters.function([], [probability], text))
+            probabilities.append(None if probability is None else self._function([], [probability], text))
         found = [
             replace(group, successors=tuple(members[key][0]), probabilities=tuple(members[key][1]))
             for key, group in groups.items()

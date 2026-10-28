@@ -13,11 +13,10 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, FractionalNoiseLaw, NoiseLaw
 from ....errors import ValidationError
+from ....specs import DeclarationsSpec, KernelSpec
 from ..._utils import components_of, symbols_of
 from .._base import BasePass
 from .._compilation import BlockLaws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 
 
 class CheckFractionalNoisePass(BasePass):
@@ -34,14 +33,19 @@ class CheckFractionalNoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Check the fractional noise laws."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         compilation.lowered = [
             (spec, self._checked_fractional(spec, laws, declarations), block)
             for spec, laws, block in cast('BlockLaws', compilation.lowered)
         ]
 
     @staticmethod
-    def _checked_hurst(spec: KernelSpec, law: FractionalNoiseLaw, declarations: Declarations, description: str) -> None:
+    def _checked_hurst(
+        spec: KernelSpec,
+        law: FractionalNoiseLaw,
+        declarations: DeclarationsSpec,
+        description: str,
+    ) -> None:
         """Raise an error when the Hurst index of a fractional noise law is not a number or a parameter in `(0, 1)`."""
         hurst = SR(law.hurst)
         if hurst.is_numeric():
@@ -63,7 +67,7 @@ class CheckFractionalNoisePass(BasePass):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
+    def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
         """Return laws with every fractional noise law of Hurst index 1/2 as a noise law, after checking the others."""
         result: list[BaseLaw] = []
         for law in laws:
@@ -89,7 +93,7 @@ class CheckFractionalNoisePass(BasePass):
             if read:
                 error_msg = (
                     f'The {description} of {spec.owner} has an amplitude that depends on the state '
-                    f'{KernelSpec._state_name(spec, read[0])}. Only state-independent amplitudes are supported for a '
+                    f'{spec._state_name(read[0])}. Only state-independent amplitudes are supported for a '
                     'Hurst index other than 1/2.'
                 )
                 raise ValidationError(error_msg)
@@ -99,5 +103,5 @@ class CheckFractionalNoisePass(BasePass):
     @staticmethod
     def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
         """Return the description of a fractional noise law by the states it drives."""
-        states = dict.fromkeys(KernelSpec._state_name(spec, item) for item in components_of(law._get_targets()[0]))
+        states = dict.fromkeys(spec._state_name(item) for item in components_of(law._get_targets()[0]))
         return f'fractional noise law of {", ".join(states)}'

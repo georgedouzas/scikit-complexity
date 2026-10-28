@@ -9,6 +9,7 @@ from ._base_problem_spec import BaseProblemSpec
 from ._base_record_spec import BaseRecordSpec
 from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
+from ._block_spec import BlockSpec
 from ._bound_renewal_spec import BoundRenewalSpec
 from ._call_spec import CallSpec
 from ._capacity_rows_spec import CapacityRowsSpec
@@ -19,6 +20,7 @@ from ._compiled_element_spec import CompiledElementSpec
 from ._compiled_interaction_spec import CompiledInteractionSpec
 from ._compiled_request_spec import CompiledRequestSpec
 from ._control_solution_spec import ControlSolutionSpec
+from ._declarations_spec import DeclarationsSpec
 from ._dialect_spec import DialectSpec
 from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_spec import DrawSpec
@@ -35,6 +37,7 @@ from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
 from ._issue_spec import IssueSpec
 from ._jump_path_spec import JumpPathSpec
+from ._kernel_spec import KernelSpec
 from ._kinetic_problem_spec import KineticProblemSpec
 from ._lammps_fix_spec import LammpsFixSpec
 from ._lattice_context_spec import LatticeContextSpec
@@ -124,6 +127,7 @@ __all__ = [
     'BaseRecordSpec',
     'BaseSpec',
     'BaseStructureSpec',
+    'BlockSpec',
     'BoundRenewalSpec',
     'CallSpec',
     'CapacityRowsSpec',
@@ -134,6 +138,7 @@ __all__ = [
     'CompiledInteractionSpec',
     'CompiledRequestSpec',
     'ControlSolutionSpec',
+    'DeclarationsSpec',
     'DialectSpec',
     'DiffusiveLimitSpec',
     'DrawSpec',
@@ -150,6 +155,7 @@ __all__ = [
     'HilbertSpec',
     'IssueSpec',
     'JumpPathSpec',
+    'KernelSpec',
     'KineticProblemSpec',
     'LammpsFixSpec',
     'LatticeContextSpec',

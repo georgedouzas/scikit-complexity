@@ -3,11 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from ..types import FormKind
 from ._base_spec import BaseSpec
 
 
@@ -29,52 +27,3 @@ class _OwnersSpec(BaseSpec):
             {owner: kinds for owner, kinds in self.declared.items() if holds(owner)},
             {owner: kinds for owner, kinds in self.lowered.items() if holds(owner)},
         )
-
-    def fit(self, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
-        """Check whether laws compile to one form and one solver runs them."""
-        return self._fits_form(lowered.values()) and self._solved(set().union(*declared.values()), self.solvers)
-
-    @staticmethod
-    def _fits_form(owners: Iterable[set[type]]) -> bool:
-        """Check whether the law classes of components compile to one form.
-
-        Args:
-            owners:
-                The law classes of every component.
-
-        Returns:
-            fits:
-                Whether a form takes the law classes.
-        """
-        from ..engine.compile._forms import _FORMS
-        return _OwnersSpec._form_kinds(owners) in _FORMS
-
-    @staticmethod
-    def _solved(kinds: set[type], solvers: list[Any]) -> bool:
-        """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
-
-        Co-simulation is left out, since it runs partitions that each need a solver of their own.
-        """
-        single = [solver for solver in solvers if solver._get_form() != FormKind.COUPLED]
-        return not single or any(not solver._get_support().missing('laws', kinds) for solver in single)
-
-    @staticmethod
-    def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
-        """Return the law classes that decide the form of components with their own law classes.
-
-        A combined class, such as a renewal, drops out of the classes when the rest are its companions and no component
-        has laws of that class alone. A component with laws of that class alone next to components with other laws keeps
-        it, so the system does not fit one form and runs as partitions.
-        """
-        from ..engine.compile._forms import _COMBINED
-        from ..engine.compile._laws import _FORMLESS_LAWS
-        owned = [{kind for kind in kinds if not issubclass(kind, _FORMLESS_LAWS)} for kinds in owners]
-        kinds: set[type] = set().union(*owned)
-        for kind, companions in _COMBINED.items():
-            rest = kinds - {kind}
-            if kind not in kinds or not rest:
-                continue
-            alone = any(item == {kind} for item in owned)
-            if not alone and rest <= companions:
-                kinds = rest
-        return frozenset(kinds)

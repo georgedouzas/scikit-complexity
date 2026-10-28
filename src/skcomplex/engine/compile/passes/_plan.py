@@ -12,7 +12,10 @@ from ....specs import CensusSpec, IssueSpec
 from ....specs._owners_spec import _OwnersSpec
 from ....specs._plan_spec import _PlanSpec
 from ....specs._planned_partition_spec import _PlannedPartitionSpec
+from ....types import FormKind
 from .._base import BasePass
+from .._forms import _FORMS
+from ._form import FormPass
 
 
 class PlanPass(BasePass):
@@ -53,11 +56,40 @@ class PlanPass(BasePass):
     ) -> IssueSpec:
         """Return the issue of a system whose own laws no solver runs or no form takes, by law kind or class."""
         fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
-        if not _OwnersSpec._solved(set().union(*declared.values()), solvers):
+        if not PlanPass._solved(set().union(*declared.values()), solvers):
             message = f'No solver runs the laws of this system together ({PlanPass._listed(declared)}).'
         else:
             message = f'No form takes the laws of this system together ({PlanPass._listed(lowered)}).'
         return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
+
+    @staticmethod
+    def _fits(owners: _OwnersSpec, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
+        """Check whether laws compile to one form and one solver of the owners runs them."""
+        kinds = set().union(*declared.values())
+        return PlanPass._fits_form(lowered.values()) and PlanPass._solved(kinds, owners.solvers)
+
+    @staticmethod
+    def _fits_form(owners: Iterable[set[type]]) -> bool:
+        """Check whether the law classes of components compile to one form.
+
+        Args:
+            owners:
+                The law classes of every component.
+
+        Returns:
+            fits:
+                Whether a form takes the law classes.
+        """
+        return FormPass._form_kinds(owners) in _FORMS
+
+    @staticmethod
+    def _solved(kinds: set[type], solvers: list[Any]) -> bool:
+        """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
+
+        Co-simulation is left out, since it runs partitions that each need a solver of their own.
+        """
+        single = [solver for solver in solvers if solver._get_form() != FormKind.COUPLED]
+        return not single or any(not solver._get_support().missing('laws', kinds) for solver in single)
 
     @staticmethod
     def _planned(
@@ -66,10 +98,10 @@ class PlanPass(BasePass):
         """Return the partitions of a system tree and the issues of the subsystems whose own laws fit no form."""
         name = scope.rstrip('/') or system.label
         declared, lowered = owners.under(scope, nested=True)
-        if owners.fit(declared, lowered):
+        if PlanPass._fits(owners, declared, lowered):
             return ([_PlannedPartitionSpec(name, scope, nested=True)] if declared or lowered else []), []
         own_declared, own_lowered = owners.under(scope, nested=False)
-        if not system.systems or not owners.fit(own_declared, own_lowered):
+        if not system.systems or not PlanPass._fits(owners, own_declared, own_lowered):
             mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
             return [], [PlanPass._mixed_issue(name, *mixed, owners.solvers)]
         partitions = [_PlannedPartitionSpec(name, scope, nested=False)] if own_declared or own_lowered else []

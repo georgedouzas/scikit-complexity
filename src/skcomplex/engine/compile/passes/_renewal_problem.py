@@ -14,14 +14,13 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws.utils import draws_in, reductions_in
 from ....errors import ValidationError
-from ....specs import BoundRenewalSpec, DrawSpec, ProblemSpec, ReferenceSpec
+from ....specs import BoundRenewalSpec, DeclarationsSpec, DrawSpec, ProblemSpec, ReferenceSpec
 from ....specs._draw_spec import DRAWS
 from ....types import Indices, ReadKind
 from ..._utils import components_of, symbol, symbols_of
 from ...problems import ExpressionPrinter
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
-from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -41,7 +40,7 @@ class RenewalProblemPass(BasePass):
         """Add the renewal laws to the problem."""
         compilation = self.compilation_
         problem = cast('ProblemSpec', compilation.problem)
-        time = cast('Declarations', compilation.layout).time
+        time = cast('DeclarationsSpec', compilation.layout).time
         symbols = {item.entry.name: item.symbol for item in compilation.renewals}
         compilation.problem = replace(
             problem,

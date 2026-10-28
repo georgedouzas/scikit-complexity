@@ -14,15 +14,13 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....errors import ValidationError
-from ....specs import EntrySpec, MatrixLawSpec, ReferenceSpec, RunStateSpec
+from ....specs import DeclarationsSpec, EntrySpec, KernelSpec, MatrixLawSpec, ReferenceSpec, RunStateSpec
 from ....types import Array, DomainKind, ReadKind
 from ..._utils import symbols_of
 from ...problems import ExpressionPrinter
 from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass
 from .._compilation import BlockLaws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 
 
 class MarkovPass(BasePass):
@@ -47,12 +45,12 @@ class MarkovPass(BasePass):
             markov.extend((spec, matrix) for matrix in matrices)
         compilation.lowered = lowered
         compilation.markov = markov
-        compilation.matrices = self._checked_matrices(markov, cast('Declarations', compilation.layout))
+        compilation.matrices = self._checked_matrices(markov, cast('DeclarationsSpec', compilation.layout))
 
     @staticmethod
     def _checked_matrices(
         markov: list[tuple[KernelSpec, MatrixLawSpec]],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
     ) -> tuple[MarkovKernel, ...]:
         """Return the matrices of the Markov laws after checking them at the initial parameter values."""
         initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])

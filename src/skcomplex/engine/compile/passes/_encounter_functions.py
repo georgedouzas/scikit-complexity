@@ -7,11 +7,10 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....specs import RunStateSpec
+from ....specs import DeclarationsSpec, RunStateSpec
 from ....types import Array
 from ...problems._encounter_kernel import EncounterKernel
 from .._base import BasePass
-from .._declarations import Declarations
 
 
 class EncounterFunctionsPass(BasePass):
@@ -31,7 +30,7 @@ class EncounterFunctionsPass(BasePass):
         self._with_encounters(
             cast('dict[str, Any]', compilation.functions),
             compilation.encounters,
-            cast('Declarations', compilation.layout).ends[True],
+            cast('DeclarationsSpec', compilation.layout).ends[True],
         )
 
     @staticmethod

@@ -8,12 +8,11 @@ from typing import cast
 from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
+from ....specs import BlockSpec, KernelSpec
 from ....types import VariableKind
 from ..._utils import components_of, declarations_of
 from .._base import BasePass
-from .._block import Block
 from .._compilation import BlockLaws
-from .._kernel_spec import KernelSpec
 
 
 class BoundaryLawsPass(BasePass):
@@ -36,7 +35,7 @@ class BoundaryLawsPass(BasePass):
         ]
 
     @staticmethod
-    def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
+    def _space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
         """Return the laws by which the boundary of a continuous space acts on the position states of a component.
 
         A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
@@ -44,7 +43,7 @@ class BoundaryLawsPass(BasePass):
         state declared as the rate of the position, or the first derivative of a second-order position.
         """
         space = block.node.space
-        if block.node._is_interaction() or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+        if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
             return []
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []
