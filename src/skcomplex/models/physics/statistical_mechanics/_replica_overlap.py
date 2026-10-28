@@ -29,7 +29,7 @@ class ReplicaOverlapAnalysis(CorrelationAnalysis):
             The overlap, one per frame for stacks of frames.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import ReplicaOverlapAnalysis
+        >>> from skcomplex.models.physics.statistical_mechanics import ReplicaOverlapAnalysis
         >>> ReplicaOverlapAnalysis().check().prepare([[1, -1, 1, 1], [1, -1, -1, 1]]).run().overlap_
         0.5
     """

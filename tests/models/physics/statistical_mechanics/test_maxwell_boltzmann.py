@@ -1,4 +1,4 @@
-"""Test the `_maxwell_boltzmann` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_maxwell_boltzmann` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import numpy as np
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from skcomplex.analysis import FitAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
-from skcomplex.models.physics.realizations import KineticTemperatureAnalysis, MaxwellBoltzmannAnalysis
+from skcomplex.models.physics.statistical_mechanics import KineticTemperatureAnalysis, MaxwellBoltzmannAnalysis
 
 
 def test_maxwell_boltzmann_test_in_two_and_three_dimensions():

@@ -1,4 +1,4 @@
-"""Test the `_critical_exponent` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_critical_exponent` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import math
 
@@ -7,7 +7,7 @@ import pytest
 from scipy import optimize
 
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.models.physics.realizations import CriticalExponentAnalysis
+from skcomplex.models.physics.statistical_mechanics import CriticalExponentAnalysis
 
 
 def test_critical_exponent_equals_the_power_law_of_mean_field_magnetization():

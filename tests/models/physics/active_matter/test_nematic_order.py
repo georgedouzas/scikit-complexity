@@ -1,10 +1,10 @@
-"""Test the `_nematic_order` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_nematic_order` module of `skcomplex.models.physics.active_matter`."""
 
 import numpy as np
 
 from skcomplex.analysis import AlignmentAnalysis
 from skcomplex.models import run
-from skcomplex.models.physics.realizations import NematicOrderAnalysis
+from skcomplex.models.physics.active_matter import NematicOrderAnalysis
 
 
 def test_nematic_order_equals_the_alignment():

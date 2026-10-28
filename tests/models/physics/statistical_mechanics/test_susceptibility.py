@@ -1,4 +1,4 @@
-"""Test the `_susceptibility` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_susceptibility` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import math
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.models.physics.realizations import SusceptibilityAnalysis
+from skcomplex.models.physics.statistical_mechanics import SusceptibilityAnalysis
 
 from ....analysis.conftest import ISING_TEMPERATURES, _magnetizations
 

@@ -22,7 +22,7 @@ class KuramotoOrderAnalysis(AlignmentAnalysis):
             The path of an agent group of a trajectory whose headings are the phases, or `None`.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import KuramotoOrderAnalysis
+        >>> from skcomplex.models.physics.synchronization import KuramotoOrderAnalysis
         >>> KuramotoOrderAnalysis().check().prepare([[0.5, 0.5, 0.5]]).run().order_.round(6).tolist()
         [1.0]
     """

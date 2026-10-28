@@ -25,7 +25,7 @@ class PolarOrderAnalysis(AlignmentAnalysis):
             Whether the members hold velocity vectors rather than heading angles.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import PolarOrderAnalysis
+        >>> from skcomplex.models.physics.active_matter import PolarOrderAnalysis
         >>> PolarOrderAnalysis().check().prepare([0.0, 0.0, 0.0]).run().order_.tolist()
         [1.0]
     """

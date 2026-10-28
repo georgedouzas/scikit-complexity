@@ -18,7 +18,7 @@ class MillingOrderAnalysis(AlignmentAnalysis):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.physics.realizations import MillingOrderAnalysis
+        >>> from skcomplex.models.physics.active_matter import MillingOrderAnalysis
         >>> angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
         >>> ring = np.column_stack([np.cos(angles), np.sin(angles)])
         >>> mill = np.hstack([ring, np.column_stack([-ring[:, 1], ring[:, 0]])])

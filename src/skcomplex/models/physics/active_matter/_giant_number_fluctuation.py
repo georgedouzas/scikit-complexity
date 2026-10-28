@@ -43,7 +43,7 @@ class GiantNumberFluctuationAnalysis(ScalingAnalysis):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.physics.realizations import GiantNumberFluctuationAnalysis
+        >>> from skcomplex.models.physics.active_matter import GiantNumberFluctuationAnalysis
         >>> counts = np.random.default_rng(0).poisson(5.0, (20, 64, 64))
         >>> round(GiantNumberFluctuationAnalysis().check().prepare(counts).run().exponent_, 1)
         0.5

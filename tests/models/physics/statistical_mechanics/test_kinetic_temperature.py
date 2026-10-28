@@ -1,4 +1,4 @@
-"""Test the `_kinetic_temperature` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_kinetic_temperature` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import math
 
@@ -8,7 +8,7 @@ import pytest
 from skcomplex.analysis import DistributionAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
-from skcomplex.models.physics.realizations import KineticTemperatureAnalysis
+from skcomplex.models.physics.statistical_mechanics import KineticTemperatureAnalysis
 
 
 def _langevin_velocities(rng: np.random.Generator, particles: int, temperature: float) -> np.ndarray:

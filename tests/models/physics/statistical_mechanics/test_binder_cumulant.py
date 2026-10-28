@@ -1,11 +1,11 @@
-"""Test the `_binder_cumulant` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_binder_cumulant` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import numpy as np
 import pytest
 from sklearn.base import clone
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.models.physics.realizations import BinderCumulantAnalysis
+from skcomplex.models.physics.statistical_mechanics import BinderCumulantAnalysis
 
 
 def test_binder_cumulant_equals_the_moment_ratio():

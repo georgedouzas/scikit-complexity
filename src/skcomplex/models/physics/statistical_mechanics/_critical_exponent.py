@@ -40,7 +40,7 @@ class CriticalExponentAnalysis(ScalingAnalysis):
             The critical exponent of every series.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import CriticalExponentAnalysis
+        >>> from skcomplex.models.physics.statistical_mechanics import CriticalExponentAnalysis
         >>> exponent = CriticalExponentAnalysis(parameters=[0.9, 0.99], critical=1.0).check()
         >>> exponent.prepare([0.1**0.5, 0.01**0.5]).run().exponent_.round(6).tolist()
         [0.5]

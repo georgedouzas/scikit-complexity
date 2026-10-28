@@ -1,4 +1,4 @@
-"""Test the `_avalanches` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_avalanches` module of `skcomplex.models.physics.criticality`."""
 
 import numpy as np
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from skcomplex.analysis import EventAnalysis, FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
-from skcomplex.models.physics.realizations import AvalancheAnalysis
+from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 
 def _exponent(values: np.ndarray, minimum: float) -> FitAnalysis:

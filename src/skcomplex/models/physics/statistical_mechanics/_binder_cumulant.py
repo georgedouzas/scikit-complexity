@@ -36,7 +36,7 @@ class BinderCumulantAnalysis(DistributionAnalysis):
             The Binder cumulant of every series.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import BinderCumulantAnalysis
+        >>> from skcomplex.models.physics.statistical_mechanics import BinderCumulantAnalysis
         >>> BinderCumulantAnalysis().check().prepare([1.0, -1.0, 1.0]).run().cumulant_.round(4).tolist()
         [0.6667]
     """

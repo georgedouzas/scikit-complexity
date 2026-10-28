@@ -62,7 +62,7 @@ class CracklingNoiseAnalysis(EventAnalysis):
             the smallest mean shape of the chosen durations, `nan` with fewer than 2 of them.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import CracklingNoiseAnalysis
+        >>> from skcomplex.models.physics.criticality import CracklingNoiseAnalysis
         >>> activity = [0, 1, 0, 1, 2, 1, 0, 1, 0, 2, 3, 2, 0]
         >>> crackling = CracklingNoiseAnalysis(min_count=1).check().prepare(activity).run()
         >>> round(crackling.exponent_, 2)

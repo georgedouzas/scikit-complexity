@@ -1,9 +1,9 @@
-"""Test the `_replica_overlap` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_replica_overlap` module of `skcomplex.models.physics.statistical_mechanics`."""
 
 import numpy as np
 
 from skcomplex.analysis import CorrelationAnalysis
-from skcomplex.models.physics.realizations import ReplicaOverlapAnalysis
+from skcomplex.models.physics.statistical_mechanics import ReplicaOverlapAnalysis
 
 
 def test_replica_overlap_equals_the_overlap():

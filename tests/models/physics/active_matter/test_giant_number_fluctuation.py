@@ -1,10 +1,10 @@
-"""Test the `_giant_number_fluctuation` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_giant_number_fluctuation` module of `skcomplex.models.physics.active_matter`."""
 
 import numpy as np
 import pytest
 
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.models.physics.realizations import GiantNumberFluctuationAnalysis
+from skcomplex.models.physics.active_matter import GiantNumberFluctuationAnalysis
 
 
 def test_giant_number_fluctuation_equals_the_variance_mean_law():

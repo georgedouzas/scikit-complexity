@@ -1,4 +1,4 @@
-"""Test the `_particles` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_particles` module of `skcomplex.models.physics.realizations.particles`."""
 
 import numpy as np
 import pytest

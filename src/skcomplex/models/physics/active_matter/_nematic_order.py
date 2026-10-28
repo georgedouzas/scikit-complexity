@@ -23,7 +23,7 @@ class NematicOrderAnalysis(AlignmentAnalysis):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.physics.realizations import NematicOrderAnalysis
+        >>> from skcomplex.models.physics.active_matter import NematicOrderAnalysis
         >>> NematicOrderAnalysis().check().prepare([0.0, np.pi]).run().order_.round(6).tolist()
         [1.0]
     """

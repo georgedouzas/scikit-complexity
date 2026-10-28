@@ -1,11 +1,11 @@
-"""Test the `_crackling_noise` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_crackling_noise` module of `skcomplex.models.physics.criticality`."""
 
 import numpy as np
 import pytest
 
 from skcomplex.analysis import EventAnalysis, FitAnalysis
 from skcomplex.core.errors import AnalysisError
-from skcomplex.models.physics.realizations import CracklingNoiseAnalysis
+from skcomplex.models.physics.criticality import CracklingNoiseAnalysis
 
 DURATIONS = (20, 40, 80)
 MAX_GENERATIONS = 5000

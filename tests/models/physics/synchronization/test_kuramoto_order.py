@@ -1,10 +1,10 @@
-"""Test the `_kuramoto_order` module of `skcomplex.models.physics.realizations`."""
+"""Test the `_kuramoto_order` module of `skcomplex.models.physics.synchronization`."""
 
 import numpy as np
 
 from skcomplex.analysis import AlignmentAnalysis
 from skcomplex.models import run
-from skcomplex.models.physics.realizations import KuramotoOrderAnalysis
+from skcomplex.models.physics.synchronization import KuramotoOrderAnalysis
 
 
 def test_kuramoto_order_equals_the_alignment():

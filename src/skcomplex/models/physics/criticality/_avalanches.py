@@ -23,7 +23,7 @@ class AvalancheAnalysis(EventAnalysis):
             The activity an avalanche exceeds at every step, subtracted from its profile.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import AvalancheAnalysis
+        >>> from skcomplex.models.physics.criticality import AvalancheAnalysis
         >>> found = AvalancheAnalysis().check().prepare([0, 1, 2, 1, 0, 3, 0]).run()
         >>> found.sizes_.tolist(), found.durations_.tolist()
         ([4.0, 3.0], [3.0, 1.0])
