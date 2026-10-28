@@ -11,7 +11,7 @@ import ordpy
 
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
-from ._entropy import TIES, _break_ties
+from ._entropy import TIES, EntropyAnalysis
 from ._kinds import DataKind
 
 
@@ -117,7 +117,7 @@ class ComplexityAnalysis(BaseAnalysis):
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
         places = [
             ordpy.complexity_entropy(
-                _break_ties(item, self.ties, self.random_state),
+                EntropyAnalysis._break_ties(item, self.ties, self.random_state),
                 dx=dx,
                 dy=dy,
                 taux=self.delay,

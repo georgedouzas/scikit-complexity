@@ -16,7 +16,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._mixing import _pairs
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
@@ -27,66 +26,6 @@ SETTINGS = {
     'like-share': {'variables', 'attribute', 'empty', 'diagonal'},
 }
 """Settings every kind reads, besides `kind`."""
-
-
-def _tree(positions: npt.ArrayLike, box: npt.ArrayLike | None) -> tuple[Array, cKDTree]:
-    """Return the positions and their tree, periodic in a box when one is given."""
-    array = np.asarray(positions, dtype=float)
-    array = array.reshape(array.shape[0], -1)
-    if box is None:
-        return array, cKDTree(array)
-    sides = np.asarray(box, dtype=float)
-    return np.mod(array, sides), cKDTree(np.mod(array, sides), boxsize=sides)
-
-
-def _nearest_neighbor_distances(positions: npt.ArrayLike, box: npt.ArrayLike | None = None) -> Array:
-    """Return the distance from every agent of one snapshot to its nearest neighbour, across periodic edges."""
-    array, tree = _tree(positions, box)
-    return tree.query(array, k=2)[0][:, 1]
-
-
-def _clark_evans_ratio(positions: npt.ArrayLike, box: npt.ArrayLike) -> float:
-    """Return the mean nearest-neighbour distance of one snapshot over its value for uniform random points."""
-    sides = np.asarray(box, dtype=float)
-    distances = _nearest_neighbor_distances(positions, sides)
-    dimension = sides.size
-    density = distances.size / np.prod(sides)
-    ball = math.pi ** (dimension / 2) / math.gamma(dimension / 2 + 1)
-    expected = math.gamma(1 / dimension + 1) / (density * ball) ** (1 / dimension)
-    return float(distances.mean() / expected)
-
-
-def _radial_distribution(snapshots: Array, box: npt.ArrayLike, bins: int, r_max: float | None) -> tuple[Array, Array]:
-    """Return the bin centres and `g(r)` of frames of positions in a periodic box, averaged over frames."""
-    sides = np.asarray(box, dtype=float)
-    reach = float(sides.min() / 2) if r_max is None else r_max
-    edges = np.linspace(0, reach, bins + 1)
-    counts = np.zeros(bins)
-    for snapshot in snapshots:
-        _, tree = _tree(snapshot, sides)
-        pairs = tree.sparse_distance_matrix(tree, reach, output_type='ndarray')
-        distances = pairs['v'][pairs['i'] != pairs['j']]
-        counts += np.histogram(distances, bins=edges)[0]
-    dimension = sides.size
-    ball = math.pi ** (dimension / 2) / math.gamma(dimension / 2 + 1)
-    shells = ball * (edges[1:] ** dimension - edges[:-1] ** dimension)
-    size = snapshots.shape[1]
-    ideal = snapshots.shape[0] * size * (size - 1) / np.prod(sides) * shells
-    return (edges[1:] + edges[:-1]) / 2, counts / ideal
-
-
-def _like_neighbor_share(
-    data: npt.ArrayLike | nx.Graph,
-    *,
-    attribute: str = 'state',
-    empty: float | None = None,
-    diagonal: bool = True,
-) -> float:
-    """Return the mean share of an agent's occupied neighbours that share its state, on a grid or a network."""
-    own, other = _pairs(data, attribute, diagonal=diagonal)
-    occupied = np.ones(own.size, dtype=bool) if empty is None else (own != empty) & (other != empty)
-    agents = own[occupied]
-    return float(np.mean(agents == other[occupied])) if agents.size else 0.0
 
 
 class NeighborAnalysis(BaseAnalysis):
@@ -244,21 +183,125 @@ class NeighborAnalysis(BaseAnalysis):
         """Compute the neighbour statistic of every frame."""
         if self.kind == 'like-share':
             shares = [
-                _like_neighbor_share(frame, attribute=self.attribute, empty=self.empty, diagonal=self.diagonal)
+                self._like_neighbor_share(frame, attribute=self.attribute, empty=self.empty, diagonal=self.diagonal)
                 for frame in self.frames_
             ]
             self.share_ = np.asarray(shares)
             return self
         if self.kind == 'distances':
             self.distances_ = np.asarray(
-                [_nearest_neighbor_distances(frame, self.box_) for frame in self.positions_],
+                [self._nearest_neighbor_distances(frame, self.box_) for frame in self.positions_],
             )
             return self
         if self.box_ is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs a periodic box. Set `box` to its sides.'
             raise AnalysisError(error_msg)
         if self.kind == 'clark-evans':
-            self.ratio_ = np.asarray([_clark_evans_ratio(frame, self.box_) for frame in self.positions_])
+            self.ratio_ = np.asarray([self._clark_evans_ratio(frame, self.box_) for frame in self.positions_])
             return self
-        self.radii_, self.distribution_ = _radial_distribution(self.positions_, self.box_, self.bins, self.r_max)
+        self.radii_, self.distribution_ = self._radial_distribution(self.positions_, self.box_, self.bins, self.r_max)
         return self
+
+    @staticmethod
+    def _shifts(ndim: int, *, diagonal: bool) -> list[tuple[int, ...]]:
+        """Return the offsets of the neighbours of a cell, with or without corners."""
+        offsets = np.stack(np.meshgrid(*([[-1, 0, 1]] * ndim), indexing='ij'), axis=-1).reshape(-1, ndim)
+        steps = np.abs(offsets).sum(axis=1)
+        keep = (steps > 0) if diagonal else (steps == 1)
+        return [tuple(int(item) for item in offset) for offset in offsets[keep]]
+
+    @staticmethod
+    def _grid_pairs(grid: npt.NDArray[np.float64], *, diagonal: bool) -> tuple[Array, Array]:
+        """Return the states of every cell paired with every neighbour on a periodic grid."""
+        pairs = [
+            (grid, np.roll(grid, shift, axis=tuple(range(grid.ndim))))
+            for shift in NeighborAnalysis._shifts(grid.ndim, diagonal=diagonal)
+        ]
+        return np.concatenate([first.ravel() for first, _ in pairs]), np.concatenate(
+            [second.ravel() for _, second in pairs],
+        )
+
+    @staticmethod
+    def _graph_pairs(graph: nx.Graph, attribute: str) -> tuple[Array, Array]:
+        """Return the states of both ends of every edge, both ways."""
+        states = nx.get_node_attributes(graph, attribute)
+        if len(states) < graph.number_of_nodes():
+            error_msg = f'Some nodes have no attribute {attribute!r}. Set it on every node.'
+            raise AnalysisError(error_msg)
+        ends = np.asarray([(states[first], states[second]) for first, second in graph.edges()], dtype=float).reshape(
+            -1,
+            2,
+        )
+        return np.concatenate([ends[:, 0], ends[:, 1]]), np.concatenate([ends[:, 1], ends[:, 0]])
+
+    @staticmethod
+    def _pairs(data: npt.ArrayLike | nx.Graph, attribute: str, *, diagonal: bool) -> tuple[Array, Array]:
+        """Return the states of every agent and of each of its neighbours, on a grid or a network."""
+        if isinstance(data, nx.Graph):
+            return NeighborAnalysis._graph_pairs(data, attribute)
+        return NeighborAnalysis._grid_pairs(np.asarray(data, dtype=float), diagonal=diagonal)
+
+    @staticmethod
+    def _tree(positions: npt.ArrayLike, box: npt.ArrayLike | None) -> tuple[Array, cKDTree]:
+        """Return the positions and their tree, periodic in a box when one is given."""
+        array = np.asarray(positions, dtype=float)
+        array = array.reshape(array.shape[0], -1)
+        if box is None:
+            return array, cKDTree(array)
+        sides = np.asarray(box, dtype=float)
+        return np.mod(array, sides), cKDTree(np.mod(array, sides), boxsize=sides)
+
+    @staticmethod
+    def _nearest_neighbor_distances(positions: npt.ArrayLike, box: npt.ArrayLike | None = None) -> Array:
+        """Return the distance from every agent of one snapshot to its nearest neighbour, across periodic edges."""
+        array, tree = NeighborAnalysis._tree(positions, box)
+        return tree.query(array, k=2)[0][:, 1]
+
+    @staticmethod
+    def _clark_evans_ratio(positions: npt.ArrayLike, box: npt.ArrayLike) -> float:
+        """Return the mean nearest-neighbour distance of one snapshot over its value for uniform random points."""
+        sides = np.asarray(box, dtype=float)
+        distances = NeighborAnalysis._nearest_neighbor_distances(positions, sides)
+        dimension = sides.size
+        density = distances.size / np.prod(sides)
+        ball = math.pi ** (dimension / 2) / math.gamma(dimension / 2 + 1)
+        expected = math.gamma(1 / dimension + 1) / (density * ball) ** (1 / dimension)
+        return float(distances.mean() / expected)
+
+    @staticmethod
+    def _radial_distribution(
+        snapshots: Array,
+        box: npt.ArrayLike,
+        bins: int,
+        r_max: float | None,
+    ) -> tuple[Array, Array]:
+        """Return the bin centres and `g(r)` of frames of positions in a periodic box, averaged over frames."""
+        sides = np.asarray(box, dtype=float)
+        reach = float(sides.min() / 2) if r_max is None else r_max
+        edges = np.linspace(0, reach, bins + 1)
+        counts = np.zeros(bins)
+        for snapshot in snapshots:
+            _, tree = NeighborAnalysis._tree(snapshot, sides)
+            pairs = tree.sparse_distance_matrix(tree, reach, output_type='ndarray')
+            distances = pairs['v'][pairs['i'] != pairs['j']]
+            counts += np.histogram(distances, bins=edges)[0]
+        dimension = sides.size
+        ball = math.pi ** (dimension / 2) / math.gamma(dimension / 2 + 1)
+        shells = ball * (edges[1:] ** dimension - edges[:-1] ** dimension)
+        size = snapshots.shape[1]
+        ideal = snapshots.shape[0] * size * (size - 1) / np.prod(sides) * shells
+        return (edges[1:] + edges[:-1]) / 2, counts / ideal
+
+    @staticmethod
+    def _like_neighbor_share(
+        data: npt.ArrayLike | nx.Graph,
+        *,
+        attribute: str = 'state',
+        empty: float | None = None,
+        diagonal: bool = True,
+    ) -> float:
+        """Return the mean share of an agent's occupied neighbours that share its state, on a grid or a network."""
+        own, other = NeighborAnalysis._pairs(data, attribute, diagonal=diagonal)
+        occupied = np.ones(own.size, dtype=bool) if empty is None else (own != empty) & (other != empty)
+        agents = own[occupied]
+        return float(np.mean(agents == other[occupied])) if agents.size else 0.0

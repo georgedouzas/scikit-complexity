@@ -20,7 +20,6 @@ from ..engine.problems import LoopTerm, Problem, StockFlow, numpy_function, symb
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import system_of
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
 SETTINGS = {
@@ -41,43 +40,12 @@ class _Loop:
     gain: float
 
 
-def _stock_flow(problem: Problem) -> StockFlow:
-    """Return the stock-flow description of a problem, or raise an error for problems without one."""
-    if problem.stock_flow is None:
-        error_msg = (
-            'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
-        )
-        raise AnalysisError(error_msg)
-    return problem.stock_flow
-
-
-def _without_delays(expression: Expression) -> Expression:
-    """Return an expression with every delay and smoothing replaced by its input, which it follows with gain one."""
-    calls = {
-        item: item.operands()[0]
-        for item in _operations(expression)
-        if delay_parts(getattr(item.operator(), 'name', lambda: '')()) is not None
-    }
-    return _without_delays(SR(expression).subs(calls)) if calls else SR(expression)
-
-
-def _operations(expression: Expression) -> list[Expression]:
-    """Return every subexpression of an expression that applies an operator."""
-    found, stack = [], [SR(expression)]
-    while stack:
-        item = stack.pop()
-        if item.operator() is not None:
-            found.append(item)
-            stack.extend(item.operands())
-    return found
-
-
 class _Graph:
     """Edges of the dependency graph of a problem with the expressions of their partial derivatives."""
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        stock_flow = _stock_flow(problem)
+        stock_flow = LoopAnalysis._stock_flow(problem)
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
         for term in stock_flow.terms:
@@ -96,7 +64,7 @@ class _Graph:
 
     def _add(self, term: LoopTerm) -> None:
         """Add the edges of one term, from every node its expression reads."""
-        expression = _without_delays(term.expression)
+        expression = self._without_delays(term.expression)
         for item in symbols_of([expression]) - {self.problem.time}:
             node = self._node_of(item, term)
             if node is not None:
@@ -127,25 +95,26 @@ class _Graph:
         ]
         return np.broadcast_to(np.asarray(function(times, *values)[0], dtype=float), np.shape(times)).copy()
 
+    @staticmethod
+    def _without_delays(expression: Expression) -> Expression:
+        """Return an expression with every delay and smoothing replaced by its input, which it follows with gain one."""
+        calls = {
+            item: item.operands()[0]
+            for item in _Graph._operations(expression)
+            if delay_parts(getattr(item.operator(), 'name', lambda: '')()) is not None
+        }
+        return _Graph._without_delays(SR(expression).subs(calls)) if calls else SR(expression)
 
-def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_Loop]]:
-    """Return the signed graph with edge gains and its loops with polarity and gain."""
-    directed = nx.DiGraph()
-    for (start, end), derivative in graph.edges.items():
-        if SR(derivative).is_trivial_zero():
-            continue
-        gain = gains[(start, end)]
-        directed.add_edge(start, end, sign=int(np.sign(gain)), gain=gain)
-    stocks = {entry.name for entry in graph.problem.states.entries}
-    loops = []
-    for found in nx.simple_cycles(directed):
-        anchor = min((node for node in found if node in stocks), default=min(found))
-        start = found.index(anchor)
-        cycle = [*found[start:], *found[:start]]
-        pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
-        gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
-        loops.append(_Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
-    return directed, sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes))
+    @staticmethod
+    def _operations(expression: Expression) -> list[Expression]:
+        """Return every subexpression of an expression that applies an operator."""
+        found, stack = [], [SR(expression)]
+        while stack:
+            item = stack.pop()
+            if item.operator() is not None:
+                found.append(item)
+                stack.extend(item.operands())
+        return found
 
 
 class LoopAnalysis(BaseAnalysis):
@@ -254,8 +223,8 @@ class LoopAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
-        self.problem_ = compiled_problem(system_of(source), 'The feedback loop analysis')
-        _stock_flow(self.problem_)
+        self.problem_ = compiled_problem(self._read_system(source), 'The feedback loop analysis')
+        self._stock_flow(self.problem_)
         return self
 
     def _set_loops(self, found: list[_Loop]) -> None:
@@ -272,7 +241,7 @@ class LoopAnalysis(BaseAnalysis):
         gains = {
             edge: float(graph.evaluate(SR(value), state, parameters, times)[0]) for edge, value in graph.edges.items()
         }
-        self.graph_, found = _signed_loops(graph, gains)
+        self.graph_, found = self._signed_loops(graph, gains)
         self._set_loops(found)
         self.gains_ = np.asarray([loop.gain for loop in found], dtype=float)
 
@@ -282,7 +251,7 @@ class LoopAnalysis(BaseAnalysis):
         states, parameters = np.atleast_2d(trajectory.states), np.atleast_2d(trajectory.parameters)
         times = np.asarray(trajectory.times, dtype=float)
         values = {edge: graph.evaluate(SR(value), states, parameters, times) for edge, value in graph.edges.items()}
-        _, found = _signed_loops(graph, {edge: float(value[0]) for edge, value in values.items()})
+        _, found = self._signed_loops(graph, {edge: float(value[0]) for edge, value in values.items()})
         if not found:
             error_msg = 'The system has no feedback loop, so no loop dominates. Analyse a system with a loop.'
             raise AnalysisError(error_msg)
@@ -301,7 +270,7 @@ class LoopAnalysis(BaseAnalysis):
 
     def _run_flow_matrix(self, trajectory: Trajectory) -> None:
         """Set the transaction-flow matrix of one frame."""
-        stock_flow = _stock_flow(self.problem_)
+        stock_flow = self._stock_flow(self.problem_)
         flows = [flow for flow in stock_flow.flows if self.quantity is None or flow.quantity == self.quantity]
         holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
         values = np.zeros((len(flows), len(holders)))
@@ -322,3 +291,33 @@ class LoopAnalysis(BaseAnalysis):
         else:
             self._run_flow_matrix(self.trajectory_)  # type: ignore[arg-type]
         return self
+
+    @staticmethod
+    def _stock_flow(problem: Problem) -> StockFlow:
+        """Return the stock-flow description of a problem, or raise an error for problems without one."""
+        if problem.stock_flow is None:
+            error_msg = (
+                'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
+            )
+            raise AnalysisError(error_msg)
+        return problem.stock_flow
+
+    @staticmethod
+    def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_Loop]]:
+        """Return the signed graph with edge gains and its loops with polarity and gain."""
+        directed = nx.DiGraph()
+        for (start, end), derivative in graph.edges.items():
+            if SR(derivative).is_trivial_zero():
+                continue
+            gain = gains[(start, end)]
+            directed.add_edge(start, end, sign=int(np.sign(gain)), gain=gain)
+        stocks = {entry.name for entry in graph.problem.states.entries}
+        loops = []
+        for found in nx.simple_cycles(directed):
+            anchor = min((node for node in found if node in stocks), default=min(found))
+            start = found.index(anchor)
+            cycle = [*found[start:], *found[:start]]
+            pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
+            gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
+            loops.append(_Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
+        return directed, sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes))

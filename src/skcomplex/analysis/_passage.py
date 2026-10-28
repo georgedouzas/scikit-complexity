@@ -14,7 +14,7 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._markov import _transition_matrix
+from ._markov import MarkovAnalysis
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('first-passage', 'hitting', 'return-times', 'committor', 'mean-first-passage')
@@ -28,23 +28,6 @@ SETTINGS = {
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 MATRIX_KINDS = ('committor', 'mean-first-passage')
-
-
-def _rows(paths: npt.ArrayLike) -> Array:
-    """Return paths as one row per path."""
-    array = np.asarray(paths, dtype=float)
-    return array.reshape(1, -1) if array.ndim == 1 else array
-
-
-def _clock(times: npt.ArrayLike | None, size: int) -> Array:
-    """Return the times of the steps of paths, the step indices without times."""
-    return np.arange(size, dtype=float) if times is None else np.asarray(times, dtype=float)
-
-
-def _first_hits(hits: npt.NDArray[np.bool_]) -> npt.NDArray[np.int64]:
-    """Return the first step at which every row hits, or -1 for rows that never hit."""
-    first = hits.argmax(axis=1)
-    return np.where(hits.any(axis=1), first, -1)
 
 
 class PassageAnalysis(BaseAnalysis):
@@ -181,7 +164,7 @@ class PassageAnalysis(BaseAnalysis):
         if self.kind in MATRIX_KINDS:
             if isinstance(source, Trajectory):
                 states = np.asarray(self._read_path(source, name).states, dtype=np.int64)
-                self.matrix_ = _transition_matrix(states, lag=self.lag)
+                self.matrix_ = MarkovAnalysis._transition_matrix(states, lag=self.lag)
             else:
                 self.matrix_ = np.asarray(source, dtype=float)
             return self
@@ -192,10 +175,10 @@ class PassageAnalysis(BaseAnalysis):
             return self
         if isinstance(source, Trajectory):
             path = self._read_path(source, name)
-            self.values_ = _rows(path.states)
+            self.values_ = self._rows(path.states)
             self.times_ = np.asarray(path.times, dtype=float)
             return self
-        self.values_ = _rows(source)
+        self.values_ = self._rows(source)
         self.times_ = np.arange(self.values_.shape[1], dtype=float) * self.dt
         return self
 
@@ -212,14 +195,14 @@ class PassageAnalysis(BaseAnalysis):
             hits = self.values_ >= threshold
         else:
             hits = self.values_ <= threshold
-        first = _first_hits(hits)
+        first = self._first_hits(hits)
         clock = self.times_
         self.passage_times_ = np.where(first >= 0, clock[np.maximum(first, 0)] - clock[0], np.nan)
 
     def _run_hitting(self) -> None:
         """Compute the share of paths that reach every target state first."""
         target = self._get_states(self.target)
-        first = _first_hits(np.isin(self.values_, np.asarray(target, dtype=float)))
+        first = self._first_hits(np.isin(self.values_, np.asarray(target, dtype=float)))
         reached = self.values_[np.arange(self.values_.shape[0]), np.maximum(first, 0)]
         self.hitting_probabilities_ = np.asarray(
             [np.mean((first >= 0) & (reached == state)) for state in target],
@@ -250,3 +233,15 @@ class PassageAnalysis(BaseAnalysis):
             time = msm_analysis.mfpt(self.matrix_, target, origin=origin, tau=self.lag)
             self.mean_first_passage_time_ = float(time * self.dt)
         return self
+
+    @staticmethod
+    def _rows(paths: npt.ArrayLike) -> Array:
+        """Return paths as one row per path."""
+        array = np.asarray(paths, dtype=float)
+        return array.reshape(1, -1) if array.ndim == 1 else array
+
+    @staticmethod
+    def _first_hits(hits: npt.NDArray[np.bool_]) -> npt.NDArray[np.int64]:
+        """Return the first step at which every row hits, or -1 for rows that never hit."""
+        first = hits.argmax(axis=1)
+        return np.where(hits.any(axis=1), first, -1)

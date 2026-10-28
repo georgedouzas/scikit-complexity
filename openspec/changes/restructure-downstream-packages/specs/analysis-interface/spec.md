@@ -85,3 +85,24 @@ SHALL end with `Analysis`, except the base `BaseAnalysis`.
 - **WHEN** a user subclasses `BaseAnalysis`, implements the hooks to read a series and compute its mean, and runs it on
   a trajectory
 - **THEN** the analysis checks, prepares, and runs through the base's verbs
+
+### Requirement: Analyses are general operations across domains
+Every analysis class SHALL compute one mathematical operation, named after it, and SHALL read every data kind on which
+the operation is defined, so the same class with the same settings applies to the data of any field. A choice SHALL be
+a variant of the operation, never a quantity of one field. The analysis SHALL check in `prepare` that the source holds
+a data kind it reads, and SHALL raise a named error that lists the kinds it reads otherwise.
+
+#### Scenario: Alignment on three domains
+- **WHEN** a user runs the alignment analysis of kind `mean-vector` on the headings of a Vicsek flock, on the spins of an
+  XY lattice, and of kind `mean-phase` on the phases of Kuramoto oscillators
+- **THEN** each run sets the order of every frame between 0 and 1, with the same class and the same settings names
+
+#### Scenario: Moment ratio of any sample
+- **WHEN** a user runs the distribution analysis of kind `moment-ratio` on magnetisation samples of an Ising model and
+  on returns of a market model
+- **THEN** both runs set the fourth-to-squared-second moment ratio of every sample
+
+#### Scenario: Source without a readable kind
+- **WHEN** a user prepares the alignment analysis on a trajectory with no agents, no angle field, and no phase series
+- **THEN** a named error lists the data kinds the analysis reads and the data kinds the trajectory holds
+

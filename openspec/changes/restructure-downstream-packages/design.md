@@ -66,52 +66,77 @@ Every field of today's result class becomes an attribute of the analysis, named 
 ### Families merge under one class with a choice argument
 A family is merged only when its members share their data kind, their settings, and the name of their main result. The choice argument is `kind`, or `law` or `method` where the literature uses that word. `check()` validates it against a module constant tuple.
 
-Target grouping (the entropy pilot validates the style, and later families may split):
+Target grouping. Every class is one mathematical operation, named after the operation, and its choices are variants of that operation (see "Library packages hold general operations"):
 
 | Class | Choices | Replaces |
 |---|---|---|
-| `EntropyAnalysis` | shannon, renyi, tsallis, permutation, sample, approximate, spectral, multiscale, block, rate, excess, lempel-ziv | the entropy functions of `_complexity`, `_series`, `_information` |
-| `InformationAnalysis` | mutual, auto-mutual, transfer, active-storage, total-correlation, dual-total-correlation, o-information, kl-divergence | `_information`, `_multivariate` |
+| `EntropyAnalysis` | shannon, renyi, tsallis, permutation, sample, approximate, spectral, multiscale, block, rate, excess, lempel-ziv, ensemble | the entropy functions of `_complexity`, `_series`, `_information` |
+| `InformationAnalysis` | mutual, auto-mutual, transfer, active-storage, correlation-information, total-correlation, dual-total-correlation, o-information, o-information-gradients, kl-divergence | `_information`, `_multivariate` |
 | `LocalInformationAnalysis` | mutual, transfer, entropy | `_local_information` |
 | `PartialInformationAnalysis` | | `partial_information` |
-| `EmergenceAnalysis` | effective-information, causal, criteria | `_emergence`, `_emergence_criteria` |
+| `ComplexityAnalysis` | | `complexity_entropy` |
+| `EmergenceAnalysis` | effective-information, causal, criteria, closure | `_emergence`, `_emergence_criteria` |
 | `EpsilonMachineAnalysis` | | `_computational_mechanics` |
-| `FitAnalysis` | power, stable, extreme-value, avalanche, order-exponent | `_statistics`, `_extremes`, `_criticality` fits |
-| `CorrelationAnalysis` | auto, two-time, function, length | `_series`, `_aging`, `_spatial` |
-| `SpectrumAnalysis` | power, structure-factor, dispersion | `_series`, `_spatial`, `_fields` |
-| `ScalingAnalysis` | hurst, detrended-fluctuation, box-counting, correlation-dimension | `_series`, `_scaling` |
-| `CollapseAnalysis` | scaling, aging, distribution | `_scaling`, `_aging` |
+| `DistributionAnalysis` | histogram, ccdf, moments, moment-ratio, dispersion-index, gini, tail-index, records, total-variation | `_statistics`, `_extremes`; the Binder cumulant and sweep, the Fano factor, the kinetic temperature, and the dissimilarity index |
+| `FitAnalysis` | power, stable, extreme-value, and the named laws exponential, normal, lognormal, gamma, maxwell, rayleigh, uniform | `_statistics`, `_extremes` fits, `compare_with_law`, the Maxwell-Boltzmann test |
+| `CorrelationAnalysis` | auto, two-time, function, length, overlap | `_series`, `_aging`, `_spatial`; the replica overlap |
+| `SpectrumAnalysis` | power, structure-factor | `_series`, `_spatial`, `_fields` |
+| `ScalingAnalysis` | detrended-fluctuation, rescaled-range, box-counting, correlation-dimension, variance-mean, power | `_series`, `_scaling`; number and relative fluctuations, the order-parameter exponent |
+| `CollapseAnalysis` | scaling, aging, distribution, crossings | `_scaling`, `_aging`; the Binder crossings |
 | `RecurrenceAnalysis` | | `_recurrence` |
 | `EmbeddingAnalysis` | delay, false-nearest-neighbors | `_embedding` |
-| `EarlyWarningAnalysis` | | `early_warning` |
-| `AvalancheAnalysis` | | `avalanches`, `branching_ratio`, `crackling_noise` |
-| `ClusterAnalysis` | sizes, percolation, spanning | `_percolation` |
-| `BinderAnalysis` | cumulant, crossings | `_criticality` |
+| `RollingAnalysis` | variance, autocorrelation, skewness | `early_warning` |
+| `EventAnalysis` | detect, counts, laminar-durations, excursions, branching | `_events`; the avalanches and the branching ratio |
+| `ClusterAnalysis` | labels, sizes, percolation, spanning | `_percolation` |
 | `DomainAnalysis` | size, growth, wavelength, interface-density | `_fields` |
-| `OrderAnalysis` | polar, milling, nematic | `_agents` |
+| `AlignmentAnalysis` | mean-vector, mean-rotation, axial, mean-phase | the polar, milling, nematic, and phase orders, read from agents, fields, or series |
 | `DisplacementAnalysis` | | `mean_squared_displacement` |
-| `NeighborAnalysis` | distances, clark-evans, radial-distribution | `_agents`, `_spatial` |
-| `FluctuationAnalysis` | number, relative, fano, kinetic-temperature, maxwell-boltzmann | `_fluctuations` |
+| `NeighborAnalysis` | distances, clark-evans, radial-distribution, like-share | `_agents`, `_spatial`, `_mixing` |
+| `CoarseGrainAnalysis` | | `coarse_grain` |
 | `NetworkAnalysis` | degrees, assortativity, centrality, communities, neighbor-degree, summary | `_networks` |
 | `MotifAnalysis` | counts, z-scores | `_motifs` |
 | `MarkovAnalysis` | transition-matrix, stationary, state-model, timescales, spectral-gap | `_markov` |
-| `PassageAnalysis` | first-passage, mean-first-passage, hitting, committor, return-times, records | `_passage` |
-| `IrreversibilityAnalysis` | entropy-production, detailed-balance, fluctuation-theorem, fluctuation-dissipation | `_irreversibility` |
-| `LargeDeviationAnalysis` | tilted, cloning, histogram, block | `_large_deviations` |
-| `ErgodicityAnalysis` | breaking, distance, invariant-density, ulam | `_ergodicity`, `_mixing` |
-| `EventAnalysis` | detect, counts, laminar-durations | `_events` |
+| `PassageAnalysis` | first-passage, mean-first-passage, hitting, committor, return-times | `_passage` |
+| `IrreversibilityAnalysis` | entropy-production, jump-entropy-production, langevin-entropy-production, count-entropy-production, detailed-balance, fluctuation-theorem, uncertainty-relation, response, fluctuation-dissipation | `_irreversibility`, `_aging` |
+| `LargeDeviationAnalysis` | tilted, block, cloning, histogram, reweight | `_large_deviations` |
+| `ErgodicityAnalysis` | breaking, metric, distance, invariant-density, ulam | `_ergodicity`, `_invariants` |
 | `KramersMoyalAnalysis` | | `kramers_moyal` |
-| `StabilityAnalysis` | | `fixed_points`, `stability`, `jacobian`, `nullclines` |
+| `StabilityAnalysis` | fixed-points, dispersion | `fixed_points`, `stability`, `jacobian`, `nullclines`, `dispersion_relation` |
 | `LinearizationAnalysis` | | `linearize`, `controllability`, `observability`, `lqr` |
-| `LyapunovAnalysis` | spectrum, largest, kaplan-yorke | `_lyapunov` |
-| `SectionAnalysis` | poincare, stroboscopic, orbit-diagram | `_sections`, `_bifurcation` |
-| `LoopAnalysis` | loops, dominance | `_loops` |
+| `LyapunovAnalysis` | spectrum, largest | `_lyapunov`, `_invariants` |
+| `SectionAnalysis` | poincare, stroboscopic | `_sections` |
+| `LoopAnalysis` | loops, dominance, flow-matrix | `_loops`, read from the signed dependency graph of any system |
 | `SymbolicAnalysis` | equations, solve, hamiltonian, conservation | `_symbolic`, `_invariants` |
-| `AutomatonAnalysis` | injective, pre-injective, surjective, garden-of-eden, inverse, compose | `_automata` |
-| `QuantumAnalysis` | entanglement, purity, spectrum, ground-state | `_quantum` |
+| `AutomatonAnalysis` | injective, pre-injective, surjective, garden-of-eden, inverse, compose, difference, entropy | `_automata` |
+| `QuantumAnalysis` | spectrum, ground-state, purity, entanglement | `_quantum` |
 | `SparseIdentificationAnalysis`, `ModeDecompositionAnalysis`, `ReservoirAnalysis` | | the three surrogates, each with the learned system in `system_` |
 | `SurrogateTestAnalysis` | | `surrogate_test` |
+| `DiscoveryAnalysis` | | `analyses_for`, `data_kinds` |
 | `SignatureAnalysis` | | `signature_analysis` |
+
+`AvalancheAnalysis`, `BinderAnalysis`, `FluctuationAnalysis`, `OrderAnalysis`, `MixingAnalysis`, and `EarlyWarningAnalysis` are classes named after a field. They dissolve into the general operations above, and the field measures they named become realizations in the models library:
+
+| Realization | Field package | Subclass of | Fixed settings |
+|---|---|---|---|
+| `BinderCumulantAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moment-ratio, orders 4 and 2 |
+| `SusceptibilityAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moments, the variance times the size |
+| `ReplicaOverlapAnalysis` | `models.physics.realizations` | `CorrelationAnalysis` | kind overlap |
+| `KineticTemperatureAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moments of the speeds, with the mass |
+| `MaxwellBoltzmannAnalysis` | `models.physics.realizations` | `FitAnalysis` | law maxwell, on the speeds |
+| `GiantNumberFluctuationAnalysis` | `models.physics.realizations` | `ScalingAnalysis` | kind variance-mean, of box counts |
+| `CriticalExponentAnalysis` | `models.physics.realizations` | `ScalingAnalysis` | kind power, around the critical point |
+| `AvalancheAnalysis` | `models.physics.realizations` | `EventAnalysis` | kind excursions |
+| `KuramotoOrderAnalysis` | `models.physics.realizations` | `AlignmentAnalysis` | kind mean-phase |
+| `PolarOrderAnalysis`, `MillingOrderAnalysis`, `NematicOrderAnalysis` | the realizations of the collective-behaviour models' field | `AlignmentAnalysis` | kinds mean-vector, mean-rotation, axial |
+| `DissimilarityIndexAnalysis` | `models.social.realizations` | `DistributionAnalysis` | kind total-variation, between two groups across units |
+| `EarlyWarningAnalysis` | the realizations of the field whose models use it | `RollingAnalysis` | the variance, the lag-one autocorrelation, and the skewness |
+
+A realization only fixes settings in its constructor and documents the field's name. It adds no formula, no verb, and no attribute, so the general operation's tests cover it. The crackling-noise relation, which combines two fitted exponents, is computed in the gallery example that shows it, not as a class.
+
+### Library packages hold general operations
+The core, the engine, analysis, and experiments hold general operations named mathematically: a class names what it computes or simulates, and its choices name variants of that operation. Eponymous names are kept where mathematics uses them for the operation itself, such as Shannon, Rényi, Gini, Lyapunov, or Kramers-Moyal. A name taken from one application field, such as the Binder cumulant, the polar order, or the segregation index, belongs to the models library, which subclasses the general class in the realizations of that field and fixes its settings. This is the rule the core already follows for laws and interactions, applied to every package.
+
+*Alternative considered:* field names as choices of the general class, such as `DistributionAnalysis('binder')`. It keeps field vocabulary in the library and makes the choice list grow with every field.
 
 ### Surrogates become analyses
 A surrogate learns a system from data. As an analysis it prepares on a trajectory or an array and keeps the learned system in `system_`. This drops the separate `BaseSurrogate` and keeps `Surrogate` out of the name set the spec allows.

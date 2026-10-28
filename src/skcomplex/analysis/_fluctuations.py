@@ -35,54 +35,6 @@ DATA_KINDS = {
 }
 
 
-def _fano_factor(values: npt.ArrayLike) -> float:
-    """Return the variance over the mean of counts, raising an error when the mean is 0."""
-    array = np.asarray(values, dtype=float)
-    if array.mean() == 0:
-        error_msg = 'The counts have mean 0, so their Fano factor is undefined. Use counts with a positive mean.'
-        raise AnalysisError(error_msg)
-    return float(array.var() / array.mean())
-
-
-def _number_fluctuations(grids: Array, boxes: npt.ArrayLike | None) -> tuple[Array, Array, float]:
-    """Return the mean and deviation of the number in square boxes of every side and the slope of their logarithms."""
-    smallest = min(grids.shape[1:])
-    sides = 2 ** np.arange(int(np.log2(max(smallest // 4, 1))) + 1) if boxes is None else np.asarray(boxes, dtype=int)
-    means, deviations = [], []
-    for side in sides:
-        rows, columns = grids.shape[1] // side, grids.shape[2] // side
-        trimmed = grids[:, : rows * side, : columns * side]
-        counts = trimmed.reshape(grids.shape[0], rows, side, columns, side).sum(axis=(2, 4)).ravel()
-        means.append(counts.mean())
-        deviations.append(counts.std())
-    exponent = float(np.polyfit(np.log(means), np.log(deviations), 1)[0])
-    return np.asarray(means), np.asarray(deviations), exponent
-
-
-def _relative_fluctuations(samples: Mapping[float, npt.ArrayLike]) -> tuple[Array, Array, float]:
-    """Return the sizes, the deviation over the mean at every size, and the slope of their logarithms."""
-    sizes = np.asarray(sorted(samples), dtype=np.float64)
-    arrays = [np.asarray(samples[size], dtype=np.float64) for size in sorted(samples)]
-    ratios = np.asarray([array.std() / array.mean() for array in arrays], dtype=np.float64)
-    exponent = float(np.polyfit(np.log(sizes), np.log(ratios), 1)[0])
-    return sizes, ratios, exponent
-
-
-def _kinetic_temperature(velocities: npt.ArrayLike, mass: float = 1.0) -> Array:
-    """Return `m <|v|²> / d` of the velocities of the agents of every frame in `d` dimensions, with `k_B = 1`."""
-    array = np.asarray(velocities, dtype=float)
-    return mass * np.mean(np.sum(array**2, axis=-1), axis=-1) / array.shape[-1]
-
-
-def _maxwell_boltzmann(velocities: Array, mass: float, temperature: float | None) -> tuple[float, float, float]:
-    """Return the temperature and the Kolmogorov-Smirnov test of the speeds of one frame against the chi law."""
-    chosen = float(_kinetic_temperature(velocities, mass)) if temperature is None else temperature
-    speeds = np.linalg.norm(velocities, axis=-1)
-    law = stats.chi(df=velocities.shape[-1], scale=math.sqrt(chosen / mass))
-    test = stats.kstest(speeds, law.cdf)
-    return chosen, float(test.statistic), float(test.pvalue)
-
-
 class FluctuationAnalysis(BaseAnalysis):
     """Fluctuations of counts, densities, sampled quantities, or agent velocities, of one kind.
 
@@ -235,14 +187,66 @@ class FluctuationAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the fluctuations."""
         if self.kind == 'number':
-            self.means_, self.deviations_, self.exponent_ = _number_fluctuations(self.values_, self.boxes)
+            self.means_, self.deviations_, self.exponent_ = self._number_fluctuations(self.values_, self.boxes)
         elif self.kind == 'relative':
-            self.sizes_, self.ratios_, self.exponent_ = _relative_fluctuations(self.values_)
+            self.sizes_, self.ratios_, self.exponent_ = self._relative_fluctuations(self.values_)
         elif self.kind == 'fano':
-            self.factor_ = np.asarray([_fano_factor(column) for column in self.values_.T])
+            self.factor_ = np.asarray([self._fano_factor(column) for column in self.values_.T])
         elif self.kind == 'kinetic-temperature':
-            self.temperature_ = _kinetic_temperature(self.values_, self.mass)
+            self.temperature_ = self._kinetic_temperature(self.values_, self.mass)
         else:
-            tests = [_maxwell_boltzmann(frame, self.mass, self.temperature) for frame in self.values_]
+            tests = [self._maxwell_boltzmann(frame, self.mass, self.temperature) for frame in self.values_]
             self.temperature_, self.statistic_, self.p_value_ = np.asarray(tests).T
         return self
+
+    @staticmethod
+    def _fano_factor(values: npt.ArrayLike) -> float:
+        """Return the variance over the mean of counts, raising an error when the mean is 0."""
+        array = np.asarray(values, dtype=float)
+        if array.mean() == 0:
+            error_msg = 'The counts have mean 0, so their Fano factor is undefined. Use counts with a positive mean.'
+            raise AnalysisError(error_msg)
+        return float(array.var() / array.mean())
+
+    @staticmethod
+    def _number_fluctuations(grids: Array, boxes: npt.ArrayLike | None) -> tuple[Array, Array, float]:
+        """Return the mean and deviation of counts in square boxes of every side and the slope of their logarithms."""
+        smallest = min(grids.shape[1:])
+        sides = (
+            2 ** np.arange(int(np.log2(max(smallest // 4, 1))) + 1) if boxes is None else np.asarray(boxes, dtype=int)
+        )
+        means, deviations = [], []
+        for side in sides:
+            rows, columns = grids.shape[1] // side, grids.shape[2] // side
+            trimmed = grids[:, : rows * side, : columns * side]
+            counts = trimmed.reshape(grids.shape[0], rows, side, columns, side).sum(axis=(2, 4)).ravel()
+            means.append(counts.mean())
+            deviations.append(counts.std())
+        exponent = float(np.polyfit(np.log(means), np.log(deviations), 1)[0])
+        return np.asarray(means), np.asarray(deviations), exponent
+
+    @staticmethod
+    def _relative_fluctuations(samples: Mapping[float, npt.ArrayLike]) -> tuple[Array, Array, float]:
+        """Return the sizes, the deviation over the mean at every size, and the slope of their logarithms."""
+        sizes = np.asarray(sorted(samples), dtype=np.float64)
+        arrays = [np.asarray(samples[size], dtype=np.float64) for size in sorted(samples)]
+        ratios = np.asarray([array.std() / array.mean() for array in arrays], dtype=np.float64)
+        exponent = float(np.polyfit(np.log(sizes), np.log(ratios), 1)[0])
+        return sizes, ratios, exponent
+
+    @staticmethod
+    def _kinetic_temperature(velocities: npt.ArrayLike, mass: float = 1.0) -> Array:
+        """Return `m <|v|²> / d` of the velocities of the agents of every frame in `d` dimensions, with `k_B = 1`."""
+        array = np.asarray(velocities, dtype=float)
+        return mass * np.mean(np.sum(array**2, axis=-1), axis=-1) / array.shape[-1]
+
+    @staticmethod
+    def _maxwell_boltzmann(velocities: Array, mass: float, temperature: float | None) -> tuple[float, float, float]:
+        """Return the temperature and the Kolmogorov-Smirnov test of the speeds of one frame against the chi law."""
+        chosen = (
+            float(FluctuationAnalysis._kinetic_temperature(velocities, mass)) if temperature is None else temperature
+        )
+        speeds = np.linalg.norm(velocities, axis=-1)
+        law = stats.chi(df=velocities.shape[-1], scale=math.sqrt(chosen / mass))
+        test = stats.kstest(speeds, law.cdf)
+        return chosen, float(test.statistic), float(test.pvalue)

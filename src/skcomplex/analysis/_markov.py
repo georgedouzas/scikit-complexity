@@ -32,80 +32,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 
-def _paths(states: npt.ArrayLike) -> npt.NDArray[np.int64]:
-    """Return integer states as one row per path."""
-    array = np.asarray(states, dtype=np.int64)
-    return array.reshape(1, -1) if array.ndim == 1 else array
-
-
-def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
-    """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
-    array = np.asarray(matrix, dtype=float)
-    if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
-        error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
-        raise AnalysisError(error_msg)
-    if not rates:
-        return array - np.eye(array.shape[0])
-    off = array - np.diag(np.diag(array))
-    return off - np.diag(off.sum(axis=1))
-
-
-def _eigenvalues(matrix: npt.ArrayLike, *, rates: bool) -> npt.NDArray[np.complex128]:
-    """Return the eigenvalues of the generator, the stationary 0 first, then by falling real part."""
-    values = linalg.eigvals(_generator(matrix, rates=rates))
-    return values[np.argsort(-values.real)]
-
-
-def _transition_counts(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> npt.NDArray[np.int64]:
-    """Return the number of transitions from every state to every state after `lag` steps along discrete paths."""
-    paths = _paths(states)
-    size = int(paths.max()) + 1 if n_states is None else n_states
-    origins, destinations = paths[:, :-lag].ravel(), paths[:, lag:].ravel()
-    return np.bincount(origins * size + destinations, minlength=size * size).reshape(size, size)
-
-
-def _transition_matrix(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> Array:
-    """Return the counts normalized by row, the identity row for unvisited states."""
-    counts = _transition_counts(states, n_states, lag).astype(float)
-    totals = counts.sum(axis=1)
-    unvisited = totals == 0
-    counts[unvisited, unvisited] = 1.0
-    return counts / counts.sum(axis=1, keepdims=True)
-
-
-def _stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Array:
-    """Return the stationary law `pi` of a transition matrix, `pi P = pi`, or of a rate matrix, `pi Q = 0`."""
-    generator = _generator(matrix, rates=rates)
-    null = linalg.null_space(generator.T, rcond=TOLERANCE)
-    vector = np.abs(null[:, 0]) if null.size else np.abs(linalg.eig(generator.T)[1][:, 0].real)
-    return vector / vector.sum()
-
-
-def _spectral_gap(matrix: npt.ArrayLike, *, rates: bool = False) -> float:
-    """Return `1 - |lambda_2|` of a transition matrix or `-Re lambda_2` of a rate matrix."""
-    values = _eigenvalues(matrix, rates=rates)
-    if rates:
-        return float(-values[1].real)
-    return float(1 - np.abs(values[1:] + 1).max())
-
-
-def _relaxation_times(matrix: npt.ArrayLike, *, rates: bool = False, dt: float = 1.0) -> Array:
-    """Return the relaxation times of every mode but the stationary one, slowest first."""
-    values = _eigenvalues(matrix, rates=rates)[1:]
-    if rates:
-        return -1 / values.real
-    moduli = np.clip(np.abs(values + 1), 1e-300, 1 - 1e-15)
-    return np.sort(-dt / np.log(moduli))[::-1]
-
-
-def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> DeeptimeModel:
-    """Return the maximum-likelihood model of the largest connected set of states at a lag."""
-    paths = np.asarray(states, dtype=np.int32)
-    trajectories = list(paths) if paths.ndim > 1 else paths
-    counts = TransitionCountEstimator(lagtime=lag, count_mode='sliding').fit(trajectories).fetch_model()
-    return MaximumLikelihoodMSM(reversible=reversible).fit(counts.submodel_largest()).fetch_model()
-
-
 class MarkovAnalysis(BaseAnalysis):
     """Markov chain of discrete paths, or of a transition or rate matrix, of one kind.
 
@@ -250,20 +176,20 @@ class MarkovAnalysis(BaseAnalysis):
             return self
         if isinstance(source, Trajectory):
             name = self.variables[0] if self.variables else None
-            self.path_ = _paths(self._read_path(source, name).states)
+            self.path_ = self._paths(self._read_path(source, name).states)
             return self
-        self.path_ = _paths(source)
+        self.path_ = self._paths(source)
         return self
 
     def _get_matrix(self) -> Array:
         """Return the matrix read, or the transition matrix estimated from the paths."""
         if self.matrix is not None:
             return self.matrix_
-        return _transition_matrix(self.path_, self.n_states, self.lag)
+        return self._transition_matrix(self.path_, self.n_states, self.lag)
 
     def _run_state_model(self) -> None:
         """Estimate the Markov state model and its metastable sets."""
-        model = _fit(self._get_states(), self.lag, reversible=self.reversible)
+        model = self._fit(self._get_states(), self.lag, reversible=self.reversible)
         symbols = np.asarray(model.count_model.state_symbols, dtype=np.int64)
         self.states_ = symbols
         self.transition_matrix_ = np.asarray(model.transition_matrix, dtype=float)
@@ -283,23 +209,97 @@ class MarkovAnalysis(BaseAnalysis):
         """Compute the quantity of the kind."""
         rates = self.matrix == 'rate'
         if self.kind == 'transition-matrix':
-            self.counts_ = _transition_counts(self.path_, self.n_states, self.lag)
-            self.transition_matrix_ = _transition_matrix(self.path_, self.n_states, self.lag)
+            self.counts_ = self._transition_counts(self.path_, self.n_states, self.lag)
+            self.transition_matrix_ = self._transition_matrix(self.path_, self.n_states, self.lag)
         elif self.kind == 'stationary':
-            self.stationary_ = _stationary_distribution(self._get_matrix(), rates=rates)
+            self.stationary_ = self._stationary_distribution(self._get_matrix(), rates=rates)
         elif self.kind == 'spectral-gap':
             matrix = self._get_matrix()
-            self.spectral_gap_ = _spectral_gap(matrix, rates=rates)
-            self.relaxation_times_ = _relaxation_times(matrix, rates=rates, dt=self.dt)
+            self.spectral_gap_ = self._spectral_gap(matrix, rates=rates)
+            self.relaxation_times_ = self._relaxation_times(matrix, rates=rates, dt=self.dt)
         elif self.kind == 'state-model':
             self._run_state_model()
         else:
             states = self._get_states()
             self.timescales_ = np.asarray(
                 [
-                    _fit(states, lag, reversible=self.reversible).timescales(self.n_timescales) * self.dt
+                    self._fit(states, lag, reversible=self.reversible).timescales(self.n_timescales) * self.dt
                     for lag in self.lags
                 ],
                 dtype=float,
             )
         return self
+
+    @staticmethod
+    def _paths(states: npt.ArrayLike) -> npt.NDArray[np.int64]:
+        """Return integer states as one row per path."""
+        array = np.asarray(states, dtype=np.int64)
+        return array.reshape(1, -1) if array.ndim == 1 else array
+
+    @staticmethod
+    def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
+        """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
+        array = np.asarray(matrix, dtype=float)
+        if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
+            error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
+            raise AnalysisError(error_msg)
+        if not rates:
+            return array - np.eye(array.shape[0])
+        off = array - np.diag(np.diag(array))
+        return off - np.diag(off.sum(axis=1))
+
+    @staticmethod
+    def _eigenvalues(matrix: npt.ArrayLike, *, rates: bool) -> npt.NDArray[np.complex128]:
+        """Return the eigenvalues of the generator, the stationary 0 first, then by falling real part."""
+        values = linalg.eigvals(MarkovAnalysis._generator(matrix, rates=rates))
+        return values[np.argsort(-values.real)]
+
+    @staticmethod
+    def _transition_counts(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> npt.NDArray[np.int64]:
+        """Return the number of transitions from every state to every state after `lag` steps along discrete paths."""
+        paths = MarkovAnalysis._paths(states)
+        size = int(paths.max()) + 1 if n_states is None else n_states
+        origins, destinations = paths[:, :-lag].ravel(), paths[:, lag:].ravel()
+        return np.bincount(origins * size + destinations, minlength=size * size).reshape(size, size)
+
+    @staticmethod
+    def _transition_matrix(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> Array:
+        """Return the counts normalized by row, the identity row for unvisited states."""
+        counts = MarkovAnalysis._transition_counts(states, n_states, lag).astype(float)
+        totals = counts.sum(axis=1)
+        unvisited = totals == 0
+        counts[unvisited, unvisited] = 1.0
+        return counts / counts.sum(axis=1, keepdims=True)
+
+    @staticmethod
+    def _stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Array:
+        """Return the stationary law `pi` of a transition matrix, `pi P = pi`, or of a rate matrix, `pi Q = 0`."""
+        generator = MarkovAnalysis._generator(matrix, rates=rates)
+        null = linalg.null_space(generator.T, rcond=TOLERANCE)
+        vector = np.abs(null[:, 0]) if null.size else np.abs(linalg.eig(generator.T)[1][:, 0].real)
+        return vector / vector.sum()
+
+    @staticmethod
+    def _spectral_gap(matrix: npt.ArrayLike, *, rates: bool = False) -> float:
+        """Return `1 - |lambda_2|` of a transition matrix or `-Re lambda_2` of a rate matrix."""
+        values = MarkovAnalysis._eigenvalues(matrix, rates=rates)
+        if rates:
+            return float(-values[1].real)
+        return float(1 - np.abs(values[1:] + 1).max())
+
+    @staticmethod
+    def _relaxation_times(matrix: npt.ArrayLike, *, rates: bool = False, dt: float = 1.0) -> Array:
+        """Return the relaxation times of every mode but the stationary one, slowest first."""
+        values = MarkovAnalysis._eigenvalues(matrix, rates=rates)[1:]
+        if rates:
+            return -1 / values.real
+        moduli = np.clip(np.abs(values + 1), 1e-300, 1 - 1e-15)
+        return np.sort(-dt / np.log(moduli))[::-1]
+
+    @staticmethod
+    def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> DeeptimeModel:
+        """Return the maximum-likelihood model of the largest connected set of states at a lag."""
+        paths = np.asarray(states, dtype=np.int32)
+        trajectories = list(paths) if paths.ndim > 1 else paths
+        counts = TransitionCountEstimator(lagtime=lag, count_mode='sliding').fit(trajectories).fetch_model()
+        return MaximumLikelihoodMSM(reversible=reversible).fit(counts.submodel_largest()).fetch_model()

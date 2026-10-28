@@ -18,7 +18,6 @@ from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import system_of
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('poincare', 'stroboscopic')
@@ -157,7 +156,7 @@ class SectionAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the flow of the section."""
-        problem = compiled_problem(system_of(source), 'A section')
+        problem = compiled_problem(self._read_system(source), 'A section')
         if problem.form not in {Form.ODE, Form.SDE}:
             error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
             raise AnalysisError(error_msg)

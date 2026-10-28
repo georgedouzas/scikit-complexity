@@ -13,48 +13,9 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 MIN_WINDOW = 3
-
-
-def _reddening(segment: Array) -> float:
-    """Return the ratio of the mean power of the lowest eighth of frequencies to that of the highest half."""
-    power = np.abs(np.fft.rfft(segment)[1:]) ** 2
-    low = power[: max(power.size // 8, 1)]
-    high = power[power.size // 2 :]
-    return float(low.mean() / high.mean()) if high.mean() > 0 else float('nan')
-
-
-def _trend(indicator: Array) -> float:
-    """Return Kendall's tau of an indicator against time over its defined values."""
-    valid = ~np.isnan(indicator)
-    return float(stats.kendalltau(np.flatnonzero(valid), indicator[valid]).statistic)
-
-
-def _indicators(values: npt.ArrayLike, window: int, *, detrend: bool) -> Array:
-    """Return the rolling variance, lag-1 autocorrelation, skewness, and reddening of a series, one row each."""
-    array = real_array(values, 'values')
-    if not MIN_WINDOW <= window <= array.size:
-        error_msg = (
-            f'window = {window} must lie between {MIN_WINDOW} and the length of the series, {array.size}. '
-            'Use a window within that range.'
-        )
-        raise AnalysisError(error_msg)
-    indicators = np.full((4, array.size), np.nan)
-    axis = np.arange(window)
-    for end in range(window, array.size + 1):
-        segment = array[end - window : end]
-        if detrend:
-            segment = segment - np.polyval(np.polyfit(axis, segment, 1), axis)
-        indicators[:, end - 1] = (
-            segment.var(),
-            np.corrcoef(segment[:-1], segment[1:])[0, 1],
-            stats.skew(segment),
-            _reddening(segment),
-        )
-    return indicators
 
 
 class EarlyWarningAnalysis(BaseAnalysis):
@@ -148,13 +109,51 @@ class EarlyWarningAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the rolling indicators of every series and their trends."""
         window = int(self.window or 0)
-        indicators = np.asarray([_indicators(column, window, detrend=self.detrend) for column in self.values_.T])
+        indicators = np.asarray([self._indicators(column, window, detrend=self.detrend) for column in self.values_.T])
         self.variance_ = indicators[:, 0]
         self.autocorrelation_ = indicators[:, 1]
         self.skewness_ = indicators[:, 2]
         self.reddening_ = indicators[:, 3]
-        self.variance_trend_ = np.asarray([_trend(row) for row in self.variance_])
-        self.autocorrelation_trend_ = np.asarray([_trend(row) for row in self.autocorrelation_])
-        self.skewness_trend_ = np.asarray([_trend(row) for row in self.skewness_])
-        self.reddening_trend_ = np.asarray([_trend(row) for row in self.reddening_])
+        self.variance_trend_ = np.asarray([self._trend(row) for row in self.variance_])
+        self.autocorrelation_trend_ = np.asarray([self._trend(row) for row in self.autocorrelation_])
+        self.skewness_trend_ = np.asarray([self._trend(row) for row in self.skewness_])
+        self.reddening_trend_ = np.asarray([self._trend(row) for row in self.reddening_])
         return self
+
+    @staticmethod
+    def _reddening(segment: Array) -> float:
+        """Return the ratio of the mean power of the lowest eighth of frequencies to that of the highest half."""
+        power = np.abs(np.fft.rfft(segment)[1:]) ** 2
+        low = power[: max(power.size // 8, 1)]
+        high = power[power.size // 2 :]
+        return float(low.mean() / high.mean()) if high.mean() > 0 else float('nan')
+
+    @staticmethod
+    def _trend(indicator: Array) -> float:
+        """Return Kendall's tau of an indicator against time over its defined values."""
+        valid = ~np.isnan(indicator)
+        return float(stats.kendalltau(np.flatnonzero(valid), indicator[valid]).statistic)
+
+    @staticmethod
+    def _indicators(values: npt.ArrayLike, window: int, *, detrend: bool) -> Array:
+        """Return the rolling variance, lag-1 autocorrelation, skewness, and reddening of a series, one row each."""
+        array = BaseAnalysis._read_real(values, 'values')
+        if not MIN_WINDOW <= window <= array.size:
+            error_msg = (
+                f'window = {window} must lie between {MIN_WINDOW} and the length of the series, {array.size}. '
+                'Use a window within that range.'
+            )
+            raise AnalysisError(error_msg)
+        indicators = np.full((4, array.size), np.nan)
+        axis = np.arange(window)
+        for end in range(window, array.size + 1):
+            segment = array[end - window : end]
+            if detrend:
+                segment = segment - np.polyval(np.polyfit(axis, segment, 1), axis)
+            indicators[:, end - 1] = (
+                segment.var(),
+                np.corrcoef(segment[:-1], segment[1:])[0, 1],
+                stats.skew(segment),
+                EarlyWarningAnalysis._reddening(segment),
+            )
+        return indicators
