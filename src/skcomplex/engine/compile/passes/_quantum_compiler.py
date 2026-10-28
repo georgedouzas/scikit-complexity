@@ -291,7 +291,7 @@ class _Lowering:
             >>> import qutip
             >>> from sage.all__sagemath_symbolics import SR, var
             >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.compile import LocalOperator
+            >>> from skcomplex.engine.problems import LocalOperator
             >>> from skcomplex.engine.compile.passes._quantum_compiler import _Lowering
             >>> q = SR.symbol('q')
             >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
