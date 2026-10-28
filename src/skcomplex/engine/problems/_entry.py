@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
 from ._domains import encode
 
 PARTS = 2
@@ -20,7 +21,7 @@ _PART_NAMES = ('real', 'imag')
 
 
 @dataclass(frozen=True)
-class Entry:
+class Entry(BaseValue):
     """Position of one named variable in a flat vector.
 
     Args:

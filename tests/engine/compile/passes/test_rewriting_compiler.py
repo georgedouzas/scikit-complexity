@@ -270,7 +270,7 @@ def test_benchmark_of_a_large_word():
         System(elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])]),
     )
     compiled = problem.rewriting[0]
-    word = WordStructure(compiled.names, np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
+    word = WordStructure(tuple(compiled.names), np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
     rewritten = compiled._rewrite(word, problem.initial_parameters, np.random.default_rng(0))
     assert time.perf_counter() - start < 0.1

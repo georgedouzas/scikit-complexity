@@ -19,7 +19,7 @@ from ...problems import (
     Entry,
     LawKernel,
     Layout,
-    Lowered,
+    LoweredKernels,
     Output,
     ReductionSchedule,
     VariableKind,
@@ -55,7 +55,7 @@ class TopologyFunctionsPass(BasePass):
         """Compile the topology changes of the networks."""
         compilation = self.compilation_
         topology = self._topology(
-            cast('Lowered', compilation.kernels),
+            cast('LoweredKernels', compilation.kernels),
             cast('Laws', compilation.reduced_apart),
             cast('Declarations', compilation.layout),
             cast('ReductionSchedule', compilation.reductions),
@@ -114,7 +114,7 @@ class TopologyFunctionsPass(BasePass):
 
     @staticmethod
     def _topology(
-        lowered: Lowered,
+        lowered: LoweredKernels,
         apart: Laws,
         declarations: Declarations,
         reductions: ReductionSchedule,

@@ -86,7 +86,7 @@ class GraphKernel(BaseKernel):
                 The initial graph.
         """
         del values
-        return GraphStructure(self.graph, 0)
+        return GraphStructure(nx.freeze(self.graph.copy()), 0)
 
     def counts(self, graph: GraphStructure) -> list[float]:
         """Return the count of nodes of every label and the number of nodes.
@@ -194,7 +194,7 @@ class GraphKernel(BaseKernel):
                     f'{structure.generation + 1}, above its maximum size {self.max_size}.'
                 )
                 raise RewritingError(error_msg)
-        return GraphStructure(graph, structure.generation + 1)
+        return GraphStructure(nx.freeze(graph.copy()), structure.generation + 1)
 
     @staticmethod
     def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:

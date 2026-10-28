@@ -3,16 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from ...core.specs import AffineSpec, PrototileSpec
-from ._structure import Array, Structure
+from ._base import Array, BaseStructure
 
 
-class PatchStructure(Structure):
+@dataclass(frozen=True)
+class PatchStructure(BaseStructure):
     """Patch of tiles at one generation, each a prototile under a homogeneous affine matrix.
 
     Args:
@@ -32,22 +34,15 @@ class PatchStructure(Structure):
         >>> import numpy as np
         >>> from skcomplex.engine.problems import PatchStructure
         >>> from skcomplex.core.specs import PrototileSpec
-        >>> patch = PatchStructure([PrototileSpec('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
+        >>> patch = PatchStructure((PrototileSpec('interval', [(0, 0), (1, 0)]),), np.array([0]), np.eye(3)[None], 0)
         >>> patch.length()
         1.0
     """
 
-    def __init__(
-        self,
-        prototiles: Sequence[PrototileSpec],
-        codes: npt.ArrayLike,
-        matrices: npt.ArrayLike,
-        generation: int,
-    ) -> None:
-        super().__init__(generation)
-        self.prototiles = tuple(prototiles)
-        self.codes = Structure._frozen(codes, np.int64)
-        self.matrices = Structure._frozen(matrices, np.float64).reshape(-1, 3, 3)
+    prototiles: tuple[PrototileSpec, ...]
+    codes: npt.NDArray[np.int64]
+    matrices: npt.NDArray[np.float64]
+    generation: int
 
     @property
     def parts(self) -> int:

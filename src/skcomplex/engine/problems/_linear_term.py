@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.elements import FieldElement
+from ._base import BaseValue
 from ._reference import Reference
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')
@@ -18,7 +19,7 @@ type Terms = list[tuple[Expression, Chain, Expression]]
 
 
 @dataclass(frozen=True, eq=False)
-class LinearTerm:
+class LinearTerm(BaseValue):
     """Term of the rate of a field state that applies a chain of operators to a state, times a constant coefficient.
 
     Args:

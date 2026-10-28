@@ -11,11 +11,12 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
 from ._reference import Reference
 
 
 @dataclass(frozen=True, eq=False)
-class DiffusiveLimit:
+class DiffusiveLimit(BaseValue):
     """Stability limit of explicit steps for the diffusion of a finite-volume field, at the current parameters.
 
     Args:

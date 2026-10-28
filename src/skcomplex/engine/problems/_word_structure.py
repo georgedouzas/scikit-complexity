@@ -3,16 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from ...core.specs import ModuleSpec
-from ._structure import Array, Structure
+from ._base import Array, BaseStructure
 
 
-class WordStructure(Structure):
+@dataclass(frozen=True)
+class WordStructure(BaseStructure):
     """Word of a string rewriting system at one generation, with its segments where a word geometry is declared.
 
     Args:
@@ -28,7 +29,7 @@ class WordStructure(Structure):
         generation:
             The generation.
 
-        segments:
+        strokes:
             The segments of shape `(k, 2, d)`, or `None` without a word geometry.
 
         depths:
@@ -41,22 +42,13 @@ class WordStructure(Structure):
         'ABA'
     """
 
-    def __init__(
-        self,
-        alphabet: Sequence[str],
-        codes: npt.ArrayLike,
-        parameters: npt.ArrayLike,
-        generation: int,
-        *,
-        segments: npt.ArrayLike | None = None,
-        depths: npt.ArrayLike | None = None,
-    ) -> None:
-        super().__init__(generation)
-        self.alphabet = tuple(alphabet)
-        self.codes = Structure._frozen(codes, np.int64)
-        self.parameters = Structure._frozen(parameters, np.float64)
-        self._segments = None if segments is None else Structure._frozen(segments, np.float64)
-        self.depths = None if depths is None else Structure._frozen(depths, np.int64)
+    alphabet: tuple[str, ...]
+    codes: npt.NDArray[np.int64]
+    parameters: npt.NDArray[np.float64]
+    generation: int
+    _: KW_ONLY
+    strokes: npt.NDArray[np.float64] | None = None
+    depths: npt.NDArray[np.int64] | None = None
 
     @property
     def parts(self) -> int:
@@ -66,7 +58,7 @@ class WordStructure(Structure):
     @property
     def has_geometry(self) -> bool:
         """Whether a word geometry has drawn the word."""
-        return self._segments is not None
+        return self.strokes is not None
 
     def modules(self) -> list[ModuleSpec]:
         """Return the modules of the word with their parameters.
@@ -114,4 +106,4 @@ class WordStructure(Structure):
             segments:
                 The array of shape `(k, 2, d)`, empty without a word geometry.
         """
-        return np.zeros((0, 2, 2)) if self._segments is None else self._segments
+        return np.zeros((0, 2, 2)) if self.strokes is None else self.strokes

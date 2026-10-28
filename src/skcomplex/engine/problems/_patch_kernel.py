@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ...core.elements import PatchElement
 from ...core.errors import RewritingError
 from ...core.laws import SubstitutionLaw
-from ._base import BaseKernel, BaseProblem
+from ._base import BaseKernel, BaseProblem, BaseStructure
 from ._parameters import Parameters
 from ._patch_structure import PatchStructure
 from ._state import State
@@ -114,7 +114,12 @@ class PatchKernel(BaseKernel):
         matrices = [
             np.eye(3) if item is None else PatchStructure._affine_matrix(item, by_symbol) for item in self.placements
         ]
-        return PatchStructure(self.prototiles, self.codes, np.reshape(matrices, (-1, 3, 3)), 0)
+        return PatchStructure(
+            self.prototiles,
+            BaseStructure._frozen(self.codes, np.int64),
+            BaseStructure._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            0,
+        )
 
     def counts(self, patch: PatchStructure) -> list[float]:
         """Return the count of every prototile and the number of tiles.
@@ -183,4 +188,9 @@ class PatchKernel(BaseKernel):
             places = offsets[rows][:, None] + np.arange(len(pieces))
             new_matrices[places] = np.einsum('tij,pjk->tpik', matrices[rows], maps)
             new_codes[places] = [piece for piece, _ in pieces]
-        return PatchStructure(self.prototiles, new_codes, new_matrices, patch.generation + 1)
+        return PatchStructure(
+            self.prototiles,
+            BaseStructure._frozen(new_codes, np.int64),
+            BaseStructure._frozen(new_matrices, np.float64),
+            patch.generation + 1,
+        )

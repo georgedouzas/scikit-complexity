@@ -9,9 +9,11 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
+
 
 @dataclass(frozen=True)
-class NetworkSnapshot:
+class NetworkSnapshot(BaseValue):
     """Nodes and edges of a network layer at one frame.
 
     Args:

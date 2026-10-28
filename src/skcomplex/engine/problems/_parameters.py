@@ -11,6 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...core.errors import RewritingError
+from ._base import BaseValue
 from ._expression_printer import ExpressionPrinter
 from ._symbols import symbols_of
 
@@ -18,7 +19,7 @@ type Arrays = list[npt.NDArray[Any]]
 
 
 @dataclass(frozen=True)
-class Parameters:
+class Parameters(BaseValue):
     """Parameter symbols of the rewritten elements, in the order of the parameter vector.
 
     Args:

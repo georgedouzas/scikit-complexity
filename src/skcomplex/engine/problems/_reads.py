@@ -8,11 +8,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from ...core.types import Indices
+from ._base import BaseValue
 from ._entry import Entry
 
 
 @dataclass(frozen=True)
-class Read:
+class Read(BaseValue):
     """Values a symbol of a reduction stands for, one per reduced member or one shared value.
 
     Args:

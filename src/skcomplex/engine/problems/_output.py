@@ -9,14 +9,15 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
+from ._base import BaseValue
 from ._noise_process import NoiseProcess
 from ._reference import Reference
 
 type NumericFunction = Callable[[float, Mapping[str, object]], object]
 
 
-@dataclass
-class Output:
+@dataclass(frozen=True)
+class Output(BaseValue):
     """Value a kernel produces for one target component.
 
     Args:

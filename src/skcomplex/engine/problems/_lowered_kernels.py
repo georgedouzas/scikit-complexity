@@ -4,16 +4,16 @@
 # License: MIT
 
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 from ...core.laws import BaseLaw
+from ._base import BaseValue
 from ._law_kernel import LawKernel
 from ._reference import Reference
 
 
-@dataclass
-class Lowered:
+@dataclass(frozen=True)
+class LoweredKernels(BaseValue):
     """Kernels of every law kind, with the changes of every jump output and the law of every output.
 
     Args:
@@ -27,6 +27,6 @@ class Lowered:
             The kernel spec and the law every output was lowered from, keyed by the output's identity.
     """
 
-    kernels: dict[type, list[LawKernel]] = field(default_factory=lambda: defaultdict(list))
-    jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
-    laws: dict[int, tuple[Any, BaseLaw]] = field(default_factory=dict)
+    kernels: defaultdict[type, list[LawKernel]]
+    jump_changes: dict[int, list[tuple[Reference, float]]]
+    laws: dict[int, tuple[object, BaseLaw]]

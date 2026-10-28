@@ -13,7 +13,7 @@ from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.specs import TopologyRequestSpec
 from ...core.system import System
 from ..backends import BaseBackend
-from ..problems import Form, Lowered, Output, Problem, ReductionSchedule, TransferNetwork
+from ..problems import Form, LoweredKernels, Output, Problem, ReductionSchedule, TransferNetwork
 from ..problems._diffusive_limit import DiffusiveLimit
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
@@ -217,7 +217,7 @@ class Compilation:
     reduced: Laws | None = None
     reduced_apart: Laws | None = None
     reductions: ReductionSchedule | None = None
-    kernels: Lowered | None = None
+    kernels: LoweredKernels | None = None
     functions: dict[str, Any] | None = None
     jacobian: JacobianKernel | None = None
     problem: Problem | None = None

@@ -9,9 +9,11 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
+from ._base import BaseValue
+
 
 @dataclass(frozen=True)
-class LoopTerm:
+class LoopTerm(BaseValue):
     """Node of the feedback graph of a system with the expression its value or its rate is computed from.
 
     Args:

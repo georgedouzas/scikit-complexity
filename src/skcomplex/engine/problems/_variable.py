@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import CC, RR
 
 from ...core.specs import ParameterSpec, RoleSpec, StateSpec
+from ._base import BaseValue
 from ._variable_kind import VariableKind
 
 
 @dataclass(frozen=True)
-class Variable:
+class Variable(BaseValue):
     """Declaration of a state, a parameter, or a role of a part, as the compiler reads it.
 
     A state of order `k` adds the companion states `<name>_d1` to `<name>_d<k-1>` that hold its derivatives, and a

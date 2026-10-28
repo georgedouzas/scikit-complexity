@@ -9,11 +9,12 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
+from ._base import BaseValue
 from ._loop_term import LoopTerm
 
 
 @dataclass(frozen=True)
-class _CompiledFlow:
+class _CompiledFlow(BaseValue):
     """Transfer of a compiled system between two holders."""
 
     path: str
@@ -25,7 +26,7 @@ class _CompiledFlow:
 
 
 @dataclass(frozen=True)
-class _Recorded:
+class _Recorded(BaseValue):
     """Expression a trajectory records at every frame, with the references of its symbols."""
 
     path: str
@@ -34,7 +35,7 @@ class _Recorded:
 
 
 @dataclass(frozen=True)
-class _CompiledDelay:
+class _CompiledDelay(BaseValue):
     """Delay or smoothing of a compiled system, its call in the laws and its output read from hidden states."""
 
     call: Expression
@@ -43,7 +44,7 @@ class _CompiledDelay:
 
 
 @dataclass(frozen=True)
-class TransferNetwork:
+class TransferNetwork(BaseValue):
     """Quantities, flows, and recorded values of a compiled system.
 
     Args:

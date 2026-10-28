@@ -8,11 +8,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
+
 type Vector = npt.NDArray[np.float64]
 
 
 @dataclass(frozen=True)
-class Lookup:
+class Lookup(BaseValue):
     """Lookup array of a table or totalistic rule.
 
     Args:

@@ -6,12 +6,13 @@
 from dataclasses import dataclass
 
 from ...core.specs import TopologyRequestSpec
+from ._base import BaseValue
 from ._law_kernel import LawKernel
 from ._network_rows import NetworkRows
 
 
 @dataclass(frozen=True)
-class CompiledRequest:
+class CompiledRequest(BaseValue):
     """Topology request of a law with the rows it runs for and the kernels that decide and direct it.
 
     Args:

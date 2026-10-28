@@ -10,13 +10,14 @@ from typing import Any
 import numpy as np
 
 from ...core.types import Vector
+from ._base import BaseValue
 from ._neighborhood_kernel import NeighborhoodKernel
 from ._reduction_kernel import ReductionKernel
 from ._state import State
 
 
-@dataclass
-class ReductionSchedule:
+@dataclass(frozen=True)
+class ReductionSchedule(BaseValue):
     """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
 
     Args:

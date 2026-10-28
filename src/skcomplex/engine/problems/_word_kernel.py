@@ -17,7 +17,7 @@ from ...core.errors import RewritingError
 from ...core.laws import ProductionLaw
 from ...core.laws.utils import parse_word
 from ...core.specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
-from ._base import BaseKernel, BaseProblem
+from ._base import BaseKernel, BaseProblem, BaseStructure
 from ._parameters import Arrays, Parameters
 from ._production_group import _Group
 from ._rewriting_loops import (
@@ -354,10 +354,18 @@ class WordKernel(BaseKernel):
         generation: int,
     ) -> WordStructure:
         """Return a word with the segments its geometry draws."""
+        frozen_codes, frozen_table = BaseStructure._frozen(codes, np.int64), BaseStructure._frozen(table, np.float64)
         if self.geometry is None:
-            return WordStructure(self.names, codes, table, generation)
+            return WordStructure(self.names, frozen_codes, frozen_table, generation)
         segments, depths = self._interpret(self.geometry, self.actions[codes], table, generation)
-        return WordStructure(self.names, codes, table, generation, segments=segments, depths=depths)
+        return WordStructure(
+            self.names,
+            frozen_codes,
+            frozen_table,
+            generation,
+            strokes=BaseStructure._frozen(segments, np.float64),
+            depths=BaseStructure._frozen(depths, np.int64),
+        )
 
     @staticmethod
     def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:

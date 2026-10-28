@@ -17,6 +17,7 @@ from sage.all__sagemath_symbolics import CC
 from ...core.elements import BaseElement, Element, GroupElement
 from ...core.errors import ValidationError
 from ...core.specs import HilbertSpec
+from ._base import BaseValue
 from ._local_operator import LocalOperator
 from ._variable import declarations_of
 from ._variable_kind import VariableKind
@@ -25,7 +26,7 @@ NORM_TOLERANCE = 1e-8
 
 
 @dataclass(frozen=True)
-class QuantumView:
+class QuantumView(BaseValue):
     """View of an element with a state in a Hilbert space, as the quantum compiler reads it.
 
     Args:

@@ -9,13 +9,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
 from ._lookup import Vector
 
 type Indices = npt.NDArray[np.intp]
 
 
 @dataclass(frozen=True)
-class Arguments:
+class Arguments(BaseValue):
     """Parameters and states that a lattice law reads besides its neighbourhoods, by name.
 
     Args:

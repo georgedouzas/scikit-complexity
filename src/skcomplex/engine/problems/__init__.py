@@ -24,7 +24,7 @@ from ._law_kernel import LATTICE_BOUNDARIES, MODES, LawKernel
 from ._layout import Layout
 from ._local_operator import LocalOperator
 from ._loop_term import LoopTerm
-from ._lowered import Lowered
+from ._lowered_kernels import LoweredKernels
 from ._markov_kernel import MarkovKernel
 from ._neighbor_read import NeighborRead
 from ._network_snapshot import NetworkSnapshot
@@ -85,7 +85,7 @@ __all__: list[str] = [
     'Layout',
     'LocalOperator',
     'LoopTerm',
-    'Lowered',
+    'LoweredKernels',
     'MarkovKernel',
     'NeighborRead',
     'NetworkSnapshot',

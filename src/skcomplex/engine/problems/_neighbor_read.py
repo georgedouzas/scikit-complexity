@@ -9,12 +9,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.types import Indices
+from ._base import BaseValue
 
 type Offset = tuple[int, ...]
 
 
 @dataclass(frozen=True, eq=False)
-class NeighborRead:
+class NeighborRead(BaseValue):
     """How a symbol reads a field at a neighbouring site of every member.
 
     Args:

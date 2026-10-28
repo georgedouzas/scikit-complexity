@@ -22,7 +22,7 @@ from ...problems import (
     Form,
     LawKernel,
     Layout,
-    Lowered,
+    LoweredKernels,
     Output,
     Problem,
     ReductionSchedule,
@@ -144,7 +144,7 @@ class FunctionsPass(BasePass):
     def _lower(compilation: Compilation) -> dict[str, object]:
         """Return the numeric functions and equations of a form, the update of a stochastic map taking a generator."""
         form = cast('Form', compilation.form)
-        lowered = cast('Lowered', compilation.kernels)
+        lowered = cast('LoweredKernels', compilation.kernels)
         declarations = cast('Declarations', compilation.layout)
         reductions = cast('ReductionSchedule', compilation.reductions)
         drawing = cast('DrawLowering', compilation.drawing)

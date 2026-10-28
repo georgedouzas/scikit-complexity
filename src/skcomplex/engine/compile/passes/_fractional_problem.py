@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....core.types import Vector
-from ...problems import Form, FractionalRows, LawKernel, Layout, Lowered, Problem
+from ...problems import Form, FractionalRows, LawKernel, Layout, LoweredKernels, Problem
 from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass
@@ -36,7 +36,7 @@ class FractionalProblemPass(BasePass):
         """Add the fractional noise rows and the state orders to the problem."""
         compilation = self.compilation_
         problem = cast('Problem', compilation.problem)
-        lowered = cast('Lowered', compilation.kernels)
+        lowered = cast('LoweredKernels', compilation.kernels)
         compilation.problem = replace(
             problem,
             fractional=self._fractional_rows(lowered) if problem.form == Form.SDE else (),
@@ -59,7 +59,7 @@ class FractionalProblemPass(BasePass):
         return lambda p: np.broadcast_to(np.asarray(reference.column_of(empty, p), dtype=float), (rows,)).copy()
 
     @staticmethod
-    def _fractional_rows(lowered: Lowered) -> tuple[FractionalRows, ...]:
+    def _fractional_rows(lowered: LoweredKernels) -> tuple[FractionalRows, ...]:
         """Return the noise rows that fractional noise laws drive, in the order of the noise rows."""
         rows, position = [], 0
         for kernel in lowered.kernels[NoiseLaw]:

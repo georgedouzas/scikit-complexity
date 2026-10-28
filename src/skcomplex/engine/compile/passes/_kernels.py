@@ -6,6 +6,7 @@
 import numbers
 from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import cast
 
 import numpy as np
@@ -17,7 +18,17 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
-from ...problems import LawKernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
+from ...problems import (
+    LawKernel,
+    Layout,
+    LoweredKernels,
+    NoiseProcess,
+    Output,
+    Reference,
+    Source,
+    components_of,
+    symbols_of,
+)
 from .._base import BasePass
 from .._census_record import ProcessKey
 from .._compilation import Laws
@@ -149,15 +160,22 @@ class KernelsPass(BasePass):
             raise ValidationError(error_msg)
         outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
         if isinstance(law, NoiseLaw) and law.process is not None:
-            for item, key in zip(outputs, NoisePass._process_keys(spec, law, declarations), strict=True):
-                item.process = KernelsPass._noise_process(key, declarations.wieners)
+            keys = NoisePass._process_keys(spec, law, declarations)
+            outputs = [
+                replace(item, process=KernelsPass._noise_process(key, declarations.wieners))
+                for item, key in zip(outputs, keys, strict=True)
+            ]
         return outputs
 
     @staticmethod
-    def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]]) -> Lowered:
+    def _lower_laws(
+        specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]],
+    ) -> LoweredKernels:
         """Return the kernels of every law kind, with the law of every output."""
         states, parameters = Layout(declarations.states), Layout(declarations.parameters)
-        lowered = Lowered()
+        kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
+        jump_changes: dict[int, list[tuple[Reference, float]]] = {}
+        laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
         assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
         for spec, laws in specs:
             outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
@@ -166,11 +184,11 @@ class KernelsPass(BasePass):
                     continue
                 if isinstance(law, JumpLaw):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
-                    lowered.jump_changes[id(output)] = [
+                    jump_changes[id(output)] = [
                         (KernelSpec._target_references(target, spec)[0], float(increment))
                         for target, increment in law.changes.items()
                     ]
-                    lowered.laws[id(output)] = (spec, law)
+                    laws_of[id(output)] = (spec, law)
                     outputs[(JumpLaw, False)].append(output)
                     continue
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
@@ -181,10 +199,10 @@ class KernelsPass(BasePass):
                 if isinstance(law, _ASSIGNED_KINDS):
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
                 law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
-                lowered.laws.update({id(item): (spec, law) for item in law_outputs})
+                laws_of.update({id(item): (spec, law) for item in law_outputs})
                 outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():
-                lowered.kernels[kind].append(
+                kernels[kind].append(
                     LawKernel(
                         spec.owner,
                         declarations.time,
@@ -196,7 +214,7 @@ class KernelsPass(BasePass):
                         kind_outputs,
                     ).check(),
                 )
-        return lowered
+        return LoweredKernels(kernels, jump_changes, laws_of)
 
     @staticmethod
     def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:

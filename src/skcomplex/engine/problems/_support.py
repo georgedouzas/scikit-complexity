@@ -7,12 +7,13 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
+from ._base import BaseValue
 from ._noise_kind import NoiseKind
 from ._order_kind import OrderKind
 
 
 @dataclass(frozen=True)
-class SupportSpec:
+class SupportSpec(BaseValue):
     """What a solver or a backend supports: the classes of time, space, and laws, and the kinds of noise and orders.
 
     An empty field supports any class or kind. A class is supported when it is one of the classes of its field or a

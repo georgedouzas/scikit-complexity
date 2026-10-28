@@ -11,6 +11,7 @@ import numpy as np
 
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
+from ._base import BaseValue
 from ._edge_search import EdgeSearch
 from ._entry import Entry
 from ._pair_search import PairSearch
@@ -18,7 +19,7 @@ from ._source import Source
 
 
 @dataclass(frozen=True)
-class Reference:
+class Reference(BaseValue):
     """Component of a state or parameter that a symbol stands for.
 
     Args:

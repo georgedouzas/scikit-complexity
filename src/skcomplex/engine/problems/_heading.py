@@ -8,11 +8,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from ...core.types import Vector
+from ._base import BaseValue
 from ._entry import Entry
 
 
 @dataclass(frozen=True)
-class Heading:
+class Heading(BaseValue):
     """State that holds the heading of the members, a vector or a heading angle in two dimensions.
 
     Args:

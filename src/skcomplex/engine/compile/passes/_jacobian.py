@@ -6,7 +6,7 @@
 from typing import cast
 
 from ....core.laws import RateLaw
-from ...problems import Form, Lowered, ReductionSchedule
+from ...problems import Form, LoweredKernels, ReductionSchedule
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 from .._declarations import Declarations
@@ -29,7 +29,7 @@ class JacobianPass(BasePass):
         declarations = cast('Declarations', compilation.layout)
         compilation.jacobian = (
             JacobianKernel(
-                tuple(cast('Lowered', compilation.kernels).kernels[RateLaw]),
+                tuple(cast('LoweredKernels', compilation.kernels).kernels[RateLaw]),
                 cast('ReductionSchedule', compilation.reductions),
                 declarations.ends[True],
                 declarations.time,
