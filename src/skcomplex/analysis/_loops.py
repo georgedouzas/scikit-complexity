@@ -1,4 +1,4 @@
-"""Derive the feedback loops of a system of stocks and flows, their dominance, and its transaction-flow matrices."""
+"""Derive the feedback loops of the signed dependency graph of a system, their dominance, and its flow matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,15 +11,17 @@ from typing import Self
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.errors import AnalysisError
 from ..core.laws.utils import delay_parts
 from ..engine.compile import compiled_problem
-from ..engine.problems import LoopTerm, Problem, StockFlow, numpy_function, symbols_of
+from ..engine.problems import LoopTerm, Problem, numpy_function, symbols_of
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
+from ._stability import StabilityAnalysis
+from ._symbolic import SymbolicAnalysis
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
 SETTINGS = {
@@ -41,24 +43,59 @@ class _Loop:
 
 
 class _Graph:
-    """Edges of the dependency graph of a problem with the expressions of their partial derivatives."""
+    """Edges of the signed dependency graph of a problem with the expressions of their partial derivatives.
+
+    The nodes are the state variables and the flows. A state whose rate the flows and rate laws of single elements
+    give is linked through them, and every other state through its row of the Jacobian.
+    """
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        stock_flow = LoopAnalysis._stock_flow(problem)
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
-        for term in stock_flow.terms:
-            self._add(term)
+        terms = problem.stock_flow.terms if problem.stock_flow is not None else ()
+        self.described = self._described(terms)
+        self.states = {entry.name for entry in problem.states.entries}
+        for term in terms:
+            if self._holders(term) & self.described:
+                self._add(term)
+        hidden = self._hidden()
+        if any(name not in self.described | hidden for name in self.states):
+            self._add_jacobian(hidden)
+
+    def _reads_group(self, term: LoopTerm) -> bool:
+        """Check whether a term reads or changes a variable of a group, which its expression does not resolve."""
+        entries = [term.references[item].entry for item in symbols_of([term.expression]) if item in term.references]
+        entries += [self.problem.states.entry(name) for name in self._holders(term)]
+        return any(entry.members is not None for entry in entries)
+
+    def _described(self, terms: tuple[LoopTerm, ...]) -> set[str]:
+        """Return the states whose rate the terms give.
+
+        The terms of a state of higher order give its highest derivative rather than its rate, and those that read or
+        change a group give the rates of all its members at once, so the Jacobian describes these states instead.
+        """
+        changed = {name for term in terms for name in self._holders(term)}
+        unresolved = {name for term in terms if self._reads_group(term) for name in self._holders(term)}
+        higher = {owner for kind, owner, _ in self.problem.companions.values() if kind == 'derivative'}
+        return changed - unresolved - higher
+
+    def _hidden(self) -> set[str]:
+        """Return the states the compiler adds for the boundary flows and for delays and smoothings."""
+        stock_flow = self.problem.stock_flow
+        if stock_flow is None:
+            return set()
+        outputs = symbols_of([delay.output for delay in stock_flow.delays])
+        delays = {
+            name.partition('[')[0] for name, item in self.problem.equation_symbols.items() if item in outputs
+        }
+        return set(stock_flow.boundary.values()) | delays
 
     def _node_of(self, item: Expression, term: LoopTerm) -> str | None:
         """Return the state a symbol stands for, or `None` for parameters and time."""
         reference = term.references.get(item)
         if reference is None:
             return None
-        if reference.entry.members is not None:
-            error_msg = f'{term.path} reads the group variable {reference.entry.name}. Loops take single elements only.'
-            raise AnalysisError(error_msg)
         self.readers[item] = (reference.is_state, reference.entry.start + reference.column)
         return reference.entry.name if reference.is_state else None
 
@@ -68,12 +105,35 @@ class _Graph:
         for item in symbols_of([expression]) - {self.problem.time}:
             node = self._node_of(item, term)
             if node is not None:
-                self.edges[(node, term.path)] += SR(expression).diff(item)
+                self.edges[(node, term.path)] += self._derivative(expression, item)
         if term.kind == 'flow':
-            if term.sink is not None:
+            if term.sink in self.described:
                 self.edges[(term.path, term.sink)] += 1
-            if term.source is not None:
+            if term.source in self.described:
                 self.edges[(term.path, term.source)] -= 1
+
+    def _add_jacobian(self, hidden: set[str]) -> None:
+        """Add the edges into every state the terms do not describe, from its row of the Jacobian.
+
+        The row of a map is that of the change of every state in one step, its next value minus itself, so that its
+        edges and those of flows per step have the same meaning.
+        """
+        dynamics = StabilityAnalysis._dynamics_of(self.problem)
+        nodes = {}
+        for name, item in zip(dynamics.names, dynamics.symbols, strict=True):
+            entry_name = name.partition('[')[0]
+            if entry_name not in hidden:
+                nodes[item] = entry_name if entry_name in self.described else name
+                self.readers[item] = (True, self.problem.states.locate(name)[1].start)
+        self.states |= set(nodes.values())
+        for name, item, rate in zip(dynamics.names, dynamics.symbols, dynamics.rates, strict=True):
+            if name.partition('[')[0] in self.described | hidden:
+                continue
+            change = SR(rate - item if dynamics.discrete else rate).subs(dynamics.parameters)
+            for other, node in nodes.items():
+                derivative = self._derivative(change, other)
+                if not derivative.is_trivial_zero():
+                    self.edges[(node, nodes[item])] += derivative
 
     def evaluate(
         self,
@@ -86,7 +146,7 @@ class _Graph:
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
         unknown = [item for item in arguments if item not in self.readers]
         if unknown:
-            error_msg = f'The loop gain {expression} reads {unknown[0]}, which no term of the system defines.'
+            error_msg = f'The loop gain {expression} reads {unknown[0]}, which is no state or parameter of the system.'
             raise AnalysisError(error_msg)
         function = numpy_function(self.problem.time, arguments, [expression])
         values = [
@@ -106,6 +166,16 @@ class _Graph:
         return _Graph._without_delays(SR(expression).subs(calls)) if calls else SR(expression)
 
     @staticmethod
+    def _derivative(expression: Expression, item: Expression) -> Expression:
+        """Return the partial derivative of an expression, without the Dirac deltas of steps, zero off their jump."""
+        return SR(expression).diff(item).subs(dirac_delta(SR.wild(0)) == 0)
+
+    @staticmethod
+    def _holders(term: LoopTerm) -> set[str]:
+        """Return the states whose rate a term changes."""
+        return {term.path} if term.kind == 'rate' else {name for name in (term.source, term.sink) if name is not None}
+
+    @staticmethod
     def _operations(expression: Expression) -> list[Expression]:
         """Return every subexpression of an expression that applies an operator."""
         found, stack = [], [SR(expression)]
@@ -118,20 +188,29 @@ class _Graph:
 
 
 class LoopAnalysis(BaseAnalysis):
-    """Feedback loops of a system of stocks and flows, their dominance along a trajectory, or its flow matrix.
+    """Feedback loops of the signed dependency graph of a system, their dominance in time, or its flow matrix.
+
+    The signed dependency graph of a system has the state variables as nodes and an edge from `x_j` to `x_i` when the
+    rate of `x_i` depends on `x_j`, with the sign of the partial derivative `df_i/dx_j`, the entry of the Jacobian. The
+    rate of a map is the change of its state in one step, its next value minus itself. When a system declares flows,
+    the flows are nodes too: an edge goes from each state to every flow whose amount depends on it, with the sign of
+    the partial derivative, and from each flow to its sink with sign `+` and to its source with sign `-`, so the
+    graph shows the path of every influence through the flows. Rate laws of single elements give the edges into the
+    states they change, and the Jacobian, as `StabilityAnalysis` derives it with the parameters at their values,
+    gives the edges into every other state, such as the members of a group or the velocity of a state of second
+    order. Delays and smoothings pass their input with gain one.
 
     The kinds read a system or a trajectory:
 
-    - `'loops'`: the signed dependency graph of a system and its feedback loops. An edge goes from each state or flow
-      to every flow or state rate whose expression reads it, with the sign of the partial derivative, and from each
-      flow to its sink with sign `+` and its source with sign `-`. Delays and smoothings pass their input with gain
-      one. The loops are the cycles of the graph, found with Johnson's algorithm, and the polarity of a loop is the
-      product of its edge signs.
-    - `'dominance'`: the gains of the loops along a trajectory, the products of the partial derivatives along them at
-      every frame, and the dominant loop, with the largest absolute gain, at every frame.
+    - `'loops'`: the signed dependency graph and its feedback loops, the elementary cycles of the graph found with
+      Johnson's algorithm. The gain of a loop is the product of the partial derivatives along it, and its polarity
+      the sign of the gain.
+    - `'dominance'`: the gains of the loops along a trajectory, at every frame, and the dominant loop, with the largest
+      absolute gain, at every frame.
     - `'flow-matrix'`: the transaction-flow matrix of one frame of a trajectory, with flows as rows and holders as
       columns. Every row holds the outflow of its flow at the source, negative, and the inflow at the sink, positive,
-      so every row sums to zero. Flows of a group sum over its members.
+      so every row sums to zero. Flows of a group sum over its members. The matrix books the amounts the flows move
+      between holders, which the Jacobian does not hold, so it is defined only for systems that declare flows.
 
     Args:
         kind:
@@ -154,8 +233,9 @@ class LoopAnalysis(BaseAnalysis):
             The trajectory of `'dominance'` and `'flow-matrix'`.
 
         graph_:
-            The directed graph from each state or flow to every node whose value or rate it enters, with the edge
-            attributes `sign` and `gain`, for `'loops'`.
+            The signed dependency graph from each state or flow to every node whose amount or rate depends on it, with
+            the edge attributes `sign` and `gain`, for `'loops'`. The members of a group and the components of a vector
+            that the Jacobian describes are nodes of their own, named like `species.x[0]`.
 
         loops_:
             The nodes of every loop, in the order of their influence, starting at its first state by name, or at its
@@ -224,7 +304,12 @@ class LoopAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
         self.problem_ = compiled_problem(self._read_system(source), 'The feedback loop analysis')
-        self._stock_flow(self.problem_)
+        if self.kind == 'flow-matrix' and not SymbolicAnalysis._stock_flow(self.problem_).flows:
+            error_msg = (
+                'The system declares no flows, so it has no transaction-flow matrix. Read the signed dependency of its '
+                "states with the kind 'loops', or its Jacobian with StabilityAnalysis."
+            )
+            raise AnalysisError(error_msg)
         return self
 
     def _set_loops(self, found: list[_Loop]) -> None:
@@ -270,7 +355,7 @@ class LoopAnalysis(BaseAnalysis):
 
     def _run_flow_matrix(self, trajectory: Trajectory) -> None:
         """Set the transaction-flow matrix of one frame."""
-        stock_flow = self._stock_flow(self.problem_)
+        stock_flow = SymbolicAnalysis._stock_flow(self.problem_)
         flows = [flow for flow in stock_flow.flows if self.quantity is None or flow.quantity == self.quantity]
         holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
         values = np.zeros((len(flows), len(holders)))
@@ -293,16 +378,6 @@ class LoopAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _stock_flow(problem: Problem) -> StockFlow:
-        """Return the stock-flow description of a problem, or raise an error for problems without one."""
-        if problem.stock_flow is None:
-            error_msg = (
-                'The problem has no stock-flow description. Compile the system as one partition with compile_system.'
-            )
-            raise AnalysisError(error_msg)
-        return problem.stock_flow
-
-    @staticmethod
     def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_Loop]]:
         """Return the signed graph with edge gains and its loops with polarity and gain."""
         directed = nx.DiGraph()
@@ -311,10 +386,9 @@ class LoopAnalysis(BaseAnalysis):
                 continue
             gain = gains[(start, end)]
             directed.add_edge(start, end, sign=int(np.sign(gain)), gain=gain)
-        stocks = {entry.name for entry in graph.problem.states.entries}
         loops = []
         for found in nx.simple_cycles(directed):
-            anchor = min((node for node in found if node in stocks), default=min(found))
+            anchor = min((node for node in found if node in graph.states), default=min(found))
             start = found.index(anchor)
             cycle = [*found[start:], *found[:start]]
             pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
