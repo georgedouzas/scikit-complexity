@@ -118,23 +118,25 @@ Target grouping. Every class is one mathematical operation, named after the oper
 
 | Realization | Field package | Subclass of | Fixed settings |
 |---|---|---|---|
-| `BinderCumulantAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moment-ratio, orders 4 and 2 |
-| `SusceptibilityAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moments, the variance times the size |
-| `ReplicaOverlapAnalysis` | `models.physics.realizations` | `CorrelationAnalysis` | kind overlap |
-| `KineticTemperatureAnalysis` | `models.physics.realizations` | `DistributionAnalysis` | kind moments of the speeds, with the mass |
-| `MaxwellBoltzmannAnalysis` | `models.physics.realizations` | `FitAnalysis` | law maxwell, on the speeds |
-| `GiantNumberFluctuationAnalysis` | `models.physics.realizations` | `ScalingAnalysis` | kind variance-mean, of box counts |
-| `CriticalExponentAnalysis` | `models.physics.realizations` | `ScalingAnalysis` | kind power, around the critical point |
-| `AvalancheAnalysis` | `models.physics.realizations` | `EventAnalysis` | kind excursions |
-| `KuramotoOrderAnalysis` | `models.physics.realizations` | `AlignmentAnalysis` | kind mean-phase |
-| `PolarOrderAnalysis`, `MillingOrderAnalysis`, `NematicOrderAnalysis` | the realizations of the collective-behaviour models' field | `AlignmentAnalysis` | kinds mean-vector, mean-rotation, axial |
-| `DissimilarityIndexAnalysis` | `models.social.realizations` | `DistributionAnalysis` | kind total-variation, between two groups across units |
-| `EarlyWarningAnalysis` | the realizations of the field whose models use it | `RollingAnalysis` | the variance, the lag-one autocorrelation, and the skewness |
+| `BinderCumulantAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moment-ratio, orders 4 and 2 |
+| `SusceptibilityAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moments, the variance times the size |
+| `ReplicaOverlapAnalysis` | `models.physics.statistical_mechanics` | `CorrelationAnalysis` | kind overlap |
+| `KineticTemperatureAnalysis` | `models.physics.statistical_mechanics` | `DistributionAnalysis` | kind moments of the speeds, with the mass |
+| `MaxwellBoltzmannAnalysis` | `models.physics.statistical_mechanics` | `FitAnalysis` | law maxwell, on the speeds |
+| `GiantNumberFluctuationAnalysis` | `models.physics.active_matter` | `ScalingAnalysis` | kind variance-mean, of box counts |
+| `CriticalExponentAnalysis` | `models.physics.statistical_mechanics` | `ScalingAnalysis` | kind power, around the critical point |
+| `AvalancheAnalysis` | `models.physics.criticality` | `EventAnalysis` | kind excursions |
+| `KuramotoOrderAnalysis` | `models.physics.synchronization` | `AlignmentAnalysis` | kind mean-phase |
+| `PolarOrderAnalysis`, `MillingOrderAnalysis`, `NematicOrderAnalysis` | `models.physics.active_matter` | `AlignmentAnalysis` | kinds mean-vector, mean-rotation, axial |
+| `DissimilarityIndexAnalysis` | `models.social.segregation` | `DistributionAnalysis` | kind total-variation, between two groups across units |
+| `EarlyWarningAnalysis` | `models.earth.climate` | `RollingAnalysis` | the variance, the lag-one autocorrelation, and the skewness |
 
-A realization usually only fixes settings in its constructor and documents the field's name, so the general operation's tests cover it. A field measure that composes general analyses, such as the crackling-noise relation between the fitted exponents of avalanche sizes and durations, keeps its own logic as private methods of a realization (`CracklingNoiseAnalysis` in `models.physics.realizations`). No specialized code is removed by this regrouping: whatever does not map onto a general choice moves to the models library, which also serves as worked examples for developers who extend the library.
+Each realization lives in its own private module next to the models it measures, exported from their package: the spin and gas measures with the Ising, spin-glass, and gas models of statistical mechanics, the avalanche measures with the sandpiles, the orders and number fluctuations with the active matter models, the Kuramoto order with the synchronization models, the dissimilarity index with the Schelling models, and the early warnings with the tipping models. A realization that several packages of one field share lives in that field's `realizations`, in a family package such as `physics.realizations.particles` or `economics.realizations.markets`, and a field with no shared realization has no `realizations` package.
+
+A realization usually only fixes settings in its constructor and documents the field's name, so the general operation's tests cover it. A field measure that composes general analyses, such as the crackling-noise relation between the fitted exponents of avalanche sizes and durations, keeps its own logic as private methods of a realization (`CracklingNoiseAnalysis` in `models.physics.criticality`). No specialized code is removed by this regrouping: whatever does not map onto a general choice moves to the models library, which also serves as worked examples for developers who extend the library.
 
 ### Library packages hold general operations
-The core, the engine, analysis, and experiments hold general operations named mathematically: a class names what it computes or simulates, and its choices name variants of that operation. Eponymous names are kept where mathematics uses them for the operation itself, such as Shannon, Rényi, Gini, Lyapunov, or Kramers-Moyal. A name taken from one application field, such as the Binder cumulant, the polar order, or the segregation index, belongs to the models library, which subclasses the general class in the realizations of that field and fixes its settings. This is the rule the core already follows for laws and interactions, applied to every package.
+The core, the engine, analysis, and experiments hold general operations named mathematically: a class names what it computes or simulates, and its choices name variants of that operation. Eponymous names are kept where mathematics uses them for the operation itself, such as Shannon, Rényi, Gini, Lyapunov, or Kramers-Moyal. A name taken from one application field, such as the Binder cumulant, the polar order, or the segregation index, belongs to the models library, which subclasses the general class next to the models of that field that use it and fixes its settings. This is the rule the core already follows for laws and interactions, applied to every package.
 
 *Alternative considered:* field names as choices of the general class, such as `DistributionAnalysis('binder')`. It keeps field vocabulary in the library and makes the choice list grow with every field.
 
@@ -143,8 +145,8 @@ An audit of the public classes and choices of `core`, `engine`, and `experiments
 
 | Package | Name | Field | Proposed general name | Proposed realization | Decision |
 |---|---|---|---|---|---|
-| `core.laws` | `ProliferationLaw` | mathematical biology, the kinetic theory of active particles | `EncounterBirthLaw` | `ProliferationLaw` in `models.biology.realizations`, used by `oncology` | proposed: proliferative and destructive encounters are the terms of the kinetic theory of active particles, a mathematical framework the core adopts with `EncounterLaw`, and renaming two of its three laws splits the family |
-| `core.laws` | `DestructionLaw` | mathematical biology, the kinetic theory of active particles | `EncounterDeathLaw` | `DestructionLaw` in `models.biology.realizations` | proposed, as `ProliferationLaw` |
+| `core.laws` | `ProliferationLaw` | mathematical biology, the kinetic theory of active particles | `EncounterBirthLaw` | `ProliferationLaw` in `models.biology.oncology`, its only user | proposed: proliferative and destructive encounters are the terms of the kinetic theory of active particles, a mathematical framework the core adopts with `EncounterLaw`, and renaming two of its three laws splits the family |
+| `core.laws` | `DestructionLaw` | mathematical biology, the kinetic theory of active particles | `EncounterDeathLaw` | `DestructionLaw` in `models.biology.oncology` | proposed, as `ProliferationLaw` |
 | `core.specs` | `SamplerSpec` kind `'heat-bath'` | statistical physics | `'gibbs'`, the Gibbs sampler | none: `models.physics.statistical_mechanics` passes `'gibbs'` and documents the physics name | proposed: heat-bath is also the usual name in Monte Carlo texts, and it sits beside `'metropolis'` and `'glauber'` |
 | `core.specs` | `SamplerSpec.temperature`, `EnergySpec` | statistical physics | | | keep: energy and temperature are the parameters of the Gibbs measure the sampler draws from, as in simulated annealing |
 | `core.laws.utils` | `distributed_delay` symbols `material_delay<n>` | system dynamics, material against information delays | `conserved_delay<n>` | | proposed: the public setting is already `conserved`; only the generated symbol, which printed equations of the system-dynamics models show, carries the field name |

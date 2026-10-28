@@ -1,5 +1,6 @@
-"""Climate: energy balance, variability, glacial cycles, low-order atmospheres, net energy, and tipping."""
+"""Climate: energy balance, variability, glacial cycles, low-order atmospheres, net energy, tipping and its warnings."""
 
+from ._early_warning import EarlyWarningAnalysis
 from ._energy_balance import (
     DaisyworldElement,
     IceAlbedoClimateElement,
@@ -33,6 +34,7 @@ __all__: list[str] = [
     'ClimateAnomalyElement',
     'DaisyworldElement',
     'DelayedOscillatorElement',
+    'EarlyWarningAnalysis',
     'GeodynamoElement',
     'IceAlbedoClimateElement',
     'LatitudeBandElement',

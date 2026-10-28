@@ -18,8 +18,8 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpe
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._institutions import InstitutionInteraction
-from ..realizations._learning import heuristics, logit_choice
+from ..realizations.institutions import InstitutionInteraction
+from ..realizations.learning import heuristics, logit_choice
 
 PREDICTORS = ('fundamentalist', 'trend')
 

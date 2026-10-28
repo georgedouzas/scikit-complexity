@@ -18,8 +18,8 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations._institutions import InstitutionInteraction
-from ..realizations._markets import DeferredAcceptance, MarketInteraction, Trade
+from ..realizations.institutions import InstitutionInteraction
+from ..realizations.markets import DeferredAcceptance, MarketInteraction, Trade
 
 
 class EmployerElement(Element):
