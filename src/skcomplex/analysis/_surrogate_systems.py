@@ -10,7 +10,7 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -19,15 +19,17 @@ from sage.all__sagemath_symbolics import Expression
 from ..core.elements import Element
 from ..core.errors import AnalysisError
 from ..core.laws import BaseLaw
-from ..core.spaces import BaseTime, DiscreteTime
+from ..core.spaces import BaseTime
 from ..core.specs import StateSpec
 from ..core.system import System
-from ..engine.runtime import Simulation, Trajectory
-from ..engine.utils import BaseEstimator
-from ._adapters import Series, series_of
+from ..engine.runtime import Trajectory
+from ._adapters import Series
+
+if TYPE_CHECKING:
+    from ._base import BaseAnalysis
 
 type Array = npt.NDArray[np.float64]
-type SurrogateData = Trajectory | Series | Sequence[Trajectory | Series]
+type SurrogateSource = Trajectory | npt.ArrayLike | list[Trajectory | npt.ArrayLike]
 STEP_TOLERANCE = 1e-6
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})
 
@@ -52,10 +54,13 @@ class Samples:
     dt: float
 
 
-def _series_list(data: SurrogateData, names: Sequence[str] | None) -> list[Series]:
-    """Return the series of every trajectory or series given, with the named variables of trajectories."""
-    items = [data] if isinstance(data, Trajectory | Series) else list(data)
-    return [item if isinstance(item, Series) else series_of(item, names) for item in items]
+def _runs_of(source: SurrogateSource) -> list[Trajectory | npt.ArrayLike]:
+    """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or the source."""
+    if isinstance(source, list) and all(isinstance(item, Trajectory | np.ndarray) for item in source):
+        return source
+    if not isinstance(source, Trajectory) and np.ndim(source) == 3:  # noqa: PLR2004
+        return list(np.asarray(source, dtype=float))
+    return [source]
 
 
 def _step_of(series: Series) -> float:
@@ -77,15 +82,26 @@ def _identifier(text: str) -> str:
     return f'{cleaned}_' if keyword.iskeyword(cleaned) or cleaned in RESERVED_NAMES else cleaned
 
 
-def samples_of(data: SurrogateData, names: Sequence[str] | None = None) -> Samples:
-    """Return the uniformly sampled series of trajectories or series, with common variables and step.
+def _read_samples(
+    analysis: 'BaseAnalysis',
+    source: SurrogateSource,
+    variables: Sequence[str] | None,
+    dt: float,
+) -> Samples:
+    """Return the uniformly sampled series of the runs of a source, with common variables and step.
 
     Args:
-        data:
-            A trajectory, a series, or a sequence of them.
+        analysis:
+            The analysis whose reader takes the series of every run.
 
-        names:
-            The names of the variables of trajectories, or `None` for every scalar state or observable.
+        source:
+            A trajectory, an array with one row per sample, or several runs as a list or a 3-D array.
+
+        variables:
+            The variables of trajectories, or `None` for every scalar state or observable.
+
+        dt:
+            The time between the rows of an array.
 
     Returns:
         samples:
@@ -93,11 +109,14 @@ def samples_of(data: SurrogateData, names: Sequence[str] | None = None) -> Sampl
 
     Raises:
         AnalysisError:
-            No series is given, or the series differ in variables or step, or are not uniformly sampled.
+            No run is given, or the runs differ in variables or step, or are not uniformly sampled.
     """
-    found = _series_list(data, names)
+    found = []
+    for run in _runs_of(source):
+        series = analysis._read_series(run, variables)
+        found.append(series if isinstance(run, Trajectory) else Series(series.times * dt, series.values, series.labels))
     if not found:
-        error_msg = 'No series is given. Pass a trajectory, a series, or a sequence of them.'
+        error_msg = 'No series is given. Pass a trajectory, an array, or a list of them.'
         raise AnalysisError(error_msg)
     steps = [_step_of(series) for series in found]
     labels = found[0].labels
@@ -110,7 +129,7 @@ def samples_of(data: SurrogateData, names: Sequence[str] | None = None) -> Sampl
     return Samples([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])
 
 
-def check_validation(validation: float) -> None:
+def _check_validation(validation: float) -> None:
     """Raise an error for a validation share outside `[0, 1)`.
 
     Args:
@@ -126,7 +145,23 @@ def check_validation(validation: float) -> None:
         raise AnalysisError(error_msg)
 
 
-def split_samples(series: list[Array], validation: float) -> tuple[list[Array], list[Array]]:
+def _check_horizon(horizon: int) -> None:
+    """Raise an error for a forecast horizon that is not a nonnegative integer.
+
+    Args:
+        horizon:
+            The number of samples to forecast.
+
+    Raises:
+        AnalysisError:
+            The horizon is not a nonnegative integer.
+    """
+    if isinstance(horizon, bool) or not isinstance(horizon, int | np.integer) or horizon < 0:
+        error_msg = f'The horizon must be a nonnegative number of samples, but got {horizon!r}.'
+        raise AnalysisError(error_msg)
+
+
+def _split_samples(series: list[Array], validation: float) -> tuple[list[Array], list[Array]]:
     """Return the leading training part and the trailing validation part of every series.
 
     Args:
@@ -144,14 +179,14 @@ def split_samples(series: list[Array], validation: float) -> tuple[list[Array], 
         AnalysisError:
             The share is outside `[0, 1)`.
     """
-    check_validation(validation)
+    _check_validation(validation)
     cuts = [len(values) - math.floor(validation * (len(values) - 1)) for values in series]
     return [values[:cut] for values, cut in zip(series, cuts, strict=True)], [
         values[cut - 1 :] for values, cut in zip(series, cuts, strict=True)
     ]
 
 
-def relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> float:
+def _relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> float:
     """Return the relative error `||predicted - actual|| / ||actual||` over every row of every array.
 
     Args:
@@ -173,7 +208,7 @@ def relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> float
     return float(np.linalg.norm(estimate - measured) / np.linalg.norm(measured))
 
 
-def state_names(labels: Sequence[str]) -> list[str]:
+def _state_names(labels: Sequence[str]) -> list[str]:
     """Return state names for variables: the last part of every dotted label, or the whole label where those clash.
 
     Args:
@@ -191,7 +226,7 @@ def state_names(labels: Sequence[str]) -> list[str]:
     return full if len(set(full)) == len(full) else [f'{name}_{index}' for index, name in enumerate(full)]
 
 
-def surrogate_system(
+def _surrogate_system(
     kind: str,
     label: str,
     initial: Mapping[str, float],
@@ -236,7 +271,7 @@ def surrogate_system(
     return System(elements=[element_type(label)], time=time)
 
 
-def symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
+def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
     """Return the symbols of the named states of a namespace.
 
     Args:
@@ -251,80 +286,3 @@ def symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
             The symbols, in order.
     """
     return [getattr(s, name) for name in names]
-
-
-class BaseSurrogate(BaseEstimator):
-    """Base class of the surrogate systems fitted to series, which forecast by simulating the fitted system.
-
-    `prepare(data)` fits the surrogate to a trajectory, a series, or a sequence of them, sampled at one uniform step,
-    and
-    `run(steps)` forecasts the variables over a number of samples after the last sample of the last series. This base
-    runs the fitted system from that sample, and a child may forecast faster.
-
-    Args:
-        names:
-            The variables of trajectories, or `None` for every scalar state or observable.
-
-        validation:
-            The share of the samples of every series held out at its end to measure the validation error.
-
-        label:
-            The label of the surrogate element.
-
-    Attributes:
-        system_:
-            The system of one surrogate element, which `Simulation` runs.
-
-        labels_:
-            The variables the surrogate was fitted to, in the order of its states.
-
-        states_:
-            The names of the states of the surrogate element.
-
-        last_state_:
-            The values of the states at the last sample of the last series, where forecasts start.
-
-        dt_:
-            The time between the samples it was fitted to.
-
-        training_error_:
-            The relative error of the predicted increments or derivatives on the training samples.
-
-        validation_error_:
-            The relative error on the held-out samples, NaN when none are held out.
-    """
-
-    system_: System
-    labels_: list[str]
-    states_: list[str]
-    last_state_: Array
-    dt_: float
-    training_error_: float
-    validation_error_: float
-
-    def __init__(
-        self,
-        names: Sequence[str] | None = None,
-        *,
-        validation: float = 0.2,
-        label: str = 'surrogate',
-    ) -> None:
-        self.names = names
-        self.validation = validation
-        self.label = label
-
-    def _check(self) -> None:
-        """Raise an error for a validation share outside `[0, 1)`."""
-        check_validation(self.validation)
-
-    def _run(self, steps: int) -> Array:
-        """Return the variables of the fitted system simulated from the last sample, one row per sample."""
-        dt = 1.0 if isinstance(self.system_.time, DiscreteTime) else self.dt_
-        names = [f'{self.label}.{name}' for name in self.states_]
-        simulation = Simulation(
-            self.system_,
-            dt=dt,
-            initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
-        )
-        trajectory = simulation.run(until=steps * dt).trajectory_
-        return np.column_stack([trajectory.values(name) for name in names[: len(self.labels_)]])[1 : steps + 1]

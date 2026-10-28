@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -15,16 +15,19 @@ from ..core.laws import BaseLaw, UpdateLaw
 from ..core.laws.utils import Call
 from ..core.spaces import DiscreteTime
 from ..engine.problems import vector
+from ._base import BaseAnalysis
+from ._kinds import DataKind
 from ._lazy import module
 from ._surrogate_systems import (
-    BaseSurrogate,
-    SurrogateData,
-    relative_error,
-    samples_of,
-    split_samples,
-    state_names,
-    surrogate_system,
-    symbols_of,
+    SurrogateSource,
+    _check_horizon,
+    _check_validation,
+    _read_samples,
+    _relative_error,
+    _split_samples,
+    _state_names,
+    _surrogate_system,
+    _symbols_of,
 )
 
 type Array = npt.NDArray[np.float64]
@@ -160,7 +163,7 @@ def _fit_readout(step: _ReservoirStep, series: list[Array], training: list[Array
         raise AnalysisError(error_msg)
     step.readout.fit(np.concatenate(inputs), np.concatenate(targets) / step.scale)
     increments = [np.diff(values, axis=0) for values in series]
-    return relative_error([step.increments(item) for item in inputs], targets), relative_error(
+    return _relative_error([step.increments(item) for item in inputs], targets), _relative_error(
         [step.increments(found[cut:]) for found, cut in zip(features, cuts, strict=True)],
         [found[cut:] for found, cut in zip(increments, cuts, strict=True)],
     )
@@ -171,24 +174,24 @@ def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Sim
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update law."""
-        symbols = symbols_of(s, names)
+        symbols = _symbols_of(s, names)
         return [UpdateLaw(vector(symbols), Call(step.evaluate, tuple(symbols)))]
 
     return laws
 
 
-class ReservoirSurrogate(BaseSurrogate):
-    """Reservoir surrogate whose ridge readout gives the increments of the variables over one sample, from ReservoirPy.
+class ReservoirAnalysis(BaseAnalysis):
+    """Reservoir system whose ridge readout gives the increments of the variables over one sample, from ReservoirPy.
 
     The reservoir is driven by the standardized variables, and a ridge regression from its features to the increments
     of the variables over one sample is fitted on the training samples. A next-generation reservoir takes as features
     the variables at `delay` consecutive samples and their monomials of degree `order`. An echo state network takes
-    the activities of `units` leaky tanh units with random recurrent weights. The surrogate runs under discrete time,
-    one step per sample, and starts at the last sample of the last series with the memory the series left, so a run of
+    the activities of `units` leaky tanh units with random recurrent weights. The fitted system runs under discrete
+    time, one step per sample, and starts at the last sample of the last run with the memory the runs left, so a run of
     the system is the autonomous forecast.
 
     Args:
-        names:
+        variables:
             The variables of trajectories, or `None` for every scalar state or observable.
 
         kind:
@@ -220,7 +223,13 @@ class ReservoirSurrogate(BaseSurrogate):
             `delay` with a next-generation reservoir and 100 with an echo state network.
 
         validation:
-            The share of the samples of every series held out at its end to measure the validation error.
+            The share of the samples of every run held out at its end to measure the validation error.
+
+        horizon:
+            The number of samples to forecast after the last sample of the last run.
+
+        dt:
+            The time between the rows of an array.
 
         random_state:
             The seed of the random weights of an echo state network.
@@ -229,6 +238,9 @@ class ReservoirSurrogate(BaseSurrogate):
             The label of the surrogate element.
 
     Attributes:
+        samples_:
+            The series of every run, the names of the variables, and the step, set by `prepare`.
+
         system_:
             The system of one surrogate element under discrete time, one step per sample, whose states are the
             variables and then the memory of the reservoir.
@@ -255,26 +267,27 @@ class ReservoirSurrogate(BaseSurrogate):
         step_:
             The map from the states to the states one step later, which the update law calls.
 
+        forecast_:
+            The variables at the `horizon` samples after the last one, one row per sample.
+
     Raises:
         AnalysisError:
             The reservoir kind is unknown, or no training sample is left after the warmup.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import ReservoirSurrogate, Series
+        >>> from skcomplex.analysis import ReservoirAnalysis
         >>> times = np.arange(400.0)
-        >>> surrogate = ReservoirSurrogate().prepare(Series(times, np.sin(0.1 * times)[:, None], ['x']))
-        >>> surrogate.states_
+        >>> analysis = ReservoirAnalysis(['x'], horizon=10).check().prepare(np.sin(0.1 * times)).run()
+        >>> analysis.states_
         ['x', 'memory_0', 'memory_1']
-        >>> bool(abs(surrogate.run(10)[-1, 0] - np.sin(0.1 * 409)) < 0.01)
+        >>> bool(abs(analysis.forecast_[-1, 0] - np.sin(0.1 * 409)) < 0.01)
         True
     """
 
-    step_: _ReservoirStep
-
     def __init__(
         self,
-        names: Sequence[str] | None = None,
+        variables: Sequence[str] | None = None,
         *,
         kind: str = 'next_generation',
         delay: int = 2,
@@ -286,10 +299,12 @@ class ReservoirSurrogate(BaseSurrogate):
         ridge: float = 1e-4,
         warmup: int | None = None,
         validation: float = 0.2,
+        horizon: int = 0,
+        dt: float = 1.0,
         random_state: int | None = 0,
         label: str = 'surrogate',
     ) -> None:
-        self.names = names
+        self.variables = variables
         self.kind = kind
         self.delay = delay
         self.order = order
@@ -300,19 +315,32 @@ class ReservoirSurrogate(BaseSurrogate):
         self.ridge = ridge
         self.warmup = warmup
         self.validation = validation
+        self.horizon = horizon
+        self.dt = dt
         self.random_state = random_state
         self.label = label
 
-    def _check(self) -> None:
-        """Raise an error for an unknown reservoir kind or a validation share outside `[0, 1)`."""
-        super()._check()
+    def _check(self) -> Self:
+        """Raise an error for an unknown reservoir kind, a validation share outside `[0, 1)`, or a negative horizon."""
+        _check_validation(self.validation)
+        _check_horizon(self.horizon)
         if self.kind not in RESERVOIR_KINDS:
             error_msg = f'The reservoir kind {self.kind!r} is unknown. Choose one of {RESERVOIR_KINDS}.'
             raise AnalysisError(error_msg)
+        return self
 
-    def _prepare(self, data: SurrogateData) -> None:
-        """Drive the reservoir by the series, fit its readout, and set the surrogate system and its errors."""
-        samples = samples_of(data, self.names)
+    def _get_data_kind(self) -> DataKind:
+        """Return the series kind."""
+        return DataKind.SERIES
+
+    def _prepare(self, source: SurrogateSource) -> Self:
+        """Read the uniformly sampled series of every run."""
+        self.samples_ = _read_samples(self, source, self.variables, self.dt)
+        return self
+
+    def _run(self) -> Self:
+        """Fit the readout of the reservoir and set the surrogate system, its errors, and the forecast."""
+        samples = self.samples_
         node = _reservoir_node(
             self.kind,
             delay=self.delay,
@@ -323,7 +351,7 @@ class ReservoirSurrogate(BaseSurrogate):
             input_scaling=self.input_scaling,
             random_state=self.random_state,
         )
-        training, _ = split_samples(samples.series, self.validation)
+        training, _ = _split_samples(samples.series, self.validation)
         joined = np.concatenate(training)
         step = _ReservoirStep(
             self.kind,
@@ -336,9 +364,9 @@ class ReservoirSurrogate(BaseSurrogate):
         skipped = default_warmup if self.warmup is None else self.warmup
         self.training_error_, self.validation_error_ = _fit_readout(step, samples.series, training, skipped)
         memory = step.memory()
-        states = state_names([*samples.labels, *(f'memory[{index}]' for index in range(len(memory)))])
+        states = _state_names([*samples.labels, *(f'memory[{index}]' for index in range(len(memory)))])
         self.last_state_ = np.asarray([*samples.series[-1][-1], *memory], dtype=float)
-        self.system_ = surrogate_system(
+        self.system_ = _surrogate_system(
             'ReservoirSurrogate',
             self.label,
             dict(zip(states, map(float, self.last_state_), strict=True)),
@@ -349,12 +377,10 @@ class ReservoirSurrogate(BaseSurrogate):
         self.states_ = states
         self.dt_ = samples.dt
         self.step_ = step
-
-    def _run(self, steps: int) -> Array:
-        """Return the autonomous forecast of the variables, applying the map once per sample after the last one."""
         current = self.last_state_
         rows = []
-        for _ in range(steps):
-            current = self.step_.evaluate(0.0, *current)
+        for _ in range(self.horizon):
+            current = step.evaluate(0.0, *current)
             rows.append(current[: len(self.labels_)])
-        return np.asarray(rows).reshape(steps, len(self.labels_))
+        self.forecast_ = np.asarray(rows).reshape(self.horizon, len(self.labels_))
+        return self
