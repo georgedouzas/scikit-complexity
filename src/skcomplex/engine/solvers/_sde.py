@@ -14,7 +14,8 @@ from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
 from ..problems import Form, NoiseKind, OrderKind, SupportSpec, VectorFunction, step_count
-from ._hybrid import Interpolant, _advance_fixed_steps, _is_hybrid, _open_history, _with_delays
+from ._base import BaseSolver
+from ._hybrid import History, Interpolant
 from ._stepper import Solver
 
 
@@ -79,10 +80,10 @@ class SDESolver(Solver):
     def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate with fixed steps, reading delays and locating events by linear interpolation of every step."""
         problem = self.problem_
-        history = self.history_ = _open_history(problem, self.history_, t, x)
+        history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Vector, step: float, ceiling: float) -> tuple[Vector, Interpolant]:
-            parameters = _with_delays(problem, history, time, state, p)
+            parameters = History._with_delays(problem, history, time, state, p)
             noise = problem.draw_increments(self.rng_, math.sqrt(step))
             following = self._increment(time, state, parameters, step=step, noise=noise, end=min(time + step, ceiling))
             start, end = state.copy(), following.copy()
@@ -92,7 +93,7 @@ class SDESolver(Solver):
 
             return following, interpolant
 
-        return _advance_fixed_steps(
+        return BaseSolver._advance_fixed_steps(
             t,
             x,
             p,
@@ -250,7 +251,7 @@ class EulerMaruyamaSolver(SDESolver):
             return x
         if self.problem_.renewals:
             return self._advance_renewals(t, x, p, until, dt=self.dt, step=self._step)
-        if _is_hybrid(self.problem_, t, until):
+        if BaseSolver._is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
         accelerated = self.problem_.accelerated
         if accelerated is not None and accelerated.euler_maruyama is not None:

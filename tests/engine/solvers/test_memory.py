@@ -9,7 +9,6 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import memory
 
 
 class SaverElement(Element):
@@ -33,7 +32,7 @@ class SaverElement(Element):
 
     def save(self, agent, model):
         """Test helper save."""
-        agent.seen = float(len(memory(agent, 'money')))
+        agent.seen = float(len(agent.lags('money')))
         agent.money += 1
 
 
@@ -62,7 +61,7 @@ def test_memory_of_unremembered_state_raises():
             self.money = money
 
         def _get_laws(self, s):
-            return [RuleLaw(lambda agent, model: memory(agent, 'money'))]
+            return [RuleLaw(lambda agent, model: agent.lags('money'))]
 
     with pytest.raises(KeyError, match='remember'):
         Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).run(until=1)

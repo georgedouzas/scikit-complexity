@@ -15,7 +15,7 @@ from ...core.errors import BackendError, SolverError
 from ...core.types import Vector
 from ..problems import Form, Problem
 from ._base import BaseSolver
-from ._hybrid import _RESTART, EventLocator, History, _find_bounds
+from ._hybrid import _RESTART, EventLocator, History
 from ._renewals import RenewalClock
 
 
@@ -70,7 +70,7 @@ class Solver(BaseSolver[Problem]):
         clock.begin(t, x, p)
         advance = clock.advance_split if problem.has_group_sums else clock.advance_members
         state, time = x.copy(), t
-        for bound in _find_bounds(problem, t, until):
+        for bound in EventLocator._find_bounds(problem, t, until):
             while time < bound - _RESTART * max(1.0, abs(bound)):
                 end = min(time + dt, bound)
                 state, time = advance(time, end, state, p, step), end

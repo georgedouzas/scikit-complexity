@@ -13,7 +13,6 @@ from ._lammps import LammpsFix, LammpsSolver
 from ._lattices import LatticeSolver, MonteCarloSolver
 from ._lepton import LeptonPrinter
 from ._maps import IterationSolver
-from ._memory import memory
 from ._mesa import AgentView, MesaSolver, ModelView
 from ._ode import RK4Solver, ScipyODESolver, VelocityVerletSolver
 from ._optimal_control import ControlSolution
@@ -71,5 +70,4 @@ __all__: list[str] = [
     'UnitarySolver',
     'VelocityVerletSolver',
     'fractional_gaussian_noise',
-    'memory',
 ]

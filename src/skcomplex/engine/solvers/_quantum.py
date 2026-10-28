@@ -24,16 +24,6 @@ MAX_SEED = 2**32
 _PURITY_TOLERANCE = 1e-8
 
 
-def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
-    """Return the coefficient of a term as a function of time, at fixed parameters."""
-    parameters = p.copy()
-
-    def value(t: float) -> complex:
-        return term.value(t, parameters)
-
-    return value
-
-
 class QuantumSolver(BaseSolver[QuantumProblem]):
     """Base class of solvers that advance quantum problems with a stepwise QuTiP solver.
 
@@ -86,7 +76,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         for term in terms:
             matrix = qutip.Qobj(term.matrix, dims=dims)
             if term.time_dependent:
-                varying.append([matrix, _coefficient(term, p)])
+                varying.append([matrix, self._coefficient(term, p)])
             else:
                 constant = constant + complex(term.value(0.0, p)) * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
@@ -197,6 +187,16 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             self.parameters_ = p.copy()
             self._start(self.solver_, x, t)
         return self._stored(self.solver_.step(until))
+
+    @staticmethod
+    def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
+        """Return the coefficient of a term as a function of time, at fixed parameters."""
+        parameters = p.copy()
+
+        def value(t: float) -> complex:
+            return term.value(t, parameters)
+
+        return value
 
 
 class UnitarySolver(QuantumSolver):

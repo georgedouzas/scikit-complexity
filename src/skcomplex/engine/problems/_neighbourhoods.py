@@ -662,7 +662,7 @@ class CompiledNeighborhood:
                 return cone.heading
             error_msg = (
                 f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
-            'angle state in two dimensions.'
+                'angle state in two dimensions.'
             )
             raise ValidationError(error_msg)
         position = CompiledNeighborhood._position_state(states)
@@ -675,7 +675,8 @@ class CompiledNeighborhood:
         if velocity is None:
             error_msg = (
                 'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
-            "`state(vector=True, velocity_of='x')`, or name a heading state, such as `Cone(r, angle, heading='theta')`."
+                "`state(vector=True, velocity_of='x')`, or name a heading state, such as "
+                "`Cone(r, angle, heading='theta')`."
             )
             raise ValidationError(error_msg)
         return velocity
@@ -743,7 +744,7 @@ class CompiledNeighborhood:
             if rows != size:
                 error_msg = (
                     f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
-                f'group has {rows} members.'
+                    f'group has {rows} members.'
                 )
                 raise ValidationError(error_msg)
             if isinstance(over, AdjacencyNeighborhood):
@@ -753,7 +754,7 @@ class CompiledNeighborhood:
         if position is None:
             error_msg = (
                 f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
-            "position state. Declare one with `state(vector=True, position=True)`."
+                "position state. Declare one with `state(vector=True, position=True)`."
             )
             raise ValidationError(error_msg)
         continuous: ContinuousSpace = space  # type: ignore[assignment]

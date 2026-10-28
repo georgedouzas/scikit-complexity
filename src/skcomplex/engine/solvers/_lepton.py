@@ -3,11 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import BackendError
-from ..problems import Dialect, print_expressions, symbol, symbols_of
+from ..problems import Dialect, print_expressions
 
 _LEPTON = Dialect(
     'Lepton',
@@ -48,40 +47,6 @@ _LEPTON = Dialect(
     error=BackendError,
     exact_rationals=True,
 )
-
-
-def lepton_expression(expression: Expression, distance: Expression) -> str:
-    """Return a pair energy as a Lepton expression of the distance `r`.
-
-    Args:
-        expression:
-            The pair energy, whose only symbol is the distance.
-
-        distance:
-            The distance symbol.
-
-    Returns:
-        expression:
-            The Lepton expression.
-
-    Raises:
-        BackendError:
-            The energy has symbols other than the distance or functions Lepton does not know.
-
-    Examples:
-        >>> from skcomplex.engine.problems import symbol
-        >>> from skcomplex.engine.solvers._lepton import lepton_expression
-        >>> x = symbol('x')
-        >>> lepton_expression(4 * (x**-12 - x**-6), x)
-        '-4/r^6 + 4/r^12'
-    """
-    expression = SR(expression)
-    others = symbols_of([expression]) - {distance}
-    if others:
-        names = ', '.join(sorted(map(str, others)))
-        error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
-        raise BackendError(error_msg)
-    return LeptonPrinter().doprint(expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand())
 
 
 class LeptonPrinter:

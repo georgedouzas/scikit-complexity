@@ -31,19 +31,8 @@ from ...core.laws import (
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
 from ..problems import Form, OrderKind, Problem, SupportSpec, VectorFunction, components_of, step_count
-from ._hybrid import (
-    _RESTART,
-    History,
-    Interpolant,
-    _advance_fixed_steps,
-    _find_left_limit,
-    _find_smallest_delay,
-    _is_hybrid,
-    _open_history,
-    _reject_hybrid,
-    _with_delays,
-    hermite,
-)
+from ._base import BaseSolver
+from ._hybrid import _RESTART, EventLocator, History, Interpolant
 from ._stepper import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
@@ -263,7 +252,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
-            matrix = jacobian.evaluate(time, state, _with_delays(problem, history, time, state, p))
+            matrix = jacobian.evaluate(time, state, History._with_delays(problem, history, time, state, p))
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}
@@ -326,13 +315,13 @@ class ScipyODESolver(Solver):
         if problem.breakpoints.unresolved:
             later = self._until if later is None else min(later, self._until)
         bound = min(later if later is not None else math.inf, self._next_discontinuity(after))
-        ceiling = _find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
+        ceiling = EventLocator._find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
 
         def field(time: float, state: Vector) -> Vector:
             time = min(time, ceiling)
-            return drift(time, state, _with_delays(problem, history, time, state, p))  # type: ignore[misc]
+            return drift(time, state, History._with_delays(problem, history, time, state, p))  # type: ignore[misc]
 
-        delay = _find_smallest_delay(problem)
+        delay = EventLocator._find_smallest_delay(problem)
         end = min(bound, _LARGEST_TIME)
         max_step = max(delay, self._frame / _STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
@@ -635,15 +624,15 @@ class RK4Solver(Solver):
         """Integrate with fixed RK4 steps, interpolating every step for delays and locating events in it."""
         problem = self.problem_
         drift = cast('VectorFunction', problem.drift)
-        history = self.history_ = _open_history(problem, self.history_, t, x)
+        history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Vector, step: float, ceiling: float) -> tuple[Vector, Interpolant]:
             def field(time: float, state: Vector) -> Vector:
                 time = min(time, ceiling)
-                return drift(time, state, _with_delays(problem, history, time, state, p))
+                return drift(time, state, History._with_delays(problem, history, time, state, p))
 
             following = self._rk4_step(field, time, state, step)
-            interpolant = hermite(
+            interpolant = self._hermite(
                 time,
                 state,
                 field(time, state),
@@ -653,7 +642,7 @@ class RK4Solver(Solver):
             )
             return following, interpolant
 
-        return _advance_fixed_steps(
+        return BaseSolver._advance_fixed_steps(
             t,
             x,
             p,
@@ -697,7 +686,7 @@ class RK4Solver(Solver):
             return x
         if self.problem_.renewals:
             return self._advance_renewals(t, x, p, until, dt=self.dt, step=self._step)
-        if _is_hybrid(self.problem_, t, until):
+        if BaseSolver._is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
         accelerated = self.problem_.accelerated
         if accelerated is not None and accelerated.rk4 is not None:
@@ -738,6 +727,46 @@ class RK4Solver(Solver):
         k3 = field(time + span / 2, state + step / 2 * k2)
         k4 = field(time + span, state + step * k3)
         return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+    @staticmethod
+    def _hermite(t0: float, x0: Vector, f0: Vector, *, t1: float, x1: Vector, f1: Vector) -> Interpolant:
+        """Return the cubic Hermite interpolant between two states with their derivatives.
+
+        Args:
+            t0:
+                The first time.
+
+            x0:
+                The first state.
+
+            f0:
+                The derivative at the first time.
+
+            t1:
+                The second time.
+
+            x1:
+                The second state.
+
+            f1:
+                The derivative at the second time.
+
+        Returns:
+            interpolant:
+                The function of time.
+        """
+        span = t1 - t0
+
+        def evaluate(time: float) -> Vector:
+            s = (time - t0) / span if span else 0.0
+            return (
+                (2 * s**3 - 3 * s**2 + 1) * x0
+                + (s**3 - 2 * s**2 + s) * span * f0
+                + (-2 * s**3 + 3 * s**2) * x1
+                + (s**3 - s**2) * span * f1
+            )
+
+        return evaluate
 
 
 class VelocityVerletSolver(Solver):
@@ -796,7 +825,7 @@ class VelocityVerletSolver(Solver):
                 The problem is not an ODE, or has states that are neither positions nor velocities.
         """
         super()._prepare(problem, rng, until)
-        _reject_hybrid(problem, type(self).__name__)
+        BaseSolver._reject_hybrid(problem, type(self).__name__)
         self.positions_, self.velocities_ = self._position_pairs(problem)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:

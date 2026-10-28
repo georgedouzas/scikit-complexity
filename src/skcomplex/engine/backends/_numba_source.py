@@ -332,8 +332,8 @@ class _Source:
                 read = reference.neighbor
                 return (
                     f'neighbor_value({_Source._vector(reference)}, _L{2 * self.slot(reference.entry)}_, '
-                f'{reference.entry.columns}, {reference.column}, _m_, {tuple(read.sizes)}, {tuple(read.steps)}, '
-                f'{read.mode}, {float(read.ghost or 0.0)})'
+                    f'{reference.entry.columns}, {reference.column}, _m_, {tuple(read.sizes)}, {tuple(read.steps)}, '
+                    f'{read.mode}, {float(read.ghost or 0.0)})'
                 )
             return f'{_Source._vector(reference)}[{self._index(reference, '_m_')}]'
 
@@ -574,7 +574,7 @@ class _Source:
             starts = ', '.join(f'_L{2 * self.slot(entry)}_' for entry in (search.source, search.target, search.active))
             call = (
                 f'edge_neighbours(p, ({starts}), _L{2 * self.slot(search.source) + 1}_, {search.size}, '
-            f'{search.directed}, {search.center})'
+                f'{search.directed}, {search.center})'
             )
             return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
         assert isinstance(search, MetricSearch)
@@ -585,7 +585,7 @@ class _Source:
         lines = [
             (
                 f'{INDENT}_pos{index}_ = x[{start} : {start} + {reduction.size} * {columns}]'
-            f'.reshape(({reduction.size}, {columns}))'
+                f'.reshape(({reduction.size}, {columns}))'
             ),
             f'{INDENT}_per{index}_ = np.array([{", ".join(repr(float(item)) for item in periods)}])',
         ]
@@ -610,12 +610,12 @@ class _Source:
         else:
             lines.append(
                 f'{INDENT}_hd{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
-            f'{columns}))',
+                f'{columns}))',
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (
             f'cone_neighbours(_pos{index}_, _hd{index}_, {neighbourhood.radius!r}, {cosine}, (_per{index}_, '
-        f'{periodic}), {center})'
+            f'{periodic}), {center})'
         )
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
 

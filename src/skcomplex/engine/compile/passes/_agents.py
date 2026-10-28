@@ -41,6 +41,7 @@ _AGENT_VIEW_NAMES = frozenset(
         'create',
         'displacement_to',
         'distance_to',
+        'lags',
     },
 )
 _MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'model'})

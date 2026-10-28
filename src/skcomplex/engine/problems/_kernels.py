@@ -157,9 +157,6 @@ class Reference:
         """Return the flat index of a target component for every evaluation index of a member or edge kernel.
 
         Args:
-            reference:
-                The target component.
-
             rows:
                 The number of evaluation indices of the kernel.
 
@@ -180,7 +177,7 @@ class Reference:
             if pairs.source is not None:
                 error_msg = (
                     f'A law targets {self.entry.name} at an end of the edges of a network whose edges change, whose '
-                'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
+                    'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
                 )
                 raise ValidationError(error_msg)
             ends = pairs.sources if self.source is Source.FIRST else pairs.targets

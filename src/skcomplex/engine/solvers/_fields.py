@@ -36,22 +36,6 @@ TIME = symbol('t')
 type Complex = npt.NDArray[np.complex128]
 
 
-def _coefficient(term: Any, p: Vector) -> Any:  # noqa: ANN401
-    """Return the value of a linear term's coefficient, a number or one value per member."""
-    symbols = sorted(term.references, key=str)
-    values = []
-    for item in symbols:
-        reference = term.references[item]
-        column = reference.entry.view(p)[:, reference.column]
-        values.append(float(column[0]) if reference.entry.members is None else column)
-    return numpy_function(TIME, symbols, [term.coefficient])(0.0, *values)[0]
-
-
-def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
-    """Return the flat state index of a component for every member."""
-    return reference.flat_indices
-
-
 @dataclass
 class _SpectralBlock:
     """Linear terms of the states of one spectral field, a small matrix per Fourier mode."""
@@ -230,7 +214,7 @@ class SplitOperator:
         groups: dict[int, list[Any]] = {}
         triplets: list[tuple[Any, Any, csr_matrix]] = []
         for term in problem.linear:
-            coefficient = _coefficient(term, p)
+            coefficient = cls._coefficient(term, p)
             if term.place.discretization != 'spectral':
                 triplets.append((term.target, term.source, cls._term_matrix(term, coefficient)))
             elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
@@ -340,8 +324,8 @@ class SplitOperator:
         rows, columns, values = [], [], []
         for target, source, matrix in triplets:
             block = matrix.tocoo()
-            rows.append(_rows(target)[block.row])
-            columns.append(_rows(source)[block.col])
+            rows.append(SplitOperator._rows(target)[block.row])
+            columns.append(SplitOperator._rows(source)[block.col])
             values.append(block.data)
         sparse = csr_matrix(
             (np.concatenate(values), (np.concatenate(rows), np.concatenate(columns))),
@@ -371,7 +355,7 @@ class SplitOperator:
             target = order[(term.target.entry.name, term.target.column)]
             source = order[(term.source.entry.name, term.source.column)]
             matrix[..., target, source] += coefficient * multiplier
-        return _SpectralBlock(dimensions, [_rows(reference) for reference in states.values()], matrix)
+        return _SpectralBlock(dimensions, [SplitOperator._rows(reference) for reference in states.values()], matrix)
 
     @staticmethod
     def _mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
@@ -380,6 +364,22 @@ class SplitOperator:
             error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
             raise SolverError(error_msg)
         return mesh_laplacian(space)
+
+    @staticmethod
+    def _coefficient(term: Any, p: Vector) -> Any:  # noqa: ANN401
+        """Return the value of a linear term's coefficient, a number or one value per member."""
+        symbols = sorted(term.references, key=str)
+        values = []
+        for item in symbols:
+            reference = term.references[item]
+            column = reference.entry.view(p)[:, reference.column]
+            values.append(float(column[0]) if reference.entry.members is None else column)
+        return numpy_function(TIME, symbols, [term.coefficient])(0.0, *values)[0]
+
+    @staticmethod
+    def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
+        """Return the flat state index of a component for every member."""
+        return reference.flat_indices
 
 
 class IMEXEulerSolver(_SplitSolver):

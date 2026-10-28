@@ -13,7 +13,7 @@ from typing import ClassVar, cast
 import numpy as np
 import numpy.typing as npt
 from lammps import lammps
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...core.elements import ParticleElement
@@ -37,8 +37,9 @@ from ..problems import (
     declarations_of,
     step_count,
     symbol,
+    symbols_of,
 )
-from ._lepton import lepton_expression
+from ._lepton import LeptonPrinter
 from ._stepper import ExternalSolver
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
@@ -233,7 +234,7 @@ class LammpsSolver(ExternalSolver):
         }
         distance = symbol('r', RealSet.open(0, oo))
         energy = interaction._get_pair_energy(SimpleNamespace(**values, **roles), distance)
-        return lepton_expression(energy, distance)
+        return self._lepton_expression(energy, distance)
 
     def _box_commands(self, problem: Problem, x: Vector) -> list[str]:
         """Return the commands that create the simulation box."""
@@ -596,3 +597,37 @@ class LammpsSolver(ExternalSolver):
         """Return the continuous space of a problem when it is a box with walls or joined sides, or `None`."""
         space = getattr(problem.system, 'space', None)
         return space if isinstance(space, ContinuousSpace) and space.boundary != 'open' else None
+
+    @staticmethod
+    def _lepton_expression(expression: Expression, distance: Expression) -> str:
+        """Return a pair energy as a Lepton expression of the distance `r`.
+
+        Args:
+            expression:
+                The pair energy, whose only symbol is the distance.
+
+            distance:
+                The distance symbol.
+
+        Returns:
+            expression:
+                The Lepton expression.
+
+        Raises:
+            BackendError:
+                The energy has symbols other than the distance or functions Lepton does not know.
+
+        Examples:
+            >>> from skcomplex.engine.problems import symbol
+            >>> from skcomplex.engine.solvers import LammpsSolver
+            >>> x = symbol('x')
+            >>> LammpsSolver._lepton_expression(4 * (x**-12 - x**-6), x)
+            '-4/r^6 + 4/r^12'
+        """
+        expression = SR(expression)
+        others = symbols_of([expression]) - {distance}
+        if others:
+            names = ', '.join(sorted(map(str, others)))
+            error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
+            raise BackendError(error_msg)
+        return LeptonPrinter().doprint(expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand())
