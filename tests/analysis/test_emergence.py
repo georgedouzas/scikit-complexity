@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import (
+    MarkovAnalysis,
     causal_emergence,
     effective_information,
     partition_coarse_grain,
-    transition_matrix,
 )
 from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
 
@@ -59,7 +59,8 @@ def test_partition_coarse_grain_trajectory_by_function():
     labels = partition_coarse_grain(path, lambda state: state // 2)
     np.testing.assert_array_equal(labels, path // 2)
     expected = partition_coarse_grain(micro, lambda state: state // 2, matrix=True, weighting='stationary')
-    np.testing.assert_allclose(transition_matrix(labels), expected, atol=0.02)
+    estimated = MarkovAnalysis().check().prepare(labels).run().transition_matrix_
+    np.testing.assert_allclose(estimated, expected, atol=0.02)
 
 
 def test_partition_coarse_grain_rejects_missing_labels():

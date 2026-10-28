@@ -11,12 +11,12 @@ from skcomplex.analysis import (
     ANALYSES,
     AnalysisEntry,
     DataKind,
+    MarkovAnalysis,
     analyses_for,
     analysis,
     data_kinds,
     ensemble_of,
     fields_of,
-    markov_state_model,
     networks_of,
     path_of,
     series_of,
@@ -171,13 +171,13 @@ def test_analyses_for_plain_array():
 
 
 def test_analyses_for_jump_path_in_the_default_install():
-    """Test that a jump path lists the Markov state model, which runs in the default install."""
+    """Test that a jump path has the path kind and gives a Markov state model, which runs in the default install."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 30.0, 'random_state': 0}).trajectory_
-    names = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.PATH}
-    assert 'markov_state_model' in names
+    assert DataKind.PATH in data_kinds(trajectory)
     path = path_of(trajectory)
     states = np.asarray(path.states, dtype=int) % 3
-    assert markov_state_model(np.tile(states, 20)).transition_matrix.shape[0] >= 2
+    model = MarkovAnalysis('state-model').check().prepare(np.tile(states, 20)).run()
+    assert model.transition_matrix_.shape[0] >= 2
 
 
 def test_analysis_registers_a_new_analysis():

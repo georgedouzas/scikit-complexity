@@ -3768,26 +3768,26 @@ print(len(machine.histories), round(machine.statistical_complexity, 2))
 dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
 set with a k-d tree, so it serves embedded series and agent positions alike. `kaplan_yorke_dimension` and
 `kolmogorov_sinai_entropy` follow from a Lyapunov spectrum, `largest_lyapunov_exponent` estimates the largest exponent
-from one series with Rosenstein's method of `nolds`, and `invariant_density` and `ulam_chain` estimate the invariant
-density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
+from one series with Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or `'ulam'`
+estimates the invariant density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
 laminarity, line lengths, trapping time, and line entropy of embedded series.
 
 ```python
 import numpy as np
 
 from skcomplex.analysis import (
+    ErgodicityAnalysis,
     correlation_dimension,
     delay_embedding,
     kaplan_yorke_dimension,
     recurrence_quantification,
-    ulam_chain,
 )
 
 points = np.random.default_rng(1).random((3000, 2))
 print(round(correlation_dimension(points).dimension, 1))
 print(round(kaplan_yorke_dimension([0.906, 0.0, -14.572]), 2))
-chain = ulam_chain(lambda x: 4 * x * (1 - x), np.linspace(0, 1, 21), 200)
-print(chain.density.round(1)[:3])
+chain = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 21), samples=200)
+print(chain.check().prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3])
 sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)
 print(round(recurrence_quantification(sine).determinism, 2))
 ```
@@ -3832,36 +3832,34 @@ print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrog
 
 ### Stochastic processes
 
-`first_passage_times`, `hitting_probabilities`, `return_times`, and `laminar_durations` measure passages and returns of
-paths. `transition_matrix`, `stationary_distribution`, `spectral_gap`, `relaxation_times`, and `detailed_balance` read
-transition and rate matrices or estimate them from paths. `fano_factor`, `event_counts`, `relative_fluctuations`, and
-`kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
-`langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility, and
-`uncertainty_relation` checks the thermodynamic uncertainty relation: the squared relative fluctuation of a current
-times the entropy produced is at least 2. `tilted_generating_function`, `block_generating_function`,
-`legendre_transform`, `histogram_rate_function`, and `reweight` give large deviations, and `cloning` estimates the scaled
-cumulant generating function of a model by cloning a population of its trajectories through the simulation's steppers,
-for systems whose tilted generators are too large to write down. `markov_state_model`, `implied_timescales`, `committor`, and
-`mean_first_passage_time` estimate Markov state models with `deeptime`. `two_time_correlation`, `aging_collapse`,
-`collapse_distributions`, `response`, and `fluctuation_dissipation_ratio` measure aging, and `fit_extreme_values`,
+`PassageAnalysis` measures first passages, absorption, and returns of paths, and the committor and mean first-passage
+time of a transition matrix, by its `kind`, and `laminar_durations` measures laminar phases. `MarkovAnalysis` estimates
+transition matrices from paths, reads transition and rate matrices with `matrix`, and gives their stationary laws,
+spectral gaps, and relaxation times, and Markov state models and implied timescales with `deeptime`. `fano_factor`,
+`event_counts`, and `relative_fluctuations` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and
+diffusion of a series with `kramersmoyal`. `IrreversibilityAnalysis` measures entropy production from rates, jump paths,
+Langevin paths, or transition counts, tests detailed balance and the fluctuation theorem, and checks the thermodynamic
+uncertainty relation: the squared relative fluctuation of a current times the entropy produced is at least 2. It also
+gives the response to a field and the fluctuation-dissipation ratio. `LargeDeviationAnalysis` gives the scaled cumulant
+generating function from a tilted generator, from blocks of one run, or by cloning a population of trajectories of a
+model through the simulation's steppers, for systems whose tilted generators are too large to write down, and its
+Legendre transform at `values`. It also gives rate functions from histograms at several sizes and reweights samples.
+`two_time_correlation`, `aging_collapse`, and `collapse_distributions` measure aging, and `fit_extreme_values`,
 `record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import (
-    entropy_production,
-    legendre_transform,
-    spectral_gap,
-    stationary_distribution,
-    tilted_generating_function,
-)
+from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis, MarkovAnalysis
 
 ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
-print(stationary_distribution(ring, rates=True).round(2), round(entropy_production(ring), 4))
-print(round(spectral_gap([[0.9, 0.1], [0.2, 0.8]]), 2))
-tilts = np.linspace(-3, 3, 601)
-print(round(float(legendre_transform(tilts, tilted_generating_function([[2.0]], [[1.0]], tilts), 3.0)[0]), 3))
+stationary = MarkovAnalysis('stationary', matrix='rate').check().prepare(ring).run().stationary_
+production = IrreversibilityAnalysis().check().prepare(ring).run().entropy_production_
+print(stationary.round(2), round(production, 4))
+gap = MarkovAnalysis('spectral-gap', matrix='transition').check().prepare([[0.9, 0.1], [0.2, 0.8]]).run()
+print(round(gap.spectral_gap_, 2))
+tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=np.linspace(-3, 3, 601), values=3.0)
+print(round(float(tilted.check().prepare([[2.0]]).run().rate_function_[0]), 3))
 ```
 
 Cloning advances every clone of a population by an interval, weights it by `exp(s A)` for the increment `A` of a
@@ -3874,7 +3872,7 @@ import numpy as np
 from skcomplex.core.components import Element
 from skcomplex.core.system import System
 
-from skcomplex.analysis import cloning, uncertainty_relation
+from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.declarations import state
 
@@ -3887,10 +3885,13 @@ class CounterElement(Element):
         """Return the laws of the counter element."""
         return [JumpLaw(1.0, {s.n: 1})]
 counter = System(elements=[CounterElement('counter')])
-estimate = cloning(counter, 'counter.n', 0.5, population=200, until=10.0, random_state=0)
-print(round(estimate.scgf, 2), round(float(np.exp(0.5) - 1), 2))
+cloning = LargeDeviationAnalysis(
+    'cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
+)
+print(cloning.check().prepare(counter).run().scgf_.round(2), round(float(np.exp(0.5) - 1), 2))
 currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
-print(uncertainty_relation(currents, entropy_production=10.0, random_state=0).holds)
+relation = IrreversibilityAnalysis('uncertainty-relation', entropy=10.0, random_state=0)
+print(relation.check().prepare(currents).run().holds_)
 ```
 
 ### Emergence and ergodicity
@@ -3919,24 +3920,26 @@ print(found.partition.tolist(), round(found.macro.information, 3), round(found.g
 print(partition_coarse_grain(noisy, found.partition, matrix=True).tolist())
 ```
 
-`ergodicity_breaking`, `fluctuation_metric`, and `ergodicity_distance` diagnose whether the runs of an ensemble, one row
-per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the variance
-of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays near 1
-for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the running
-time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. `ergodicity_distance` is the
-median total-variation distance between the values of one run over time and the values of the whole ensemble.
+`ErgodicityAnalysis` of kind `'breaking'`, `'metric'`, or `'distance'` diagnoses whether the runs of an ensemble, one
+row per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the
+variance of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays
+near 1 for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the
+running time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. The ergodicity distance
+is the median total-variation distance between the values of one run over time and the values of the whole ensemble.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
+from skcomplex.analysis import ErgodicityAnalysis
 
 rng = np.random.default_rng(0)
 mixing = rng.standard_normal((100, 5000))
 frozen = rng.choice([-1.0, 1.0], size=(100, 1)) + 0.1 * rng.standard_normal((100, 5000))
-print(ergodicity_breaking(mixing) < 0.01, ergodicity_breaking(frozen) > 0.9)
-print(round(fluctuation_metric(mixing).exponent, 1), abs(round(fluctuation_metric(frozen).exponent, 1)))
-print(ergodicity_distance(mixing) < 0.1, round(ergodicity_distance(frozen), 1))
+for runs in (mixing, frozen):
+    breaking = ErgodicityAnalysis('breaking').check().prepare(runs).run().ergodicity_breaking_
+    metric = ErgodicityAnalysis('metric').check().prepare(runs).run().exponent_
+    distance = ErgodicityAnalysis('distance').check().prepare(runs).run().ergodicity_distance_
+    print(round(breaking, 2), round(metric, 1), round(distance, 1))
 ```
 
 ### Fields and lattices
@@ -3972,7 +3975,8 @@ print(round(binder_cumulant(np.random.default_rng(3).standard_normal(10_000)), 1
 `maxwell_boltzmann_test` compare velocities with the Maxwell-Boltzmann law of their dimension.
 `nearest_neighbor_distances`, `clark_evans_ratio`, and `radial_distribution` describe point patterns in open or periodic
 boxes, and `coarse_grain` turns agents into density or polarization fields for the field analyses.
-`like_neighbor_share`, `interface_density`, and `dissimilarity_index` measure segregation on grids and networks.
+`MixingAnalysis` measures segregation by the share of like neighbours on grids and networks, or by the dissimilarity
+index of two groups across units, and `interface_density` gives the share of unlike neighbouring pairs.
 
 ```python
 import numpy as np

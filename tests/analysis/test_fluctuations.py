@@ -1,9 +1,9 @@
-"""Test Fano factors, event counts, relative fluctuations, and Kramers-Moyal coefficients."""
+"""Test Fano factors, event counts, and relative fluctuations."""
 
 import numpy as np
 import pytest
 
-from skcomplex.analysis import event_counts, fano_factor, kramers_moyal, relative_fluctuations
+from skcomplex.analysis import event_counts, fano_factor, relative_fluctuations
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -43,21 +43,6 @@ def test_event_counts_and_fano_of_event_times():
     assert fano_factor(counts) == pytest.approx(1, abs=0.1)
     with pytest.raises(AnalysisError, match='mean 0'):
         fano_factor([0, 0])
-
-
-def test_kramers_moyal_ornstein_uhlenbeck_coefficients():
-    """Test that 10^6 steps of an Ornstein-Uhlenbeck process give drift -x within 0.1 and diffusion 1 within 0.05."""
-    rng = np.random.default_rng(2)
-    dt = 0.02
-    noise = rng.standard_normal(1_000_000) * np.sqrt(2 * dt)
-    values = np.empty(noise.size)
-    values[0] = 0.0
-    for t in range(1, values.size):
-        values[t] = values[t - 1] - values[t - 1] * dt + noise[t]
-    coefficients = kramers_moyal(values, dt, bins=41)
-    inside = np.abs(coefficients.positions) < 1.5
-    assert np.max(np.abs(coefficients.drift[inside] + coefficients.positions[inside])) < 0.1
-    assert np.max(np.abs(coefficients.diffusion[inside] - 1)) < 0.05
 
 
 def test_relative_fluctuations_of_an_ideal_lattice_gas():

@@ -1,4 +1,4 @@
-"""Measure fluctuations: Fano factors, counts in windows, relative fluctuations, and Kramers-Moyal coefficients."""
+"""Measure fluctuations: Fano factors, counts in windows, and relative fluctuations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,6 @@ import numpy.typing as npt
 
 from ..core.errors import AnalysisError
 from ._kinds import DataKind, analysis
-from ._lazy import module
 
 type Array = npt.NDArray[np.float64]
 
@@ -122,72 +121,3 @@ def relative_fluctuations(samples: Mapping[float, npt.ArrayLike]) -> RelativeFlu
     ratios = np.asarray([array.std() / array.mean() for array in arrays], dtype=np.float64)
     exponent = float(np.polyfit(np.log(sizes), np.log(ratios), 1)[0])
     return RelativeFluctuations(sizes, ratios, exponent)
-
-
-@dataclass(frozen=True)
-class KramersMoyal:
-    """Drift and diffusion coefficients of a series as functions of its value.
-
-    Args:
-        positions:
-            The centres of the bins of values.
-
-        drift:
-            The first coefficient `<dx | x> / dt` in every bin.
-
-        diffusion:
-            The second coefficient `<dx² | x> / (2 dt)` in every bin, so `dx = a dt + sqrt(2 D) dW` gives `D`.
-    """
-
-    positions: Array
-    drift: Array
-    diffusion: Array
-
-
-@analysis(DataKind.SERIES)
-def kramers_moyal(
-    values: npt.ArrayLike,
-    dt: float = 1.0,
-    *,
-    bins: int = 50,
-    bandwidth: float | None = None,
-) -> KramersMoyal:
-    """Return the Kramers-Moyal drift and diffusion of a series, estimated with kernels from its increments.
-
-    Args:
-        values:
-            The series.
-
-        dt:
-            The time between samples.
-
-        bins:
-            The number of bins of values.
-
-        bandwidth:
-            The width of the Epanechnikov kernel, or `None` for Silverman's rule.
-
-    Returns:
-        coefficients:
-            The bin centres, the drift, and the diffusion.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import kramers_moyal
-        >>> rng = np.random.default_rng(0)
-        >>> x = np.zeros(100_000)
-        >>> for t in range(1, x.size):
-        ...     x[t] = x[t - 1] - x[t - 1] * 0.01 + np.sqrt(0.02) * rng.standard_normal()
-        >>> coefficients = kramers_moyal(x, 0.01, bins=21)
-        >>> round(float(coefficients.diffusion[10]), 1)
-        1.0
-    """
-    array = np.asarray(values, dtype=float)
-    moments, edges = module('kramersmoyal').km(
-        array,
-        bins=np.asarray([bins]),
-        powers=np.asarray([0, 1, 2]),
-        bw=bandwidth,
-    )
-    centres = np.asarray(edges[0], dtype=float)
-    return KramersMoyal(centres, moments[1] / dt, moments[2] / dt)

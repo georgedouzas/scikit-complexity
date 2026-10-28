@@ -7,10 +7,10 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.analysis import (
+    MarkovAnalysis,
     active_information_storage,
     complexity_entropy,
     ensemble_entropy,
-    stationary_distribution,
     symbolize,
     transfer_entropy,
 )
@@ -86,7 +86,8 @@ def test_ensemble_entropy_h_theorem_of_a_relaxing_ensemble():
     urn = _ehrenfest(rng, balls, 150)
     binomial = np.asarray([math.comb(balls, count) for count in range(balls + 1)]) / 2**balls
     chain, matrix = _birth_death(rng, 600)
-    for samples, law in ((urn, binomial), (chain, stationary_distribution(matrix))):
+    stationary = MarkovAnalysis('stationary', matrix='transition').check().prepare(matrix).run().stationary_
+    for samples, law in ((urn, binomial), (chain, stationary)):
         relaxation = ensemble_entropy(samples, law)
         noise = 5 * relaxation.error
         assert np.all(np.diff(relaxation.divergence) <= noise)

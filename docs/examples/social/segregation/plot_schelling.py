@@ -14,7 +14,7 @@ segregated than anyone's preference.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import like_neighbor_share
+from skcomplex.analysis import MixingAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -41,7 +41,8 @@ def like_share(trajectory, frame):
     grid = np.full((SIDE, SIDE), -1.0)
     columns, rows = np.asarray(residents.locations, dtype=int).T
     grid[rows, columns] = residents.values['kind']
-    return like_neighbor_share(grid, empty=-1.0, diagonal=True)
+    mixing = MixingAnalysis('like-neighbors', empty=-1.0, diagonal=True).check().prepare(grid).run()
+    return mixing.like_neighbor_share_
 
 
 thresholds = np.linspace(0.1, 0.8, 8)
