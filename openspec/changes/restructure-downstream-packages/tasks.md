@@ -20,14 +20,14 @@
 
 ## 2. Remaining analysis families
 
-- [ ] 2.1 Convert the information families: `InformationAnalysis`, `LocalInformationAnalysis`, `PartialInformationAnalysis`, `EmergenceAnalysis`, and `EpsilonMachineAnalysis`. Verify that each has a test module mirroring its source and reproduces the deleted functions' values.
+- [x] 2.1 Convert the information families: `InformationAnalysis`, `LocalInformationAnalysis`, `PartialInformationAnalysis`, `EmergenceAnalysis`, and `EpsilonMachineAnalysis`. Verify that each has a test module mirroring its source and reproduces the deleted functions' values.
 - [ ] 2.2 Convert the series and scaling families: `CorrelationAnalysis`, `SpectrumAnalysis`, `ScalingAnalysis`, `CollapseAnalysis`, `RecurrenceAnalysis`, `EmbeddingAnalysis`, `EarlyWarningAnalysis`, and `EventAnalysis`. Verify with their test modules.
 - [ ] 2.3 Convert the fit and criticality families: `FitAnalysis`, `AvalancheAnalysis`, `ClusterAnalysis`, and `BinderAnalysis`.
   - Map every method of `PowerLawFit` and the other fit result classes to a setting or an attribute.
   - Verify with their test modules.
-- [ ] 2.4 Convert the field, agent, and network families: `DomainAnalysis`, `OrderAnalysis`, `DisplacementAnalysis`, `NeighborAnalysis`, `FluctuationAnalysis`, `NetworkAnalysis`, and `MotifAnalysis`. Verify with their test modules.
-- [ ] 2.5 Convert the stochastic families: `MarkovAnalysis`, `PassageAnalysis`, `IrreversibilityAnalysis`, `LargeDeviationAnalysis`, `ErgodicityAnalysis`, and `KramersMoyalAnalysis`. Verify with their test modules.
-- [ ] 2.6 Convert the families that take a system as their source: `StabilityAnalysis`, `LinearizationAnalysis`, `LyapunovAnalysis`, `SectionAnalysis`, `LoopAnalysis`, `SymbolicAnalysis`, `AutomatonAnalysis`, and `QuantumAnalysis`. Verify with their test modules, including the Lotka-Volterra stability scenario.
+- [x] 2.4 Convert the field, agent, and network families: `DomainAnalysis`, `OrderAnalysis`, `DisplacementAnalysis`, `NeighborAnalysis`, `FluctuationAnalysis`, `NetworkAnalysis`, and `MotifAnalysis`. Verify with their test modules.
+- [x] 2.5 Convert the stochastic families: `MarkovAnalysis`, `PassageAnalysis`, `IrreversibilityAnalysis`, `LargeDeviationAnalysis`, `ErgodicityAnalysis`, and `KramersMoyalAnalysis`. Verify with their test modules.
+- [x] 2.6 Convert the families that take a system as their source: `StabilityAnalysis`, `LinearizationAnalysis`, `LyapunovAnalysis`, `SectionAnalysis`, `LoopAnalysis`, `SymbolicAnalysis`, `AutomatonAnalysis`, and `QuantumAnalysis`. Verify with their test modules, including the Lotka-Volterra stability scenario.
 - [ ] 2.7 Convert the surrogates and the remaining analyses:
   - `SparseIdentificationAnalysis`, `ModeDecompositionAnalysis`, `ReservoirAnalysis`, `SurrogateTestAnalysis`, and `SignatureAnalysis`;
   - discovery over analysis classes.
@@ -37,17 +37,17 @@
 
 ## 3. Experiments
 
-- [ ] 3.1 Add `BaseDesign` and `BaseExperiment` to `experiments/_base.py`, and move the designs onto `BaseDesign` with `prepare(bounds).run()` returning rows. Verify with `tests/experiments/test_designs.py`, including the Sobol design scenario.
-- [ ] 3.2 Make `Experiment` take `analyses`, clone and run them per run into `result_`, and give `ExperimentResult` a named method for the ensemble of a series.
+- [x] 3.1 Add `BaseDesign` and `BaseExperiment` to `experiments/_base.py`, and move the designs onto `BaseDesign` with `prepare(bounds).run()` returning rows. Verify with `tests/experiments/test_designs.py`, including the Sobol design scenario.
+- [x] 3.2 Make `Experiment` take `analyses`, clone and run them per run into `result_`, and give `ExperimentResult` a named method for the ensemble of a series.
   - Verify with `tests/experiments/test_experiment.py`, which covers:
     - the SIR analyses scenario;
     - the Ornstein-Uhlenbeck ensemble scenario;
     - serial and process runs giving identical results.
-- [ ] 3.3 Replace `calibrate` with `CalibrationExperiment` and `sensitivity` with `SensitivityAnalysis` on an experiment result.
+- [x] 3.3 Replace `calibrate` with `CalibrationExperiment` and `sensitivity` with `SensitivityAnalysis` on an experiment result.
   - Verify with:
     - the logistic calibration scenario;
     - the Ishigami Sobol scenario.
-- [ ] 3.4 Move `basin_stability` to `BasinStabilityExperiment`, and make `Task`, `run_task`, `resolve_source`, `RunResult`, and `replicate` private.
+- [x] 3.4 Move `basin_stability` to `BasinStabilityExperiment`, and make `Task`, `run_task`, `resolve_source`, `RunResult`, and `replicate` private.
   - Verify with:
     - the double-well scenario;
     - a test that `skcomplex.experiments.__all__` holds no function.
@@ -55,9 +55,9 @@
 
 ## 4. Engine surface
 
-- [ ] 4.1 For `engine.compile`, list every re-exported name with its importers outside the package. Make the names used only inside the package private, and turn the single-class helpers into private methods. Verify that `pytest tests/engine/compile` passes and the surface test names no helper.
-- [ ] 4.2 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
-- [ ] 4.3 Do the same for `engine.solvers`, `engine.backends`, `engine.runtime`, and `engine.viz`. Verify with `pytest tests/engine`.
+- [x] 4.1 For `engine.compile`, list every re-exported name with its importers outside the package. Make the names used only inside the package private, and turn the single-class helpers into private methods. Verify that `pytest tests/engine/compile` passes and the surface test names no helper.
+- [x] 4.2 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
+- [x] 4.3 Do the same for `engine.solvers`, `engine.backends`, `engine.runtime`, and `engine.viz`. Verify with `pytest tests/engine`.
 
 ## 5. Layering and integration
 
