@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..core.errors import AnalysisError
-from ._information import mutual_information, symbolize
+from ._information import _auto_mutual_information
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -55,37 +55,6 @@ def delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Ar
         error_msg = f'A series of {array.size} values has no delay vector of dimension {dimension} and delay {delay}.'
         raise AnalysisError(error_msg)
     return np.column_stack([array[index * delay : index * delay + size] for index in range(dimension)])
-
-
-@analysis(DataKind.SERIES)
-def auto_mutual_information(values: npt.ArrayLike, max_delay: int = 100, bins: int = 16) -> Array:
-    """Return the mutual information in bits between a series and itself delayed by 0 to `max_delay` steps.
-
-    Args:
-        values:
-            The series.
-
-        max_delay:
-            The largest delay in steps.
-
-        bins:
-            The number of equally populated bins the values are symbolized into.
-
-    Returns:
-        information:
-            The mutual information at every delay.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import auto_mutual_information
-        >>> information = auto_mutual_information(np.random.default_rng(0).standard_normal(10_000), 2, bins=4)
-        >>> round(float(information[0]), 2), bool(information[1] < 0.01)
-        (2.0, True)
-    """
-    symbols = symbolize(values, 'quantiles', bins)
-    return np.asarray(
-        [mutual_information(symbols[: symbols.size - delay], symbols[delay:]) for delay in range(max_delay + 1)],
-    )
 
 
 @analysis(DataKind.SERIES)
@@ -223,7 +192,7 @@ def embed(
         (31, 2)
     """
     array = np.asarray(values, dtype=float)
-    information = auto_mutual_information(array, max_delay, bins)
+    information = _auto_mutual_information(array, max_delay, bins)
     chosen_delay = _first_minimum(information) if delay is None else delay
     fractions = false_nearest_neighbors(array, chosen_delay, max_dimension)
     if dimension is None:

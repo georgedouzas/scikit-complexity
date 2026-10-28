@@ -3,8 +3,18 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import o_information, surrogate_test, total_correlation
+from skcomplex.analysis import InformationAnalysis, surrogate_test
 from skcomplex.core.errors import AnalysisError
+
+
+def total_correlation(data: np.ndarray) -> float:
+    """Return the total correlation of the columns of data."""
+    return InformationAnalysis('total-correlation').check().prepare(data).run().information_
+
+
+def o_information(data: np.ndarray) -> float:
+    """Return the O-information of the columns of data."""
+    return InformationAnalysis('o-information').check().prepare(data).run().information_
 
 
 def test_surrogate_test_independent_variables_are_not_significant():

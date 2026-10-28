@@ -11,7 +11,7 @@ import ordpy
 
 from ..core.errors import AnalysisError
 from ._entropy import _break_ties, _shannon
-from ._information import kl_divergence
+from ._information import _kl_divergence
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -145,6 +145,6 @@ def ensemble_entropy(samples: npt.ArrayLike, reference: npt.ArrayLike) -> Ensemb
     histograms = [np.bincount(frame, minlength=law.size) / frame.size for frame in array.T]
     return EnsembleEntropy(
         np.asarray([_shannon(histogram, probabilities=True) for histogram in histograms]),
-        np.asarray([kl_divergence(histogram, law) for histogram in histograms]),
+        np.asarray([_kl_divergence(histogram, law) for histogram in histograms]),
         float((np.count_nonzero(law) - 1) / (2 * array.shape[0] * np.log(2))),
     )

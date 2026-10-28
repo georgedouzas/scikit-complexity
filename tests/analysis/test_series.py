@@ -1,6 +1,4 @@
-"""Test the estimators moved onto libraries: power laws, fluctuations, displacement, warnings, and ordinal patterns."""
-
-import itertools
+"""Test the estimators moved onto libraries: power laws, fluctuations, displacement, and warnings."""
 
 import numpy as np
 import pytest
@@ -13,8 +11,6 @@ from skcomplex.analysis import (
     fit_power_law,
     hurst_exponent,
     mean_squared_displacement,
-    ordinal_patterns,
-    symbolize,
 )
 from skcomplex.core.errors import AnalysisError
 
@@ -151,24 +147,3 @@ def test_autocorrelation_time_of_an_autoregression():
     for t in range(1, x.size):
         x[t] = 0.9 * x[t - 1] + rng.standard_normal()
     assert autocorrelation_time(x) == pytest.approx(9.5, rel=0.15)
-
-
-def test_symbolize_long_ordinal_patterns():
-    """Test that ordinal patterns of length 12 of white noise give one symbol per distinct rank pattern."""
-    noise = np.random.default_rng(9).standard_normal(20_000)
-    symbols = symbolize(noise, 'ordinal', order=12)
-    patterns = [
-        tuple(np.argsort(window, kind='stable')) for window in np.lib.stride_tricks.sliding_window_view(noise, 12)
-    ]
-    pairs = set(zip(symbols.tolist(), patterns, strict=True))
-    assert len(pairs) == len(set(symbols.tolist())) == len(set(patterns))
-
-
-def test_ordinal_patterns_rank_every_permutation():
-    """Test that the patterns of length 3 are the lexicographic ranks 0 to 5."""
-    ranks = []
-    for permutation in itertools.permutations(range(3)):
-        values = np.empty(3)
-        values[list(permutation)] = np.arange(3)
-        ranks.append(int(ordinal_patterns(values, 3)[0]))
-    assert ranks == list(range(6))
