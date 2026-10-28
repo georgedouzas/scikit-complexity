@@ -14,18 +14,15 @@ from sklearn.base import BaseEstimator, clone
 
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
-from ..specs import BaseProblemSpec, ObservableSpec
+from ..specs import BaseProblemSpec, ObservableSpec, ScenarioSpec
 from ..specs._run_result_spec import _RunResultSpec
 from ..specs._task_spec import _TaskSpec
 from ..types import Bounds
 from ._base import BaseDesign, BaseExperiment, Source
 from ._results import ExperimentResult
-from ._scenarios import Scenario
 
 type Output = str | Callable[[Trajectory], object]
 EXECUTORS = ('serial', 'thread', 'process')
-
-
 
 
 class Experiment(BaseExperiment):
@@ -105,7 +102,7 @@ class Experiment(BaseExperiment):
         source: Source,
         design: BaseDesign | None = None,
         bounds: Bounds | None = None,
-        scenarios: Sequence[Scenario] | None = None,
+        scenarios: Sequence[ScenarioSpec] | None = None,
         replicates: int = 1,
         *,
         analyses: Sequence[BaseEstimator] | None = None,
@@ -167,7 +164,7 @@ class Experiment(BaseExperiment):
         settings = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
         until = float(self.until if self.until is not None else 10.0)
         rows = self.design.check().prepare(self.bounds).run() if self.design is not None else [{}]
-        scenarios = list(self.scenarios) if self.scenarios else [Scenario()]
+        scenarios = list(self.scenarios) if self.scenarios else [ScenarioSpec()]
         analyses = self._name_analyses()
         seeds = np.random.SeedSequence(self.random_state).spawn(len(rows) * self.replicates)
         self.tasks_ = []
@@ -204,7 +201,7 @@ class Experiment(BaseExperiment):
         return arguments, paths
 
     @staticmethod
-    def _schedule(problem: BaseProblemSpec, scenario: Scenario) -> dict[str, Callable[[float], object]]:
+    def _schedule(problem: BaseProblemSpec, scenario: ScenarioSpec) -> dict[str, Callable[[float], object]]:
         """Return every scheduled parameter of a scenario as a step function of time, which a simulation reads.
 
         Before its first change a parameter keeps its initial value in the problem, and every change holds from the

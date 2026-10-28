@@ -15,11 +15,11 @@ from sklearn.base import BaseEstimator
 from ..types import Row
 from ._base_spec import BaseSpec
 from ._observable_spec import ObservableSpec
+from ._scenario_spec import ScenarioSpec
 
 if TYPE_CHECKING:
     from ..experiments._base import Source
     from ..experiments._experiment import Output
-    from ..experiments._scenarios import Scenario
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class _TaskSpec(BaseSpec):
     index: int
     source: Source
     row: Row
-    scenario: Scenario
+    scenario: ScenarioSpec
     replicate: int
     seed: np.random.SeedSequence
     until: float

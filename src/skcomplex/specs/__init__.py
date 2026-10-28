@@ -85,6 +85,7 @@ from ._run_state_spec import RunStateSpec
 from ._sampled_draw_spec import SampledDrawSpec
 from ._sampler_spec import MONTE_CARLO_SCHEDULES, SAMPLERS, SamplerSpec
 from ._samples_spec import SamplesSpec
+from ._scenario_spec import ScenarioSpec
 from ._schedule_spec import ScheduleSpec
 from ._series_spec import SeriesSpec
 from ._set_symbol_spec import SetSymbolSpec
@@ -201,6 +202,7 @@ __all__ = [
     'SampledDrawSpec',
     'SamplerSpec',
     'SamplesSpec',
+    'ScenarioSpec',
     'ScheduleSpec',
     'SeriesSpec',
     'SetSymbolSpec',

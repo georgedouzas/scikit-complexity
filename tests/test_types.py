@@ -1,10 +1,15 @@
 """Test the `types` module of `skcomplex`."""
 
+import enum
+import importlib
+import inspect
+import pkgutil
 import typing
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+import skcomplex
 from skcomplex.specs import Letters, ModuleSpec
 from skcomplex.types import Process, Target
 
@@ -18,3 +23,23 @@ def test_processes_and_letters_name_their_alternatives():
     """Test that a process may be nothing, and letters may be modules or sequences of them."""
     assert type(None) in typing.get_args(Process.__value__)
     assert ModuleSpec in typing.get_args(Letters.__value__)
+
+
+def test_no_module_outside_the_types_defines_a_kind_or_a_protocol():
+    """Test that no module outside `skcomplex.types` and the models defines an enum or a protocol."""
+    defined = []
+    for info in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
+        if info.name.startswith('skcomplex.models') or info.name == 'skcomplex.types':
+            continue
+        try:
+            module = importlib.import_module(info.name)
+        except ImportError:
+            continue
+        for value in vars(module).values():
+            if (
+                inspect.isclass(value)
+                and value.__module__ == module.__name__
+                and (issubclass(value, enum.Enum) or getattr(value, '_is_protocol', False))
+            ):
+                defined.append(f'{module.__name__}.{value.__qualname__}')
+    assert defined == []

@@ -38,8 +38,6 @@ ZERO = 1e-9
 MEMBER_LIMIT = 64
 
 
-
-
 class StabilityAnalysis(BaseAnalysis):
     """Linear stability of a system, of one kind.
 
@@ -265,7 +263,7 @@ class StabilityAnalysis(BaseAnalysis):
                 A group has more members than the limit, or an element set reads a weighted reduction.
         """
         StabilityAnalysis._check_groups(problem)
-        expansion = _Expansion(problem, parameter_values)
+        expansion = _Expansion(parameter_values).check().prepare(problem)
         names: list[str] = []
         symbols: list[Expression] = []
         rates: list[Expression] = []
@@ -274,10 +272,7 @@ class StabilityAnalysis(BaseAnalysis):
             entry_name = name.partition('[')[0]
             entry = problem.states.entry(entry_name)
             if entry.members is None:
-                placeholders = {
-                    reduction.symbol: expansion.value(reduction, 0 if reduction.weights is not None else None)
-                    for reduction in problem.reductions
-                }
+                placeholders = expansion.run((set(), 0))
                 names.append(name)
                 symbols.append(item)
                 rates.append(rate.subs(placeholders) if placeholders else rate)
@@ -291,17 +286,11 @@ class StabilityAnalysis(BaseAnalysis):
                 if other.name.rpartition('.')[0] == owner
             }
             for member in range(entry.rows):
-                mapping = expansion.member_map(own, member)
-                mapping.update(
-                    {
-                        reduction.symbol: expansion.value(reduction, member if reduction.weights is not None else None)
-                        for reduction in problem.reductions
-                    },
-                )
+                mapping = expansion.run((own, member))
                 names.append(entry.component_names[member * entry.columns + column])
-                symbols.append(expansion.member_symbol(entry, column, member))
+                symbols.append(mapping[item])
                 rates.append(rate.subs(mapping))
-        return names, symbols, rates, expansion.values
+        return names, symbols, rates, expansion.values_
 
     @staticmethod
     def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
