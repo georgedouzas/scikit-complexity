@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import RR
 from ._domains import encode
 
 PARTS = 2
-PART_NAMES = ('real', 'imag')
+_PART_NAMES = ('real', 'imag')
 
 
 @dataclass(frozen=True)
@@ -65,7 +65,7 @@ class Entry:
         """Return names with the suffixes of the real and imaginary parts for a complex variable."""
         if not self.is_complex:
             return names
-        return [f'{name}.{part}' for name in names for part in PART_NAMES]
+        return [f'{name}.{part}' for name in names for part in _PART_NAMES]
 
     @functools.cached_property
     def size(self) -> int:

@@ -74,7 +74,7 @@ class NoiseKind(StrEnum):
     CONSERVED = 'conserved'
 
 
-NUMERIC_DOMAINS = frozenset(
+_NUMERIC_DOMAINS = frozenset(
     {DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
 )
 """Kinds of value that numeric solvers and backends hold."""
