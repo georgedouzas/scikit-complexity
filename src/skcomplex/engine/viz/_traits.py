@@ -15,7 +15,7 @@ from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
-from ._colors import _SERIES_COLORS, _widened
+from ._visuals import _SERIES_COLORS, BaseVisual
 
 BINS = 20
 _MAX_LEVELS = 50
@@ -93,7 +93,7 @@ class TraitsVisual(AgentsVisual):
             for index, statistic in enumerate(_STATISTICS):
                 style = rr.SeriesLines(colors=_SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
-        span = self.color_range if self.color_range is not None else _widened(self.spans_.get(path), numbers)
+        span = self.color_range if self.color_range is not None else BaseVisual._widened(self.spans_.get(path), numbers)
         self.spans_[path] = span
         counts, centres, width = self._histogram(numbers, span, self.bins)
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))

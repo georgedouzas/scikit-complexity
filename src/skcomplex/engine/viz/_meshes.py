@@ -13,9 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import _phase_colors
-from ._utils import _MODULUS, _PHASE
-from ._visuals import BaseVisual
+from ._visuals import _MODULUS, _PHASE, BaseVisual
 
 
 class MeshVisual(BaseVisual):
@@ -89,7 +87,7 @@ class MeshVisual(BaseVisual):
                 continue
             modulus, phase = np.abs(values), np.angle(values)
             self._log_mesh(recording, f'{path}/{_MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
-            self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, _phase_colors(phase))
+            self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, BaseVisual._phase_colors(phase))
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.

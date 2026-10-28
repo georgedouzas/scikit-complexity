@@ -19,21 +19,11 @@ from ..problems import BaseProblem, RenewalRecord
 from ..runtime import BaseObserver, Frame
 from ._blueprints import default_blueprint, save_blueprint
 from ._kinds import agents_visual_of, resolve_visual
-from ._utils import log_scalars
 from ._visuals import BaseVisual
 
 _RENEWAL_MEMBERS = 20
 _EXTRA = 'extra'
 _UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
-
-
-def _viewer_executable() -> str | None:
-    """Return the Rerun viewer installed next to the running interpreter, or `None` to search `PATH`."""
-    for name in ('rerun', 'rerun.exe'):
-        candidate = Path(sys.executable).parent / name
-        if candidate.is_file():
-            return str(candidate)
-    return None
 
 
 class RerunObserver(BaseObserver):
@@ -143,7 +133,9 @@ class RerunObserver(BaseObserver):
                 path = Path(self.save_path).with_suffix('.rbl')
                 save_blueprint(self.blueprint_, path, application_id=self.application_id)
         if self.spawn:
-            rr.spawn(executable_path=_viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_)
+            rr.spawn(
+                executable_path=self._viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_,
+            )
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
         agents = problem.agents
@@ -173,7 +165,7 @@ class RerunObserver(BaseObserver):
             values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
             self.recording_.log(self._entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
-            log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
+            BaseVisual._log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         for record in frame.events:
             if isinstance(record, RenewalRecord):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))
@@ -218,3 +210,12 @@ class RerunObserver(BaseObserver):
         shown = ', '.join(str(member) for member in record.members[:_RENEWAL_MEMBERS].tolist())
         more = f' and {record.members.size - _RENEWAL_MEMBERS} more' if record.members.size > _RENEWAL_MEMBERS else ''
         return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
+
+    @staticmethod
+    def _viewer_executable() -> str | None:
+        """Return the Rerun viewer installed next to the running interpreter, or `None` to search `PATH`."""
+        for name in ('rerun', 'rerun.exe'):
+            candidate = Path(sys.executable).parent / name
+            if candidate.is_file():
+                return str(candidate)
+        return None

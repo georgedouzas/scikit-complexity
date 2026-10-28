@@ -13,9 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import _levels_of, _phase_colors, palette_colors
-from ._utils import _MODULUS, _PHASE
-from ._visuals import BaseVisual
+from ._visuals import _MODULUS, _PHASE, BaseVisual
 
 _MIN_HISTORY = 64
 _MAX_HISTORY = 256
@@ -89,7 +87,7 @@ class ImageVisual(BaseVisual):
         history = self.rows_.setdefault(path, deque(maxlen=rows))
         history.append(values)
         image = np.stack(history)
-        depth = rr.DepthImage(_levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
+        depth = rr.DepthImage(self._levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
         recording.log(path, depth)
 
     def _log_image(
@@ -105,7 +103,9 @@ class ImageVisual(BaseVisual):
             recording.log(path, rr.Tensor(values))
             return
         values = np.atleast_2d(values)
-        colors = _phase_colors(values) if cyclic else palette_colors(values, *self._range(values))
+        colors = (
+            BaseVisual._phase_colors(values) if cyclic else BaseVisual._palette_colors(values, *self._range(values))
+        )
         height, width = values.shape
         recording.log(
             path,
@@ -194,3 +194,10 @@ class ImageVisual(BaseVisual):
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]
+
+    @staticmethod
+    def _levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+        """Return the values as levels from 1 to 255 of a color map, with 0 left for no data."""
+        if high <= low:
+            return np.ones(values.shape, dtype=np.uint8)
+        return (1 + np.clip((values - low) * (254.0 / (high - low)), 0.0, 254.0)).astype(np.uint8)

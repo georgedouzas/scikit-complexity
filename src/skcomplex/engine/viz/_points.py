@@ -13,9 +13,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import _widened, colors_of
-from ._utils import _UPWARD, _radius_of, log_scalars
-from ._visuals import BaseVisual
+from ._visuals import _UPWARD, BaseVisual
 
 _MAX_POINT_DIMENSIONS = 3
 _TRAIL_LENGTH = 256
@@ -101,9 +99,9 @@ class PointsVisual(BaseVisual):
         values = np.asarray(frame.value(element.states[self.color_by]), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
         if self.color_range is not None:
-            return colors_of(magnitudes, *self.color_range)
-        self.span_ = _widened(self.span_, magnitudes)
-        return colors_of(magnitudes, *self.span_)
+            return BaseVisual._colors_of(magnitudes, *self.color_range)
+        self.span_ = BaseVisual._widened(self.span_, magnitudes)
+        return BaseVisual._colors_of(magnitudes, *self.span_)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
@@ -112,7 +110,7 @@ class PointsVisual(BaseVisual):
             low, high = np.minimum(low, self.bounds_[0]), np.maximum(high, self.bounds_[1])
         self.bounds_ = (low, high)
         extent = float((high - low).max()) or float(np.abs(points).max())
-        return _radius_of(extent, len(points))
+        return BaseVisual._radius_of(extent, len(points))
 
     def _crowd(self, frame: Frame, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the positions of every element drawn by a points visual of the same position state and dimension."""
@@ -180,7 +178,7 @@ class PointsVisual(BaseVisual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         for state in others:
-            log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
+            BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a spatial view of the positions by their dimension, and a time series view of the other states.
