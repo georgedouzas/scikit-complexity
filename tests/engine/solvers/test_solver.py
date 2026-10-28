@@ -6,9 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -22,8 +20,10 @@ from skcomplex.engine.solvers import (
     RK4Solver,
     VelocityVerletSolver,
 )
+from skcomplex.errors import SolverError
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class BeadElement(Element):

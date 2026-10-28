@@ -8,9 +8,9 @@ import pytest
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import lookup
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ObservableSpec, StateSpec, VisualSpec
 
 
 def _fertility(s):

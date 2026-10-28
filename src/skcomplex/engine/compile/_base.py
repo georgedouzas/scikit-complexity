@@ -14,19 +14,12 @@ from typing import TYPE_CHECKING, Self, cast
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.base import BaseConfig
-from ...core.errors import (
-    LabelError,
-    ParameterError,
-    RoleError,
-    SkcomplexError,
-    SpaceError,
-    ValidationError,
-)
+from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.laws.utils import Call
-from ...core.specs import ObservableSpec
 from ...core.system import System
+from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
+from ...specs import ObservableSpec
 from ..backends import BaseBackend
 from ..problems import BaseProblem
 from ._issue import Issue

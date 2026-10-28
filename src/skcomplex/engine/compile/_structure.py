@@ -4,15 +4,13 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import shapely
 
-from ...core.errors import ValidationError
-
-type Array = npt.NDArray[Any]
+from ...errors import ValidationError
+from ...types import AnyArray
 
 
 class Structure:
@@ -27,7 +25,7 @@ class Structure:
 
     def __init__(self, generation: int) -> None:
         self.generation = generation
-        self._geometry: Array | None = None
+        self._geometry: AnyArray | None = None
 
     @property
     def parts(self) -> int:
@@ -39,7 +37,7 @@ class Structure:
         """Whether the structure has a geometry, a patch or a word with a word geometry."""
         return False
 
-    def segments(self) -> Array:
+    def segments(self) -> AnyArray:
         """Return the line segments of the geometry.
 
         Returns:
@@ -48,7 +46,7 @@ class Structure:
         """
         return np.zeros((0, 2, 2))
 
-    def polygons(self) -> Array:
+    def polygons(self) -> AnyArray:
         """Return the polygons of the geometry, one coordinate array of shape `(t, k, 2)` per vertex count `k`.
 
         Returns:
@@ -57,7 +55,7 @@ class Structure:
         """
         return np.zeros(0, dtype=object)
 
-    def geometry(self) -> Array:
+    def geometry(self) -> AnyArray:
         """Return the segments and polygons as an array of Shapely geometries.
 
         Returns:
@@ -156,7 +154,7 @@ class Structure:
         return grid
 
     @staticmethod
-    def _mark(grid: npt.NDArray[np.bool_], points: Array, xmin: float, ymax: float, cell: float) -> None:
+    def _mark(grid: npt.NDArray[np.bool_], points: AnyArray, xmin: float, ymax: float, cell: float) -> None:
         """Mark the cells of a grid that hold points."""
         resolution = grid.shape[0]
         columns = np.clip(((points[:, 0] - xmin) / cell).astype(int), 0, resolution - 1)
@@ -164,8 +162,8 @@ class Structure:
         grid[rows, columns] = True
 
     @staticmethod
-    def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
+    def _frozen(array: npt.ArrayLike, dtype: type) -> AnyArray:
         """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
-        result: Array = np.array(array, dtype=dtype)
+        result: AnyArray = np.array(array, dtype=dtype)
         result.setflags(write=False)
         return result

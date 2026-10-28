@@ -5,7 +5,7 @@
 
 from typing import cast
 
-from ....core.errors import LabelError
+from ....errors import LabelError
 from ...problems import symbol
 from .._base import BasePass
 from .._block import Block

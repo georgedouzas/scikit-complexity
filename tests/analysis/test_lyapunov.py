@@ -8,7 +8,7 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models.mathematics.dynamical_systems import henon_map, logistic_map, lorenz, sprott_jerk
 from skcomplex.models.physics.nonlinear_oscillators import van_der_pol
 

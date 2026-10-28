@@ -8,10 +8,10 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import NoiseKind, OrderKind, SupportSpec, VectorFunction, step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -63,13 +63,13 @@ class EulerMaruyamaSolver(SDESolver):
     def _increment(
         self,
         time: float,
-        state: Vector,
-        p: Vector,
+        state: Array,
+        p: Array,
         *,
-        step: float | Vector,
-        noise: Vector,
+        step: float | Array,
+        noise: Array,
         end: float,
-    ) -> Vector:
+    ) -> Array:
         """Return the state after one Euler-Maruyama step with given Wiener increments, before the boundary laws.
 
         Args:
@@ -100,13 +100,13 @@ class EulerMaruyamaSolver(SDESolver):
         np.add.at(following, problem.noise_rows, cast('VectorFunction', problem.diffusion)(time, state, p) * noise)
         return following
 
-    def _step(self, time: float, state: Vector, p: Vector, lengths: Vector) -> Vector:
+    def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:
         """Return the state after one Euler-Maruyama step and the boundary laws, with one step length per state."""
         noise = self.problem_.draw_increments(self.rng_, 1.0) * np.sqrt(lengths[self.problem_.noise_rows])
         end = time + float(np.max(lengths))
         return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift and the noise from time `t` to time `until`.
 
         Args:

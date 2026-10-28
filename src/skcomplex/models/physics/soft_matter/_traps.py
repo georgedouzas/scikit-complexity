@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -15,11 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ObservableSpec, StateSpec, VisualSpec
+from ....types import Array
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})

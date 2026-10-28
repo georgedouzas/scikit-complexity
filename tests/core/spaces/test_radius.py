@@ -2,8 +2,8 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import RadiusNeighborhood
+from skcomplex.errors import ValidationError
 
 
 def test_radius_neighbourhood_needs_a_positive_radius():

@@ -11,14 +11,14 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.errors import ValidationError
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import where
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[BaseLaw]:

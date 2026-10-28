@@ -16,11 +16,10 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.laws.utils import count, mean, total, where
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 

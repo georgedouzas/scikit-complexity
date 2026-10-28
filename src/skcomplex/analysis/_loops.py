@@ -13,10 +13,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
-from ..core.errors import AnalysisError
 from ..core.laws.utils import delay_parts
 from ..engine.problems import LoopTerm, Problem, numpy_function, symbols_of
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import StabilityAnalysis

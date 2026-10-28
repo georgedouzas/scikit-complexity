@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...errors import ValidationError
+from ....errors import ValidationError
 from ._reductions import total
 
 

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.errors import SkcomplexError
+from ....errors import SkcomplexError
 
 
 class HilbertSpaceError(SkcomplexError):

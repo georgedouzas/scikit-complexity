@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Vector
+from ...types import Array
 from ..problems import BaseProblem, Record
 from ..solvers import AgentSnapshot
 
@@ -53,8 +53,8 @@ class Frame:
 
     step: int
     time: float
-    state: Vector
-    parameters: Vector
+    state: Array
+    parameters: Array
     problem: BaseProblem
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)

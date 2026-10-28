@@ -11,10 +11,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
-from ....core.types import Vector
+from ....errors import ValidationError
+from ....types import Array
 from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
 from ...problems._base_problem import _MarkovMatrix
 from .._base import BasePass
@@ -114,7 +114,7 @@ class MarkovPass(BasePass):
         return f'_{kind}_{re.sub(r"[^0-9A-Za-z]", "_", str(target))}'
 
     @staticmethod
-    def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
+    def _matrix_reader(reference: Reference) -> Callable[[Array], Any]:
         """Return the function that reads a parameter of a matrix for every evaluation row."""
         if reference.source is Source.MEMBER:
             members = reference.members
@@ -184,7 +184,7 @@ class MarkovPass(BasePass):
             )
         )
 
-        def evaluate(p: Vector) -> npt.NDArray[np.float64]:
+        def evaluate(p: Array) -> npt.NDArray[np.float64]:
             values = function(0.0, *(reader(p) for reader in readers))
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)

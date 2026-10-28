@@ -7,8 +7,8 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.analysis import CorrelationAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 
 RUNS = 20_000

@@ -6,9 +6,9 @@
 from collections.abc import Callable, Sequence
 from typing import Self
 
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...specs import RequirementSpec
 from ..spaces import DiscreteTime
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 
 

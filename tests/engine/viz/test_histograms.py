@@ -9,13 +9,13 @@ import rerun.blueprint as rrb
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import uniform
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentSnapshot
 from skcomplex.engine.viz import AgentsVisual, HistogramVisual, RerunObserver
 from skcomplex.models import create
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class Logs:

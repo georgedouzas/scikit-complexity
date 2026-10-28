@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ...core.errors import SimulationError
+from ...errors import SimulationError
 from ..problems import BaseProblem
 from ._base import BaseObserver
 from ._frames import Frame

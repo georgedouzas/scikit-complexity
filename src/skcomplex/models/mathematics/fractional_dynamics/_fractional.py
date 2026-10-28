@@ -9,9 +9,9 @@ from typing import Annotated
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 
 def _published(element_type: type[Element], name: str) -> type[Element]:

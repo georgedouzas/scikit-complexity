@@ -12,12 +12,10 @@ import numpy.typing as npt
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-
-type Array = npt.NDArray[np.float64]
+from ....specs import RoleSpec, StateSpec, VisualSpec
 
 
 def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Generator) -> None:

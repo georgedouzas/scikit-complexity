@@ -10,10 +10,10 @@ from typing import Self
 
 import numpy as np
 
-from ..core.errors import ValidationError
 from ..engine.compile import compile_system
 from ..engine.problems import Problem
 from ..engine.runtime import Trajectory
+from ..errors import ValidationError
 from ._base import BaseExperiment, Source
 from ._experiment import Experiment
 from ._random import RandomDesign

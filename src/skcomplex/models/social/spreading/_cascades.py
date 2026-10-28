@@ -16,10 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import StateSpec, VisualSpec
 
 
 class ThresholdNodeElement(Element):

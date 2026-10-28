@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ...core.types import Vector
+from ...types import Array
 from ..compile._compiled_extremal import CompiledExtremal
 from ..compile._compiled_relaxation import CompiledRelaxation
 from ..compile.passes._lattices import LatticeStep
@@ -42,7 +42,7 @@ class LatticeSolver(Solver):
 
     form: ClassVar[Form] = Form.LATTICE
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Apply the lattice laws once per integer time step from `t` up to `until`.
 
         Args:

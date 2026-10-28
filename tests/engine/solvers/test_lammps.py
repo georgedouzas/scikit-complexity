@@ -11,15 +11,14 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
+from skcomplex.errors import BackendError, SolverError
 from skcomplex.models.biology.ecology import (
     LogisticGrowthInteraction,
     MortalityInteraction,
@@ -35,6 +34,7 @@ from skcomplex.models.physics.common.particles import (
     LinearDragInteraction,
 )
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
+from skcomplex.specs import ParameterSpec
 
 CUTOFF = 2.5
 

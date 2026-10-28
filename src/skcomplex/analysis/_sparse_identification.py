@@ -16,16 +16,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ..core.elements import Element
-from ..core.errors import AnalysisError
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import BaseTime, ContinuousTime
-from ..core.specs import StateSpec
 from ..core.system import System
 from ..engine.runtime import Simulation
+from ..errors import AnalysisError
+from ..specs import StateSpec
+from ..types import Array
 from ._base import BaseAnalysis, SurrogateSource
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})
 

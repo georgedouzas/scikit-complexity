@@ -8,12 +8,12 @@ import pytest
 import qutip
 
 from skcomplex.core.elements import LatticeElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.engine.compile import LocalOperator, Operator, QuantumView
 from skcomplex.engine.problems import symbol
+from skcomplex.errors import ValidationError
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
     QubitElement,

@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import DomainAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create, run
 
 

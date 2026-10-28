@@ -5,7 +5,8 @@
 
 from SALib.sample import sobol as sobol_sample
 
-from ._base import BaseDesign, Bounds
+from ..types import Bounds
+from ._base import BaseDesign
 
 
 class SaltelliDesign(BaseDesign):

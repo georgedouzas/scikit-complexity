@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import SolverError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.solvers import LindbladSolver
+from skcomplex.errors import SolverError
 
 
 def test_quantum_solvers_reject_classical_problems():

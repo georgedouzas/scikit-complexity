@@ -2,7 +2,6 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import (
     BoxNeighborhood,
     LatticeNeighborhood,
@@ -10,6 +9,7 @@ from skcomplex.core.spaces import (
     TriangularNeighborhood,
     VonNeumannNeighborhood,
 )
+from skcomplex.errors import ValidationError
 
 
 def test_lattice_neighbourhood_keeps_the_order_of_its_offsets():

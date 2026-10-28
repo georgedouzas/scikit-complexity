@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ...core.elements import Element, GroupElement
-from ...core.specs import VisualSpec
+from ...specs import VisualSpec
 
 
 @dataclass(frozen=True)

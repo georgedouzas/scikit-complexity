@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...core.elements import GroupElement
 from ...core.laws import BaseLaw
 from ...core.spaces import LatticeSpace
-from ...core.types import Vector
+from ...types import Array, VectorFunction
 from ._accelerated import Accelerated
 from ._base_problem import BaseProblem
 from ._compiled_event import CompiledEvent, _Breakpoints, _Delay
@@ -28,14 +28,14 @@ from ._variable import Variable, declarations_of
 from ._variable_kind import VariableKind
 from ._wiener_block import WienerBlock
 
-type VectorFunction = Callable[[float, Vector, Vector], Vector]
+
 @dataclass(frozen=True)
 class _JumpChannels:
     """Random events of one jump law, one channel per evaluation index."""
 
     offset: int
     targets: npt.NDArray[np.intp]
-    increments: Vector
+    increments: Array
 
     @property
     def size(self) -> int:
@@ -263,11 +263,11 @@ class Problem(BaseProblem):
     noise_blocks: tuple[WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
     jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
-    update: Callable[..., Vector] | None = field(default=None, repr=False)
+    update: Callable[..., Array] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
-    orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
+    orders: Array = field(default_factory=lambda: np.zeros(0), repr=False)
 
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
@@ -304,7 +304,7 @@ class Problem(BaseProblem):
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
 
-    def max_speed(self, x: Vector, p: Vector) -> float | None:
+    def max_speed(self, x: Array, p: Array) -> float | None:
         """Return the largest wave speed of the conservation laws, or `None` without them.
 
         Args:
@@ -322,7 +322,7 @@ class Problem(BaseProblem):
             return None
         return max(volume.max_speed(x, p) for volume in self.volumes)
 
-    def diffusive_step(self, p: Vector) -> float | None:
+    def diffusive_step(self, p: Array) -> float | None:
         """Return the largest stable explicit step for the diffusion of finite-volume fields, or `None` without it.
 
         Args:
@@ -359,7 +359,7 @@ class Problem(BaseProblem):
                 return space.shape_  # type: ignore[union-attr]
         return None
 
-    def draw_increments(self, rng: np.random.Generator, scale: float) -> Vector:
+    def draw_increments(self, rng: np.random.Generator, scale: float) -> Array:
         """Return the Wiener increment that every noise amplitude multiplies, drawn for one step.
 
         The increments of the processes are normal with the standard deviation `scale`, correlated within every block
@@ -383,7 +383,7 @@ class Problem(BaseProblem):
         return increments[self.noise_columns]
 
     @property
-    def stoichiometry(self) -> Vector:
+    def stoichiometry(self) -> Array:
         """Increments of the state vector, one row per jump channel."""
         n_channels = sum(channels.size for channels in self.jumps)
         matrix = np.zeros((n_channels, self.states.size))
@@ -421,5 +421,3 @@ class Problem(BaseProblem):
             else:
                 components.append(item)
         return components
-
-

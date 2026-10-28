@@ -8,9 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Indices
-
-type Offset = tuple[int, ...]
+from ...types import Indices, Offset
 
 
 @dataclass(frozen=True, eq=False)

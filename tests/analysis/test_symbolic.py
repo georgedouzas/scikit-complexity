@@ -8,21 +8,21 @@ from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.elements import Element, ParticleElement
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ..conftest import CallableGrowthInteraction
 

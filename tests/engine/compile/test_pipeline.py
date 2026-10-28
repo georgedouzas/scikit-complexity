@@ -3,11 +3,11 @@
 
 import pytest
 
-from skcomplex.core.errors import PipelineError
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import BasePass, Compilation, PassCompiler, compile_system
 from skcomplex.engine.compile.passes._flatten import FlattenPass
+from skcomplex.errors import PipelineError
 from skcomplex.models import create
 
 

@@ -17,12 +17,11 @@ from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import divergence, gradient, inverse_laplacian, laplacian
 from ....core.spaces import LatticeSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver, SSPRKSolver
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 
 class KuramotoSivashinskyElement(Element):

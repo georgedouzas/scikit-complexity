@@ -10,8 +10,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
-from ...core.specs import TopologyRequestSpec
 from ...core.system import System
+from ...specs import TopologyRequestSpec
 from ..backends import BaseBackend
 from ..problems import Form, Lowered, Output, Problem, ReductionSchedule, TransferNetwork
 from ..problems._base_problem import _MarkovMatrix

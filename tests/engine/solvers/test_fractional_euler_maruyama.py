@@ -6,9 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -18,6 +16,8 @@ from skcomplex.engine.solvers import (
     HorizonError,
     fractional_gaussian_noise,
 )
+from skcomplex.errors import SolverError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 def _walkers(hurst, members=1000, fractional=True):

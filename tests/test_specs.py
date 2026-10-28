@@ -1,4 +1,4 @@
-"""Test the `specs` module of `skcomplex.core`."""
+"""Test the `specs` module of `skcomplex`."""
 
 import dataclasses
 import pickle  # nosec B403: the tests pickle and load only objects they create
@@ -11,12 +11,15 @@ from sage.all__sagemath_symbolics import I, exp, pi, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import RewritingError, RoleError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import distributed_delay, mean, total
 from skcomplex.core.spaces import ContinuousTime, VonNeumannNeighborhood
-from skcomplex.core.specs import (
+from skcomplex.core.system import System
+from skcomplex.engine.problems import symbol
+from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import RewritingError, RoleError, ValidationError
+from skcomplex.specs import (
     AffineSpec,
     EnergySpec,
     GeometrySpec,
@@ -38,9 +41,6 @@ from skcomplex.core.specs import (
     VisualSpec,
     WienerProcessSpec,
 )
-from skcomplex.core.system import System
-from skcomplex.engine.problems import symbol
-from skcomplex.engine.runtime import Simulation
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -28,4 +28,4 @@ class SampledDraw:
 
     start: int
     rows: int
-    sample: Callable[[float, Vector, Vector, np.random.Generator], Vector]
+    sample: Callable[[float, Array, Array, np.random.Generator], Array]

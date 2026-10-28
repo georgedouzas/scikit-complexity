@@ -16,16 +16,16 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..core.base import BaseConfig
-from ..core.errors import AnalysisError, ValidationError
+from ..base import BaseConfig
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system
 from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, Problem, domain_kind
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError, ValidationError
+from ..types import Array
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 type Source = Trajectory | System | nx.Graph | NetworkSnapshot | npt.ArrayLike
 type SurrogateSource = Trajectory | npt.ArrayLike | list[Trajectory | npt.ArrayLike]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')

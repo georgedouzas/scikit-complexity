@@ -7,7 +7,8 @@ from collections.abc import Callable
 
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 
-from ...core.errors import ValidationError
+from ...errors import ValidationError
+from ...types import Parts
 from ._members import _SHIFT
 
 _LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
@@ -35,8 +36,6 @@ _WHERE = 'where'
 _UNSPLIT = frozenset({'real_part', 'imag_part', 'conjugate', 'arg', 'abs'})
 _LEFTOVER = _UNSPLIT - {'abs'}
 _STAND_IN = '_split_part_'
-
-type Parts = tuple[Expression, Expression]
 
 
 def _name_of(expression: Expression) -> str:
@@ -215,5 +214,3 @@ def _split_complex(expression: object, owner: str) -> Parts:
     rebuilt = parsed.operator()(*operands)
     real, imaginary = _checked(rebuilt.real_part(), parsed, owner), _checked(rebuilt.imag_part(), parsed, owner)
     return real.subs(stand_ins), imaginary.subs(stand_ins)
-
-

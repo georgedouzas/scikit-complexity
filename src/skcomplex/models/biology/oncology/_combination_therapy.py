@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.errors import ParameterError
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse, where
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
+from ....errors import ParameterError
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INFUSIONS = ('constant', 'exponential', 'periodic')

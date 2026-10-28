@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
-from ....core.errors import ValidationError
 from ....core.spaces import BaseSpace, LatticeNeighborhood
+from ....errors import ValidationError
 from ._automaton import Reach, _size, _table
 
 

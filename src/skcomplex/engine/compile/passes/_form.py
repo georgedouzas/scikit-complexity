@@ -6,7 +6,7 @@
 from collections.abc import Iterable
 from typing import cast
 
-from ....core.errors import IncompatibleLawsError
+from ....errors import IncompatibleLawsError
 from ...problems import Form
 from .._base import BasePass
 from .._forms import _FORMS

@@ -13,9 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import total
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 def _recovered_share(member: SimpleNamespace) -> Expression:

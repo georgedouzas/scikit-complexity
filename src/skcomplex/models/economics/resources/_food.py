@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import lookup
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
 LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))

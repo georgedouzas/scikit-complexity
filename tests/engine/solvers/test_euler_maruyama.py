@@ -7,19 +7,19 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import NoiseLaw
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
+from skcomplex.errors import SolverError
 from skcomplex.models.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,
     geometric_brownian_motion,
 )
+from skcomplex.specs import StateSpec, VisualSpec
 
 from ...conftest import _correlated
 

@@ -10,7 +10,6 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
@@ -19,6 +18,7 @@ from skcomplex.models.engineering.traffic import (
     intelligent_driver_model,
     optimal_velocity,
 )
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _cars(trajectory, n_cars, variable):

@@ -13,11 +13,11 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 KINDS = (
     'shannon',
     'renyi',

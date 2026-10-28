@@ -5,7 +5,8 @@
 
 import numpy as np
 
-from ._base import BaseDesign, Bounds
+from ..types import Bounds
+from ._base import BaseDesign
 
 
 class RandomDesign(BaseDesign):

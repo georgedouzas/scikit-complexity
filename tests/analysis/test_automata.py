@@ -7,7 +7,6 @@ from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
 from skcomplex.analysis import AutomatonAnalysis, EntropyAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
     BoxNeighborhood,
@@ -17,6 +16,7 @@ from skcomplex.core.spaces import (
     MemoryNeighborhood,
     MooreNeighborhood,
 )
+from skcomplex.errors import AnalysisError
 from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})

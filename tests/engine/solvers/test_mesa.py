@@ -7,11 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile.passes._agents import AgentsPass
@@ -19,7 +17,9 @@ from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, MesaSolver
+from skcomplex.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class BreederElement(Element):

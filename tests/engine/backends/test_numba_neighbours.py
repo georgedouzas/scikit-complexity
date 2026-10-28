@@ -10,10 +10,10 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.specs import ParameterSpec
 
 CUTOFF = 2.5
 

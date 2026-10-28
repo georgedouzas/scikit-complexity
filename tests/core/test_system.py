@@ -10,16 +10,16 @@ from sage.all__sagemath_symbolics import CC, oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import NotCheckedError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
-from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import UnitarySolver
+from skcomplex.errors import NotCheckedError, ValidationError
+from skcomplex.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 PAULI = HilbertSpec(
     2,

@@ -9,9 +9,9 @@ from typing import Any
 
 import numpy as np
 
+from ...types import Array
 from ._arguments import Arguments
 from ._lattice_state import LatticeState
-from ._lookup import Vector
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ class CompiledDrive:
         """Lattice states the drive changes."""
         return (self.target,)
 
-    def apply(self, x: Vector, p: Vector, rng: np.random.Generator) -> None:
+    def apply(self, x: Array, p: Array, rng: np.random.Generator) -> None:
         """Update the state vector in place by one application of the drive.
 
         Args:

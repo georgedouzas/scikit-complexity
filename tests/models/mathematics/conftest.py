@@ -3,10 +3,10 @@
 from collections.abc import Sequence
 from typing import Any
 
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.models import create
+from skcomplex.specs import ObservableSpec
 
 
 def _run(

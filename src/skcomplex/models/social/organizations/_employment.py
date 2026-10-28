@@ -7,17 +7,15 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import StateSpec, VisualSpec
+from ....types import Array
 
 TAKEOVER = 3
 KEEP = 2

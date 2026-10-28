@@ -9,15 +9,15 @@ import skfem
 
 from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.spaces import LatticeSpace, MeshSpace, NetworkSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ConservedElement(Element):

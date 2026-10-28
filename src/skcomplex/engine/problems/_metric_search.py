@@ -14,12 +14,9 @@ from ...core.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ...core.types import Indices, Vector
-from ._edge_rows import Found
+from ...types import Array, EdgesFound, Indices, Pairs
 from ._entry import Entry
 from ._heading import Heading
-
-type Rows = tuple[Indices, Indices]
 
 
 @dataclass(frozen=True)
@@ -45,7 +42,7 @@ class MetricSearch:
     periods: tuple[float, ...] | None = None
     heading: Heading | None = None
 
-    def wrapped(self, x: Vector) -> Vector:
+    def wrapped(self, x: Array) -> Array:
         """Return the positions of the members, wrapped into a periodic box.
 
         Args:
@@ -63,7 +60,7 @@ class MetricSearch:
         wrapped = np.mod(positions, periods)
         return np.where(wrapped >= periods, wrapped - periods, wrapped)
 
-    def differences(self, x: Vector, readers: Indices, others: Indices) -> Vector:
+    def differences(self, x: Array, readers: Indices, others: Indices) -> Array:
         """Return the displacement from every reader to its neighbour, the minimum image in a periodic box.
 
         Args:
@@ -87,7 +84,7 @@ class MetricSearch:
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def find(self, x: Vector, q: Vector) -> Found:
+    def find(self, x: Array, q: Array) -> EdgesFound:
         """Return the neighbours of every member at the current positions.
 
         Args:
@@ -120,7 +117,7 @@ class MetricSearch:
         return (*self._rows(readers, others, size), None)
 
     @staticmethod
-    def _nearest(tree: cKDTree, positions: Vector, k: int) -> tuple[Indices, Indices]:
+    def _nearest(tree: cKDTree, positions: Array, k: int) -> tuple[Indices, Indices]:
         """Return the pairs of every member with its `k` nearest other members."""
         size = positions.shape[0]
         k = min(k, size - 1)
@@ -132,7 +129,7 @@ class MetricSearch:
         own[~own.any(axis=1), -1] = True
         return np.repeat(np.arange(size, dtype=np.intp), k), found[~own].astype(np.intp)
 
-    def _inside(self, x: Vector, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
+    def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.heading is not None
         direction = -self.differences(x, readers, others)
@@ -142,7 +139,7 @@ class MetricSearch:
         return dot >= np.cos(cone.angle) * norms
 
     @staticmethod
-    def _rows(readers: Indices, others: Indices, size: int) -> Rows:
+    def _rows(readers: Indices, others: Indices, size: int) -> Pairs:
         """Return the row starts and the neighbours, sorted by reader and then by neighbour, of a list of pairs."""
         order = np.lexsort((others, readers))
         counts = np.bincount(readers, minlength=size)

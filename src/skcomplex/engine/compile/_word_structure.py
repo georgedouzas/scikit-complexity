@@ -8,8 +8,9 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ...core.specs import ModuleSpec
-from ._structure import Array, Structure
+from ...specs import ModuleSpec
+from ...types import AnyArray
+from ._structure import Structure
 
 
 class WordStructure(Structure):
@@ -107,7 +108,7 @@ class WordStructure(Structure):
             return 0
         return int(np.count_nonzero(self.codes == self.alphabet.index(name)))
 
-    def segments(self) -> Array:
+    def segments(self) -> AnyArray:
         """Return the segments of the word geometry.
 
         Returns:

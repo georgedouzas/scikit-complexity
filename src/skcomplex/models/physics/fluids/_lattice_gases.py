@@ -15,11 +15,10 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import StateSpec, VisualSpec
+from ....types import Array
 
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))

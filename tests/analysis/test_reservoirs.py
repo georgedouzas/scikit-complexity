@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import ReservoirAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 
 LYAPUNOV_TIME = 1 / 0.906

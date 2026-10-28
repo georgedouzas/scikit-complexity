@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from ....core.errors import BackendError, SolverError
 from ....core.spaces import ContinuousTime
+from ....errors import BackendError, SolverError
 from ...problems import (
     Form,
     OrderKind,

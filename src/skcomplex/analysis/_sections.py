@@ -8,17 +8,15 @@ from collections.abc import Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
-from ..core.errors import AnalysisError
-from ..core.types import Vector
 from ..engine.problems import CompiledEvent, EventRecord, Form, Problem
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 KINDS = ('poincare', 'stroboscopic')
 SETTINGS = {
     'poincare': {'variables', 'state', 'value', 'direction', 'until', 'transient', 'solver', 'random_state'},
@@ -174,7 +172,7 @@ class SectionAnalysis(BaseAnalysis):
         index = problem.states.entry(self.state).start
         value = self.value
 
-        def guard(t: float, x: Vector, p: Vector) -> float:
+        def guard(t: float, x: Array, p: Array) -> float:
             return float(x[index] - value)
 
         transient = self.transient if self.transient is not None else 0.0

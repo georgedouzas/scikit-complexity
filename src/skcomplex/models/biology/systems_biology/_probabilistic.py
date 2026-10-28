@@ -11,13 +11,13 @@ from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element
-from ....core.errors import ValidationError
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import RoleSpec, StateSpec, VisualSpec
 from ._boolean import _pattern
 
 type Candidates = Sequence[tuple[Sequence[int], float]]

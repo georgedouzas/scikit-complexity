@@ -8,8 +8,8 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.analysis import EntropyAnalysis, MarkovAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create, run
 
 RUNS = 20_000

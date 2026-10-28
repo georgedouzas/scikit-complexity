@@ -8,21 +8,19 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, SampleLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from ....types import Array
 from ._fully_connected_spins import SPIN_IMAGE
-
-type Couplings = npt.NDArray[np.floating]
 
 NEAREST = VonNeumannNeighborhood()
 
@@ -35,7 +33,7 @@ def _square(size: int | Sequence[int]) -> tuple[int, int]:
     return int(size), int(size)
 
 
-def _bond_states(right: Couplings, down: Couplings) -> dict[str, Couplings]:
+def _bond_states(right: Array, down: Array) -> dict[str, Array]:
     """Return the couplings of every site to its up, left, right, and down neighbours from the bonds right and down."""
     return {
         'J_up': np.roll(down, 1, axis=0),

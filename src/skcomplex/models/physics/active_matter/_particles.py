@@ -15,12 +15,11 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, EulerMaruyamaSolver, ModelView
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 

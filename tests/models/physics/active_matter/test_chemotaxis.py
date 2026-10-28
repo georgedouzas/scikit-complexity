@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import SolverError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import SolverError
 from skcomplex.models.physics.active_matter import keller_segel
 
 

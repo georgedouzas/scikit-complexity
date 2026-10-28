@@ -17,9 +17,9 @@ from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousTime, NetworkSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 FOLD = math.sqrt(4 / 27)
 

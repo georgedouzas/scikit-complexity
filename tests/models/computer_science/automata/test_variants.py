@@ -5,7 +5,7 @@ from math import comb
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ParameterError
+from skcomplex.errors import ParameterError
 from skcomplex.models.computer_science.automata import (
     diffusion_automaton,
     elementary_automaton,

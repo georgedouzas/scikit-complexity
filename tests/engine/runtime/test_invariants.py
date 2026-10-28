@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import transfer
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import InvariantObserver, Simulation
+from skcomplex.errors import ConservationError, ValidationError
+from skcomplex.specs import ObservableSpec, StateSpec, VisualSpec
 
 TOTAL_WEALTH = ObservableSpec('total_wealth', group='traders', variable='wealth', reduce='sum')
 

@@ -8,8 +8,8 @@ from typing import Self
 import numpy as np
 import numpy.typing as npt
 
+from ...errors import SpaceError
 from ..base import BasePart
-from ..errors import SpaceError
 
 
 class BaseNeighborhood(BasePart):

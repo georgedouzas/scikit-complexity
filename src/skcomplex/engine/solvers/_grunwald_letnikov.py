@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 from ._convolution import _MODE_SPACING, ConvolutionSolver
 
 
@@ -33,7 +33,7 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         >>> import numpy as np
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import GrunwaldLetnikovSolver
@@ -50,27 +50,27 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         0.43
     """
 
-    def _weights(self, alpha: Vector, count: int) -> Vector:
+    def _weights(self, alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
         return self._grunwald_letnikov_weights(alpha, count)
 
-    def _tail(self, alpha: Vector, rates: Vector, window: int) -> Vector:
+    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the Grünwald-Letnikov weights past a window."""
         return self._grunwald_letnikov_tail(alpha, rates, window)
 
-    def _gain(self, alpha: Vector) -> Vector:
+    def _gain(self, alpha: Array) -> Array:
         """Return the factor 1 of the drift of every order."""
         return np.ones_like(alpha)
 
     @staticmethod
-    def _grunwald_letnikov_weights(alpha: Vector, count: int) -> Vector:
+    def _grunwald_letnikov_weights(alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
         lags = np.arange(1, count + 1, dtype=float)[:, None]
         factors = 1 - (alpha[None, :] + 1) / lags
         return np.vstack([np.ones((1, alpha.size)), np.cumprod(factors, axis=0)])
 
     @staticmethod
-    def _grunwald_letnikov_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
+    def _grunwald_letnikov_tail(alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes whose sum gives the Grünwald-Letnikov weights past a window.
 
         The weights have the Laplace representation `w_j = -(sin(pi alpha) / pi) int exp(-s j) exp(s alpha)

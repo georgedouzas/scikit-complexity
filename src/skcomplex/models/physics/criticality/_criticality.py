@@ -9,7 +9,6 @@ from typing import Annotated, Any
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
@@ -23,11 +22,10 @@ from ....core.spaces import (
     TriangularNeighborhood,
     VonNeumannNeighborhood,
 )
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 NEAREST = VonNeumannNeighborhood(center=True)
 SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {

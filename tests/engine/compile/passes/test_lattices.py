@@ -9,7 +9,6 @@ import pytest
 from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.spaces import (
@@ -21,15 +20,16 @@ from skcomplex.core.spaces import (
     NetworkSpace,
     TriangularNeighborhood,
 )
-from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import CompiledExtremal, ExtremalRecord, compile_system
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising
+from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 
 
 class BurnElement(Element):

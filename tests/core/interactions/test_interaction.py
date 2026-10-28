@@ -11,17 +11,17 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from skcomplex.core.elements import BaseElement, Element, GroupElement, LatticeElement
-from skcomplex.core.errors import LabelError, RoleError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import NetworkSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
+from skcomplex.errors import LabelError, RoleError
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 from ...conftest import HoldingElement, _correlated
 

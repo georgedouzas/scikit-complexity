@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ...errors import ValidationError
+from ....errors import ValidationError
 
 
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:

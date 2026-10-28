@@ -282,7 +282,9 @@ to fill in as the project takes shape.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly four
   packages. `skcomplex.core` holds what a system is and what it compiles to, in the order `base`, `space`,
   `laws`, `components`, `system`, and `problems`. `core.base` holds only the bases of a system's mandatory parts, `BaseElement`, `BaseInteraction`, and `BaseLaw`, one
-  per module, with the shared `_types`, `_errors`, and `_utils`; the base of any other concept lives in its package. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
+  per module; the base of any other concept lives in its package. What every package shares lives in the root modules
+  `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
+  `skcomplex.errors`, which import no package. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
   `backends`, `runtime`, `viz`, `experiments`, and `analysis`. `skcomplex.formalisms` holds one package per
   domain-agnostic formalism, `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`,
   `fractional`, `topology`, `particles`, and `control`, each with its laws, components, compilation passes, solvers,

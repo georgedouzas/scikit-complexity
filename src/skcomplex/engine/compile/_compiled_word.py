@@ -13,11 +13,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...core.elements import WordElement
-from ...core.errors import RewritingError
 from ...core.laws import ProductionLaw
 from ...core.laws.utils import parse_word
-from ...core.specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
-from ._parameters import Arrays, Parameters
+from ...errors import RewritingError
+from ...specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
+from ...types import Arrays
+from ._parameters import Parameters
 from ._rewriting_kernels import (
     _ACTION_CODES,
     DRAW,

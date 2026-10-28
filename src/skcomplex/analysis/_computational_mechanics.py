@@ -8,16 +8,12 @@ from collections.abc import Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 from scipy import stats
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
+from ..types import History, IntArray
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-
-type Array = npt.NDArray[np.float64]
-type Counts = npt.NDArray[np.int64]
-type History = tuple[int, ...]
 
 
 class EpsilonMachineAnalysis(BaseAnalysis):
@@ -135,7 +131,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _history_counts(codes: Counts, length: int, size: int) -> dict[History, Counts]:
+    def _history_counts(codes: IntArray, length: int, size: int) -> dict[History, IntArray]:
         """Return the counts of the next symbol after every observed history of a length, oldest symbol first."""
         windows = np.lib.stride_tricks.sliding_window_view(codes, length + 1)
         weights = size ** np.arange(length, -1, -1, dtype=np.int64)
@@ -147,7 +143,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         }
 
     @staticmethod
-    def _is_same_law(first: Counts, second: Counts, significance: float) -> bool:
+    def _is_same_law(first: IntArray, second: IntArray, significance: float) -> bool:
         """Return whether two counts of next symbols come from one law by a chi-square test of homogeneity."""
         table = np.vstack([first, second])
         table = table[:, table.sum(axis=0) > 0]
@@ -156,7 +152,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         return bool(stats.chi2_contingency(table, correction=False).pvalue > significance)
 
     @staticmethod
-    def _pooled(state: list[History], counts: list[dict[History, Counts]]) -> Counts:
+    def _pooled(state: list[History], counts: list[dict[History, IntArray]]) -> IntArray:
         """Return the counts of the next symbol pooled over the histories of a state."""
         return np.sum([counts[len(history)][history] for history in state], axis=0)
 
@@ -165,7 +161,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         child: History,
         states: list[list[History]],
         parent: list[History],
-        counts: list[dict[History, Counts]],
+        counts: list[dict[History, IntArray]],
         significance: float,
     ) -> None:
         """Add a history to its parent's state, to the first other state with its law, or to a new state."""
@@ -181,7 +177,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         states.append([child])
 
     @staticmethod
-    def _homogenize(counts: list[dict[History, Counts]], size: int, significance: float) -> list[list[History]]:
+    def _homogenize(counts: list[dict[History, IntArray]], size: int, significance: float) -> list[list[History]]:
         """Return the states of histories with the same law of the next symbol, grown one past symbol at a time."""
         states: list[list[History]] = [[()]]
         for length in range(len(counts) - 1):
@@ -194,14 +190,14 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         return [state for state in kept if state]
 
     @staticmethod
-    def _successors(history: History, counts: Counts, index: dict[History, int]) -> tuple[int, ...]:
+    def _successors(history: History, counts: IntArray, index: dict[History, int]) -> tuple[int, ...]:
         """Return the state reached from a history on every symbol, -1 for symbols it never emits."""
         return tuple(
             index.get((*history[1:], symbol), -1) if count else -1 for symbol, count in enumerate(counts.tolist())
         )
 
     @staticmethod
-    def _determinize(states: list[list[History]], counts: dict[History, Counts]) -> list[list[History]]:
+    def _determinize(states: list[list[History]], counts: dict[History, IntArray]) -> list[list[History]]:
         """Return the states split until every symbol leads from a state to a single state."""
         while True:
             index = {history: number for number, state in enumerate(states) for history in state}
@@ -218,7 +214,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
             states = split
 
     @staticmethod
-    def _transitions(state: list[History], counts: dict[History, Counts], index: dict[History, int]) -> list[int]:
+    def _transitions(state: list[History], counts: dict[History, IntArray], index: dict[History, int]) -> list[int]:
         """Return the state most histories of a state reach on every symbol, -1 for symbols none of them emits."""
         signatures = [EpsilonMachineAnalysis._successors(history, counts[history], index) for history in state]
         reached = [

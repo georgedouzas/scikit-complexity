@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
@@ -17,11 +16,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, LocalRuleLaw, RateLaw
 from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 
 NEAREST = VonNeumannNeighborhood()
 STRATEGIES = 3

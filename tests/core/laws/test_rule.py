@@ -2,9 +2,9 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
+from skcomplex.errors import ValidationError
 
 
 def test_rule_runs_its_function_on_the_agent_and_the_model():

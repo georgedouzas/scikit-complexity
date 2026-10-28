@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core.types import Vector
+from ...types import Array
 from ._split import _SplitSolver
 
 
@@ -23,7 +23,7 @@ class CrankNicolsonSolver(_SplitSolver):
         0.5
     """
 
-    def _step(self, t: float, x: Vector, p: Vector, h: float) -> Vector:
+    def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one Crank-Nicolson step with a predicted remainder."""
         explicit = x + h / 2 * self.operator_.apply(x)
         start = self._remainder(t, x, p)

@@ -18,14 +18,12 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import pulse_train, where
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import LangevinThermostatInteraction
 from ._brownian import DoubleWellElement
-
-type Array = npt.NDArray[np.float64]
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
 

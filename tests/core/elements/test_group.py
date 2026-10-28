@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
+from skcomplex.errors import SpaceError, ValidationError
+from skcomplex.specs import LayerSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(Element):

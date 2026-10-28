@@ -9,7 +9,7 @@ from scipy import stats
 from sklearn.base import clone
 
 from skcomplex.analysis import FitAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 
 

@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import NN
 import skcomplex.analysis
 from skcomplex.analysis import BaseAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError, NotCheckedError
 from skcomplex.core.laws import JumpLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError, NotCheckedError
 from skcomplex.models import run
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BirthDeathElement(Element):

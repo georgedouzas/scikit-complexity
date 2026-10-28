@@ -8,8 +8,8 @@ from typing import Any
 import numpy as np
 import qutip
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ._quantum import QuantumSolver
 
 MAX_SEED = 2**32
@@ -45,7 +45,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
+        >>> from skcomplex.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import QuantumTrajectoriesSolver
@@ -70,14 +70,14 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         -1.0
     """
 
-    def _create(self, p: Vector) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> Any:  # noqa: ANN401
         """Return QuTiP's Monte Carlo solver at fixed parameters."""
         problem = self.quantum_
         hamiltonian = self._operator(problem.hamiltonian, p)
         collapses = [self._operator(terms, p) for terms in problem.dissipators]
         return qutip.MCSolver(hamiltonian, c_ops=collapses, options=self._options)
 
-    def _start_state(self, x: Vector) -> qutip.Qobj:
+    def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
         problem = self.quantum_
         state = problem._state_of(x)
@@ -92,6 +92,6 @@ class QuantumTrajectoriesSolver(QuantumSolver):
             raise SolverError(error_msg)
         return self._ket(vectors[:, -1])
 
-    def _start(self, solver: Any, x: Vector, t: float) -> None:  # noqa: ANN401
+    def _start(self, solver: Any, x: Array, t: float) -> None:  # noqa: ANN401
         """Start the Monte Carlo solver from a state at a time with a seed drawn from the random number generator."""
         solver.start(self._start_state(x), t, seed=int(self.rng_.integers(MAX_SEED)))

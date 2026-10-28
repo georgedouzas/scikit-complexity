@@ -7,10 +7,10 @@ import numpy as np
 from skcomplex.core.elements import ParticleElement
 from skcomplex.core.interactions import PotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.specs import ParameterSpec, RoleSpec
 
 
 class SpringInteraction(PotentialInteraction):

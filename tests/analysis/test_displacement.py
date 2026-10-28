@@ -11,13 +11,13 @@ from sklearn.base import clone
 
 from skcomplex.analysis import DisplacementAnalysis
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import BaseLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, ModelView
+from skcomplex.errors import AnalysisError
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def _displacement(source: object, **settings: object) -> DisplacementAnalysis:

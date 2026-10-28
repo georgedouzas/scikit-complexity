@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.errors import CapacityError
-from ...core.types import Indices, Vector
+from ...errors import CapacityError
+from ...types import Array, Indices
 from ..problems import Entry
 from ..problems._edge_rows import ACTIVE_THRESHOLD
 
@@ -41,12 +41,12 @@ class CapacityRows:
 
     path: str
     variables: Mapping[str, tuple[Entry, bool]]
-    defaults: Mapping[str, Vector]
+    defaults: Mapping[str, Array]
     active: Entry
     source: Entry | None = None
     target: Entry | None = None
 
-    def present(self, p: Vector) -> npt.NDArray[np.bool_]:
+    def present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every row holds a member.
 
         Args:
@@ -59,7 +59,7 @@ class CapacityRows:
         """
         return self.active.view(p)[:, 0] > ACTIVE_THRESHOLD
 
-    def take_row(self, p: Vector) -> int:
+    def take_row(self, p: Array) -> int:
         """Return the first free row.
 
         Args:
@@ -83,7 +83,7 @@ class CapacityRows:
             raise CapacityError(error_msg)
         return int(free[0])
 
-    def write(self, row: int, x: Vector, p: Vector, values: Mapping[str, object]) -> None:
+    def write(self, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
         """Start a member in a row with given values or the defaults, and mark the row present.
 
         Args:
@@ -106,7 +106,7 @@ class CapacityRows:
             vector[start : start + entry.columns] = np.broadcast_to(np.asarray(value, dtype=float), (entry.columns,))
         p[self.active.start + row] = 1.0
 
-    def clear(self, row: int, p: Vector) -> None:
+    def clear(self, row: int, p: Array) -> None:
         """Mark a row free.
 
         Args:
@@ -118,7 +118,7 @@ class CapacityRows:
         """
         p[self.active.start + row] = 0.0
 
-    def ends(self, p: Vector) -> tuple[Indices, Indices]:
+    def ends(self, p: Array) -> tuple[Indices, Indices]:
         """Return the source and target node of every edge row.
 
         Args:

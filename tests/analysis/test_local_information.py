@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, LocalInformationAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _local(kind: str, source: object, **settings: object) -> np.ndarray:

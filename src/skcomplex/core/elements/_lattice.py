@@ -8,8 +8,8 @@ from typing import Self
 
 import numpy as np
 
+from ...specs import VisualSpec
 from ..spaces import BaseSpace, NetworkSpace
-from ..specs import VisualSpec
 from ._base import BaseElement
 from ._group import GroupElement
 
@@ -55,7 +55,7 @@ class LatticeElement(GroupElement):
         >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
         >>> from skcomplex.core.elements import Element, LatticeElement
         >>> from skcomplex.core.spaces import LatticeSpace
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> class CellElement(Element):
         ...     def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
         ...         super().__init__(label)

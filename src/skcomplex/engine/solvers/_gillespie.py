@@ -8,10 +8,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, JumpLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._base import BaseSolver
 from ._solver import Solver
@@ -68,7 +68,7 @@ class GillespieSolver(Solver):
         super()._prepare(problem, rng, until)
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Fire random events from time `t` until the next event falls after `until`.
 
         Args:

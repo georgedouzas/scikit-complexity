@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from scipy.optimize import brentq
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CollocationSolver
+from skcomplex.errors import ValidationError
 
 
 def _singular_level(cost, discount):

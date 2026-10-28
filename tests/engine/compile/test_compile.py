@@ -11,16 +11,15 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
-from skcomplex.core.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Form, domain_of, symbol
+from skcomplex.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -32,6 +31,7 @@ from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMo
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ...conftest import CallableGrowthInteraction, NodeElement, _correlated, _summed
 from .conftest import PairElement

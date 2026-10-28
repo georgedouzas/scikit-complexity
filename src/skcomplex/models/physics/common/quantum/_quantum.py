@@ -13,9 +13,9 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import CC
 
 from .....core.elements import Element
-from .....core.errors import ValidationError
 from .....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from .....core.specs import HilbertSpec, StateSpec, VisualSpec
+from .....errors import ValidationError
+from .....specs import HilbertSpec, StateSpec, VisualSpec
 
 
 def spin_space(j: float = 0.5) -> HilbertSpec:

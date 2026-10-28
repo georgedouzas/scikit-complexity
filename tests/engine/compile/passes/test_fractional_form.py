@@ -6,15 +6,15 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class RoughElement(Element):

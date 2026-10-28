@@ -8,16 +8,14 @@ from collections.abc import Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 from scipy import stats
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
+from ..types import AnyArray, Array
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
-type Columns = npt.NDArray[np.generic]
 KINDS = ('entropy', 'mutual', 'transfer')
 ESTIMATORS = ('plugin', 'gaussian')
 SETTINGS = {
@@ -120,7 +118,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _compute_pair(self, first: Columns, second: Columns, *, same: bool) -> Array:
+    def _compute_pair(self, first: AnyArray, second: AnyArray, *, same: bool) -> Array:
         """Return the local mutual information or the local transfer entropy from one series to another in nats."""
         if same:
             size = first.size - max(self.history, self.lag) if self.kind == 'transfer' else first.size
@@ -145,7 +143,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _log_probabilities(columns: Columns, estimator: str) -> Array:
+    def _log_probabilities(columns: AnyArray, estimator: str) -> Array:
         """Return the logarithm of the probability, or of the fitted Gaussian density, of every row in nats."""
         if estimator == 'plugin':
             codes = InformationAnalysis._row_codes(columns)
@@ -157,7 +155,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         return np.asarray(density.logpdf(values), dtype=float).reshape(-1)
 
     @staticmethod
-    def _local_transfer_entropy(x: Columns, y: Columns, history: int, lag: int, estimator: str) -> Array:
+    def _local_transfer_entropy(x: AnyArray, y: AnyArray, history: int, lag: int, estimator: str) -> Array:
         """Return `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` in nats at each time from `max(history, lag)`."""
         start = max(history, lag)
         future = y[start:, None]

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_gap import PermutationGroup
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
+from skcomplex.errors import ValidationError
 from skcomplex.models.computer_science.automata import Subshift
 
 

@@ -4,23 +4,20 @@
 # License: MIT
 
 import operator
-from collections.abc import Callable
 from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.types import Vector
+from ....errors import ValidationError
 from ...problems import Entry, Reference, Source, numpy_function, symbol, vector
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 
-type Scalars = Callable[[float, Vector, Vector], list[float]]
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
 _SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
 

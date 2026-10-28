@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DestructionLaw
+from skcomplex.errors import ValidationError
 
 F, G, MU = var('f g mu')
 

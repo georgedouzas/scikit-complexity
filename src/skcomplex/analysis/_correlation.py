@@ -10,12 +10,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy import optimize
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 KINDS = ('auto', 'two-time', 'function', 'length', 'overlap')
 METHODS = ('moment', 'fit')
 SETTINGS = {

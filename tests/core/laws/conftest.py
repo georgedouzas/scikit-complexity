@@ -3,8 +3,8 @@
 from typing import Annotated
 
 from skcomplex.core.elements import Element
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-12)
 

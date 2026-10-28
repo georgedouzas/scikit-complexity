@@ -10,10 +10,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec, components_of, step_count
 from ._base import BaseSolver
 from ._solver import Solver
@@ -78,7 +78,7 @@ class VelocityVerletSolver(Solver):
         BaseSolver._reject_hybrid(problem, type(self).__name__)
         self.positions_, self.velocities_ = self._position_pairs(problem)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate positions and velocities from time `t` to time `until` in equal steps no longer than `dt`.
 
         Args:

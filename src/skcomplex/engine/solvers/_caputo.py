@@ -9,10 +9,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._solver import Solver
 
@@ -81,14 +81,14 @@ class CaputoSolver(Solver):
             raise SolverError(error_msg)
         return int(index)
 
-    def _continues(self, t: float, x: Vector) -> bool:
+    def _continues(self, t: float, x: Array) -> bool:
         """Check whether a run goes on from the last step with the same fractional states."""
         if not self._state.size or not math.isclose(t, self._origin + self._step_index * self.dt, abs_tol=1e-12):
             return False
         fractional = self._fractional
         return bool(np.allclose(x[fractional], self._state[fractional], rtol=_CHANGE_TOLERANCE, atol=0.0))
 
-    def _convolve(self, weights: Vector, rows: Vector) -> Vector:
+    def _convolve(self, weights: Array, rows: Array) -> Array:
         """Return the sum over rows of every column weighted by the column of its order."""
         if self._unique.size == 1:
             return weights[:, 0] @ rows
@@ -98,12 +98,12 @@ class CaputoSolver(Solver):
             result[columns] = weights[:, group] @ rows[:, columns]
         return result
 
-    def _per_state(self, values: Vector) -> Vector:
+    def _per_state(self, values: Array) -> Array:
         """Return one value per state from one value per distinct order."""
         return values[self._groups]
 
     @abstractmethod
-    def _restart(self, t: float, x: Vector) -> None:
+    def _restart(self, t: float, x: Array) -> None:
         """Start the history of a run at a time from a state.
 
         Args:
@@ -120,7 +120,7 @@ class CaputoSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _carry(self, x: Vector) -> None:
+    def _carry(self, x: Array) -> None:
         """Take the values of the states of order 1 that changed between frames.
 
         Args:
@@ -134,7 +134,7 @@ class CaputoSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _step(self, p: Vector) -> None:
+    def _step(self, p: Array) -> None:
         """Advance the run by one step of the grid.
 
         Args:
@@ -147,7 +147,7 @@ class CaputoSolver(Solver):
         """
         raise NotImplementedError
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate from time `t` to time `until` on the grid of the run.
 
         Args:

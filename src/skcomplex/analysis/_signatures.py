@@ -6,11 +6,11 @@
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
-from ..core.errors import AnalysisError
 from ..engine.problems import Form
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._alignment import AlignmentAnalysis
 from ._base import BaseAnalysis, Signature, Source
 from ._correlation import CorrelationAnalysis
@@ -20,7 +20,6 @@ from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
 from ._spectrum import SpectrumAnalysis
 
-type Array = npt.NDArray[np.float64]
 SERIES_COLUMNS = 3
 PLANE = 2
 

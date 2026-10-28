@@ -11,11 +11,10 @@ import numpy.typing as npt
 from scipy import stats
 
 from ....analysis import FitAnalysis
-from ....core.errors import AnalysisError
 from ....engine.runtime import Trajectory
+from ....errors import AnalysisError
+from ....types import Array
 from ._kinetic_temperature import KineticTemperatureAnalysis
-
-type Array = npt.NDArray[np.float64]
 
 
 class MaxwellBoltzmannAnalysis(FitAnalysis):

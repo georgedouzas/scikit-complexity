@@ -6,9 +6,9 @@ import inspect
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
 from skcomplex.models.biology.systems_biology import (
     random_boolean_network,
     yeast_cell_cycle,

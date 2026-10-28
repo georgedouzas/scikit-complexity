@@ -16,11 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import total, uniform, where
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 
 def _reward(actions: Array, couplings: Array) -> float:

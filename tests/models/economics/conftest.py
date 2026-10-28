@@ -5,9 +5,9 @@ from typing import Any
 
 import numpy.typing as npt
 
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
+from skcomplex.specs import ObservableSpec
 
 
 def _run(system: System, until: float, **settings: Any) -> Trajectory:  # noqa: ANN401

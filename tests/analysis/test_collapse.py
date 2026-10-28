@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, DistributionAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 
 from .conftest import ISING_SIZES, ISING_TEMPERATURES

@@ -5,7 +5,7 @@
 
 import math
 from abc import abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any, ClassVar, cast
@@ -15,8 +15,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ...core.errors import SolverError, ValidationError
-from ...core.types import Vector
+from ...errors import SolverError, ValidationError
+from ...types import Array, Cost, GridFunction
 from ..compile import ObservableEvaluator
 from ..problems import Form, Problem, numpy_function, symbols_of
 from ._control_solution import ControlSolution
@@ -25,9 +25,6 @@ from ._solver import Solver
 TIME_TOLERANCE = 1e-9
 _SENSES = ('min', 'max')
 _NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
-
-type GridFunction = Callable[..., npt.NDArray[np.float64]]
-type Cost = Callable[[SimpleNamespace], object] | float
 
 
 @dataclass(frozen=True)
@@ -55,7 +52,7 @@ class _ControlProblem:
     running: Expression
     terminal: Expression
     sign: float
-    lower: Vector = field(repr=False)
+    lower: Array = field(repr=False)
 
     @property
     def time(self) -> Expression:
@@ -73,7 +70,7 @@ class _ControlProblem:
         return np.array([control.index for control in self.controls], dtype=np.intp)
 
     @property
-    def bounds(self) -> tuple[Vector, Vector]:
+    def bounds(self) -> tuple[Array, Array]:
         """Lower and upper bounds of the controls."""
         return (
             np.array([control.lower for control in self.controls]),
@@ -86,7 +83,7 @@ class _ControlProblem:
         compiled = numpy_function(self.time, arguments, [SR(item) for item in expressions])
         count = len(expressions)
 
-        def evaluate(t: float | Vector, x: Vector, u: Vector, p: Vector, *values: Vector) -> npt.NDArray[np.float64]:
+        def evaluate(t: float | Array, x: Array, u: Array, p: Array, *values: Array) -> npt.NDArray[np.float64]:
             if np.ndim(x) == 1 and np.ndim(t) == 0:
                 return np.array(compiled(t, *x, *u, *p, *(item for value in values for item in value)), dtype=float)
             times = np.asarray(t, dtype=float)
@@ -172,7 +169,7 @@ class _ControlProblem:
             raise SolverError(error_msg)
 
     @staticmethod
-    def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Vector:
+    def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Array:
         """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
         lower = np.full(problem.states.size, -np.inf)
         for entry in problem.states.entries:
@@ -249,7 +246,7 @@ class OptimalControlSolver(Solver):
             error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
             raise ValidationError(error_msg)
 
-    def _integrate(self, x0: Vector, controls: Vector, times: Vector, p: Vector) -> Vector:
+    def _integrate(self, x0: Array, controls: Array, times: Array, p: Array) -> Array:
         """Return the steered states on a grid from their initial values, by Runge-Kutta steps under given controls."""
         control_problem = self.control_problem_
         states = np.zeros((times.size, x0.size))
@@ -271,7 +268,7 @@ class OptimalControlSolver(Solver):
                 states[k + 1] = self.problem_.boundary(times[k + 1], full, p)[control_problem.indices]
         return states
 
-    def _cost(self, times: Vector, states: Vector, controls: Vector, p: Vector) -> float:
+    def _cost(self, times: Array, states: Array, controls: Array, p: Array) -> float:
         """Return the value of the objective, in its own sense, for states and controls on a grid of times."""
         running = self.running_(times, states, controls, p)[:, 0]
         terminal = self.terminal_(times[-1], states[-1], controls[-1], p)[0]
@@ -279,14 +276,14 @@ class OptimalControlSolver(Solver):
 
     def _solution(
         self,
-        x0: Vector,
-        times: Vector,
-        states: Vector,
-        controls: Vector,
-        p: Vector,
+        x0: Array,
+        times: Array,
+        states: Array,
+        controls: Array,
+        p: Array,
         *,
         iterations: int,
-        costates: Mapping[str, Vector] | None = None,
+        costates: Mapping[str, Array] | None = None,
     ) -> ControlSolution:
         """Return the solution of steered states and controls on a grid, with its cost."""
         control_problem = self.control_problem_
@@ -328,7 +325,7 @@ class OptimalControlSolver(Solver):
         self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
         self.initial_state_ = self.solution_.state_at(0.0)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Return the state of the optimal solution at a time of the run.
 
         Args:
@@ -371,7 +368,7 @@ class OptimalControlSolver(Solver):
         del control_problem
 
     @abstractmethod
-    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolution:
         """Return the optimal solution from an initial state over a horizon.
 
         Args:

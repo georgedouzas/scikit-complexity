@@ -7,7 +7,7 @@ from typing import Any
 
 import qutip
 
-from ...core.types import Vector
+from ...types import Array
 from ..compile.passes._quantum_problem import QuantumProblem
 from ._quantum import QuantumSolver
 
@@ -32,7 +32,7 @@ class UnitarySolver(QuantumSolver):
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
+        >>> from skcomplex.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import UnitarySolver
@@ -60,6 +60,6 @@ class UnitarySolver(QuantumSolver):
             return ['dissipators, which need the lindblad or quantum_trajectories solver']
         return [] if problem.pure else ['a density matrix, which needs the lindblad solver']
 
-    def _create(self, p: Vector) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> Any:  # noqa: ANN401
         """Return QuTiP's Schrödinger solver at fixed parameters."""
         return qutip.SESolver(self._operator(self.quantum_.hamiltonian, p), options=self._options)

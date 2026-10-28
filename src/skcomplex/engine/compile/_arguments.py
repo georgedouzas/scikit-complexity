@@ -6,12 +6,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
-import numpy.typing as npt
-
-from ._lookup import Vector
-
-type Indices = npt.NDArray[np.intp]
+from ...types import Array, Indices
 
 
 @dataclass(frozen=True)
@@ -37,7 +32,7 @@ class Arguments:
     starts: tuple[int, ...] = ()
     sizes: tuple[int, ...] = ()
 
-    def values(self, x: Vector, p: Vector, sites: Indices | None = None) -> dict[str, Any]:
+    def values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Any]:
         """Return the values of the arguments, per-site values restricted to some sites.
 
         Args:

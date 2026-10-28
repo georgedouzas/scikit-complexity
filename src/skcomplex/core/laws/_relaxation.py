@@ -6,8 +6,8 @@
 from collections.abc import Callable, Sequence
 from typing import Self
 
+from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 
 

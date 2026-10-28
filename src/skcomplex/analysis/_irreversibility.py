@@ -10,13 +10,13 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import MarkovAnalysis
 
-type Array = npt.NDArray[np.float64]
 MIN_PAIRS = 3
 MIN_PATHS = 2
 TUR_BOUND = 2.0

@@ -13,12 +13,12 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from ..core.errors import RegistryError
 from ..core.system import System
 from ..engine.runtime import MODELS, ModelEntry, Simulation, summarize
 from ..engine.runtime import create as create_registered
 from ..engine.runtime import describe as describe_registered
 from ..engine.runtime import run as run_registered
+from ..errors import RegistryError
 
 PACKAGE = Path(str(files('skcomplex.models')))
 LISTED = ('name', 'field', 'description', 'tags', 'references')

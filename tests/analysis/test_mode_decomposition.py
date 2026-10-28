@@ -9,14 +9,14 @@ from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.analysis import ModeDecompositionAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousTime
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
+from skcomplex.errors import AnalysisError
+from skcomplex.specs import StateSpec, VisualSpec
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 

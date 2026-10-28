@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import CC, RR
 
-from ...core.specs import ParameterSpec, RoleSpec, StateSpec
+from ...specs import ParameterSpec, RoleSpec, StateSpec
 from ._variable_kind import VariableKind
 
 
@@ -169,7 +169,7 @@ def declared_variables(part: object) -> dict[str, tuple[Variable, object]]:
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.engine.problems import declared_variables
         >>> class PendulumElement(Element):
         ...     def __init__(self, label, theta: Annotated[float, StateSpec(order=2)] = 0.1):

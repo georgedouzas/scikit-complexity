@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -33,8 +33,8 @@ class Accelerated:
             The discrete map loop `iterate(t, x, p, until)`, or `iterate(t, x, p, until, rng)` for a stochastic map.
     """
 
-    rk4: Callable[..., Vector] | None = None
-    velocity_verlet: Callable[..., Vector] | None = None
-    euler_maruyama: Callable[..., Vector] | None = None
-    gillespie: Callable[..., Vector] | None = None
-    iterate: Callable[..., Vector] | None = None
+    rk4: Callable[..., Array] | None = None
+    velocity_verlet: Callable[..., Array] | None = None
+    euler_maruyama: Callable[..., Array] | None = None
+    gillespie: Callable[..., Array] | None = None
+    iterate: Callable[..., Array] | None = None

@@ -9,7 +9,7 @@ from typing import Annotated
 
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, BoundaryLaw
-from ....core.specs import RoleSpec
+from ....specs import RoleSpec
 from ._utils import _limited, _read
 
 

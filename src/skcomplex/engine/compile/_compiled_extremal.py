@@ -9,11 +9,11 @@ from typing import Any
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ._arguments import Arguments, Indices
+from ...errors import SolverError
+from ...types import Array, Indices
+from ._arguments import Arguments
 from ._extremal_record import ExtremalRecord
 from ._lattice_state import LatticeState
-from ._lookup import Vector
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class CompiledExtremal:
     repeat: int
     loop: Callable[..., None] | None = None
 
-    def _apply_once(self, x: Vector, p: Vector, rng: np.random.Generator) -> tuple[int, float]:
+    def _apply_once(self, x: Array, p: Array, rng: np.random.Generator) -> tuple[int, float]:
         """Update the extremal site and its neighbours once, and return the site and its value."""
         keys = x[self.key.sites]
         best = keys.max() if self.maximum else keys.min()
@@ -87,7 +87,7 @@ class CompiledExtremal:
             x[state.start + sites] = value
         return site, float(best)
 
-    def apply(self, x: Vector, p: Vector, rng: np.random.Generator, time: float) -> list[ExtremalRecord]:
+    def apply(self, x: Array, p: Array, rng: np.random.Generator, time: float) -> list[ExtremalRecord]:
         """Apply the law `repeat` times and return the record of every application.
 
         Args:

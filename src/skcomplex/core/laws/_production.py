@@ -6,10 +6,10 @@
 import numbers
 from typing import Self
 
-from ..errors import RewritingError
+from ...errors import RewritingError
+from ...specs import ModuleSpec, RequirementSpec
+from ...types import Letters
 from ..spaces import DiscreteTime
-from ..specs import ModuleSpec, RequirementSpec
-from ..types import Letters
 from ._base import BaseLaw
 from .utils import parse_word
 

@@ -7,24 +7,22 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-
-type Bits = npt.NDArray[np.int64]
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import IntArray
 
 MAX_SEED = 2**31
 
 
-def strategy_table(code: float, memory: int) -> Bits:
+def strategy_table(code: float, memory: int) -> IntArray:
     """Return the table of a minority game strategy, the bit it plays after each of the `2^m` histories.
 
     A table has `2^m` bits, too many to store as one number beyond small memories, so a strategy is stored as the
@@ -166,7 +164,7 @@ class MinorityGameInteraction(Interaction):
         """
         return [RuleLaw(self.play)]
 
-    def _table(self, code: float, model: ModelView) -> Bits:
+    def _table(self, code: float, model: ModelView) -> IntArray:
         """Return the table of a strategy, cached for the run."""
         tables = model.storage.setdefault('tables', {})
         if code not in tables:

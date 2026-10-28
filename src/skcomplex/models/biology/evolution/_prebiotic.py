@@ -13,13 +13,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.errors import ValidationError
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import total
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _mean_fitness(master: SimpleNamespace) -> Expression:

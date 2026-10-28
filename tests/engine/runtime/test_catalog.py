@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
+from skcomplex.errors import ValidationError
 from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,

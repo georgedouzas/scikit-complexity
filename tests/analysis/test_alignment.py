@@ -8,7 +8,7 @@ from scipy.spatial import cKDTree
 from sklearn.base import clone
 
 from skcomplex.analysis import AlignmentAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 
 

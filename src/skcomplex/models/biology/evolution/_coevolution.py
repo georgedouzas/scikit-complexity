@@ -9,18 +9,16 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, ExtremalLaw
 from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import StateSpec, VisualSpec
+from ....types import Array
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),

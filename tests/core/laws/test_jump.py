@@ -3,9 +3,9 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.laws.utils import draw
+from skcomplex.errors import ValidationError
 
 N, K = var('n k')
 

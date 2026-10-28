@@ -3,16 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...types import NumericFunction
 from ._noise_process import NoiseProcess
 from ._reference import Reference
-
-type NumericFunction = Callable[[float, Mapping[str, object]], object]
 
 
 @dataclass

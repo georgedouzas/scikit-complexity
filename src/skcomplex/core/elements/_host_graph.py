@@ -7,8 +7,8 @@ from typing import Annotated, Self
 
 import networkx as nx
 
-from ..errors import RewritingError
-from ..specs import StateSpec, VisualSpec
+from ...errors import RewritingError
+from ...specs import StateSpec, VisualSpec
 from ._element import Element
 
 

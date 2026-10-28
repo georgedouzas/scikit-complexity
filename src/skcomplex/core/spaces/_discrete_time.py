@@ -7,8 +7,8 @@ from typing import Self
 import numpy as np
 import numpy.typing as npt
 
-from ..errors import ValidationError
-from ..specs import ScheduleSpec
+from ...errors import ValidationError
+from ...specs import ScheduleSpec
 from ._base import BaseTime
 
 SCHEDULES = ('synchronous', 'random-sequential')

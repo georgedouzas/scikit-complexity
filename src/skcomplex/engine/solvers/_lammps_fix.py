@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,6 @@ class LammpsFix:
 
     name: str
     group: str
-    value: Callable[[str], Vector]
+    value: Callable[[str], Array]
     mass: Callable[[], float]
     seed: Callable[[], int]

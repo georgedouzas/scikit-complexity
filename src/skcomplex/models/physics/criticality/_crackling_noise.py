@@ -7,12 +7,11 @@ from collections.abc import Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
 from ....analysis import EventAnalysis
-from ....core.errors import AnalysisError
+from ....errors import AnalysisError
+from ....types import Array
 
-type Array = npt.NDArray[np.float64]
 MIN_POINTS = 2
 SHAPE_GRID = 50
 

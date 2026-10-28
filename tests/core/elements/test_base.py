@@ -4,8 +4,8 @@ from typing import Annotated
 
 from skcomplex.core.elements import BaseElement, Element, GroupElement
 from skcomplex.core.interactions import BaseInteraction
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(BaseElement):

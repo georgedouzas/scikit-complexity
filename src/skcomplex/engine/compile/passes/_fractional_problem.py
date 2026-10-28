@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
-from ....core.types import Vector
+from ....types import Array
 from ...problems import Form, FractionalRows, Kernel, Layout, Lowered, Problem
 from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
@@ -48,7 +48,7 @@ class FractionalProblemPass(BasePass):
         )
 
     @staticmethod
-    def _hurst_function(kernel: Kernel, hurst: object) -> Callable[[Vector], Vector]:
+    def _hurst_function(kernel: Kernel, hurst: object) -> Callable[[Array], Array]:
         """Return the function of the parameter vector that gives the Hurst index of every row of a noise kernel."""
         rows = kernel.rows
         if SR(hurst).is_numeric():
@@ -79,7 +79,7 @@ class FractionalProblemPass(BasePass):
         return tuple(rows)
 
     @staticmethod
-    def _state_orders(states: list[FractionalState], layout: Layout) -> Vector:
+    def _state_orders(states: list[FractionalState], layout: Layout) -> Array:
         """Return the order of every state component, 1 for the states outside the fractional ones."""
         orders = np.ones(layout.size)
         for item in states:

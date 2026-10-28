@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from skcomplex.core.elements import Element
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class TraderElement(Element):

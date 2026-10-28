@@ -9,10 +9,8 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import CrossingLaw, NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import delayed, pulse_train, series, step
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import BaseObserver, Simulation
@@ -25,10 +23,12 @@ from skcomplex.engine.solvers import (
     ScipyODESolver,
     VelocityVerletSolver,
 )
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models.biology.ecology import hutchinson
 from skcomplex.models.biology.physiology import mackey_glass
 from skcomplex.models.engineering.processes import bathtub
 from skcomplex.models.physics.mechanics import bouncing_ball, huygens_clocks
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ClockElement(Element):

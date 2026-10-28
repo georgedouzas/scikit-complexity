@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...core.types import Indices
+from ...types import Indices
 from ._entry import Entry
 
 

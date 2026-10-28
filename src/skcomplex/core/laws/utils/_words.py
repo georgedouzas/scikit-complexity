@@ -5,8 +5,8 @@
 
 from collections.abc import Sequence
 
-from ...specs import ModuleSpec
-from ...types import Letters
+from ....specs import ModuleSpec
+from ....types import Letters
 
 
 def parse_word(value: Letters, names: Sequence[str] = ()) -> list[ModuleSpec]:
@@ -28,7 +28,7 @@ def parse_word(value: Letters, names: Sequence[str] = ()) -> list[ModuleSpec]:
 
     Examples:
         >>> from skcomplex.core.laws.utils import parse_word
-        >>> from skcomplex.core.specs import ModuleSpec
+        >>> from skcomplex.specs import ModuleSpec
         >>> [module.name for module in parse_word(['F', ModuleSpec('A', (1.0,)), '+-'])]
         ['F', 'A', '+', '-']
     """

@@ -8,18 +8,16 @@ from typing import Annotated, Any
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 EXCITED = 1
 

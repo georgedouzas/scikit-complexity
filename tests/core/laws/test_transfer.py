@@ -8,14 +8,14 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ConservationError, LabelError, ValidationError
 from skcomplex.core.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
+from skcomplex.errors import ConservationError, LabelError, ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class TanksElement(Element):

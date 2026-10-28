@@ -11,7 +11,6 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 from sklearn.base import clone
 
-from ...core.errors import SolverError, ValidationError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -41,7 +40,8 @@ from ...core.spaces import (
     MeshSpace,
     NetworkSpace,
 )
-from ...core.types import Vector
+from ...errors import SolverError, ValidationError
+from ...types import Array
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
 from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
@@ -217,7 +217,7 @@ class CoSimulationSolver(Solver):
         """Return the number of members of an element group."""
         return next(item.members or 1 for item in self.problem_.elements if item.path == group)
 
-    def _update_held(self, t: float, x: Vector) -> None:
+    def _update_held(self, t: float, x: Array) -> None:
         """Write the current value of every held reduction into the state vector."""
         states = self.problem_.states
         for path, reduction, reducer in self._held:
@@ -241,7 +241,7 @@ class CoSimulationSolver(Solver):
                 return agents
         return None
 
-    def _advance_partition(self, partition: Partition, source: Vector, p: Vector, start: float, end: float) -> Vector:
+    def _advance_partition(self, partition: Partition, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition from the values of a source state vector and return its new state vector."""
         stepper = self.steppers_[partition.name]
         if stepper.reads_inputs:
@@ -251,14 +251,14 @@ class CoSimulationSolver(Solver):
             state = partition.problem.boundary(end, state, p)
         return state
 
-    def _add_deposits(self, partition: Partition, state: Vector) -> None:
+    def _add_deposits(self, partition: Partition, state: Array) -> None:
         """Add the amounts that the agents of a partition deposited into fields since the last synchronisation."""
         deposits = getattr(self.steppers_[partition.name], 'deposits_', None)
         if deposits is not None and deposits.any():
             state += deposits
             deposits[:] = 0.0
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance every partition to `until`, exchanging values at every synchronisation point.
 
         Args:

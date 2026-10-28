@@ -13,9 +13,9 @@ from ....core.elements import ParticleElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, RoleSpec
 from ..common.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
 

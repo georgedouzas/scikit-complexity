@@ -14,15 +14,6 @@ from sage.modules.free_module_element import FreeModuleElement
 from sklearn.base import clone
 
 from ...core.elements import GroupElement
-from ...core.errors import (
-    ParameterError,
-    PipelineError,
-    SkcomplexError,
-    SolverError,
-    SpaceError,
-    SpaceTooLargeError,
-    ValidationError,
-)
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction
 from ...core.laws import EncounterLaw, JumpLaw, NoiseLaw, ProliferationLaw
 from ...core.laws.utils import NeighborReduction, neighborhoods_in, reductions_in
@@ -39,8 +30,17 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from ...core.specs import ObservableSpec, TopologyRequestSpec, WienerProcessSpec
 from ...core.system import System
+from ...errors import (
+    ParameterError,
+    PipelineError,
+    SkcomplexError,
+    SolverError,
+    SpaceError,
+    SpaceTooLargeError,
+    ValidationError,
+)
+from ...specs import ObservableSpec, TopologyRequestSpec, WienerProcessSpec
 from ..backends import BaseBackend
 from ..problems import (
     BaseProblem,

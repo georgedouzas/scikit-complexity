@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from ...core.errors import SkcomplexError, ValidationError
+from ...errors import SkcomplexError, ValidationError
 
 _ERROR = 'error'
 

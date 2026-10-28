@@ -124,7 +124,7 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.core.elements import WordElement
             >>> from skcomplex.core.laws import ProductionLaw
             >>> from skcomplex.core.spaces import DiscreteTime
-            >>> from skcomplex.core.specs import GeometrySpec
+            >>> from skcomplex.specs import GeometrySpec
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import GeometryVisual

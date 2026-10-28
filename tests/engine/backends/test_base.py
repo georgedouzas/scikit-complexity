@@ -12,12 +12,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import Call
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, Lowering, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
@@ -30,10 +28,12 @@ from skcomplex.engine.solvers import (
     RK4Solver,
     VelocityVerletSolver,
 )
+from skcomplex.errors import BackendWarning, SolverError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CUTOFF = 2.5
 

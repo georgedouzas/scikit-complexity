@@ -17,12 +17,12 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...core.elements import ParticleElement
-from ...core.errors import BackendError, SolverError
 from ...core.interactions import BaseInteraction, PairPotentialInteraction
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.system import System
-from ...core.types import Vector
+from ...errors import BackendError, SolverError
+from ...types import Array, PairArguments
 from ..backends import NumpyBackend
 from ..compile import compile_system
 from ..problems import (
@@ -47,7 +47,6 @@ _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 _SUPPORTED_DIMENSIONS = (2, 3)
-type PairArguments = Callable[[Callable[[str], Vector]], str]
 type FixCommand = Callable[[LammpsFix], str]
 
 
@@ -194,7 +193,7 @@ class LammpsSolver(ExternalSolver):
             return []
         return [f'interactions {", ".join(sorted(external))}, which have {", ".join(sorted(set(reasons)))}']
 
-    def _pair_expression(self, problem: Problem, p: Vector, item: CompiledInteraction) -> str:
+    def _pair_expression(self, problem: Problem, p: Array, item: CompiledInteraction) -> str:
         """Return the Lepton expression of a pair interaction with its parameters at their current values."""
         interaction = item.interaction
         values = {
@@ -209,7 +208,7 @@ class LammpsSolver(ExternalSolver):
         energy = interaction._get_pair_energy(SimpleNamespace(**values, **roles), distance)
         return self._lepton_expression(energy, distance)
 
-    def _box_commands(self, problem: Problem, x: Vector) -> list[str]:
+    def _box_commands(self, problem: Problem, x: Array) -> list[str]:
         """Return the commands that create the simulation box."""
         atoms = self.atoms_
         box = self._box(problem)
@@ -240,7 +239,7 @@ class LammpsSolver(ExternalSolver):
             f'create_box {len(atoms.elements)} box',
         ]
 
-    def _pair_commands(self, problem: Problem, p: Vector) -> list[str]:
+    def _pair_commands(self, problem: Problem, p: Array) -> list[str]:
         """Return the commands of the pair style and of the coefficients of every pair interaction."""
         pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotentialInteraction)]
         styles, coefficients = [], []
@@ -269,7 +268,7 @@ class LammpsSolver(ExternalSolver):
             commands.append(f'pair_coeff {first} {second} {label} {arguments}')
         return commands
 
-    def _fix_commands(self, problem: Problem, p: Vector) -> list[str]:
+    def _fix_commands(self, problem: Problem, p: Array) -> list[str]:
         """Return the commands of the integrator and of every box, force, drag, and thermostat fix."""
         atoms = self.atoms_
         commands = ['fix nve all nve']
@@ -298,7 +297,7 @@ class LammpsSolver(ExternalSolver):
             commands.append('fix external all external pf/callback 1 1')
         return commands
 
-    def _target_mass(self, problem: Problem, p: Vector, target: str | None) -> float:
+    def _target_mass(self, problem: Problem, p: Array, target: str | None) -> float:
         """Return the mass of the atoms of the element or group an interaction targets."""
         return self._mass(problem, p, next(element for element in self.atoms_.elements if element.path == target))
 
@@ -331,8 +330,8 @@ class LammpsSolver(ExternalSolver):
             step: int,
             n_local: int,
             tags: npt.NDArray[np.int64],
-            x: Vector,
-            forces: Vector,
+            x: Array,
+            forces: Array,
         ) -> None:
             """Write the forces of the external interactions on every local atom."""
             order = np.asarray(tags[:n_local], dtype=np.intp) - 1
@@ -347,7 +346,7 @@ class LammpsSolver(ExternalSolver):
 
         return callback
 
-    def _sub_parameters(self) -> Vector:
+    def _sub_parameters(self) -> Array:
         """Return the parameter vector of the external interactions at the current parameter values."""
         sub_problem = self.external_
         assert sub_problem is not None
@@ -395,7 +394,7 @@ class LammpsSolver(ExternalSolver):
         if self.external_ is not None:
             self.lammps_.set_fix_external_callback('external', self._external_callback(), None)
 
-    def _create_atoms(self, x: Vector) -> None:
+    def _create_atoms(self, x: Array) -> None:
         """Create one LAMMPS atom per member, with ids in state vector order."""
         atoms = self.atoms_
         count = len(atoms.atom_types)
@@ -410,7 +409,7 @@ class LammpsSolver(ExternalSolver):
             velocities.ravel().tolist(),
         )
 
-    def _update_parameters(self, p: Vector) -> None:
+    def _update_parameters(self, p: Array) -> None:
         """Reissue the masses, pair coefficients, and fixes after a parameter change."""
         problem, atoms = self.problem_, self.atoms_
         self.parameters_ = p.copy()
@@ -423,13 +422,13 @@ class LammpsSolver(ExternalSolver):
         if self.external_ is not None:
             self.lammps_.set_fix_external_callback('external', self._external_callback(), None)
 
-    def _local_atoms(self) -> tuple[npt.NDArray[np.intp], Vector, Vector]:
+    def _local_atoms(self) -> tuple[npt.NDArray[np.intp], Array, Array]:
         """Return the state order, positions, and velocities of the local atoms, without periodic ghost atoms."""
         numpy, count = self.lammps_.numpy, int(self.lammps_.extract_global('nlocal'))
         order = np.asarray(numpy.extract_atom('id')[:count], dtype=np.intp) - 1
         return order, numpy.extract_atom('x')[:count], numpy.extract_atom('v')[:count]
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Write the state into LAMMPS, run it to time `until`, and read the state back.
 
         Args:
@@ -520,12 +519,12 @@ class LammpsSolver(ExternalSolver):
         return path
 
     @staticmethod
-    def _parameter(problem: Problem, p: Vector, path: str, name: str) -> Vector:
+    def _parameter(problem: Problem, p: Array, path: str, name: str) -> Array:
         """Return the value of a parameter of an element, group, or interaction."""
         return np.atleast_1d(np.asarray(problem.parameters.read(p, f'{path}.{name}'), dtype=float))
 
     @staticmethod
-    def _mass(problem: Problem, p: Vector, element: CompiledElement) -> float:
+    def _mass(problem: Problem, p: Array, element: CompiledElement) -> float:
         """Return the mass of the members of an element or group, which LAMMPS stores per atom type."""
         return float(LammpsSolver._parameter(problem, p, element.path, 'm')[0])
 

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import NetworkAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 
 

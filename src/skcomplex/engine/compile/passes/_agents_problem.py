@@ -8,10 +8,10 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import CC
 
-from ....core.errors import BackendError, LabelError, ValidationError
 from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
-from ....core.specs import VisualSpec
+from ....errors import BackendError, LabelError, ValidationError
+from ....specs import VisualSpec
 from ...problems import CompiledAgents, Problem, VariableKind, declarations_of
 from .._base import BasePass
 from .._block import Block

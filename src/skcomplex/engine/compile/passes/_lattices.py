@@ -14,7 +14,6 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
 from ....core.laws.utils import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ....core.spaces import (
@@ -26,10 +25,12 @@ from ....core.spaces import (
     MemoryNeighborhood,
     NetworkSpace,
 )
-from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
+from ....errors import ValidationError
+from ....specs import EnergySpec, MoveSpec, SamplerSpec
+from ....types import Array, Indices
 from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
-from .._arguments import Arguments, Indices
+from .._arguments import Arguments
 from .._base import BasePass
 from .._census import Census
 from .._compilation import Compilation, Laws
@@ -44,7 +45,7 @@ from .._kernel_spec import KernelSpec
 from .._lattice_context import LatticeContext
 from .._lattice_state import LatticeState
 from .._laws import LATTICE_LAWS
-from .._lookup import Lookup, Vector
+from .._lookup import Lookup
 
 _COLORING_STRATEGY = 'largest_first'
 
@@ -278,7 +279,7 @@ class LatticeProblemPass(BasePass):
     def _degrees_of(
         table: Indices,
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
-    ) -> Vector:
+    ) -> Array:
         """Return the number of real neighbours of every site, besides the site itself."""
         return ((table != table.shape[0]).sum(axis=1) - LatticeProblemPass._center_columns(neighborhood)).astype(float)
 

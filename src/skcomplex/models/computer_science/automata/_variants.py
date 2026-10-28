@@ -15,15 +15,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.errors import ParameterError
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ParameterError
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 from ._automata import LifeCellElement
-
-type Array = npt.NDArray[np.float64]
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
 PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))

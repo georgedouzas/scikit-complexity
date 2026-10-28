@@ -12,12 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ...types import Array, Indices
 from ..problems import numpy_function
-
-type Vector = npt.NDArray[np.float64]
-
-
-type Indices = npt.NDArray[np.intp]
 
 
 @dataclass
@@ -49,7 +45,7 @@ class TableValues:
         return self.table[self.positions] if self.table.ndim else np.full(self.positions[0].size, self.table[()])
 
     @functools.cached_property
-    def _constant(self) -> Vector | None:
+    def _constant(self) -> Array | None:
         """Selected entries of a table of numbers, or `None` for a table of expressions."""
         return np.asarray(self._selected, dtype=float) if self._selected.dtype != object else None
 
@@ -68,7 +64,7 @@ class TableValues:
         """NumPy function of the selected entries of a table of expressions, compiled once."""
         return numpy_function(self.time, self._symbols, list(self._selected))
 
-    def values(self, p: Vector) -> Vector:
+    def values(self, p: Array) -> Array:
         """Return the values of the selected entries.
 
         Args:

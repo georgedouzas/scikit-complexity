@@ -5,10 +5,10 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ParameterError
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.errors import ParameterError
 from skcomplex.models import run
 from skcomplex.models.engineering.circuits import (
     chua,

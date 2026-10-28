@@ -8,10 +8,10 @@ import numpy as np
 from ....core.elements import GroupElement, ParticleElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import ContinuousSpace
-from ....core.specs import VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
+from ....specs import VisualSpec
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 

@@ -8,16 +8,16 @@ import pytest
 
 from skcomplex.analysis import FitAnalysis
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import CapacityError
 from skcomplex.core.interactions import Interaction, NeighborInteraction
 from skcomplex.core.laws import JumpLaw, UpdateLaw
 from skcomplex.core.laws.utils import neighbors, total
 from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import CapacityError
+from skcomplex.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
 
 def _degree(node):

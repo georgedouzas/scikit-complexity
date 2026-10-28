@@ -10,11 +10,11 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares, minimize
 
-from ..core.errors import ValidationError
 from ..engine.runtime import Simulation
+from ..errors import ValidationError
+from ..types import Array
 from ._base import BaseExperiment, Source
 
-type Array = npt.NDArray[np.float64]
 LOSSES = ('squares', 'likelihood')
 
 

@@ -4,9 +4,9 @@ from typing import Annotated
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import BaseInteraction
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class GrowthInteraction(BaseInteraction):

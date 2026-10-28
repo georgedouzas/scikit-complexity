@@ -10,18 +10,17 @@ from typing import Any, Self
 import nolds
 import numba
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
-from ..core.errors import AnalysisError
 from ..core.system import System
 from ..engine.problems import SCALAR_DIALECT, BaseProblem, print_expressions
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import StabilityAnalysis, _Dynamics
 
-type Array = npt.NDArray[np.float64]
 KINDS = ('spectrum', 'largest')
 SETTINGS = {
     'spectrum': {'n_exponents', 'until', 'dt', 'transient', 'parameters'},

@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import ZZ, matrix
 from sage.groups.matrix_gps.finitely_generated import FinitelyGeneratedMatrixGroup_generic, MatrixGroup
 from sage.libs.gap.element import GapElement
 
-from ....core.errors import ValidationError
+from ....errors import ValidationError
 
 HEISENBERG_GENERATORS = (
     ((1, 1, 0), (0, 1, 0), (0, 0, 1)),

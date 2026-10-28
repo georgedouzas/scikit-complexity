@@ -4,7 +4,7 @@
 # License: MIT
 from typing import Self
 
-from ..errors import ValidationError
+from ...errors import ValidationError
 from ._base import BaseNeighborhood
 
 

@@ -8,16 +8,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import SolverError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, RateLaw
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import KineticSolver
+from skcomplex.errors import SolverError
 from skcomplex.experiments import Experiment
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CLASSES = 9
 HORIZON = 2.0

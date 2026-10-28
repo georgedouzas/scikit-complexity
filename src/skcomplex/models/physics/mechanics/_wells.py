@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import ParticleElement
 from ....core.interactions import PotentialInteraction
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, RoleSpec
 
 
 class ExponentialWellInteraction(PotentialInteraction):

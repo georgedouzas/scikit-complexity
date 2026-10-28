@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
-from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
-from ...core.types import Vector
+from ...errors import ValidationError
+from ...types import Array
 from ..problems import Draws, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
 from ..problems._sampled_draw import SampledDraw
 from ._base import BaseLowering
@@ -253,7 +253,7 @@ class DrawLowering(BaseLowering):
         return expression
 
     @staticmethod
-    def _sampler(request: _Request, time: Expression) -> Callable[[float, Vector, Vector, np.random.Generator], Vector]:
+    def _sampler(request: _Request, time: Expression) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
         draw = cast('Draw', request.draw)
         if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
@@ -275,7 +275,7 @@ class DrawLowering(BaseLowering):
         function = numpy_function(time, symbols, arguments)
         rows = request.rows
 
-        def sample(t: float, x: Vector, q: Vector, rng: np.random.Generator) -> Vector:
+        def sample(t: float, x: Array, q: Array, rng: np.random.Generator) -> Array:
             values = (
                 function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
             )
@@ -334,7 +334,7 @@ class DrawLowering(BaseLowering):
         return distribution
 
     @staticmethod
-    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
+    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Array:
         """Return values of a draw for a number of members, with arguments that hold one value or one per member.
 
         Args:

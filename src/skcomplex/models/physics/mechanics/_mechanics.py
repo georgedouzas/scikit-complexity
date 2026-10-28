@@ -15,9 +15,9 @@ from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
 
 GRAVITY = 9.81

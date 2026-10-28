@@ -8,16 +8,16 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
+from skcomplex.errors import RoleError, ValidationError
+from skcomplex.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 

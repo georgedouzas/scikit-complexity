@@ -8,20 +8,19 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
-type Array = npt.NDArray[np.float64]
 type Offset = tuple[int, int]
 
 IMITATIONS = ('best', 'fermi')

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 from ._entry import Entry
 
 
@@ -26,7 +26,7 @@ class Heading:
     entry: Entry
     angle: bool
 
-    def vectors(self, x: Vector) -> Vector:
+    def vectors(self, x: Array) -> Array:
         """Return the heading of every member as one row of components.
 
         Args:

@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, RoleSpec
 from ._populations import LogisticGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}

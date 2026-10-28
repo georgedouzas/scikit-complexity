@@ -9,7 +9,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.errors import BackendError
+from ...errors import BackendError
 from ..problems import Form, Problem
 from ._solver import Solver
 

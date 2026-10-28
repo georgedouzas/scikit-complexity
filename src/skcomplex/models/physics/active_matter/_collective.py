@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
@@ -18,13 +17,12 @@ from ....core.interactions import PairInteraction
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import advection, divergence, gradient, laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 from ._particles import ActiveParticleElement
-
-type Array = npt.NDArray[np.float64]
 
 
 class SoftRepulsionInteraction(PairInteraction):

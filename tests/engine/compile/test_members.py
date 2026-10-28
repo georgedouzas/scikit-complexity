@@ -8,23 +8,23 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import shift_member
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
+from skcomplex.errors import ValidationError
 from skcomplex.models.physics.statistical_mechanics import (
     ParticleSiteElement,
     ZeroRangeHopInteraction,
     ZeroRangeHopsInteraction,
     zero_range_process,
 )
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 
 class CarElement(Element):

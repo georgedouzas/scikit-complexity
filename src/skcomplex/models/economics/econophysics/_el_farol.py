@@ -16,14 +16,13 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....types import Array
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics
-
-type Array = npt.NDArray[np.float64]
 
 N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0

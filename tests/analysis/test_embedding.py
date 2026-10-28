@@ -5,7 +5,7 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.analysis import EmbeddingAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _embedding(kind: str, source: object, **settings: object) -> EmbeddingAnalysis:

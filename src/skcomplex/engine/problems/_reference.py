@@ -9,8 +9,8 @@ from typing import Any
 
 import numpy as np
 
-from ...core.errors import ValidationError
-from ...core.types import Indices, Vector
+from ...errors import ValidationError
+from ...types import Array, Indices
 from ._edge_search import EdgeSearch
 from ._entry import Entry
 from ._pair_search import PairSearch
@@ -55,7 +55,7 @@ class Reference:
         """Strided slice of the component of every member in the flat vector."""
         return slice(self.entry.start + self.column, self.entry.start + self.entry.size, self.entry.columns)
 
-    def column_of(self, x: Vector, p: Vector) -> Vector:
+    def column_of(self, x: Array, p: Array) -> Array:
         """Return the component of every member as a view into the state or parameter vector.
 
         Args:
@@ -80,7 +80,7 @@ class Reference:
         return self.entry.start + np.arange(self.entry.rows) * self.entry.columns + self.column
 
     @staticmethod
-    def _add_into(output: Vector, target: 'Reference', values: Vector, pairs: tuple[Indices, Indices] | None) -> None:
+    def _add_into(output: Array, target: 'Reference', values: Array, pairs: tuple[Indices, Indices] | None) -> None:
         """Add the values of one output to the target component of a flat vector.
 
         Args:
@@ -107,7 +107,7 @@ class Reference:
             np.add.at(column, pairs[0] if target.source is Source.FIRST else pairs[1], values)
 
     @staticmethod
-    def _assign_into(output: Vector, target: 'Reference', values: Vector) -> None:
+    def _assign_into(output: Array, target: 'Reference', values: Array) -> None:
         """Set the target component of a flat vector to the values of one output.
 
         Args:

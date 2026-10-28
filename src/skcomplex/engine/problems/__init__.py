@@ -1,7 +1,8 @@
 """Define what a system compiles to: the problem, and the kernels its numeric functions are written from."""
 
+from ...types import Getter, VectorFunction
 from ._accelerated import Accelerated
-from ._base_problem import BaseProblem, Getter
+from ._base_problem import BaseProblem
 from ._compiled_agents import CompiledAgents
 from ._compiled_element import CompiledElement
 from ._compiled_event import CompiledEvent
@@ -27,7 +28,7 @@ from ._order_kind import OrderKind
 from ._output import Output
 from ._partition import Partition
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
-from ._problem import Problem, VectorFunction
+from ._problem import Problem
 from ._record import Record
 from ._reduction_schedule import ReductionSchedule
 from ._reference import Reference

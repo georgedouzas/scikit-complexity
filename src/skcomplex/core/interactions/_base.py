@@ -5,9 +5,9 @@
 
 from typing import Self
 
+from ...errors import ValidationError
+from ...specs import ParameterSpec, StateSpec
 from ..base import BasePart
-from ..errors import ValidationError
-from ..specs import ParameterSpec, StateSpec
 
 
 class BaseInteraction(BasePart):
@@ -26,7 +26,7 @@ class BaseInteraction(BasePart):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions._base import BaseInteraction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
+        >>> from skcomplex.specs import ParameterSpec, RoleSpec
         >>> class GrowthInteraction(BaseInteraction):
         ...     def __init__(
         ...         self, label, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0

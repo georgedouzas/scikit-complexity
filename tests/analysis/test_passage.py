@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import FitAnalysis, PassageAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 RUNS = 2000
 

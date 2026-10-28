@@ -9,7 +9,7 @@ from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
 from skcomplex.analysis import InformationAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 SAMPLES = 20_000
 

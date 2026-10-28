@@ -5,8 +5,8 @@
 
 from typing import Self
 
+from ...specs import VisualSpec
 from ..base import BasePart
-from ..specs import VisualSpec
 
 
 class BaseElement(BasePart):
@@ -31,8 +31,8 @@ class BaseElement(BasePart):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements._base import BaseElement
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.specs import VisualSpec
         >>> class PopulationElement(BaseElement):
         ...     def __init__(
         ...         self,

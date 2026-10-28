@@ -14,13 +14,12 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
+from ..types import AnyArray, Array
 from ._base import BaseAnalysis, Source
 from ._entropy import EntropyAnalysis
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
-type Columns = npt.NDArray[np.generic]
 KINDS = (
     'mutual',
     'auto-mutual',
@@ -224,7 +223,7 @@ class InformationAnalysis(BaseAnalysis):
         )
         return self
 
-    def _compute_pair(self, first: Columns, second: Columns, *, same: bool) -> float:
+    def _compute_pair(self, first: AnyArray, second: AnyArray, *, same: bool) -> float:
         """Return the mutual information, the transfer entropy, or the divergence from one series to another."""
         if self.kind == 'transfer' and same:
             return math.nan
@@ -242,7 +241,7 @@ class InformationAnalysis(BaseAnalysis):
             )
         return self._kl_divergence(first, second, base=self.base)
 
-    def _compute_series(self, symbols: Columns) -> float | Array:
+    def _compute_series(self, symbols: AnyArray) -> float | Array:
         """Return the auto mutual information, the storage, or the correlation information of one series."""
         if self.kind == 'auto-mutual':
             return self._delayed_information(symbols, self.max_delay, base=self.base)
@@ -250,7 +249,7 @@ class InformationAnalysis(BaseAnalysis):
             return self._active_information_storage(symbols, self.history, base=self.base)
         return self._correlation_information(symbols, self.dimension, base=self.base)
 
-    def _compute_joint(self, columns: Columns) -> float | Array:
+    def _compute_joint(self, columns: AnyArray) -> float | Array:
         """Return the total correlations, the O-information, or its gradients of all series together."""
         scale = math.log(self.base)
         if self.kind == 'total-correlation':
@@ -413,7 +412,7 @@ class InformationAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _row_codes(columns: Columns) -> npt.NDArray[np.int64]:
+    def _row_codes(columns: AnyArray) -> npt.NDArray[np.int64]:
         """Return one integer code per distinct row."""
         _, codes = np.unique(columns, axis=0, return_inverse=True)
         return np.asarray(codes, dtype=np.int64).ravel()
@@ -438,14 +437,14 @@ class InformationAnalysis(BaseAnalysis):
         return total
 
     @staticmethod
-    def _dit_distribution(columns: Columns) -> object:
+    def _dit_distribution(columns: AnyArray) -> object:
         """Return the `dit` distribution of the empirical frequencies of the rows."""
         counts = Counter(tuple(row) for row in columns.tolist())
         total = sum(counts.values())
         return BaseAnalysis._import('dit').Distribution(list(counts), [count / total for count in counts.values()])
 
     @staticmethod
-    def _total(columns: Columns, estimator: str, k: int) -> float:
+    def _total(columns: AnyArray, estimator: str, k: int) -> float:
         """Return the total correlation `Σ H(X_i) - H(X)` of the columns in nats."""
         if estimator == 'plugin':
             return float(
@@ -464,7 +463,7 @@ class InformationAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _dual(columns: Columns, estimator: str, k: int) -> float:
+    def _dual(columns: AnyArray, estimator: str, k: int) -> float:
         """Return the dual total correlation `H(X) - Σ H(X_i | X_-i)` of the columns in nats."""
         if estimator == 'plugin':
             return float(
@@ -483,7 +482,7 @@ class InformationAnalysis(BaseAnalysis):
         return parts - InformationAnalysis._total(values, estimator, k)
 
     @staticmethod
-    def _o_information(columns: Columns, estimator: str, k: int, base: float) -> float:
+    def _o_information(columns: AnyArray, estimator: str, k: int, base: float) -> float:
         """Return the O-information, total minus dual total correlation, in the base of the logarithm."""
         return (
             InformationAnalysis._total(columns, estimator, k) - InformationAnalysis._dual(columns, estimator, k)

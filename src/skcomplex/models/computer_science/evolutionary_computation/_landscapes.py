@@ -15,12 +15,11 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 
 
 def _bits_of(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:

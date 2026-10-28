@@ -9,14 +9,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Vector
+from ...types import Array, Indices, Pair
 from ..problems import NetworkSnapshot
 from ._capacity import CapacityRows
-
-type Indices = npt.NDArray[np.intp]
-
-
-type Pair = tuple[int, int]
 
 
 @dataclass(frozen=True)
@@ -38,7 +33,7 @@ class NetworkRows:
     edges: Mapping[str | None, CapacityRows]
     directed: Mapping[str | None, bool]
 
-    def present(self, p: Vector) -> npt.NDArray[np.bool_]:
+    def present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every node row holds a node.
 
         Args:
@@ -70,7 +65,7 @@ class NetworkRows:
         """
         return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
 
-    def neighbours(self, layer: str | None, node: int, p: Vector) -> Indices:
+    def neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
         """Return the node rows a node joins in a layer, its successors on a directed layer.
 
         Args:
@@ -95,7 +90,7 @@ class NetworkRows:
             return found
         return np.concatenate([found, sources[present & (targets == node)]])
 
-    def add_node(self, x: Vector, p: Vector, values: Mapping[str, object]) -> int:
+    def add_node(self, x: Array, p: Array, values: Mapping[str, object]) -> int:
         """Add a node in the first free node row of every group on the nodes.
 
         Args:
@@ -117,7 +112,7 @@ class NetworkRows:
             group.write(row, x, p, values)
         return row
 
-    def add_edge(self, layer: str | None, ends: Pair, x: Vector, p: Vector, values: Mapping[str, object]) -> None:
+    def add_edge(self, layer: str | None, ends: Pair, x: Array, p: Array, values: Mapping[str, object]) -> None:
         """Add an edge between two node rows to a layer.
 
         Args:
@@ -143,7 +138,7 @@ class NetworkRows:
         p[edges.source.start + row] = first  # type: ignore[union-attr]
         p[edges.target.start + row] = second  # type: ignore[union-attr]
 
-    def remove_node(self, row: int, p: Vector) -> None:
+    def remove_node(self, row: int, p: Array) -> None:
         """Remove a node and every edge that joins it.
 
         Args:
@@ -160,7 +155,7 @@ class NetworkRows:
             for edge in np.flatnonzero(edges.present(p) & ((sources == row) | (targets == row))):
                 edges.clear(int(edge), p)
 
-    def snapshot(self, p: Vector, layer: str | None) -> NetworkSnapshot:
+    def snapshot(self, p: Array, layer: str | None) -> NetworkSnapshot:
         """Return the nodes and the edges of a layer present at the parameters of a frame.
 
         Args:

@@ -11,13 +11,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
-from ..core.errors import AnalysisError, ValidationError
 from ..engine.problems import Form, Problem
+from ..errors import AnalysisError, ValidationError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import StabilityAnalysis
-
-type Matrix = npt.NDArray[np.float64]
 
 
 class LinearizationAnalysis(BaseAnalysis):
@@ -87,7 +86,7 @@ class LinearizationAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import LinearizationAnalysis
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> class CartElement(Element):
         ...     def __init__(
@@ -214,13 +213,13 @@ class LinearizationAnalysis(BaseAnalysis):
         return list(names)
 
     @staticmethod
-    def _evaluated(rows: list[list[Expression]], values: Mapping[Expression, float]) -> Matrix:
+    def _evaluated(rows: list[list[Expression]], values: Mapping[Expression, float]) -> Array:
         """Return a matrix of expressions evaluated at values of their symbols."""
         columns = len(rows[0]) if rows else 0
         return np.array([[float(SR(item).subs(values)) for item in row] for row in rows]).reshape(len(rows), columns)
 
     @staticmethod
-    def _controllability(state: Matrix, inputs: Matrix) -> int:
+    def _controllability(state: Array, inputs: Array) -> int:
         """Return the rank of the controllability matrix `[B, AB, ..., A^(n-1) B]`."""
         blocks = [inputs]
         for _ in range(state.shape[0] - 1):
@@ -228,9 +227,9 @@ class LinearizationAnalysis(BaseAnalysis):
         return int(np.linalg.matrix_rank(np.hstack(blocks)))
 
     @staticmethod
-    def _lqr(state: Matrix, inputs: Matrix, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Matrix:
+    def _lqr(state: Array, inputs: Array, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Array:
         """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator, from the Riccati solution `P` of SciPy."""
         weights = np.atleast_2d(np.asarray(control_weights, dtype=float))
         riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(state_weights, dtype=float)), weights)
-        gain: Matrix = np.linalg.solve(weights, inputs.T @ riccati)
+        gain: Array = np.linalg.solve(weights, inputs.T @ riccati)
         return gain

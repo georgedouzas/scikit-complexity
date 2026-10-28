@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from ...core.errors import ConservationError, ValidationError
+from ...errors import ConservationError, ValidationError
 from ..problems import BaseProblem
 from ._base import BaseObserver
 from ._frames import Frame
@@ -28,7 +28,7 @@ class InvariantObserver(BaseObserver):
 
     Examples:
         >>> from skcomplex.core.elements import GroupElement
-        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.specs import ObservableSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import InvariantObserver, Simulation
         >>> from skcomplex.models.biology.ecology import PopulationElement

@@ -14,10 +14,10 @@ import numpy.typing as npt
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.errors import ValidationError
 from ....core.laws.utils import has_operator, local_operator
-from ....core.specs import ObservableSpec
-from ....core.types import Vector
+from ....errors import ValidationError
+from ....specs import ObservableSpec
+from ....types import Array
 from ...problems import BaseProblem, Getter
 from ...problems._compiled_reduction import CompiledReduction
 from ._quantum_term import QuantumTerm
@@ -146,7 +146,7 @@ class QuantumProblem(BaseProblem):
             error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
             raise ValidationError(error_msg)
 
-        def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del done
             values = np.asarray([self._expect(item, t, x, p) for item in terms])
             return CompiledReduction._reduce_values(values, observable.reduce)
@@ -164,7 +164,7 @@ class QuantumProblem(BaseProblem):
     def _expectation_getter(self, terms: tuple[QuantumTerm, ...]) -> Getter:
         """Return the getter of the expectation value of an operator."""
 
-        def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del done
             return self._expect(terms, t, x, p)
 
@@ -173,7 +173,7 @@ class QuantumProblem(BaseProblem):
     def _purity_getter(self) -> Getter:
         """Return the getter of the purity `Tr(rho^2)` of the state."""
 
-        def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del t, p, done
             state = self._state_of(x)
             return 1.0 if self.pure else float(np.sum(np.abs(state) ** 2))
@@ -189,11 +189,11 @@ class QuantumProblem(BaseProblem):
         return sp.csr_array(total)
 
     @staticmethod
-    def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> sp.csr_array:
+    def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Array, size: int) -> sp.csr_array:
         """Return the sum of the terms at a time and a parameter vector."""
         return QuantumProblem._sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
 
-    def _state_of(self, x: Vector) -> npt.NDArray[np.complex128]:
+    def _state_of(self, x: Array) -> npt.NDArray[np.complex128]:
         """Return the complex state of a quantum problem, a vector or a density matrix, from a state vector.
 
         Args:
@@ -206,7 +206,7 @@ class QuantumProblem(BaseProblem):
         """
         return np.asarray(self.states.read(x, self.states.names[0]))
 
-    def _expect(self, terms: Iterable[QuantumTerm], t: float, x: Vector, p: Vector) -> float | complex:
+    def _expect(self, terms: Iterable[QuantumTerm], t: float, x: Array, p: Array) -> float | complex:
         """Return the expectation value of an operator at a state of a quantum problem.
 
         Args:
@@ -235,7 +235,7 @@ class QuantumProblem(BaseProblem):
             return float(total.real)
         return total
 
-    def _hamiltonian_at(self, t: float, p: Vector) -> sp.csr_array:
+    def _hamiltonian_at(self, t: float, p: Array) -> sp.csr_array:
         """Return the Hamiltonian matrix of a quantum problem at a time and a parameter vector.
 
         Args:

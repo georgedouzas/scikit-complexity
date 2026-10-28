@@ -10,7 +10,7 @@ import numpy as np
 
 from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._base import BaseSolver
 from ._solver import Solver
@@ -67,7 +67,7 @@ class IterationSolver(Solver):
         super()._prepare(problem, rng, until)
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Apply the map once per integer time step from `t` up to `until`.
 
         Args:

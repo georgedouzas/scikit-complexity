@@ -10,13 +10,13 @@ import pytest
 
 from skcomplex.analysis import BaseAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import Experiment, GridDesign, RowsDesign
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.biology.epidemiology import sir
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class LogisticMapElement(Element):

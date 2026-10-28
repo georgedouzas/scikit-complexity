@@ -7,7 +7,7 @@ from typing import Any
 
 import qutip
 
-from ...core.types import Vector
+from ...types import Array
 from ._quantum import QuantumSolver
 
 
@@ -34,7 +34,7 @@ class LindbladSolver(QuantumSolver):
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
+        >>> from skcomplex.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import LindbladSolver
@@ -57,7 +57,7 @@ class LindbladSolver(QuantumSolver):
         True
     """
 
-    def _create(self, p: Vector) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> Any:  # noqa: ANN401
         """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
         problem = self.quantum_
         hamiltonian = self._operator(problem.hamiltonian, p)

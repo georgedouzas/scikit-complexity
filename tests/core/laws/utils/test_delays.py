@@ -9,9 +9,9 @@ from scipy import stats
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import distributed_delay, step
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DelayedElement(Element):

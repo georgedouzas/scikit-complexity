@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse_train, where
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 

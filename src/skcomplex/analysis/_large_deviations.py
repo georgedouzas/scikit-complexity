@@ -12,14 +12,14 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, special
 
-from ..core.errors import AnalysisError
 from ..core.system import System
 from ..engine.problems import Problem
 from ..engine.runtime import Simulation, Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
 MIN_EFFECTIVE_CLONES = 10

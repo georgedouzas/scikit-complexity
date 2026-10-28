@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import numpy as np
-import numpy.typing as npt
 import skfem
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
@@ -17,12 +16,11 @@ from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace, MeshSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import IMEXEulerSolver
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 
 class HeatElement(Element):

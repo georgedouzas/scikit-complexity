@@ -12,10 +12,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
+from ....specs import ParameterSpec, RoleSpec, WienerProcessSpec
 from ._assets import AssetElement
 
 
@@ -45,7 +45,7 @@ class CorrelatedGeometricBrownianMotionInteraction(Interaction):
                 The volatility.
 
     Examples:
-        >>> from skcomplex.core.specs import WienerProcessSpec
+        >>> from skcomplex.specs import WienerProcessSpec
         >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
         >>> market = WienerProcessSpec('market', dimension=2)
         >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market=market, index=1).index

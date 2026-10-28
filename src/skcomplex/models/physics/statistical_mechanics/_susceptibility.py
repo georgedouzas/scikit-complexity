@@ -7,12 +7,10 @@ from collections.abc import Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
 from ....analysis import DistributionAnalysis
-from ....core.errors import AnalysisError
-
-type Array = npt.NDArray[np.float64]
+from ....errors import AnalysisError
+from ....types import Array
 
 
 class SusceptibilityAnalysis(DistributionAnalysis):

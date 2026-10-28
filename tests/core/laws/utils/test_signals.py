@@ -8,10 +8,10 @@ import pytest
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import series
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def _driven_by(data):

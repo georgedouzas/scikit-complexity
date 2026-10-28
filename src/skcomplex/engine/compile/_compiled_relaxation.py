@@ -10,11 +10,11 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.errors import SolverError
+from ...errors import SolverError
+from ...types import Array
 from ._compiled_drive import CompiledDrive
 from ._compiled_rule import CompiledRule
 from ._lattice_state import LatticeState
-from ._lookup import Vector
 from ._relaxation_record import RelaxationRecord
 
 
@@ -53,15 +53,15 @@ class CompiledRelaxation:
     max_iterations: int
     activity: Callable[..., Any] | None = None
 
-    def _arrays(self, x: Vector) -> list[Vector]:
+    def _arrays(self, x: Array) -> list[Array]:
         """Return the targets' arrays in lattice shape."""
         return [np.reshape(x[state.sites], state.shape) for state in self.targets]
 
-    def _is_stable(self, x: Vector) -> bool:
+    def _is_stable(self, x: Array) -> bool:
         """Check the stability condition on the current state."""
         return bool(self.stable(*self._arrays(x)))
 
-    def apply(self, x: Vector, p: Vector, rng: np.random.Generator, time: float) -> RelaxationRecord | None:
+    def apply(self, x: Array, p: Array, rng: np.random.Generator, time: float) -> RelaxationRecord | None:
         """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
 
         Args:

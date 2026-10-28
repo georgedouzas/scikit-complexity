@@ -7,8 +7,8 @@ from abc import abstractmethod
 
 from sage.all__sagemath_symbolics import SR, Expression, vector
 
+from ...specs import RoleSpec
 from ..laws import RateLaw
-from ..specs import RoleSpec
 from ._interaction import Interaction
 
 
@@ -28,7 +28,7 @@ class PotentialInteraction(Interaction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
         >>> from skcomplex.core.interactions import PotentialInteraction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
+        >>> from skcomplex.specs import ParameterSpec, RoleSpec
         >>> class SpringInteraction(PotentialInteraction):
         ...     def __init__(self, label, a: Annotated[str, RoleSpec()], b: Annotated[str, RoleSpec()]):
         ...         super().__init__(label)

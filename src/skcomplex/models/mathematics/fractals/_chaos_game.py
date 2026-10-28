@@ -11,13 +11,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, vector
 
 from ....core.elements import Element, GroupElement
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.spaces import ContinuousSpace
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import StateSpec, VisualSpec
 
 type AffineMap = Sequence[float]
 

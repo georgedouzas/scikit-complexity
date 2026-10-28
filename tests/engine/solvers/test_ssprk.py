@@ -11,12 +11,12 @@ from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import FluxLaw, RateLaw
 from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     SSPRKSolver,
 )
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 @pytest.mark.parametrize('riemann', ['rusanov', 'godunov'])

@@ -14,10 +14,10 @@ from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import SSPRKSolver
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 

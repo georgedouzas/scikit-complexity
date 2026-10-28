@@ -11,14 +11,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import LatticeElement
-from ....core.errors import ValidationError
 from ....core.interactions import BaseInteraction, Interaction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
 from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')

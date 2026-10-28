@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core.errors import SolverError
+from ...errors import SolverError
 
 
 class HorizonError(SolverError):

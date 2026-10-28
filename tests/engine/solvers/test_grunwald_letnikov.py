@@ -8,9 +8,7 @@ import pytest
 
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import RateLaw, UpdateLaw
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -23,6 +21,8 @@ from skcomplex.engine.solvers import (
     L1Solver,
     RK4Solver,
 )
+from skcomplex.errors import SolverError
+from skcomplex.specs import StateSpec, VisualSpec
 
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
 

@@ -5,18 +5,18 @@
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Protocol, Self
+from typing import TYPE_CHECKING, Protocol, Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.errors import ValidationError
 from ...core.spaces import BaseSpace
-from ...core.specs import ObservableSpec
 from ...core.system import System
-from ...core.types import Vector
+from ...errors import ValidationError
+from ...specs import ObservableSpec
+from ...types import Array, Getter
 from ._compiled_agents import CompiledAgents
 from ._compiled_element import CompiledElement
 from ._compiled_interaction import CompiledInteraction
@@ -31,9 +31,6 @@ if TYPE_CHECKING:
     from ._partition import Partition
 
 _ROW_TOLERANCE = 1e-9
-
-
-type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 
 
 class _RenewalProcess(Protocol):
@@ -55,17 +52,17 @@ class _RenewalProcess(Protocol):
     def states(self) -> npt.NDArray[np.intp]:
         """Flat indices of the states of every member, one row per member."""
 
-    def start(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+    def start(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
         """Return the first renewal time of every member from the states at a start time."""
 
     def fire(
         self,
-        times: Vector,
+        times: Array,
         fired: npt.NDArray[np.intp],
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         rng: np.random.Generator,
-    ) -> tuple[Vector, Vector, RenewalRecord]:
+    ) -> tuple[Array, Array, RenewalRecord]:
         """Renew members at their times, and return the state, their next renewal times, and the record."""
 
 
@@ -80,26 +77,26 @@ class _TopologyChanges(Protocol):
     def layers(self) -> tuple[tuple[str, str | None], ...]:
         """Path of the first group on the nodes and the layer of every network layer with a variable edge group."""
 
-    def decide(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> list[tuple[int, int]]:
+    def decide(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> list[tuple[int, int]]:
         """Return the requests of update laws that fire at a state, each as its index and the row it fires for."""
 
     def apply(
         self,
         fired: list[tuple[int, int]],
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         rng: np.random.Generator,
-    ) -> Vector:
+    ) -> Array:
         """Apply fired requests of update laws to a state and to the parameters in place, and return the state."""
 
-    def fire(self, channel: int, row: int, t: float, x: Vector, p: Vector, *, rng: np.random.Generator) -> Vector:
+    def fire(self, channel: int, row: int, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> Array:
         """Apply the request of a jump channel for a row, and return the state."""
 
-    def read_network(self, p: Vector, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
+    def read_network(self, p: Array, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
         """Return the nodes and edges of a layer of a network at the parameters of a frame."""
 
-    def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
+    def presence(self, name: str, p: Array) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group."""
 
 
@@ -108,10 +105,10 @@ class _MarkovMatrix:
     """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
 
     law: str
-    function: Callable[[Vector], npt.NDArray[np.float64]]
+    function: Callable[[Array], npt.NDArray[np.float64]]
     reads: frozenset[int]
 
-    def violation(self, p: Vector) -> str | None:
+    def violation(self, p: Array) -> str | None:
         """Return the description of the first negative entry or row that does not sum to one, or `None`.
 
         Args:
@@ -214,8 +211,8 @@ class BaseProblem:
     form: Form
     states: Layout
     parameters: Layout
-    initial_state: Vector
-    initial_parameters: Vector
+    initial_state: Array
+    initial_parameters: Array
     time: Expression
     _: KW_ONLY
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)

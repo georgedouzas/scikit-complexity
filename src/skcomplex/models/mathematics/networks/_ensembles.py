@@ -14,14 +14,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.errors import ValidationError
 from ....core.interactions import NeighborInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import maximum, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ._growth import DEGREE_VISUAL, LinkElement
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')

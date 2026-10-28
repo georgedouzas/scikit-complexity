@@ -12,10 +12,10 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ...core.errors import SolverError
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
 from ..compile.passes._quantum_problem import QuantumProblem
 from ..compile.passes._quantum_term import QuantumTerm
@@ -65,7 +65,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         self.nsteps = nsteps
         self.max_dimension = max_dimension
 
-    def _operator(self, terms: Sequence[QuantumTerm], p: Vector) -> qutip.Qobj | qutip.QobjEvo:
+    def _operator(self, terms: Sequence[QuantumTerm], p: Array) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
         problem = self.quantum_
         dims = [list(problem.dimensions)] * 2
@@ -85,7 +85,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         dimensions = list(self.quantum_.dimensions)
         return qutip.Qobj(vector.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
 
-    def _start_state(self, x: Vector) -> qutip.Qobj:
+    def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
         problem = self.quantum_
         state = problem._state_of(x)
@@ -93,7 +93,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             return self._ket(state)
         return qutip.Qobj(state, dims=[list(problem.dimensions)] * 2)
 
-    def _stored(self, state: qutip.Qobj) -> Vector:
+    def _stored(self, state: qutip.Qobj) -> Array:
         """Return a QuTiP state as a state vector of the problem."""
         problem = self.quantum_
         entry = problem.states.entry(problem.states.names[0])
@@ -109,7 +109,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         """Options of the QuTiP solvers."""
         return {'atol': self.atol, 'rtol': self.rtol, 'nsteps': self.nsteps}
 
-    def _create(self, p: Vector) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> Any:  # noqa: ANN401
         """Return the QuTiP solver at fixed parameters.
 
         Args:
@@ -126,7 +126,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         """
         raise NotImplementedError
 
-    def _start(self, solver: Any, x: Vector, t: float) -> None:  # noqa: ANN401
+    def _start(self, solver: Any, x: Array, t: float) -> None:  # noqa: ANN401
         """Start a QuTiP solver from a state at a time."""
         solver.start(self._start_state(x), t)
 
@@ -159,9 +159,9 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             raise SolverError(error_msg)
         self.quantum_: QuantumProblem = problem
         self.solver_: Any = None
-        self.parameters_: Vector | None = None
+        self.parameters_: Array | None = None
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance the state from time `t` to time `until` with the QuTiP solver.
 
         Args:
@@ -188,7 +188,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
-    def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
+    def _coefficient(term: QuantumTerm, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 

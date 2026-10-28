@@ -10,15 +10,15 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import cos, heaviside, pi, sin, tanh
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, maximum, mean, minimum, total, variance
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import RoleError, ValidationError
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 RNG = np.random.default_rng(0)
 

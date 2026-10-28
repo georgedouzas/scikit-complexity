@@ -8,12 +8,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 import scipy.sparse
 
+from ...types import Array
 from ..problems import Reference, symbol
-
-type Array = npt.NDArray[np.float64]
 
 TIME = symbol('t')
 _STENCIL = 2

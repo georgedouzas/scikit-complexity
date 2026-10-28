@@ -7,17 +7,17 @@ import pytest
 from sage.all__sagemath_symbolics import CC
 
 from skcomplex.core.elements import LatticeElement
-from skcomplex.core.errors import SolverError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LindbladSolver, QuantumTrajectoriesSolver, UnitarySolver
+from skcomplex.errors import SolverError
 from skcomplex.models.physics.common.quantum import QUBIT, QubitElement, SpinElement
+from skcomplex.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 OMEGA = 2.0
 

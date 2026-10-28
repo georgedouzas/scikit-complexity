@@ -9,13 +9,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
-from ...core.errors import SolverError, ValidationError
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
-from ...core.types import Vector
+from ...errors import SolverError, ValidationError
+from ...types import Array, Cost, GridFunction
 from ..problems import OrderKind, SupportSpec
 from ._control_solution import ControlSolution
-from ._optimal_control import Cost, GridFunction, OptimalControlSolver, _ControlProblem
+from ._optimal_control import OptimalControlSolver, _ControlProblem
 
 _MIN_RELAXATION = 1e-3
 MIN_NODES = 2
@@ -78,7 +78,7 @@ class PontryaginSolver(OptimalControlSolver):
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import PontryaginSolver
@@ -140,7 +140,7 @@ class PontryaginSolver(OptimalControlSolver):
             error_msg = f'relaxation = {self.relaxation!r} must lie in (0, 1].'
             raise ValidationError(error_msg)
 
-    def _costates(self, times: Vector, states: Vector, controls: Vector, p: Vector) -> Vector:
+    def _costates(self, times: Array, states: Array, controls: Array, p: Array) -> Array:
         """Return the costates on a grid, integrated backward from the horizon by Runge-Kutta steps."""
         costates = np.zeros_like(states)
         costates[-1] = self._final(times[-1], states[-1], controls[-1], p)
@@ -156,7 +156,7 @@ class PontryaginSolver(OptimalControlSolver):
             costates[k - 1] = lam - h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
         return costates
 
-    def _update(self, times: Vector, states: Vector, controls: Vector, costates: Vector, p: Vector) -> Vector:
+    def _update(self, times: Array, states: Array, controls: Array, costates: Array, p: Array) -> Array:
         """Return the controls that minimise the Hamiltonian on a grid, within their bounds."""
         lower, upper = self.control_problem_.bounds
         values = self._law(times, states, controls, p, costates)
@@ -193,7 +193,7 @@ class PontryaginSolver(OptimalControlSolver):
         )
         self._law: GridFunction = control_problem.function(law, costates)
 
-    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolution:
         """Return the optimal solution by a forward-backward sweep with relaxed control updates.
 
         Args:

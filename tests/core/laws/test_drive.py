@@ -3,8 +3,8 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DriveLaw
+from skcomplex.errors import ValidationError
 
 
 def test_drive_targets_its_lattice_state():

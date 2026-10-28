@@ -1,12 +1,12 @@
-"""Test the `types` module of `skcomplex.core`."""
+"""Test the `types` module of `skcomplex`."""
 
 import typing
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from skcomplex.core.specs import ModuleSpec
-from skcomplex.core.types import Letters, Process, Target
+from skcomplex.specs import ModuleSpec
+from skcomplex.types import Letters, Process, Target
 
 
 def test_targets_are_symbolic_expressions_or_vectors():

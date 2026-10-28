@@ -15,12 +15,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import StateSpec, VisualSpec
+from ....types import Array
 from ._codes import Wolfram, life
-
-type Array = npt.NDArray[np.float64]
 
 
 class ElementaryCellElement(Element):

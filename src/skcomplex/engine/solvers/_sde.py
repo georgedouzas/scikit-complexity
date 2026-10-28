@@ -7,10 +7,10 @@ import math
 from abc import abstractmethod
 from typing import ClassVar
 
-from ...core.types import Vector
+from ...types import Array, Interpolant
 from ..problems import Form
 from ._base import BaseSolver
-from ._history import History, Interpolant
+from ._history import History
 from ._solver import Solver
 
 
@@ -34,13 +34,13 @@ class SDESolver(Solver):
     def _increment(
         self,
         time: float,
-        state: Vector,
-        p: Vector,
+        state: Array,
+        p: Array,
         *,
-        step: float | Vector,
-        noise: Vector,
+        step: float | Array,
+        noise: Array,
         end: float,
-    ) -> Vector:
+    ) -> Array:
         """Return the state after one step with given Wiener increments, before the boundary laws.
 
         Args:
@@ -72,18 +72,18 @@ class SDESolver(Solver):
         """
         raise NotImplementedError
 
-    def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate with fixed steps, reading delays and locating events by linear interpolation of every step."""
         problem = self.problem_
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
-        def take(time: float, state: Vector, step: float, ceiling: float) -> tuple[Vector, Interpolant]:
+        def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
             parameters = History._with_delays(problem, history, time, state, p)
             noise = problem.draw_increments(self.rng_, math.sqrt(step))
             following = self._increment(time, state, parameters, step=step, noise=noise, end=min(time + step, ceiling))
             start, end = state.copy(), following.copy()
 
-            def interpolant(s: float) -> Vector:
+            def interpolant(s: float) -> Array:
                 return start + (s - time) / step * (end - start)
 
             return following, interpolant
@@ -100,7 +100,7 @@ class SDESolver(Solver):
             take=take,
         )
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate from time `t` to time `until` in fixed steps no longer than `dt`.
 
         Args:
@@ -123,5 +123,3 @@ class SDESolver(Solver):
         if until <= t or self.problem_.drift is None or self.problem_.diffusion is None:
             return x
         return self._advance_hybrid(t, x, p, until)
-
-

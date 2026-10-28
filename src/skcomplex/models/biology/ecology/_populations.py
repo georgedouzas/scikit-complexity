@@ -13,7 +13,7 @@ from ....core.elements import Element
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(Element):

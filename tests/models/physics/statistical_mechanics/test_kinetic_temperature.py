@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 from skcomplex.models.physics.statistical_mechanics import KineticTemperatureAnalysis
 

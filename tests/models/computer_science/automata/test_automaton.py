@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, MooreNeighborhood
+from skcomplex.errors import ValidationError
 from skcomplex.models.computer_science.automata import Automaton, Wolfram
 
 

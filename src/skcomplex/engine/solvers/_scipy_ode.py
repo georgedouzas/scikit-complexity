@@ -13,7 +13,6 @@ from typing import Any, ClassVar
 import numpy as np
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-from ...core.errors import SolverError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -26,7 +25,8 @@ from ...core.laws import (
     TransferLaw,
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
@@ -95,9 +95,9 @@ class _Segment:
 
     start: float
     end: float
-    before: Vector
-    after: Vector
-    dense: Callable[[float], Vector]
+    before: Array
+    after: Array
+    dense: Callable[[float], Array]
 
 
 class ScipyODESolver(Solver):
@@ -275,7 +275,7 @@ class ScipyODESolver(Solver):
         if max(lower, upper) <= _BAND_FRACTION * size:
             self.jacobian_options_ = {'lband': lower, 'uband': upper}
 
-    def _jacobian_options(self, history: History | None, p: Vector) -> dict[str, Any]:
+    def _jacobian_options(self, history: History | None, p: Array) -> dict[str, Any]:
         """Return the keyword arguments that pass the Jacobian structure to the integrator."""
         if not self._exact:
             return self.jacobian_options_
@@ -284,7 +284,7 @@ class ScipyODESolver(Solver):
         assert jacobian is not None
         dense = self.method_ == 'LSODA'
 
-        def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
+        def exact(time: float, state: Array) -> Any:  # noqa: ANN401
             matrix = jacobian.evaluate(time, state, History._with_delays(problem, history, time, state, p))
             return matrix.toarray() if dense else matrix
 
@@ -314,7 +314,7 @@ class ScipyODESolver(Solver):
         )
         warnings.warn(warning_msg, UserWarning, stacklevel=3)
 
-    def _continues(self, t: float, x: Vector, p: Vector) -> bool:
+    def _continues(self, t: float, x: Array, p: Array) -> bool:
         """Check whether a call continues the state, time, and parameters the integrator returned last."""
         return (
             self._solver is not None
@@ -336,7 +336,7 @@ class ScipyODESolver(Solver):
         ]
         return min(times, default=math.inf)
 
-    def _restart(self, t: float, x: Vector, p: Vector) -> None:
+    def _restart(self, t: float, x: Array, p: Array) -> None:
         """Start a new integrator at a time and state, bounded by the next breakpoint."""
         problem = self.problem_
         drift = problem.drift
@@ -350,7 +350,7 @@ class ScipyODESolver(Solver):
         bound = min(later if later is not None else math.inf, self._next_discontinuity(after))
         ceiling = EventLocator._find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
 
-        def field(time: float, state: Vector) -> Vector:
+        def field(time: float, state: Array) -> Array:
             time = min(time, ceiling)
             return drift(time, state, History._with_delays(problem, history, time, state, p))  # type: ignore[misc]
 
@@ -374,7 +374,7 @@ class ScipyODESolver(Solver):
         self._segment = None
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
 
-    def _next_segment(self, p: Vector) -> _Segment:
+    def _next_segment(self, p: Array) -> _Segment:
         """Return the step that covers the current time, taking a new step or restarting at a breakpoint."""
         segment = self._segment
         while segment is None or segment.end <= self._time:
@@ -450,7 +450,7 @@ class ScipyODESolver(Solver):
         self._stalled += 1
         return self._stalled >= _STALL_STEPS
 
-    def _leave_lsoda(self, t: float, x: Vector, p: Vector) -> None:
+    def _leave_lsoda(self, t: float, x: Array, p: Array) -> None:
         """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
         cause = (
             f'{_MAX_FRAME_STEPS} steps in one frame'
@@ -472,7 +472,7 @@ class ScipyODESolver(Solver):
         self._frame_steps = 0
         self._restart(t, x, p)
 
-    def _first_change(self, dense: Callable[[float], Vector], end: float, p: Vector) -> float:
+    def _first_change(self, dense: Callable[[float], Array], end: float, p: Array) -> float:
         """Return the first time of a step, up to its end, at which the boundary laws change the state, by bisection."""
 
         def changed(time: float) -> bool:
@@ -487,7 +487,7 @@ class ScipyODESolver(Solver):
             low, high = (low, middle) if changed(middle) else (middle, high)
         return high
 
-    def _to_event(self, p: Vector, until: float) -> None:
+    def _to_event(self, p: Array, until: float) -> None:
         """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
 
         The integrator restarts where a boundary law first changes the state. When that happens at once after a restart,
@@ -515,7 +515,7 @@ class ScipyODESolver(Solver):
             time = end
         self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift from time `t` to time `until`, continuing the integrator of the previous call.
 
         The integrator restarts when the parameters change, when the state or time is not the one it returned, at
@@ -562,9 +562,9 @@ class ScipyODESolver(Solver):
 
     @staticmethod
     def _lsoda_first_step(
-        field: Callable[[float, Vector], Vector],
+        field: Callable[[float, Array], Array],
         t: float,
-        x: Vector,
+        x: Array,
         *,
         end: float,
         max_step: float,

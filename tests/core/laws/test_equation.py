@@ -8,13 +8,13 @@ from sage.all__sagemath_symbolics import oo, sin, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EquationLaw, RateLaw
 from skcomplex.core.laws.utils import derivative, step, where
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from .conftest import PRECISE
 

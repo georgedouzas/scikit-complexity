@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import InformationAnalysis, SurrogateTestAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _test(kind: str, data: np.ndarray, **settings: object) -> SurrogateTestAnalysis:

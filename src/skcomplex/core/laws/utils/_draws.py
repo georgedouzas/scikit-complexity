@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import SR, Expression, function
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...errors import ValidationError
+from ....errors import ValidationError
 
 
 @dataclass(frozen=True)

@@ -7,11 +7,9 @@ from collections.abc import Callable, Sequence
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
 from ....analysis import RollingAnalysis
-
-type Array = npt.NDArray[np.float64]
+from ....types import Array
 
 
 class EarlyWarningAnalysis(RollingAnalysis):

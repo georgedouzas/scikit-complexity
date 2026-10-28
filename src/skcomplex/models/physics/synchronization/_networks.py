@@ -17,9 +17,9 @@ from ....core.interactions import NeighborInteraction
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ._kuramoto import PhaseOscillatorElement
 from ._utils import _order_parameter
 

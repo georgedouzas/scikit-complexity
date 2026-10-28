@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import RR
 
-from skcomplex.core.errors import SolverError
 from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout, symbol
 from skcomplex.engine.solvers import BaseSolver
+from skcomplex.errors import SolverError
 
 
 def test_solver_rejects_a_problem_of_another_form():

@@ -11,13 +11,13 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.errors import ValidationError
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 

@@ -5,9 +5,9 @@
 
 from typing import Self
 
+from ...specs import RequirementSpec
+from ...types import Target
 from ..spaces import ContinuousTime
-from ..specs import RequirementSpec
-from ..types import Target
 from ._base import BaseLaw
 
 

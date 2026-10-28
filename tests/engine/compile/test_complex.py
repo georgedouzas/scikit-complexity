@@ -11,11 +11,9 @@ from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, 
 
 from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import BackendError, ValidationError
 from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import Call, derivative, laplacian, mod, total, where
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -30,7 +28,9 @@ from skcomplex.engine.solvers import (
     RK4Solver,
     ScipyODESolver,
 )
+from skcomplex.errors import BackendError, ValidationError
 from skcomplex.models.physics.pattern_formation import GinzburgLandauElement
+from skcomplex.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 STIFF = (IMEXEulerSolver(dt=0.05), IMEX2Solver(dt=0.05), CrankNicolsonSolver(dt=0.05))
 

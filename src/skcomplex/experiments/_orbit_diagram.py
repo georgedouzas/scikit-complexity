@@ -8,14 +8,12 @@ from concurrent.futures import Executor
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
-from ..core.errors import ValidationError
+from ..errors import ValidationError
+from ..types import Array
 from ._base import BaseExperiment, Source
 from ._experiment import Experiment
 from ._grid import GridDesign
-
-type Array = npt.NDArray[np.float64]
 
 
 class OrbitDiagramExperiment(BaseExperiment):

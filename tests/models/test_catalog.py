@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from skcomplex.core.errors import RegistryError
+from skcomplex.errors import RegistryError
 from skcomplex.models import catalog, create, describe, scan_listings
 
 

@@ -11,12 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy import ndimage
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import IntArray
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Labels = npt.NDArray[np.int64]
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
 SETTINGS = {
     'labels': {'periodic', 'diagonal', 'axis'},
@@ -180,7 +180,7 @@ class ClusterAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _merge(labels: Labels, axis: int) -> None:
+    def _merge(labels: IntArray, axis: int) -> None:
         """Merge clusters that touch across the periodic edges of an axis, in place."""
         parent = np.arange(labels.max() + 1)
 
@@ -201,7 +201,7 @@ class ClusterAnalysis(BaseAnalysis):
         labels[...] = roots[labels]
 
     @staticmethod
-    def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[Labels, Labels]:
+    def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[IntArray, IntArray]:
         """Return the label of each cell, 0 for empty cells and 1 onwards for clusters, and the size of each cluster."""
         occupied = np.asarray(grid, dtype=bool)
         structure = ndimage.generate_binary_structure(occupied.ndim, occupied.ndim if diagonal else 1)
@@ -215,7 +215,7 @@ class ClusterAnalysis(BaseAnalysis):
         return relabelled, np.bincount(relabelled.ravel())[1:]
 
     @staticmethod
-    def _spans(labels: Labels, axis: int) -> bool:
+    def _spans(labels: IntArray, axis: int) -> bool:
         """Return whether one cluster touches both opposite edges along an axis."""
         first = set(np.take(labels, 0, axis=axis).ravel()) - {0}
         last = set(np.take(labels, -1, axis=axis).ravel()) - {0}

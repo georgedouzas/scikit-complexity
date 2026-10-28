@@ -11,10 +11,10 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.specs import ParameterSpec
 
 
 class SoftSphereInteraction(PairPotentialInteraction):

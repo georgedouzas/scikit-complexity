@@ -9,8 +9,8 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Problem
 from ._base import BaseSolver
 from ._event_locator import EventLocator
@@ -42,7 +42,7 @@ class Solver(BaseSolver[Problem]):
             )
             raise SolverError(error_msg)
 
-    def _bounded(self, t: float, x: Vector, p: Vector) -> Vector:
+    def _bounded(self, t: float, x: Array, p: Array) -> Array:
         """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
         boundary = self.problem_.boundary
         return x if boundary is None else boundary(t, x, p)
@@ -50,13 +50,13 @@ class Solver(BaseSolver[Problem]):
     def _advance_renewals(
         self,
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         until: float,
         *,
         dt: float,
-        step: Callable[[float, Vector, Vector, Vector], Vector],
-    ) -> Vector:
+        step: Callable[[float, Array, Array, Array], Array],
+    ) -> Array:
         """Integrate with fixed steps that stop at the renewals of every member and at the breakpoints of inputs.
 
         Members that do not interact take steps on their own clocks, and interacting members split every step at each

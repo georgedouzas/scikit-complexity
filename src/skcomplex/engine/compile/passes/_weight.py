@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ....core.specs import TopologyRequestSpec
+from ....specs import TopologyRequestSpec
 
 
 @dataclass(frozen=True, eq=False)

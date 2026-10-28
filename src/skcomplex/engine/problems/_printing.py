@@ -16,7 +16,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
 
-from ...core.errors import ValidationError
+from ...errors import ValidationError
+from ...types import Printed, PrintedKey
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
 _CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
@@ -40,11 +41,7 @@ _PYTHON_RELATIONS = {
 _CONDITION = 'np.where('
 _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
-type Printed = tuple[str, int]
 _NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
-
-
-type _Key = tuple[int, str]
 
 
 @dataclass(frozen=True)
@@ -300,7 +297,7 @@ class _Printer:
 
     dialect: Dialect
     names: Callable[[Expression], str]
-    bound: dict[_Key, str] = field(default_factory=dict)
+    bound: dict[PrintedKey, str] = field(default_factory=dict)
 
     def wrap(self, printed: Printed, precedence: int) -> str:
         """Return printed code, in parentheses when it binds less tightly than a precedence."""
@@ -452,7 +449,7 @@ class _Printer:
         return bool(exponent.is_numeric() and exponent.pyobject() < 0)
 
     @staticmethod
-    def _key(item: Expression) -> _Key:
+    def _key(item: Expression) -> PrintedKey:
         """Return the key of an expression in tables, equal to the keys of structurally identical expressions.
 
         Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions are keyed by
@@ -461,9 +458,9 @@ class _Printer:
         return hash(item), str(item)
 
     @staticmethod
-    def _subexpressions(expressions: Sequence[Expression]) -> Counter[_Key]:
+    def _subexpressions(expressions: Sequence[Expression]) -> Counter[PrintedKey]:
         """Return how often every compound subexpression occurs in expressions."""
-        counts: Counter[_Key] = Counter()
+        counts: Counter[PrintedKey] = Counter()
         stack = list(expressions)
         while stack:
             item = stack.pop()

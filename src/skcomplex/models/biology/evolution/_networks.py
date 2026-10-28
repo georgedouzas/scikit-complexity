@@ -18,9 +18,9 @@ from ....core.interactions import Interaction, NeighborInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

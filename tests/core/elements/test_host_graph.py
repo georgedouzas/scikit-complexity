@@ -4,7 +4,7 @@ import networkx as nx
 import pytest
 
 from skcomplex.core.elements import HostGraphElement
-from skcomplex.core.errors import RewritingError
+from skcomplex.errors import RewritingError
 
 
 def test_host_graph_takes_a_networkx_graph_or_none():

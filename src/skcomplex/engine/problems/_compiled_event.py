@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class _Delay:
 
     parameters: npt.NDArray[np.intp]
     states: npt.NDArray[np.intp]
-    tau: Callable[[float, Vector, Vector], float]
+    tau: Callable[[float, Array, Array], float]
     minimum: float
     symbol: Expression
     state: Expression
@@ -102,8 +102,8 @@ class CompiledEvent:
     """
 
     label: str
-    guard: Callable[[float, Vector, Vector], float]
-    reset: Callable[[float, Vector, Vector], Vector] | None
+    guard: Callable[[float, Array, Array], float]
+    reset: Callable[[float, Array, Array], Array] | None
     direction: int
     terminal: bool
     hidden: bool = False

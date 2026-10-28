@@ -11,10 +11,10 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import RR, Expression
 
-from ....core.errors import LabelError, RoleError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ....core.specs import WienerProcessSpec
+from ....errors import LabelError, RoleError, ValidationError
+from ....specs import WienerProcessSpec
 from ...problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol
 from ...problems._pair_search import PairSearch
 from .._base import BasePass

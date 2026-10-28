@@ -10,15 +10,16 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ....errors import ValidationError
+from ....types import Indices
 from ...backends import BaseBackend, resolve_backend
 from ...problems import Reference, Source, symbols_of
 from .._base import BasePass
 from .._compilation import Laws
 from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
-from .._table_values import Indices, TableValues
+from .._table_values import TableValues
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 

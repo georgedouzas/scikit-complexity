@@ -5,8 +5,8 @@
 
 from typing import Self
 
+from ...specs import EnergySpec, MoveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ..specs import EnergySpec, MoveSpec, RequirementSpec, SamplerSpec
 from ._base import BaseLaw
 
 
@@ -31,7 +31,7 @@ class SampleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import SampleLaw
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
-        >>> from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
+        >>> from skcomplex.specs import EnergySpec, MoveSpec, SamplerSpec
         >>> spin = var('spin')
         >>> law = SampleLaw(EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec(spin), SamplerSpec('glauber', 2.0))
         >>> law.check().prepare().targets_

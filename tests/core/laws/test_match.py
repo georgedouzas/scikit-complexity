@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import MatchLaw, RuleLaw
 from skcomplex.core.laws.utils import matches
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class TraderElement(Element):

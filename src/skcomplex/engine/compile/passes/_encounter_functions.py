@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....core.types import Vector
+from ....types import Array
 from .._base import BasePass
 from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
@@ -40,7 +40,7 @@ class EncounterFunctionsPass(BasePass):
             return
         drift = functions.get('drift')
 
-        def encountered(t: float, x: Vector, p: Vector) -> Vector:
+        def encountered(t: float, x: Array, p: Array) -> Array:
             rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
             for encounter in encounters:
                 rates += encounter.rates(x, p)

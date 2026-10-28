@@ -11,11 +11,11 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 KINDS = (
     'histogram',
     'ccdf',

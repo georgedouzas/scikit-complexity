@@ -17,7 +17,7 @@ from matching.games import HospitalResident
 
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
-from .....core.specs import RoleSpec
+from .....specs import RoleSpec
 
 type Preference = Callable[[Any, Any], float]
 

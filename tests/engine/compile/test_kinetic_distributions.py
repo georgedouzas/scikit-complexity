@@ -8,13 +8,13 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws.utils import moment
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import distribution_from, members_from
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ObservableSpec, StateSpec, VisualSpec
 
 CLASSES = np.arange(9.0)
 

@@ -6,9 +6,9 @@
 from collections.abc import Sequence
 from typing import Self
 
-from ..errors import RewritingError
+from ...errors import RewritingError
+from ...specs import AffineSpec, RequirementSpec
 from ..spaces import DiscreteTime
-from ..specs import AffineSpec, RequirementSpec
 from ._base import BaseLaw
 
 
@@ -29,7 +29,7 @@ class SubstitutionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.core.laws import SubstitutionLaw
-        >>> from skcomplex.core.specs import AffineSpec
+        >>> from skcomplex.specs import AffineSpec
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).check().pieces)
         1
     """

@@ -5,8 +5,7 @@
 
 from dataclasses import dataclass
 
-from ...core.types import Indices, Vector
-from ._edge_rows import Found
+from ...types import Array, EdgesFound, Indices
 
 
 @dataclass(frozen=True)
@@ -28,7 +27,7 @@ class StaticSearch:
     indices: Indices
     edges: Indices | None = None
 
-    def find(self, x: Vector, q: Vector) -> Found:
+    def find(self, x: Array, q: Array) -> EdgesFound:
         """Return the neighbours of every member.
 
         Args:

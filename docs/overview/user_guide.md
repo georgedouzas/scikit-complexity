@@ -41,7 +41,7 @@ and builds fast numeric functions that its solvers advance.
 
 Every element type derives from `Element`, and every interaction type from `Interaction`; both, like laws and
 systems, derive from `BasePart`, which is a scikit-learn estimator. A type declares its variables as arguments of its
-`__init__`, annotated with `typing.Annotated` and a spec from `skcomplex.core.specs`.
+`__init__`, annotated with `typing.Annotated` and a spec from `skcomplex.specs`.
 
 - `StateSpec` marks a state, `ParameterSpec` a parameter, and `RoleSpec` a role of an interaction. The default of the
   argument is the initial value of a state or the default of a parameter, and a role has no default.
@@ -63,7 +63,7 @@ from sklearn.base import clone
 from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class SpeciesElement(Element):
@@ -166,7 +166,7 @@ from typing import Annotated
 
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import RoleSpec
+from skcomplex.specs import RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement
@@ -205,7 +205,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import where
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec
 
 
 class CrowdingInteraction(Interaction):
@@ -253,7 +253,7 @@ from sage.all__sagemath_symbolics import pi
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 
@@ -290,7 +290,7 @@ from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -335,7 +335,7 @@ from sage.all__sagemath_symbolics import pi, sin
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import EquationLaw
 from skcomplex.core.laws.utils import derivative
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 
 
 class PendulumElement(Element):
@@ -451,7 +451,7 @@ import numpy as np
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import delayed
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -500,7 +500,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import CrossingLaw, RateLaw
 from skcomplex.core.laws.utils import derivative
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -539,7 +539,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import step
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -574,7 +574,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import MilsteinSolver
@@ -605,7 +605,7 @@ print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_stat
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
 every element and every group member takes its own independent process. Laws of one element, or of one member, that
 name the same label share one increment, so a reaction can drive every species it changes with one process. A
-`WienerProcessSpec(label, dimension, covariance)` from `skcomplex.core.specs` declares processes whose increments over
+`WienerProcessSpec(label, dimension, covariance)` from `skcomplex.specs` declares processes whose increments over
 a step `h` have the covariance `h C`. It is no element: an interaction binds it through a role annotated with
 `RoleSpec(noise=True)`, and its noise laws name process `k` with `s.<role>.dW[k]`, which every element, and every
 member of a group, can share. Interactions of one system that bind processes of one label share them and their
@@ -620,7 +620,7 @@ import numpy as np
 from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import NoiseLaw
-from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
+from skcomplex.specs import RoleSpec, StateSpec, WienerProcessSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
@@ -684,7 +684,7 @@ from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
@@ -754,7 +754,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import bernoulli, normal, where
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -806,7 +806,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import EmissionLaw, TransitionLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -861,7 +861,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import draw
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -900,7 +900,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.laws.utils import draw, normal
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -948,7 +948,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import FractionalNoiseLaw
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
@@ -1005,7 +1005,7 @@ from typing import Annotated
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import L1Solver
@@ -1059,7 +1059,7 @@ from sage.all__sagemath_symbolics import I, exp, pi
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.specs import ObservableSpec, ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1106,7 +1106,7 @@ agents and equations exchange macroscopic quantities in a co-simulation. An obse
 from sage.all__sagemath_symbolics import cos, sin
 
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.specs import RoleSpec
+from skcomplex.specs import RoleSpec
 
 
 class MeanFieldInteraction(Interaction):
@@ -1163,7 +1163,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import Sink, Source, TransferLaw
 from skcomplex.core.laws.utils import lookup
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.specs import ObservableSpec, ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1261,7 +1261,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.laws.utils import transfer
-from skcomplex.core.specs import ObservableSpec, StateSpec
+from skcomplex.specs import ObservableSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1318,7 +1318,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
@@ -1371,7 +1371,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CollocationSolver, PontryaginSolver
@@ -1447,7 +1447,7 @@ from typing import Annotated
 from skcomplex.analysis import LinearizationAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 
 
@@ -1560,7 +1560,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import BaseLaw
 from skcomplex.core.spaces import ContinuousTime
-from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RequirementSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler
 
@@ -1661,7 +1661,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import create, register_model
 
@@ -1774,7 +1774,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.specs import RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1827,7 +1827,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1869,7 +1869,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import UpdateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1942,7 +1942,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import mod, shift_member
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -1995,7 +1995,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 
@@ -2034,7 +2034,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec
+from skcomplex.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2116,7 +2116,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws.utils import OuterTotalistic
 from skcomplex.core.spaces import LatticeSpace, MooreNeighborhood
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2173,7 +2173,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import LatticeSpace, VonNeumannNeighborhood
-from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2218,7 +2218,7 @@ import numpy as np
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.spaces import LatticeSpace, TriangularNeighborhood
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2268,7 +2268,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2313,7 +2313,7 @@ import numpy as np
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import ExtremalLaw
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2366,7 +2366,7 @@ sparse row form.
 import networkx as nx
 
 from skcomplex.core.spaces import NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.specs import LayerSpec
 
 first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
@@ -2394,7 +2394,7 @@ from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import NetworkSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2461,7 +2461,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import NetworkSpace
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.specs import RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 
@@ -2531,7 +2531,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec
+from skcomplex.specs import StateSpec, TopologyRequestSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2594,7 +2594,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 
 
 class WealthDensityElement(Element):
@@ -2635,7 +2635,7 @@ into another subsystem.
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EncounterLaw
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
@@ -2730,7 +2730,7 @@ receives the namespace of one member, and its function must be defined at module
 
 ```python continuation
 from skcomplex.core.laws.utils import moment
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.specs import ObservableSpec
 
 
 def mean_wealth(s):
@@ -2840,7 +2840,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import CayleySpace, GeneratorNeighborhood
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -2955,7 +2955,7 @@ from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3032,7 +3032,7 @@ from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import divergence, laplacian
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
@@ -3126,7 +3126,7 @@ from skcomplex.core.elements import GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import Call
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement
@@ -3232,7 +3232,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3301,7 +3301,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3387,7 +3387,7 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.common.institutions import InstitutionInteraction
@@ -3469,7 +3469,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3545,7 +3545,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.elements import WordElement
 from skcomplex.core.laws import ProductionLaw
-from skcomplex.core.specs import ModuleSpec, ParameterSpec
+from skcomplex.specs import ModuleSpec, ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3571,7 +3571,7 @@ frames before it stay recorded.
 
 ### Word geometries, patches, and measures
 
-A `GeometrySpec`, from `skcomplex.core.specs`, draws a word as line segments in two or three dimensions, as the turtle
+A `GeometrySpec`, from `skcomplex.specs`, draws a word as line segments in two or three dimensions, as the turtle
 interpretation of L-systems does: `F` draws forward, `f` moves, `+` and `-` turn, `[` and `]` push and pop a branch, and
 `contraction` scales the step at every generation. A `PatchElement` holds tiles, each a `PrototileSpec` segment or
 polygon under an affine placement, and a `SubstitutionLaw` replaces every tile of a prototile by pieces placed by
@@ -3582,7 +3582,7 @@ frame, and give `bounds()` and `raster(resolution)`, a boolean grid that `Scalin
 from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.elements import PatchElement, WordElement
 from skcomplex.core.laws import ProductionLaw, SubstitutionLaw
-from skcomplex.core.specs import AffineSpec, GeometrySpec, PrototileSpec
+from skcomplex.specs import AffineSpec, GeometrySpec, PrototileSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3675,7 +3675,7 @@ from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.common.quantum import SpinElement
@@ -4279,7 +4279,7 @@ import numpy as np
 from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import JumpLaw
-from skcomplex.core.specs import StateSpec
+from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 
 

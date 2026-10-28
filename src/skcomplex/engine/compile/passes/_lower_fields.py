@@ -11,6 +11,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
+from ....types import Terms
 from ...problems import (
     Reference,
     Source,
@@ -19,7 +20,7 @@ from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._field_splitting import OPERATORS, LinearTerm, Terms
+from .._field_splitting import OPERATORS, LinearTerm
 from .._kernel_spec import KernelSpec
 
 
@@ -191,4 +192,3 @@ class LowerFieldsPass(BasePass):
                     ),
                 )
         return terms
-

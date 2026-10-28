@@ -14,10 +14,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import RoleError, ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call, NeighborReduction, Reduction, both, neighborhoods_in, reductions_in
 from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
+from ....errors import RoleError, ValidationError
 from ...problems import (
     Entry,
     Reference,

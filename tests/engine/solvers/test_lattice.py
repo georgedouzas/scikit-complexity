@@ -7,7 +7,6 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.spaces import (
@@ -17,14 +16,15 @@ from skcomplex.core.spaces import (
     MooreNeighborhood,
     VonNeumannNeighborhood,
 )
-from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
 from skcomplex.models.physics.criticality import forest_fire
 from skcomplex.models.physics.statistical_mechanics import ising, xy
+from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 
 
 class ShiftElement(Element):

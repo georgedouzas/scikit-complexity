@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace, VonNeumannNeighborhood
-from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.errors import SpaceError, ValidationError
+from skcomplex.specs import LayerSpec, StateSpec, VisualSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GENERATORS = [

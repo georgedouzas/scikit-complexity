@@ -3,9 +3,9 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw
 from skcomplex.core.spaces import VonNeumannNeighborhood
+from skcomplex.errors import ValidationError
 
 
 def test_relaxation_targets_the_states_of_its_relaxation_laws():

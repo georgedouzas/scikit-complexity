@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import NotCheckedError, SpaceError
 from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
+from skcomplex.errors import NotCheckedError, SpaceError
 
 
 class SidesNeighborhood(BaseNeighborhood):

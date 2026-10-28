@@ -9,14 +9,13 @@ import pytest
 
 from skcomplex.analysis import LoopAnalysis
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
+from skcomplex.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
@@ -28,6 +27,7 @@ from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 from ...conftest import _correlated, _summed
 

@@ -6,7 +6,7 @@
 from typing import cast
 
 from ....core.laws import BaseLaw, JumpLaw
-from ....core.specs import TopologyRequestSpec
+from ....specs import TopologyRequestSpec
 from .._base import BasePass
 from .._compilation import Laws
 from .._kernel_spec import KernelSpec

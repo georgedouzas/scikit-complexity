@@ -10,10 +10,10 @@ from sage.all__sagemath_symbolics import sin, var
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import both, either, mod, where
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def test_functions_stay_unevaluated_on_symbols():

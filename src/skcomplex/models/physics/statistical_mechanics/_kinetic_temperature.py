@@ -9,10 +9,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ....analysis import DistributionAnalysis
-from ....core.errors import AnalysisError
 from ....engine.runtime import Trajectory
-
-type Array = npt.NDArray[np.float64]
+from ....errors import AnalysisError
+from ....types import Array
 
 
 class KineticTemperatureAnalysis(DistributionAnalysis):

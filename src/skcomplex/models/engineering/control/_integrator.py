@@ -6,7 +6,7 @@
 from typing import Annotated
 
 from ....core.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 
 
 class IntegratorElement(Element):

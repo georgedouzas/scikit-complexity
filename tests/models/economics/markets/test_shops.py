@@ -7,13 +7,13 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
 from skcomplex.models.economics.common.institutions import (
     InstitutionInteraction,
 )
+from skcomplex.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
 
 class ShopElement(Element):

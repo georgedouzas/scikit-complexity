@@ -11,9 +11,9 @@ from typing import Any
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.errors import ValidationError
 from ...core.laws.utils import count, maximum, mean, minimum, total, variance
-from ...core.specs import ObservableSpec
+from ...errors import ValidationError
+from ...specs import ObservableSpec
 from ..problems import (
     Problem,
     Reference,

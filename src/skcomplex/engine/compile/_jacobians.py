@@ -13,13 +13,10 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...core.errors import ValidationError
-from ...core.types import Indices, Vector
+from ...errors import ValidationError
+from ...types import Array, Indices, Sparse, Symmetry
 from ..problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function, symbols_of
 from ..problems._compiled_reduction import CompiledReduction
-
-type Sparse = scipy.sparse.csr_array
-type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 
 _PATTERN_LIMIT = 4_000_000
 
@@ -197,8 +194,8 @@ class ExactJacobian:
         self,
         reduction: CompiledReduction,
         t: float,
-        x: Vector,
-        q: Vector,
+        x: Array,
+        q: Array,
         gradients: dict[Expression, Sparse],
     ) -> Sparse:
         """Return the gradient of every reduced member's argument by the state, one row per member."""
@@ -220,8 +217,8 @@ class ExactJacobian:
         self,
         reduction: CompiledReduction,
         t: float,
-        x: Vector,
-        q: Vector,
+        x: Array,
+        q: Array,
         gradients: dict[Expression, Sparse],
     ) -> Sparse:
         """Return the gradient of a reduction by the state, one row per reading member for weights."""
@@ -257,8 +254,8 @@ class ExactJacobian:
         item: Expression,
         *,
         t: float,
-        x: Vector,
-        q: Vector,
+        x: Array,
+        q: Array,
         gradients: dict[Expression, Sparse],
     ) -> Sparse | None:
         """Return the gradient of a symbol by the state, one row per evaluation index, or `None` for parameters."""
@@ -287,7 +284,7 @@ class ExactJacobian:
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
         return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
 
-    def evaluate(self, t: float, x: Vector, p: Vector) -> Sparse:
+    def evaluate(self, t: float, x: Array, p: Array) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
 
         Args:

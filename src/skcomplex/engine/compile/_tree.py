@@ -12,8 +12,8 @@ import numpy as np
 from ...core.elements import Element, GroupElement
 from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, LatticeSpace
-from ...core.specs import WienerProcessSpec
 from ...core.system import System
+from ...specs import WienerProcessSpec
 from ..problems import default_of
 
 _LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')

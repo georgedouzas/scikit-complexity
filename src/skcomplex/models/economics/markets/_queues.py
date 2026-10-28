@@ -12,11 +12,11 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.problems import VariableKind, declarations_of
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 WASH = 0
 VALET = 1

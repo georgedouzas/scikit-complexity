@@ -177,7 +177,12 @@ For every name an engine package re-exports today, the conversion lists the modu
 Tests of a helper are rewritten to test the owning class through its verbs.
 
 ### Layering is checked by import-linter
-The `layers` contract in `pyproject.toml` becomes `experiments`, `analysis`, `engine`, `core`, with `models` allowed to import all of them.
+The `layers` contract in `pyproject.toml` becomes `experiments`, `analysis`, `engine`, `core`, then the root modules `base | types`, `specs`, and `errors`, with `models` allowed to import all of them.
+
+### Shared modules live at the root
+`BaseConfig` is the root of every configurable class of every package, so it lives in `skcomplex.base`, not in `skcomplex.core.base`, which keeps `BasePart` and the bases of a system's parts. The errors, the specs, and the type aliases are used by every package too, so they move with it to `skcomplex.errors`, `skcomplex.specs`, and `skcomplex.types`. A root module imports no subpackage.
+
+`skcomplex.types` holds every alias built from Python, NumPy, SciPy, and Sage types, and one alias per type: `Array` replaces the local `Array`, `Vector`, `Matrix`, `Floats`, `Values`, and `Couplings`; `IntArray` replaces `Counts`, `Codes`, `Labels`, `Bits`, and `Integers`; `AnyArray` replaces `Columns`; `ComplexArray` replaces `Complex`; `Indices` and `Offset` lose their copies. Aliases that name a class of the library, such as the source of an analysis or the step of a lattice, stay beside the class, since the root cannot import a package. The engine's `KernelSpec` and `SupportSpec` stay in the engine for the same reason. The models keep their aliases, apart from the array aliases, which they import from the root.
 
 ### The engine's concept model
 This section is task 7.2. It is the class tree the engine is restructured to in task 7.4, written for review before any engine code changes. It is read from the `engine-methods` branch, where helpers already moved into methods, modules hold one class each, `StockFlow` is `TransferNetwork`, and `TraitsVisual` is `HistogramVisual`.

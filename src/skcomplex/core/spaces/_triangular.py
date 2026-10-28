@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ...types import Offset
 from ._base import BaseNeighborhood
-from ._lattice_neighborhood import LatticeNeighborhood, Offset
+from ._lattice_neighborhood import LatticeNeighborhood
 
 TRIANGULAR_OFFSETS = ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
 

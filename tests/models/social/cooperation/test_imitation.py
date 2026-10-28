@@ -7,10 +7,10 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.social.cooperation import imitate
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
 
 class ImitatorElement(Element):

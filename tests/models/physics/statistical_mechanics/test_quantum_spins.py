@@ -6,11 +6,11 @@ import rerun.blueprint as rrb
 from scipy.special import jv
 
 from skcomplex.analysis import QuantumAnalysis
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.engine.viz import ExpectationVisual, RerunObserver
+from skcomplex.errors import ValidationError
 from skcomplex.models import create, run
 
 

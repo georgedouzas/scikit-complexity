@@ -15,19 +15,17 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.sparse import diags
 
 from ...core.elements import FieldElement
-from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
+from ...errors import ValidationError
+from ...types import Indices, Offset
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
 from ._derived_read import DerivedRead
 from ._diffusive_limit import DiffusiveLimit
 from ._kernel_spec import KernelSpec
-
-type Indices = npt.NDArray[np.intp]
-type Offset = tuple[int, ...]
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')

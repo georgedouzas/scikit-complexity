@@ -16,9 +16,9 @@ from ....core.elements import Element, FieldElement, GroupElement
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import laplacian, shift_member
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ContourCellElement(Element):

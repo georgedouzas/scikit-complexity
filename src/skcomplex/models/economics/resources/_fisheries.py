@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.laws import BaseLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import where
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5

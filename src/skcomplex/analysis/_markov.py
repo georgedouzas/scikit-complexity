@@ -13,12 +13,12 @@ from deeptime.markov.msm import MarkovStateModel as DeeptimeModel
 from deeptime.markov.msm import MaximumLikelihoodMSM
 from scipy import linalg
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
-type Array = npt.NDArray[np.float64]
 TOLERANCE = 1e-10
 KINDS = ('transition-matrix', 'stationary', 'spectral-gap', 'state-model', 'timescales')
 MATRICES = ('transition', 'rate')

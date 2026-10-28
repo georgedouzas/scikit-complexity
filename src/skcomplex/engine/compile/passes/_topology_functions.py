@@ -9,11 +9,11 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
-from ....core.specs import TopologyRequestSpec
-from ....core.types import Vector
+from ....errors import ValidationError
+from ....specs import TopologyRequestSpec
+from ....types import Array
 from ...problems import (
     EdgeSearch,
     Entry,
@@ -179,7 +179,7 @@ class TopologyFunctionsPass(BasePass):
         element = node.component_type
         states = declarations_of(element, VariableKind.STATE)
         variables: dict[str, tuple[Entry, bool]] = {}
-        defaults: dict[str, Vector] = {}
+        defaults: dict[str, Array] = {}
         for name, entry in block.entries.items():
             if name in {_ACTIVE, *ENDS}:
                 continue

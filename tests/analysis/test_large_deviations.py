@@ -9,10 +9,10 @@ from scipy import special
 
 from skcomplex.analysis import LargeDeviationAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import JumpLaw
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def _deviations(kind: str, source: object, **settings: object) -> LargeDeviationAnalysis:

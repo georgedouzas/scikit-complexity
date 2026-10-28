@@ -11,7 +11,6 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...core.errors import SolverError, ValidationError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -23,7 +22,8 @@ from ...core.laws import (
     TransferLaw,
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError, ValidationError
+from ...types import Array
 from ..problems import Form, NoiseKind, OrderKind, Problem, SupportSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver
@@ -37,14 +37,14 @@ GRID_TOLERANCE = 1e-9
 _MAX_INCREMENTS = 100_000_000
 
 
-def _autocovariance(n: int, hurst: float) -> Vector:
+def _autocovariance(n: int, hurst: float) -> Array:
     """Return the autocovariance of unit fractional Gaussian noise at lags 0 to `n`."""
     lags = np.arange(n + 1, dtype=float)
     exponent = 2 * hurst
     return 0.5 * (np.abs(lags + 1) ** exponent - 2 * lags**exponent + np.abs(lags - 1) ** exponent)
 
 
-def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Vector:
+def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
     """Return paths of unit fractional Gaussian noise, the increments of fractional Brownian motion on a unit grid.
 
     The paths come from the circulant embedding of Davies and Harte, whose only costly step is an FFT of `scipy.fft`.
@@ -125,7 +125,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import FractionalNoiseLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
@@ -181,19 +181,19 @@ class FractionalEulerMaruyamaSolver(Solver):
             error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)
         self.horizon_ = self.horizon if self.horizon is not None else until
-        self.hurst_: Vector | None = None
+        self.hurst_: Array | None = None
         self._origin = 0.0
         self._increments: npt.NDArray[np.float64] | None = None
         self._ordinary = np.ones(problem.noise_rows.size, dtype=bool)
 
-    def _hurst(self, p: Vector) -> Vector:
+    def _hurst(self, p: Array) -> Array:
         """Return the Hurst index of every noise row, 1/2 for ordinary rows."""
         hurst = np.full(self.problem_.noise_rows.size, 0.5)
         for rows in self.problem_.fractional:
             hurst[rows.positions] = rows.hurst(p)
         return hurst
 
-    def _draw(self, t: float, p: Vector) -> npt.NDArray[np.float64]:
+    def _draw(self, t: float, p: Array) -> npt.NDArray[np.float64]:
         """Draw the scaled increments of every fractional noise row from a time up to the horizon."""
         horizon = self.horizon_
         if horizon is None or not math.isfinite(horizon):
@@ -240,7 +240,7 @@ class FractionalEulerMaruyamaSolver(Solver):
             raise SolverError(error_msg)
         return int(index)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift and the noise from time `t` to time `until` on the grid of the drawn increments.
 
         Args:

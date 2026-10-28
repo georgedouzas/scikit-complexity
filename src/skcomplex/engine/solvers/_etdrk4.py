@@ -5,10 +5,9 @@
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, ComplexArray
 from ._split import _SplitSolver
-from ._split_operator import Complex
 
 _CONTOUR_POINTS = 64
 
@@ -30,14 +29,14 @@ class ETDRK4Solver(_SplitSolver):
         0.25
     """
 
-    def _built(self, p: Vector) -> None:
+    def _built(self, p: Array) -> None:
         """Check that the linear part is spectral and forget its coefficients."""
         if self.operator_.sparse is not None:
             error_msg = 'ETDRK4Solver needs the linear part on spectral fields. Use IMEX2Solver or CrankNicolsonSolver.'
             raise SolverError(error_msg)
-        self._coefficients: dict[float, list[list[Complex]]] = {}
+        self._coefficients: dict[float, list[list[ComplexArray]]] = {}
 
-    def _matrices(self, h: float) -> list[list[Complex]]:
+    def _matrices(self, h: float) -> list[list[ComplexArray]]:
         """Return the six ETDRK4 matrices of every block for a step."""
         if h not in self._coefficients:
             blocks = []
@@ -50,7 +49,7 @@ class ETDRK4Solver(_SplitSolver):
             self._coefficients[h] = blocks
         return self._coefficients[h]
 
-    def _map(self, index: int, h: float, x: Vector) -> Vector:
+    def _map(self, index: int, h: float, x: Array) -> Array:
         """Return one of the six ETDRK4 maps applied to a state vector, with its L = 0 limit outside blocks."""
         scalars = [1.0, 1.0, h / 2, h / 6, h / 6, h / 6]
         out = scalars[index] * x
@@ -58,7 +57,7 @@ class ETDRK4Solver(_SplitSolver):
             block.apply(matrices[index], x, out)
         return out
 
-    def _step(self, t: float, x: Vector, p: Vector, h: float) -> Vector:
+    def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one ETDRK4 step."""
         n_x = self._remainder(t, x, p)
         half = self._map(1, h, x)
@@ -71,7 +70,7 @@ class ETDRK4Solver(_SplitSolver):
         return self._map(0, h, x) + self._map(3, h, n_x) + 2 * self._map(4, h, n_a + n_b) + self._map(5, h, n_c)
 
     @staticmethod
-    def _phi(z: Complex, h: float) -> list[Complex]:
+    def _phi(z: ComplexArray, h: float) -> list[ComplexArray]:
         """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
 
         The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of

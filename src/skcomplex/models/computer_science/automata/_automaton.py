@@ -9,15 +9,14 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ....core.errors import ValidationError
 from ....core.laws.utils import OuterTotalistic, Table, Totalistic
 from ....core.spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
+from ....errors import ValidationError
+from ....types import Indices, IntArray
 
 MAX_PATTERNS = 2**20
 IDENTITY = '1'
 
-type Codes = npt.NDArray[np.int64]
-type Indices = npt.NDArray[np.intp]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
 
 
@@ -43,13 +42,13 @@ def _size(space: BaseSpace) -> int:
     return int(_fitted(space).size_ or 0)
 
 
-def _codes(values: Codes, states: int) -> Codes:
+def _codes(values: IntArray, states: int) -> IntArray:
     """Return the code of every row of values, read as digits in the base of the number of states."""
     weights = states ** np.arange(values.shape[-1] - 1, -1, -1, dtype=np.int64)
     return values @ weights
 
 
-def _patterns(states: int, width: int) -> Codes:
+def _patterns(states: int, width: int) -> IntArray:
     """Return every pattern of values of a number of cells, in the order of their codes."""
     if states**width > MAX_PATTERNS:
         error_msg = f'A rule on {width} cells with {states} values has more than {MAX_PATTERNS} patterns.'
@@ -107,7 +106,7 @@ class Automaton:
         zero = (0,) * len(offsets[0])
         return LatticeNeighborhood((zero, *offsets))
 
-    def _evaluate(self, patterns: Codes) -> npt.NDArray[np.generic]:
+    def _evaluate(self, patterns: IntArray) -> npt.NDArray[np.generic]:
         """Return the next value of every pattern, one row per pattern in the order the rule reads its cells."""
         rule = self._rule_table()
         if isinstance(rule, Table):
@@ -150,7 +149,7 @@ class Automaton:
         """
         return _table(self.space, self.reads)
 
-    def local_map(self) -> Codes:
+    def local_map(self) -> IntArray:
         """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern.
 
         Returns:
@@ -168,7 +167,7 @@ class Automaton:
             raise ValidationError(error_msg)
         return values.astype(np.int64)
 
-    def step(self, configuration: npt.ArrayLike) -> Codes:
+    def step(self, configuration: npt.ArrayLike) -> IntArray:
         """Return the image of a configuration, or of one configuration per row.
 
         Args:
@@ -184,7 +183,7 @@ class Automaton:
         padded = np.concatenate([values, fill], axis=-1)
         return self.local_map()[_codes(padded[..., self.table()], self.states)]
 
-    def run(self, configuration: npt.ArrayLike, steps: int) -> Codes:
+    def run(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
         """Return the configurations of a number of steps, the initial one first.
 
         Args:

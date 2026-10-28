@@ -8,16 +8,16 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import advection, divergence, gradient, laplacian
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):

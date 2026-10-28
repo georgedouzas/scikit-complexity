@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import var
 
 from ...core.elements import BaseElement, GroupElement
 from ...core.interactions import BaseInteraction
-from ...core.specs import RoleSpec
+from ...specs import RoleSpec
 
 
 def _probe_namespace(component_type: type[BaseElement | BaseInteraction]) -> SimpleNamespace:
@@ -48,7 +48,7 @@ def probe_laws(component: object) -> list[object] | None:
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.engine.compile._probe import probe_laws
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> class DecayElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)

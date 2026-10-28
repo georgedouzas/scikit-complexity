@@ -15,8 +15,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
 
-from ...core.errors import ValidationError
 from ...core.spaces import NetworkSpace
+from ...errors import ValidationError
 from ..problems import BaseProblem, CompiledAgents, CompiledElement, RenewalRecord
 from ..runtime import BaseObserver, Frame
 from ._agents import AgentsVisual

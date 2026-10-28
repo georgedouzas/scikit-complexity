@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import EpsilonMachineAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _machine(symbols: object, max_length: int) -> EpsilonMachineAnalysis:

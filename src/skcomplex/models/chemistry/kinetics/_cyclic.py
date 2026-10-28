@@ -8,18 +8,16 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 
 def _advance_cyclically(level: Array, *around: Array, n: Any, threshold: Any) -> Array:  # noqa: ANN401

@@ -4,23 +4,13 @@
 # License: MIT
 
 import bisect
-from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, Interpolant
 from ..problems import Problem
-
-type Interpolant = Callable[[float], Vector]
-
-
-type Bounded = Callable[[float, Vector, Vector], Vector]
-
-
-type Take = Callable[[float, Vector, float, float], tuple[Vector, Interpolant]]
-
 
 _RESTART = 1e-12
 
@@ -43,7 +33,7 @@ class History:
             whose steps outgrow the shortest delay, instead of raising an error.
     """
 
-    def __init__(self, problem: Problem, start: float, state: Vector, *, extrapolate: bool = False) -> None:
+    def __init__(self, problem: Problem, start: float, state: Array, *, extrapolate: bool = False) -> None:
         self.start = start
         self.extrapolate = extrapolate
         self.initial = state.copy()
@@ -96,7 +86,7 @@ class History:
             return float(values[offset % values.size])
         return float(value)
 
-    def value(self, time: float, indices: Any) -> Vector:  # noqa: ANN401
+    def value(self, time: float, indices: Any) -> Array:  # noqa: ANN401
         """Return state components at a past time, from the run or from the declared history before the start.
 
         Args:
@@ -137,7 +127,7 @@ class History:
         return np.asarray(interpolant(min(time, last)), dtype=float)[indices]
 
     @staticmethod
-    def _with_delays(problem: Problem, history: 'History | None', t: float, x: Vector, p: Vector) -> Vector:
+    def _with_delays(problem: Problem, history: 'History | None', t: float, x: Array, p: Array) -> Array:
         """Return the parameter vector with every delayed state read from the history.
 
         Args:
@@ -168,7 +158,7 @@ class History:
         return filled
 
     @staticmethod
-    def _open_history(problem: Problem, history: 'History | None', t: float, x: Vector) -> 'History | None':
+    def _open_history(problem: Problem, history: 'History | None', t: float, x: Array) -> 'History | None':
         """Return the history of a run, started at a time and state when the problem has delays and none is kept yet.
 
         Args:

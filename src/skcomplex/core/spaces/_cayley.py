@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_gap import libgap
 from sage.libs.gap.element import GapElement
 
-from ..errors import SpaceError, SpaceTooLargeError, ValidationError
+from ...errors import SpaceError, SpaceTooLargeError, ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 from ._memory import MemoryNeighborhood
 

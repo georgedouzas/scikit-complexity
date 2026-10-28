@@ -8,11 +8,12 @@ from dataclasses import dataclass
 import numba
 import numpy as np
 
-from ._table_values import Indices, TableValues, Vector
+from ...types import Array, Indices
+from ._table_values import TableValues
 
 
 @numba.njit(cache=True)
-def _fused_gain(entries: Indices, weights: Vector, f: Vector, g: Vector, size: int) -> Vector:  # pragma: no cover
+def _fused_gain(entries: Indices, weights: Array, f: Array, g: Array, size: int) -> Array:  # pragma: no cover
     """Return the gain of every outcome activity in one fused loop over the nonzero entries, one column each."""
     gain = np.zeros(size)
     for entry in range(weights.size):
@@ -68,7 +69,7 @@ class CompiledEncounter:
         """Whether the encounter moves particles and so conserves the total density."""
         return self.kind == 'transition'
 
-    def rate_matrix(self, p: Vector) -> Vector:
+    def rate_matrix(self, p: Array) -> Array:
         """Return the encounter rate of every candidate activity with every field activity.
 
         Args:
@@ -81,7 +82,7 @@ class CompiledEncounter:
         """
         return self.rate.values(p).reshape(self.candidate.size, self.field.size)
 
-    def weights(self, p: Vector) -> Vector:
+    def weights(self, p: Array) -> Array:
         """Return the rate times the outcome probability of every nonzero entry, `eta[h, k] A[h, k, i]`.
 
         Args:
@@ -97,7 +98,7 @@ class CompiledEncounter:
         candidates, fields, _ = self.entries
         return self.rate_matrix(p)[candidates, fields] * self.probabilities.values(p)
 
-    def gain(self, x: Vector, p: Vector) -> Vector:
+    def gain(self, x: Array, p: Array) -> Array:
         """Return the rate at which every test activity gains particles.
 
         Args:
@@ -117,7 +118,7 @@ class CompiledEncounter:
             return _fused_gain(np.stack(self.entries), weights, f, g, self.test.size)
         return np.bincount(outcomes, weights * f[candidates] * g[fields], minlength=self.test.size)
 
-    def loss(self, x: Vector, p: Vector) -> Vector:
+    def loss(self, x: Array, p: Array) -> Array:
         """Return the rate at which every candidate activity loses particles, `f_h sum_k eta[h, k] g_k`.
 
         Args:
@@ -133,7 +134,7 @@ class CompiledEncounter:
         """
         return x[self.candidate] * (self.rate_matrix(p) @ x[self.field])
 
-    def rates(self, x: Vector, p: Vector) -> Vector:
+    def rates(self, x: Array, p: Array) -> Array:
         """Return the contribution of the encounter to the rate of every state.
 
         Args:

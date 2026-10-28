@@ -17,9 +17,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 

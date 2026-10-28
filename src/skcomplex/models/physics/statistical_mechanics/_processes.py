@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -16,12 +15,11 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 BURNING = 2
 BURNT = 3

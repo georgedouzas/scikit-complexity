@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -36,10 +36,10 @@ class RenewalRecord:
     """
 
     label: str
-    times: Vector
+    times: Array
     members: npt.NDArray[np.intp]
-    before: Vector
-    after: Vector
+    before: Array
+    after: Array
     states: tuple[str, ...]
 
     @property

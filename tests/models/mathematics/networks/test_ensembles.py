@@ -4,8 +4,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
 from skcomplex.models.mathematics.networks import (
     network_attack,
     random_graph_ensembles,

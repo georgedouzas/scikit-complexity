@@ -5,13 +5,13 @@
 
 from typing import Any, Protocol
 
-from ...core.types import Vector
+from ...types import Array
 
 
 class Jacobian(Protocol):
     """Exact Jacobian of a drift with its sparsity pattern."""
 
-    def evaluate(self, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+    def evaluate(self, t: float, x: Array, p: Array) -> Any:  # noqa: ANN401
         """Return the Jacobian at a state as a sparse matrix."""
 
     def pattern(self) -> Any:  # noqa: ANN401

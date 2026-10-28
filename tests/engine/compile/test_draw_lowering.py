@@ -11,14 +11,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
 from skcomplex.core.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.laws.utils import bernoulli, categorical, normal, total, uniform, where
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import IncompatibleLawsError, ParameterError, ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 

@@ -3,19 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
 from typing import Self
 
-import numpy as np
-
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...specs import RequirementSpec
+from ...types import Pairing
 from ..spaces import DiscreteTime
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 from ._rule import RuleLaw
 from .utils import random_pairing
-
-type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 
 
 class MatchLaw(BaseLaw):

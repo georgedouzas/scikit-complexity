@@ -6,13 +6,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from ...core.laws import BaseLaw
 from ...core.spaces import BaseSpace
+from ...types import ProcessKey
 from ..problems import ElementKind, Entry
-
-type ProcessKey = tuple[str, str, Any]
 
 
 @dataclass(frozen=True)

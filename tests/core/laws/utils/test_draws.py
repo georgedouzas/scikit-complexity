@@ -5,8 +5,8 @@ import pickle  # nosec B403: the tests pickle and load only objects they create
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws.utils import bernoulli, categorical, draw, draws_in, normal, uniform
+from skcomplex.errors import ValidationError
 
 
 def test_uniform_merges_uses_of_one_name():

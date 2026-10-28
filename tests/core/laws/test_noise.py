@@ -3,8 +3,8 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw
+from skcomplex.errors import ValidationError
 
 
 @pytest.mark.parametrize('process', ['market', ('market', 'rates'), None])

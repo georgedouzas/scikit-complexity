@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 from ._compiled_neighborhood import CompiledNeighborhood
 from ._compiled_reduction import CompiledReduction
 
@@ -47,7 +47,7 @@ class ReductionSchedule:
         """Size of the extended parameter vector."""
         return max((item.entry.start + item.entry.size for item in self.steps), default=self.parameters)
 
-    def extend(self, t: float, x: Vector, p: Vector) -> Vector:
+    def extend(self, t: float, x: Array, p: Array) -> Array:
         """Return the parameter vector followed by the value of every reduction at a state.
 
         Args:
@@ -71,7 +71,7 @@ class ReductionSchedule:
             reduction.evaluate(t, x, q)
         return q
 
-    def wrap(self, function: Callable[[float, Vector, Vector], Any] | None) -> Callable[..., Any] | None:
+    def wrap(self, function: Callable[[float, Array, Array], Any] | None) -> Callable[..., Any] | None:
         """Return a function of the state and the parameters that reads the reductions at the state it receives.
 
         Args:
@@ -85,7 +85,7 @@ class ReductionSchedule:
         if function is None or not self.steps:
             return function
 
-        def reduced(t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+        def reduced(t: float, x: Array, p: Array) -> Any:  # noqa: ANN401
             return function(t, x, self.extend(t, x, p))
 
         return reduced

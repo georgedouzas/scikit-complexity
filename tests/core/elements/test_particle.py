@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.elements import ParticleElement
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def test_particle_declares_its_position_and_velocity():

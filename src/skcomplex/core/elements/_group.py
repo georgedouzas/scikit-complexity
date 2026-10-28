@@ -9,9 +9,9 @@ from typing import Self
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
-from ..errors import SpaceError, ValidationError
+from ...errors import SpaceError, ValidationError
+from ...specs import RoleSpec, VisualSpec
 from ..spaces import BaseSpace
-from ..specs import RoleSpec, VisualSpec
 from ._base import BaseElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
@@ -76,11 +76,11 @@ class GroupElement(BaseElement):
     Examples:
         >>> from typing import Annotated
         >>> import networkx as nx
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.spaces import NetworkSpace
-        >>> from skcomplex.core.specs import LayerSpec
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.specs import LayerSpec
+        >>> from skcomplex.specs import VisualSpec
         >>> class PopulationElement(Element):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 1.0, visual=VisualSpec('line')):
         ...         super().__init__(label, visual=visual)

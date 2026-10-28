@@ -9,12 +9,10 @@ from dataclasses import dataclass
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.elements import FieldElement
+from ...types import Chain
 from ..problems import Reference
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')
-
-type Chain = tuple[tuple[str, int], ...]
-type Terms = list[tuple[Expression, Chain, Expression]]
 
 
 @dataclass(frozen=True, eq=False)
@@ -47,5 +45,3 @@ class LinearTerm:
     chain: Chain
     coefficient: Expression
     references: Mapping[Expression, Reference]
-
-

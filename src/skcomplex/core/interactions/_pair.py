@@ -8,7 +8,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ..specs import ParameterSpec, RoleSpec
+from ...specs import ParameterSpec, RoleSpec
 from ._base import BaseInteraction
 
 
@@ -37,7 +37,7 @@ class PairInteraction(BaseInteraction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions import PairInteraction
-        >>> from skcomplex.core.specs import ParameterSpec
+        >>> from skcomplex.specs import ParameterSpec
         >>> class RepulsionInteraction(PairInteraction):
         ...     def __init__(
         ...         self, label, first, second, cutoff=1.0, position='x', k: Annotated[float, ParameterSpec()] = 1.0

@@ -4,9 +4,9 @@ from dataclasses import replace
 
 import pytest
 
-from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import ConservationObserver, Simulation
+from skcomplex.errors import SimulationError, ValidationError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 

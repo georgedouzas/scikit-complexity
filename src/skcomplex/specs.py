@@ -91,7 +91,7 @@ class StateSpec:
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> spec = StateSpec(domain=RealSet.closed_open(0, oo)).check()
         >>> 2.5 in spec.domain, -1 in spec.domain
         (True, False)
@@ -162,7 +162,7 @@ class ParameterSpec:
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
-        >>> from skcomplex.core.specs import ParameterSpec
+        >>> from skcomplex.specs import ParameterSpec
         >>> 0.5 in ParameterSpec(domain=RealSet.open(0, oo)).check().domain
         True
     """
@@ -211,7 +211,7 @@ class RoleSpec:
             Whether the role binds a set of Wiener processes instead of a path.
 
     Examples:
-        >>> from skcomplex.core.specs import RoleSpec
+        >>> from skcomplex.specs import RoleSpec
         >>> RoleSpec(variadic=True).check().variadic
         True
     """
@@ -251,7 +251,7 @@ class RequirementSpec:
 
     Examples:
         >>> from skcomplex.core.spaces import ContinuousTime
-        >>> from skcomplex.core.specs import RequirementSpec
+        >>> from skcomplex.specs import RequirementSpec
         >>> RequirementSpec(time=(ContinuousTime,)).time
         (<class 'skcomplex.core.spaces._continuous_time.ContinuousTime'>,)
     """
@@ -272,7 +272,7 @@ class VisualSpec:
             The keyword arguments of the visual.
 
     Examples:
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.specs import VisualSpec
         >>> VisualSpec('points', {'position': 'x'}).kind
         'points'
     """
@@ -297,7 +297,7 @@ class LayerSpec:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.specs import LayerSpec
+        >>> from skcomplex.specs import LayerSpec
         >>> LayerSpec('work', nx.path_graph(3)).check().label
         'work'
     """
@@ -359,7 +359,7 @@ class WienerProcessSpec:
             `dimension`, or `None` for the identity.
 
     Examples:
-        >>> from skcomplex.core.specs import WienerProcessSpec
+        >>> from skcomplex.specs import WienerProcessSpec
         >>> WienerProcessSpec('market', dimension=2, covariance=((1.0, 0.5), (0.5, 1.0))).check().dimension
         2
     """
@@ -413,7 +413,7 @@ class PhaseSpec:
             declaration.
 
     Examples:
-        >>> from skcomplex.core.specs import PhaseSpec
+        >>> from skcomplex.specs import PhaseSpec
         >>> PhaseSpec('trade', activation='simultaneous', repeat=3)
         PhaseSpec(name='trade', activation='simultaneous', repeat=3, groups=None)
     """
@@ -433,7 +433,7 @@ class PhasesScheduleSpec(ScheduleSpec):
             The phases, each with its rules and activation policy.
 
     Examples:
-        >>> from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
+        >>> from skcomplex.specs import PhaseSpec, PhasesScheduleSpec
         >>> [phase.name for phase in PhasesScheduleSpec((PhaseSpec('produce'), PhaseSpec('trade'))).check().phases]
         ['produce', 'trade']
     """
@@ -497,7 +497,7 @@ class ObservableSpec:
             The name of the member variable to reduce, instead of an expression.
 
     Examples:
-        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.specs import ObservableSpec
         >>> ObservableSpec('mean_wealth', group='traders', variable='wealth').check().reduce
         'mean'
     """
@@ -550,7 +550,7 @@ class EnergySpec:
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
-        >>> from skcomplex.core.specs import EnergySpec
+        >>> from skcomplex.specs import EnergySpec
         >>> spin, J = var('spin J')
         >>> EnergySpec(-J * spin, VonNeumannNeighborhood()).check().expression
         -J*spin
@@ -590,7 +590,7 @@ class MoveSpec:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.specs import MoveSpec
+        >>> from skcomplex.specs import MoveSpec
         >>> MoveSpec(var('color'), 'random-value', values=(0.0, 1.0, 2.0)).check().values
         (0.0, 1.0, 2.0)
     """
@@ -635,7 +635,7 @@ class SamplerSpec:
             at a time in a random order.
 
     Examples:
-        >>> from skcomplex.core.specs import SamplerSpec
+        >>> from skcomplex.specs import SamplerSpec
         >>> SamplerSpec('glauber', 2.0).check().schedule
         'checkerboard'
     """
@@ -690,7 +690,7 @@ class HilbertSpec:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import HilbertSpec
+        >>> from skcomplex.specs import HilbertSpec
         >>> spec = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1}).check()
         >>> spec.basis['down']
         1
@@ -745,7 +745,7 @@ class ModuleSpec:
             The parameters, numbers in a word and symbols or expressions in a production.
 
     Examples:
-        >>> from skcomplex.core.specs import ModuleSpec
+        >>> from skcomplex.specs import ModuleSpec
         >>> ModuleSpec('F', (0.5,)).check().parameters
         (0.5,)
     """
@@ -782,7 +782,7 @@ class PrototileSpec:
             The vertices in the plane, two for a segment and at least three for a polygon.
 
     Examples:
-        >>> from skcomplex.core.specs import PrototileSpec
+        >>> from skcomplex.specs import PrototileSpec
         >>> len(PrototileSpec('interval', [(0, 0), (1, 0)]).check().vertices)
         2
     """
@@ -832,7 +832,7 @@ class AffineSpec:
             A homogeneous 3 by 3 matrix that replaces the other arguments.
 
     Examples:
-        >>> from skcomplex.core.specs import AffineSpec
+        >>> from skcomplex.specs import AffineSpec
         >>> AffineSpec(scale=0.5, translation=(1, 0)).check().scale
         0.5
     """
@@ -896,7 +896,7 @@ class GeometrySpec:
             The initial heading in degrees in two dimensions, measured from the x axis.
 
     Examples:
-        >>> from skcomplex.core.specs import GeometrySpec
+        >>> from skcomplex.specs import GeometrySpec
         >>> GeometrySpec(angle=60.0, contraction=1 / 3).check().angle
         60.0
     """
@@ -965,7 +965,7 @@ class TopologyRequestSpec:
 
     Examples:
         >>> from skcomplex.core.laws import UpdateLaw
-        >>> from skcomplex.core.specs import TopologyRequestSpec
+        >>> from skcomplex.specs import TopologyRequestSpec
         >>> UpdateLaw(TopologyRequestSpec('rewire', keep='target').check(), 0.1).check().target.keep
         'target'
     """

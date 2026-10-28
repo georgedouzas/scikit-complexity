@@ -9,7 +9,7 @@ from typing import Self
 import numpy as np
 import ordpy
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._entropy import TIES, EntropyAnalysis
 from ._kinds import DataKind

@@ -5,11 +5,11 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.elements import HostGraphElement, WordElement
 from skcomplex.core.laws import GraphProductionLaw, ProductionLaw
-from skcomplex.core.specs import GeometrySpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import GeometryVisual, RerunObserver
+from skcomplex.specs import GeometrySpec
 
 INTERFACE = nx.Graph()
 INTERFACE.add_nodes_from('ab')

@@ -4,8 +4,8 @@ import time
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import RealTimeClock
+from skcomplex.errors import ValidationError
 
 
 def test_real_time_clock_run_waits_until_the_frame_is_due():

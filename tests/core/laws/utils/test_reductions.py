@@ -11,7 +11,6 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh, var, vector
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import (
@@ -37,13 +36,14 @@ from skcomplex.core.spaces import (
     RadiusNeighborhood,
     VonNeumannNeighborhood,
 )
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems._compiled_reduction import CompiledReduction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 @pytest.mark.parametrize(

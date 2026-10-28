@@ -8,11 +8,11 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.analysis import LinearizationAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError, ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DrivenElement(Element):

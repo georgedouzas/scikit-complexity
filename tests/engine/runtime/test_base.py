@@ -3,7 +3,7 @@
 import inspect
 import time
 
-from skcomplex.core.base import BaseConfig
+from skcomplex.base import BaseConfig
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import BaseClock, BaseObserver, Simulation
 from skcomplex.models.biology.ecology import PopulationElement

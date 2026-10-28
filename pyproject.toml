@@ -156,7 +156,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec"]
+extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.HilbertSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
@@ -241,13 +241,16 @@ DEP004 = ["pandas"]
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Experiments build on analysis, which builds on the engine, which builds on the core"
+name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
 type = "layers"
 layers = [
     "skcomplex.experiments",
     "skcomplex.analysis",
     "skcomplex.engine",
     "skcomplex.core",
+    "skcomplex.base | skcomplex.types",
+    "skcomplex.specs",
+    "skcomplex.errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -260,9 +263,6 @@ layers = [
     "laws",
     "spaces",
     "base",
-    "types",
-    "specs",
-    "errors",
 ]
 
 [[tool.importlinter.contracts]]

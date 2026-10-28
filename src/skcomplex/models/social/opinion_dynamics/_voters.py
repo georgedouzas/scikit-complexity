@@ -9,7 +9,6 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -18,12 +17,11 @@ from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw
 from ....core.laws.utils import Totalistic
 from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 MAJORITY = 5
 

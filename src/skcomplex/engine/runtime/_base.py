@@ -6,7 +6,7 @@
 import time
 from typing import Self
 
-from ...core.base import BaseConfig
+from ...base import BaseConfig
 from ..problems import BaseProblem
 from ._frames import Frame
 

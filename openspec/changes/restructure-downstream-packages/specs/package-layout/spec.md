@@ -1,9 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Dependencies run from formalisms to engine to core
-The top-level packages SHALL import downward in the order `experiments`, `analysis`, `engine`, `core`, so `analysis`
-never imports `experiments`, `engine` imports neither, and `core` imports none of them. Within `core` and within
-`engine`, each package SHALL import only the packages listed before it.
+The top-level packages SHALL import downward in the order `experiments`, `analysis`, `engine`, `core`, and the root
+modules `base`, `types`, `specs`, and `errors` below them, so `analysis` never imports `experiments`, `engine` imports
+neither, `core` imports none of them, and the root modules import no package. Within `core` and within `engine`, each
+package SHALL import only the packages listed before it.
 
 #### Scenario: Upward import
 - **WHEN** a module of `skcomplex.engine.backends` imports from `skcomplex.engine.solvers`
@@ -18,9 +19,11 @@ never imports `experiments`, `engine` imports neither, and `core` imports none o
 - **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: The package holds four subpackages
-The package SHALL expose exactly five subpackages, which together hold every domain-agnostic package and the models:
-- `skcomplex.core` holds what a system is: `base`, `specs`, `types`, `errors`, `spaces`, `laws`, `elements`,
-  `interactions`, and `system`.
+The package SHALL expose exactly five subpackages, which together hold every domain-agnostic package and the models,
+beside the root modules that every subpackage shares:
+- `skcomplex.base`, `skcomplex.types`, `skcomplex.specs`, and `skcomplex.errors` hold the root class `BaseConfig`,
+  the type aliases, the specs, and the errors.
+- `skcomplex.core` holds what a system is: `base`, `spaces`, `laws`, `elements`, `interactions`, and `system`.
 - `skcomplex.engine` holds what turns a system into a trajectory: `problems`, `compile`, `backends`, `solvers`,
   `runtime`, and `viz`.
 - `skcomplex.analysis` holds what measures a trajectory, an array, or a system.
@@ -34,6 +37,22 @@ The package SHALL expose exactly five subpackages, which together hold every dom
 - **THEN** every import succeeds
 
 ## ADDED Requirements
+
+### Requirement: What every package shares lives in root modules
+A module used by every subpackage SHALL live at the root of the package, not in one subpackage: `skcomplex.base`
+SHALL define `BaseConfig`, the root of every configurable class; `skcomplex.errors` SHALL define every error and
+warning; `skcomplex.specs` SHALL define the specs; and `skcomplex.types` SHALL define every type alias built from
+Python, NumPy, SciPy, and Sage types, one alias per type, such as `Array` for every float array. An alias that names
+a class of the library SHALL stay in the module of that class, and the models library SHALL keep its own aliases.
+
+#### Scenario: Root imports
+- **WHEN** a user imports `BaseConfig` from `skcomplex.base`, `ValidationError` from `skcomplex.errors`,
+  `StateSpec` from `skcomplex.specs`, and `Array` from `skcomplex.types`
+- **THEN** every import succeeds and none of these modules imports a subpackage
+
+#### Scenario: One alias per type
+- **WHEN** a module of the core, the engine, analysis, or experiments needs a float array
+- **THEN** it imports `Array` from `skcomplex.types` instead of defining its own alias
 
 ### Requirement: Library packages hold general operations
 The core, the engine, analysis, and experiments SHALL hold general operations named mathematically: every public class

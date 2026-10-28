@@ -6,7 +6,7 @@
 import numpy as np
 from scipy.special import gamma
 
-from ...core.types import Vector
+from ...types import Array
 from ._caputo import CaputoSolver
 from ._rows import _INITIAL_ROWS, _Rows
 
@@ -31,7 +31,7 @@ class FractionalABMSolver(CaputoSolver):
         >>> import numpy as np
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import FractionalABMSolver
@@ -51,7 +51,7 @@ class FractionalABMSolver(CaputoSolver):
     def __init__(self, dt: float = 0.01) -> None:
         self.dt = dt
 
-    def _restart(self, t: float, x: Vector) -> None:
+    def _restart(self, t: float, x: Array) -> None:
         """Start the history of drifts and the weights of the predictor and the corrector."""
         del t, x
         self._drifts: _Rows | None = None
@@ -65,12 +65,12 @@ class FractionalABMSolver(CaputoSolver):
         self._predictor = self._predictor_weights(self._unique, count)
         self._corrector = self._corrector_weights(self._unique, count)
 
-    def _carry(self, x: Vector) -> None:
+    def _carry(self, x: Array) -> None:
         """Take the states of order 1 that changed between frames, which the Heun steps start from."""
         ordinary = ~self._fractional
         self._state[ordinary] = x[ordinary]
 
-    def _step(self, p: Vector) -> None:
+    def _step(self, p: Array) -> None:
         """Advance the run by one predictor-corrector step."""
         drift = self.problem_.drift
         step = self._step_index
@@ -95,13 +95,13 @@ class FractionalABMSolver(CaputoSolver):
         self._state = self._bounded(time + self.dt, corrected, p)
 
     @staticmethod
-    def _predictor_weights(alpha: Vector, count: int) -> Vector:
+    def _predictor_weights(alpha: Array, count: int) -> Array:
         """Return the weights `(m + 1)^alpha - m^alpha` of the predictor at lags 0 to `count`, one column per order."""
         lags = np.arange(count + 1, dtype=float)[:, None]
         return (lags + 1) ** alpha[None, :] - lags ** alpha[None, :]
 
     @staticmethod
-    def _corrector_weights(alpha: Vector, count: int) -> Vector:
+    def _corrector_weights(alpha: Array, count: int) -> Array:
         """Return the corrector weights at lags 0 to `count` for every value but the first, one column per order."""
         lags = np.arange(count + 1, dtype=float)[:, None]
         power = alpha[None, :] + 1

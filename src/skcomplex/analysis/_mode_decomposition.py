@@ -8,18 +8,15 @@ from types import SimpleNamespace
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import ContinuousTime
 from ..engine.problems import vector
+from ..types import Array, ComplexArray
 from ._base import BaseAnalysis, Samples, SurrogateSource
 from ._kinds import DataKind
 from ._sparse_identification import SparseIdentificationAnalysis
-
-type Array = npt.NDArray[np.float64]
-type ComplexArray = npt.NDArray[np.complex128]
 
 
 class ModeDecompositionAnalysis(BaseAnalysis):

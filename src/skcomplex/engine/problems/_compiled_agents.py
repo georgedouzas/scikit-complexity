@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from ...core.elements import Element, GroupElement
 from ...core.laws import BaseLaw
-from ...core.specs import VisualSpec
+from ...specs import VisualSpec
 
 
 @dataclass(frozen=True)

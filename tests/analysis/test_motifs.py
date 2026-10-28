@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import MotifAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _motifs(kind: str, source: object, **settings: object) -> MotifAnalysis:

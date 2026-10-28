@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, FieldElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems import NoiseKind, symbol
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ConservedElement(Element):

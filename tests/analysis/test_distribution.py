@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import DistributionAnalysis
-from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError, ValidationError
 from skcomplex.models import create, run
 
 

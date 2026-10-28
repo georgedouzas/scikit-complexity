@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import abs_symbolic
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class StommelBoxesElement(Element):

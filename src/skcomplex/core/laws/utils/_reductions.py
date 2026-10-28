@@ -18,10 +18,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, function, var, vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...errors import ValidationError
+from ....errors import ValidationError
+from ....specs import LayerSpec
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
-from ...specs import LayerSpec
 
 KINDS = {'total': 'sum', 'mean': 'mean', 'maximum': 'max', 'minimum': 'min', 'variance': 'var', 'count': 'count'}
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')

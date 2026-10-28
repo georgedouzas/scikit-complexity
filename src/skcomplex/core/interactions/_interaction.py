@@ -19,7 +19,7 @@ class Interaction(BaseInteraction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions import Interaction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
+        >>> from skcomplex.specs import ParameterSpec, RoleSpec
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> class PredationInteraction(Interaction):

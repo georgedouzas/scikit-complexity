@@ -5,11 +5,11 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.elements import ParticleElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
+from skcomplex.errors import ValidationError
 
 
 @pytest.mark.parametrize(

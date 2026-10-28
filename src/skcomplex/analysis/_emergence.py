@@ -6,7 +6,7 @@
 import itertools
 import math
 import warnings
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from functools import partial
 from typing import Any, Self
 
@@ -14,17 +14,13 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..core.errors import AnalysisError, UnobservedStatesWarning
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError, UnobservedStatesWarning
+from ..types import AnyArray, Array, IntArray, Partition
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
 from ._kinds import DataKind
 from ._markov import MarkovAnalysis
-
-type Array = npt.NDArray[np.float64]
-type Columns = npt.NDArray[np.generic]
-type Labels = npt.NDArray[np.int64]
-type Partition = npt.ArrayLike | Callable[[npt.NDArray[np.generic]], npt.ArrayLike]
 
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
 MATRIX_KINDS = ('effective-information', 'causal')
@@ -317,7 +313,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)
 
     @staticmethod
-    def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> Labels:
+    def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> IntArray:
         """Return the macro label of every micro state, from a label array or a function of an array of states."""
         if callable(partition):
             return np.asarray(partition(states), dtype=np.int64).reshape(states.shape)
@@ -331,7 +327,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return labels[states]
 
     @staticmethod
-    def _blocks_of(partition: Partition, n_states: int) -> Labels:
+    def _blocks_of(partition: Partition, n_states: int) -> IntArray:
         """Return the label of every state of a matrix, after checking that the labels number the blocks from 0."""
         if not callable(partition) and np.size(partition) != n_states:
             error_msg = f'A partition of {n_states} states holds one label per state, not {np.size(partition)}.'
@@ -366,7 +362,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return MarkovAnalysis._stationary_distribution(rows)
 
     @staticmethod
-    def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:
+    def _coarse_matrix(matrix: Array, labels: IntArray, weights: Array) -> Array:
         """Return the macro transition matrix of a partition, the weighted micro rows summed within every block."""
         n_blocks = int(labels.max()) + 1
         membership = np.eye(n_blocks)[labels]
@@ -375,7 +371,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return np.divide(flows, totals, out=np.zeros_like(flows), where=totals > 0)
 
     @staticmethod
-    def _canonical(labels: npt.ArrayLike) -> Labels:
+    def _canonical(labels: npt.ArrayLike) -> IntArray:
         """Return labels renumbered 0, 1, and so on in the order of their first state."""
         _, first, inverse = np.unique(np.asarray(labels), return_index=True, return_inverse=True)
         return np.argsort(np.argsort(first))[inverse].astype(np.int64)
@@ -402,7 +398,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return spread - noise, size - noise, size - spread, observed
 
     @staticmethod
-    def _macro_information(matrix: Array, labels: Labels, weights: Array) -> float:
+    def _macro_information(matrix: Array, labels: IntArray, weights: Array) -> float:
         """Return the effective information of the macro matrix of a partition, without warning on unobserved blocks."""
         macro = EmergenceAnalysis._coarse_matrix(matrix, labels, weights)
         with warnings.catch_warnings():
@@ -410,7 +406,7 @@ class EmergenceAnalysis(BaseAnalysis):
             return EmergenceAnalysis._effective_information(macro)[0]
 
     @staticmethod
-    def _greedy(matrix: Array, weights: Array) -> Labels:
+    def _greedy(matrix: Array, weights: Array) -> IntArray:
         """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
         labels = np.arange(matrix.shape[0], dtype=np.int64)
         best = EmergenceAnalysis._macro_information(matrix, labels, weights)
@@ -427,11 +423,11 @@ class EmergenceAnalysis(BaseAnalysis):
         return labels
 
     @staticmethod
-    def _set_partitions(n_states: int) -> Iterator[Labels]:
+    def _set_partitions(n_states: int) -> Iterator[IntArray]:
         """Yield every partition of the states as restricted growth labels."""
         labels = np.zeros(n_states, dtype=np.int64)
 
-        def extend(position: int, blocks: int) -> Iterator[Labels]:
+        def extend(position: int, blocks: int) -> Iterator[IntArray]:
             if position == n_states:
                 yield labels.copy()
                 return
@@ -443,7 +439,7 @@ class EmergenceAnalysis(BaseAnalysis):
             yield from extend(1, 1)
 
     @staticmethod
-    def _exhaustive(matrix: Array, weights: Array) -> Labels:
+    def _exhaustive(matrix: Array, weights: Array) -> IntArray:
         """Return the partition with the largest macro effective information, the finest of equal ones."""
         if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
             error_msg = (
@@ -480,12 +476,12 @@ class EmergenceAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _plugin_entropy(columns: Columns) -> float:
+    def _plugin_entropy(columns: AnyArray) -> float:
         """Return the plug-in entropy of the rows of discrete columns in nats."""
         return float(stats.entropy(np.bincount(InformationAnalysis._row_codes(columns))))
 
     @staticmethod
-    def _estimated_information(first: Columns, second: Columns, estimator: str, k: int) -> float:
+    def _estimated_information(first: AnyArray, second: AnyArray, estimator: str, k: int) -> float:
         """Return the mutual information of two groups of columns in nats by plug-in, Gaussian, or kNN estimates."""
         if estimator == 'plugin':
             joint = np.column_stack([InformationAnalysis._row_codes(first), InformationAnalysis._row_codes(second)])

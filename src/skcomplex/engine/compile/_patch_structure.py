@@ -8,8 +8,9 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ...core.specs import AffineSpec, PrototileSpec
-from ._structure import Array, Structure
+from ...specs import AffineSpec, PrototileSpec
+from ...types import AnyArray
+from ._structure import Structure
 
 
 class PatchStructure(Structure):
@@ -31,7 +32,7 @@ class PatchStructure(Structure):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import PatchStructure
-        >>> from skcomplex.core.specs import PrototileSpec
+        >>> from skcomplex.specs import PrototileSpec
         >>> patch = PatchStructure([PrototileSpec('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
         >>> patch.length()
         1.0
@@ -73,7 +74,7 @@ class PatchStructure(Structure):
         codes = [index for index, prototile in enumerate(self.prototiles) if prototile.name == name]
         return int(np.count_nonzero(np.isin(self.codes, codes)))
 
-    def vertices(self, code: int) -> Array:
+    def vertices(self, code: int) -> AnyArray:
         """Return the vertices of the tiles of one prototile.
 
         Args:
@@ -89,7 +90,7 @@ class PatchStructure(Structure):
         matrices = self.matrices[self.codes == code]
         return np.einsum('tij,kj->tki', matrices, homogeneous)[..., :2]
 
-    def segments(self) -> Array:
+    def segments(self) -> AnyArray:
         """Return the tiles of segment prototiles as segments.
 
         Returns:
@@ -99,7 +100,7 @@ class PatchStructure(Structure):
         parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if self._is_segment(item)]
         return np.concatenate(parts) if parts else np.zeros((0, 2, 2))
 
-    def polygons(self) -> Array:
+    def polygons(self) -> AnyArray:
         """Return the tiles of polygon prototiles, one coordinate array per prototile.
 
         Returns:
@@ -129,7 +130,7 @@ class PatchStructure(Structure):
                 The 3 by 3 matrix.
 
         Examples:
-            >>> from skcomplex.core.specs import AffineSpec
+            >>> from skcomplex.specs import AffineSpec
             >>> from skcomplex.engine.compile import PatchStructure
             >>> PatchStructure._affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
             [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]

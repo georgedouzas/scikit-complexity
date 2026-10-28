@@ -11,9 +11,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..core.base import BaseConfig
+from ..base import BaseConfig
 from ..core.elements import Element, GroupElement
-from ..core.errors import ValidationError
 from ..core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -26,17 +25,17 @@ from ..core.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..core.specs import ObservableSpec
 from ..core.system import System
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
 from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
 from ..engine.runtime import MODELS, Simulation, Trajectory
+from ..errors import ValidationError
+from ..specs import ObservableSpec
+from ..types import Bounds, Row
 
 type Source = str | Callable[..., System] | System
 type Factory = Callable[..., System] | System
-type Row = dict[str, object]
-type Bounds = Mapping[str, object]
 _PROBLEMS: dict[tuple[object, ...], BaseProblem] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
 PLAIN_LAWS = (

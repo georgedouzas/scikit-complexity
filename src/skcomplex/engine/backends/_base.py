@@ -9,18 +9,19 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.types import Vector
+from ...types import Array, VectorFunction
 from ..base import BaseEstimator
 from ..problems import Form, SupportSpec
 from ..problems._draws import Draws
 from ..problems._kernel import Kernel
-from ..problems._problem import VectorFunction
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
 from ..problems._source import Source
 from ._lowering import Lowering
 
 _AUTO_MEMBERS = 1000
+
+
 class BaseBackend(BaseEstimator):
     """Base class of backends, which turn kernels into the numeric functions of a form.
 
@@ -103,7 +104,7 @@ class BaseBackend(BaseEstimator):
                 The function `f(t, x, p)`.
         """
 
-        def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        def evaluate(t: float, x: Array, p: Array) -> Array:
             """Sum every kernel's outputs into their targets."""
             output = np.zeros(size)
             for kernel in kernels:
@@ -127,7 +128,7 @@ class BaseBackend(BaseEstimator):
                 The function `f(t, x, p)`.
         """
 
-        def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        def evaluate(t: float, x: Array, p: Array) -> Array:
             """Set every kernel's outputs on a copy of the state."""
             output = x.copy()
             for kernel in kernels:
@@ -151,7 +152,7 @@ class BaseBackend(BaseEstimator):
                 The function `f(t, x, p)`.
         """
 
-        def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        def evaluate(t: float, x: Array, p: Array) -> Array:
             """Concatenate every kernel's outputs."""
             values = [value for kernel in kernels for value in kernel.evaluate(t, x, p)[2]]
             return np.concatenate([np.zeros(0), *values])

@@ -5,8 +5,8 @@
 
 import numpy as np
 
-from ...core.errors import ConservationError, SimulationError, ValidationError
-from ...core.types import Vector
+from ...errors import ConservationError, SimulationError, ValidationError
+from ...types import Array
 from ..problems import BaseProblem, TransferNetwork
 from ._base import BaseObserver
 from ._frames import Frame
@@ -62,7 +62,7 @@ class ConservationObserver(BaseObserver):
                 error_msg = f'{name} = {value!r} must be a nonnegative number.'
                 raise ValidationError(error_msg)
 
-    def _totals(self, state: Vector) -> dict[str, float]:
+    def _totals(self, state: Array) -> dict[str, float]:
         """Return the total of every quantity minus its accumulated inflow from the environment."""
         layout = self.problem_.states
         totals = {}

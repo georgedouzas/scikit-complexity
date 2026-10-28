@@ -6,9 +6,9 @@
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Self
 
-from ..errors import RewritingError
-from ..specs import GeometrySpec, StateSpec, VisualSpec
-from ..types import Letters
+from ...errors import RewritingError
+from ...specs import GeometrySpec, StateSpec, VisualSpec
+from ...types import Letters
 from ._element import Element
 
 

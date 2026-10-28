@@ -5,10 +5,7 @@
 
 from dataclasses import dataclass
 
-import numpy as np
-import numpy.typing as npt
-
-type Vector = npt.NDArray[np.float64]
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -31,5 +28,5 @@ class Lookup:
 
     kind: str
     base: int
-    values: Vector
+    values: Array
     columns: int = 1

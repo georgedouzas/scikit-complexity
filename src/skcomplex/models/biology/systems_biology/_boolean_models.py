@@ -6,9 +6,9 @@
 import itertools
 from collections.abc import Callable, Sequence
 
-from ....core.errors import ValidationError
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
 from ._boolean import BooleanFunctionInteraction, BooleanNodeElement
 
 type Rule = Callable[..., bool]

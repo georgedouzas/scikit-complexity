@@ -8,10 +8,9 @@ import math
 import numpy as np
 from scipy.optimize import brentq
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, Interpolant
 from ..problems import CompiledEvent, EventRecord, Problem, Record
-from ._history import Interpolant
 
 SEPARATION = 1e-10
 
@@ -34,10 +33,10 @@ class EventLocator:
         self,
         t0: float,
         t1: float,
-        x0: Vector,
-        x1: Vector,
+        x0: Array,
+        x1: Array,
         *,
-        p: Vector,
+        p: Array,
         interpolant: Interpolant,
         include_hidden: bool = True,
     ) -> tuple[float, int] | None:
@@ -95,7 +94,7 @@ class EventLocator:
         t0: float,
         t1: float,
         *,
-        p: Vector,
+        p: Array,
         interpolant: Interpolant,
     ) -> float:
         """Return the root of a guard in a step, moved just past it so the guard has already changed sign there."""
@@ -109,7 +108,7 @@ class EventLocator:
             time, nudge = min(t1, time + nudge), 2 * nudge
         return time
 
-    def apply(self, time: float, index: int, state: Vector, p: Vector) -> Vector:
+    def apply(self, time: float, index: int, state: Array, p: Array) -> Array:
         """Apply an event's reset at its time, record it, and stop the run when it is terminal.
 
         Args:

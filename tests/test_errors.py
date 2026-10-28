@@ -1,9 +1,9 @@
-"""Test the `errors` module of `skcomplex.core`."""
+"""Test the `errors` module of `skcomplex`."""
 
 import pytest
 
-from skcomplex.core import errors
-from skcomplex.core.errors import (
+from skcomplex import errors
+from skcomplex.errors import (
     ArgumentError,
     CapacityError,
     ConservationError,

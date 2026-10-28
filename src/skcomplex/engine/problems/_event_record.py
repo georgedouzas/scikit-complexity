@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -28,5 +28,5 @@ class EventRecord:
 
     label: str
     time: float
-    before: Vector
-    after: Vector
+    before: Array
+    after: Array

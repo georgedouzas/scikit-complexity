@@ -12,10 +12,10 @@ from sage.all__sagemath_symbolics import SR, Expression, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.elements import FieldElement
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
-from ....core.types import Vector
+from ....errors import ValidationError
+from ....types import Array
 from ...problems import (
     Layout,
     Reference,
@@ -161,7 +161,7 @@ class FieldFunctionsPass(BasePass):
         if not symmetries or drift is None:
             return drift
 
-        def symmetric(t: float, x: Vector, p: Vector) -> Vector:
+        def symmetric(t: float, x: Array, p: Array) -> Array:
             rates = np.array(drift(t, x, p), dtype=float)
             for indices, dimensions, signs in symmetries:
                 values = np.reshape(rates[indices], dimensions)
@@ -179,7 +179,7 @@ class FieldFunctionsPass(BasePass):
         if not indices.size or drift is None:
             return drift
 
-        def constrained(t: float, x: Vector, p: Vector) -> Vector:
+        def constrained(t: float, x: Array, p: Array) -> Array:
             rates = np.array(drift(t, x, p), dtype=float)
             rates[indices] = 0.0
             return rates
@@ -192,7 +192,7 @@ class FieldFunctionsPass(BasePass):
         if not volumes or drift is None:
             return drift
 
-        def conserved(t: float, x: Vector, p: Vector) -> Vector:
+        def conserved(t: float, x: Array, p: Array) -> Array:
             rates = drift(t, x, p)
             for volume in volumes:
                 rates = rates + volume.rates(x, p)

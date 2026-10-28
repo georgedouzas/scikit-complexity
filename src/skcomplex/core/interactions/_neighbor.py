@@ -26,7 +26,7 @@ class NeighborInteraction(BaseInteraction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions import NeighborInteraction
-        >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
+        >>> from skcomplex.specs import ParameterSpec, RoleSpec
         >>> class DiffusionInteraction(NeighborInteraction):
         ...     def __init__(
         ...         self,

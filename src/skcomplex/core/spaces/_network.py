@@ -10,9 +10,9 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..errors import SpaceError, ValidationError
-from ..specs import LayerSpec
-from ..types import Indices
+from ...errors import SpaceError, ValidationError
+from ...specs import LayerSpec
+from ...types import Indices
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
 
@@ -61,7 +61,7 @@ class NetworkSpace(BaseSpace):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.spaces import NetworkSpace
-        >>> from skcomplex.core.specs import LayerSpec
+        >>> from skcomplex.specs import LayerSpec
         >>> NetworkSpace(nx.cycle_graph(5)).check().prepare().size_
         5
         >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])

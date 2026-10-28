@@ -15,10 +15,10 @@ from ....core.elements import Element, GroupElement, ParticleElement
 from ....core.interactions import Interaction, PairPotentialInteraction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:

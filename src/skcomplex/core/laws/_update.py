@@ -5,9 +5,9 @@
 
 from typing import Self
 
+from ...specs import RequirementSpec, TopologyRequestSpec
+from ...types import Target
 from ..spaces import DiscreteTime
-from ..specs import RequirementSpec, TopologyRequestSpec
-from ..types import Target
 from ._base import BaseLaw
 
 

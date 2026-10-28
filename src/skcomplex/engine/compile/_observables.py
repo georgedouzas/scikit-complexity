@@ -15,11 +15,11 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...core.elements import Element
-from ...core.errors import RoleError, ValidationError
 from ...core.laws.utils import Reduction, reductions_in
-from ...core.specs import ObservableSpec, StateSpec
 from ...core.system import System
-from ...core.types import Vector
+from ...errors import RoleError, ValidationError
+from ...specs import ObservableSpec, StateSpec
+from ...types import AgentsOf, Array
 from ..problems import (
     BaseProblem,
     Entry,
@@ -41,8 +41,6 @@ from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
 from ._tree import Node
-
-type AgentsOf = Callable[[str], list[Any] | None]
 
 type Declared = dict[str, tuple[str, ObservableSpec]]
 
@@ -238,7 +236,7 @@ class _HeldReduction:
         """Group, reduction, argument, and condition, which identify the reduction."""
         return (self.group, str(self.reduce), str(self.argument), str(self.condition))
 
-    def reducer(self, time: Expression) -> Callable[[float, Sequence[Vector], Sequence[Any]], float]:
+    def reducer(self, time: Expression) -> Callable[[float, Sequence[Array], Sequence[Any]], float]:
         """Return the function of time, the values of the variables, and the members that computes the reduction.
 
         Args:
@@ -252,7 +250,7 @@ class _HeldReduction:
         reduce = self.reduce
         if self.argument is None:
 
-            def reduce_values_of(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
+            def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
                 del t
                 return float(np.real(CompiledReduction._reduce_values(columns[0] if columns else members, reduce)))
 
@@ -260,7 +258,7 @@ class _HeldReduction:
         condition = SR(1) if self.condition is None else self.condition
         function = numpy_function(time, list(self.symbols), [self.argument, condition])
 
-        def reduce_expression(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
+        def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
             size = len(members)
             argument, selected = (
                 np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
@@ -454,7 +452,7 @@ class ObservableEvaluator:
     Examples:
         >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
-        >>> from skcomplex.core.specs import ObservableSpec
+        >>> from skcomplex.specs import ObservableSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> system = System(
@@ -526,12 +524,12 @@ class ObservableEvaluator:
         path: str,
         expression: Any,  # noqa: ANN401
         observables: Mapping[Expression, str],
-        members: Mapping[Expression, Callable[[Vector, Vector], Any]],
+        members: Mapping[Expression, Callable[[Array, Array], Any]],
     ) -> Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
         expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
-        readers: list[Callable[[Vector, Vector, Mapping[str, Any]], Any]] = []
+        readers: list[Callable[[Array, Array, Mapping[str, Any]], Any]] = []
         for item in arguments:
             if item in observables:
                 readers.append(self._from_done(observables[item]))
@@ -548,7 +546,7 @@ class ObservableEvaluator:
                 raise ValidationError(error_msg)
         function = numpy_function(self.problem.time, arguments, [expression])
 
-        def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             value = function(t, *(read(x, p, done) for read in readers))[0]
             value = np.real_if_close(value)
             return float(value) if np.ndim(value) == 0 and np.isrealobj(value) else value
@@ -557,7 +555,7 @@ class ObservableEvaluator:
 
     def _recorded_getter(self, recorded: _Recorded) -> Getter:
         """Return the getter of a flow or an objective, one value for a single component and one per group member."""
-        members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
+        members: dict[Expression, Callable[[Array, Array], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
             reference = recorded.references.get(item)
             if reference is None or reference.source not in {Source.SINGLE, Source.MEMBER}:
@@ -592,7 +590,7 @@ class ObservableEvaluator:
         self,
         path: str,
         expression: Any,  # noqa: ANN401
-    ) -> tuple[Any, dict[Expression, Callable[[Vector, Vector], Any]]]:
+    ) -> tuple[Any, dict[Expression, Callable[[Array, Array], Any]]]:
         """Return an expression with the delays of the laws read from their hidden states, and their readers."""
         transfer_network = self.problem.transfer_network
         if transfer_network is None or not isinstance(expression, Expression):
@@ -634,7 +632,7 @@ class ObservableEvaluator:
             is_state = self.problem.states.has(name)
             layout = self.problem.states if is_state else self.problem.parameters
 
-            def read_variable(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+            def read_variable(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
                 return CompiledReduction._reduce_values(
@@ -674,7 +672,7 @@ class ObservableEvaluator:
         evaluate = self._compile(path, expression, {}, readers)
         reductions = ReductionSchedule(tuple(lowering.found.values()), lowering.parameters)
 
-        def read_expression(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def read_expression(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
             return CompiledReduction._reduce_values(values, observable.reduce)
 
@@ -686,7 +684,7 @@ class ObservableEvaluator:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
 
-        def read_agents(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def read_agents(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del t, x, p
             agents = done['__agents__'](group) or []
             if observable.variable is not None:
@@ -699,7 +697,7 @@ class ObservableEvaluator:
 
         return read_agents
 
-    def evaluate(self, t: float, x: Vector, p: Vector, agents_of: AgentsOf | None = None) -> dict[str, Any]:
+    def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsOf | None = None) -> dict[str, Any]:
         """Return the value of every observable by path.
 
         Args:
@@ -726,22 +724,22 @@ class ObservableEvaluator:
         return done
 
     @staticmethod
-    def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
+    def _from_done(name: str) -> Callable[[Array, Array, Mapping[str, Any]], Any]:
         """Return a reader of an observable computed earlier in the same frame."""
         return lambda x, p, done: done[name]
 
     @staticmethod
-    def _from_members(read: Callable[[Vector, Vector], Any]) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
+    def _from_members(read: Callable[[Array, Array], Any]) -> Callable[[Array, Array, Mapping[str, Any]], Any]:
         """Return a reader of one member variable over a group."""
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: Read) -> Callable[[Vector, Vector], Any]:
+    def _read_of(read: Read) -> Callable[[Array, Array], Any]:
         """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
         return ObservableEvaluator._from_vector(read.is_state, read.index)
 
     @staticmethod
-    def _from_vector(is_state: bool, indices: Any) -> Callable[[Vector, Vector], Any]:  # noqa: ANN401
+    def _from_vector(is_state: bool, indices: Any) -> Callable[[Array, Array], Any]:  # noqa: ANN401
         """Return a reader of components of the state or the parameter vector."""
         return lambda x, p: (x if is_state else p)[indices]
 
@@ -749,7 +747,7 @@ class ObservableEvaluator:
     def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
         """Return the getter of the number of renewals of a renewal law over all its members."""
 
-        def count_renewals(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> float:
+        def count_renewals(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> float:
             del t, p, done
             return float(np.sum(x[counts]))
 
@@ -897,5 +895,3 @@ class ObservableEvaluator:
             for element in problem.elements
             if isinstance(element.element, _HeldElement)
         ]
-
-

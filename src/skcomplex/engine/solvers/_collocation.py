@@ -6,22 +6,19 @@
 from typing import Any, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from scipy.optimize import Bounds, minimize
 
-from ...core.errors import SolverError, ValidationError
 from ...core.laws import EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
-from ...core.types import Vector
+from ...errors import SolverError, ValidationError
+from ...types import Array, Cost, GridFunction
 from ..problems import OrderKind, SupportSpec
 from ._control_solution import ControlSolution
-from ._optimal_control import Cost, GridFunction, OptimalControlSolver, _ControlProblem
+from ._optimal_control import OptimalControlSolver, _ControlProblem
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
 MIN_NODES = 2
-
-type Matrix = npt.NDArray[np.float64]
 
 
 class CollocationSolver(OptimalControlSolver):
@@ -76,7 +73,7 @@ class CollocationSolver(OptimalControlSolver):
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CollocationSolver
@@ -149,12 +146,12 @@ class CollocationSolver(OptimalControlSolver):
             error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
             raise ValidationError(error_msg)
 
-    def _unpack(self, z: Vector, points: int) -> tuple[Vector, Vector]:
+    def _unpack(self, z: Array, points: int) -> tuple[Array, Array]:
         """Return the states and the controls of the points from the vector of variables."""
         n, m = len(self.control_problem_.states), len(self.control_problem_.controls)
         return z[: points * n].reshape(points, n), z[points * n :].reshape(points, m)
 
-    def _cost_and_gradient(self, z: Vector, points: Vector, weights: Vector, p: Vector) -> tuple[float, Vector]:
+    def _cost_and_gradient(self, z: Array, points: Array, weights: Array, p: Array) -> tuple[float, Array]:
         """Return the transcribed cost and its gradient by the variables."""
         x, u = self._unpack(z, points.size)
         values = self.running_(points, x, u, p)[:, 0]
@@ -164,14 +161,14 @@ class CollocationSolver(OptimalControlSolver):
         gradient_u = weights[:, None] * self._running_controls(points, x, u, p)
         return cost, np.concatenate([gradient_x.ravel(), gradient_u.ravel()])
 
-    def _defects(self, z: Vector, points: Vector, coefficients: tuple[Matrix, Matrix], x0: Vector, p: Vector) -> Vector:
+    def _defects(self, z: Array, points: Array, coefficients: tuple[Array, Array], x0: Array, p: Array) -> Array:
         """Return the defects of the collocation conditions and of the initial state."""
         x, u = self._unpack(z, points.size)
         states, rates = coefficients
         defects = states @ x + rates @ self.rates_(points, x, u, p)
         return np.concatenate([defects.T.ravel(), x[0] - x0])
 
-    def _jacobian(self, z: Vector, points: Vector, coefficients: tuple[Matrix, Matrix], p: Vector) -> Matrix:
+    def _jacobian(self, z: Array, points: Array, coefficients: tuple[Array, Array], p: Array) -> Array:
         """Return the Jacobian of the defects by the variables, from the symbolic Jacobians of the rates."""
         x, u = self._unpack(z, points.size)
         states, rates = coefficients
@@ -220,7 +217,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolution:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:
@@ -277,7 +274,7 @@ class CollocationSolver(OptimalControlSolver):
         return self._solution(x0, points, x, u, p, iterations=int(result.nit))
 
     @staticmethod
-    def _trapezoidal(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
+    def _trapezoidal(times: Array) -> tuple[Array, Array, Array, Array]:
         """Return the points, the defect coefficients of states and rates, and the quadrature weights of trapezoids."""
         steps = np.diff(times)
         rows = np.arange(steps.size)
@@ -291,7 +288,7 @@ class CollocationSolver(OptimalControlSolver):
         return times, states, rates, weights
 
     @staticmethod
-    def _hermite_simpson(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
+    def _hermite_simpson(times: Array) -> tuple[Array, Array, Array, Array]:
         """Return the points with midpoints, the defect coefficients of states and rates, and Simpson's weights."""
         steps = np.diff(times)
         points = np.empty(2 * times.size - 1)

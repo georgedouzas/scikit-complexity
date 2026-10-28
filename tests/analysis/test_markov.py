@@ -8,7 +8,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.analysis import MarkovAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 
 

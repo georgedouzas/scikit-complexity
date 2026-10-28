@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core.types import Vector
+from ...types import Array
 from ._split import _SplitSolver
 
 
@@ -26,13 +26,13 @@ class IMEX2Solver(_SplitSolver):
 
     def _forget(self) -> None:
         """Forget the previous remainder, so the next step starts the scheme again."""
-        self._previous: Vector | None = None
+        self._previous: Array | None = None
 
-    def _built(self, p: Vector) -> None:
+    def _built(self, p: Array) -> None:
         """Forget the previous remainder when the linear part changes."""
         self._forget()
 
-    def _step(self, t: float, x: Vector, p: Vector, h: float) -> Vector:
+    def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one Crank-Nicolson Adams-Bashforth step."""
         remainder = self._remainder(t, x, p)
         extrapolated = remainder if self._previous is None else 1.5 * remainder - 0.5 * self._previous

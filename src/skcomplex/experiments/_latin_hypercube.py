@@ -5,7 +5,8 @@
 
 from scipy.stats import qmc
 
-from ._base import BaseDesign, Bounds
+from ..types import Bounds
+from ._base import BaseDesign
 
 
 class LatinHypercubeDesign(BaseDesign):

@@ -17,11 +17,11 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
 from ...core.elements import GroupElement
-from ...core.errors import ConservationError, SimulationError, SpaceError
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from ...core.specs import PhaseSpec, PhasesScheduleSpec
-from ...core.types import Vector
+from ...errors import ConservationError, SimulationError, SpaceError
+from ...specs import PhaseSpec, PhasesScheduleSpec
+from ...types import Array
 from ..compile import ObservableEvaluator
 from ..problems import (
     CompiledAgents,
@@ -668,7 +668,7 @@ class MesaSolver(Solver):
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import RuleLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import MesaSolver
@@ -728,8 +728,8 @@ class MesaSolver(Solver):
         self.storage_: dict[str, dict[str, Any]] = {}
         self.buffer_: dict[tuple[mesa.Agent, str], Any] | None = None
         self.round_ = 0
-        self._live: Vector | None = None
-        self._state: Vector = problem.initial_state
+        self._live: Array | None = None
+        self._state: Array = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
         self._populating = True
         self._specs = {spec.path: spec for spec in problem.agents}
@@ -921,7 +921,7 @@ class MesaSolver(Solver):
                 return list(self.model_.agents_by_type.get(agent_class, []))
         return []
 
-    def _push_parameters(self, p: Vector) -> None:
+    def _push_parameters(self, p: Array) -> None:
         """Make new parameter values visible to the rules."""
         self.parameters_ = p.copy()
 
@@ -1022,7 +1022,7 @@ class MesaSolver(Solver):
             raise SimulationError(error_msg)
         return values[name]
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Run one Mesa step per integer time from `t` up to `until`.
 
         Args:

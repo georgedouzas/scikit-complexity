@@ -10,13 +10,13 @@ import numpy as np
 import numpy.typing as npt
 from deeptime.markov.tools import analysis as msm_analysis
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import MarkovAnalysis
 
-type Array = npt.NDArray[np.float64]
 KINDS = ('first-passage', 'hitting', 'return-times', 'committor', 'mean-first-passage')
 DIRECTIONS = ('up', 'down')
 SETTINGS = {

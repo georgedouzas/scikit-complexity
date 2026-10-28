@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import CalibrationExperiment
 
 

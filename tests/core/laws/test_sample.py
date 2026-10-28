@@ -3,10 +3,10 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.spaces import VonNeumannNeighborhood
-from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
+from skcomplex.errors import ValidationError
+from skcomplex.specs import EnergySpec, MoveSpec, SamplerSpec
 
 SPIN = var('spin')
 ENERGY = EnergySpec(-SPIN, VonNeumannNeighborhood())

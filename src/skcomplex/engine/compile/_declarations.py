@@ -15,11 +15,11 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
 from sage.sets.real_set import RealSet
 
 from ...core.elements import GroupElement
-from ...core.errors import SpaceError, ValidationError
 from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, NetworkSpace
-from ...core.specs import WienerProcessSpec
-from ...core.types import Vector
+from ...errors import SpaceError, ValidationError
+from ...specs import WienerProcessSpec
+from ...types import Array
 from ..problems import (
     Entry,
     Reference,
@@ -47,8 +47,8 @@ class Declarations:
     time: Expression
     states: list[Entry] = field(default_factory=list)
     parameters: list[Entry] = field(default_factory=list)
-    initial_states: list[Vector] = field(default_factory=list)
-    initial_parameters: list[Vector] = field(default_factory=list)
+    initial_states: list[Array] = field(default_factory=list)
+    initial_parameters: list[Array] = field(default_factory=list)
     blocks: dict[str, Block] = field(default_factory=dict)
     ends: dict[bool, int] = field(default_factory=lambda: {True: 0, False: 0})
     processes: dict[str, Block] = field(default_factory=dict)
@@ -133,7 +133,7 @@ class Declarations:
             if isinstance(value, Expression) and value.is_symbol():
                 self.agents[value] = (node.path, variable)
 
-    def _declare_hidden(self, block: Block, variable: str, values: Vector) -> None:
+    def _declare_hidden(self, block: Block, variable: str, values: Array) -> None:
         """Add a hidden parameter with one value per member of a group, read by laws as `s.<variable>`."""
         node = block.node
         rows = node.members or 1
@@ -163,7 +163,7 @@ class Declarations:
     def declare_state(
         self,
         name: str,
-        initial: Vector,
+        initial: Array,
         domain: object,
         shape: tuple[int, ...] = (),
         members: int | None = None,

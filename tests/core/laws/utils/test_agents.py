@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.laws.utils import random_pairing, transfer
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ConservationError, ValidationError
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def test_random_pairing_within_one_group_avoids_self_pairs():

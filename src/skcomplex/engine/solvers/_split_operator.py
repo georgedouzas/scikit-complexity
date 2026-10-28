@@ -12,21 +12,20 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import splu
 
-from ...core.errors import SolverError
 from ...core.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
     MeshSpace,
     NetworkSpace,
 )
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, ComplexArray
 from ..compile._field_lowering import FieldLowering
 from ..problems import LATTICE_BOUNDARIES, Problem, numpy_function, symbol
 
 TIME = symbol('t')
 
 
-type Complex = npt.NDArray[np.complex128]
 
 
 @dataclass
@@ -35,18 +34,18 @@ class _SpectralBlock:
 
     dimensions: tuple[int, ...]
     rows: list[npt.NDArray[np.intp]]
-    matrix: Complex
+    matrix: ComplexArray
 
-    def transform(self, x: Vector) -> Complex:
+    def transform(self, x: Array) -> ComplexArray:
         """Return the Fourier modes of every state of the block, stacked on the last axis."""
         return np.stack([np.fft.rfftn(np.reshape(x[rows], self.dimensions)) for rows in self.rows], axis=-1)
 
-    def inverse(self, modes: Complex, out: Vector) -> None:
+    def inverse(self, modes: ComplexArray, out: Array) -> None:
         """Write the states of Fourier modes stacked on the last axis."""
         for index, rows in enumerate(self.rows):
             out[rows] = np.fft.irfftn(modes[..., index], s=self.dimensions, axes=range(len(self.dimensions))).ravel()
 
-    def apply(self, operator: Complex, x: Vector, out: Vector) -> None:
+    def apply(self, operator: ComplexArray, x: Array, out: Array) -> None:
         """Write a matrix of every mode applied to the block's states."""
         self.inverse(np.einsum('...ij,...j->...i', operator, self.transform(x)), out)
 
@@ -76,7 +75,7 @@ class SplitOperator:
     _solvers: dict[float, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
-    def build(cls, problem: Problem, p: Vector) -> 'SplitOperator':
+    def build(cls, problem: Problem, p: Array) -> 'SplitOperator':
         """Return the linear part of a problem's rates at parameter values.
 
         Args:
@@ -105,7 +104,7 @@ class SplitOperator:
         operator.covered = np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
         return operator
 
-    def apply(self, x: Vector) -> Vector:
+    def apply(self, x: Array) -> Array:
         """Return the linear part applied to a state vector.
 
         Args:
@@ -123,7 +122,7 @@ class SplitOperator:
             block.apply(block.matrix, x, out)
         return out
 
-    def solve(self, factor: float, rhs: Vector) -> Vector:
+    def solve(self, factor: float, rhs: Array) -> Array:
         """Return the solution `y` of `(I - factor L) y = rhs`.
 
         Args:
@@ -246,7 +245,7 @@ class SplitOperator:
         return FieldLowering._mesh_laplacian(space)
 
     @staticmethod
-    def _coefficient(term: Any, p: Vector) -> Any:  # noqa: ANN401
+    def _coefficient(term: Any, p: Array) -> Any:  # noqa: ANN401
         """Return the value of a linear term's coefficient, a number or one value per member."""
         symbols = sorted(term.references, key=str)
         values = []

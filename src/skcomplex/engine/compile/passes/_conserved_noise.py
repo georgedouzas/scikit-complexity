@@ -10,10 +10,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
-from ....core.errors import ValidationError
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
-from ....core.types import Indices
+from ....errors import ValidationError
+from ....types import Indices
 from ...problems import NoiseProcess, Output, Reference, Source
 from .._base import BasePass
 from .._census import Census

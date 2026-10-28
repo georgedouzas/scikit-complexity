@@ -6,7 +6,7 @@
 import numpy as np
 from scipy.special import gamma
 
-from ...core.types import Vector
+from ...types import Array
 from ._convolution import _MODE_SPACING, ConvolutionSolver
 
 
@@ -35,7 +35,7 @@ class L1Solver(ConvolutionSolver):
         >>> import numpy as np
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import L1Solver
@@ -52,20 +52,20 @@ class L1Solver(ConvolutionSolver):
         0.43
     """
 
-    def _weights(self, alpha: Vector, count: int) -> Vector:
+    def _weights(self, alpha: Array, count: int) -> Array:
         """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements, one column per order."""
         return self._l1_weights(alpha, count)
 
-    def _tail(self, alpha: Vector, rates: Vector, window: int) -> Vector:
+    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the L1 weights past a window."""
         return self._l1_tail(alpha, rates, window)
 
-    def _gain(self, alpha: Vector) -> Vector:
+    def _gain(self, alpha: Array) -> Array:
         """Return the factor `Gamma(2 - alpha)` of the drift of every order."""
         return np.asarray(gamma(2 - alpha))
 
     @staticmethod
-    def _l1_weights(alpha: Vector, count: int) -> Vector:
+    def _l1_weights(alpha: Array, count: int) -> Array:
         """Return the weights `a_0` to `a_count` of the L1 scheme on displacements from the start, one column per order.
 
         The weights are the differences `b_j - b_(j-1)` of the L1 weights `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)` on
@@ -78,7 +78,7 @@ class L1Solver(ConvolutionSolver):
         return np.vstack([np.ones((1, alpha.size)), np.diff(increments, axis=0)])
 
     @staticmethod
-    def _l1_tail(alpha: Vector, rates: Vector, window: int) -> Vector:
+    def _l1_tail(alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes whose sum gives the L1 weights past a window.
 
         The weights have the Laplace representation `a_j = -((1 - alpha) / Gamma(alpha)) int exp(-s j) s^(alpha - 2)

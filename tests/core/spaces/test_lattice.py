@@ -2,8 +2,8 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import AdjacencyNeighborhood, BoxNeighborhood, LatticeSpace, TriangularNeighborhood
+from skcomplex.errors import ValidationError
 
 
 def test_lattice_space_prepares_its_facts():

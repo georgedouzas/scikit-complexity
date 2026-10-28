@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import SR, vector
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 
 def _lorenz_96_laws(s: SimpleNamespace) -> list[BaseLaw]:

@@ -8,21 +8,21 @@ import skfem
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import count, laplacian, maximum, mean, minimum, total, variance, where
 from skcomplex.core.spaces import LatticeSpace, MeshSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.compile._field_lowering import FieldLowering
 from skcomplex.engine.solvers import SplitOperator
+from skcomplex.errors import ValidationError
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky
 from skcomplex.models.physics.heat import heat_diffusion, heat_l_shape
 from skcomplex.models.physics.synchronization import nonlocal_ring_chimera
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 RNG = np.random.default_rng(1)
 PAYOFF = RNG.normal(size=(20, 20))

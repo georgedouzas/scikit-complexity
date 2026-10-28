@@ -11,8 +11,8 @@ from typing import Any, cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...core.errors import ValidationError
-from ...core.types import Indices, Vector
+from ...errors import ValidationError
+from ...types import Array, Indices, OptionalPairs, Reader
 from ._layout import Layout
 from ._noise_process import NoiseProcess
 from ._output import Output
@@ -22,12 +22,6 @@ from ._problem import _JumpChannels
 from ._reference import Reference, Search
 from ._source import Source
 from ._wiener_block import WienerBlock
-
-type Pairs = tuple[Indices, Indices] | None
-
-
-type Reader = Callable[[Vector, Vector, Pairs, float], Any]
-
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 
@@ -159,7 +153,7 @@ class Kernel:
         """Symbols the outputs read, in the order the compiled function takes them after time."""
         return list(self._arguments)
 
-    def gather(self, t: float, x: Vector, p: Vector) -> list[Any]:
+    def gather(self, t: float, x: Array, p: Array) -> list[Any]:
         """Return the values of the symbols the outputs read, for every evaluation index of a member kernel.
 
         Args:
@@ -178,7 +172,7 @@ class Kernel:
         """
         return [read(x, p, None, t) for read in self._argument_readers]
 
-    def read(self, symbol: Expression, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+    def read(self, symbol: Expression, t: float, x: Array, p: Array) -> Any:  # noqa: ANN401
         """Return the values of one symbol the kernel knows, for every evaluation index of a member kernel.
 
         Args:
@@ -208,8 +202,8 @@ class Kernel:
     def _gather_around(
         self,
         reference: Reference,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         pairs: tuple[Indices, Indices] | None,
         t: float,
     ) -> Any:  # noqa: ANN401
@@ -232,7 +226,7 @@ class Kernel:
                 for item in reference.neighbor.symbols:
                     self._reader(item)
 
-            def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
+            def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Any:  # noqa: ANN401
                 return self._gather_around(reference, x, p, pairs, t)
 
         elif source is Source.SINGLE or (source is Source.REDUCED and reference.entry.members is None):
@@ -248,7 +242,7 @@ class Kernel:
         images = isinstance(self.pairs, PairSearch) and reference.entry == self.pairs.second and is_state
         column = reference.column
 
-        def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
+        def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Any:  # noqa: ANN401
             values = (x if is_state else p)[members]
             if source is Source.MEMBER or pairs is None:
                 return values
@@ -261,11 +255,11 @@ class Kernel:
 
         return read
 
-    def _gather(self, symbol: Expression, x: Vector, p: Vector, pairs: Pairs, t: float = 0.0) -> Any:  # noqa: ANN401
+    def _gather(self, symbol: Expression, x: Array, p: Array, pairs: OptionalPairs, t: float = 0.0) -> Any:  # noqa: ANN401
         """Return the values of a symbol for every evaluation index."""
         return self._reader(symbol)(x, p, pairs, t)
 
-    def evaluate(self, t: float, x: Vector, p: Vector) -> tuple[int, tuple[Indices, Indices] | None, list[Vector]]:
+    def evaluate(self, t: float, x: Array, p: Array) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
         """Return the values of every output for every evaluation index.
 
         Args:
@@ -287,8 +281,8 @@ class Kernel:
         computed: list[Any] = []
         if self._function is not None:
             computed = list(self._function(t, *[read(x, p, pairs, t) for read in self._argument_readers]))
-        values: list[Vector] = []
-        function_results: dict[tuple[int, int], Vector] = {}
+        values: list[Array] = []
+        function_results: dict[tuple[int, int], Array] = {}
         for output, (start, count) in zip(self.outputs, self._slots, strict=True):
             if output.expression is not None:
                 values.append(self._broadcast(computed[start], size))
@@ -303,7 +297,7 @@ class Kernel:
             values.append(function_results[key][:, output.component])
         return size, pairs, values
 
-    def _call(self, output: Output, t: float, x: Vector, p: Vector, *, size: int, arguments: list[Vector]) -> Vector:
+    def _call(self, output: Output, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as one row per evaluation index and one column per component."""
         function: Callable[..., Any] = output.function  # type: ignore[assignment]
         if output.arguments is not None:
@@ -324,7 +318,7 @@ class Kernel:
         return lambda x, p, pairs, t: p[index]
 
     @staticmethod
-    def _broadcast(value: Any, size: int) -> Vector:  # noqa: ANN401
+    def _broadcast(value: Any, size: int) -> Array:  # noqa: ANN401
         """Return the values of an output as one float per evaluation index."""
         if np.ndim(value) == 0:
             return np.full(size, value, dtype=float)

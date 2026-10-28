@@ -16,15 +16,14 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import IntArray
 
-type Integers = npt.NDArray[np.int64]
 
-
-def cultural_traits(culture: float, features: int, traits: int) -> Integers:
+def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
     """Return the traits of a culture vector stored as one integer, its digits in base `q`.
 
     Args:

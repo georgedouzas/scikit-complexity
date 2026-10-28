@@ -4,8 +4,7 @@
 # License: MIT
 
 import math
-from collections.abc import Callable, Mapping, Sequence
-from types import SimpleNamespace
+from collections.abc import Mapping, Sequence
 from typing import Any, Self
 
 import numpy as np
@@ -13,14 +12,14 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
-from ..core.types import Vector
 from ..engine.compile import compile_system
 from ..engine.compile.passes import QuantumProblem
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError, ParameterError
+from ..types import Array, Sector
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
@@ -34,8 +33,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind`."""
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
-
-type Sector = tuple[Callable[[SimpleNamespace], Any], float]
 
 
 class QuantumAnalysis(BaseAnalysis):
@@ -109,7 +106,7 @@ class QuantumAnalysis(BaseAnalysis):
         >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
-        >>> from skcomplex.core.specs import HilbertSpec, StateSpec
+        >>> from skcomplex.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
@@ -217,7 +214,7 @@ class QuantumAnalysis(BaseAnalysis):
         return problem
 
     @staticmethod
-    def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Vector:
+    def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Array:
         """Return the initial parameter vector with some values replaced by dotted name."""
         p = problem.initial_parameters.copy()
         for name, value in (values or {}).items():
@@ -233,7 +230,7 @@ class QuantumAnalysis(BaseAnalysis):
     def _sector_basis(
         problem: QuantumProblem,
         sector: Sector,
-        p: Vector,
+        p: Array,
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         expression, value = sector
@@ -263,7 +260,7 @@ class QuantumAnalysis(BaseAnalysis):
     @staticmethod
     def _lowest_states(
         problem: QuantumProblem,
-        p: Vector,
+        p: Array,
         k: int,
         basis: npt.NDArray[np.intp] | None,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
@@ -281,7 +278,7 @@ class QuantumAnalysis(BaseAnalysis):
         return np.real(np.asarray(energies)), states
 
     @staticmethod
-    def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Vector:
+    def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Array:
         """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
         keep = []
         for name in subsystems:

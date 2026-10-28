@@ -13,7 +13,6 @@ from sage.all__sagemath_symbolics import CC, I
 from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
@@ -33,6 +32,7 @@ from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling
+from skcomplex.specs import StateSpec, TopologyRequestSpec, VisualSpec
 
 
 class LoggedPaths:

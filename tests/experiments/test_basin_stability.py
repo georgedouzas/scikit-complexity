@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import BasinStabilityExperiment
 from skcomplex.models.physics.nonlinear_oscillators import duffing
 

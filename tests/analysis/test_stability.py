@@ -8,18 +8,18 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.analysis import StabilityAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 from skcomplex.models.physics.mechanics import harmonic_oscillator
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 
 def _stability(source, **settings):

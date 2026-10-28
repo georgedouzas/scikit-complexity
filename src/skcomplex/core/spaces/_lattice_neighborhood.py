@@ -7,10 +7,9 @@ from typing import Self
 
 import numpy as np
 
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...types import Offset
 from ._base import BaseNeighborhood
-
-type Offset = tuple[int, ...]
 
 
 class LatticeNeighborhood(BaseNeighborhood):

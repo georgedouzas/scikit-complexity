@@ -7,11 +7,11 @@ import pytest
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core import laws
-from skcomplex.core.errors import NotCheckedError, ValidationError
 from skcomplex.core.laws import BaseLaw, CrossingLaw, JumpLaw, LocalRuleLaw, RateLaw
 from skcomplex.core.laws.utils import Call, Totalistic
 from skcomplex.core.spaces import BoxNeighborhood
-from skcomplex.core.specs import RequirementSpec
+from skcomplex.errors import NotCheckedError, ValidationError
+from skcomplex.specs import RequirementSpec
 
 
 def test_every_law_derives_from_the_law_base():

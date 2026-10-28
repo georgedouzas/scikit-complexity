@@ -34,8 +34,8 @@ class Element(BaseElement):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.specs import StateSpec
+        >>> from skcomplex.specs import VisualSpec
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> class PopulationElement(Element):

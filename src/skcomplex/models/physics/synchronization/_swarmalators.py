@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import PairInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class SwarmalatorElement(Element):

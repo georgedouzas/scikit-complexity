@@ -12,10 +12,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
-from ....core.specs import VisualSpec
-from ....core.types import Vector
+from ....errors import ValidationError
+from ....specs import VisualSpec
+from ....types import Array, Scalars
 from ...problems import (
     CompiledElement,
     CompiledEvent,
@@ -41,7 +41,7 @@ from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._tree import Node
-from ._events import _SWITCHES, RELATIONS, Scalars
+from ._events import _SWITCHES, RELATIONS
 
 
 class ProblemPass(BasePass):
@@ -187,10 +187,10 @@ class ProblemPass(BasePass):
         return float(-expression.subs({time: 0}) / slope)
 
     @staticmethod
-    def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
+    def _first_value(function: Scalars) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function."""
 
-        def first(t: float, x: Vector, p: Vector) -> float:
+        def first(t: float, x: Array, p: Array) -> float:
             return function(t, x, p)[0]
 
         return first
@@ -232,7 +232,7 @@ class ProblemPass(BasePass):
         function = numpy_function(time, arguments, values)
         places = [sources[item] for item in arguments]
 
-        def evaluate(t: float, x: Vector, p: Vector) -> list[float]:
+        def evaluate(t: float, x: Array, p: Array) -> list[float]:
             return [
                 float(value) for value in function(t, *((x if is_state else p)[index] for is_state, index in places))
             ]
@@ -278,7 +278,7 @@ class ProblemPass(BasePass):
         places = [ProblemPass._reset_indices(reference) for reference in references]  # type: ignore[arg-type]
         function = numpy_function(time, arguments, values)
 
-        def apply(t: float, x: Vector, p: Vector) -> Vector:
+        def apply(t: float, x: Array, p: Array) -> Array:
             q = reductions.extend(t, x, p)
             results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
             state = x.copy()

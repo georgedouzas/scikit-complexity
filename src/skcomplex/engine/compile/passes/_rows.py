@@ -7,9 +7,9 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.errors import IncompatibleLawsError, RoleError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
+from ....errors import IncompatibleLawsError, RoleError
 from ...problems import Source, components_of
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws

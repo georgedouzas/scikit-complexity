@@ -9,12 +9,10 @@ import qutip
 from sage.all__sagemath_symbolics import CC
 
 from skcomplex.core.elements import GroupElement, LatticeElement
-from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
     BaseCompiler,
@@ -24,6 +22,7 @@ from skcomplex.engine.compile import (
 )
 from skcomplex.engine.compile.passes import QuantumCompiler
 from skcomplex.engine.problems import symbol
+from skcomplex.errors import IncompatibleLawsError, ValidationError
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import (
     QUBIT,
@@ -31,6 +30,7 @@ from skcomplex.models.physics.common.quantum import (
     SpinElement,
     spin_space,
 )
+from skcomplex.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class HeisenbergInteraction(NeighborInteraction):

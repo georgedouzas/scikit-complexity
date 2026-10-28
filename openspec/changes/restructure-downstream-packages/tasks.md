@@ -78,6 +78,8 @@
 
 ## 6. Layering and integration
 
+- [x] 6.4 Move `BaseConfig`, the errors, the specs, and the type aliases to the root modules `skcomplex.base`, `skcomplex.errors`, `skcomplex.specs`, and `skcomplex.types`, one alias per type, and add them to the layers contract. Verify with lint-imports and the full test session.
+
 - [x] 6.1 Set the import-linter layers to `experiments`, `analysis`, `engine`, `core`, and verify that `lint-imports` passes and fails on a planted import of `experiments` from `analysis`.
 - [x] 6.2 Update the user guide and the README to the classes, and verify that their code blocks run in the test session.
 - [ ] 6.3 Run the full test session with doctests, the checks session, and the gallery build, and verify that all pass.

@@ -11,7 +11,6 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import MatchLaw, RuleLaw
 from skcomplex.core.laws.utils import matches
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.common.markets import (
@@ -25,6 +24,7 @@ from skcomplex.models.economics.common.markets import (
     SampleAndSwitch,
     Walrasian,
 )
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 from ..conftest import TraderElement
 

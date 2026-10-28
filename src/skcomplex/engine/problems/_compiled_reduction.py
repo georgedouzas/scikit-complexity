@@ -13,8 +13,8 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.errors import ValidationError
-from ...core.types import Indices, Vector
+from ...errors import ValidationError
+from ...types import Array, Indices
 from ._entry import Entry
 from ._printing import numpy_function
 from ._reads import Read
@@ -100,7 +100,7 @@ class CompiledReduction:
         """Symbols the argument and the condition read, in the order the compiled function takes them after time."""
         return list(self._symbols)
 
-    def gather(self, x: Vector, q: Vector) -> list[Any]:
+    def gather(self, x: Array, q: Array) -> list[Any]:
         """Return the values of the symbols the reduction reads.
 
         Args:
@@ -116,7 +116,7 @@ class CompiledReduction:
         """
         return [(x if read.is_state else q)[read.index] for read in (self.reads[item] for item in self._symbols)]
 
-    def values(self, t: float, x: Vector, q: Vector) -> tuple[Vector, npt.NDArray[np.bool_]]:
+    def values(self, t: float, x: Array, q: Array) -> tuple[Array, npt.NDArray[np.bool_]]:
         """Return the argument and the condition of every reduced member.
 
         Args:
@@ -139,7 +139,7 @@ class CompiledReduction:
             np.broadcast_to(np.asarray(condition, dtype=bool), (self.size,)),
         )
 
-    def evaluate(self, t: float, x: Vector, q: Vector) -> None:
+    def evaluate(self, t: float, x: Array, q: Array) -> None:
         """Write the value of the reduction into the extended parameter vector.
 
         Args:

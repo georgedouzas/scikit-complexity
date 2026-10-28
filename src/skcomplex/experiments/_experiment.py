@@ -13,11 +13,12 @@ from typing import Self
 import numpy as np
 from sklearn.base import BaseEstimator, clone
 
-from ..core.errors import ExperimentError, ValidationError
-from ..core.specs import ObservableSpec
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Simulation, Trajectory
-from ._base import BaseDesign, BaseExperiment, Bounds, Factory, Row, Source
+from ..errors import ExperimentError, ValidationError
+from ..specs import ObservableSpec
+from ..types import Bounds, Row
+from ._base import BaseDesign, BaseExperiment, Factory, Source
 from ._results import ExperimentResult, _RunResult
 from ._scenarios import Scenario
 

@@ -5,9 +5,9 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import GeometryVisual, RerunObserver
+from skcomplex.errors import ValidationError
 from skcomplex.models import create, describe, run
 
 

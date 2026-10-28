@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from typing import Annotated, Any, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -15,13 +14,12 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....types import Array
 from ..common.markets import MarketInteraction, SampleAndSwitch, Trade
-
-type Array = npt.NDArray[np.float64]
 
 
 def _lend(trade: Trade, model: Any) -> None:  # noqa: ANN401

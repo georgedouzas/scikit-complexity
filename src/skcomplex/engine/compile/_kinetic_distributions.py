@@ -8,13 +8,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.elements import Element, GroupElement
-from ...core.errors import ValidationError
+from ...errors import ValidationError
+from ...types import Array
 from ..problems import VariableKind, declarations_of, default_of
 
-type Values = npt.NDArray[np.float64]
 
-
-def _grid(activities: object) -> Values:
+def _grid(activities: object) -> Array:
     """Return the activity values as an increasing float vector, after checking that they are one."""
     grid = np.asarray(activities, dtype=float)
     if grid.ndim != 1 or not grid.size or np.any(np.diff(grid) <= 0):
@@ -37,7 +36,7 @@ def _state_name(element: type[Element], state: str | None) -> str:
     raise ValidationError(error_msg)
 
 
-def _member_values(group: GroupElement | npt.ArrayLike, state: str) -> Values:
+def _member_values(group: GroupElement | npt.ArrayLike, state: str) -> Array:
     """Return the values of a state of every member of a group, or the values themselves."""
     if not isinstance(group, GroupElement):
         return np.ravel(np.asarray(group, dtype=float))
@@ -93,7 +92,7 @@ def distribution_from(
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.engine.compile import distribution_from
         >>> class DensityElement(Element):
         ...     def __init__(self, label, f: Annotated[float, StateSpec()] = 0.0):
@@ -174,7 +173,7 @@ def members_from(
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.engine.compile import members_from
         >>> class TraderElement(Element):
         ...     def __init__(self, label, wealth: Annotated[float, StateSpec()] = 0.0):

@@ -7,8 +7,8 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, UpdateLaw
+from ....errors import ValidationError
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Laws

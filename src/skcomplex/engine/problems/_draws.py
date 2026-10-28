@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Vector
+from ...types import Array
 from ._sampled_draw import SampledDraw
 
 
@@ -39,7 +39,7 @@ class Draws:
         """Number of values drawn at every step."""
         return int(self.normal.size) + sum(item.rows for item in self.sampled)
 
-    def extend(self, p: Vector) -> Vector:
+    def extend(self, p: Array) -> Array:
         """Return a parameter vector extended with room for the draws.
 
         Args:
@@ -54,7 +54,7 @@ class Draws:
         extended[: self.offset] = p[: self.offset]
         return extended
 
-    def fill(self, q: Vector, rng: np.random.Generator, t: float = 0.0, x: Vector | None = None) -> None:
+    def fill(self, q: Array, rng: np.random.Generator, t: float = 0.0, x: Array | None = None) -> None:
         """Draw fresh values into an extended parameter vector, in order, uniform and normal runs as they come.
 
         Args:

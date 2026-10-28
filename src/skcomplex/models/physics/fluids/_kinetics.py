@@ -14,10 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.spaces import LatticeSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import SSPRKSolver
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class WaveNumberElement(Element):

@@ -3,13 +3,13 @@
 import pytest
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.errors import SimulationError
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import SimulationError
 from skcomplex.models.economics.common.institutions import (
     InstitutionInteraction,
 )
+from skcomplex.specs import ObservableSpec
 
 from ..conftest import TraderElement
 

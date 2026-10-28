@@ -12,9 +12,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element, GroupElement, HostGraphElement, PatchElement, WordElement
-from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ....core.system import System
+from ....errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ...problems import (
     BaseProblem,
     CompiledElement,

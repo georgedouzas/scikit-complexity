@@ -7,7 +7,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Self
 
-from ...core.errors import ValidationError
+from ...errors import ValidationError
 from ._issue import _ERROR, _WARNING, Issue
 from ._validation_warning import ValidationWarning
 

@@ -6,8 +6,8 @@
 from collections.abc import Sequence
 from typing import Annotated, Self
 
-from ..errors import RewritingError
-from ..specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
+from ...errors import RewritingError
+from ...specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
 from ._element import Element
 
 
@@ -41,7 +41,7 @@ class PatchElement(Element):
 
     Examples:
         >>> from skcomplex.core.elements import PatchElement
-        >>> from skcomplex.core.specs import PrototileSpec
+        >>> from skcomplex.specs import PrototileSpec
         >>> PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])]).check().filled
         False
     """

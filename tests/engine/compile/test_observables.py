@@ -6,17 +6,17 @@ from typing import Annotated
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import RoleError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import total
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, PassCompiler, compile_system
 from skcomplex.engine.compile.passes._quantum_compiler import QuantumCompiler
+from skcomplex.errors import RoleError
 from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 
 class ObservedValueElement(Element):

@@ -10,7 +10,6 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.elements import BaseElement, GroupElement
-from ....core.errors import SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction
 from ....core.laws import (
     BaseLaw,
@@ -30,6 +29,7 @@ from ....core.laws import (
     UpdateLaw,
 )
 from ....core.system import System
+from ....errors import SkcomplexError, ValidationError
 from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
 from ...problems._pair_search import PairSearch
 from .._base import BasePass

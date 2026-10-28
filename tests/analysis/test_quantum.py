@@ -5,9 +5,9 @@ import pytest
 
 from skcomplex.analysis import QuantumAnalysis
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.errors import AnalysisError, ParameterError
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError, ParameterError
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import SpinElement

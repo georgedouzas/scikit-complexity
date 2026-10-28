@@ -11,7 +11,6 @@ from typing import Any, cast
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.errors import ValidationError
 from ...core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -26,11 +25,12 @@ from ...core.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
-from ...core.types import Indices, Vector
+from ...errors import ValidationError
+from ...types import Array, Indices, Pairs
 from ._edge_rows import EdgeRows
 from ._entry import Entry
 from ._heading import Heading
-from ._metric_search import MetricSearch, Rows
+from ._metric_search import MetricSearch
 from ._pair_read import PairRead
 from ._printing import numpy_function
 from ._static_search import StaticSearch
@@ -110,7 +110,7 @@ class CompiledNeighborhood:
         """Number of members."""
         return self.entry.rows
 
-    def _gather(self, x: Vector, q: Vector, readers: Indices, others: Indices, edges: Indices | None) -> list[Any]:
+    def _gather(self, x: Array, q: Array, readers: Indices, others: Indices, edges: Indices | None) -> list[Any]:
         """Return the values of every symbol for every pair."""
         values = []
         differences = None
@@ -132,7 +132,7 @@ class CompiledNeighborhood:
                 values.append(column[others])
         return values
 
-    def evaluate(self, t: float, x: Vector, q: Vector) -> None:
+    def evaluate(self, t: float, x: Array, q: Array) -> None:
         """Write the reduction of every member into the extended parameter vector.
 
         Args:
@@ -156,7 +156,7 @@ class CompiledNeighborhood:
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
 
     @staticmethod
-    def _reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, counts: Indices) -> Vector:
+    def _reduce_pairs(kind: str, readers: Indices, weight: Array, argument: Array, counts: Indices) -> Array:
         """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
 
         Args:
@@ -247,7 +247,7 @@ class CompiledNeighborhood:
         return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
     @staticmethod
-    def _lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Rows:
+    def _lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
         """Return the neighbours of every site of a space in CSR form, in neighbourhood order, without outside sites.
 
         Args:
@@ -346,7 +346,7 @@ class CompiledNeighborhood:
         Examples:
             >>> from typing import Annotated
             >>> from skcomplex.core.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
+            >>> from skcomplex.specs import StateSpec
             >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> from skcomplex.engine.problems import VariableKind, declarations_of
             >>> from skcomplex.core.spaces import ConeNeighborhood

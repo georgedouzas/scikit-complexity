@@ -7,11 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, FieldElement
-from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import FluxLaw, RateLaw
 from skcomplex.core.laws.utils import inverse_laplacian, laplacian
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame, Simulation
@@ -22,6 +20,7 @@ from skcomplex.engine.solvers import (
     IMEXEulerSolver,
 )
 from skcomplex.engine.viz import RerunObserver
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.physics.fluids import (
     burgers,
@@ -32,6 +31,7 @@ from skcomplex.models.physics.fluids import (
 )
 from skcomplex.models.physics.heat import heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class HeatElement(Element):

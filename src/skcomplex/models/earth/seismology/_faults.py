@@ -8,18 +8,16 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 
 NEAREST = VonNeumannNeighborhood(center=True)
 

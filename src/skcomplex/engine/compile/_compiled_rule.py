@@ -13,26 +13,27 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 
-from ...core.errors import SolverError
 from ...core.spaces import BaseSpace
-from ._arguments import Arguments, Indices
+from ...errors import SolverError
+from ...types import Array, Indices
+from ._arguments import Arguments
 from ._lattice_state import LatticeState
-from ._lookup import Lookup, Vector
+from ._lookup import Lookup
 
 _LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 
 
 @numba.njit(cache=True)
 def _fused_lookup(  # noqa: PLR0917
-    values: Vector,
-    centers: Vector,
+    values: Array,
+    centers: Array,
     fill: float,
     table: Indices,
     kind: int,
     base: int,
-    lookup: Vector,
+    lookup: Array,
     columns: int,
-) -> Vector:
+) -> Array:
     """Return the next values of a lookup rule at every site in one compiled loop."""
     n_sites, n_offsets = table.shape
     following = np.empty(n_sites)
@@ -105,7 +106,7 @@ class CompiledRule:
     stochastic: bool
     arguments: Arguments = field(default_factory=Arguments)
     fused: bool = False
-    degrees: Vector | None = None
+    degrees: Array | None = None
     classes: tuple[Indices, ...] = ()
 
     @property
@@ -123,7 +124,7 @@ class CompiledRule:
         ones = np.ones(int(real.sum()))
         return scipy.sparse.csr_matrix((ones, (rows[real], columns[real])), shape=(size, size))
 
-    def _next(self, x: Vector, p: Vector, sites: Indices | None, rng: np.random.Generator) -> list[Vector]:
+    def _next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
         """Return the next values of the targets at some sites, read from the current state."""
         space = self.space
         table = self.table if sites is None else self.table[sites]
@@ -168,7 +169,7 @@ class CompiledRule:
             raise SolverError(error_msg)
         return [np.broadcast_to(np.asarray(item, dtype=float), (table.shape[0],)) for item in results]
 
-    def _assign(self, x: Vector, values: list[Vector], sites: Indices | None) -> None:
+    def _assign(self, x: Array, values: list[Array], sites: Indices | None) -> None:
         """Write the next values of the targets at some sites."""
         for state, value in zip(self.targets, values, strict=True):
             if sites is None:
@@ -176,7 +177,7 @@ class CompiledRule:
             else:
                 x[state.start + sites] = value
 
-    def apply_near(self, x: Vector, p: Vector, rng: np.random.Generator, active: npt.NDArray[np.bool_]) -> None:
+    def apply_near(self, x: Array, p: Array, rng: np.random.Generator, active: npt.NDArray[np.bool_]) -> None:
         """Update in place, synchronously, the active sites and the sites that read one of them, and no other site.
 
         Args:
@@ -197,7 +198,7 @@ class CompiledRule:
         if sites.size:
             self._assign(x, self._next(x, p, sites, rng), sites)
 
-    def apply(self, x: Vector, p: Vector, rng: np.random.Generator) -> None:
+    def apply(self, x: Array, p: Array, rng: np.random.Generator) -> None:
         """Update the state vector in place by one application of the rule on its schedule.
 
         Args:

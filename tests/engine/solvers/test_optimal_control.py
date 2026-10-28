@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CollocationSolver, PontryaginSolver
+from skcomplex.errors import SolverError, ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class FreeElement(Element):

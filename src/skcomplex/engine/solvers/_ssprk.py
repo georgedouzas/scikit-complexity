@@ -8,10 +8,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._solver import Solver
 
@@ -83,7 +83,7 @@ class SSPRKSolver(Solver):
             raise SolverError(error_msg)
         self.spacing_ = min((min(volume.spacings) for volume in problem.volumes), default=None)
 
-    def _step_size(self, x: Vector, p: Vector) -> float:
+    def _step_size(self, x: Array, p: Array) -> float:
         """Return the step allowed by the CFL condition and the diffusion of finite-volume fields, at most `dt`."""
         step = self.dt
         diffusive = self.problem_.diffusive_step(p)
@@ -94,7 +94,7 @@ class SSPRKSolver(Solver):
             return step
         return min(step, self.cfl * self.spacing_ / speed)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate from time `t` to time `until` with steps of the CFL condition.
 
         Args:

@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.elements import PatchElement
-from ....core.errors import RewritingError
 from ....core.laws import SubstitutionLaw
+from ....errors import RewritingError
 from .._compiled_word import IDENTIFIER
 from .._parameters import Parameters
 from .._patch_structure import PatchStructure

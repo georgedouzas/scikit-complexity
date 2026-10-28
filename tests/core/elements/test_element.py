@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import LabelError, ValidationError
 from skcomplex.core.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import LabelError, ValidationError
+from skcomplex.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class TallyElement(Element):

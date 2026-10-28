@@ -14,14 +14,14 @@ from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, ParticleElement
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
+from ....errors import ValidationError
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import GravityInteraction
 
 FIGURE_EIGHT = {

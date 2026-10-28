@@ -9,9 +9,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ...core.errors import ValidationError
-from ...core.specs import ObservableSpec
 from ...core.system import System
+from ...errors import ValidationError
+from ...specs import ObservableSpec
 from ..compile import compile_system
 from ..utils import Registry
 from ._simulations import Simulation
@@ -187,7 +187,7 @@ def register_model(
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import create, register_model
         >>> class PopulationElement(Element):

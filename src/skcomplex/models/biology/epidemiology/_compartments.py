@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, JumpLaw, RateLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[BaseLaw]:

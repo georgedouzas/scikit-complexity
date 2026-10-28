@@ -7,9 +7,9 @@ from typing import Self
 
 from sage.all__sagemath_symbolics import SR
 
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 from .utils import has_operator
 

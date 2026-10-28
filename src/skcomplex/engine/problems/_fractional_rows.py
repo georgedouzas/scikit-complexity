@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -29,4 +29,4 @@ class FractionalRows:
 
     law: str
     positions: npt.NDArray[np.intp]
-    hurst: Callable[[Vector], Vector]
+    hurst: Callable[[Array], Array]

@@ -15,18 +15,17 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from scipy import optimize
 
 from ..core.elements import FieldElement
-from ..core.errors import AnalysisError
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
 from ..engine.problems import Form, Problem, VariableKind, components_of, declarations_of, symbol
+from ..errors import AnalysisError
+from ..types import Array, Point
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion
 from ._kinds import DataKind
 from ._symbolic import SymbolicAnalysis
 
-type Array = npt.NDArray[np.float64]
-type Point = Mapping[str, Expression | float]
 KINDS = ('fixed-points', 'dispersion')
 SETTINGS = {
     'fixed-points': {'parameters', 'points'},

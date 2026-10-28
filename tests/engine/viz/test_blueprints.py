@@ -6,9 +6,7 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import BaseProblem
@@ -21,9 +19,11 @@ from skcomplex.engine.viz import (
     RerunObserver,
     ScalarsVisual,
 )
+from skcomplex.errors import ValidationError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.heat import HeatElement
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 def _prepared(system, **settings):

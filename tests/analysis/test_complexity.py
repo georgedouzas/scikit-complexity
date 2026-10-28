@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import ComplexityAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _logistic(r: float, size: int, start: float = 0.3) -> np.ndarray:

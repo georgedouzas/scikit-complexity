@@ -12,9 +12,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
+from ....errors import ValidationError
 from ...problems import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws

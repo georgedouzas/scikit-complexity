@@ -9,11 +9,11 @@ from typing import Any
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ...core.specs import MoveSpec, SamplerSpec
-from ._arguments import Arguments, Indices
+from ...errors import SolverError
+from ...specs import MoveSpec, SamplerSpec
+from ...types import Array, Indices
+from ._arguments import Arguments
 from ._lattice_state import LatticeState
-from ._lookup import Vector
 
 
 @dataclass(frozen=True)
@@ -65,12 +65,12 @@ class CompiledMonteCarlo:
 
     def _energy_change(
         self,
-        x: Vector,
-        values: Vector,
+        x: Array,
+        values: Array,
         sites: Indices,
-        proposal: Vector,
+        proposal: Array,
         keywords: dict[str, Any],
-    ) -> Vector:
+    ) -> Array:
         """Return the energy change of moving some sites to proposed values."""
         rows = self.table[sites]
         neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
@@ -78,7 +78,7 @@ class CompiledMonteCarlo:
         change = self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values())[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
 
-    def _propose(self, values: Vector, rng: np.random.Generator) -> Vector:
+    def _propose(self, values: Array, rng: np.random.Generator) -> Array:
         """Return proposed values for some sites."""
         if self.move.kind == 'flip':
             return -values
@@ -86,7 +86,7 @@ class CompiledMonteCarlo:
             return np.asarray(self.move.values)[rng.integers(len(self.move.values), size=values.size)]
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
-    def _update(self, x: Vector, p: Vector, sites: Indices, rng: np.random.Generator) -> None:
+    def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
         """Propose and accept moves at sites that do not neighbour each other."""
         keywords = self.arguments.values(x, p, sites)
         temperature = np.asarray(self.temperature(0.0, *keywords.values())[0], dtype=float)
@@ -123,7 +123,7 @@ class CompiledMonteCarlo:
         """Lattice state the move changes, as the one target of the step."""
         return (self.target,)
 
-    def apply(self, x: Vector, p: Vector, rng: np.random.Generator) -> None:
+    def apply(self, x: Array, p: Array, rng: np.random.Generator) -> None:
         """Update the state vector in place by one sweep of the lattice.
 
         Args:

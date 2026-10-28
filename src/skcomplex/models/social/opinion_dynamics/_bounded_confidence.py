@@ -17,10 +17,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import neighbors, where
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class DiscussantElement(Element):

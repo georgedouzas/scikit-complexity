@@ -3,10 +3,10 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, ContinuousTime, DiscreteTime, LatticeSpace
+from skcomplex.errors import ValidationError
 
 
 def test_local_rule_targets_one_state_or_several_together():

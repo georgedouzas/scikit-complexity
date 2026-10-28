@@ -7,10 +7,10 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError
 from skcomplex.experiments import Experiment, MorrisDesign, OneAtATimeDesign, SaltelliDesign, SensitivityAnalysis
+from skcomplex.specs import ObservableSpec, ParameterSpec, VisualSpec
 
 
 class PointElement(Element):

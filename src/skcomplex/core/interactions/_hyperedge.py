@@ -18,7 +18,7 @@ class HyperedgeInteraction(BaseInteraction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions import HyperedgeInteraction
-        >>> from skcomplex.core.specs import RoleSpec
+        >>> from skcomplex.specs import RoleSpec
         >>> class ConsensusInteraction(HyperedgeInteraction):
         ...     def __init__(self, label, voters: Annotated[str, RoleSpec()]):
         ...         super().__init__(label)

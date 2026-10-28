@@ -17,12 +17,11 @@ from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.laws.utils import shift_member, where
 from ....core.spaces import ContinuousSpace, LatticeSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 
 TREE_ASPECT = 0.7
 

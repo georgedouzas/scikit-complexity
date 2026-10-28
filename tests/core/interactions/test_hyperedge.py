@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from skcomplex.core.interactions import HyperedgeInteraction
-from skcomplex.core.specs import RoleSpec
+from skcomplex.specs import RoleSpec
 
 
 class ConsensusInteraction(HyperedgeInteraction):

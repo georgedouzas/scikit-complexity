@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -33,13 +33,13 @@ class ControlSolution:
             The number of sweeps or optimiser iterations the solver took.
     """
 
-    times: Vector
-    states: Vector
-    costates: Mapping[str, Vector]
+    times: Array
+    states: Array
+    costates: Mapping[str, Array]
     cost: float
     iterations: int
 
-    def state_at(self, t: float) -> Vector:
+    def state_at(self, t: float) -> Array:
         """Return the state vector at a time of the run, interpolated linearly between the times of the grid.
 
         Args:

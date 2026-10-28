@@ -12,9 +12,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...errors import ValidationError
+from ...specs import RequirementSpec
 from ..base import BasePart
-from ..errors import ValidationError
-from ..specs import RequirementSpec
 from .utils import Call
 
 

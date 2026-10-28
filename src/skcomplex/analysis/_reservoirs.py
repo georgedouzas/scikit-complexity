@@ -8,18 +8,17 @@ from types import SimpleNamespace
 from typing import Any, Self
 
 import numpy as np
-import numpy.typing as npt
 
-from ..core.errors import AnalysisError
 from ..core.laws import BaseLaw, UpdateLaw
 from ..core.laws.utils import Call
 from ..core.spaces import DiscreteTime
 from ..engine.problems import vector
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, SurrogateSource
 from ._kinds import DataKind
 from ._sparse_identification import SparseIdentificationAnalysis
 
-type Array = npt.NDArray[np.float64]
 RESERVOIR_KINDS = ('next_generation', 'echo_state')
 ECHO_STATE_WARMUP = 100
 

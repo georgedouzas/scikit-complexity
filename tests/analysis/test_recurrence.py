@@ -6,7 +6,7 @@ from scipy.integrate import solve_ivp
 from scipy.signal import find_peaks
 
 from skcomplex.analysis import EmbeddingAnalysis, RecurrenceAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 
 
 def _recurrence(source: object, **settings: object) -> RecurrenceAnalysis:

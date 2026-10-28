@@ -10,10 +10,10 @@ from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import lag, where
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
 
 class EconomyElement(Element):

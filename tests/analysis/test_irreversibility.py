@@ -8,11 +8,11 @@ import pytest
 
 from skcomplex.analysis import CorrelationAnalysis, IrreversibilityAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import JumpLaw
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
+from skcomplex.specs import StateSpec, VisualSpec
 
 RING = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
 RUNS = 20_000

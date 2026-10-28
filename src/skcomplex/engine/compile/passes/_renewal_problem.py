@@ -12,10 +12,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws.utils import Draw, draws_in, reductions_in
 from ....core.laws.utils._draws import DRAWS
-from ....core.types import Indices
+from ....errors import ValidationError
+from ....types import Indices
 from ...problems import Problem, Reference, Source, components_of, numpy_function, symbol, symbols_of
 from .._base import BasePass
 from .._bound_renewal import BoundRenewal

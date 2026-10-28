@@ -9,8 +9,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
+from ...specs import ParameterSpec, RoleSpec
 from ..laws import RateLaw
-from ..specs import ParameterSpec, RoleSpec
 from ._pair import PairInteraction
 
 

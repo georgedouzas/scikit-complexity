@@ -11,10 +11,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import CollocationSolver
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 MIN_CONSUMPTION = 0.05
 MAX_CONSUMPTION = 5.0

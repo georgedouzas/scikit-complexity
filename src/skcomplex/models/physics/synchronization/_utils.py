@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression, I, exp
 
-from ....core.specs import ObservableSpec
+from ....specs import ObservableSpec
 
 
 def _phase_vector(member: SimpleNamespace) -> Expression:

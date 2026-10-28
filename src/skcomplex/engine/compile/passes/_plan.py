@@ -6,8 +6,8 @@
 from collections.abc import Iterable, Mapping
 from typing import Any, cast
 
-from ....core.errors import IncompatibleLawsError
 from ....core.system import System
+from ....errors import IncompatibleLawsError
 from .._base import BasePass
 from .._census import Census
 from .._issue import Issue

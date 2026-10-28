@@ -8,7 +8,6 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -22,10 +21,11 @@ from ...core.laws import (
     TransferLaw,
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, Interpolant
 from ..problems import Form, OrderKind, SupportSpec, VectorFunction, step_count
 from ._base import BaseSolver
-from ._history import History, Interpolant
+from ._history import History
 from ._solver import Solver
 
 
@@ -79,23 +79,23 @@ class RK4Solver(Solver):
     def __init__(self, dt: float = 1e-3) -> None:
         self.dt = dt
 
-    def _step(self, time: float, state: Vector, p: Vector, lengths: float | Vector) -> Vector:
+    def _step(self, time: float, state: Array, p: Array, lengths: float | Array) -> Array:
         """Return the state after one Runge-Kutta step and the boundary laws, with one step length or one per state."""
         drift = cast('VectorFunction', self.problem_.drift)
 
-        def field(time: float, state: Vector) -> Vector:
+        def field(time: float, state: Array) -> Array:
             return drift(time, state, p)
 
         return self._bounded(time + float(np.max(lengths)), self._rk4_step(field, time, state, lengths), p)
 
-    def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate with fixed RK4 steps, interpolating every step for delays and locating events in it."""
         problem = self.problem_
         drift = cast('VectorFunction', problem.drift)
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
-        def take(time: float, state: Vector, step: float, ceiling: float) -> tuple[Vector, Interpolant]:
-            def field(time: float, state: Vector) -> Vector:
+        def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
+            def field(time: float, state: Array) -> Array:
                 time = min(time, ceiling)
                 return drift(time, state, History._with_delays(problem, history, time, state, p))
 
@@ -122,7 +122,7 @@ class RK4Solver(Solver):
             take=take,
         )
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift from time `t` to time `until` in equal steps no longer than `dt`.
 
         Args:
@@ -167,7 +167,7 @@ class RK4Solver(Solver):
         return state
 
     @staticmethod
-    def _rk4_step(field: Callable[[float, Vector], Vector], time: float, state: Vector, step: float | Vector) -> Vector:
+    def _rk4_step(field: Callable[[float, Array], Array], time: float, state: Array, step: float | Array) -> Array:
         """Return the state after one classical Runge-Kutta step, with one step length or one per state component.
 
         The step spans the longest of the step lengths in time.
@@ -197,7 +197,7 @@ class RK4Solver(Solver):
         return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
     @staticmethod
-    def _hermite(t0: float, x0: Vector, f0: Vector, *, t1: float, x1: Vector, f1: Vector) -> Interpolant:
+    def _hermite(t0: float, x0: Array, f0: Array, *, t1: float, x1: Array, f1: Array) -> Interpolant:
         """Return the cubic Hermite interpolant between two states with their derivatives.
 
         Args:
@@ -225,7 +225,7 @@ class RK4Solver(Solver):
         """
         span = t1 - t0
 
-        def evaluate(time: float) -> Vector:
+        def evaluate(time: float) -> Array:
             s = (time - t0) / span if span else 0.0
             return (
                 (2 * s**3 - 3 * s**2 + 1) * x0

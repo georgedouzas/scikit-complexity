@@ -13,11 +13,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import PatchElement, WordElement
-from ....core.errors import ValidationError
 from ....core.laws import ProductionLaw, SubstitutionLaw
-from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 
 SHAPES = ('triangle', 'carpet')
 

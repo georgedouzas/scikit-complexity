@@ -11,7 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.special import softmax
 
-type Array = npt.NDArray[np.float64]
+from .....types import Array
+
 type Score = str | Callable[[Any], float]
 
 SELECTIONS = ('tournament', 'roulette', 'truncation')

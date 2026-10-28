@@ -15,9 +15,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
+from ....errors import ValidationError
 from ...problems import VariableKind, components_of, declarations_of, symbol, vector
 from .._base import BasePass
 from .._block import Block

@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array
 
 _INITIAL_ROWS = 64
 
@@ -14,7 +14,7 @@ _INITIAL_ROWS = 64
 class _Rows:
     """Rows of values at consecutive grid steps, kept in one array that grows or keeps only the latest rows."""
 
-    def __init__(self, first: Vector, keep: int | None) -> None:
+    def __init__(self, first: Array, keep: int | None) -> None:
         self.keep = keep
         self.values = np.zeros((_INITIAL_ROWS if keep is None else 2 * keep + 2, first.size))
         self.values[0] = first
@@ -32,7 +32,7 @@ class _Rows:
         self.values[: kept.shape[0]] = kept
         self.start = self.stop - kept.shape[0]
 
-    def append(self, row: Vector) -> None:
+    def append(self, row: Array) -> None:
         """Add the row of the next step, dropping the rows outside the kept ones."""
         size = self.stop - self.start
         if size == self.values.shape[0]:
@@ -40,10 +40,10 @@ class _Rows:
         self.values[self.stop - self.start] = row
         self.stop += 1
 
-    def rows(self, first: int, last: int) -> Vector:
+    def rows(self, first: int, last: int) -> Array:
         """Return the rows of the steps `first` to `last - 1`."""
         return self.values[first - self.start : last - self.start]
 
-    def row(self, step: int) -> Vector:
+    def row(self, step: int) -> Array:
         """Return the row of one step."""
         return self.values[step - self.start]

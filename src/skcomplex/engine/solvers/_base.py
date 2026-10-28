@@ -9,15 +9,15 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.errors import SolverError
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, Bounded, Take
 from ..base import BaseEstimator
 from ..problems import Problem
 from ..problems._base_problem import BaseProblem
 from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ._event_locator import EventLocator
-from ._history import _RESTART, Bounded, History, Take
+from ._history import _RESTART, History
 
 
 class BaseSolver[P: BaseProblem](BaseEstimator):
@@ -66,7 +66,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
 
     problem_: P
     rng_: np.random.Generator
-    initial_state_: Vector
+    initial_state_: Array
     events_: list[Any]
     stopped_at_: float | None
     snapshot_: object | None
@@ -105,7 +105,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
         self.snapshot_ = None
         self.agents_ = {}
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance the state from time `t` to time `until`.
 
         Args:
@@ -135,7 +135,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
         """Set the events, the stop time, the snapshot, and the agents after a run; the base keeps none."""
         self.events_ = []
 
-    def _run(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _run(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance the state from time `t` to time `until` and collect what the run produced.
 
         A run that does not go forward in time returns the state unchanged, so a final run of no length releases the
@@ -207,8 +207,8 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
     @staticmethod
     def _advance_fixed_steps(
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         until: float,
         *,
         dt: float,
@@ -216,7 +216,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
         history: History | None,
         bounded: Bounded,
         take: Take,
-    ) -> Vector:
+    ) -> Array:
         """Integrate with fixed steps that stop at breakpoints, record every step for delays, and locate events in it.
 
         Args:

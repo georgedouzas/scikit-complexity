@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import SparseIdentificationAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 
 LORENZ_TERMS = {

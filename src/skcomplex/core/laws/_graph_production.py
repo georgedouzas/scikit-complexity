@@ -7,9 +7,9 @@ from typing import Self
 
 import networkx as nx
 
-from ..errors import RewritingError
+from ...errors import RewritingError
+from ...specs import RequirementSpec
 from ..spaces import DiscreteTime
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 
 

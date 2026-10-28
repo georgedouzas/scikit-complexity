@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.spatial import cKDTree
 
-from ...core.types import Indices, Vector
+from ...types import Array, Indices
 from ._entry import Entry
 
 
@@ -35,7 +35,7 @@ class PairSearch:
     cutoff: Entry
     period: float | None
 
-    def find(self, x: Vector, p: Vector) -> tuple[Indices, Indices]:
+    def find(self, x: Array, p: Array) -> tuple[Indices, Indices]:
         """Return the indices of the first and second members of every pair within the cutoff.
 
         Args:
@@ -59,11 +59,11 @@ class PairSearch:
         matrix = first_tree.sparse_distance_matrix(cKDTree(second, boxsize=boxsize), cutoff, output_type='ndarray')
         return matrix['i'].astype(np.intp), matrix['j'].astype(np.intp)
 
-    def _positions(self, positions: Vector) -> Vector:
+    def _positions(self, positions: Array) -> Array:
         """Return positions wrapped into the periodic box when there is one."""
         return np.mod(positions, self.period) if self.period is not None else positions
 
-    def second_images(self, x: Vector, first: Indices, second: Indices) -> Vector:
+    def second_images(self, x: Array, first: Indices, second: Indices) -> Array:
         """Return the positions of the second members as seen from the first, with minimum image distances.
 
         Args:

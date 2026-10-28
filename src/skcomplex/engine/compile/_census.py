@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.errors import SkcomplexError
 from ...core.system import System
+from ...errors import SkcomplexError
 from ._census_record import CensusRecord
 
 

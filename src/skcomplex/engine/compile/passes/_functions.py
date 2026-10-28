@@ -12,9 +12,9 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.errors import BackendWarning
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.types import Vector
+from ....errors import BackendWarning
+from ....types import Array
 from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
 from ...problems import (
     Accelerated,
@@ -105,7 +105,7 @@ class FunctionsPass(BasePass):
         if not indices.size:
             return boundary
 
-        def wrapped(t: float, x: Vector, p: Vector) -> Vector:
+        def wrapped(t: float, x: Array, p: Array) -> Array:
             """Apply the boundary laws, then wrap the angle states."""
             state = x if boundary is None else boundary(t, x, p)
             state = state.copy()
@@ -157,7 +157,7 @@ class FunctionsPass(BasePass):
         functions: dict[str, object] = vars(lowering).copy()
         if draws is not None and functions.get('update') is not None:
             functions['update'] = FunctionsPass._stochastic_update(
-                cast('Callable[..., Vector]', functions['update']), draws,
+                cast('Callable[..., Array]', functions['update']), draws,
             )
         accelerated = cast('Accelerated | None', functions.get('accelerated'))
         if draws is not None and draws.sampled and accelerated is not None:
@@ -203,7 +203,7 @@ class FunctionsPass(BasePass):
         return form in STEPWISE_FORMS.values()
 
     @staticmethod
-    def _stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
+    def _stochastic_update(update: Callable[..., Array], draws: Draws) -> Callable[..., Array]:
         """Return the update of a stochastic map, which draws its values from a generator before every step.
 
         Args:
@@ -218,7 +218,7 @@ class FunctionsPass(BasePass):
                 The update `F(t, x, p, rng)`.
         """
 
-        def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+        def stochastic(t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
             extended = draws.extend(p)
             draws.fill(extended, rng, t, x)
             return update(t, x, extended)

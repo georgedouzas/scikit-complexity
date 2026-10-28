@@ -2,8 +2,8 @@
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import NearestNeighborhood
+from skcomplex.errors import ValidationError
 
 
 @pytest.mark.parametrize('k', [0, 2.5])

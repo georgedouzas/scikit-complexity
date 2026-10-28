@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ...core.types import Indices, Vector
+from ...types import Array, Indices
 from ._entry import Entry
 
 
@@ -43,7 +43,7 @@ class EdgeSearch:
         """Number of edges, the capacity of a changing layer."""
         return int(self.sources.size if self.source is None else self.source.rows)
 
-    def find(self, x: Vector, p: Vector) -> tuple[Indices, Indices]:
+    def find(self, x: Array, p: Array) -> tuple[Indices, Indices]:
         """Return the source and target node of every edge.
 
         Args:

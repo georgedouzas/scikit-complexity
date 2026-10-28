@@ -13,7 +13,7 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
-from ...core.types import Vector
+from ...types import Array
 from ..compile._quantum_views import QuantumView
 from ..compile.passes._quantum_problem import QuantumProblem
 from ..compile.passes._quantum_term import QuantumTerm
@@ -125,7 +125,7 @@ class ExpectationVisual(ImageVisual):
         return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
     @staticmethod
-    def _probabilities(problem: QuantumProblem, x: Vector) -> npt.NDArray[np.float64]:
+    def _probabilities(problem: QuantumProblem, x: Array) -> npt.NDArray[np.float64]:
         """Return the probability of every basis state of the whole space."""
         state = problem._state_of(x)
         return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
@@ -143,7 +143,7 @@ class ExpectationVisual(ImageVisual):
         return cached
 
     @staticmethod
-    def _local_values(problem: QuantumProblem, path: str, x: Vector) -> dict[str, Any]:
+    def _local_values(problem: QuantumProblem, path: str, x: Array) -> dict[str, Any]:
         """Return the local expectations of a quantum element or group at a state, which the visual draws.
 
         A group gives the expectation of the displayed local operator of every member. A single element without a

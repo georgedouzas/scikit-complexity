@@ -13,8 +13,8 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ....core.elements import HostGraphElement
-from ....core.errors import RewritingError
 from ....core.laws import GraphProductionLaw
+from ....errors import RewritingError
 from .._compiled_word import IDENTIFIER
 from .._graph_structure import GraphStructure
 

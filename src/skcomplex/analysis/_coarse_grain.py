@@ -9,12 +9,11 @@ from typing import Self
 import numpy as np
 import numpy.typing as npt
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-
-type Array = npt.NDArray[np.float64]
 
 
 class CoarseGrainAnalysis(BaseAnalysis):

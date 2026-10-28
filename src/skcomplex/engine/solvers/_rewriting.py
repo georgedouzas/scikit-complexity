@@ -10,7 +10,7 @@ import numpy as np
 
 from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...types import Array
 from ..compile.passes._rewriting_problem import RewritingProblem
 from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
@@ -67,12 +67,12 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}
         self._collect()
 
-    def _state(self) -> Vector:
+    def _state(self) -> Array:
         """Return the state vector of the counts and sizes of the current structures."""
         counts = [value for item in self.systems_ for value in item.counts(self.structures_[item.path])]
         return np.asarray(counts, dtype=float)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Rewrite every structure once per generation from `t` to `until`.
 
         Args:

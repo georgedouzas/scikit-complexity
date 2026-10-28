@@ -9,14 +9,11 @@ from typing import Any
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws.utils import Draw
-from ...core.types import Indices, Vector
+from ...errors import SolverError
+from ...types import Array, Drawn, Indices
 from ..problems import Reference, RenewalRecord, Source
 from ._draw_lowering import DrawLowering
-
-type Drawn = dict[str, Vector]
-
 
 _READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
 
@@ -28,7 +25,7 @@ class _MemberFunction:
     function: Callable[..., list[Any]]
     readers: tuple[Reference | str, ...]
 
-    def evaluate(self, times: Vector, x: Vector, p: Vector, fired: Indices, drawn: Drawn) -> list[Vector]:
+    def evaluate(self, times: Array, x: Array, p: Array, fired: Indices, drawn: Drawn) -> list[Array]:
         """Return the value of every expression for every renewing member."""
         arguments = []
         for reader in self.readers:
@@ -50,9 +47,9 @@ class _Sampler:
 
     def sample(
         self,
-        times: Vector,
-        x: Vector,
-        p: Vector,
+        times: Array,
+        x: Array,
+        p: Array,
         fired: Indices,
         *,
         drawn: Drawn,
@@ -112,14 +109,14 @@ class CompiledRenewal:
 
     def _wait(
         self,
-        times: Vector,
-        x: Vector,
-        p: Vector,
+        times: Array,
+        x: Array,
+        p: Array,
         fired: Indices,
         *,
         drawn: Drawn,
         rng: np.random.Generator,
-    ) -> Vector:
+    ) -> Array:
         """Return the next renewal times of members from their states, after drawing the waiting time's draws."""
         for sampler in self.after:
             sampler.sample(times, x, p, fired, drawn=drawn, rng=rng)
@@ -132,7 +129,7 @@ class CompiledRenewal:
             raise SolverError(error_msg)
         return times + waiting
 
-    def start(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+    def start(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
         """Return the first renewal time of every member from the states at a start time.
 
         Args:
@@ -161,12 +158,12 @@ class CompiledRenewal:
 
     def fire(
         self,
-        times: Vector,
+        times: Array,
         fired: Indices,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         rng: np.random.Generator,
-    ) -> tuple[Vector, Vector, RenewalRecord]:
+    ) -> tuple[Array, Array, RenewalRecord]:
         """Renew members at their times: draw, reset their states, count the renewal, and draw the next times.
 
         Args:

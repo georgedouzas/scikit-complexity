@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...core.errors import ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
-from ...core.specs import EDGE_KINDS, TopologyRequestSpec
-from ...core.types import Vector
+from ...errors import ValidationError
+from ...specs import EDGE_KINDS, TopologyRequestSpec
+from ...types import Array
 from ..backends import BaseBackend
 from ..problems import NetworkSnapshot, ReductionSchedule
 from ._compiled_request import CompiledRequest
@@ -46,7 +46,7 @@ class Topology:
         """Path of the first group on the nodes and the layer of every network layer with a variable edge group."""
         return tuple((network.nodes[0].path, layer) for network in self.networks for layer in network.edges)
 
-    def decide(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> list[tuple[int, int]]:
+    def decide(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> list[tuple[int, int]]:
         """Return the requests of update laws that fire at a state, each as its index and the row it fires for.
 
         Args:
@@ -83,10 +83,10 @@ class Topology:
         self,
         fired: list[tuple[int, int]],
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         rng: np.random.Generator,
-    ) -> Vector:
+    ) -> Array:
         """Apply fired requests of update laws to a state and to the parameters in place, and return the state.
 
         Args:
@@ -114,7 +114,7 @@ class Topology:
             self._execute(self.requests[index], row, t, state, p, rng=rng)
         return state
 
-    def fire(self, channel: int, row: int, t: float, x: Vector, p: Vector, *, rng: np.random.Generator) -> Vector:
+    def fire(self, channel: int, row: int, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> Array:
         """Apply the request of a jump channel for a row, and return the state.
 
         Args:
@@ -144,7 +144,7 @@ class Topology:
         self._execute(self.channels[channel], row, t, state, p, rng=rng)
         return state
 
-    def read_network(self, p: Vector, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
+    def read_network(self, p: Array, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
         """Return the nodes and edges of a layer of a network at the parameters of a frame.
 
         Args:
@@ -167,7 +167,7 @@ class Topology:
         )
         return network.snapshot(p, layer)
 
-    def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
+    def presence(self, name: str, p: Array) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group.
 
         Args:
@@ -187,7 +187,7 @@ class Topology:
                     return group.present(p)
         return None
 
-    def _weights(self, item: CompiledRequest, t: float, x: Vector, p: Vector) -> Vector:
+    def _weights(self, item: CompiledRequest, t: float, x: Array, p: Array) -> Array:
         """Return the weight of every node row as a new end of a request."""
         size = item.network.nodes[0].active.rows
         if item.toward is None:
@@ -197,7 +197,7 @@ class Topology:
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
     @staticmethod
-    def _draw(weights: Vector, allowed: npt.NDArray[np.bool_], count: int, rng: np.random.Generator) -> list[int]:
+    def _draw(weights: Array, allowed: npt.NDArray[np.bool_], count: int, rng: np.random.Generator) -> list[int]:
         """Return up to `count` distinct allowed rows drawn with probabilities proportional to their weights."""
         candidates = np.flatnonzero(allowed)
         if not candidates.size or count <= 0:
@@ -211,7 +211,7 @@ class Topology:
         return [int(item) for item in np.atleast_1d(chosen)]
 
     @staticmethod
-    def _allowed(item: CompiledRequest, end: int, p: Vector) -> npt.NDArray[np.bool_]:
+    def _allowed(item: CompiledRequest, end: int, p: Array) -> npt.NDArray[np.bool_]:
         """Return the node rows present that a node may join, other than itself and its neighbours in the layer."""
         allowed = item.network.present(p).copy()
         allowed[end] = False
@@ -223,8 +223,8 @@ class Topology:
         item: CompiledRequest,
         end: int,
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         *,
         rng: np.random.Generator,
     ) -> None:
@@ -240,8 +240,8 @@ class Topology:
         item: CompiledRequest,
         row: int,
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         *,
         rng: np.random.Generator,
     ) -> None:
@@ -264,8 +264,8 @@ class Topology:
         item: CompiledRequest,
         row: int,
         t: float,
-        x: Vector,
-        p: Vector,
+        x: Array,
+        p: Array,
         *,
         rng: np.random.Generator,
     ) -> None:
@@ -331,7 +331,7 @@ class Topology:
                 Whether the request adds, removes, or rewires edges of its layer.
 
         Examples:
-            >>> from skcomplex.core.specs import TopologyRequestSpec
+            >>> from skcomplex.specs import TopologyRequestSpec
             >>> from skcomplex.engine.compile._topology import Topology
             >>> rewire, removal = TopologyRequestSpec('rewire'), TopologyRequestSpec('remove-node')
             >>> Topology._changes_edges(rewire), Topology._changes_edges(removal)

@@ -45,7 +45,7 @@ class System(BasePart):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> class DecayElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):

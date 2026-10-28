@@ -9,11 +9,11 @@ from typing import cast
 import numpy as np
 
 from ....core.elements import Element, GroupElement
-from ....core.errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.specs import WienerProcessSpec
 from ....core.system import System
+from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
+from ....specs import WienerProcessSpec
 from ...problems import VariableKind, declarations_of
 from .._base import BasePass
 from .._laws import _AGENT_LAWS

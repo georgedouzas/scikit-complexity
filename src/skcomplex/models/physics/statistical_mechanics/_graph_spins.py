@@ -16,9 +16,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, SampleLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
-from ....core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 
 NODES = 400
 DEGREE = 4

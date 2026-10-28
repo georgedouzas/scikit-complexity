@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo, tanh
 from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
@@ -18,11 +17,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.laws.utils import delayed, laplacian, maximum
 from ....core.spaces import LatticeSpace
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-
-type Array = npt.NDArray[np.float64]
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
 LEGION_OBJECTS = ((1, 1, 0, 0), (1, 0, 0, 0), (0, 0, 0, 1), (0, 0, 0, 1))

@@ -8,10 +8,10 @@ import pytest
 
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class RelaxingElement(Element):

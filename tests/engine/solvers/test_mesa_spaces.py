@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import SimulationError, ValidationError
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec, StateSpec, VisualSpec
 
 
 def test_ordered_phases_are_a_schedule():

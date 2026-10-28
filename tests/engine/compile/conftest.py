@@ -5,7 +5,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import BaseLaw, NoiseLaw
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PairElement(Element):

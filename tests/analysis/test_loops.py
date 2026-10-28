@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import LoopAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models.biology.ecology import generalized_lotka_volterra, lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.biology.systems_biology import repressilator

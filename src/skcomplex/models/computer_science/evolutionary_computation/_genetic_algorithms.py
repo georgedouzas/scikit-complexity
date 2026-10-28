@@ -8,20 +8,17 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
-
-type Array = npt.NDArray[np.float64]
-type Integers = npt.NDArray[np.int64]
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array, IntArray
 
 N_SITUATIONS = 243
 N_ACTIONS = 7
@@ -31,14 +28,14 @@ MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
-def _new_rooms(rng: np.random.Generator, shape: tuple[int, ...], side: int, density: float) -> Integers:
+def _new_rooms(rng: np.random.Generator, shape: tuple[int, ...], side: int, density: float) -> IntArray:
     """Return square rooms surrounded by walls, with a can in every inner cell with a probability."""
     rooms = np.full((*shape, side + 2, side + 2), WALL, dtype=np.int64)
     rooms[..., 1:-1, 1:-1] = (rng.random((*shape, side, side)) < density).astype(np.int64)
     return rooms
 
 
-def _situations(rooms: Integers, rows: Integers, columns: Integers) -> Integers:
+def _situations(rooms: IntArray, rows: IntArray, columns: IntArray) -> IntArray:
     """Return the index of what Robby sees north, south, east, west, and here, in base 3."""
     index = np.indices(rows.shape)
     seen = [rooms[(*index, rows + row, columns + column)] for row, column in [*MOVES.tolist(), [0, 0]]]
@@ -46,7 +43,7 @@ def _situations(rooms: Integers, rows: Integers, columns: Integers) -> Integers:
 
 
 def _evaluate(
-    strategies: Integers,
+    strategies: IntArray,
     rng: np.random.Generator,
     *,
     sessions: int,
@@ -76,7 +73,7 @@ def _evaluate(
     return scores.mean(axis=1)
 
 
-def _offspring(strategies: Integers, scores: Array, rng: np.random.Generator, mutation: float) -> Integers:
+def _offspring(strategies: IntArray, scores: Array, rng: np.random.Generator, mutation: float) -> IntArray:
     """Return children of parents chosen by rank, by single-point crossover and per-gene mutation."""
     size = strategies.shape[0]
     ranks = np.empty(size)
@@ -195,7 +192,7 @@ class EvolutionInteraction(Interaction):
         """
         return [RuleLaw(self.breed)]
 
-    def score(self, strategies: Integers, rng: np.random.Generator) -> Array:
+    def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
 
         Args:

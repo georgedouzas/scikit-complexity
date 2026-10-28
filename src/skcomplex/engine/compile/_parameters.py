@@ -7,13 +7,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...core.errors import RewritingError
+from ...errors import RewritingError
+from ...types import Arrays
 from ..problems import numpy_function, symbols_of
-
-type Arrays = list[npt.NDArray[Any]]
 
 
 @dataclass(frozen=True)

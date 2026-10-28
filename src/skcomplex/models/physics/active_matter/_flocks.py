@@ -15,9 +15,9 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 HEADINGS = VisualSpec(
     'points',

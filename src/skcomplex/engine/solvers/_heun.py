@@ -9,7 +9,7 @@ import numpy as np
 
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...types import Array
 from ..problems import NoiseKind, OrderKind, SupportSpec
 from ._sde import SDESolver
 
@@ -46,13 +46,13 @@ class HeunSolver(SDESolver):
     def _increment(
         self,
         time: float,
-        state: Vector,
-        p: Vector,
+        state: Array,
+        p: Array,
         *,
-        step: float | Vector,
-        noise: Vector,
+        step: float | Array,
+        noise: Array,
         end: float,
-    ) -> Vector:
+    ) -> Array:
         """Return the state after one Heun step with given Wiener increments, with the corrector drift at the end.
 
         Args:

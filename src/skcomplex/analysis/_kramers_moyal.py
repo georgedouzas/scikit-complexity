@@ -8,7 +8,7 @@ from typing import Self
 
 import numpy as np
 
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 

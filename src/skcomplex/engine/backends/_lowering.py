@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.types import Indices
+from ...types import Indices, VectorFunction
 from ..problems._accelerated import Accelerated
-from ..problems._problem import VectorFunction, _JumpChannels
+from ..problems._problem import _JumpChannels
 from ..problems._wiener_block import WienerBlock
 
 _FUNCTION_KINDS: dict[str, type] = {

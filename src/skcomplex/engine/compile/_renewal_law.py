@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.laws import BaseLaw
 from ...core.spaces import ContinuousTime
-from ...core.specs import RequirementSpec
+from ...specs import RequirementSpec
 
 
 class RenewalLaw(BaseLaw):

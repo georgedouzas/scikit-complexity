@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.errors import ValidationError
 from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 RAMAN = 'Raman 2021'
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)

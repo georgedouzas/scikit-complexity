@@ -12,7 +12,6 @@ from typing import Any, Self, cast
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 
-from ...core.errors import ConservationError, LabelError, ValidationError
 from ...core.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -26,6 +25,7 @@ from ...core.laws import (
     UpdateLaw,
 )
 from ...core.laws.utils import delay_parts
+from ...errors import ConservationError, LabelError, ValidationError
 from ..problems import LoopTerm, Reference, TransferNetwork, VariableKind, declarations_of, symbol, symbols_of
 from ..problems import Source as Read
 from ..problems._transfer_network import _CompiledDelay, _CompiledFlow, _Recorded

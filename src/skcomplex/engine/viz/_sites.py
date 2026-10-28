@@ -178,7 +178,7 @@ class SiteVisual(BaseVisual):
             >>> import networkx as nx
             >>> from skcomplex.core.elements import Element, LatticeElement
             >>> from skcomplex.core.spaces import NetworkSpace
-            >>> from skcomplex.core.specs import StateSpec
+            >>> from skcomplex.specs import StateSpec
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import SiteVisual

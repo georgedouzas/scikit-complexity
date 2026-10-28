@@ -7,17 +7,16 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, maximum, mean, total
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile._observables import ObservableEvaluator
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
+from skcomplex.errors import IncompatibleLawsError, SolverError, ValidationError
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -27,6 +26,7 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.economics.resources import harvesting
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class BreederElement(Element):

@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.errors import ValidationError
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class ColumnElement(Element):

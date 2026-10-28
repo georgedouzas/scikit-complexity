@@ -3,11 +3,11 @@
 import pytest
 
 from skcomplex.core.elements import WordElement
-from skcomplex.core.errors import RewritingError
 from skcomplex.core.laws import ProductionLaw
-from skcomplex.core.specs import GeometrySpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import RewritingError
+from skcomplex.specs import GeometrySpec
 
 
 class AlgaeElement(WordElement):

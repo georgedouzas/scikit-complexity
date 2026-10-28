@@ -6,9 +6,9 @@
 from collections.abc import Mapping, Sequence
 from typing import Self
 
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...specs import VisualSpec
 from ..spaces import LatticeSpace, MeshSpace, NetworkSpace
-from ..specs import VisualSpec
 from ._base import BaseElement
 from ._lattice import LatticeElement
 
@@ -74,7 +74,7 @@ class FieldElement(LatticeElement):
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.laws.utils import laplacian
         >>> from skcomplex.core.spaces import LatticeSpace
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.specs import ParameterSpec, StateSpec
         >>> class HeatElement(Element):
         ...     def __init__(
         ...         self, label, u: Annotated[float, StateSpec()] = 0.0, D: Annotated[float, ParameterSpec()] = 1.0

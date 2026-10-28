@@ -5,7 +5,7 @@
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.errors import BackendError
+from ...errors import BackendError
 from ..problems import Dialect, print_expressions
 
 _LEPTON = Dialect(

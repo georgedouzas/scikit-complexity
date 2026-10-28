@@ -18,7 +18,6 @@ import numba
 import numpy as np
 from numba.core.dispatcher import Dispatcher
 
-from ...core.errors import BackendWarning, ValidationError
 from ...core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -58,7 +57,8 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from ...core.types import Vector
+from ...errors import BackendWarning, ValidationError
+from ...types import Array
 from ..problems import (
     SCALAR_DIALECT,
     Accelerated,
@@ -349,7 +349,7 @@ class NumbaBackend(BaseBackend):
     ) -> Lowering:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
-        def bind(name: str) -> Callable[[float, Vector, Vector], Vector]:
+        def bind(name: str) -> Callable[[float, Array, Array], Array]:
             function = getattr(module, name)
             return lambda t, x, p: function(t, x, p, layout)
 

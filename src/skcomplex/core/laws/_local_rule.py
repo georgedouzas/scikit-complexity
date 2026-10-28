@@ -7,9 +7,9 @@ from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
-from ..errors import ValidationError
+from ...errors import ValidationError
+from ...specs import RequirementSpec
 from ..spaces import BaseNeighborhood, CayleySpace, DiscreteTime, LatticeSpace, NetworkSpace
-from ..specs import RequirementSpec
 from ._base import BaseLaw
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')

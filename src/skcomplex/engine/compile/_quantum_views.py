@@ -15,8 +15,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import CC
 
 from ...core.elements import BaseElement, Element, GroupElement
-from ...core.errors import ValidationError
-from ...core.specs import HilbertSpec
+from ...errors import ValidationError
+from ...specs import HilbertSpec
 from ..problems import VariableKind, declarations_of
 from ._local_operator import LocalOperator
 
@@ -36,7 +36,7 @@ class QuantumView:
         >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import CC
         >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.specs import HilbertSpec, StateSpec
+        >>> from skcomplex.specs import HilbertSpec, StateSpec
         >>> from skcomplex.engine.compile import QuantumView
         >>> QUBIT = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
         >>> class QubitElement(Element):
@@ -207,7 +207,7 @@ class QuantumView:
             >>> from typing import Annotated
             >>> from sage.all__sagemath_symbolics import CC
             >>> from skcomplex.core.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
+            >>> from skcomplex.specs import StateSpec
             >>> from skcomplex.engine.compile import QuantumView
             >>> class QubitElement(Element):
             ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):

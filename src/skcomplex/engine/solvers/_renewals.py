@@ -4,15 +4,12 @@
 # License: MIT
 
 import math
-from collections.abc import Callable
 
 import numpy as np
 
-from ...core.types import Vector
+from ...types import Array, Step
 from ..problems import Problem
 from ._event_locator import EventLocator
-
-type Step = Callable[[float, Vector, Vector, Vector], Vector]
 
 
 class RenewalClock:
@@ -41,11 +38,11 @@ class RenewalClock:
         self.problem = problem
         self.rng = rng
         self.locator = locator
-        self.following: list[Vector] = []
+        self.following: list[Array] = []
         keys = [law.states[:, 0].tobytes() if law.states.size else id(law) for law in problem.renewals]
         self.rivals = [[other for other, key in enumerate(keys) if key == own] for own in keys]
 
-    def begin(self, t: float, x: Vector, p: Vector) -> None:
+    def begin(self, t: float, x: Array, p: Array) -> None:
         """Draw the first renewal time of every member, once, from the states at the start.
 
         Args:
@@ -70,7 +67,7 @@ class RenewalClock:
         """
         return min((float(np.min(times)) for times in self.following if times.size), default=math.inf)
 
-    def _fire_pass(self, limits: list[Vector], x: Vector, p: Vector) -> tuple[Vector, bool]:
+    def _fire_pass(self, limits: list[Array], x: Array, p: Array) -> tuple[Array, bool]:
         """Fire once every member whose next renewal is at most its limit and comes first among its laws."""
         state, fired = x, False
         for index, law in enumerate(self.problem.renewals):
@@ -85,7 +82,7 @@ class RenewalClock:
             fired = True
         return state, fired
 
-    def fire_until(self, until: float, x: Vector, p: Vector) -> Vector:
+    def fire_until(self, until: float, x: Array, p: Array) -> Array:
         """Fire every renewal up to a time, each member in time order, and return the state after them.
 
         Args:
@@ -108,7 +105,7 @@ class RenewalClock:
             state, fired = self._fire_pass(limits, state, p)
         return state
 
-    def _member_stops(self, end: float, size: int) -> Vector:
+    def _member_stops(self, end: float, size: int) -> Array:
         """Return the time every state component advances to: its member's next renewal, or the end."""
         stops = np.full(size, end)
         for law, times in zip(self.problem.renewals, self.following, strict=True):
@@ -116,7 +113,7 @@ class RenewalClock:
                 stops[law.states] = np.minimum(stops[law.states], np.minimum(times, end)[:, np.newaxis])
         return stops
 
-    def advance_members(self, t: float, end: float, x: Vector, p: Vector, step: Step) -> Vector:
+    def advance_members(self, t: float, end: float, x: Array, p: Array, step: Step) -> Array:
         """Advance members that do not interact, each with its own steps that end at its renewals.
 
         Args:
@@ -155,7 +152,7 @@ class RenewalClock:
             ]
             state, _ = self._fire_pass(limits, state, p)
 
-    def advance_split(self, t: float, end: float, x: Vector, p: Vector, step: Step) -> Vector:
+    def advance_split(self, t: float, end: float, x: Array, p: Array, step: Step) -> Array:
         """Advance interacting members together, splitting the step at every renewal time inside it.
 
         Args:

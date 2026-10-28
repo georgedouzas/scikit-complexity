@@ -15,10 +15,10 @@ from ....analysis import MotifAnalysis, NetworkAnalysis
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 BLOCKS = 4
 BLOCK_SIZE = 100

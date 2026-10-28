@@ -7,8 +7,8 @@ import pytest
 from scipy import stats
 
 from skcomplex import experiments
-from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import BaseDesign, BaseExperiment, RandomDesign
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map

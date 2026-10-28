@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import DistributionAnalysis, EventAnalysis, FitAnalysis
-from skcomplex.core.errors import AnalysisError
+from skcomplex.errors import AnalysisError
 from skcomplex.models import run
 
 MAX_GENERATIONS = 5000

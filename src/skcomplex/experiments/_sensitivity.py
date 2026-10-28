@@ -11,7 +11,7 @@ from SALib.analyze import sobol as sobol_analysis
 
 from ..analysis._base import BaseAnalysis
 from ..analysis._kinds import DataKind
-from ..core.errors import AnalysisError
+from ..errors import AnalysisError
 from ._results import ExperimentResult
 
 METHODS = ('oat', 'morris', 'sobol')

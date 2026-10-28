@@ -12,9 +12,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseConfig
-from ...core.errors import ValidationError
+from ...base import BaseConfig
 from ...core.spaces import BaseSpace, NetworkSpace
+from ...errors import ValidationError
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot

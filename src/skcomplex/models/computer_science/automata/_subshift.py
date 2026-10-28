@@ -9,9 +9,10 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ....core.errors import ValidationError
 from ....core.spaces import BaseSpace
-from ._automaton import Codes, Indices, Reach, _codes, _count, _size, _table
+from ....errors import ValidationError
+from ....types import Indices, IntArray
+from ._automaton import Reach, _codes, _count, _size, _table
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ class Subshift:
     forbidden: Sequence[tuple[int, ...]]
     states: int = 2
 
-    def _forbidden_codes(self) -> Codes:
+    def _forbidden_codes(self) -> IntArray:
         """Return the codes of the forbidden patterns."""
         patterns = np.asarray([tuple(pattern) for pattern in self.forbidden], dtype=np.int64).reshape(
             -1,
@@ -145,7 +146,7 @@ class Subshift:
         *,
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = None,
-    ) -> Codes:
+    ) -> IntArray:
         """Return an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible.
 
         Args:

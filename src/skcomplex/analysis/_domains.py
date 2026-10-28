@@ -10,15 +10,15 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..types import Array
 from ._base import BaseAnalysis, Source
 from ._correlation import CorrelationAnalysis
 from ._kinds import DataKind
 from ._neighbors import NeighborAnalysis
 from ._spectrum import SpectrumAnalysis
 
-type Array = npt.NDArray[np.float64]
 KINDS = ('size', 'growth', 'wavelength', 'interface-density')
 METHODS = ('moment', 'zero')
 SETTINGS = {

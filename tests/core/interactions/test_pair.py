@@ -5,13 +5,13 @@ from typing import Annotated
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import PairInteraction
 from skcomplex.core.laws import BoundaryLaw, RateLaw
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.errors import ValidationError
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(Element):

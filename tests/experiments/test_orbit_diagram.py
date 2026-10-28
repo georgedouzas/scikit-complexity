@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.errors import ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.experiments import OrbitDiagramExperiment
 from skcomplex.models.mathematics.dynamical_systems import logistic_map
 

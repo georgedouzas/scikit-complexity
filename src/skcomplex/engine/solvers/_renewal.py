@@ -7,7 +7,7 @@ from typing import ClassVar
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...types import Array
 from ..problems import Form, NoiseKind, OrderKind, SupportSpec
 from ._solver import Solver
 
@@ -21,7 +21,7 @@ class RenewalSolver(Solver):
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from skcomplex.core.elements import GroupElement
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import JumpLaw
@@ -53,7 +53,7 @@ class RenewalSolver(Solver):
     form: ClassVar[Form] = Form.RENEWAL
     renews: ClassVar[bool] = True
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Fire every renewal from time `t` up to time `until`, each member in time order.
 
         Args:

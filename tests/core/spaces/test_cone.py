@@ -4,8 +4,8 @@ import math
 
 import pytest
 
-from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import ConeNeighborhood
+from skcomplex.errors import ValidationError
 
 
 @pytest.mark.parametrize(

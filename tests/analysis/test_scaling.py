@@ -9,8 +9,8 @@ from scipy.integrate import solve_ivp
 from scipy.spatial import cKDTree
 
 from skcomplex.analysis import CoarseGrainAnalysis, ScalingAnalysis
-from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import AnalysisError
 from skcomplex.models import create
 
 

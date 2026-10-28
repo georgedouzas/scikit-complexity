@@ -14,11 +14,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ...core.base import BaseConfig
-from ...core.errors import ParameterError, SimulationError, ValidationError
-from ...core.specs import ObservableSpec
+from ...base import BaseConfig
 from ...core.system import System
-from ...core.types import Vector
+from ...errors import ParameterError, SimulationError, ValidationError
+from ...specs import ObservableSpec
+from ...types import Array
 from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, PassCompiler, compile_system
 from ..problems import BaseProblem, Entry, Form, contains
@@ -179,7 +179,7 @@ class Simulation(BaseConfig):
             raise ValidationError(error_msg)
         return float(dt)
 
-    def _previous_parameters(self) -> tuple[list[str], Vector] | None:
+    def _previous_parameters(self) -> tuple[list[str], Array] | None:
         """Return the parameter names and values of the previous run of the same system, or `None` without one."""
         if getattr(self, '_prepared_system', None) is not self.system or not hasattr(self, 'parameters_'):
             return None
@@ -217,7 +217,7 @@ class Simulation(BaseConfig):
         self.parameters_ = self.problem_.initial_parameters.copy()
         if previous is not None and previous[0] == self.problem_.parameters.names:
             self.parameters_ = previous[1] if previous[1].shape == self.parameters_.shape else self.parameters_
-        self._pending: queue.Queue[tuple[slice, Vector]] = queue.Queue()
+        self._pending: queue.Queue[tuple[slice, Array]] = queue.Queue()
         self._stop_requested = threading.Event()
         self._running = threading.Event()
         self._running.set()
@@ -340,7 +340,7 @@ class Simulation(BaseConfig):
                 )
                 raise ValidationError(error_msg)
 
-    def _check_value(self, name: str, entry: Entry, value: float | npt.ArrayLike) -> Vector:
+    def _check_value(self, name: str, entry: Entry, value: float | npt.ArrayLike) -> Array:
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
@@ -353,7 +353,7 @@ class Simulation(BaseConfig):
         except ValueError as error:
             raise ValidationError(error_msg) from error
 
-    def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
+    def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
         """Raise an error when parameter changes would break a transition or emission matrix."""
         problems = (self.problem_, *self._partition_problems(self.problem_))
         matrices = [matrix for problem in problems for matrix in problem.matrices]

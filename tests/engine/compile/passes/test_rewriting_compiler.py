@@ -11,17 +11,17 @@ import shapely
 
 from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.elements import HostGraphElement, PatchElement, WordElement
-from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, SubstitutionLaw
-from skcomplex.core.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.core.types import Letters
 from skcomplex.engine.compile import PatchStructure, RewritingCompiler, WordStructure, compile_system
 from skcomplex.engine.problems import Form, symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
+from skcomplex.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
+from skcomplex.types import Letters
 
 X = symbol('x')
 

@@ -7,20 +7,16 @@ import math
 from typing import ClassVar, cast
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.errors import SolverError
 from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
 from ...core.spaces import ContinuousTime, LatticeSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array, Indices, IntArray
 from ..compile._compiled_encounter import CompiledEncounter
 from ..compile.passes._kinetic_problem import KineticProblem
 from ..problems import Form, OrderKind, Problem, SupportSpec
 from ._solver import Solver
-
-type Counts = npt.NDArray[np.int64]
-type Indices = npt.NDArray[np.intp]
 
 
 class KineticSolver(Solver):
@@ -103,11 +99,11 @@ class KineticSolver(Solver):
         self._encounters = cast('KineticProblem', problem).encounters
         self.densities_ = self._densities(self._encounters)
         self.mass_ = 0.0
-        self._counts: dict[tuple[int, ...], Counts] = {}
+        self._counts: dict[tuple[int, ...], IntArray] = {}
         self._sample(self.initial_state_)
         self.initial_state_ = self._state(self.initial_state_)
 
-    def _sample(self, x: Vector) -> None:
+    def _sample(self, x: Array) -> None:
         """Draw the particle counts of every density from a state, with the mass that gives the largest one `n`."""
         totals = [float(np.sum(x[indices])) for indices in self.densities_]
         if min((float(np.min(x[indices])) for indices in self.densities_), default=0.0) < 0:
@@ -119,14 +115,14 @@ class KineticSolver(Solver):
             weights = x[indices] / total if total > 0 else np.full(indices.size, 1 / indices.size)
             self._counts[tuple(indices.tolist())] = self.rng_.multinomial(count, weights).astype(np.int64)
 
-    def _state(self, x: Vector) -> Vector:
+    def _state(self, x: Array) -> Array:
         """Return a state with every density replaced by its empirical density."""
         state = x.copy()
         for indices in self.densities_:
             state[indices] = self._counts[tuple(indices.tolist())] * self.mass_
         return state
 
-    def _move(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _move(self, encounter: CompiledEncounter, p: Array, step: float) -> None:
         """Move the candidates that encounter in one step to their outcome activities."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
@@ -142,7 +138,7 @@ class KineticSolver(Solver):
             counts[activity] -= movers[activity]
             np.add.at(test, outcomes[selected], shares)
 
-    def _proliferate(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _proliferate(self, encounter: CompiledEncounter, p: Array, step: float) -> None:
         """Add the particles that encounters create in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
@@ -151,20 +147,20 @@ class KineticSolver(Solver):
         births = self.rng_.poisson(counts[candidates] * encounter.weights(p) * field[fields] * step)
         np.add.at(test, outcomes, births)
 
-    def _destroy(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
+    def _destroy(self, encounter: CompiledEncounter, p: Array, step: float) -> None:
         """Remove the particles that encounters destroy in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
         totals = encounter.rate_matrix(p) @ field
         counts -= self.rng_.binomial(counts, -np.expm1(-totals * step))
 
-    def _step(self, p: Vector, step: float) -> None:
+    def _step(self, p: Array, step: float) -> None:
         """Apply every encounter law in turn for one step."""
         actions = {'transition': self._move, 'proliferation': self._proliferate, 'destruction': self._destroy}
         for encounter in self._encounters:
             actions[encounter.kind](encounter, p, step)
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Sample the encounters of the particles from time `t` to time `until` in equal steps no longer than `dt`.
 
         A state that differs from the empirical densities of the particles, such as one an observer changed, is

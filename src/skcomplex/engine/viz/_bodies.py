@@ -12,16 +12,12 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.errors import ValidationError
+from ...errors import ValidationError
+from ...types import Colors, Marks, Outline, Positions
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._base import _UPWARD, BaseVisual
 from ._points import _TRAIL_LENGTH
-
-type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
-type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
-type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
-type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 
 _BODY_COLOR = (250, 180, 60)
 _ROD_COLOR = (220, 220, 220)

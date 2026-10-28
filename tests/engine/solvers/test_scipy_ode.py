@@ -12,12 +12,10 @@ from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import CrossingLaw, RateLaw
 from skcomplex.core.laws.utils import delayed, laplacian, mean, step, total, where
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -27,6 +25,7 @@ from skcomplex.engine.solvers import (
     RK4Solver,
     ScipyODESolver,
 )
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
@@ -36,6 +35,7 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _growth_problem():

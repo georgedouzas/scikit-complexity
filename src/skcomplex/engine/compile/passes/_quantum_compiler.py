@@ -20,14 +20,14 @@ from sage.all__sagemath_symbolics import CC, SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.elements import GroupElement
-from ....core.errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
 from ....core.laws.utils import dagger, has_operator, operator_product
 from ....core.laws.utils._quantum import LOCAL_OPERATOR
-from ....core.specs import HilbertSpec, ObservableSpec
 from ....core.system import System
-from ....core.types import Vector
+from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
+from ....specs import HilbertSpec, ObservableSpec
+from ....types import Array
 from ...backends import BaseBackend
 from ...problems import (
     BaseProblem,
@@ -163,7 +163,7 @@ class _Lowering:
             blocks.append(sp.identity(pending, dtype=complex, format='csr'))
         return sp.csr_array(functools.reduce(lambda left, right: sp.kron(left, right, format='csr'), blocks))
 
-    def function(self, coefficient: Expression, owner: str) -> Callable[[float, Vector], complex]:
+    def function(self, coefficient: Expression, owner: str) -> Callable[[float, Array], complex]:
         """Return the function of a coefficient after checking that it reads parameters and time only.
 
         Args:
@@ -192,7 +192,7 @@ class _Lowering:
         lowered = numpy_function(self.time, variables, [coefficient])
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
-        def evaluate(t: float, p: Vector) -> complex:
+        def evaluate(t: float, p: Array) -> complex:
             return complex(lowered(t, *p[indices])[0])
 
         return evaluate
@@ -587,7 +587,7 @@ class QuantumCompiler(BaseCompiler):
         QuantumCompiler._collect_laws(laws, node.path, interaction.run(SimpleNamespace(**roles, **parameters)))
 
     @staticmethod
-    def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Vector) -> None:
+    def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Array) -> None:
         """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
         size = math.prod(lowering.dimensions)
         rng = np.random.default_rng(0)
@@ -609,7 +609,7 @@ class QuantumCompiler(BaseCompiler):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumTerm, ...], ...]:
+    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Array) -> tuple[tuple[QuantumTerm, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
         for owner, collapse, rate in laws.dissipators:
@@ -734,7 +734,7 @@ class QuantumCompiler(BaseCompiler):
         initial: object,
         subsystems: Mapping[str, _Subsystem],
         hamiltonian: tuple[QuantumTerm, ...],
-        p: Vector,
+        p: Array,
         is_open: bool,
     ) -> npt.NDArray[np.complex128]:
         """Return the initial state as stored, a vector for a closed pure state and a density matrix otherwise."""
@@ -860,10 +860,10 @@ class QuantumCompiler(BaseCompiler):
         return '_'.join(part for part in re.split(r'\W+', path) if part)
 
     @staticmethod
-    def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str, Any]]:
+    def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Array], dict[str, Any]]:
         """Return the parameter entries, initial values, and symbols of every component, per member for groups."""
         entries: list[Entry] = []
-        values: list[Vector] = []
+        values: list[Array] = []
         symbols: dict[str, Any] = {}
         for node in nodes:
             for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():

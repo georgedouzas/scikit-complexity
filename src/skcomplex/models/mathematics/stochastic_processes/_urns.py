@@ -11,9 +11,9 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw
-from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
+from ....specs import StateSpec, VisualSpec
 
 
 class PolyaUrnElement(Element):

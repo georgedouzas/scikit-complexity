@@ -10,10 +10,10 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import CayleyVisual, RerunObserver
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class ParityElement(Element):

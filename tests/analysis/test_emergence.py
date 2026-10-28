@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import EmergenceAnalysis, MarkovAnalysis
-from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
+from skcomplex.errors import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
 NOISY_STATES = 7

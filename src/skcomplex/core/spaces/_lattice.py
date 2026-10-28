@@ -9,7 +9,7 @@ from typing import Self
 import numpy as np
 import numpy.typing as npt
 
-from ..errors import ValidationError
+from ...errors import ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 from ._box import BoxNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood

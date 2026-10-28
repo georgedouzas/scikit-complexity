@@ -6,8 +6,8 @@
 from collections.abc import Mapping, Sequence
 from typing import cast
 
-from ...core.specs import ObservableSpec
 from ...core.system import System
+from ...specs import ObservableSpec
 from ..backends import BaseBackend
 from ..problems import BaseProblem
 from ._base import BaseCompiler

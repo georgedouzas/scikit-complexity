@@ -11,8 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, FractionalNoiseLaw, NoiseLaw
+from ....errors import ValidationError
 from ...problems import (
     components_of,
     symbols_of,

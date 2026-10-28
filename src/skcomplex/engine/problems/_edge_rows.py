@@ -7,11 +7,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...core.types import Indices, Vector
+from ...types import Array, EdgesFound
 from ._entry import Entry
-
-type Found = tuple[Indices, Indices, Indices | None]
-
 
 ACTIVE_THRESHOLD = 0.5
 
@@ -47,7 +44,7 @@ class EdgeRows:
     directed: bool = False
     center: bool = False
 
-    def find(self, x: Vector, q: Vector) -> Found:
+    def find(self, x: Array, q: Array) -> EdgesFound:
         """Return the neighbours of every node along the active edges.
 
         Args:

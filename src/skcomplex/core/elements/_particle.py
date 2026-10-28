@@ -9,8 +9,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ...specs import ParameterSpec, StateSpec, VisualSpec
 from ..laws import RateLaw
-from ..specs import ParameterSpec, StateSpec, VisualSpec
 from ._element import Element
 
 

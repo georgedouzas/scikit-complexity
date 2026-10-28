@@ -8,10 +8,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.types import Vector
+from ...errors import SolverError
+from ...types import Array
 from ..problems import Form, OrderKind, Problem, SupportSpec, step_count
 from ._solver import Solver
 from ._split_operator import SplitOperator
@@ -60,10 +60,10 @@ class _SplitSolver(Solver):
         if problem.delays or problem.events:
             error_msg = f'{type(self).__name__} does not integrate delays or events. Use ScipyODESolver or RK4Solver.'
             raise SolverError(error_msg)
-        self._parameters: Vector | None = None
-        self._last: tuple[float, Vector, float] | None = None
+        self._parameters: Array | None = None
+        self._last: tuple[float, Array, float] | None = None
 
-    def _continues(self, t: float, x: Vector, h: float) -> bool:
+    def _continues(self, t: float, x: Array, h: float) -> bool:
         """Check whether a call continues the time, state, and step of the previous call."""
         if self._last is None:
             return False
@@ -74,25 +74,25 @@ class _SplitSolver(Solver):
     def _forget(self) -> None:
         """Hook that forgets the steps of earlier calls, which multistep schemes override."""
 
-    def _build_operator(self, p: Vector) -> None:
+    def _build_operator(self, p: Array) -> None:
         """Build the linear part for parameter values when they change."""
         if self._parameters is None or not np.array_equal(p, self._parameters):
             self.operator_ = SplitOperator.build(self.problem_, p)
             self._parameters = p.copy()
             self._built(p)
 
-    def _built(self, p: Vector) -> None:
+    def _built(self, p: Array) -> None:
         """Hook that runs after the linear part is rebuilt."""
 
-    def _remainder(self, t: float, x: Vector, p: Vector) -> Vector:
+    def _remainder(self, t: float, x: Array, p: Array) -> Array:
         """Return the nonlinear remainder of the rates, the rates minus their linear part."""
         return self.problem_.drift(t, x, p) - self.operator_.apply(x)  # type: ignore[misc]
 
-    def _step(self, t: float, x: Vector, p: Vector, h: float) -> Vector:
+    def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one step."""
         raise NotImplementedError
 
-    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate from time `t` to time `until` in equal steps no longer than `dt`.
 
         Args:

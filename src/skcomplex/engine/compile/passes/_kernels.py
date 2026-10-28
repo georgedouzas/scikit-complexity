@@ -13,13 +13,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
-from ....core.specs import WienerProcessSpec
+from ....errors import ValidationError
+from ....specs import WienerProcessSpec
+from ....types import ProcessKey
 from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
 from .._base import BasePass
-from .._census_record import ProcessKey
 from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec

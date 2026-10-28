@@ -5,7 +5,7 @@
 
 import time
 
-from ...core.errors import ValidationError
+from ...errors import ValidationError
 from ._base import BaseClock
 
 

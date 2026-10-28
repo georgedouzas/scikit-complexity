@@ -12,8 +12,8 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 from skcomplex.core.system import System
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

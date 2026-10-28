@@ -11,9 +11,10 @@ from typing import Any, Protocol, Self, cast
 import numpy as np
 import numpy.typing as npt
 
-from ..core.errors import AnalysisError
 from ..core.laws.utils import Table
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
+from ..errors import AnalysisError
+from ..types import Indices, IntArray
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 
@@ -23,8 +24,6 @@ SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 IDENTITY = '1'
 
-type Codes = npt.NDArray[np.int64]
-type Indices = npt.NDArray[np.intp]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
 type Sites = BaseSpace
 
@@ -48,13 +47,13 @@ class _Automaton(Protocol):
     def table(self) -> Indices:
         """Return the site of every cell the rule reads at every site."""
 
-    def local_map(self) -> Codes:
+    def local_map(self) -> IntArray:
         """Return the next value of every pattern of the cells the rule reads."""
 
-    def step(self, configuration: npt.ArrayLike) -> Codes:
+    def step(self, configuration: npt.ArrayLike) -> IntArray:
         """Return the image of a configuration."""
 
-    def run(self, configuration: npt.ArrayLike, steps: int) -> Codes:
+    def run(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
         """Return the configurations of a number of steps."""
 
 
@@ -111,8 +110,8 @@ class _Clauses:
 class _ComposedRule:
     """Rule of the composition of two automata, on the composite neighbourhood."""
 
-    first: Codes
-    second: Codes
+    first: IntArray
+    second: IntArray
     columns: tuple[tuple[int, ...], ...]
     states: int
 
@@ -392,7 +391,7 @@ class AutomatonAnalysis(BaseAnalysis):
         return int(AutomatonAnalysis._fitted(space).size_ or 0)
 
     @staticmethod
-    def _patterns(states: int, width: int) -> Codes:
+    def _patterns(states: int, width: int) -> IntArray:
         """Return every pattern of values of a number of cells, in the order of their codes."""
         if states**width > MAX_PATTERNS:
             error_msg = f'A rule on {width} cells with {states} values has more than {MAX_PATTERNS} patterns.'
@@ -400,13 +399,13 @@ class AutomatonAnalysis(BaseAnalysis):
         return np.asarray(list(itertools.product(range(states), repeat=width)), dtype=np.int64).reshape(-1, width)
 
     @staticmethod
-    def _codes(values: Codes, states: int) -> Codes:
+    def _codes(values: IntArray, states: int) -> IntArray:
         """Return the code of every row of values, read as digits in the base of the number of states."""
         weights = states ** np.arange(values.shape[-1] - 1, -1, -1, dtype=np.int64)
         return values @ weights
 
     @staticmethod
-    def _configurations(states: int, size: int) -> Codes:
+    def _configurations(states: int, size: int) -> IntArray:
         """Return every configuration of a number of sites, or raise an error when there are too many."""
         if states**size > MAX_CONFIGURATIONS:
             error_msg = (
@@ -460,7 +459,7 @@ class AutomatonAnalysis(BaseAnalysis):
                 clauses.clauses.append(premise + consequence)
 
     @staticmethod
-    def _decode(model: list[int], variables: npt.NDArray[np.int64]) -> Codes:
+    def _decode(model: list[int], variables: npt.NDArray[np.int64]) -> IntArray:
         """Return the values of one-hot variables in a model."""
         true = set(model)
         return np.asarray(
@@ -469,7 +468,7 @@ class AutomatonAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _collision(automaton: _Automaton, window: Sequence[int]) -> tuple[Codes, Codes] | None:
+    def _collision(automaton: _Automaton, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
         """Return two configurations that differ inside a window, agree outside it, and have the same image, by SAT."""
         clauses = _Clauses()
         first = clauses.one_hot(automaton.size, automaton.states)
@@ -503,7 +502,7 @@ class AutomatonAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _preimage(automaton: _Automaton, target: Codes, window: Sequence[int]) -> Codes | None:
+    def _preimage(automaton: _Automaton, target: IntArray, window: Sequence[int]) -> IntArray | None:
         """Return a configuration whose image equals a target on a window, or `None`, by SAT."""
         clauses = _Clauses()
         cells = clauses.one_hot(automaton.size, automaton.states)
@@ -517,7 +516,7 @@ class AutomatonAnalysis(BaseAnalysis):
         return None if model is None else AutomatonAnalysis._decode(model, cells)
 
     @staticmethod
-    def _images(automaton: _Automaton) -> tuple[Codes, Codes]:
+    def _images(automaton: _Automaton) -> tuple[IntArray, IntArray]:
         """Return every configuration and the code of its image."""
         configurations = AutomatonAnalysis._configurations(automaton.states, automaton.size)
         return configurations, AutomatonAnalysis._codes(automaton.step(configurations), automaton.states)
@@ -559,7 +558,7 @@ class AutomatonAnalysis(BaseAnalysis):
         *,
         tries: int = 200,
         random_state: int | np.random.Generator | None = None,
-    ) -> Codes | None:
+    ) -> IntArray | None:
         """Return a pattern on a window that no configuration maps to, or `None`."""
         sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
         if window is None and automaton.states**automaton.size <= MAX_CONFIGURATIONS:
