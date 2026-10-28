@@ -13,9 +13,12 @@ from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
 from ....errors import ValidationError
 from ....specs import (
+    BlockSpec,
     CapacityRowsSpec,
     CompiledRequestSpec,
+    DeclarationsSpec,
     EntrySpec,
+    KernelSpec,
     LayoutSpec,
     LoweredKernelsSpec,
     NetworkRowsSpec,
@@ -23,6 +26,7 @@ from ....specs import (
     ReductionScheduleSpec,
     TopologyRequestSpec,
 )
+from ....specs._declarations_spec import _ACTIVE, ENDS
 from ....specs._weight_spec import _WeightSpec
 from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
@@ -30,10 +34,8 @@ from ...problems._edge_search import EdgeSearch
 from ...problems._law_kernel import LawKernel
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._block import Block
 from .._compilation import Laws
-from .._declarations import _ACTIVE, ENDS, Declarations
-from .._kernel_spec import KernelSpec
+from ._layout import LayoutPass
 from ._specs import SpecsPass
 
 
@@ -54,7 +56,7 @@ class TopologyFunctionsPass(BasePass):
         topology = self._topology(
             cast('LoweredKernelsSpec', compilation.kernels),
             cast('Laws', compilation.reduced_apart),
-            cast('Declarations', compilation.layout),
+            cast('DeclarationsSpec', compilation.layout),
             cast('ReductionScheduleSpec', compilation.reductions),
             compilation.request_jumps,
         )
@@ -63,7 +65,7 @@ class TopologyFunctionsPass(BasePass):
         compilation.topology = topology
 
     @staticmethod
-    def _request_kernel(spec: KernelSpec, value: object, declarations: Declarations) -> LawKernel:
+    def _request_kernel(spec: KernelSpec, value: object, declarations: DeclarationsSpec) -> LawKernel:
         """Return the kernel of the probability or the weight of a request for every row of its spec."""
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         expression = SR(value)
@@ -84,7 +86,7 @@ class TopologyFunctionsPass(BasePass):
         request: TopologyRequestSpec,
         networks: dict[int, NetworkRowsSpec],
         weights: dict[int, LawKernel],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
         """Return a request of a spec with its network, its rows, and the kernel of its weights."""
         space, rows = TopologyFunctionsPass._request_network(spec, declarations)
@@ -113,7 +115,7 @@ class TopologyFunctionsPass(BasePass):
     def _topology(
         lowered: LoweredKernelsSpec,
         apart: Laws,
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         reductions: ReductionScheduleSpec,
         jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]],
     ) -> TopologyKernel | None:
@@ -158,7 +160,7 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).check()
 
     @staticmethod
-    def _capacity_rows(block: Block, declarations: Declarations) -> CapacityRowsSpec:
+    def _capacity_rows(block: BlockSpec, declarations: DeclarationsSpec) -> CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
@@ -183,12 +185,12 @@ class TopologyFunctionsPass(BasePass):
             variables[name] = (entry, name in states)
             default = default_of(element, name) if name in declared_variables(element) else 0.0
             default = 0.0 if default is dataclasses.MISSING else default
-            defaults[name] = Declarations._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
+            defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
         return CapacityRowsSpec(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
 
     @staticmethod
-    def _networks(declarations: Declarations) -> dict[int, NetworkRowsSpec]:
+    def _networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
         """Return the variable groups of every network whose groups are variable, by the identity of the space."""
         spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
         networks = {}
@@ -216,7 +218,7 @@ class TopologyFunctionsPass(BasePass):
         return networks
 
     @staticmethod
-    def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
+    def _request_network(spec: KernelSpec, declarations: DeclarationsSpec) -> tuple[object, str]:
         """Return the network a request of a spec changes and the rows the spec runs on."""
         if isinstance(spec.pairs, EdgeSearch):
             nodes = declarations.blocks[cast('str', spec.roles['source'])]

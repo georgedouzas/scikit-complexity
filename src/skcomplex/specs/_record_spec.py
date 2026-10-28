@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression
 from ._base_spec import BaseSpec
 
 if TYPE_CHECKING:
-    from ..engine.compile._kernel_spec import KernelSpec
+    from ._kernel_spec import KernelSpec
 
 
 @dataclass(frozen=True)

@@ -13,13 +13,11 @@ from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, Updat
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec, ReferenceSpec
+from ...specs import DeclarationsSpec, KernelSpec, NeighborReadSpec, ReferenceSpec
 from ...types import ReadKind
 from .._utils import domain_of, symbol, vector
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ._base import BaseLowering, BasePass
-from ._declarations import Declarations
-from ._kernel_spec import KernelSpec
 
 _SHIFT = 'shift_member'
 
@@ -60,7 +58,7 @@ class MemberLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        self.time_ = cast('Declarations', self.compilation_.layout).time
+        self.time_ = cast('DeclarationsSpec', self.compilation_.layout).time
         self.shifted_ = {}
         return self
 

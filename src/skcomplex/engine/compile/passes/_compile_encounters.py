@@ -12,14 +12,13 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....errors import ValidationError
-from ....specs import ReferenceSpec, TableValuesSpec
+from ....specs import DeclarationsSpec, ReferenceSpec, TableValuesSpec
 from ....types import Indices, ReadKind
 from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...problems._encounter_kernel import EncounterKernel
 from .._base import BaseCompiler, BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 
@@ -41,7 +40,7 @@ class CompileEncountersPass(BasePass):
         """Compile the encounter laws of the drawn laws."""
         compilation = self.compilation_
         specs = cast('Laws', compilation.drawn)
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         compilation.encounters = self._compiled_encounters(specs, declarations, compilation.backend)
         compilation.drawn = [
             (spec, [law for law in laws if not isinstance(law, _KINETIC_LAWS)]) for spec, laws in specs
@@ -50,13 +49,13 @@ class CompileEncountersPass(BasePass):
     @staticmethod
     def _compiled_encounters(
         specs: Laws,
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         backend: BaseBackend | None,
     ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered for their members."""
         if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
             return ()
-        members = Declarations._member_count(list(declarations.blocks.values()))
+        members = declarations.members
         fused = BaseCompiler._resolve_backend(backend, members)._get_name() == 'numba'
         components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused)

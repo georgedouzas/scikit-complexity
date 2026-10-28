@@ -5,19 +5,17 @@
 
 import copy
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Annotated, Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
-import scipy.sparse
-from sage.all__sagemath_symbolics import RR, SR, Expression, I
+from sage.all__sagemath_symbolics import SR, Expression, I
 
 from ...core.elements import Element
-from ...core.laws.utils import has_operator, local_operator, reductions_in
+from ...core.laws.utils import has_operator, local_operator
 from ...core.system import System
-from ...errors import RoleError, ValidationError
+from ...errors import ValidationError
 from ...specs import (
     BaseProblemSpec,
     EntrySpec,
@@ -27,7 +25,6 @@ from ...specs import (
     QuantumProblemSpec,
     ReadSpec,
     ReductionScheduleSpec,
-    ReductionSpec,
     ReferenceSpec,
     StateSpec,
 )
@@ -41,6 +38,7 @@ from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseCompiler
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
+from ._member_reductions import _MemberReductions
 
 type Declared = dict[str, tuple[str, ObservableSpec]]
 
@@ -202,111 +200,6 @@ class _HeldElement(Element):
         self.reduction = reduction
 
 
-@dataclass
-class _MemberReductions:
-    """Reductions in the member expression of an observable, compiled with the reduction lowering of laws."""
-
-    path: str
-    group: str
-    size: int
-    reads: dict[Expression, ReadSpec]
-    time: Expression
-    parameters: int
-    found: dict[str, ReductionKernel] = field(default_factory=dict)
-
-    @property
-    def extent(self) -> int:
-        """Size of the parameter vector extended by the values of the reductions."""
-        return max((item.entry.start + item.entry.size for item in self.found.values()), default=self.parameters)
-
-    def _check_over(self, reduction: ReductionSpec) -> None:
-        """Raise an error when a reduction reduces over a group other than the observable's group."""
-        read = self.reads.get(reduction.over) if reduction.over is not None else None
-        if reduction.over is None or (read is not None and read.per_member):
-            return
-        error_msg = (
-            f'The reduction {reduction.call} of observable {self.path} reads a group other than {self.group}. A '
-            'reduction in the member expression of an observable reduces over the observable\'s group, so write one '
-            'observable per group.'
-        )
-        raise RoleError(error_msg)
-
-    def _read(self, item: Expression) -> ReadSpec:
-        """Return how the reduction pass reads one symbol of a reduction."""
-        if item not in self.reads:
-            error_msg = (
-                f'A reduction of observable {self.path} reads {item}, which is not a variable of a member of '
-                f'{self.group}, of a single element, or another reduction. Reductions read the namespace the '
-                'expression receives.'
-            )
-            raise ValidationError(error_msg)
-        return self.reads[item]
-
-    def _weights(self, reduction: ReductionSpec) -> Any:  # noqa: ANN401
-        """Return the weights of a reduction as a CSR array after checking their shape."""
-        if reduction.weights is None:
-            return None
-        weights = reduction.weights
-        if np.ndim(weights) == 1 and len(weights) == self.size:
-            weights = np.broadcast_to(weights, (self.size, self.size))
-        shape = tuple(weights.shape)
-        if shape != (self.size, self.size):
-            error_msg = (
-                f'The weights of the reduction {reduction.call} of observable {self.path} have the shape {shape}, but '
-                f'the reduction needs the shape {(self.size, self.size)}, one row and one column per member of '
-                f'{self.group}.'
-            )
-            raise ValidationError(error_msg)
-        return scipy.sparse.csr_array(weights, dtype=float)
-
-    def _placeholder(self, reduction: ReductionSpec) -> Expression:
-        """Return the placeholder of a reduction, compiling it the first time it is found."""
-        key = str(reduction.call)
-        if key in self.found:
-            return self.found[key].symbol
-        if SR(reduction.argument).has(I):
-            error_msg = (
-                f'The reduction {reduction.call} of observable {self.path} reduces a complex expression. Reduce its '
-                'real or imaginary part.'
-            )
-            raise ValidationError(error_msg)
-        self._check_over(reduction)
-        argument = SR(self.lower(reduction.argument))
-        condition = None if reduction.condition is None else SR(self.lower(reduction.condition))
-        symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.time}
-        weights = self._weights(reduction)
-        index = len(self.found)
-        shape = (self.size,) if weights is not None else ()
-        members = self.size if weights is not None else None
-        entry = EntrySpec(f'__observed_{index}', self.extent, shape, RR, members)
-        placeholder = symbol(f'_observed_{index}')
-        reads = {item: self._read(item) for item in sorted(symbols, key=str)}
-        self.found[key] = ReductionKernel(
-            placeholder,
-            reduction.kind,
-            argument,
-            condition,
-            weights,
-            entry,
-            self.size,
-            self.group,
-            reads,
-            self.time,
-        ).check()
-        indices = entry.start + np.arange(self.size) if weights is not None else entry.start
-        self.reads[placeholder] = ReadSpec(False, indices, entry)
-        return placeholder
-
-    def lower(self, expression: Any) -> Any:  # noqa: ANN401
-        """Return an expression with every reduction replaced by the placeholder of its value."""
-        if not isinstance(expression, Expression):
-            return expression
-        found = reductions_in(expression)
-        placeholders = {item.call: self._placeholder(item) for item in found}
-        lowered = expression
-        for call in sorted(placeholders, key=lambda item: -len(str(item))):
-            lowered = lowered.subs({call: placeholders[call]})
-        return lowered
 
 
 class ObservableEvaluator:
@@ -526,18 +419,12 @@ class ObservableEvaluator:
         )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         scalars = {item: ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
-        lowering = _MemberReductions(
-            path,
-            group,
-            size,
-            {**scalars, **members},
-            self.problem.time,
-            len(self.problem.initial_parameters),
-        )
-        expression = lowering.lower(expression)
-        readers = {item: self._read_of(read) for item, read in lowering.reads.items() if item not in scalars}
+        parameters = len(self.problem.initial_parameters)
+        lowering = _MemberReductions(path, group, size, {**scalars, **members}, self.problem.time, parameters)
+        expression = lowering.check().prepare().run(expression)
+        readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
-        reductions = ReductionScheduleSpec(tuple(lowering.found.values()), lowering.parameters)
+        reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
@@ -603,7 +490,7 @@ class ObservableEvaluator:
                 continue
             expression = observable.expression
             value = expression(problem.namespaces[scope]) if callable(expression) else expression
-            terms = problem.lowering.terms(ObservableEvaluator._operator_of(path, value), path)
+            terms = problem.lowering.run((ObservableEvaluator._operator_of(path, value), path))
             getters[path] = ObservableEvaluator._expectation_getter(problem, terms)
         getters.setdefault('energy', ObservableEvaluator._expectation_getter(problem, problem.hamiltonian))
         if not problem.pure:
@@ -619,7 +506,7 @@ class ObservableEvaluator:
         if not subsystems:
             error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
             raise ValidationError(error_msg)
-        return [problem.lowering.terms(local_operator(item.symbol, SR.symbol(name)), path) for item in subsystems]
+        return [problem.lowering.run((local_operator(item.symbol, SR.symbol(name)), path)) for item in subsystems]
 
     @staticmethod
     def _quantum_member_getter(
@@ -641,7 +528,7 @@ class ObservableEvaluator:
             terms = ObservableEvaluator._local_terms(problem, group, observable.variable)
         elif callable(expression):
             terms = [
-                problem.lowering.terms(ObservableEvaluator._operator_of(path, expression(member)), path)
+                problem.lowering.run((ObservableEvaluator._operator_of(path, expression(member)), path))
                 for member in problem.members[group]
             ]
         else:

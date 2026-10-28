@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import replace
 from typing import cast
 
 from sage.all__sagemath_symbolics import Expression
@@ -10,13 +11,13 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
+from ....specs import KernelSpec
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ....types import ReadKind
 from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws
 from .._draw_lowering import DrawLowering
-from .._kernel_spec import KernelSpec
 from .._renewal_law import RenewalLaw
 
 
@@ -32,12 +33,27 @@ class RowsPass(BasePass):
         return ('lowered',)
 
     def _run(self, inputs: object = None) -> None:
-        """Check the draws and settle the rows of every kernel spec."""
+        """Check the draws and settle the rows of every kernel spec.
+
+        A spec whose rows change is replaced by a copy with its rows settled in the laws, the laws set apart, and
+        the flows, which later passes read.
+        """
         compilation = self.compilation_
         apart = cast('Laws', compilation.apart)
+        settled: dict[int, KernelSpec] = {}
         for spec, laws, _ in cast('BlockLaws', compilation.lowered):
             self._check_draw_placement(spec.owner, laws)
-            self._settle_rows(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            if new is not spec:
+                settled[id(spec)] = new
+        if not settled:
+            return
+        compilation.lowered = [
+            (settled.get(id(spec), spec), laws, block) for spec, laws, block in cast('BlockLaws', compilation.lowered)
+        ]
+        compilation.apart = [(settled.get(id(spec), spec), laws) for spec, laws in apart]
+        if compilation.flows is not None:
+            compilation.flows._replace_specs(settled)
 
     @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
@@ -71,8 +87,10 @@ class RowsPass(BasePass):
         return symbols
 
     @staticmethod
-    def _settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
-        """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
+    def _settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
+        """Return a spec with the groups it is evaluated over, set from the member symbols its laws read.
+
+        Only the symbols outside reductions count.
 
         Laws without reductions keep the group their one group role binds to, so a single element bound next to it
         receives the sum over the members. Groups of one size that laws read outside reductions are read member by
@@ -80,7 +98,7 @@ class RowsPass(BasePass):
         """
         values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
         if not spec.groups or (len(spec.groups) == 1 and not any(reductions_in(value) for value in values)):
-            return
+            return spec
         read: set[Expression] = set()
         for law, value in zip(laws, values, strict=True):
             read |= RowsPass._outside_reductions(value)
@@ -92,9 +110,9 @@ class RowsPass(BasePass):
         }
         groups = sorted(owners & set(spec.groups))
         RowsPass._check_aligned(spec, groups)
-        spec.group = next(iter(groups), None)
-        spec.aligned = tuple(groups)
-        spec.rows = spec.groups[spec.group] if spec.group is not None else 1
+        group = next(iter(groups), None)
+        rows = spec.groups[group] if group is not None else 1
+        return replace(spec, group=group, aligned=tuple(groups), rows=rows)
 
     @staticmethod
     def _check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:

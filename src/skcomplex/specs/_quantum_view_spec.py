@@ -10,16 +10,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC
 
 from ..errors import ValidationError
-from ..types import VariableKind
 from ._base_spec import BaseSpec
 from ._hilbert_spec import HilbertSpec
 from ._local_operator_spec import LocalOperatorSpec
 
 if TYPE_CHECKING:
-    from ..core.elements import BaseElement, Element
+    from ..core.elements import Element
 
 NORM_TOLERANCE = 1e-8
 
@@ -31,6 +29,12 @@ class QuantumViewSpec(BaseSpec):
     Args:
         element:
             The element.
+
+        state:
+            The name of the state of the element in its Hilbert space.
+
+        space:
+            The Hilbert space of the element.
 
     Examples:
         >>> import numpy as np
@@ -45,42 +49,13 @@ class QuantumViewSpec(BaseSpec):
         ...         super().__init__(label)
         ...         self.psi = psi
         ...         self.hilbert = hilbert
-        >>> QuantumViewSpec(QubitElement('q', psi='down')).initial_vector().tolist()
+        >>> QuantumViewSpec(QubitElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
         [0j, (1+0j)]
     """
 
     element: Element
-
-    @property
-    def state(self) -> str:
-        """Name of the state in the Hilbert space."""
-        name = self._hilbert_state(type(self.element))
-        if name is None:
-            error_msg = (
-                f'{type(self.element).__name__} {self.element.label!r} takes a HilbertSpec but declares no complex '
-                'state. Declare its state as `StateSpec(domain=CC)`.'
-            )
-            raise ValidationError(error_msg)
-        return name
-
-    @property
-    def space(self) -> HilbertSpec:
-        """Hilbert space of the element, checked against the domain of its state."""
-        from ..engine._utils import declarations_of
-        space = self._hilbert_of(self.element)
-        if space is None:
-            error_msg = f'{type(self.element).__name__} {self.label!r} takes no HilbertSpec.'
-            raise ValidationError(error_msg)
-        space.check()
-        domain = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain
-        dimension = space.dimension if domain is CC else domain.dimension()
-        if dimension != space.dimension:
-            error_msg = (
-                f'{type(self.element).__name__} {self.label!r} has its state {self.state} over CC^{dimension}, but its '
-                f'HilbertSpec has dimension {space.dimension}.'
-            )
-            raise ValidationError(error_msg)
-        return space
+    state: str
+    space: HilbertSpec
 
     @property
     def label(self) -> str:
@@ -161,90 +136,3 @@ class QuantumViewSpec(BaseSpec):
             )
             raise ValidationError(error_msg)
         return vector
-
-    @staticmethod
-    def _hilbert_of(element: BaseElement) -> HilbertSpec | None:
-        """Return the Hilbert space an element takes, of a member for a group, or `None` for a classical element.
-
-        Args:
-            element:
-                An element or a group.
-
-        Returns:
-            space:
-                The first argument of the element that is a `HilbertSpec`, or `None`.
-        """
-        member = QuantumViewSpec._member_of(element)
-        if member is None:
-            return None
-        return next((value for value in member.get_params(deep=False).values() if isinstance(value, HilbertSpec)), None)
-
-    @staticmethod
-    def _is_quantum(element: object) -> bool:
-        """Check whether an element or a group is a quantum subsystem, which takes a `HilbertSpec`.
-
-        Args:
-            element:
-                An element, a group, or any other part.
-
-        Returns:
-            quantum:
-                Whether the element, or a member of the group, takes a Hilbert space.
-        """
-        from ..core.elements import BaseElement
-        return isinstance(element, BaseElement) and QuantumViewSpec._hilbert_of(element) is not None
-
-    @staticmethod
-    def _hilbert_state(element_type: type) -> str | None:
-        """Return the name of the complex state of an element type, over `CC` or `CC^dimension`, or `None` for none.
-
-        Args:
-            element_type:
-                The element type.
-
-        Returns:
-            name:
-                The name of the state.
-
-        Examples:
-            >>> from typing import Annotated
-            >>> from sage.all__sagemath_symbolics import CC
-            >>> from skcomplex.core.elements import Element
-            >>> from skcomplex.specs import StateSpec
-            >>> from skcomplex.specs import QuantumViewSpec
-            >>> class QubitElement(Element):
-            ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
-            ...         super().__init__(label)
-            ...         self.psi = psi
-            >>> QuantumViewSpec._hilbert_state(QubitElement)
-            'psi'
-        """
-        from ..engine._utils import declarations_of
-        for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
-            base_ring = getattr(declaration.domain, 'base_ring', None)
-            if declaration.domain is CC or (base_ring is not None and base_ring() is CC):
-                return name
-        return None
-
-    @staticmethod
-    def _member_of(element: BaseElement) -> Element | None:
-        """Return an element itself, the first member of a group, or `None` for any other part.
-
-        Args:
-            element:
-                An element or a group.
-
-        Returns:
-            member:
-                The element, built with the values of the first member for a group.
-        """
-        from ..core.elements import Element, GroupElement
-        if isinstance(element, Element):
-            return element
-        if not isinstance(element, GroupElement) or not isinstance(element.element, type):
-            return None
-        values = {
-            name: value if isinstance(value, str | HilbertSpec) or np.ndim(value) == 0 else value[0]
-            for name, value in (element.values or {}).items()
-        }
-        return element.element(element.label).set_params(**values)

@@ -12,14 +12,13 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs import EntrySpec, ReferenceSpec
+from ....specs import DeclarationsSpec, EntrySpec, KernelSpec, ReferenceSpec
 from ....types import ReadKind
 from ..._utils import symbol, vector
 from ...problems import ExpressionPrinter
 from .._base import BasePass
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
+from ._layout import LayoutPass
 
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
 _SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
@@ -40,9 +39,8 @@ class DelaysPass(BasePass):
         """Lower the delays of the ordered laws and take their events aside."""
         compilation = self.compilation_
         compilation.delays, compilation.placeholders, compilation.events = [], {}, []
-        declarations = cast('Declarations', compilation.layout)
         compilation.delayed = [
-            (spec, self._with_delays(spec, laws, declarations, compilation))
+            (spec, self._with_delays(spec, laws, compilation))
             for spec, laws in cast('Laws', compilation.ordered)
         ]
 
@@ -51,7 +49,7 @@ class DelaysPass(BasePass):
         spec: KernelSpec,
         tau: Expression,
         minimum: Expression | None,
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
     ) -> float:
         """Return the smallest value of a delay: itself, its declared minimum, or its value at the parameters."""
         if SR(tau).is_numeric():
@@ -76,12 +74,11 @@ class DelaysPass(BasePass):
     def _substitute_delays(
         value: object,
         spec: KernelSpec,
-        declarations: Declarations,
         compilation: Compilation,
     ) -> object:
         """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history."""
         if isinstance(value, FreeModuleElement):
-            return vector(DelaysPass._substitute_delays(item, spec, declarations, compilation) for item in value)
+            return vector(DelaysPass._substitute_delays(item, spec, compilation) for item in value)
         if not isinstance(value, Expression):
             return value
         replacements = {}
@@ -97,6 +94,7 @@ class DelaysPass(BasePass):
             if key in compilation.placeholders:
                 replacements[call] = compilation.placeholders[key]
                 continue
+            declarations = cast('DeclarationsSpec', compilation.layout)
             entry = reference.entry
             members = entry.members if reference.source is ReadKind.MEMBER else None
             indices = (
@@ -113,9 +111,9 @@ class DelaysPass(BasePass):
                 RR,
                 members,
             )
-            declarations.parameters.append(hidden)
-            declarations.ends[False] += hidden.size
-            declarations.initial_parameters.append(np.asarray(initial, dtype=float))
+            values = np.asarray(initial, dtype=float)
+            declarations = LayoutPass._with_entry(declarations, hidden, values, is_state=False)
+            compilation.layout = declarations
             placeholder = symbol(f'_delayed_{index}')
             spec.references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
             compilation.delays.append(
@@ -142,16 +140,15 @@ class DelaysPass(BasePass):
     def _with_delays(
         spec: KernelSpec,
         laws: list[BaseLaw],
-        declarations: Declarations,
         compilation: Compilation,
     ) -> list[BaseLaw]:
         """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation."""
         result: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, CrossingLaw):
-                guard = DelaysPass._substitute_delays(SR(law.guard), spec, declarations, compilation)
+                guard = DelaysPass._substitute_delays(SR(law.guard), spec, compilation)
                 reset = {
-                    target: DelaysPass._substitute_delays(SR(value), spec, declarations, compilation)
+                    target: DelaysPass._substitute_delays(SR(value), spec, compilation)
                     for target, value in (law.reset or {}).items()
                 }
                 compilation.events.append(
@@ -159,12 +156,12 @@ class DelaysPass(BasePass):
                 )
             elif isinstance(law, JumpLaw):
                 result.append(
-                    JumpLaw(DelaysPass._substitute_delays(law.rate, spec, declarations, compilation), law.changes),
+                    JumpLaw(DelaysPass._substitute_delays(law.rate, spec, compilation), law.changes),
                 )
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 result.append(
                     BasePass._replaced(
-                        law, value=DelaysPass._substitute_delays(law.value, spec, declarations, compilation),
+                        law, value=DelaysPass._substitute_delays(law.value, spec, compilation),
                     ),
                 )
             else:

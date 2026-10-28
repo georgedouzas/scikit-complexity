@@ -19,15 +19,13 @@ from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
-from ...specs import DiffusiveLimitSpec, NeighborReadSpec, ReferenceSpec
+from ...specs import DeclarationsSpec, DiffusiveLimitSpec, KernelSpec, NeighborReadSpec, ReferenceSpec
 from ...types import Indices, Offset, ReadKind
 from .._utils import domain_of, symbol
 from ..problems import ExpressionPrinter
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ._base import BaseLowering, BasePass
-from ._declarations import Declarations
-from ._kernel_spec import KernelSpec
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
@@ -93,7 +91,7 @@ class FieldLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        declarations = cast('Declarations', self.compilation_.layout)
+        declarations = cast('DeclarationsSpec', self.compilation_.layout)
         self.fields_ = self._field_entries(declarations)
         self.initial_ = self._initial_values(self.spec, declarations)
         self.shifted_, self.derived_, self.tables_ = {}, {}, {}
@@ -121,13 +119,13 @@ class FieldLowering(BaseLowering):
                 self._note_limit(law.value)
             lowered = self._lower(law.value)
             if isinstance(law.value, Expression):
-                for reference in KernelSpec._target_references(law._get_targets()[0], self.spec):
+                for reference in self.spec._target_references(law._get_targets()[0]):
                     self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
             result.append(BasePass._replaced(law, value=lowered))
         return result
 
     @staticmethod
-    def _field_entries(declarations: Declarations) -> dict[str, FieldElement]:
+    def _field_entries(declarations: DeclarationsSpec) -> dict[str, FieldElement]:
         """Return the fields by the name of each of their entries."""
         return {
             entry.name: block.node.component
@@ -137,7 +135,7 @@ class FieldLowering(BaseLowering):
         }
 
     @staticmethod
-    def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expression, float]:
+    def _initial_values(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[Expression, float]:
         """Return the initial value of every symbol of a component, the first member's for groups."""
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])

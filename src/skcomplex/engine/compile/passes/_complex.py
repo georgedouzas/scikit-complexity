@@ -5,7 +5,6 @@
 
 import numbers
 from collections.abc import Callable
-from functools import partial
 from typing import cast
 
 import numpy as np
@@ -19,7 +18,6 @@ from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws
 from .._complex import _is_zero, _real, _split_complex
-from .._kernel_spec import KernelSpec
 from .._laws import _AGENT_LAWS
 from ._kernels import KernelsPass
 
@@ -44,7 +42,7 @@ class LowerComplexPass(BasePass):
                 [
                     item
                     for law in laws
-                    for item in self._split_law(law, spec.owner, partial(KernelSpec._state_name, spec))
+                    for item in self._split_law(law, spec.owner, spec._state_name)
                 ],
                 block,
             )

@@ -11,13 +11,11 @@ from sage.all__sagemath_symbolics import CC
 from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
 from ....errors import BackendError, LabelError, ValidationError
-from ....specs import CompiledAgentsSpec, NodeSpec, ProblemSpec, VisualSpec
+from ....specs import BlockSpec, CompiledAgentsSpec, DeclarationsSpec, KernelSpec, NodeSpec, ProblemSpec, VisualSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass
-from .._block import Block
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
+from ._layout import LayoutPass
 from ._problem import ProblemPass
 
 _AGENT_VIEW_NAMES = frozenset(
@@ -60,7 +58,7 @@ class AgentsProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the agents and the rules to the problem."""
         compilation = self.compilation_
-        blocks = list(cast('Declarations', compilation.layout).blocks.values())
+        blocks = list(cast('DeclarationsSpec', compilation.layout).blocks.values())
         rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.rules)
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
@@ -92,7 +90,7 @@ class AgentsProblemPass(BasePass):
         return VisualSpec('agents') if visual == VisualSpec() else visual
 
     @staticmethod
-    def _agent_space(blocks: list[Block]) -> BaseSpace | None:
+    def _agent_space(blocks: list[BlockSpec]) -> BaseSpace | None:
         """Return the one space every agent group lives in, or raise an error when groups live in different spaces."""
         spaces = {id(block.node.space): block.node.space for block in blocks if block.node.is_agent}
         if len(spaces) > 1:
@@ -102,7 +100,7 @@ class AgentsProblemPass(BasePass):
 
     @staticmethod
     def _compiled_agents(
-        blocks: list[Block],
+        blocks: list[BlockSpec],
         rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
     ) -> tuple[CompiledAgentsSpec, ...]:
         """Return the agent elements and groups with their states, initial values, parameters, and rules."""
@@ -128,7 +126,7 @@ class AgentsProblemPass(BasePass):
                     element=node.component,
                     size=node.members or 1,
                     states=states,
-                    values={name: node.value_of(name) for name in states},
+                    values={name: LayoutPass._value_of(node, name) for name in states},
                     parameters={name: entry.name for name, entry in block.entries.items()},
                     rules=by_owner.get(node.path, ()),
                     visual=AgentsProblemPass._agent_visual(node),

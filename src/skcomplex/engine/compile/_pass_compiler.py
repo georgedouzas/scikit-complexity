@@ -56,7 +56,6 @@ from ...specs import (
 )
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import _ERROR
-from ...specs._node_spec import _declared_times
 from ...specs._plan_spec import _PlanSpec
 from ...types import DomainKind, FormKind, NoiseKind, VariableKind
 from .._utils import declarations_of, symbol
@@ -65,15 +64,16 @@ from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._compilation import Compilation
-from ._declarations import Declarations
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import _PASSES
 from .passes._fractional_form import FractionalFormPass
 from .passes._lattices import LatticeProblemPass
+from .passes._layout import LayoutPass
 from .passes._noise import NoisePass
 from .passes._quantum_compiler import QuantumCompiler
+from .passes._reduction_lowering import ReductionLowering
 from .passes._rewriting_compiler import RewritingCompiler
 
 _COVARIANCE_TOLERANCE = 1e-12
@@ -390,7 +390,7 @@ class PassCompiler(BaseCompiler):
     def _subsystem_problem(self, compilation: Compilation) -> ProblemSpec:
         """Return the problem of a system as one partition for the elements of its root and one per child system."""
         system = compilation.system
-        elements = {node.path for node in cast('list[NodeSpec]', compilation.nodes) if not node._is_interaction()}
+        elements = {node.path for node in cast('list[NodeSpec]', compilation.nodes) if not node.interaction}
         own = frozenset(path for path in elements if '/' not in path)
         plan = [(system.label, own)] if own else []
         for child in system.systems:
@@ -444,7 +444,7 @@ class PassCompiler(BaseCompiler):
         records = cast('CensusSpec', compilation.census).records
         issues = PassCompiler._census_issues(compilation)
         issues += PassCompiler._bound_issues(nodes)
-        issues += PassCompiler._law_issues(records, _declared_times(system))
+        issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
@@ -652,7 +652,7 @@ class PassCompiler(BaseCompiler):
                 if declaration.bounds is None:
                     continue
                 lower, upper = declaration.bounds
-                value = np.asarray(node.value_of(name), dtype=float)
+                value = np.asarray(LayoutPass._value_of(node, name), dtype=float)
                 if np.all((value >= lower) & (value <= upper)):
                     continue
                 path = f'{node.path}.{name}'
@@ -817,7 +817,7 @@ class PassCompiler(BaseCompiler):
         records = census.records
         stepper = type(solver)
         needs = {
-            'time': {kind for kind in _declared_times(system).values() if kind is not None},
+            'time': {kind for kind in FractionalFormPass._declared_times(system).values() if kind is not None},
             'laws': {type(record.law) for record in records},
             'space': {None if record.space is None else type(record.space) for record in records},
         }
@@ -866,9 +866,9 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _wiener_issues(system: System, nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the Wiener processes outside continuous time or with an invalid covariance."""
-        times = _declared_times(system)
+        times = FractionalFormPass._declared_times(system)
         issues = []
-        for path, wiener in Declarations._noise_processes(nodes).items():
+        for path, wiener in LayoutPass._noise_processes(nodes).items():
             time = times.get(path.rpartition('/')[0])
             if time is not None and not issubclass(time, ContinuousTime):
                 message = f'The Wiener processes {path} exist only in continuous time.'
@@ -1042,7 +1042,7 @@ class PassCompiler(BaseCompiler):
         """Return the problems of the Wiener processes and the noise laws of a system."""
         nodes = cast('list[NodeSpec]', compilation.nodes)
         solver, backend = compilation.solver, compilation.backend
-        wieners = Declarations._noise_processes(nodes)
+        wieners = LayoutPass._noise_processes(nodes)
         issues = PassCompiler._wiener_issues(compilation.system, nodes) + PassCompiler._handle_issues(records)
         if any(issue.code == 'wiener-covariance' for issue in issues):
             return issues
@@ -1066,7 +1066,7 @@ class PassCompiler(BaseCompiler):
         for record in census.records:
             for value in PassCompiler._law_values(record):
                 for reduction in reductions_in(value):
-                    held = _HeldReductionSpec._held_reduction(reduction, census.agents, time, record.path)
+                    held = ReductionLowering._held_reduction(reduction, census.agents, time, record.path)
                     if held is not None:
                         found.setdefault(held.key, held)
         return list(found.values())

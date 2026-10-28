@@ -15,16 +15,13 @@ from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....errors import ValidationError
-from ....specs import LayoutSpec, ReferenceSpec, RunStateSpec
+from ....specs import BlockSpec, DeclarationsSpec, KernelSpec, LayoutSpec, ReferenceSpec, RunStateSpec
 from ....types import Array, ReadKind, VariableKind
 from ..._utils import declarations_of
 from ...problems import ExpressionPrinter
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from .._base import BasePass
-from .._block import Block
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 
 
 class FieldFunctionsPass(BasePass):
@@ -42,7 +39,7 @@ class FieldFunctionsPass(BasePass):
         """Add the discretizations of the fields to the numeric functions."""
         compilation = self.compilation_
         functions = cast('dict[str, Any]', compilation.functions)
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         states = LayoutSpec(tuple(declarations.states))
         functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
         blocks = list(declarations.blocks.values())
@@ -73,7 +70,7 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _compile_fluxes(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
     ) -> tuple[FiniteVolumeKernel, ...]:
         """Return the conservation laws of every finite-volume field from the flux laws of its component."""
         volumes = []
@@ -81,7 +78,7 @@ class FieldFunctionsPass(BasePass):
             fluxes = [law for law in laws if isinstance(law, FluxLaw)]
             if not fluxes:
                 continue
-            targets = [(law, KernelSpec._target_references(law._get_targets()[0], spec)[0]) for law in fluxes]
+            targets = [(law, spec._target_references(law._get_targets()[0])[0]) for law in fluxes]
             owners = {reference.entry.name.rpartition('.')[0] for _, reference in targets}
             for owner in sorted(owners):
                 block = declarations.blocks[owner]
@@ -94,7 +91,7 @@ class FieldFunctionsPass(BasePass):
         return tuple(volumes)
 
     @staticmethod
-    def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
+    def _mesh_constraints(blocks: list[BlockSpec]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
         """Return the state indices and values of the boundary nodes of finite element fields with fixed boundaries."""
         indices: list[npt.NDArray[np.intp]] = []
         values: list[npt.NDArray[np.float64]] = []
@@ -121,7 +118,9 @@ class FieldFunctionsPass(BasePass):
         return np.concatenate(indices).astype(np.intp), np.concatenate(values)
 
     @staticmethod
-    def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]]:
+    def _symmetries(
+        blocks: list[BlockSpec],
+    ) -> list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]]:
         """Return the state indices, the lattice shape, and the axes with their signs of every symmetric field state."""
         found = []
         for block in blocks:
@@ -199,8 +198,8 @@ class FieldFunctionsPass(BasePass):
     def _with_discretizations(
         functions: dict[str, Any],
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: Declarations,
-        blocks: list[Block],
+        declarations: DeclarationsSpec,
+        blocks: list[BlockSpec],
     ) -> tuple[tuple[FiniteVolumeKernel, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
         """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning laws and fixed nodes."""
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)

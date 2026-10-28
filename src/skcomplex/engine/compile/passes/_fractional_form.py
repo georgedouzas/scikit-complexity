@@ -8,14 +8,13 @@ from __future__ import annotations
 from typing import cast
 
 from ....core.spaces import ContinuousTime
+from ....core.system import System
 from ....errors import BackendError, SolverError
-from ....specs import CensusRecordSpec, CensusSpec, FractionalStateSpec, IssueSpec, NodeSpec
-from ....specs._node_spec import _declared_times
+from ....specs import CensusRecordSpec, CensusSpec, DeclarationsSpec, FractionalStateSpec, IssueSpec, NodeSpec
 from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass
 from .._compilation import Compilation
-from .._declarations import Declarations
 from .._forms import _FORMS
 
 
@@ -37,6 +36,33 @@ class FractionalFormPass(BasePass):
             compilation.form = FormKind.FRACTIONAL
 
     @staticmethod
+    def _declared_times(system: System, scope: str = '', inherited: type | None = None) -> dict[str, type | None]:
+        """Return the class of the declared time of every system of a tree by path.
+
+        A nested system without a time of its own inherits the time of its parent.
+
+        Args:
+            system:
+                The root of the tree.
+
+            scope:
+                The path of the system.
+
+            inherited:
+                The time of the parent system.
+
+        Returns:
+            times:
+                The time class of every system by path, such as `ContinuousTime`, or `None` for a system without one.
+        """
+        time = type(system.time) if system.time is not None else inherited
+        times = {scope: time}
+        for child in system.systems:
+            path = f'{scope}/{child.label}' if scope else child.label
+            times.update(FractionalFormPass._declared_times(child, path, time))
+        return times
+
+    @staticmethod
     def _fractional_states(nodes: list[NodeSpec]) -> list[FractionalStateSpec]:
         """Return every state of a fractional order of the elements and groups of a system.
 
@@ -50,7 +76,7 @@ class FractionalFormPass(BasePass):
         """
         found = []
         for node in nodes:
-            if node._is_interaction():
+            if node.interaction:
                 continue
             for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
                 if declaration.is_fractional:
@@ -60,7 +86,7 @@ class FractionalFormPass(BasePass):
     @staticmethod
     def _owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
         """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
-        declared = {entry.name for entry in cast('Declarations', compilation.layout).states}
+        declared = {entry.name for entry in cast('DeclarationsSpec', compilation.layout).states}
         owners = compilation.owners
         return [
             item
@@ -122,7 +148,7 @@ class FractionalFormPass(BasePass):
         states = FractionalFormPass._fractional_states(cast('list[NodeSpec]', compilation.nodes))
         if not states:
             return []
-        times = _declared_times(compilation.system)
+        times = FractionalFormPass._declared_times(compilation.system)
         issues = []
         for item in states:
             if not 0 < item.order < 1:

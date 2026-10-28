@@ -9,13 +9,13 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, UpdateLaw
+from ....specs import DeclarationsSpec, KernelSpec
+from ....specs._declarations_spec import _ACTIVE
 from ....types import ReadKind
 from ..._utils import vector
 from ...problems._edge_search import EdgeSearch
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import _ACTIVE, Declarations
-from .._kernel_spec import KernelSpec
 
 
 class MaskRequestsPass(BasePass):
@@ -32,14 +32,14 @@ class MaskRequestsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mask the requests of the update laws set apart."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         compilation.drawn_apart = [
             (spec, self._masked_requests(spec, laws, declarations))
             for spec, laws in cast('Laws', compilation.drawn_apart)
         ]
 
     @staticmethod
-    def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
+    def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
         """Return update laws that request topology changes, with probabilities that vanish on free rows."""
         mask = MaskRequestsPass._mask_of(spec, declarations)
         if mask is None:
@@ -77,7 +77,7 @@ class MaskRequestsPass(BasePass):
         )
 
     @staticmethod
-    def _mask_of(spec: KernelSpec, declarations: Declarations) -> Expression | None:
+    def _mask_of(spec: KernelSpec, declarations: DeclarationsSpec) -> Expression | None:
         """Return the activity of the rows a spec runs on, the edges of a changing layer or a capacity group's members.
 
         Args:

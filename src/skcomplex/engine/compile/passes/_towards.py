@@ -9,13 +9,11 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
+from ....specs import BlockSpec, DeclarationsSpec, KernelSpec
 from ....specs._weight_spec import _WeightSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._block import Block
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 
@@ -37,12 +35,12 @@ class TowardsPass(BasePass):
         apart = cast('Laws', compilation.drawn_apart)
         towards = self._toward_specs(
             [*cast('Laws', compilation.drawn), *apart],
-            cast('Declarations', compilation.layout),
+            cast('DeclarationsSpec', compilation.layout),
         )
         compilation.drawn_apart = [*apart, *towards]
 
     @staticmethod
-    def _node_block(space: object, declarations: Declarations) -> Block:
+    def _node_block(space: object, declarations: DeclarationsSpec) -> BlockSpec:
         """Return the first variable group on the nodes of a network."""
         for block in declarations.capacity.values():
             if getattr(block.node.component, 'on', None) == 'sites' and block.node.space is space:
@@ -51,7 +49,7 @@ class TowardsPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _toward_specs(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[Any]:
+    def _toward_specs(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: DeclarationsSpec) -> list[Any]:
         """Return the specs of the nodes of every request with a weight, each with the law of the weight to lower."""
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:

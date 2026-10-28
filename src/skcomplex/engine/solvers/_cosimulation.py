@@ -4,11 +4,11 @@
 # License: MIT
 
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import ZZ
+from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sklearn.base import clone
 
 from ...core.laws import (
@@ -42,9 +42,12 @@ from ...core.spaces import (
 )
 from ...errors import SolverError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, PartitionSpec, ProblemSpec, StepSpec, SupportSpec
+from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
+from ..problems import ExpressionPrinter
+from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
 from ._solver import Solver
@@ -200,13 +203,52 @@ class CoSimulationSolver(Solver):
             stepper.set_params(random_state=generator, until=self.until).check().prepare(partition.problem)
             self.steppers_[partition.name] = stepper
         self._held = [
-            (path, reduction, reduction.reducer(problem.time))
+            (path, reduction, self._reducer(reduction, problem.time))
             for path, reduction in ObservableEvaluator._held_reductions_of(problem)
         ]
         self.initial_state_ = initial_state
         self._update_held(0.0, initial_state)
         self.events_, self.stopped_at_ = [], None
         self._collect()
+
+    @staticmethod
+    def _reducer(
+        reduction: _HeldReductionSpec,
+        time: Expression,
+    ) -> Callable[[float, Sequence[Array], Sequence[object]], float]:
+        """Return the function of time, the values of the variables, and the members that computes a held reduction.
+
+        Args:
+            reduction:
+                The held reduction.
+
+            time:
+                The time symbol.
+
+        Returns:
+            reducer:
+                The function.
+        """
+        reduce = reduction.reduce
+        if reduction.argument is None:
+
+            def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[object]) -> float:
+                del t
+                return float(np.real(ReductionKernel._reduce_values(columns[0] if columns else members, reduce)))
+
+            return reduce_values_of
+        condition = SR(1) if reduction.condition is None else reduction.condition
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(reduction.symbols))
+        function = printer.run([reduction.argument, condition])
+
+        def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[object]) -> float:
+            size = len(members)
+            argument, selected = (
+                np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
+            )
+            return float(np.real(ReductionKernel._reduce_values(argument[selected.astype(bool)], reduce)))
+
+        return reduce_expression
 
     def _intervals(self, t: float, until: float) -> list[tuple[float, float]]:
         """Return the synchronisation intervals of a frame after checking that `sync_dt` divides it."""

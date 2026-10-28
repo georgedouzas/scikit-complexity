@@ -11,14 +11,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
-from ....specs import LinearTermSpec, ReferenceSpec
+from ....specs import DeclarationsSpec, KernelSpec, LinearTermSpec, ReferenceSpec
 from ....specs._linear_term_spec import OPERATORS
 from ....types import ReadKind, Terms
 from .._base import BasePass
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._kernel_spec import KernelSpec
 
 
 class LowerFieldsPass(BasePass):
@@ -54,7 +52,7 @@ class LowerFieldsPass(BasePass):
         for law in laws:
             if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
                 continue
-            for reference in KernelSpec._target_references(law._get_targets()[0], spec):
+            for reference in spec._target_references(law._get_targets()[0]):
                 if reference.entry.name in places and reference.source is ReadKind.MEMBER:
                     terms += LowerFieldsPass._linear_terms(law.value, reference, spec.references, places)
         return terms
@@ -67,7 +65,7 @@ class LowerFieldsPass(BasePass):
         facts: dict[str, Any],
     ) -> list[BaseLaw]:
         """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
-        places = FieldLowering._field_entries(cast('Declarations', compilation.layout))
+        places = FieldLowering._field_entries(cast('DeclarationsSpec', compilation.layout))
         facts['linear'] += LowerFieldsPass._linear_terms_of(spec, laws, places)
         if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
             return laws

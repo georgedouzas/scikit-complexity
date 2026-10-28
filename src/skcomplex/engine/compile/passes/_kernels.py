@@ -18,6 +18,8 @@ from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, Upda
 from ....errors import ValidationError
 from ....specs import (
     CallSpec,
+    DeclarationsSpec,
+    KernelSpec,
     LayoutSpec,
     LoweredKernelsSpec,
     NoiseProcessSpec,
@@ -30,8 +32,6 @@ from ..._utils import components_of, symbols_of
 from ...problems._law_kernel import LawKernel
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
@@ -54,7 +54,7 @@ class KernelsPass(BasePass):
         compilation = self.compilation_
         compilation.kernels = self._lower_laws(
             cast('Laws', compilation.reduced),
-            cast('Declarations', compilation.layout),
+            cast('DeclarationsSpec', compilation.layout),
             compilation.outputs,
         )
 
@@ -126,7 +126,7 @@ class KernelsPass(BasePass):
             return False
         if not all(
             reference.source is ReadKind.SINGLE
-            for reference in KernelSpec._target_references(law._get_targets()[0], spec)
+            for reference in spec._target_references(law._get_targets()[0])
         ):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
@@ -147,7 +147,7 @@ class KernelsPass(BasePass):
         spec: KernelSpec,
         law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
         targets: list[ReferenceSpec],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         lowered: dict[int, list[OutputSpec]],
     ) -> list[OutputSpec]:
         """Return the outputs of a law for its target components, with the named Wiener process of a noise law.
@@ -174,7 +174,7 @@ class KernelsPass(BasePass):
     @staticmethod
     def _lower_laws(
         specs: Laws,
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         lowered_outputs: dict[int, list[OutputSpec]],
     ) -> LoweredKernelsSpec:
         """Return the kernels of every law kind, with the law of every output."""
@@ -191,7 +191,7 @@ class KernelsPass(BasePass):
                 if isinstance(law, JumpLaw):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                     jump_changes[id(output)] = [
-                        (KernelSpec._target_references(target, spec)[0], float(increment))
+                        (spec._target_references(target)[0], float(increment))
                         for target, increment in law.changes.items()
                     ]
                     laws_of[id(output)] = (spec, law)
@@ -200,7 +200,7 @@ class KernelsPass(BasePass):
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                     error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
-                targets = KernelSpec._target_references(law._get_targets()[0], spec)
+                targets = spec._target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
                 if isinstance(law, _ASSIGNED_KINDS):
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)

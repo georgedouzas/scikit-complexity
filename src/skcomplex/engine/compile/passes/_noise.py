@@ -16,14 +16,12 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
-from ....specs import WienerProcessSpec
+from ....specs import DeclarationsSpec, KernelSpec, WienerProcessSpec
 from ....specs._noise_term_spec import _NoiseTermSpec
 from ....types import ProcessKey
 from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 
 
 class NoisePass(BasePass):
@@ -42,7 +40,7 @@ class NoisePass(BasePass):
         compilation = self.compilation_
         compilation.corrected = self._with_noise_corrections(
             cast('Laws', compilation.delayed),
-            cast('Declarations', compilation.layout),
+            cast('DeclarationsSpec', compilation.layout),
         )
 
     @staticmethod
@@ -99,7 +97,7 @@ class NoisePass(BasePass):
     @staticmethod
     def _with_noise_corrections(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return laws with the drift correction of every noise law of a convention after it, in the Itô form."""
         terms = NoisePass._noise_terms(specs, declarations)
@@ -119,7 +117,10 @@ class NoisePass(BasePass):
         return result
 
     @staticmethod
-    def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[_NoiseTermSpec]:
+    def _noise_terms(
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+        declarations: DeclarationsSpec,
+    ) -> list[_NoiseTermSpec]:
         """Return every component of every noise law, an independent process standing for itself alone."""
         terms = []
         for spec, laws in specs:
@@ -142,7 +143,7 @@ class NoisePass(BasePass):
         return terms
 
     @staticmethod
-    def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> ProcessKey:
+    def _process_key(spec: KernelSpec, item: object, declarations: DeclarationsSpec) -> ProcessKey:
         """Return the process a label or a handle of a noise law names, as a local label or a Wiener process."""
         if isinstance(item, str):
             return ('local', spec.owner, item)
@@ -156,7 +157,7 @@ class NoisePass(BasePass):
         return ('wiener', *found)
 
     @staticmethod
-    def _process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
+    def _process_keys(spec: KernelSpec, law: NoiseLaw, declarations: DeclarationsSpec) -> list[ProcessKey | None]:
         """Return the process of every component of the target of a noise law, `None` for an independent process."""
         count = len(components_of(law._get_targets()[0]))
         process = law.process

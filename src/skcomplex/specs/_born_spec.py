@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 from ._compiled_flow_spec import _CompiledFlowSpec
 
 if TYPE_CHECKING:
-    from ..engine.compile._kernel_spec import KernelSpec
+    from ._kernel_spec import KernelSpec
 
 
 @dataclass(frozen=True)

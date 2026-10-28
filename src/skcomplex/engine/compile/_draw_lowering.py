@@ -16,15 +16,13 @@ from scipy import stats
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import draws_in, where
 from ...errors import ValidationError
-from ...specs import CallSpec, DrawSpec, EntrySpec, ReferenceSpec, SampledDrawSpec
+from ...specs import CallSpec, DeclarationsSpec, DrawSpec, EntrySpec, KernelSpec, ReferenceSpec, SampledDrawSpec
 from ...specs._request_spec import _RequestSpec
 from ...types import Array, ReadKind
 from .._utils import components_of, symbol, symbols_of, vector
 from ..problems import ExpressionPrinter
 from ..problems._draw_kernel import DrawKernel
 from ._base import BaseLowering
-from ._declarations import Declarations
-from ._kernel_spec import KernelSpec
 
 _NORMAL_KINDS = frozenset({'normal'})
 
@@ -76,7 +74,7 @@ class DrawLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        declarations = cast('Declarations', self.compilation_.layout)
+        declarations = cast('DeclarationsSpec', self.compilation_.layout)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_ = [], None
         return self

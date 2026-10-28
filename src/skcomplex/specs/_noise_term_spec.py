@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 if TYPE_CHECKING:
     from ..core.laws import NoiseLaw
-    from ..engine.compile._kernel_spec import KernelSpec
+    from ._kernel_spec import KernelSpec
 
 
 @dataclass(frozen=True)

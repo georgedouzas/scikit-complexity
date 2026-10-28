@@ -4,20 +4,19 @@
 # License: MIT
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import replace
 from types import SimpleNamespace
-from typing import Any
+from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...base import BaseConfig
 from ...core.laws.utils import count, maximum, mean, minimum, total, variance
 from ...errors import ValidationError
-from ...specs import NodeSpec, ObservableSpec, ObservedSpec, ProblemSpec, ReferenceSpec
+from ...specs import BlockSpec, DeclarationsSpec, NodeSpec, ObservableSpec, ObservedSpec, ProblemSpec, ReferenceSpec
 from ...types import ReadKind
 from .._utils import vector
-from ._block import Block
-from ._declarations import Declarations
 from ._observables import Declared, ObservableEvaluator
 
 _REDUCERS: dict[str, Callable[..., Expression]] = {
@@ -29,13 +28,62 @@ _REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-@dataclass
-class Observer:
-    """Values of the observables that laws read at the current state, built from the blocks of a system."""
+class Observer(BaseConfig):
+    """Values of the observables that laws read at the current state, built from the blocks of a system.
 
-    declarations: Declarations
-    live: Declared
-    values: dict[str, tuple[object, dict[Expression, ReferenceSpec]]] = field(default_factory=dict)
+    `prepare()` starts with no observable evaluated, and `run((node, label))` returns the namespace of the observable a
+    role of a component binds to, evaluating every observable once.
+
+    Args:
+        declarations:
+            The declarations of the components of the system.
+
+        live:
+            The scope and the observable of every observable that laws read at the current state, by path.
+
+    Attributes:
+        values_:
+            The value of every evaluated observable with the references of the symbols it reads, by path.
+    """
+
+    values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]
+
+    def __init__(self, declarations: DeclarationsSpec, live: Declared) -> None:
+        self.declarations = declarations
+        self.live = live
+
+    def _prepare(self, context: object = None) -> Self:
+        """Start with no observable evaluated.
+
+        Args:
+            context:
+                Nothing: the observer serves its declarations.
+
+        Returns:
+            self:
+                The prepared observer.
+        """
+        self.values_ = {}
+        return self
+
+    def _run(self, inputs: tuple[NodeSpec, object]) -> ObservedSpec | None:
+        """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable.
+
+        Args:
+            inputs:
+                The component that holds the role and the label the role binds to.
+
+        Returns:
+            observed:
+                The namespace of the observable with the references of its symbols, or `None`.
+        """
+        node, label = inputs
+        path = f'{node.scope}{label}' if isinstance(label, str) else None
+        if path not in self.live:
+            return None
+        scope, observable = self.live[path]
+        value, references = self._value(path, scope, observable)
+        return ObservedSpec(SimpleNamespace(value=value), dict(references))
 
     def _system_value(
         self,
@@ -45,7 +93,7 @@ class Observer:
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return an expression of the symbols of a system's elements, with earlier observables by label."""
         prefix = f'{scope}/' if scope else ''
-        items: dict[str, Any] = {}
+        items: dict[str, object] = {}
         references: dict[Expression, ReferenceSpec] = {}
         for block in self.declarations.blocks.values():
             for variable, entry in block.entries.items():
@@ -62,47 +110,46 @@ class Observer:
             if other == path:
                 break
             if other_scope == scope:
-                value, other_references = self.value(other, other_scope, earlier)
+                value, other_references = self._value(other, other_scope, earlier)
                 setattr(namespace, earlier.label, value)
                 references.update(other_references)
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         return expression, references
 
-    def value(
+    def _value(
         self,
         path: str,
         scope: str,
         observable: ObservableSpec,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return the value of an observable with the references of the symbols it reads."""
-        if path in self.values:
-            return self.values[path]
+        if path in self.values_:
+            return self.values_[path]
         if observable.group is None:
-            self.values[path] = self._system_value(path, scope, observable)
-            return self.values[path]
+            self.values_[path] = self._system_value(path, scope, observable)
+            return self.values_[path]
         block = self.declarations.blocks[ObservableEvaluator._join(scope, observable.group)]
-        _, references = block.namespace(self._source_of(block))
-        self.values[path] = (self._reduced_value(path, observable, block), references)
-        return self.values[path]
-
-    def evaluate(self, node: NodeSpec, label: object) -> ObservedSpec | None:
-        """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable."""
-        path = f'{node.scope}{label}' if isinstance(label, str) else None
-        if path not in self.live:
-            return None
-        scope, observable = self.live[path]
-        value, references = self.value(path, scope, observable)
-        return ObservedSpec(SimpleNamespace(value=value), dict(references))
+        source = self._source_of(block)
+        references = {item: replace(reference, source=source) for item, reference in block.references.items()}
+        self.values_[path] = (self._reduced_value(path, observable, block), references)
+        return self.values_[path]
 
     @staticmethod
-    def _source_of(block: Block) -> ReadKind:
+    def _source_of(block: BlockSpec) -> ReadKind:
         """Return how laws read the variables of a block from outside it, per member for a group."""
         return ReadKind.MEMBER if block.node.members is not None else ReadKind.SINGLE
 
     @staticmethod
-    def _reduced_value(path: str, observable: ObservableSpec, block: Block) -> object:
+    def _namespace_of(block: BlockSpec) -> SimpleNamespace:
+        """Return the namespace of the variables of a block, with tuples for per-entry parameters."""
+        return SimpleNamespace(
+            **{name: tuple(value) if name in block.per else value for name, value in block.symbols.items()},
+        )
+
+    @staticmethod
+    def _reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
         """Return an observable that reduces a group as a reduction over the group's member symbols."""
-        namespace, _ = block.namespace(Observer._source_of(block))
+        namespace = Observer._namespace_of(block)
         if observable.reduce == 'count':
             return count(over=namespace)
         if observable.variable is not None:
@@ -111,7 +158,7 @@ class Observer:
                     f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
                 )
                 raise ValidationError(error_msg)
-            value: Any = block.symbols[observable.variable]
+            value: object = block.symbols[observable.variable]
         elif observable.expression is None:
             error_msg = (
                 f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'

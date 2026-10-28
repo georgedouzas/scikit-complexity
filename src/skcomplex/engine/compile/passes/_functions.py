@@ -16,6 +16,7 @@ from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import BackendWarning
 from ....specs import (
     AcceleratedSpec,
+    DeclarationsSpec,
     EntrySpec,
     LayoutSpec,
     LoweredFunctionsSpec,
@@ -31,7 +32,6 @@ from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
-from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._forms import STEPWISE_FORMS
 
@@ -62,7 +62,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _equations_of(
         kernels: list[LawKernel],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
         """Return the symbolic equations and their symbols, leaving out components with callables or group sums."""
@@ -144,11 +144,11 @@ class FunctionsPass(BasePass):
         """Return the numeric functions and equations of a form, the update of a stochastic map taking a generator."""
         form = cast('FormKind', compilation.form)
         lowered = cast('LoweredKernelsSpec', compilation.kernels)
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         reductions = cast('ReductionScheduleSpec', compilation.reductions)
         drawing = cast('DrawLowering', compilation.drawing)
         backend = FunctionsPass._chosen_backend(
-            compilation, form, Declarations._member_count(list(declarations.blocks.values())),
+            compilation, form, declarations.members,
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         draws = drawing.draws_

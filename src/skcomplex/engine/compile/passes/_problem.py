@@ -16,8 +16,11 @@ from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....core.spaces import LatticeSpace
 from ....errors import ValidationError
 from ....specs import (
+    BlockSpec,
     CompiledElementSpec,
     CompiledInteractionSpec,
+    DeclarationsSpec,
+    KernelSpec,
     LayoutSpec,
     NodeSpec,
     ProblemSpec,
@@ -33,10 +36,7 @@ from ...problems import ExpressionPrinter
 from ...problems._event_kernel import EventKernel
 from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass
-from .._block import Block
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations
-from .._kernel_spec import KernelSpec
 from ._events import _SWITCHES, RELATIONS
 
 
@@ -68,11 +68,11 @@ class ProblemPass(BasePass):
         compilation.problem = self._problem_of(compilation)
 
     @staticmethod
-    def _companions(blocks: list[Block]) -> dict[str, tuple[str, str, int]]:
+    def _companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
         """Return every companion state by name, with its kind, the name of its state, and its index."""
         companions = {}
         for block in blocks:
-            if block.node._is_interaction() or block.node.is_agent:
+            if block.node.interaction or block.node.is_agent:
                 continue
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():
@@ -88,7 +88,7 @@ class ProblemPass(BasePass):
         return companions
 
     @staticmethod
-    def _compiled_elements(blocks: list[Block]) -> tuple[CompiledElementSpec, ...]:
+    def _compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
         """Return the elements and groups that are not agents with the dotted names of their states and parameters."""
         return tuple(
             CompiledElementSpec(
@@ -112,7 +112,7 @@ class ProblemPass(BasePass):
                 lattice_shape=ProblemPass._lattice_shape(block.node.component),
             )
             for block in blocks
-            if not block.node._is_interaction() and not block.node.is_agent
+            if not block.node.interaction and not block.node.is_agent
         )
 
     @staticmethod
@@ -123,8 +123,8 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _compiled_interactions(
-        blocks: list[Block],
-        specs: list[tuple[KernelSpec, Block]],
+        blocks: list[BlockSpec],
+        specs: list[tuple[KernelSpec, BlockSpec]],
     ) -> tuple[CompiledInteractionSpec, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
@@ -134,13 +134,13 @@ class ProblemPass(BasePass):
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
             )
             for block in blocks
-            if block.node._is_interaction()
+            if block.node.interaction
         )
 
     @staticmethod
     def _problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
-        declarations = cast('Declarations', compilation.layout)
+        declarations = cast('DeclarationsSpec', compilation.layout)
         blocks = list(declarations.blocks.values())
         form = cast('FormKind', compilation.form)
         reduced = cast('Laws', compilation.reduced)
@@ -160,7 +160,7 @@ class ProblemPass(BasePass):
             elements=ProblemPass._compiled_elements(blocks),
             interactions=ProblemPass._compiled_interactions(
                 blocks,
-                cast('list[tuple[KernelSpec, Block]]', compilation.specs),
+                cast('list[tuple[KernelSpec, BlockSpec]]', compilation.specs),
             ),
             system=compilation.system,
             companions=ProblemPass._companions(blocks),
@@ -517,11 +517,11 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _history(blocks: list[Block]) -> dict[str, Any]:
+    def _history(blocks: list[BlockSpec]) -> dict[str, Any]:
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:
-            if block.node._is_interaction() or block.node.is_agent:
+            if block.node.interaction or block.node.is_agent:
                 continue
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():

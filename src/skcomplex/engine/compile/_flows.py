@@ -26,19 +26,24 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...errors import ConservationError, LabelError, ValidationError
-from ...specs import LoopTermSpec, ReferenceSpec, TransferNetworkSpec
+from ...specs import (
+    BlockSpec,
+    DeclarationsSpec,
+    EntrySpec,
+    KernelSpec,
+    LoopTermSpec,
+    ReferenceSpec,
+    TransferNetworkSpec,
+)
 from ...specs._born_spec import _BornSpec
 from ...specs._compiled_delay_spec import _CompiledDelaySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ...specs._record_spec import _RecordSpec
 from ...specs._recorded_spec import _RecordedSpec
+from ...types import Array, VariableKind
 from ...types import ReadKind as Read
-from ...types import VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ._base import BaseLowering, BasePass
-from ._block import Block
-from ._declarations import Declarations
-from ._kernel_spec import KernelSpec
 
 _BOUNDARY_PREFIX = '__boundary'
 
@@ -94,7 +99,7 @@ class TransferLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        self.quantities_ = self._quantities_of(cast('Declarations', self.compilation_.layout).blocks)
+        self.quantities_ = self._quantities_of(cast('DeclarationsSpec', self.compilation_.layout).blocks)
         self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
         return self
 
@@ -121,8 +126,21 @@ class TransferLowering(BaseLowering):
             for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
         ]
 
+    def _replace_specs(self, specs: Mapping[int, KernelSpec]) -> None:
+        """Replace the kernel specs the lowering holds by new ones, such as specs whose rows are settled.
+
+        Args:
+            specs:
+                The new spec of every replaced spec, by the identity of the replaced spec.
+        """
+        born = {id(item): replace(item, spec=specs.get(id(item.spec), item.spec)) for item in self.flows_}
+        self.flows_ = [born[id(item)] for item in self.flows_]
+        self.born_ = {key: born[id(item)] for key, item in self.born_.items()}
+        self.records_ = [replace(record, spec=specs.get(id(record.spec), record.spec)) for record in self.records_]
+        self.terms_ = [(specs.get(id(spec), spec), *rest) for spec, *rest in self.terms_]
+
     @staticmethod
-    def _quantities_of(blocks: Mapping[str, Block]) -> dict[str, str]:
+    def _quantities_of(blocks: Mapping[str, BlockSpec]) -> dict[str, str]:
         """Return the quantity of every state tagged with one, by entry name."""
         quantities = {}
         for block in blocks.values():
@@ -268,10 +286,13 @@ class TransferLowering(BaseLowering):
     def _accumulate(
         self,
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: Declarations,
+        declarations: DeclarationsSpec,
         discrete: bool,
-    ) -> dict[str, str]:
-        """Add a hidden state per quantity that accumulates the net inflow from the environment."""
+    ) -> tuple[DeclarationsSpec, dict[str, str]]:
+        """Add a hidden state per quantity that accumulates the net inflow from the environment.
+
+        Returns the declarations with the hidden states, and the name of the hidden state of every quantity.
+        """
         boundary: dict[str, list[_BornSpec]] = defaultdict(list)
         for born in self.flows_:
             if born.sign and born.flow.quantity is not None:
@@ -282,7 +303,7 @@ class TransferLowering(BaseLowering):
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
             name = f'{_BOUNDARY_PREFIX}.{quantity}'
-            entry = declarations.declare_state(name, np.zeros(1), RR)
+            declarations, entry = self._declare_state(declarations, name, np.zeros(1), ())
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
@@ -295,7 +316,7 @@ class TransferLowering(BaseLowering):
                 continue
             for born in items:
                 self._add_boundary(laws_of[id(born.spec)], born, accumulator)
-        return names
+        return declarations, names
 
     def _add_boundary(self, laws: list[BaseLaw], born: _BornSpec, accumulator: Expression) -> None:
         """Add the inflow of a boundary flow to the accumulator of its quantity, as a rate or a jump increment."""
@@ -305,15 +326,24 @@ class TransferLowering(BaseLowering):
                 return
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
-    def _expand_delays(self, spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations, discrete: bool) -> None:
-        """Replace the delays and smoothings in a spec's rate laws and records by hidden states with their own laws."""
+    def _expand_delays(
+        self,
+        spec: KernelSpec,
+        laws: list[BaseLaw],
+        declarations: DeclarationsSpec,
+        discrete: bool,
+    ) -> DeclarationsSpec:
+        """Replace the delays and smoothings in a spec's rate laws and records by hidden states with their own laws.
+
+        Returns the declarations with the hidden states.
+        """
         records = [record for record in self.records_ if record.spec is spec]
         counter = 0
         while True:
             values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
             calls = [call for value in values for call in self._delay_calls(value)]
             if not calls:
-                return
+                return declarations
             if discrete or spec.rows > 1:
                 error_msg = (
                     f'{spec.owner} uses {calls[0]}, but delays and smoothings add hidden states to systems of rate '
@@ -328,11 +358,8 @@ class TransferLowering(BaseLowering):
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
             start = self._initial(value, spec, declarations)
             each = self._initial(SR(time), spec, declarations) / order if material else 1.0
-            entry = declarations.declare_state(
-                f'{spec.owner}.{kind}_{counter}',
-                np.full(order, start * each),
-                RR,
-                (order,),
+            declarations, entry = self._declare_state(
+                declarations, f'{spec.owner}.{kind}_{counter}', np.full(order, start * each), (order,),
             )
             for column, stage in enumerate(stages):
                 spec.references[stage] = ReferenceSpec(entry, True, column, Read.SINGLE)
@@ -367,16 +394,17 @@ class TransferLowering(BaseLowering):
             ValidationError:
                 A delay reads a group or belongs to a discrete system.
         """
-        declarations = cast('Declarations', self.compilation_.layout)
+        declarations = cast('DeclarationsSpec', self.compilation_.layout)
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
         discrete = any(isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws)
         if discrete:
             self._to_updates(specs)
-        boundary = self._accumulate(specs, declarations, discrete)
+        declarations, boundary = self._accumulate(specs, declarations, discrete)
         for spec, laws in specs:
-            self._expand_delays(spec, laws, declarations, discrete)
+            declarations = self._expand_delays(spec, laws, declarations, discrete)
+        self.compilation_.layout = declarations
         quantities: dict[str, list[str]] = defaultdict(list)
         for name, quantity in self.quantities_.items():
             quantities[quantity].append(name)
@@ -394,6 +422,18 @@ class TransferLowering(BaseLowering):
             discrete=discrete,
             delays=tuple(self.delays_),
         )
+
+    @staticmethod
+    def _declare_state(
+        declarations: DeclarationsSpec,
+        name: str,
+        initial: Array,
+        shape: tuple[int, ...],
+    ) -> tuple[DeclarationsSpec, EntrySpec]:
+        """Return the declarations with a real hidden state added after every state declared so far, and its entry."""
+        entry = EntrySpec(name, declarations.ends[True], shape, RR)
+        states, initial_states = (*declarations.states, entry), (*declarations.initial_states, initial)
+        return replace(declarations, states=states, initial_states=initial_states), entry
 
     @staticmethod
     def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
@@ -501,7 +541,7 @@ class TransferLowering(BaseLowering):
         labels.add(label)
 
     @staticmethod
-    def _initial(item: Expression, spec: KernelSpec, declarations: Declarations) -> float:
+    def _initial(item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
         """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])

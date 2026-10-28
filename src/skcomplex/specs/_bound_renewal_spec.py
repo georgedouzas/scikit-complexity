@@ -14,8 +14,8 @@ from ._base_spec import BaseSpec
 from ._entry_spec import EntrySpec
 
 if TYPE_CHECKING:
-    from ..engine.compile._kernel_spec import KernelSpec
     from ..engine.compile._renewal_law import RenewalLaw
+    from ._kernel_spec import KernelSpec
 
 
 @dataclass(frozen=True)
