@@ -9,7 +9,8 @@ from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
+from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.models import create
 
 LORENZ_TERMS = {

@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from typing import cast
 
 import numpy as np
 
@@ -31,36 +31,42 @@ class EulerMaruyamaSolver(SDESolver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
-        >>> from skcomplex.engine.solvers import EulerMaruyamaSolver
+        >>> from skcomplex.engine.solvers import EulerMaruyamaSolver, Step
         >>> problem = compile_system(
         ...     System(
         ...         elements=[AssetElement('stock', price=100)],
         ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
-        >>> stepper = EulerMaruyamaSolver(dt=1e-3).prepare(problem, np.random.default_rng(0))
-        >>> bool(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
+        >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).check().prepare(problem)
+        >>> bool(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={
-            JumpLaw,
-            RateLaw,
-            FluxLaw,
-            EquationLaw,
-            CrossingLaw,
-            BoundaryLaw,
-            TransferLaw,
-            NoiseLaw,
-        },
-        noise=set(NoiseKind),
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={
+                JumpLaw,
+                RateLaw,
+                FluxLaw,
+                EquationLaw,
+                CrossingLaw,
+                BoundaryLaw,
+                TransferLaw,
+                NoiseLaw,
+            },
+            noise=set(NoiseKind),
+            orders={OrderKind.INTEGER},
+        )
 
-    renews: ClassVar[bool] = True
+    @classmethod
+    def _is_renewing(cls) -> bool:
+        """Return whether the solver fires renewal laws."""
+        return True
 
     def _increment(
         self,

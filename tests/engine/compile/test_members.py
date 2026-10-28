@@ -121,7 +121,7 @@ def test_shift_member_runs_the_same_on_both_backends():
             interactions=[RingInteraction('ring', cars='cars')],
         )
         simulation = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend).check().run(until=2.0)
-        assert simulation.problem_.backend == backend.name
+        assert simulation.problem_.backend == backend._get_name()
         trajectories.append(simulation.trajectory_.values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 

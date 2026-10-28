@@ -196,4 +196,4 @@ def test_particle_solver_rejects_rate_laws_when_run():
     """Test that the particle solver refuses a compiled problem with rate laws."""
     problem = compile_system(_system(DecayInteraction('decay', population='wealth')))
     with pytest.raises(SolverError, match='encounter laws alone'):
-        KineticSolver().prepare(problem, np.random.default_rng(0))
+        KineticSolver(random_state=0).check().prepare(problem)

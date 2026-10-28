@@ -38,7 +38,7 @@ def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angl
 
 
 @njit(cache=True)
-def neighbors(  # noqa: C901
+def _neighbors(  # noqa: C901
     codes: npt.NDArray[np.int64],
     ignored: npt.NDArray[np.bool_],
     opening: int,

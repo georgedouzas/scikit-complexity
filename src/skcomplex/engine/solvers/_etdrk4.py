@@ -7,13 +7,13 @@ import numpy as np
 
 from ...core.errors import SolverError
 from ...core.types import Vector
-from ._split import _SplitSolver
+from ._split import SplitSolver
 from ._split_operator import Complex
 
 _CONTOUR_POINTS = 64
 
 
-class ETDRK4Solver(_SplitSolver):
+class ETDRK4Solver(SplitSolver):
     """Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews, for spectral fields.
 
     The linear part is integrated exactly per Fourier mode and the remainder by a fourth-order scheme, with the

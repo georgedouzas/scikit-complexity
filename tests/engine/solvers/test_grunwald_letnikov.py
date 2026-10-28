@@ -22,6 +22,7 @@ from skcomplex.engine.solvers import (
     GrunwaldLetnikovSolver,
     L1Solver,
     RK4Solver,
+    Step,
 )
 
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
@@ -103,11 +104,11 @@ class CounterElement(Element):
 
 def _advance(stepper, problem, until, frames=1):
     """Return the state of a problem after advancing a stepper to a time in equal frames."""
-    stepper.prepare(problem, np.random.default_rng(0))
+    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     x, t = problem.initial_state, 0.0
     for index in range(frames):
         following = until * (index + 1) / frames
-        x = stepper.run(t, x, problem.initial_parameters, following)
+        x = stepper.run(Step(t, x, problem.initial_parameters, following))
         t = following
     return x
 
@@ -168,10 +169,10 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
     """Test that a change of a fractional state between frames starts a new history from the changed state."""
     problem = compile_system(System(elements=[RelaxingElement('a')]))
     stepper = GrunwaldLetnikovSolver(dt=0.01)
-    stepper.prepare(problem, np.random.default_rng(0))
+    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     p = problem.initial_parameters
-    stepper.run(0.0, problem.initial_state, p, 1.0)
-    restarted = stepper.run(1.0, np.array([1.0]), p, 2.0)
+    stepper.run(Step(0.0, problem.initial_state, p, 1.0))
+    restarted = stepper.run(Step(1.0, np.array([1.0]), p, 2.0))
     fresh = _advance(GrunwaldLetnikovSolver(dt=0.01), problem, 1.0)
     assert restarted == pytest.approx(fresh, abs=1e-12)
 
@@ -180,25 +181,25 @@ def test_scheme_rejects_times_off_the_grid():
     """Test that a frame that does not fall on the grid of the run is rejected."""
     problem = compile_system(System(elements=[RelaxingElement('a')]))
     stepper = L1Solver(dt=0.1)
-    stepper.prepare(problem, np.random.default_rng(0))
+    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match='multiple of dt'):
-        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 0.25)
+        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 0.25))
 
 
 @pytest.mark.parametrize(('stepper', 'match'), [(L1Solver(dt=0.0), 'dt'), (L1Solver(memory=-1.0), 'memory')])
 def test_scheme_rejects_invalid_settings(stepper, match):
     """Test that a step or a memory window that is not positive is rejected."""
     problem = compile_system(System(elements=[RelaxingElement('a')]))
-    stepper.prepare(problem, np.random.default_rng(0))
+    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match=match):
-        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
 
 
 def test_ordinary_stepper_rejects_fractional_form():
     """Test that an ODE stepper rejects a problem of the fractional form."""
     problem = compile_system(System(elements=[RelaxingElement('a')]))
     with pytest.raises(SolverError, match='fractional differential equations'):
-        RK4Solver().prepare(problem, np.random.default_rng(0))
+        RK4Solver(random_state=0).check().prepare(problem)
 
 
 def test_simulation_runs_fractional_system_with_default_solver():

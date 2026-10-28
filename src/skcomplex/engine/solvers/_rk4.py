@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Callable
-from typing import ClassVar, cast
+from typing import cast
 
 import numpy as np
 
@@ -45,41 +46,59 @@ class RK4Solver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.engine.solvers import RK4Solver
+        >>> from skcomplex.engine.solvers import RK4Solver, Step
         >>> problem = compile_system(
         ...     System(
         ...         elements=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = RK4Solver(dt=0.001).prepare(problem, np.random.default_rng(0))
-        >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 10)
+        >>> stepper = RK4Solver(dt=0.001, random_state=0).check().prepare(problem)
+        >>> round(float(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 10)
         2.7182818285
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={
-            JumpLaw,
-            RateLaw,
-            FluxLaw,
-            EquationLaw,
-            CrossingLaw,
-            BoundaryLaw,
-            TransferLaw,
-            EncounterLaw,
-            ProliferationLaw,
-            DestructionLaw,
-        },
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={
+                JumpLaw,
+                RateLaw,
+                FluxLaw,
+                EquationLaw,
+                CrossingLaw,
+                BoundaryLaw,
+                TransferLaw,
+                EncounterLaw,
+                ProliferationLaw,
+                DestructionLaw,
+            },
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
-    renews: ClassVar[bool] = True
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, dt: float = 1e-3) -> None:
+    @classmethod
+    def _is_renewing(cls) -> bool:
+        """Return whether the solver fires renewal laws."""
+        return True
+
+    def __init__(
+        self,
+        dt: float = 1e-3,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
     def _step(self, time: float, state: Vector, p: Vector, lengths: float | Vector) -> Vector:
         """Return the state after one Runge-Kutta step and the boundary laws, with one step length or one per state."""

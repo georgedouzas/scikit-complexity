@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -39,44 +38,52 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.core.elements import ParticleElement
-        >>> from skcomplex.engine.solvers import VelocityVerletSolver
+        >>> from skcomplex.engine.solvers import Step, VelocityVerletSolver
         >>> system = System(elements=[ParticleElement('ball', v=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = compile_system(system)
-        >>> stepper = VelocityVerletSolver(dt=0.1).prepare(problem, np.random.default_rng(0))
-        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).round(10).tolist()
+        >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).check().prepare(problem)
+        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).round(10).tolist()
         [2.0, 2.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, dt: float = 1e-3) -> None:
+    def __init__(
+        self,
+        dt: float = 1e-3,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper and find the position and velocity components of the problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator, unused by this deterministic stepper.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem is not an ODE, or has states that are neither positions nor velocities.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         BaseSolver._reject_hybrid(problem, type(self).__name__)
         self.positions_, self.velocities_ = self._position_pairs(problem)
 

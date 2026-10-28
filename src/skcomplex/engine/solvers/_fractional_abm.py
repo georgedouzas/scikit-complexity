@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+
 import numpy as np
 from scipy.special import gamma
 
@@ -34,7 +36,7 @@ class FractionalABMSolver(CaputoSolver):
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.engine.solvers import FractionalABMSolver
+        >>> from skcomplex.engine.solvers import FractionalABMSolver, Step
         >>> class RelaxingElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
         ...         super().__init__(label)
@@ -43,13 +45,21 @@ class FractionalABMSolver(CaputoSolver):
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
-        >>> stepper = FractionalABMSolver(dt=0.001).prepare(problem, np.random.default_rng(0))
-        >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
+        >>> stepper = FractionalABMSolver(dt=0.001, random_state=0).check().prepare(problem)
+        >>> round(float(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 2)
         0.43
     """
 
-    def __init__(self, dt: float = 0.01) -> None:
+    def __init__(
+        self,
+        dt: float = 0.01,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
     def _restart(self, t: float, x: Vector) -> None:
         """Start the history of drifts and the weights of the predictor and the corrector."""

@@ -18,7 +18,7 @@ from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.compile._field_lowering import FieldLowering
 from skcomplex.engine.problems import State
-from skcomplex.engine.solvers import SplitOperator
+from skcomplex.engine.solvers._split_operator import SplitOperator
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky

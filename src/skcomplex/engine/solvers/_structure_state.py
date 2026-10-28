@@ -7,9 +7,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..problems import BaseValue
+
 
 @dataclass(frozen=True)
-class StructureState:
+class StructureState(BaseValue):
     """Structures of the elements a stepper keeps outside the state vector at one frame, with their measures.
 
     Args:

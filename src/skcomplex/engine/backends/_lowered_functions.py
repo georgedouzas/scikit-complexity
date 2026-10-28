@@ -3,12 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.types import Indices
+from ..problems import BaseValue
 from ..problems._accelerated import Accelerated
 from ..problems._jump_channels import _JumpChannels
 from ..problems._problem import VectorFunction
@@ -23,8 +25,8 @@ _FUNCTION_KINDS: dict[str, type] = {
 }
 
 
-@dataclass
-class Lowering:
+@dataclass(frozen=True)
+class LoweredFunctions(BaseValue):
     """Numeric functions of a form produced by a backend.
 
     Args:
@@ -76,4 +78,4 @@ class Lowering:
     update: VectorFunction | None = None
     boundary: VectorFunction | None = None
     accelerated: Accelerated | None = None
-    backends: dict[str, str] = field(default_factory=dict)
+    backends: Mapping[str, str] = field(default_factory=dict)

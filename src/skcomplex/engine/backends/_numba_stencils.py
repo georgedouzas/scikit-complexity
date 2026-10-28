@@ -13,7 +13,7 @@ PERIODIC, ZERO_FLUX = 0, 1
 
 
 @njit(cache=True)
-def neighbor_value(  # noqa: PLR0917
+def _neighbor_value(  # noqa: PLR0917
     values: npt.NDArray[np.float64],
     start: int,
     columns: int,

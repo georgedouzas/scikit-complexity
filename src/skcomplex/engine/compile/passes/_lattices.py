@@ -28,7 +28,6 @@ from ....core.spaces import (
 )
 from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ..._utils import symbol
-from ...backends import resolve_backend
 from ...problems import ExpressionPrinter, Problem
 from ...problems._arguments import Arguments, Indices
 from ...problems._drive_kernel import DriveKernel
@@ -39,7 +38,7 @@ from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._read_kind import ReadKind
 from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
-from .._base import BasePass
+from .._base import BaseCompiler, BasePass
 from .._census import Census
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -69,7 +68,7 @@ class LatticeProblemPass(BasePass):
         compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         members = Declarations._member_count(list(declarations.blocks.values()))
-        fused = resolve_backend(compilation.backend, members).name == 'numba'
+        fused = BaseCompiler._resolve_backend(compilation.backend, members)._get_name() == 'numba'
         compilation.problem = replace(
             cast('Problem', compilation.problem),
             lattice=self._compile_lattice(cast('Laws', compilation.reduced), declarations, fused),

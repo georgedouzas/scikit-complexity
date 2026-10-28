@@ -23,7 +23,8 @@ from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, PassCompiler, compile_system
 from ..problems import BaseProblem, Entry, Form
 from ..problems._state import State
-from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
+from ..solvers import AgentState, BaseSolver, CoSimulationSolver, Step, StructureState
+from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._frames import Frame
@@ -233,7 +234,8 @@ class Simulation(BaseConfig):
                 The simulated time the run stops at.
         """
         self.dt_ = self._check_dt(self.problem_, until)
-        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
+        rng = np.random.default_rng(self.random_state)
+        self.stepper_.set_params(random_state=rng, until=until).check().prepare(self.problem_)
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
@@ -289,7 +291,7 @@ class Simulation(BaseConfig):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                self.state_ = self.stepper_.run(self.time_, self.state_, self.parameters_, target, final=released)
+                self.state_ = self.stepper_.run(Step(self.time_, self.state_, self.parameters_, target), final=released)
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -303,7 +305,7 @@ class Simulation(BaseConfig):
                 self.clock_.run(self.time_ - origin)
         finally:
             if not released:
-                self.stepper_.run(self.time_, self.state_, self.parameters_, self.time_, final=True)
+                self.stepper_.run(Step(self.time_, self.state_, self.parameters_, self.time_), final=True)
             for observer in self.observers_:
                 observer.run(final=True)
 

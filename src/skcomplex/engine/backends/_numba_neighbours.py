@@ -67,7 +67,7 @@ def _cells_around(positions: Floats, member: int, reach: float, context: Context
     low = np.empty(n_dim, dtype=np.int64)
     high = np.empty(n_dim, dtype=np.int64)
     for dimension in range(n_dim):
-        center = cell_coordinate(positions[member, dimension], dimension, shape, box)
+        center = _cell_coordinate(positions[member, dimension], dimension, shape, box)
         steps = math.ceil(reach / sides[dimension])
         if box[1] and 2 * steps + 1 >= counts[dimension]:
             low[dimension], high[dimension] = 0, counts[dimension] - 1
@@ -126,7 +126,7 @@ def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) 
     cached one, and generated kernels call the searches that way.
     """
     n_members = positions.shape[0]
-    context = (build_grid(positions, radius, box), aim, box)
+    context = (_build_grid(positions, radius, box), aim, box)
     counts = np.zeros(n_members, dtype=np.int64)
     for member in range(n_members):
         counts[member] = _scan(positions, member, radius, context, (np.empty(0, dtype=np.int64), np.empty(0), False))
@@ -204,7 +204,7 @@ def _sorted_rows(indptr: Integers, indices: Integers, edges: Integers) -> None:
 
 
 @njit(cache=True)
-def cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
+def _cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
     """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin.
 
     Args:
@@ -233,7 +233,7 @@ def cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int
 
 
 @njit(cache=True)
-def build_grid(positions: Floats, side: float, box: Box) -> Grid:
+def _build_grid(positions: Floats, side: float, box: Box) -> Grid:
     """Return a grid of cells of at least a side, coarsened to a few cells per member, with the members binned.
 
     The grid holds at most eight cells per member, and at least 64, so members far apart do not allocate a cell for
@@ -275,7 +275,7 @@ def build_grid(positions: Floats, side: float, box: Box) -> Grid:
     for member in range(n_members):
         flat = 0
         for dimension in range(n_dim):
-            flat += cell_coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
+            flat += _cell_coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
         cells[member] = flat
         starts[flat + 1] += 1
     for cell in range(n_cells):
@@ -289,7 +289,7 @@ def build_grid(positions: Floats, side: float, box: Box) -> Grid:
 
 
 @njit(cache=True)
-def radius_neighbours(
+def _radius_neighbours(
     positions: Floats,
     radius: float,
     periods: Floats,
@@ -322,7 +322,7 @@ def radius_neighbours(
 
 
 @njit(cache=True)
-def cone_neighbours(  # noqa: PLR0917
+def _cone_neighbours(  # noqa: PLR0917
     positions: Floats,
     headings: Floats,
     radius: float,
@@ -359,7 +359,7 @@ def cone_neighbours(  # noqa: PLR0917
 
 
 @njit(cache=True)
-def nearest_neighbours(
+def _nearest_neighbours(
     positions: Floats,
     k: int,
     periods: Floats,
@@ -370,7 +370,7 @@ def nearest_neighbours(
 
     The search starts in the cells of a grid sized for about `k` members per cell and doubles its reach until it
     holds `k` members, every member outside the cells it searched being farther than its reach. The search is serial,
-    as in `radius_neighbours`.
+    as in `_radius_neighbours`.
 
     Args:
         positions:
@@ -396,7 +396,7 @@ def nearest_neighbours(
     k = max(0, min(k, n_members - 1))
     box = (periods, periodic)
     side = _side(positions, k, box)
-    context = (build_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
+    context = (_build_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
     extra = 1 if center else 0
     indptr = np.arange(n_members + 1, dtype=np.int64) * (k + extra)
     indices = np.empty(indptr[n_members], dtype=np.int64)
@@ -411,7 +411,7 @@ def nearest_neighbours(
 
 
 @njit(cache=True)
-def edge_neighbours(  # noqa: PLR0917
+def _edge_neighbours(  # noqa: PLR0917
     p: Floats,
     ends: tuple[int, int, int],
     n_edges: int,

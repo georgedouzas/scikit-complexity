@@ -9,10 +9,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from ...core.types import Vector
+from ..problems import BaseValue
 
 
 @dataclass(frozen=True)
-class ControlSolution:
+class ControlSolution(BaseValue):
     """Optimal control of a run over its horizon, sampled on a grid of times.
 
     Args:

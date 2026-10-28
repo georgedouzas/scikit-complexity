@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -44,22 +44,37 @@ class KineticSolver(Solver):
     Examples:
         >>> from skcomplex.engine.solvers import KineticSolver
         >>> from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-        >>> KineticSolver(n=1000).supports.laws == {EncounterLaw, ProliferationLaw, DestructionLaw}
+        >>> KineticSolver(n=1000)._get_support().laws == {EncounterLaw, ProliferationLaw, DestructionLaw}
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={LatticeSpace},
-        laws={EncounterLaw, ProliferationLaw, DestructionLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={LatticeSpace},
+            laws={EncounterLaw, ProliferationLaw, DestructionLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, n: int = 10_000, dt: float = 0.01) -> None:
+    def __init__(
+        self,
+        n: int = 10_000,
+        dt: float = 0.01,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.n = n
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
     def _check_problem(self, problem: Problem) -> None:
         """Raise an error when a problem has laws other than encounters, or no encounter."""
@@ -80,25 +95,19 @@ class KineticSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem and draw the particles of the initial state.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that draws the particles and their encounters.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem has another form, laws other than encounters, or no encounter, `n` or `dt` is not
                 positive, or a density of the initial state is negative.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         self._check_problem(problem)
         self._encounters = cast('KineticProblem', problem).encounters
         self.densities_ = self._densities(self._encounters)

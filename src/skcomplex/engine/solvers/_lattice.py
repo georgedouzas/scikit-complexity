@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from typing import cast
 
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -25,21 +25,27 @@ class LatticeSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.engine.solvers import LatticeSolver
+        >>> from skcomplex.engine.solvers import LatticeSolver, Step
         >>> problem = compile_system(elementary_automaton(30, size=11))
-        >>> stepper = LatticeSolver().prepare(problem, np.random.default_rng(0))
-        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).astype(int).tolist()
+        >>> stepper = LatticeSolver(random_state=0).check().prepare(problem)
+        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={DiscreteTime},
-        space={LatticeSpace, NetworkSpace},
-        laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={DiscreteTime},
+            space={LatticeSpace, NetworkSpace},
+            laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.LATTICE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.LATTICE
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Apply the lattice laws once per integer time step from `t` up to `until`.

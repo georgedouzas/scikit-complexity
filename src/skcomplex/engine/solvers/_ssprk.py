@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import ClassVar
 
 import numpy as np
 
@@ -38,46 +37,56 @@ class SSPRKSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.fluids import burgers
-        >>> from skcomplex.engine.solvers import SSPRKSolver
+        >>> from skcomplex.engine.solvers import SSPRKSolver, Step
         >>> problem = compile_system(burgers(64))
-        >>> stepper = SSPRKSolver().prepare(problem, np.random.default_rng(0))
-        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = SSPRKSolver(random_state=0).check().prepare(problem)
+        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, order: int = 3, cfl: float = 0.4, dt: float = 0.01) -> None:
+    def __init__(
+        self,
+        order: int = 3,
+        cfl: float = 0.4,
+        dt: float = 0.01,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.order = order
         self.cfl = cfl
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper and check its order.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator, unused.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The order is not 2 or 3, or the problem is not an ODE.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         if self.order not in {2, 3}:
             error_msg = f'SSPRKSolver has order 2 or 3, not {self.order}.'
             raise SolverError(error_msg)

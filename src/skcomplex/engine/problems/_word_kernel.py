@@ -33,8 +33,8 @@ from ._rewriting_loops import (
     RIGHT,
     ROLL_LEFT,
     ROLL_RIGHT,
+    _neighbors,
     _walk_word,
-    neighbors,
 )
 from ._state import State
 from ._successor import _Successor
@@ -271,7 +271,7 @@ class WordKernel(BaseKernel):
         chosen = np.full(len(codes), -1, dtype=np.int64)
         links = None
         if any(group.left or group.right for group in self.groups):
-            links = neighbors(codes, self.ignored, self.opening, self.closing)
+            links = _neighbors(codes, self.ignored, self.opening, self.closing)
         draws = rng.random(len(codes)) if any(len(group.successors) > 1 for group in self.groups) else None
         for group in self.groups:
             rows = np.flatnonzero((codes == group.code) & (chosen < 0))

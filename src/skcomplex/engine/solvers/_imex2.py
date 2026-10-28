@@ -4,10 +4,10 @@
 # License: MIT
 
 from ...core.types import Vector
-from ._split import _SplitSolver
+from ._split import SplitSolver
 
 
-class IMEX2Solver(_SplitSolver):
+class IMEX2Solver(SplitSolver):
     """Crank-Nicolson Adams-Bashforth scheme of second order: trapezoidal linear part and extrapolated remainder.
 
     Every step solves `(I - h L / 2) x_{n+1} = (I + h L / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one

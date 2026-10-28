@@ -6,11 +6,12 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from ..problems import BaseValue
 from ._agent_snapshot import AgentSnapshot
 
 
 @dataclass(frozen=True)
-class AgentState:
+class AgentState(BaseValue):
     """Agents of every group and the model reporters at one frame.
 
     Args:

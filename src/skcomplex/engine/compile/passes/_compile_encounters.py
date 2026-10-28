@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ..._utils import symbols_of
-from ...backends import BaseBackend, resolve_backend
+from ...backends import BaseBackend
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._read_kind import ReadKind
 from ...problems._reference import Reference
 from ...problems._table_values import Indices, TableValues
-from .._base import BasePass
+from .._base import BaseCompiler, BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
 
@@ -58,7 +58,7 @@ class CompileEncountersPass(BasePass):
         if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
             return ()
         members = Declarations._member_count(list(declarations.blocks.values()))
-        fused = resolve_backend(backend, members).name == 'numba'
+        fused = BaseCompiler._resolve_backend(backend, members)._get_name() == 'numba'
         components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused)
 

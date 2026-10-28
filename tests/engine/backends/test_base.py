@@ -3,6 +3,7 @@
 import subprocess  # nosec B404: the cache tests start a second Python process
 import sys
 import textwrap
+from collections import defaultdict
 from typing import Annotated
 
 import numba
@@ -20,15 +21,17 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine._utils import vector
-from skcomplex.engine.backends import BaseBackend, Lowering, NumbaBackend, NumpyBackend, _numba
+from skcomplex.engine.backends import BaseBackend, LoweredFunctions, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Form
+from skcomplex.engine.problems._lowered_kernels import LoweredKernels
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
     IterationSolver,
     RK4Solver,
+    Step,
     VelocityVerletSolver,
 )
 from skcomplex.models import create
@@ -211,12 +214,11 @@ def _epidemic():
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
-def test_backend_prepares_the_form_and_runs_the_kernels(backend):
-    """Test that a backend prepared for a form and a size returns the lowering of the kernels when run."""
-    prepared = backend().prepare(Form.ODE, 2)
-    assert (prepared.form_, prepared.size_) == (Form.ODE, 2)
-    lowering = prepared.run({}, {})
-    assert isinstance(lowering, Lowering)
+def test_backend_runs_the_kernels_of_a_form(backend):
+    """Test that a checked and prepared backend returns the functions of the form of the kernels it runs."""
+    kernels = LoweredKernels(defaultdict(list), {}, {}, form=Form.ODE, size=2)
+    lowering = backend().check().prepare().run(kernels)
+    assert isinstance(lowering, LoweredFunctions)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
 
@@ -441,8 +443,8 @@ def test_rk4_matches_exponential(backend, numba_backend):
         backend=numba_backend if backend == 'numba' else NumpyBackend(),
     )
     stepper = RK4Solver(dt=0.001)
-    stepper.prepare(problem, np.random.default_rng(0))
-    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert np.allclose(state, np.e, rtol=1e-10)
 
 

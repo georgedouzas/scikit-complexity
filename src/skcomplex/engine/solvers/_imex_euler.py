@@ -4,10 +4,10 @@
 # License: MIT
 
 from ...core.types import Vector
-from ._split import _SplitSolver
+from ._split import SplitSolver
 
 
-class IMEXEulerSolver(_SplitSolver):
+class IMEXEulerSolver(SplitSolver):
     """Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order.
 
     Every step solves `(I - h L) x_{n+1} = x_n + h N(x_n)`, with sparse solves for finite differences and finite
@@ -21,10 +21,10 @@ class IMEXEulerSolver(_SplitSolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.heat import heat_diffusion
-        >>> from skcomplex.engine.solvers import IMEXEulerSolver
+        >>> from skcomplex.engine.solvers import IMEXEulerSolver, Step
         >>> problem = compile_system(heat_diffusion((16, 16)))
-        >>> stepper = IMEXEulerSolver(dt=1.0).prepare(problem, np.random.default_rng(0))
-        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 10.0)
+        >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).check().prepare(problem)
+        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 10.0))
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """

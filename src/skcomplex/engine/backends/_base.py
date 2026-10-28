@@ -1,85 +1,54 @@
-"""Turn kernels into the numeric functions of a form, with one registered backend per code generator."""
+"""Define the base of the backends, which turn kernels into the numeric functions of a form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
-from typing import ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
 
+from ...core.base import BaseConfig
 from ...core.types import Vector
-from ..base import BaseEstimator
-from ..problems import Form, State, SupportSpec
-from ..problems._draw_kernel import DrawKernel
+from ..problems import State, SupportSpec
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels import LoweredKernels
 from ..problems._problem import VectorFunction
-from ..problems._read_kind import ReadKind
-from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
-from ._lowering import Lowering
+from ._lowered_functions import LoweredFunctions
 
 _AUTO_MEMBERS = 1000
-class BaseBackend(BaseEstimator):
-    """Base class of backends, which turn kernels into the numeric functions of a form.
 
-    `prepare(form, size)` fixes the form of the problem and the size of its state vector, which every lowering of the
-    backend shares, and `run(kernels, changes, reductions=..., draws=...)` returns the `Lowering` of the kernels.
-    Subclasses set the class variable `name` and implement the hook `_run`, reading the prepared `form_` and `size_`.
 
-    Attributes:
-        form_:
-            The form of the problem.
+class BaseBackend(BaseConfig):
+    """Base of the backends, which turn the kernels of a problem into the numeric functions of its form.
 
-        size_:
-            The size of the state vector.
+    A backend stores its settings in its constructor, `prepare()` takes nothing, and `run(kernels)` takes the
+    `LoweredKernels` of a problem, with its form, the size of its state vector, its reductions, and its draws, and
+    returns the `LoweredFunctions` of the form. Subclasses implement the hooks `_run`, `_get_name`, the name a problem
+    records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes functions of.
     """
 
-    supports: ClassVar[SupportSpec]
+    def _run(self, inputs: LoweredKernels) -> LoweredFunctions:
+        """Return the numeric functions of the form of the kernels.
 
-    name: ClassVar[str]
-
-    def _prepare(self, form: Form, size: int) -> None:
-        """Store the form of the problem and the size of its state vector.
-
-        Args:
-            form:
-                The form of the problem.
-
-            size:
-                The size of the state vector.
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the hook.
         """
-        self.form_ = form
-        self.size_ = size
+        raise NotImplementedError
 
-    def _run(
-        self,
-        kernels: Mapping[type, list[LawKernel]],
-        changes: Mapping[int, list[tuple[Reference, float]]],
-        *,
-        reductions: ReductionSchedule | None = None,
-        draws: DrawKernel | None = None,
-    ) -> Lowering:
-        """Return the numeric functions of the prepared form.
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the backend that problems record.
 
-        Args:
-            kernels:
-                The kernels of every law kind, in evaluation order.
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the hook.
+        """
+        raise NotImplementedError
 
-            changes:
-                The changes of every jump output, keyed by the output's identity.
-
-            reductions:
-                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
-
-            draws:
-                The random values a stochastic map draws at every step into the parameter vector extended after its
-                parameters, or `None` for a deterministic problem.
-
-        Returns:
-            lowering:
-                The numeric functions.
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the backend writes functions of.
 
         Raises:
             NotImplementedError:
@@ -157,27 +126,3 @@ class BaseBackend(BaseEstimator):
             return np.concatenate([np.zeros(0), *values])
 
         return evaluate
-
-    @staticmethod
-    def _reads_reduction(kernel: LawKernel, item: Expression) -> bool:
-        """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
-        reference = kernel.references[item]
-        if reference.source is ReadKind.REDUCED:
-            return True
-        if reference.source is ReadKind.DERIVED:
-            return any(BaseBackend._reads_reduction(kernel, symbol) for symbol in reference.neighbor.symbols)
-        return False
-
-    @staticmethod
-    def _reads_reductions(kernels: list[LawKernel]) -> bool:
-        """Check whether the outputs of kernels read reductions, so their function evaluates the reductions first.
-
-        Args:
-            kernels:
-                The kernels of one law kind.
-
-        Returns:
-            reads:
-                Whether an output reads a reduction.
-        """
-        return any(BaseBackend._reads_reduction(kernel, item) for kernel in kernels for item in kernel.arguments)

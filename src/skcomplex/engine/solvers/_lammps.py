@@ -4,11 +4,12 @@
 # License: MIT
 
 import functools
+import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import ClassVar, cast
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -111,27 +112,46 @@ class LammpsSolver(ExternalSolver):
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-        noise={NoiseKind.DIAGONAL},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            noise={NoiseKind.DIAGONAL},
+            orders={OrderKind.INTEGER},
+        )
 
-    name: ClassVar[str] = 'LAMMPS'
-    form: ClassVar[Form] = Form.ODE
-    forms: ClassVar[frozenset[Form]] = frozenset({Form.ODE, Form.SDE})
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the external library the solver wraps."""
+        return 'LAMMPS'
+
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
+
+    @classmethod
+    def _get_forms(cls) -> frozenset[Form]:
+        """Return the other forms the solver also solves."""
+        return frozenset({Form.ODE, Form.SDE})
 
     def __init__(
         self,
         dt: float = 0.005,
         pairs: Mapping[type[BaseInteraction], tuple[str, PairArguments]] | None = None,
         fixes: Mapping[type[BaseInteraction], FixCommand] | None = None,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.dt = dt
         self.pairs = pairs
         self.fixes = fixes
+        self.random_state = random_state
+        self.until = until
 
     def _unsupported(self, problem: Problem) -> list[str]:
         """Return the elements and interactions of a problem that LAMMPS cannot run.
@@ -354,15 +374,13 @@ class LammpsSolver(ExternalSolver):
             parameters[entry.indices] = self.parameters_[self.problem_.parameters.entry(entry.name).indices]
         return parameters
 
-    def _build(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _build(self, problem: Problem) -> None:
         """Create the LAMMPS instance, the box, the atoms, and every pair style and fix.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that seeds the thermostats.
         """
         self.atoms_ = self._atoms_of(problem)
         external = self._external_paths(problem)

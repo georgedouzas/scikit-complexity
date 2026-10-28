@@ -1,12 +1,11 @@
-"""Hold the generated source of Numba kernels and reductions, with its layout slots and the code that writes it."""
+"""Print the kernels and reductions of a problem as the source of fused Numba functions, with its layout slots."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import hashlib
 import re
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import scipy.sparse
@@ -14,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
 from .._utils import symbols_of
-from ..problems import Entry, ExpressionPrinter
+from ..problems import BasePrinter, Entry, ExpressionPrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
 from ..problems._law_kernel import LawKernel
@@ -28,20 +27,80 @@ from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
 from ..problems._static_search import StaticSearch
+from ._base import _AUTO_MEMBERS
 
 INDENT = '    '
 
 
-@dataclass
-class _Source:
-    """Generated source with the layout slots and the compiled functions it refers to."""
+class NumbaPrinter(BasePrinter):
+    """Printer of the kernels and reductions of a problem as the source of fused Numba functions.
 
-    lines: list[str] = field(default_factory=list)
-    slots: dict[str, int] = field(default_factory=dict)
-    functions: dict[str, object] = field(default_factory=dict)
-    data: dict[str, np.ndarray] = field(default_factory=dict)
+    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
+    `None`, and `run(parts)` prints the kernels of every law kind and returns the source lines. A part is the label of
+    the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
+    reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
+    returns the array of the starts and rows of the entries it reads.
 
-    def slot(self, entry: Entry) -> int:
+    Args:
+        parallel:
+            Whether member and pair loops over groups of at least 1000 members, and the fused reductions, run in
+            parallel threads.
+
+    Attributes:
+        lines_:
+            The printed source lines.
+
+        slots_:
+            The layout slot of every entry and data array by name.
+
+        functions_:
+            The compiled functions the source calls, by global name.
+
+        data_:
+            The integer data appended to the layout, by name.
+    """
+
+    def __init__(self, parallel: bool = False) -> None:
+        self.parallel = parallel
+
+    def _prepare(self, context: ReductionSchedule | None) -> None:
+        """Start an empty source and print the function that fuses the reductions, unless there are none."""
+        self.lines_: list[str] = []
+        self.slots_: dict[str, int] = {}
+        self.functions_: dict[str, object] = {}
+        self.data_: dict[str, np.ndarray] = {}
+        if context is not None and context.steps:
+            self._reduce_function(context, self.parallel)
+
+    def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]]) -> list[str]:
+        """Print the kernels of every part, each part with its entry function, and return the source lines."""
+        for label, mode, kernels, reduced in inputs:
+            names = []
+            for index, kernel in enumerate(kernels):
+                name = f'_{label}{index}_'
+                if isinstance(kernel.pairs, EdgeSearch):
+                    self._edge_kernel(kernel, name, mode)
+                elif kernel.pairs is not None:
+                    self._pair_kernel(kernel, name, self._is_parallel(kernel))
+                else:
+                    self._member_kernel(kernel, name, mode, self._is_parallel(kernel))
+                names.append(name)
+            size = ' + '.join(self._output_count(kernel) for kernel in kernels) or '0'
+            self._entry_function(label, names, mode, size, reduced=reduced)
+        return self.lines_
+
+    def _is_parallel(self, kernel: LawKernel) -> bool:
+        """Check whether a kernel runs in parallel threads: over groups of at least 1000 members."""
+        if not self.parallel:
+            return False
+        rows = [
+            reference.entry.rows
+            for reference in kernel.references.values()
+            if reference.source in {ReadKind.MEMBER, ReadKind.FIRST, ReadKind.SECOND}
+        ]
+        return max(rows, default=0) >= _AUTO_MEMBERS
+
+    def _slot(self, entry: Entry) -> int:
         """Return the layout slot of an entry, whose start is `L[2 * slot]` and rows `L[2 * slot + 1]`.
 
         Args:
@@ -52,9 +111,9 @@ class _Source:
             slot:
                 The slot.
         """
-        return self.slots.setdefault(entry.name, len(self.slots))
+        return self.slots_.setdefault(entry.name, len(self.slots_))
 
-    def data_slot(self, name: str, values: np.ndarray) -> int:
+    def _data_slot(self, name: str, values: np.ndarray) -> int:
         """Return the layout slot of integer data appended to the layout, whose offset is `L[2 * slot]`.
 
         Args:
@@ -68,8 +127,8 @@ class _Source:
             slot:
                 The slot.
         """
-        self.data[name] = np.asarray(values, dtype=np.int64)
-        return self.slots.setdefault(name, len(self.slots))
+        self.data_[name] = np.asarray(values, dtype=np.int64)
+        return self.slots_.setdefault(name, len(self.slots_))
 
     def layout(self, entries: Mapping[str, Entry]) -> np.ndarray:
         """Return the layout array of starts and rows of every slot, followed by the data of the data slots.
@@ -82,17 +141,17 @@ class _Source:
             layout:
                 The layout array.
         """
-        layout = np.zeros(2 * len(self.slots), dtype=np.int64)
+        layout = np.zeros(2 * len(self.slots_), dtype=np.int64)
         offset = layout.size
-        for name, slot in self.slots.items():
-            if name in self.data:
-                layout[2 * slot], layout[2 * slot + 1] = offset, self.data[name].size
-                offset += self.data[name].size
+        for name, slot in self.slots_.items():
+            if name in self.data_:
+                layout[2 * slot], layout[2 * slot + 1] = offset, self.data_[name].size
+                offset += self.data_[name].size
             else:
                 layout[2 * slot], layout[2 * slot + 1] = entries[name].start, entries[name].rows
-        return np.concatenate([layout, *(self.data[name] for name in self.slots if name in self.data)])
+        return np.concatenate([layout, *(self.data_[name] for name in self.slots_ if name in self.data_)])
 
-    def function_name(self, function: object) -> str:
+    def _function_name(self, function: object) -> str:
         """Return the global name of a compiled function called from the generated source.
 
         Args:
@@ -103,11 +162,11 @@ class _Source:
             name:
                 The global name.
         """
-        for name, known in self.functions.items():
+        for name, known in self.functions_.items():
             if known is function:
                 return name
-        name = f'_function{len(self.functions)}_'
-        self.functions[name] = function
+        name = f'_function{len(self.functions_)}_'
+        self.functions_[name] = function
         return name
 
     @staticmethod
@@ -131,7 +190,7 @@ class _Source:
 
     def _index(self, reference: Reference, member: str | None) -> str:
         """Return the flat index of a reference for a member variable, or for a single element."""
-        start = f'_L{2 * self.slot(reference.entry)}_'
+        start = f'_L{2 * self._slot(reference.entry)}_'
         if member is None:
             return f'{start} + {reference.column}'
         return f'{start} + {member} * {reference.entry.columns} + {reference.column}'
@@ -163,7 +222,7 @@ class _Source:
             if key not in calls:
                 calls[key] = f'_call{len(calls)}_'
                 call_arguments = ', '.join(['t', *printed])
-                lines.append(f'{pad}{calls[key]} = {self.function_name(output.function)}({call_arguments})')
+                lines.append(f'{pad}{calls[key]} = {self._function_name(output.function)}({call_arguments})')
             values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
         return lines, values
 
@@ -173,23 +232,23 @@ class _Source:
         arguments = [argument for output in outputs for argument in output.arguments or ()]
         symbols = sorted(symbols_of(expressions + arguments), key=str)
         return [
-            f'{INDENT}{item} = {_Source._vector(reference)}[{self._index(reference, None)}]'
+            f'{INDENT}{item} = {NumbaPrinter._vector(reference)}[{self._index(reference, None)}]'
             for item in symbols
-            if (reference := kernel.references.get(item)) is not None and _Source._is_shared(reference)
+            if (reference := kernel.references.get(item)) is not None and NumbaPrinter._is_shared(reference)
         ]
 
     def _edge_rows(self, search: EdgeSearch) -> tuple[str, list[str]]:
         """Return the code of the number of edges and the lines that read the ends `_a_` and `_b_` of the edge `_m_`."""
         pad = INDENT * 2
         if search.source is not None and search.target is not None:
-            first, second = self.slot(search.source), self.slot(search.target)
+            first, second = self._slot(search.source), self._slot(search.target)
             return f'_L{2 * first + 1}_', [
                 f'{pad}_a_ = int(p[_L{2 * first}_ + _m_])',
                 f'{pad}_b_ = int(p[_L{2 * second}_ + _m_])',
             ]
         digest = hashlib.sha256(search.sources.tobytes() + search.targets.tobytes()).hexdigest()[:16]
-        first = self.data_slot(f'__edge_sources_{digest}', search.sources)
-        second = self.data_slot(f'__edge_targets_{digest}', search.targets)
+        first = self._data_slot(f'__edge_sources_{digest}', search.sources)
+        second = self._data_slot(f'__edge_targets_{digest}', search.targets)
         return f'_L{2 * first + 1}_', [f'{pad}_a_ = L[_L{2 * first}_ + _m_]', f'{pad}_b_ = L[_L{2 * second}_ + _m_]']
 
     def _output_count(self, kernel: LawKernel) -> str:
@@ -200,7 +259,7 @@ class _Source:
         entry = next((item.entry for item in kernel.references.values() if item.source is ReadKind.MEMBER), None)
         if entry is None:
             return str(len(kernel.outputs))
-        return f'{len(kernel.outputs)} * L[{2 * self.slot(entry) + 1}]'
+        return f'{len(kernel.outputs)} * L[{2 * self._slot(entry) + 1}]'
 
     def _pair_block(
         self,
@@ -226,12 +285,12 @@ class _Source:
 
         def read(item: Expression) -> str:
             reference = kernel.references[item]
-            if _Source._is_shared(reference):
+            if NumbaPrinter._is_shared(reference):
                 return str(item)
             if reference.source is ReadKind.SECOND and reference.is_state and reference.entry == pairs.second:
                 return f'positions_a[{first}, {reference.column}] - _d{reference.column}_'
             member = first if reference.source is ReadKind.FIRST else second
-            return f'{_Source._vector(reference)}[{self._index(reference, member)}]'
+            return f'{NumbaPrinter._vector(reference)}[{self._index(reference, member)}]'
 
         body, values = self._emit_values([output for _, output in selected], read, depth + 1)
         lines += body
@@ -257,7 +316,7 @@ class _Source:
         lines += [f'{INDENT * 2}_acc{index}_ = 0.0' for index, _ in outputs]
         for dimension in range(n_dim):
             value = f'positions_{own}[{loop}, {dimension}]'
-            lines.append(f'{INDENT * 2}_c{dimension}_ = cell_coordinate({value}, {dimension}, shape_{cells}, _box_)')
+            lines.append(f'{INDENT * 2}_c{dimension}_ = _cell_coordinate({value}, {dimension}, shape_{cells}, _box_)')
         depth = 2
         for dimension in range(n_dim):
             pad = INDENT * depth
@@ -314,7 +373,7 @@ class _Source:
             (reference.entry for reference in kernel.references.values() if reference.source is ReadKind.MEMBER),
             None,
         )
-        rows = f'_L{2 * self.slot(member_entry) + 1}_' if member_entry is not None else '1'
+        rows = f'_L{2 * self._slot(member_entry) + 1}_' if member_entry is not None else '1'
         lines = [
             f'@njit(cache=CACHE, parallel={parallel})',
             f'def {name}(t, x, p, L, out, offset):',
@@ -325,16 +384,16 @@ class _Source:
 
         def read_single(item: Expression) -> str:
             reference = kernel.references[item]
-            if _Source._is_shared(reference):
+            if NumbaPrinter._is_shared(reference):
                 return str(item)
             if reference.source is ReadKind.NEIGHBOR:
                 read = reference.neighbor
                 return (
-                    f'neighbor_value({_Source._vector(reference)}, _L{2 * self.slot(reference.entry)}_, '
+                    f'_neighbor_value({NumbaPrinter._vector(reference)}, _L{2 * self._slot(reference.entry)}_, '
                     f'{reference.entry.columns}, {reference.column}, _m_, {tuple(read.sizes)}, {tuple(read.steps)}, '
                     f'{read.mode}, {float(read.ghost or 0.0)})'
                 )
-            return f'{_Source._vector(reference)}[{self._index(reference, '_m_')}]'
+            return f'{NumbaPrinter._vector(reference)}[{self._index(reference, '_m_')}]'
 
         sums = [
             index
@@ -358,7 +417,7 @@ class _Source:
         for index in sums:
             lines.append(f'{INDENT}out[{self._index(kernel.outputs[index].target, None)}] += _sum{index}_')  # type: ignore[arg-type]
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
-        self.lines += ['', '', *_Source._hoist_layout(lines)]
+        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _pair_kernel(self, kernel: LawKernel, name: str, parallel: bool) -> None:
         """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
@@ -374,13 +433,13 @@ class _Source:
             f'{INDENT}_box_ = (np.full({columns}, PERIOD), PERIODIC)',
         ]
         for label, entry in (('a', pairs.first), ('b', pairs.second)) if not same else (('a', pairs.first),):
-            start, rows = f'_L{2 * self.slot(entry)}_', f'_L{2 * self.slot(entry) + 1}_'
+            start, rows = f'_L{2 * self._slot(entry)}_', f'_L{2 * self._slot(entry) + 1}_'
             cells = ', '.join(f'{part}_{label}' for part in ('shape', 'strides', 'starts', 'order'))
             positions = f'x[{start} : {start} + rows__{label}_ * {columns}].reshape((rows__{label}_, {columns}))'
             lines += [
                 f'{INDENT}rows__{label}_ = {rows}',
                 f'{INDENT}positions_{label} = {positions}',
-                f'{INDENT}{cells} = build_grid(positions_{label}, _cutoff_, _box_)',
+                f'{INDENT}{cells} = _build_grid(positions_{label}, _cutoff_, _box_)',
             ]
         lines += self._single_reads(kernel, kernel.outputs)
         outputs = list(enumerate(kernel.outputs))
@@ -395,9 +454,9 @@ class _Source:
                 lines += self._pair_loop(kernel, seconds, '_b_', same=False)
         lines.append(f'{INDENT}return offset')
         period = pairs.period if pairs.period is not None else 1.0
-        text = '\n'.join(_Source._hoist_layout(lines)).replace('PERIODIC', str(pairs.period is not None))
+        text = '\n'.join(NumbaPrinter._hoist_layout(lines)).replace('PERIODIC', str(pairs.period is not None))
         text = text.replace('PERIOD', repr(float(period)))
-        self.lines += ['', '', text]
+        self.lines_ += ['', '', text]
 
     def _edge_kernel(self, kernel: LawKernel, name: str, mode: str) -> None:
         """Add the source of a kernel evaluated once per edge, whose laws read the ends and the edge member."""
@@ -410,9 +469,9 @@ class _Source:
 
         def read(item: Expression) -> str:
             reference = kernel.references[item]
-            if _Source._is_shared(reference):
+            if NumbaPrinter._is_shared(reference):
                 return str(item)
-            return f'{_Source._vector(reference)}[{self._index(reference, members[reference.source])}]'
+            return f'{NumbaPrinter._vector(reference)}[{self._index(reference, members[reference.source])}]'
 
         sums = [
             index
@@ -436,7 +495,7 @@ class _Source:
         for index in sums:
             lines.append(f'{INDENT}out[{self._index(kernel.outputs[index].target, None)}] += _sum{index}_')  # type: ignore[arg-type]
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
-        self.lines += ['', '', *_Source._hoist_layout(lines)]
+        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _entry_function(
         self,
@@ -458,16 +517,16 @@ class _Source:
         ]
         lines += [f'{INDENT}offset = {kernel}(t, x, p, L, out, offset)' for kernel in kernels]
         lines.append(f'{INDENT}return out')
-        self.lines += ['', '', *lines]
+        self.lines_ += ['', '', *lines]
 
     def _reduction_read(self, name: str, read: Read, index: int) -> str:
         """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
         vector = 'x' if read.is_state else 'p'
         if read.entry is None:
             array = f'_set{index}_{name}_'
-            self.functions[array] = np.asarray(read.index, dtype=np.int64)
+            self.functions_[array] = np.asarray(read.index, dtype=np.int64)
             return f'{name} = {vector}[{array}[_m_]]'
-        start = f'_L{2 * self.slot(read.entry)}_'
+        start = f'_L{2 * self._slot(read.entry)}_'
         if read.per_member:
             return f'{name} = {vector}[{start} + _m_ * {read.stride} + {read.column}]'
         return f'{name} = {vector}[{start} + {read.column}]'
@@ -475,7 +534,7 @@ class _Source:
     def _reduction_rows(self, reduction: ReductionKernel) -> str:
         """Return the code of the number of members a reduction reduces over."""
         if reduction.members is not None:
-            return f'_L{2 * self.slot(reduction.members) + 1}_'
+            return f'_L{2 * self._slot(reduction.members) + 1}_'
         return str(reduction.size)
 
     def _reduction_loop(
@@ -507,7 +566,7 @@ class _Source:
 
     def _reduction_lines(self, reduction: ReductionKernel, index: int) -> list[str]:
         """Return the lines that compute one reduction and store it in the extended parameter vector."""
-        start = f'_L{2 * self.slot(reduction.entry)}_'
+        start = f'_L{2 * self._slot(reduction.entry)}_'
         acc, cnt = f'_acc{index}_', f'_cnt{index}_'
         lines = [f'{INDENT}_n{index}_ = {self._reduction_rows(reduction)}']
         lines += [
@@ -521,7 +580,7 @@ class _Source:
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)
             for part in ('indptr', 'indices', 'data'):
-                self.functions[f'_w{index}_{part}_'] = np.asarray(getattr(weights, part))
+                self.functions_[f'_w{index}_{part}_'] = np.asarray(getattr(weights, part))
             lines.append(f'{INDENT}_values{index}_ = np.empty(_n{index}_)')
             body = [f'_values{index}_[_m_] = _a_ if _c_ else 0.0', sums[1]]
             lines += self._reduction_loop(reduction, index, body, parallel=True)
@@ -557,26 +616,26 @@ class _Source:
         """Return the lines that find the neighbours of every member, as rows `_ip<k>_` and neighbours `_ix<k>_`."""
         search = reduction.search
         if isinstance(search, StaticSearch):
-            rows = self.data_slot(f'__neighbours_{index}_indptr', search.indptr)
-            neighbours = self.data_slot(f'__neighbours_{index}_indices', search.indices)
+            rows = self._data_slot(f'__neighbours_{index}_indptr', search.indptr)
+            neighbours = self._data_slot(f'__neighbours_{index}_indices', search.indices)
             lines = [
                 f'{INDENT}_ip{index}_ = L[_L{2 * rows}_ : _L{2 * rows}_ + _L{2 * rows + 1}_]',
                 f'{INDENT}_ix{index}_ = L[_L{2 * neighbours}_ : _L{2 * neighbours}_ + _L{2 * neighbours + 1}_]',
             ]
             if search.edges is not None:
-                edges = self.data_slot(f'__neighbours_{index}_edges', search.edges)
+                edges = self._data_slot(f'__neighbours_{index}_edges', search.edges)
                 lines.append(f'{INDENT}_ie{index}_ = L[_L{2 * edges}_ : _L{2 * edges}_ + _L{2 * edges + 1}_]')
             return lines
         if isinstance(search, EdgeRowSearch):
-            starts = ', '.join(f'_L{2 * self.slot(entry)}_' for entry in (search.source, search.target, search.active))
+            starts = ', '.join(f'_L{2 * self._slot(entry)}_' for entry in (search.source, search.target, search.active))
             call = (
-                f'edge_neighbours(p, ({starts}), _L{2 * self.slot(search.source) + 1}_, {search.size}, '
+                f'_edge_neighbours(p, ({starts}), _L{2 * self._slot(search.source) + 1}_, {search.size}, '
                 f'{search.directed}, {search.center})'
             )
             return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
         assert isinstance(search, MetricSearch)
         entry = search.positions
-        start, columns = f'_L{2 * self.slot(entry)}_', entry.columns
+        start, columns = f'_L{2 * self._slot(entry)}_', entry.columns
         periods = search.periods if search.periods is not None else (1.0,) * columns
         periodic = search.periods is not None
         lines = [
@@ -589,14 +648,14 @@ class _Source:
         neighbourhood = search.neighbourhood
         center = bool(neighbourhood.center)
         if isinstance(neighbourhood, NearestNeighborhood):
-            call = f'nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
+            call = f'_nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
         if not isinstance(neighbourhood, ConeNeighborhood):
-            call = f'radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
+            call = f'_radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
         heading = search.heading
         assert heading is not None
-        first = f'_L{2 * self.slot(heading.entry)}_'
+        first = f'_L{2 * self._slot(heading.entry)}_'
         if heading.angle:
             lines += [
                 f'{INDENT}_hd{index}_ = np.empty(({reduction.size}, 2))',
@@ -611,7 +670,7 @@ class _Source:
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (
-            f'cone_neighbours(_pos{index}_, _hd{index}_, {neighbourhood.radius!r}, {cosine}, (_per{index}_, '
+            f'_cone_neighbours(_pos{index}_, _hd{index}_, {neighbourhood.radius!r}, {cosine}, (_per{index}_, '
             f'{periodic}), {center})'
         )
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
@@ -622,7 +681,7 @@ class _Source:
         read = pair.read
         vector = 'x' if read.is_state else 'p'
         assert read.entry is not None
-        start = f'_L{2 * self.slot(read.entry)}_'
+        start = f'_L{2 * self._slot(read.entry)}_'
         if pair.side == 'shared':
             return f'{vector}[{start} + {read.column}]'
         member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]'}.get(pair.side, '_j_')
@@ -669,7 +728,7 @@ class _Source:
                 'mean': f'{acc} / {count} if {count} > 0 else 0.0',
                 'normalized-mean': f'{acc} / {weights} if {weights} != 0.0 else 0.0',
             }[kind]
-        target = f'_L{2 * self.slot(reduction.entry)}_'
+        target = f'_L{2 * self._slot(reduction.entry)}_'
         lines += [
             f'{INDENT}for _i_ in prange({reduction.size}):',
             *(f'{INDENT * 2}{item} = {self._pair_read_code(reduction, item, index)}' for item in readers),
@@ -690,7 +749,7 @@ class _Source:
     def _reduce_function(self, reductions: ReductionSchedule, parallel: bool) -> None:
         """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
         extents = [
-            f'_L{2 * self.slot(item.entry)}_ + _L{2 * self.slot(item.entry) + 1}_ * {item.entry.columns}'
+            f'_L{2 * self._slot(item.entry)}_ + _L{2 * self._slot(item.entry) + 1}_ * {item.entry.columns}'
             for item in reductions.steps
         ]
         size = extents[0] if len(extents) == 1 else f'max({", ".join(extents)})'
@@ -706,6 +765,6 @@ class _Source:
             else:
                 lines += self._reduction_lines(reduction, index)
         lines.append(f'{INDENT}return p')
-        self.lines += ['', '', *_Source._hoist_layout(lines)]
+        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
 

@@ -55,8 +55,8 @@ class _Owners:
 
         Co-simulation is left out, since it runs partitions that each need a solver of their own.
         """
-        single = [solver for solver in solvers if solver.form != Form.COUPLED]
-        return not single or any(not solver.supports.missing('laws', kinds) for solver in single)
+        single = [solver for solver in solvers if solver._get_form() != Form.COUPLED]
+        return not single or any(not solver._get_support().missing('laws', kinds) for solver in single)
 
     @staticmethod
     def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:

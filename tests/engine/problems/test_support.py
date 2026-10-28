@@ -10,12 +10,12 @@ from skcomplex.engine import solvers
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import (
-    DEFAULT_SOLVERS,
     BaseSolver,
     FractionalABMSolver,
     GrunwaldLetnikovSolver,
     L1Solver,
 )
+from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 
 SOLVERS = [
     item
@@ -40,27 +40,27 @@ def test_support_accepts_subclasses():
 
 def test_default_ode_solver_lacks_noise():
     """Test that the default ODE solver supports rates but not noise."""
-    assert DEFAULT_SOLVERS[Form.ODE].supports.missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
+    assert DEFAULT_SOLVERS[Form.ODE]._get_support().missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
 
 
 @pytest.mark.parametrize('solver', SOLVERS, ids=lambda solver: solver.__name__)
 def test_every_solver_declares_orders(solver):
     """Test that every solver declares the orders it integrates."""
-    assert solver.supports.orders
+    assert solver._get_support().orders
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_backends_support_every_order(backend):
     """Test that every backend supports integer and fractional orders."""
-    assert backend.supports.orders == set(OrderKind)
+    assert backend._get_support().orders == set(OrderKind)
 
 
 @pytest.mark.parametrize('solver', [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver])
 def test_fractional_solvers_support_every_order(solver):
     """Test that the fractional solvers integrate integer and fractional orders."""
-    assert solver.supports.orders == set(OrderKind)
+    assert solver._get_support().orders == set(OrderKind)
 
 
 def test_ode_solver_supports_integer_orders():
     """Test that the default ODE solver integrates only integer orders."""
-    assert DEFAULT_SOLVERS[Form.ODE].supports.orders == {OrderKind.INTEGER}
+    assert DEFAULT_SOLVERS[Form.ODE]._get_support().orders == {OrderKind.INTEGER}

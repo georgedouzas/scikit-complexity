@@ -29,7 +29,8 @@ from skcomplex.core.specs import (
 from skcomplex.core.system import System
 from skcomplex.engine.compile import Issue, PassCompiler, ValidationReport, ValidationWarning, compile_system
 from skcomplex.engine.problems import Form, NoiseKind
-from skcomplex.engine.solvers import DEFAULT_SOLVERS, LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
+from skcomplex.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
+from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 
 from ...conftest import HoldingElement, NodeElement, _correlated
 from .conftest import PairElement
@@ -508,7 +509,7 @@ def test_validate_reports_lammps_with_shared_process():
 def test_validate_accepts_correlated_noise_with_automatic_solver():
     """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
     assert PassCompiler().check().prepare(_correlated([[1.0, 0.5], [0.5, 1.0]])).report_.ok
-    assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[Form.SDE].supports.noise
+    assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[Form.SDE]._get_support().noise
 
 
 def test_observable_among_the_laws_is_rejected():

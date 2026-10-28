@@ -18,7 +18,7 @@ from skcomplex.engine.compile.passes._agents import AgentsPass
 from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import AgentView, MesaSolver
+from skcomplex.engine.solvers import AgentView, MesaSolver, Step
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 
 
@@ -363,7 +363,7 @@ def test_agent_parameter_changes_live():
 
 def test_mesa_declares_its_support():
     """Test that the Mesa backend declares discrete time and rule laws."""
-    supports = MesaSolver.supports
+    supports = MesaSolver._get_support()
     assert supports.time == {DiscreteTime}
     assert not supports.missing('laws', {RuleLaw})
 
@@ -614,9 +614,9 @@ def test_mesa_solver_run_sets_agents_and_snapshot():
     """Test that every run of the Mesa solver sets the alive agents by group and the snapshot of the step."""
     system = System(elements=[GroupElement('breeders', element=BreederElement, size=2, variable=True)])
     problem = compile_system(system)
-    solver = MesaSolver().prepare(problem, np.random.default_rng(0), 3.0)
+    solver = MesaSolver().set_params(random_state=np.random.default_rng(0), until=3.0).check().prepare(problem)
     assert len(solver.agents_['breeders']) == 2
-    solver.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+    solver.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
     assert len(solver.agents_['breeders']) == 8
     assert solver.snapshot_.reporters['breeders.count'] == 8.0
     for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):

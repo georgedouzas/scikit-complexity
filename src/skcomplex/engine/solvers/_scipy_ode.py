@@ -8,7 +8,7 @@ import sys
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any
 
 import numpy as np
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
@@ -27,7 +27,7 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..problems import Form, OrderKind, Problem, State, SupportSpec
+from ..problems import BaseValue, Form, OrderKind, Problem, State, SupportSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._solver import Solver
@@ -90,7 +90,7 @@ _FALLBACK_STEP = 1e-6
 
 
 @dataclass(frozen=True)
-class _Segment:
+class _Segment(BaseValue):
     """Accepted step of an integrator, with its states at both ends and its dense output."""
 
     start: float
@@ -152,56 +152,67 @@ class ScipyODESolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.engine.solvers import ScipyODESolver
+        >>> from skcomplex.engine.solvers import ScipyODESolver, Step
         >>> problem = compile_system(
         ...     System(
         ...         elements=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = ScipyODESolver(rtol=1e-8).prepare(problem, np.random.default_rng(0))
-        >>> x = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).check().prepare(problem)
+        >>> x = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> round(float(x[0]), 4)
         2.7183
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={
-            RateLaw,
-            FluxLaw,
-            EquationLaw,
-            CrossingLaw,
-            BoundaryLaw,
-            TransferLaw,
-            EncounterLaw,
-            ProliferationLaw,
-            DestructionLaw,
-        },
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={
+                RateLaw,
+                FluxLaw,
+                EquationLaw,
+                CrossingLaw,
+                BoundaryLaw,
+                TransferLaw,
+                EncounterLaw,
+                ProliferationLaw,
+                DestructionLaw,
+            },
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, method: str = 'auto', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
+    def __init__(
+        self,
+        method: str = 'auto',
+        rtol: float = 1e-6,
+        atol: float = 1e-9,
+        jacobian: str = 'auto',
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.method = method
         self.rtol = rtol
         self.atol = atol
         self.jacobian = jacobian
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem, with no integrator yet.
 
         Args:
             problem:
                 The compiled problem.
-
-            rng:
-                The random number generator, unused by this deterministic stepper.
-
-            until:
-                The end time of the run.
 
         Raises:
             SolverError:
@@ -211,7 +222,7 @@ class ScipyODESolver(Solver):
             ValidationError:
                 The exact Jacobian is asked for laws without a symbolic form.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         if self.method != 'auto' and self.method not in METHODS:
             error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)

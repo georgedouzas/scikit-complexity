@@ -24,7 +24,8 @@ from ...core.errors import (
 from ...core.laws import BaseLaw
 from ...core.specs import ObservableSpec
 from ...core.system import System
-from ..backends import BaseBackend
+from ..backends import BaseBackend, NumbaBackend, NumpyBackend
+from ..backends._base import _AUTO_MEMBERS
 from ..problems import BaseProblem
 from ._issue import Issue
 from ._validation_report import ValidationReport
@@ -200,6 +201,33 @@ class BaseCompiler(BaseConfig):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
         return self._compile(dict(inputs or {}))
+
+    @staticmethod
+    def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
+        """Return the backend passed, or the backend that suits the size of a system when none is passed.
+
+        Without a backend, `NumbaBackend` runs systems whose groups hold at least 1000 members in total, and
+        `NumpyBackend` the others.
+
+        Args:
+            backend:
+                The backend instance, or `None`.
+
+            members:
+                The total number of members of the system's groups.
+
+        Returns:
+            backend:
+                The checked backend passed, or a new checked backend.
+
+        Examples:
+            >>> from skcomplex.engine.compile import BaseCompiler
+            >>> type(BaseCompiler._resolve_backend(None, 10)).__name__
+            'NumpyBackend'
+        """
+        if backend is not None:
+            return backend.check()
+        return (NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()).check()
 
     @staticmethod
     def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:

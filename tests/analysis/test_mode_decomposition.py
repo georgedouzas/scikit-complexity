@@ -16,7 +16,8 @@ from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
+from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 

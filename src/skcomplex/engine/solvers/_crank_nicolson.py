@@ -4,10 +4,10 @@
 # License: MIT
 
 from ...core.types import Vector
-from ._split import _SplitSolver
+from ._split import SplitSolver
 
 
-class CrankNicolsonSolver(_SplitSolver):
+class CrankNicolsonSolver(SplitSolver):
     """Crank-Nicolson for the linear part with a Heun predictor-corrector for the remainder, of second order.
 
     The predictor takes a Crank-Nicolson step with the remainder at the start, and the corrector repeats it with the

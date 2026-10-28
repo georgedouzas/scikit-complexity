@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
@@ -27,7 +26,7 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.laws import JumpLaw
         >>> from skcomplex.core.laws.utils import draw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.solvers import RenewalSolver
+        >>> from skcomplex.engine.solvers import RenewalSolver, Step
         >>> class CounterElement(Element):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -36,22 +35,32 @@ class RenewalSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
         >>> problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
-        >>> stepper = RenewalSolver().prepare(problem, np.random.default_rng(0))
-        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0)
+        >>> stepper = RenewalSolver(random_state=0).check().prepare(problem)
+        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 100.0))
         >>> bool(np.all(state[:3] > 50))
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-        noise={NoiseKind.DIAGONAL},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            noise={NoiseKind.DIAGONAL},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.RENEWAL
-    renews: ClassVar[bool] = True
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.RENEWAL
+
+    @classmethod
+    def _is_renewing(cls) -> bool:
+        """Return whether the solver fires renewal laws."""
+        return True
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Fire every renewal from time `t` up to time `until`, each member in time order.

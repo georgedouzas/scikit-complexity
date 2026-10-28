@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.errors import BackendWarning
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Vector
-from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
+from ...backends import BaseBackend, LoweredFunctions, NumpyBackend
 from ...problems import Entry, Form, Layout, Problem, State
 from ...problems._accelerated import Accelerated
 from ...problems._draw_kernel import DrawKernel
@@ -25,7 +25,7 @@ from ...problems._output import Output
 from ...problems._problem import VectorFunction
 from ...problems._read_kind import ReadKind
 from ...problems._reduction_schedule import ReductionSchedule
-from .._base import BasePass
+from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
@@ -112,21 +112,22 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseBackend:
         """Return the backend that lowers a form, NumPy for a stepwise form, warning when it is not the one asked."""
-        requested = resolve_backend(compilation.backend, members)
+        requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
-        chosen = NumpyBackend()
-        if compilation.backend is not None and requested.name != chosen.name:
+        chosen = NumpyBackend().check()
+        name, asked = chosen._get_name(), requested._get_name()
+        if compilation.backend is not None and asked != name:
             message = (
-                f'The {form.value} form runs on the {chosen.name} backend, because its solvers evaluate the kernels '
-                f'step by step on {chosen.name} arrays, not on the {requested.name} backend asked for.'
+                f'The {form.value} form runs on the {name} backend, because its solvers evaluate the kernels '
+                f'step by step on {name} arrays, not on the {asked} backend asked for.'
             )
             warnings.warn(message, BackendWarning, stacklevel=2)
         return chosen
 
     @staticmethod
     def _backends_of(
-        form: Form, kernels: Mapping[type, list[LawKernel]], name: str, lowering: Lowering,
+        form: Form, kernels: Mapping[type, list[LawKernel]], name: str, lowering: LoweredFunctions,
     ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
         backends = {form.name: name}
@@ -147,10 +148,8 @@ class FunctionsPass(BasePass):
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         draws = drawing.draws_
-        lowering = cast(
-            'Lowering',
-            backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
-        )
+        complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
+        lowering = cast('LoweredFunctions', backend.prepare().run(complete))
         functions: dict[str, object] = vars(lowering).copy()
         if draws is not None and functions.get('update') is not None:
             functions['update'] = FunctionsPass._stochastic_update(
@@ -159,8 +158,8 @@ class FunctionsPass(BasePass):
         accelerated = cast('Accelerated | None', functions.get('accelerated'))
         if draws is not None and draws.sampled and accelerated is not None:
             functions['accelerated'] = replace(accelerated, iterate=None)
-        functions['backend'] = backend.name
-        functions['backends'] = FunctionsPass._backends_of(form, kernels, backend.name, lowering)
+        functions['backend'] = backend._get_name()
+        functions['backends'] = FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering)
         functions['draws'] = draws
         main = {
             Form.ODE: kernels[RateLaw],

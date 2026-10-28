@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import ClassVar
 
 import numpy as np
 
@@ -18,40 +17,52 @@ from ._solver import Solver
 from ._split_operator import SplitOperator
 
 
-class _SplitSolver(Solver):
+class SplitSolver(Solver):
     """Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder."""
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.ODE
-    implicit: ClassVar[bool] = True
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
 
-    def __init__(self, dt: float = 0.01) -> None:
+    @classmethod
+    def _is_implicit(cls) -> bool:
+        """Return whether the solver treats diffusion implicitly, so explicit stability limits do not apply."""
+        return True
+
+    def __init__(
+        self,
+        dt: float = 0.01,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper and check that the problem has linear terms to treat apart.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator, unused.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem is not an ODE, has no linear terms of fields, or has delays or events.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         if not problem.linear:
             error_msg = (
                 f'{type(self).__name__} splits the rates of fields into linear and nonlinear parts, but the problem '

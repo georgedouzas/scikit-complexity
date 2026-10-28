@@ -29,9 +29,18 @@ class ConvolutionSolver(CaputoSolver):
     window, the displacements older than the window enter through exponential modes fitted to the weights.
     """
 
-    def __init__(self, dt: float = 0.01, memory: float | None = None) -> None:
+    def __init__(
+        self,
+        dt: float = 0.01,
+        memory: float | None = None,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
         self.memory = memory
+        self.random_state = random_state
+        self.until = until
 
     @abstractmethod
     def _weights(self, alpha: Vector, count: int) -> Vector:

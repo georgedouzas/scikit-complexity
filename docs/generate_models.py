@@ -11,8 +11,8 @@ from typing import Any
 from gallery_tools import Example, build_from_environment, find_examples
 from inventory_checks import InventoryError, inventory_problems
 
-from skcomplex.core.system import System
 from skcomplex.analysis import equations_of
+from skcomplex.core.system import System
 from skcomplex.models import catalog, create, describe
 
 DOCS = Path(str(files('gallery_tools'))).parent

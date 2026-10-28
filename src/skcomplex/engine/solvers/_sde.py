@@ -5,7 +5,8 @@
 
 import math
 from abc import abstractmethod
-from typing import ClassVar
+
+import numpy as np
 
 from ...core.types import Vector
 from ..problems import Form
@@ -25,10 +26,21 @@ class SDESolver(Solver):
             The largest internal time step.
     """
 
-    form: ClassVar[Form] = Form.SDE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.SDE
 
-    def __init__(self, dt: float = 1e-3) -> None:
+    def __init__(
+        self,
+        dt: float = 1e-3,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
+        self.random_state = random_state
+        self.until = until
 
     @abstractmethod
     def _increment(

@@ -5,32 +5,44 @@
 
 import math
 from collections.abc import Mapping
-from typing import Any, ClassVar
 
 import numpy as np
 
+from ...core.base import BaseConfig
 from ...core.errors import SolverError
 from ...core.types import Vector
-from ..base import BaseEstimator
 from ..problems import Problem
 from ..problems._base import BaseProblem
 from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, Bounded, History, Take
+from ._step import Step
 
 
-class BaseSolver[P: BaseProblem](BaseEstimator):
+class BaseSolver[P: BaseProblem](BaseConfig):
     """Base of the solvers, which advance a problem of one form through time.
 
-    A solver is prepared for a problem with `prepare(problem, rng, until)` and advances a state with `run(t, x, p,
-    until)`, which returns the state at time `until`. The last call `run(..., final=True)` releases what preparing
-    acquired, such as an external process. Subclasses set the class variable `form` and implement `_advance`, and
-    solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers that
-    also solve other forms list them in `forms`. Solvers that treat diffusion implicitly set `implicit`, so they do not
-    warn about the stability limit of explicit steps. Solvers that fire renewal laws set `renews`, solvers that
-    integrate fractional noise set `fractional`, and solvers that read external inputs set `reads_inputs`. A solver is
-    generic over the problem it advances, so one written for the compiler's problem reads its fields.
+    A solver stores its settings in its constructor, among them the random state of stochastic solvers and the end
+    time of the run it prepares for. `prepare(problem)` prepares it for a problem and `run(step)` advances the state
+    of a `Step` from its time to its end time and returns the state vector there. The last call `run(step,
+    final=True)` releases what preparing acquired, such as an external process.
+
+    Subclasses implement the hooks `_get_form`, the form they solve, `_get_support`, what they solve, and `_advance`,
+    and solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers
+    that also solve other forms list them in `_get_forms`. Solvers that treat diffusion implicitly answer
+    `_is_implicit`, so they do not warn about the stability limit of explicit steps. Solvers that fire renewal laws
+    answer `_is_renewing`, solvers that integrate fractional noise `_is_fractional`, and solvers that read external
+    inputs `_reads_inputs`. A solver is generic over the problem it advances, so one written for the compiler's problem
+    reads its fields.
+
+    Args:
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped,
+            which solvers that plan or draw a whole run read.
 
     Attributes:
         problem_:
@@ -55,50 +67,79 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
             The views of the agents alive after the last run, as rules receive them, by path of their agent group.
     """
 
-    supports: ClassVar[SupportSpec]
-
-    form: ClassVar[Form]
-    forms: ClassVar[frozenset[Form]] = frozenset()
-    implicit: ClassVar[bool] = False
-    renews: ClassVar[bool] = False
-    fractional: ClassVar[bool] = False
-    reads_inputs: ClassVar[bool] = False
-
     problem_: P
     rng_: np.random.Generator
     initial_state_: Vector
-    events_: list[Any]
+    events_: list[object]
     stopped_at_: float | None
     snapshot_: object | None
-    agents_: Mapping[str, list[Any]]
+    agents_: Mapping[str, list[object]]
 
-    def _prepare(self, problem: P, rng: np.random.Generator, until: float = math.inf) -> None:
-        """Prepare the solver for a problem and a run that ends at a time.
+    def __init__(self, *, random_state: int | np.random.Generator | None = None, until: float = math.inf) -> None:
+        self.random_state = random_state
+        self.until = until
 
-        Args:
-            problem:
-                The compiled problem.
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves.
 
-            rng:
-                The random number generator of stochastic solvers.
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the hook.
+        """
+        raise NotImplementedError
 
-            until:
-                The end time of the run, infinite for a run that goes on until it is stopped, which solvers that draw
-                the noise of a whole run need.
+    @classmethod
+    def _get_forms(cls) -> frozenset[Form]:
+        """Return the other forms the solver also solves, none by default."""
+        return frozenset()
+
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the hook.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def _is_implicit(cls) -> bool:
+        """Return whether the solver treats diffusion implicitly, so explicit stability limits do not apply."""
+        return False
+
+    @classmethod
+    def _is_renewing(cls) -> bool:
+        """Return whether the solver fires renewal laws."""
+        return False
+
+    @classmethod
+    def _is_fractional(cls) -> bool:
+        """Return whether the solver integrates fractional noise."""
+        return False
+
+    @classmethod
+    def _reads_inputs(cls) -> bool:
+        """Return whether the solver reads the inputs of other partitions."""
+        return False
+
+    def _prepare(self, problem: P) -> None:
+        """Prepare the solver for a problem, with the random number generator of its random state.
 
         Raises:
             SolverError:
                 The problem has a form the solver does not solve.
         """
-        del until
-        if problem.form != self.form and problem.form not in self.forms:
+        form = self._get_form()
+        if problem.form != form and problem.form not in self._get_forms():
             error_msg = (
-                f'{type(self).__name__} solves the {self.form.value} form, but the problem has the '
+                f'{type(self).__name__} solves the {form.value} form, but the problem has the '
                 f'{problem.form.value} form.'
             )
             raise SolverError(error_msg)
         self.problem_ = problem
-        self.rng_ = rng
+        self.rng_ = np.random.default_rng(self.random_state)
         self.initial_state_ = problem.initial_state.copy()
         self.events_ = []
         self.stopped_at_ = None
@@ -135,29 +176,13 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
         """Set the events, the stop time, the snapshot, and the agents after a run; the base keeps none."""
         self.events_ = []
 
-    def _run(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
-        """Advance the state from time `t` to time `until` and collect what the run produced.
+    def _run(self, inputs: Step) -> Vector:
+        """Advance the state of the step to its end time and collect what the run produced.
 
-        A run that does not go forward in time returns the state unchanged, so a final run of no length releases the
+        A step that does not go forward in time returns its state unchanged, so a final run of no length releases the
         solver.
-
-        Args:
-            t:
-                The current time.
-
-            x:
-                The current state vector.
-
-            p:
-                The parameter vector.
-
-            until:
-                The time to advance to.
-
-        Returns:
-            state:
-                The state vector at time `until`.
         """
+        t, x, p, until = inputs.t, inputs.x, inputs.p, inputs.until
         state = self._advance(t, x, p, until) if until > t else x
         self._collect()
         return state

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
 import numpy as np
 
@@ -28,20 +27,23 @@ class HeunSolver(SDESolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.engine.solvers import HeunSolver
+        >>> from skcomplex.engine.solvers import HeunSolver, Step
         >>> problem = compile_system(geometric_brownian_motion())
-        >>> stepper = HeunSolver(dt=0.01).prepare(problem, np.random.default_rng(0))
-        >>> bool(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
+        >>> stepper = HeunSolver(dt=0.01, random_state=0).check().prepare(problem)
+        >>> bool(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-        noise=set(NoiseKind),
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            noise=set(NoiseKind),
+            orders={OrderKind.INTEGER},
+        )
 
     def _increment(
         self,

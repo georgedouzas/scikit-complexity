@@ -43,7 +43,7 @@ from ...core.specs import ObservableSpec, TopologyRequestSpec, WienerProcessSpec
 from ...core.system import System
 from .._utils import declarations_of, symbol
 from ..backends import BaseBackend
-from ..problems import BaseProblem, DomainKind, Form, NoiseKind, Problem, SupportSpec, VariableKind
+from ..problems import BaseProblem, DomainKind, Form, NoiseKind, Problem, VariableKind
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._partition import Partition
 from ..problems._topology_kernel import TopologyKernel
@@ -782,7 +782,7 @@ class PassCompiler(BaseCompiler):
             fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
             issues.append(Issue('solver-argument', system.label, str(error), fix, error=type(error)))
         for category, terms in needs.items():
-            missing = stepper.supports.missing(category, terms)
+            missing = stepper._get_support().missing(category, terms)
             if missing:
                 message = f'The solver {stepper.__name__} does not support the {category} {", ".join(missing)}.'
                 fix = f'Pass a solver that supports the {category} {", ".join(missing)}.'
@@ -982,7 +982,7 @@ class PassCompiler(BaseCompiler):
             return []
         issues = []
         for role, runner in PassCompiler._noise_runners(solver, backend):
-            supported = getattr(runner, 'supports', SupportSpec()).noise
+            supported = runner._get_support().noise
             for term, record in needs.items():
                 if term not in supported:
                     name = PassCompiler._law_name(record)
