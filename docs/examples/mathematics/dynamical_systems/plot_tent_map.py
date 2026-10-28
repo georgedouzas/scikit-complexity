@@ -62,7 +62,7 @@ diagram = (
 points = np.array(
     [
         (100 * mu, -100 * x)
-        for mu, values in zip(diagram.parameter_values, diagram.points_, strict=True)
+        for mu, values in zip(diagram.values, diagram.points_, strict=True)
         for x in values
     ],
 )

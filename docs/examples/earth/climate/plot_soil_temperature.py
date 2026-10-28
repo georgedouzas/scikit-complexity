@@ -46,7 +46,7 @@ diagram = (
 )
 rates = np.linspace(2.5, 3.0, 50)
 fig, ax = plt.subplots(figsize=(7, 5))
-for rate, points in zip(diagram.parameter_values, diagram.points_, strict=True):
+for rate, points in zip(diagram.values, diagram.points_, strict=True):
     ax.plot(np.full(len(points), rate), points, ',', color='C0', alpha=0.5)
 ax.plot(rates, (rates + epsilon**2 / (1 - epsilon) - 1) / rates, color='black', label='fixed point x*')
 ax.axvline(3.8, color='C3', linestyle='--', label='r of the run above')
