@@ -1,4 +1,4 @@
-"""Derive the fixed points, Jacobian, stability, nullclines, and divergence of a system symbolically."""
+"""Derive the fixed points and their stability, or the dispersion relation of a field around a uniform state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,23 +6,36 @@
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Self
+from types import SimpleNamespace
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
-from scipy.optimize import root
+from scipy import optimize
 
+from ..core.elements import FieldElement
 from ..core.errors import AnalysisError
+from ..core.laws import RateLaw
+from ..core.spaces import LatticeSpace
 from ..core.system import System
 from ..engine.compile import compiled_problem
-from ..engine.problems import Form, Problem, components_of
+from ..engine.problems import Form, Problem, VariableKind, components_of, declarations_of, symbol
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion
 from ._kinds import DataKind
 from ._symbolic import SymbolicAnalysis
 
+type Array = npt.NDArray[np.float64]
 type Point = Mapping[str, Expression | float]
+KINDS = ('fixed-points', 'dispersion')
+SETTINGS = {
+    'fixed-points': {'parameters', 'points'},
+    'dispersion': {'at'},
+}
+"""Settings every kind reads, besides `kind`."""
+OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
+EIGENVALUE = symbol('_eigenvalue_')
 ZERO = 1e-9
 MEMBER_LIMIT = 64
 
@@ -45,7 +58,15 @@ class _Dynamics:
 
 
 class StabilityAnalysis(BaseAnalysis):
-    """Fixed points of a flow or a map, their linear stability, and the Jacobian, nullclines, and divergence.
+    """Linear stability of a system, of one kind.
+
+    - `'fixed-points'`: the fixed points of a flow or a map, their linear stability, and the Jacobian, nullclines, and
+      divergence.
+    - `'dispersion'`: the growth rate of every Fourier mode of a system of one field, a site group on a periodic
+      lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state, and every
+      Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
+      `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the uniform
+      state is the fixed point of the laws nearest the mean initial values.
 
     The fixed points of a flow are where every rate is 0, and those of a map where every state equals its next value.
     Sage solves the equations symbolically, and when it finds no closed form, roots are searched numerically from a
@@ -53,6 +74,9 @@ class StabilityAnalysis(BaseAnalysis):
     eigenvalues of the Jacobian there, evaluated at the parameter values.
 
     Args:
+        kind:
+            The stability to derive, one of the kinds above.
+
         parameters:
             Values of parameters by dotted path that replace the system's values. They are substituted before solving,
             and without them the symbolic fixed points keep the parameters as symbols.
@@ -60,6 +84,9 @@ class StabilityAnalysis(BaseAnalysis):
         points:
             The points whose stability to analyse, each a mapping from state component name to its value, symbolic
             or numeric, or `None` for every fixed point found.
+
+        at:
+            The uniform state of the dispersion relation by state name, or `None` for the nearest fixed point.
 
     Attributes:
         problem_:
@@ -88,6 +115,27 @@ class StabilityAnalysis(BaseAnalysis):
             The class of every point: `stable node`, `stable focus`, `unstable node`, `unstable focus`, `saddle`,
             `centre`, or `marginal` for flows, and `stable`, `unstable`, `saddle`, or `marginal` for maps.
 
+        system_:
+            The system of one field, for `'dispersion'`.
+
+        wavenumbers_:
+            The wave vector of every mode, one row per mode, for `'dispersion'`.
+
+        magnitudes_:
+            The length of every wave vector.
+
+        growth_rates_:
+            The largest real part of the eigenvalues of the linearisation at every mode.
+
+        frequencies_:
+            The imaginary part of the leading eigenvalue at every mode, nonzero for travelling or oscillating modes.
+
+        uniform_:
+            The uniform state the model is linearised around, by state name.
+
+        band_:
+            The lengths of the wave vectors whose modes grow.
+
     Examples:
         >>> from skcomplex.analysis import StabilityAnalysis
         >>> from skcomplex.models.biology.ecology import logistic_growth
@@ -97,22 +145,43 @@ class StabilityAnalysis(BaseAnalysis):
         >>> analysis = StabilityAnalysis(points=[{'population.n': 100.0}]).check().prepare(logistic_growth())
         >>> analysis.run().classifications_
         ['stable node']
+        >>> from skcomplex.models.chemistry.pattern_formation import brusselator
+        >>> relation = StabilityAnalysis('dispersion').check().prepare(brusselator((64,), b=1.9, Dv=8.0)).run()
+        >>> bool(relation.growth_rates_.max() > 0), bool(relation.growth_rates_[0] < 0)
+        (True, True)
     """
 
     def __init__(
         self,
+        kind: str = 'fixed-points',
         parameters: Mapping[str, float] | None = None,
         points: Sequence[Point] | None = None,
+        *,
+        at: Mapping[str, float] | None = None,
     ) -> None:
+        self.kind = kind
         self.parameters = parameters
         self.points = points
+        self.at = at
+
+    def _check(self) -> Self:
+        """Validate the kind and that the kind reads every changed setting."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
+        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
     def _prepare(self, source: Source) -> Self:
-        """Compile the system of the source, checking that it has a symbolic vector field."""
+        """Compile the system of the source, checking that it has a symbolic vector field, or read a field model."""
+        if self.kind == 'dispersion':
+            if not isinstance(source, System):
+                error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
+                raise AnalysisError(error_msg)
+            self.system_ = source
+            return self
         self.problem_ = self._dynamics_of(self._read_system(source), self.parameters).problem
         return self
 
@@ -147,7 +216,16 @@ class StabilityAnalysis(BaseAnalysis):
         return np.linalg.eigvals(numeric)
 
     def _run(self) -> Self:
-        """Derive the Jacobian, divergence, and nullclines, find the fixed points, and classify them."""
+        """Derive the Jacobian, nullclines, and fixed points with their classes, or the dispersion relation."""
+        if self.kind == 'dispersion':
+            waves, magnitudes, growth_rates, frequencies, uniform = self._dispersion_relation(self.system_, self.at)
+            self.wavenumbers_ = waves
+            self.magnitudes_ = magnitudes
+            self.growth_rates_ = growth_rates
+            self.frequencies_ = frequencies
+            self.uniform_ = uniform
+            self.band_ = np.unique(np.round(magnitudes[growth_rates > 0], 12))
+            return self
         dynamics = self._dynamics_of(self.problem_, self.parameters)
         self.names_ = dynamics.names
         self.jacobian_ = matrix(SR, [[rate.diff(item) for item in dynamics.symbols] for rate in dynamics.rates])
@@ -308,7 +386,7 @@ class StabilityAnalysis(BaseAnalysis):
         found: list[npt.NDArray[np.float64]] = []
         rng = np.random.default_rng(0)
         for start in rng.uniform(-10, 10, (50, len(dynamics.symbols))):
-            result = root(lambda point: [float(function(*point)) for function in functions], start)
+            result = optimize.root(lambda point: [float(function(*point)) for function in functions], start)
             if result.success and not any(np.allclose(result.x, other, atol=1e-6) for other in found):
                 found.append(result.x)
         return [dict(zip(dynamics.names, map(float, point), strict=True)) for point in found]
@@ -338,3 +416,109 @@ class StabilityAnalysis(BaseAnalysis):
         if np.any(real > ZERO) and np.any(real < -ZERO):
             return 'saddle'
         return 'centre' if oscillating and np.all(np.abs(real) <= ZERO) else 'marginal'
+
+    @staticmethod
+    def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
+        """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
+        operator = expression.operator()
+        if operator is None:
+            return expression
+        name = getattr(operator, 'name', lambda: '')()
+        if name == 'laplacian':
+            return eigenvalue * StabilityAnalysis._with_eigenvalue(expression.operands()[0], eigenvalue)
+        if name in OPERATOR_NAMES:
+            error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
+            raise AnalysisError(error_msg)
+        return operator(*[StabilityAnalysis._with_eigenvalue(item, eigenvalue) for item in expression.operands()])
+
+    @staticmethod
+    def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
+        """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
+        spacings = np.asarray(lattice.spacings_, dtype=float)
+        if field.discretization == 'spectral':
+            return -np.sum(waves**2, axis=1)
+        return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
+
+    @staticmethod
+    def _single_field(system: System) -> tuple[FieldElement, LatticeSpace]:
+        """Return the one field of a system and its periodic lattice, or raise an error."""
+        fields = [element for element in system.elements if isinstance(element, FieldElement)]
+        if len(fields) != 1 or len(system.elements) != 1 or system.interactions or system.systems:
+            error_msg = 'The dispersion relation takes a system of one field on a lattice.'
+            raise AnalysisError(error_msg)
+        field = fields[0]
+        if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
+            error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
+            raise AnalysisError(error_msg)
+        return field, field.space.check().prepare()
+
+    @staticmethod
+    def _linearised_rates(field: FieldElement) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values."""
+        states = list(declarations_of(field.element, VariableKind.STATE))
+        member = field.element(field.label)
+        values = {name: getattr(member, name) for name in states} | dict(field.values or {})
+        parameters = {}
+        for name in declarations_of(field.element, VariableKind.PARAMETER):
+            value = values.get(name, getattr(member, name))
+            if np.ndim(value):
+                error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
+                raise AnalysisError(error_msg)
+            parameters[name] = float(value)
+        names = {name: symbol(f'_{name}_') for name in states}
+        rates: dict[str, Any] = {}
+        for law in member.check().run(SimpleNamespace(**names, **parameters, t=symbol('t'))):
+            targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
+            target = next((name for name, item in names.items() if targets and targets[0] is item), None)
+            if not isinstance(law, RateLaw) or target is None:
+                error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
+                raise AnalysisError(error_msg)
+            rates[target] = SR(rates.get(target, 0) + StabilityAnalysis._with_eigenvalue(SR(law.value), EIGENVALUE))
+        return {name: rates[name] for name in states if name in rates}, names, values
+
+    @staticmethod
+    def _uniform_point(rates: dict[str, Any], variables: list[Any]) -> Any:  # noqa: ANN401
+        """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
+        local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
+
+        def residual(point: Array) -> list[float]:
+            substitution = dict(zip(variables, map(float, point), strict=True))
+            return [float(item.subs(substitution)) for item in local]
+
+        return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
+
+    @staticmethod
+    def _eigenvalue_terms(entry: Any, name: str) -> list[tuple[float, int]]:  # noqa: ANN401
+        """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
+        try:
+            return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
+        except (TypeError, ValueError) as error:
+            error_msg = f'The linearisation of {name} is not a polynomial in its Laplacians: {entry}.'
+            raise AnalysisError(error_msg) from error
+
+    @staticmethod
+    def _dispersion_relation(
+        system: System,
+        at: Mapping[str, float] | None = None,
+    ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
+        """Return the wave vectors, their lengths, growth rates, and frequencies, and the uniform state of a field."""
+        field, lattice = StabilityAnalysis._single_field(system)
+        rates, names, values = StabilityAnalysis._linearised_rates(field)
+        order = list(rates)
+        variables = [names[name] for name in order]
+        start = [float(np.mean((at or {}).get(name, values.get(name, 0.0)))) for name in order]
+        uniform = start if at is not None else StabilityAnalysis._uniform_point(rates, variables)(start)
+        substitution = dict(zip(variables, uniform, strict=True))
+        axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.shape_, lattice.spacings_, strict=True)]
+        waves = np.stack([grid.ravel() for grid in np.meshgrid(*axes, indexing='ij')], axis=1)
+        eigenvalues = StabilityAnalysis._laplacian_eigenvalues(field, lattice, waves)
+        matrices = np.zeros((len(waves), len(order), len(order)))
+        for row, a in enumerate(order):
+            for column, b in enumerate(order):
+                entry = SR(rates[a].diff(names[b]).subs(substitution)).expand()
+                for coefficient, power in StabilityAnalysis._eigenvalue_terms(entry, f'{field.label}.{a}'):
+                    matrices[:, row, column] += coefficient * eigenvalues**power
+        spectra = np.linalg.eigvals(matrices)
+        leading = spectra[np.arange(len(waves)), np.argmax(spectra.real, axis=1)]
+        magnitudes = np.linalg.norm(waves, axis=1)
+        return waves, magnitudes, leading.real, leading.imag, dict(zip(order, uniform, strict=True))

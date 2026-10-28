@@ -441,7 +441,7 @@ class BaseAnalysis(BaseEstimator, ABC):
 
     @staticmethod
     def _read_particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
-        """Return the snapshots of a particle group from its vector states, unwrapped in a periodic box."""
+        """Return the snapshots of a particle group from its vector states and headings, unwrapped in a periodic box."""
         element = next(item for item in trajectory.problem.elements if item.path == group)
         system = trajectory.problem.system
         space = system.space if system is not None else None
@@ -456,9 +456,11 @@ class BaseAnalysis(BaseEstimator, ABC):
             for name, dotted in element.states.items()
             if name not in {POSITION_STATE, VELOCITY_STATE}
         }
+        heading = next((name for name in HEADING_NAMES if name in others), None)
+        headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
         ids = np.arange(positions.shape[1], dtype=np.int64)
         times = np.asarray(trajectory.times, dtype=float)
-        return Snapshots(times, ids, positions, velocities, None, others, box, periodic)
+        return Snapshots(times, ids, positions, velocities, headings, others, box, periodic)
 
     def _read_series(self, source: Source, names: Sequence[str] | None = None) -> Series:
         """Return named series of a trajectory, or the columns of an array, one series per column.
