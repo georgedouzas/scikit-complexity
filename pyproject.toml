@@ -371,7 +371,6 @@ type = "forbidden"
 source_modules = ["skcomplex.models.earth"]
 forbidden_modules = [
     "skcomplex.models.economics.realizations",
-    "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
 ]
 
@@ -380,7 +379,6 @@ name = "Models of economics use only the realizations of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.economics"]
 forbidden_modules = [
-    "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
 ]
 
@@ -399,7 +397,6 @@ type = "forbidden"
 source_modules = ["skcomplex.models.physics"]
 forbidden_modules = [
     "skcomplex.models.economics.realizations",
-    "skcomplex.models.engineering.realizations",
 ]
 
 [[tool.importlinter.contracts]]
@@ -408,7 +405,6 @@ type = "forbidden"
 source_modules = ["skcomplex.models.social"]
 forbidden_modules = [
     "skcomplex.models.economics.realizations",
-    "skcomplex.models.engineering.realizations",
     "skcomplex.models.physics.realizations",
 ]
 

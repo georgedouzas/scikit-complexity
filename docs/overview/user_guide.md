@@ -1424,8 +1424,8 @@ print([issue.code for issue in validate(plant, solver=PontryaginSolver()).errors
 
 ### Feedback controllers
 
-Feedback controllers are realizations of the engineering field, in `skcomplex.models.engineering.realizations`, so the
-core holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
+Feedback controllers are realizations of the control models, in `skcomplex.models.engineering.control`, so the core
+holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
 control input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state
 `measure`, with the integral of the error in an `IntegratorElement` element. `StateFeedbackInteraction(label, plant=,
 control=, states=, gain=)` sets it to `-K x`. Both set the control after every solver step, as boundary laws, so a
