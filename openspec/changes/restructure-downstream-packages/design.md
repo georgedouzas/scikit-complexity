@@ -131,12 +131,36 @@ Target grouping. Every class is one mathematical operation, named after the oper
 | `DissimilarityIndexAnalysis` | `models.social.realizations` | `DistributionAnalysis` | kind total-variation, between two groups across units |
 | `EarlyWarningAnalysis` | the realizations of the field whose models use it | `RollingAnalysis` | the variance, the lag-one autocorrelation, and the skewness |
 
-A realization only fixes settings in its constructor and documents the field's name. It adds no formula, no verb, and no attribute, so the general operation's tests cover it. The crackling-noise relation, which combines two fitted exponents, is computed in the gallery example that shows it, not as a class.
+A realization usually only fixes settings in its constructor and documents the field's name, so the general operation's tests cover it. A field measure that composes general analyses, such as the crackling-noise relation between the fitted exponents of avalanche sizes and durations, keeps its own logic as private methods of a realization (`CracklingNoiseAnalysis` in `models.physics.realizations`). No specialized code is removed by this regrouping: whatever does not map onto a general choice moves to the models library, which also serves as worked examples for developers who extend the library.
 
 ### Library packages hold general operations
 The core, the engine, analysis, and experiments hold general operations named mathematically: a class names what it computes or simulates, and its choices name variants of that operation. Eponymous names are kept where mathematics uses them for the operation itself, such as Shannon, Rényi, Gini, Lyapunov, or Kramers-Moyal. A name taken from one application field, such as the Binder cumulant, the polar order, or the segregation index, belongs to the models library, which subclasses the general class in the realizations of that field and fixes its settings. This is the rule the core already follows for laws and interactions, applied to every package.
 
 *Alternative considered:* field names as choices of the general class, such as `DistributionAnalysis('binder')`. It keeps field vocabulary in the library and makes the choice list grow with every field.
+
+#### Field names outside the models library
+An audit of the public classes and choices of `core`, `engine`, and `experiments` for names taken from one application field. Mathematical and numerical names, eponymous ones included (Gillespie, Lindblad, Metropolis, Glauber, Rusanov, Godunov, Itô, Stratonovich, Morris, Saltelli, Sobol, Moore, von Neumann, Cayley), general simulation vocabulary, and the kinds of dynamics the core defines as primitives (mass-action and encounter kinetics, quantum operators, agents) are not listed. No name of the core or of experiments is unambiguous field jargon, so none is converted: the debatable ones are proposed, and the engine's wait for its restructure.
+
+| Package | Name | Field | Proposed general name | Proposed realization | Decision |
+|---|---|---|---|---|---|
+| `core.laws` | `ProliferationLaw` | mathematical biology, the kinetic theory of active particles | `EncounterBirthLaw` | `ProliferationLaw` in `models.biology.realizations`, used by `oncology` | proposed: proliferative and destructive encounters are the terms of the kinetic theory of active particles, a mathematical framework the core adopts with `EncounterLaw`, and renaming two of its three laws splits the family |
+| `core.laws` | `DestructionLaw` | mathematical biology, the kinetic theory of active particles | `EncounterDeathLaw` | `DestructionLaw` in `models.biology.realizations` | proposed, as `ProliferationLaw` |
+| `core.specs` | `SamplerSpec` kind `'heat-bath'` | statistical physics | `'gibbs'`, the Gibbs sampler | none: `models.physics.statistical_mechanics` passes `'gibbs'` and documents the physics name | proposed: heat-bath is also the usual name in Monte Carlo texts, and it sits beside `'metropolis'` and `'glauber'` |
+| `core.specs` | `SamplerSpec.temperature`, `EnergySpec` | statistical physics | | | keep: energy and temperature are the parameters of the Gibbs measure the sampler draws from, as in simulated annealing |
+| `core.laws.utils` | `distributed_delay` symbols `material_delay<n>` | system dynamics, material against information delays | `conserved_delay<n>` | | proposed: the public setting is already `conserved`; only the generated symbol, which printed equations of the system-dynamics models show, carries the field name |
+| `core.elements` | `FieldElement` boundary `'zero-flux'` | transport in physics and chemistry | `'neumann'` | | keep: zero-flux names what the homogeneous Neumann condition imposes on a conservation law, and is the usual term in the mathematics of reaction-diffusion |
+| `core.laws` | `DriveLaw`, `RelaxationLaw` | self-organized criticality | | | keep: slow drive and fast relaxation describe any threshold dynamics; the sandpile grain appears only in an example |
+| `core.laws` | `ExtremalLaw` | evolution, the Bak-Sneppen model | | | keep: extremal dynamics is a general scheme, also of extremal optimization |
+| `core.elements`, `core.interactions`, `core.laws` | `ParticleElement`, `PotentialInteraction`, `PairPotentialInteraction`, `FluxLaw` | mechanics | | | keep: general simulation vocabulary of particle methods, gradient systems, and conservation laws |
+| `core.laws`, `core.specs` | `Source`, `Sink`, `TransferLaw`, `LayerSpec` | | | | keep: field words, such as a bank, contacts, or employment, appear only in examples |
+| `experiments` | `BasinStabilityExperiment` | network dynamics | | | keep: basin stability is defined for any dynamical system with several attractors |
+| `engine.problems`, `engine.compile` | `StockFlow`, `StockFlowPass`, the stock and flow structure of `FlowsProblemPass` | system dynamics | `TransferNetwork`, `TransferPass`, after the core's `TransferLaw` | none, engine internals | proposed, after the engine restructure |
+| `engine.viz` | `TraitsVisual`, kind `'traits'` | ecology and agent-based biology | `HistogramVisual`, kind `'histograms'`, after what it draws | none | proposed, after the engine restructure |
+| `engine.viz` | `BodiesVisual`, kind `'bodies'` | mechanics | | | keep: a body with rods, trails, and outlines is general geometric vocabulary |
+| `engine.viz` | `PhaseRingVisual`, `ExpectationVisual` | oscillators, quantum mechanics | | | keep: phases on the circle and expectations of operators are mathematical |
+| `engine.solvers`, `engine.problems` | `KineticSolver`, `KineticProblem`, `CompiledEncounter` | kinetic theory | | | keep: kinetic equations are a mathematical class, and direct simulation Monte Carlo a numerical method |
+| `engine.solvers` | `LammpsSolver`, `LammpsFix`, `MesaSolver`, `LeptonPrinter` | molecular dynamics, agent-based modelling | | | keep: they name the library they wrap, not a field |
+| `engine.problems` | `MODES`, `LATTICE_BOUNDARIES` key `'zero-flux'` | transport | | | keep, following `FieldElement` |
 
 ### Surrogates become analyses
 A surrogate learns a system from data. As an analysis it prepares on a trajectory or an array and keeps the learned system in `system_`. This drops the separate `BaseSurrogate` and keeps `Surrogate` out of the name set the spec allows.
