@@ -272,9 +272,10 @@ containers = ["skcomplex.engine"]
 layers = [
     "viz",
     "runtime",
-    "backends",
     "solvers",
     "compile",
+    "backends",
+    "problems",
 ]
 
 [[tool.importlinter.contracts]]
