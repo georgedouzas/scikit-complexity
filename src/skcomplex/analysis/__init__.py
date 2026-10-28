@@ -27,15 +27,7 @@ from ._agents import (
     polar_order,
     radial_distribution,
 )
-from ._aging import (
-    AgingCollapse,
-    DistributionCollapse,
-    aging_collapse,
-    collapse_distributions,
-    fluctuation_dissipation_ratio,
-    response,
-    two_time_correlation,
-)
+from ._aging import AgingCollapse, DistributionCollapse, aging_collapse, collapse_distributions, two_time_correlation
 from ._automata import (
     Automaton,
     LinearAutomaton,
@@ -52,12 +44,7 @@ from ._automata import (
 )
 from ._base import BaseAnalysis
 from ._bifurcation import OrbitDiagram, orbit_diagram
-from ._complexity import (
-    ComplexityEntropy,
-    EnsembleEntropy,
-    complexity_entropy,
-    ensemble_entropy,
-)
+from ._complexity import ComplexityEntropy, EnsembleEntropy, complexity_entropy, ensemble_entropy
 from ._computational_mechanics import EpsilonMachineAnalysis
 from ._criticality import (
     AvalancheLaws,
@@ -72,15 +59,10 @@ from ._criticality import (
     order_parameter_sweep,
     replica_overlap,
 )
-from ._embedding import (
-    Embedding,
-    delay_embedding,
-    embed,
-    false_nearest_neighbors,
-)
+from ._embedding import Embedding, delay_embedding, embed, false_nearest_neighbors
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
-from ._ergodicity import FluctuationMetric, ergodicity_breaking, ergodicity_distance, fluctuation_metric
+from ._ergodicity import ErgodicityAnalysis
 from ._events import Events, detect_events
 from ._extremes import (
     ExtremeValueFit,
@@ -105,61 +87,26 @@ from ._fields import (
     pattern_wavelength,
     structure_factor,
 )
-from ._fluctuations import (
-    KramersMoyal,
-    RelativeFluctuations,
-    event_counts,
-    fano_factor,
-    kramers_moyal,
-    relative_fluctuations,
-)
+from ._fluctuations import RelativeFluctuations, event_counts, fano_factor, relative_fluctuations
 from ._fractional import mittag_leffler
 from ._information import InformationAnalysis
 from ._invariants import (
     CorrelationDimension,
-    UlamChain,
     correlation_dimension,
-    invariant_density,
     kaplan_yorke_dimension,
     kolmogorov_sinai_entropy,
     largest_lyapunov_exponent,
-    ulam_chain,
 )
-from ._irreversibility import (
-    EntropyProduction,
-    FluctuationTheorem,
-    UncertaintyRelation,
-    count_entropy_production,
-    entropy_production,
-    fluctuation_theorem,
-    jump_entropy_production,
-    langevin_entropy_production,
-    uncertainty_relation,
-)
+from ._irreversibility import IrreversibilityAnalysis
 from ._kinds import ANALYSES, AnalysisEntry, DataKind, analysis
-from ._large_deviations import (
-    Cloning,
-    RateFunction,
-    Reweighted,
-    block_generating_function,
-    cloning,
-    histogram_rate_function,
-    legendre_transform,
-    reweight,
-    tilted_generating_function,
-)
+from ._kramers_moyal import KramersMoyalAnalysis
+from ._large_deviations import LargeDeviationAnalysis
 from ._linearization import StateSpace, controllability, linearize, lqr, observability
 from ._local_information import LocalInformationAnalysis
 from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
-from ._markov import (
-    MarkovStateModel,
-    committor,
-    implied_timescales,
-    markov_state_model,
-    mean_first_passage_time,
-)
-from ._mixing import dissimilarity_index, interface_density, like_neighbor_share
+from ._markov import MarkovAnalysis
+from ._mixing import MixingAnalysis, interface_density
 from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifScores, motif_counts, motif_zscores
 from ._networks import (
@@ -176,7 +123,7 @@ from ._networks import (
     summarize_network,
 )
 from ._partial_information import PartialInformationAnalysis
-from ._passage import first_passage_times, hitting_probabilities, laminar_durations, return_times
+from ._passage import PassageAnalysis, laminar_durations
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
 from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from ._recurrence import Recurrence, recurrence_matrix, recurrence_quantification
@@ -200,20 +147,8 @@ from ._sparse_identification import SparseIdentificationAnalysis
 from ._spatial import Clusters, box_counting_dimension, correlation_function, label_clusters
 from ._stability import Dynamics, Stability, divergence, dynamics_of, fixed_points, jacobian, nullclines, stability
 from ._statistics import PowerLawFit, ccdf, fit_power_law, gini, hill, histogram
-from ._surrogates import (
-    SurrogateTest,
-    surrogate_test,
-)
+from ._surrogates import SurrogateTest, surrogate_test
 from ._symbolic import equations_of, solve_symbolically
-from ._transitions import (
-    DetailedBalance,
-    detailed_balance,
-    relaxation_times,
-    spectral_gap,
-    stationary_distribution,
-    transition_counts,
-    transition_matrix,
-)
 
 __all__: list[str] = [
     'ANALYSES',
@@ -224,7 +159,6 @@ __all__: list[str] = [
     'AvalancheLaws',
     'Avalanches',
     'BaseAnalysis',
-    'Cloning',
     'Clusters',
     'Collapse',
     'Communities',
@@ -232,7 +166,6 @@ __all__: list[str] = [
     'CorrelationDimension',
     'CracklingNoise',
     'DataKind',
-    'DetailedBalance',
     'DispersionRelation',
     'Displacement',
     'DistributionCollapse',
@@ -244,38 +177,38 @@ __all__: list[str] = [
     'Ensemble',
     'EnsembleEntropy',
     'EntropyAnalysis',
-    'EntropyProduction',
     'EpsilonMachineAnalysis',
+    'ErgodicityAnalysis',
     'Events',
     'ExtremeValueFit',
     'FlowMatrix',
     'Fluctuation',
-    'FluctuationMetric',
-    'FluctuationTheorem',
     'GoodnessOfFit',
     'InformationAnalysis',
+    'IrreversibilityAnalysis',
     'JumpPath',
-    'KramersMoyal',
+    'KramersMoyalAnalysis',
+    'LargeDeviationAnalysis',
     'LinearAutomaton',
     'LocalInformationAnalysis',
     'Loop',
     'LoopDominance',
     'Loops',
-    'MarkovStateModel',
+    'MarkovAnalysis',
+    'MixingAnalysis',
     'ModeDecompositionAnalysis',
     'MotifScores',
     'NetworkSummary',
     'NumberFluctuations',
     'OrbitDiagram',
     'PartialInformationAnalysis',
+    'PassageAnalysis',
     'Pattern',
     'Percolation',
     'PowerLawFit',
-    'RateFunction',
     'Recurrence',
     'RelativeFluctuations',
     'ReservoirAnalysis',
-    'Reweighted',
     'Section',
     'Series',
     'Signature',
@@ -289,8 +222,6 @@ __all__: list[str] = [
     'Subshift',
     'SurrogateTest',
     'Sweep',
-    'UlamChain',
-    'UncertaintyRelation',
     'aging_collapse',
     'analyses_for',
     'analysis',
@@ -301,17 +232,14 @@ __all__: list[str] = [
     'avalanches',
     'binder_crossings',
     'binder_cumulant',
-    'block_generating_function',
     'box_counting_dimension',
     'branching_ratio',
     'ccdf',
     'centrality',
     'clark_evans_ratio',
-    'cloning',
     'cluster_sizes',
     'coarse_grain',
     'collapse_distributions',
-    'committor',
     'communities',
     'compare_with_law',
     'complexity_entropy',
@@ -322,18 +250,15 @@ __all__: list[str] = [
     'correlation_dimension',
     'correlation_function',
     'correlation_length',
-    'count_entropy_production',
     'crackling_noise',
     'data_kinds',
     'degree_moments',
     'degrees',
     'delay_embedding',
-    'detailed_balance',
     'detect_events',
     'detrended_fluctuation',
     'difference_pattern',
     'dispersion_relation',
-    'dissimilarity_index',
     'divergence',
     'domain_growth',
     'domain_size',
@@ -343,15 +268,11 @@ __all__: list[str] = [
     'ensemble_entropy',
     'ensemble_of',
     'entanglement_entropy',
-    'entropy_production',
     'equations_of',
-    'ergodicity_breaking',
-    'ergodicity_distance',
     'event_counts',
     'false_nearest_neighbors',
     'fano_factor',
     'fields_of',
-    'first_passage_times',
     'fit_avalanches',
     'fit_extreme_values',
     'fit_order_exponent',
@@ -359,45 +280,31 @@ __all__: list[str] = [
     'fit_stable',
     'fixed_points',
     'flow_matrix',
-    'fluctuation_dissipation_ratio',
-    'fluctuation_metric',
-    'fluctuation_theorem',
     'garden_of_eden',
     'gini',
     'ground_state',
     'hamiltonian_of',
     'hill',
     'histogram',
-    'histogram_rate_function',
-    'hitting_probabilities',
     'hurst_exponent',
-    'implied_timescales',
     'interface_density',
-    'invariant_density',
     'inverse',
     'is_injective',
     'is_pre_injective',
     'is_surjective',
     'jacobian',
-    'jump_entropy_production',
     'kaplan_yorke_dimension',
     'kinetic_temperature',
     'kolmogorov_sinai_entropy',
-    'kramers_moyal',
     'label_clusters',
     'laminar_durations',
-    'langevin_entropy_production',
     'largest_lyapunov_exponent',
-    'legendre_transform',
-    'like_neighbor_share',
     'linearize',
     'loop_dominance',
     'loops',
     'lqr',
     'lyapunov_spectrum',
-    'markov_state_model',
     'maxwell_boltzmann_test',
-    'mean_first_passage_time',
     'mean_squared_displacement',
     'milling_order',
     'mittag_leffler',
@@ -426,11 +333,7 @@ __all__: list[str] = [
     'recurrence_matrix',
     'recurrence_quantification',
     'relative_fluctuations',
-    'relaxation_times',
     'replica_overlap',
-    'response',
-    'return_times',
-    'reweight',
     'scaling_collapse',
     'series_of',
     'signature_analysis',
@@ -438,18 +341,11 @@ __all__: list[str] = [
     'solve_symbolically',
     'spanning_probability',
     'spatial_entropy_rates',
-    'spectral_gap',
     'spectrum',
     'stability',
-    'stationary_distribution',
     'stroboscopic',
     'structure_factor',
     'summarize_network',
     'surrogate_test',
-    'tilted_generating_function',
-    'transition_counts',
-    'transition_matrix',
     'two_time_correlation',
-    'ulam_chain',
-    'uncertainty_relation',
 ]

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import EmergenceAnalysis, transition_matrix
+from skcomplex.analysis import EmergenceAnalysis, MarkovAnalysis
 from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
@@ -91,7 +91,8 @@ def test_partition_coarse_grain_by_function_matches_the_macro_path():
     path = _chain(micro, 40_000, np.random.default_rng(0))
     found = _emergence('causal', micro, partition=lambda states: states // 2, weighting='stationary')
     assert found.partition_.tolist() == [0, 0, 1, 1]
-    np.testing.assert_allclose(transition_matrix(path // 2), found.macro_matrix_, atol=0.02)
+    estimated = MarkovAnalysis().check().prepare(path // 2).run().transition_matrix_
+    np.testing.assert_allclose(estimated, found.macro_matrix_, atol=0.02)
 
 
 def test_partition_coarse_grain_rejects_missing_labels():

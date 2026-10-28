@@ -1,4 +1,4 @@
-"""Test delay embeddings, fractal dimensions, Lyapunov-derived invariants, invariant densities, and recurrences."""
+"""Test delay embeddings, fractal dimensions, Lyapunov-derived invariants, and recurrences."""
 
 import math
 
@@ -11,14 +11,12 @@ from skcomplex.analysis import (
     correlation_dimension,
     delay_embedding,
     embed,
-    invariant_density,
     kaplan_yorke_dimension,
     kolmogorov_sinai_entropy,
     largest_lyapunov_exponent,
     lyapunov_spectrum,
     recurrence_matrix,
     recurrence_quantification,
-    ulam_chain,
 )
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models.mathematics.dynamical_systems import henon_map, logistic_map, lorenz
@@ -120,22 +118,6 @@ def test_largest_lyapunov_exponent_from_data():
         skip=10,
     )
     assert flow == pytest.approx(0.906, abs=0.15)
-
-
-def test_invariant_density_and_ulam_chain_of_the_logistic_map():
-    """Test that a long run and the Ulam chain on 100 cells both match the arcsine density in total variation."""
-    edges = np.linspace(0, 1, 101)
-    exact = np.diff(2 / np.pi * np.arcsin(np.sqrt(edges)))
-    values = np.empty(1_000_000)
-    value = 0.3
-    for index in range(values.size):
-        value = 4 * value * (1 - value)
-        values[index] = value
-    _, density = invariant_density(values, edges)
-    chain = ulam_chain(lambda x: 4 * x * (1 - x), edges, 1000)
-    assert 0.5 * np.sum(np.abs(density * 0.01 - exact)) < 0.05
-    assert 0.5 * np.sum(np.abs(chain.density * 0.01 - exact)) < 0.05
-    np.testing.assert_allclose(chain.matrix.sum(axis=1), 1)
 
 
 def test_recurrence_quantification_order_and_noise():

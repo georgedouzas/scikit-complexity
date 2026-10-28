@@ -20,7 +20,7 @@ from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._information import _estimated_information, _plugin_entropy
 from ._kinds import DataKind
-from ._transitions import stationary_distribution
+from ._markov import _stationary_distribution
 from ._utils import sample_columns
 
 type Array = npt.NDArray[np.float64]
@@ -96,7 +96,7 @@ def _weights(matrix: Array, weighting: str) -> Array:
         return np.ones(matrix.shape[0])
     totals = matrix.sum(axis=1, keepdims=True)
     rows = np.divide(matrix, totals, out=np.eye(matrix.shape[0]), where=totals > 0)
-    return stationary_distribution(rows)
+    return _stationary_distribution(rows)
 
 
 def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:

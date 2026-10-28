@@ -1,12 +1,13 @@
-"""Measure large deviations: generating functions, rate functions, and exponential reweighting."""
+"""Measure large deviations: generating functions, rate functions, cloning, and exponential reweighting."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import warnings
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -16,12 +17,29 @@ from ..core.errors import AnalysisError
 from ..core.system import System
 from ..engine.problems import Problem
 from ..engine.runtime import Simulation, Trajectory
-from ._kinds import DataKind, analysis
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
 MIN_EFFECTIVE_CLONES = 10
+KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
+SETTINGS = {
+    'tilted': {'weights', 'tilts', 'values'},
+    'block': {'tilts', 'block', 'dt', 'values'},
+    'cloning': {'observable', 'tilts', 'values', 'population', 'interval', 'until', 'random_state', 'simulation'},
+    'histogram': {'bins', 'value_range'},
+    'reweight': {'log_weights'},
+}
+"""Settings every kind reads, besides `kind` and `variables`."""
+DATA_KINDS = {
+    'tilted': DataKind.PATH,
+    'block': DataKind.SERIES,
+    'cloning': DataKind.PATH,
+    'histogram': DataKind.ENSEMBLE,
+    'reweight': DataKind.ENSEMBLE,
+}
 
 
 def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
@@ -32,55 +50,48 @@ def _increment(observable: str | Callable[[Trajectory], float], trajectory: Traj
     return float(np.sum(values[-1] - values[0]))
 
 
-@analysis(DataKind.PATH)
-def tilted_generating_function(rates: npt.ArrayLike, weights: npt.ArrayLike, k: npt.ArrayLike) -> Array:
-    """Return the scaled cumulant generating function of a counting observable of a jump process, exactly.
+def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
+    """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid."""
+    return np.max(np.outer(values, tilts) - function[None, :], axis=1)
 
-    The observable adds `weights[i, j]` at every jump from `i` to `j`, and the function at `k` is the largest
-    eigenvalue of the tilted generator `rates * exp(k weights) - diag(escape rates)`. A diagonal rate counts jumps that
-    keep the state, such as the events of a Poisson process.
+
+class LargeDeviationAnalysis(BaseAnalysis):
+    """Large deviations of a time-additive observable or of an order parameter, of one kind.
+
+    The kinds estimate the scaled cumulant generating function `lambda(k)` at the `tilts`, or the rate function `I`:
+
+    - `'tilted'`: exactly, for a counting observable of a jump process that adds `weights[i, j]` at every jump from
+      `i` to `j`, as the largest eigenvalue of the tilted generator `rates * exp(k weights) - diag(escape rates)` of
+      the rate matrix. A diagonal rate counts jumps that keep the state, such as the events of a Poisson process.
+    - `'block'`: from blocks of `block` steps of one long run of the increments of the observable, as
+      `ln <exp(k A)> / (block dt)`.
+    - `'cloning'`: by the fixed-population cloning of Giardinà, Kurchan, and Peliti, which advances every clone of a
+      system by `interval` through the simulation's steppers, weights it by `exp(k A)` for the increment `A` of the
+      observable, and resamples the population by the weights. The system is compiled once, and every segment restarts
+      the clock at zero, so the laws must not depend on time explicitly. A warning names a population whose effective
+      size falls below a tenth of the clones or below 10 clones.
+    - `'histogram'`: the rate function of `P_N(m) ≍ exp(-N I(m))` from the samples of an order parameter at several
+      sizes `N`, fitting `-ln P_N` linearly in `N` in every bin.
+    - `'reweight'`: samples reweighted to another law by the logarithms of the likelihood ratios, such as `beta dh M`.
+
+    With `values`, the generating function kinds also give the rate function, its Legendre transform
+    `I(a) = max_k (k a - lambda(k))` over the tilts.
 
     Args:
-        rates:
-            The rate of every jump, one row per origin.
+        kind:
+            The estimate, one of the kinds above.
+
+        variables:
+            The series of a trajectory whose values are the increments of `'block'`, or `None` for the first one.
 
         weights:
-            The increment of the observable at every jump.
+            The increment of the observable at every jump of `'tilted'`.
 
-        k:
-            The values of the tilt.
+        tilts:
+            The values of the tilt `k`.
 
-    Returns:
-        function:
-            The generating function at every tilt.
-
-    Examples:
-        >>> from skcomplex.analysis import tilted_generating_function
-        >>> tilted_generating_function([[2.0]], [[1.0]], [0.0, 1.0]).round(4).tolist()
-        [0.0, 3.4366]
-    """
-    matrix = np.asarray(rates, dtype=float)
-    increments = np.asarray(weights, dtype=float)
-    escape = np.diag(matrix.sum(axis=1))
-    tilts = np.atleast_1d(np.asarray(k, dtype=float))
-    return np.asarray([linalg.eigvals(matrix * np.exp(tilt * increments) - escape).real.max() for tilt in tilts])
-
-
-@analysis(DataKind.SERIES)
-def block_generating_function(
-    increments: npt.ArrayLike,
-    k: npt.ArrayLike,
-    block: int,
-    dt: float = 1.0,
-) -> Array:
-    """Return the scaled cumulant generating function of a time-additive observable from blocks of one long run.
-
-    Args:
-        increments:
-            The increment of the observable in every step, such as the count of events.
-
-        k:
-            The values of the tilt.
+        values:
+            The values `a` of the observable per unit time of the rate function, or `None` for none.
 
         block:
             The number of steps of every block.
@@ -88,238 +99,9 @@ def block_generating_function(
         dt:
             The time of one step.
 
-    Returns:
-        function:
-            `ln <exp(k A)> / (block dt)` over the blocks at every tilt.
-
-    Raises:
-        AnalysisError:
-            The run holds fewer than 2 blocks.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import block_generating_function
-        >>> counts = np.random.default_rng(0).poisson(0.2, 1_000_000)
-        >>> bool(abs(block_generating_function(counts, [1.0], 10, 0.1)[0] - 2 * (np.e - 1)) < 0.2)
-        True
-    """
-    array = np.asarray(increments, dtype=float)
-    count = array.size // block
-    if count < MIN_SIZES:
-        error_msg = f'The run of {array.size} steps holds fewer than 2 blocks of {block} steps.'
-        raise AnalysisError(error_msg)
-    sums = array[: count * block].reshape(count, block).sum(axis=1)
-    tilts = np.atleast_1d(np.asarray(k, dtype=float))
-    return (special.logsumexp(np.outer(tilts, sums), axis=1) - np.log(count)) / (block * dt)
-
-
-@analysis(DataKind.SERIES)
-def legendre_transform(k: npt.ArrayLike, function: npt.ArrayLike, values: npt.ArrayLike) -> Array:
-    """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid.
-
-    Args:
-        k:
-            The grid of tilts.
-
-        function:
-            The generating function at every tilt.
-
-        values:
-            The values `a` of the observable per unit time.
-
-    Returns:
-        rates:
-            The rate function at every value.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import legendre_transform
-        >>> k = np.linspace(-3, 3, 6001)
-        >>> round(float(legendre_transform(k, 2 * (np.exp(k) - 1), [3.0])[0]), 4)
-        0.2164
-    """
-    tilts, function_values = np.asarray(k, dtype=float), np.asarray(function, dtype=float)
-    points = np.atleast_1d(np.asarray(values, dtype=float))
-    return np.max(np.outer(points, tilts) - function_values[None, :], axis=1)
-
-
-@dataclass(frozen=True)
-class RateFunction:
-    """Rate function of an order parameter estimated from its histograms at several sizes.
-
-    Args:
-        values:
-            The centres of the bins.
-
-        rates:
-            The rate function at every centre, 0 at its minimum, `nan` where a size left the bin empty.
-    """
-
-    values: Array
-    rates: Array
-
-
-@analysis(DataKind.ENSEMBLE)
-def histogram_rate_function(
-    samples: Mapping[int, npt.ArrayLike],
-    bins: int | npt.ArrayLike = 41,
-    value_range: tuple[float, float] | None = None,
-) -> RateFunction:
-    """Return the rate function `I` of `P_N(m) ≍ exp(-N I(m))` fitted across the histograms of several sizes `N`.
-
-    In every bin `-ln P_N` is fitted linearly in `N`, so prefactors that do not grow exponentially with the size
-    drop out.
-
-    Args:
-        samples:
-            The samples of the order parameter at every size.
-
-        bins:
-            The number of bins or their edges.
-
-        value_range:
-            The range of the bins, or `None` for the range of all samples.
-
-    Returns:
-        rate:
-            The bin centres and the rate function.
-
-    Raises:
-        AnalysisError:
-            Fewer than 2 sizes are given.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.analysis import histogram_rate_function
-        >>> rng = np.random.default_rng(0)
-        >>> samples = {n: rng.binomial(n, 0.5, 200_000) / n for n in (50, 100, 200)}
-        >>> rate = histogram_rate_function(samples, 21, (0.0, 1.0))
-        >>> round(float(np.nanmin(rate.rates)), 6)
-        0.0
-    """
-    sizes = sorted(samples)
-    if len(sizes) < MIN_SIZES:
-        error_msg = f'A rate function from histograms needs at least {MIN_SIZES} sizes, not {len(sizes)}.'
-        raise AnalysisError(error_msg)
-    pooled = np.concatenate([np.asarray(samples[size], dtype=float) for size in sizes])
-    edges = np.histogram_bin_edges(pooled, bins=bins, range=value_range)
-    arrays = [np.asarray(samples[size], dtype=np.float64) for size in sizes]
-    densities = np.asarray([np.histogram(array, bins=edges, density=True)[0] for array in arrays])
-    with np.errstate(divide='ignore'):
-        logs = -np.log(densities)
-    rates = np.full(edges.size - 1, np.nan)
-    for index in range(rates.size):
-        column = logs[:, index]
-        finite = np.isfinite(column)
-        if finite.sum() >= MIN_SIZES:
-            rates[index] = np.polyfit(np.asarray(sizes, dtype=float)[finite], column[finite], 1)[0]
-    return RateFunction((edges[1:] + edges[:-1]) / 2, rates - np.nanmin(rates))
-
-
-@dataclass(frozen=True)
-class Reweighted:
-    """Samples reweighted by an exponential tilt.
-
-    Args:
-        weights:
-            The normalized weight of every sample.
-
-        mean:
-            The weighted mean of the samples.
-
-        effective_size:
-            The effective number of samples, `1 / Σ w²`.
-    """
-
-    weights: Array
-    mean: float
-    effective_size: float
-
-
-@analysis(DataKind.ENSEMBLE)
-def reweight(values: npt.ArrayLike, log_weights: npt.ArrayLike) -> Reweighted:
-    """Return samples reweighted to another law by the logarithms of the likelihood ratios, such as `beta dh M`.
-
-    Args:
-        values:
-            The samples of the observable.
-
-        log_weights:
-            The logarithm of the ratio of the new to the old probability of every sample.
-
-    Returns:
-        reweighted:
-            The weights, the reweighted mean, and the effective sample size.
-
-    Examples:
-        >>> from skcomplex.analysis import reweight
-        >>> round(reweight([-1.0, 1.0], [0.0, 0.0]).mean, 6)
-        0.0
-    """
-    array = np.asarray(values, dtype=float)
-    logs = np.asarray(log_weights, dtype=float)
-    weights = np.exp(logs - special.logsumexp(logs))
-    return Reweighted(weights, float(np.sum(weights * array)), float(1 / np.sum(weights**2)))
-
-
-@dataclass(frozen=True)
-class Cloning:
-    """Estimate of a scaled cumulant generating function by cloning, with the diagnostics of its bias.
-
-    Args:
-        scgf:
-            The estimate of the scaled cumulant generating function at the tilt.
-
-        s:
-            The tilt.
-
-        population:
-            The number of clones.
-
-        duration:
-            The simulated time of every clone.
-
-        effective_population:
-            The smallest effective number of clones over the selection steps, `(Σ w)² / Σ w²`.
-    """
-
-    scgf: float
-    s: float
-    population: int
-    duration: float
-    effective_population: float
-
-
-def cloning(
-    system: System | Problem,
-    observable: str | Callable[[Trajectory], float],
-    s: float,
-    *,
-    population: int = 1000,
-    interval: float = 1.0,
-    until: float = 20.0,
-    random_state: int | None = None,
-    **settings: Any,  # noqa: ANN401
-) -> Cloning:
-    """Return the scaled cumulant generating function of a time-additive observable, by cloning trajectories.
-
-    The fixed-population algorithm of Giardinà, Kurchan, and Peliti advances every clone by `interval` through the
-    simulation's steppers, weights it by `exp(s A)` for the increment `A` of the observable, and resamples the
-    population by the weights. The logarithm of the mean weight, summed over the intervals and divided by the duration,
-    estimates the function. The system is validated and compiled once, and every segment restarts the clock at zero,
-    so the laws must not depend on time explicitly. The bias falls as the population grows, and a warning names a
-    population whose effective size falls below a tenth of the clones or below 10 clones.
-
-    Args:
-        system:
-            The system, or its compiled problem.
-
         observable:
             The dotted name of a state whose increment over each interval is the observable, such as a counter, or a
             function of the trajectory of one interval that returns the increment.
-
-        s:
-            The tilt.
 
         population:
             The number of clones.
@@ -333,66 +115,282 @@ def cloning(
         random_state:
             The seed of the clones and of the selection.
 
-        **settings:
-            Other arguments of `Simulation`, such as `solver` or `dt`.
+        simulation:
+            Other settings of `Simulation`, such as `solver` or `dt`.
 
-    Returns:
-        cloning:
-            The estimate, with the population, the duration, and the smallest effective population.
+        bins:
+            The number of bins or their edges of `'histogram'`.
 
-    Raises:
-        AnalysisError:
-            The population is smaller than 2, or the duration is not a positive multiple of the interval.
+        value_range:
+            The range of the bins, or `None` for the range of all samples.
+
+        log_weights:
+            The logarithm of the ratio of the new to the old probability of every sample.
+
+    Attributes:
+        rates_:
+            The rate matrix of `'tilted'`.
+
+        increments_:
+            The increments of `'block'`.
+
+        system_:
+            The system or its compiled problem of `'cloning'`.
+
+        samples_:
+            The samples at every size of `'histogram'`.
+
+        observations_:
+            The samples of `'reweight'`.
+
+        tilts_:
+            The tilts of the generating function.
+
+        scgf_:
+            The scaled cumulant generating function at every tilt.
+
+        effective_population_:
+            The smallest effective number of clones over the selection steps at every tilt, `(Σ w)² / Σ w²`.
+
+        values_:
+            The values of the rate function, the centres of the bins of `'histogram'`.
+
+        rate_function_:
+            The rate function at every value, 0 at its minimum and `nan` where a size left the bin empty for
+            `'histogram'`.
+
+        weights_:
+            The normalized weight of every sample of `'reweight'`.
+
+        mean_:
+            The weighted mean of the samples of `'reweight'`.
+
+        effective_size_:
+            The effective number of samples `1 / Σ w²` of `'reweight'`.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.analysis import cloning
-        >>> from skcomplex.core.elements import Element
-        >>> from skcomplex.core.laws import JumpLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.system import System
-        >>> class CounterElement(Element):
-        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.n = n
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return [JumpLaw(1.0, {namespace.n: 1})]
-        >>> system = System(elements=[CounterElement('counter')])
-        >>> estimate = cloning(system, 'counter.n', 0.5, population=100, until=5.0, random_state=0)
-        >>> bool(abs(estimate.scgf - (np.exp(0.5) - 1)) < 0.15)
-        True
+        >>> import numpy as np
+        >>> from skcomplex.analysis import LargeDeviationAnalysis
+        >>> tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=[0.0, 1.0])
+        >>> tilted.check().prepare([[2.0]]).run().scgf_.round(4).tolist()
+        [0.0, 3.4366]
+        >>> tilts = np.linspace(-3, 3, 6001)
+        >>> rate = LargeDeviationAnalysis(weights=[[1.0]], tilts=tilts, values=[3.0])
+        >>> round(float(rate.check().prepare([[2.0]]).run().rate_function_[0]), 4)
+        0.2164
+        >>> LargeDeviationAnalysis('reweight', log_weights=[0.0, 0.0]).check().prepare([-1.0, 1.0]).run().mean_
+        0.0
     """
-    steps = round(until / interval)
-    if population < MIN_SIZES or steps < 1 or not np.isclose(steps * interval, until):
-        error_msg = (
-            f'Cloning needs at least {MIN_SIZES} clones and a duration that is a positive multiple of the interval, '
-            f'but got {population} clones, the duration {until}, and the interval {interval}.'
+
+    def __init__(
+        self,
+        kind: str = 'tilted',
+        variables: Sequence[str] | None = None,
+        *,
+        weights: npt.ArrayLike | None = None,
+        tilts: float | npt.ArrayLike = 1.0,
+        values: npt.ArrayLike | None = None,
+        block: int = 10,
+        dt: float = 1.0,
+        observable: str | Callable[[Trajectory], float] | None = None,
+        population: int = 1000,
+        interval: float = 1.0,
+        until: float = 20.0,
+        random_state: int | None = None,
+        simulation: Mapping[str, object] | None = None,
+        bins: int | npt.ArrayLike = 41,
+        value_range: tuple[float, float] | None = None,
+        log_weights: npt.ArrayLike | None = None,
+    ) -> None:
+        self.kind = kind
+        self.variables = variables
+        self.weights = weights
+        self.tilts = tilts
+        self.values = values
+        self.block = block
+        self.dt = dt
+        self.observable = observable
+        self.population = population
+        self.interval = interval
+        self.until = until
+        self.random_state = random_state
+        self.simulation = simulation
+        self.bins = bins
+        self.value_range = value_range
+        self.log_weights = log_weights
+
+    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
+            raise AnalysisError(error_msg)
+
+    def _check_ignored(self) -> None:
+        """Raise an error for a setting changed from its default that the kind does not read."""
+        defaults = {
+            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
+        }
+        read = SETTINGS[self.kind] | {'kind', 'variables'}
+        ignored = [
+            name
+            for name, value in self.get_params().items()
+            if name not in read and value is not defaults[name] and (defaults[name] is None or value != defaults[name])
+        ]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _check_needed(self, name: str) -> None:
+        """Raise an error for a setting the kind needs that is not given."""
+        if getattr(self, name) is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {name}. Give it.'
+            raise AnalysisError(error_msg)
+
+    def _check(self) -> Self:
+        """Validate the kind, the settings each kind needs, and the cloning schedule."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_ignored()
+        needed = {'tilted': 'weights', 'cloning': 'observable', 'reweight': 'log_weights'}
+        if self.kind in needed:
+            self._check_needed(needed[self.kind])
+        steps = round(self.until / self.interval)
+        if self.population < MIN_SIZES or steps < 1 or not np.isclose(steps * self.interval, self.until):
+            error_msg = (
+                f'Cloning needs at least {MIN_SIZES} clones and a duration that is a positive multiple of the '
+                f'interval, but got {self.population} clones, the duration {self.until}, and the interval '
+                f'{self.interval}.'
+            )
+            raise AnalysisError(error_msg)
+        if self.block < 1 or self.dt <= 0:
+            error_msg = f'{type(self).__name__} has block={self.block!r} and dt={self.dt!r}. Use positive values.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the path kind for jump processes, the series kind for blocks, and the ensemble kind for samples."""
+        return DATA_KINDS[self.kind]
+
+    def _prepare(self, source: Source | Problem | Mapping[int, npt.ArrayLike]) -> Self:
+        """Read the rate matrix, the increments, the system, or the samples the kind estimates from."""
+        if self.kind == 'tilted':
+            self.rates_ = np.asarray(source, dtype=float)
+        elif self.kind == 'block':
+            self.increments_ = self._read_series(source, self.variables).values[:, 0].astype(float)
+        elif self.kind == 'cloning':
+            if not isinstance(source, System | Problem):
+                error_msg = (
+                    f'{type(self).__name__} of kind cloning reads a system or its problem, not {type(source).__name__}.'
+                )
+                raise AnalysisError(error_msg)
+            self.system_ = source
+        elif self.kind == 'histogram':
+            if not isinstance(source, Mapping):
+                error_msg = f'{type(self).__name__} of kind histogram reads a mapping of every size to its samples.'
+                raise AnalysisError(error_msg)
+            self.samples_ = {size: np.asarray(source[size], dtype=float) for size in sorted(source)}
+        else:
+            self.observations_ = np.asarray(source, dtype=float)
+        return self
+
+    def _run_tilted(self) -> None:
+        """Compute the largest eigenvalue of the tilted generator at every tilt."""
+        increments = np.asarray(self.weights, dtype=float)
+        escape = np.diag(self.rates_.sum(axis=1))
+        self.scgf_ = np.asarray(
+            [linalg.eigvals(self.rates_ * np.exp(tilt * increments) - escape).real.max() for tilt in self.tilts_],
         )
-        raise AnalysisError(error_msg)
-    rng = np.random.default_rng(random_state)
-    settings = {'dt': interval, **settings}
-    problem = Simulation(system, **settings).run(until=interval).problem_
-    states = np.tile(problem.initial_state, (population, 1))
-    log_growth, effective = 0.0, float(population)
-    for _ in range(steps):
-        increments = np.empty(population)
-        for index in range(population):
-            start = replace(problem, initial_state=states[index].copy())
-            seed = int(rng.integers(2**31 - 1))
-            simulation = Simulation(start, random_state=seed, **settings).run(until=interval)
-            increments[index] = _increment(observable, simulation.trajectory_)
-            states[index] = np.asarray(simulation.trajectory_.states)[-1]
-        logs = s * increments
-        log_growth += float(special.logsumexp(logs) - np.log(population))
-        weights = np.exp(logs - special.logsumexp(logs))
-        effective = min(effective, float(1 / np.sum(weights**2)))
-        states = states[rng.choice(population, size=population, p=weights)]
-    if effective < max(population * SMALL_POPULATION, MIN_EFFECTIVE_CLONES):
-        warnings.warn(
-            f'The effective population of the cloning fell to {effective:.1f} of {population} clones, so the estimate '
-            'may be biased. Use more clones or a shorter interval.',
-            RuntimeWarning,
-            stacklevel=2,
-        )
-    return Cloning(log_growth / until, s, population, until, effective)
+
+    def _run_block(self) -> None:
+        """Compute the generating function over the blocks of the run."""
+        array = self.increments_
+        count = array.size // self.block
+        if count < MIN_SIZES:
+            error_msg = (
+                f'The run of {array.size} steps holds fewer than 2 blocks of {self.block} steps. Use shorter blocks.'
+            )
+            raise AnalysisError(error_msg)
+        sums = array[: count * self.block].reshape(count, self.block).sum(axis=1)
+        self.scgf_ = (special.logsumexp(np.outer(self.tilts_, sums), axis=1) - np.log(count)) / (self.block * self.dt)
+
+    def _clone(self, tilt: float) -> tuple[float, float]:
+        """Return the generating function at one tilt and the smallest effective population, by cloning."""
+        observable: str | Callable[[Trajectory], float] = self.observable  # type: ignore[assignment]
+        population, steps = self.population, round(self.until / self.interval)
+        rng = np.random.default_rng(self.random_state)
+        settings = {'dt': self.interval, **(self.simulation or {})}
+        problem = Simulation(self.system_, **settings).run(until=self.interval).problem_  # type: ignore[arg-type]
+        states = np.tile(problem.initial_state, (population, 1))
+        log_growth, effective = 0.0, float(population)
+        for _ in range(steps):
+            increments = np.empty(population)
+            for index in range(population):
+                start = replace(problem, initial_state=states[index].copy())
+                seed = int(rng.integers(2**31 - 1))
+                simulation = Simulation(start, random_state=seed, **settings).run(until=self.interval)  # type: ignore[arg-type]
+                increments[index] = _increment(observable, simulation.trajectory_)
+                states[index] = np.asarray(simulation.trajectory_.states)[-1]
+            logs = tilt * increments
+            log_growth += float(special.logsumexp(logs) - np.log(population))
+            weights = np.exp(logs - special.logsumexp(logs))
+            effective = min(effective, float(1 / np.sum(weights**2)))
+            states = states[rng.choice(population, size=population, p=weights)]
+        if effective < max(population * SMALL_POPULATION, MIN_EFFECTIVE_CLONES):
+            warnings.warn(
+                f'The effective population of the cloning fell to {effective:.1f} of {population} clones, so the '
+                'estimate may be biased. Use more clones or a shorter interval.',
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        return log_growth / self.until, effective
+
+    def _run_histogram(self) -> None:
+        """Compute the rate function from the histograms of the sizes."""
+        sizes = list(self.samples_)
+        if len(sizes) < MIN_SIZES:
+            error_msg = f'A rate function from histograms needs at least {MIN_SIZES} sizes, not {len(sizes)}.'
+            raise AnalysisError(error_msg)
+        arrays = list(self.samples_.values())
+        edges = np.histogram_bin_edges(np.concatenate(arrays), bins=self.bins, range=self.value_range)
+        densities = np.asarray([np.histogram(array, bins=edges, density=True)[0] for array in arrays])
+        with np.errstate(divide='ignore'):
+            logs = -np.log(densities)
+        rates = np.full(edges.size - 1, np.nan)
+        for index in range(rates.size):
+            column = logs[:, index]
+            finite = np.isfinite(column)
+            if finite.sum() >= MIN_SIZES:
+                rates[index] = np.polyfit(np.asarray(sizes, dtype=float)[finite], column[finite], 1)[0]
+        self.values_ = (edges[1:] + edges[:-1]) / 2
+        self.rate_function_ = rates - np.nanmin(rates)
+
+    def _run_reweight(self) -> None:
+        """Compute the weights of the samples and the reweighted mean."""
+        logs = np.asarray(self.log_weights, dtype=float)
+        self.weights_ = np.exp(logs - special.logsumexp(logs))
+        self.mean_ = float(np.sum(self.weights_ * self.observations_))
+        self.effective_size_ = float(1 / np.sum(self.weights_**2))
+
+    def _run(self) -> Self:
+        """Compute the estimate of the kind, and the rate function at the values."""
+        if self.kind == 'histogram':
+            self._run_histogram()
+            return self
+        if self.kind == 'reweight':
+            self._run_reweight()
+            return self
+        self.tilts_ = np.atleast_1d(np.asarray(self.tilts, dtype=float))
+        if self.kind == 'tilted':
+            self._run_tilted()
+        elif self.kind == 'block':
+            self._run_block()
+        else:
+            estimates = [self._clone(float(tilt)) for tilt in self.tilts_]
+            self.scgf_ = np.asarray([scgf for scgf, _ in estimates])
+            self.effective_population_ = np.asarray([effective for _, effective in estimates])
+        if self.values is not None:
+            self.values_ = np.atleast_1d(np.asarray(self.values, dtype=float))
+            self.rate_function_ = _legendre_transform(self.tilts_, self.scgf_, self.values_)
+        return self
