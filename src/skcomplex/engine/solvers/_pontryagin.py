@@ -16,45 +16,15 @@ from ...core.types import Vector
 from ..problems import OrderKind, SupportSpec
 from ._optimal_control import ControlSolution, Cost, GridFunction, OptimalControlSolver, _ControlProblem
 
-MIN_RELAXATION = 1e-3
+_MIN_RELAXATION = 1e-3
 MIN_NODES = 2
 
-CONTROL_SUPPORT = SupportSpec(
+_CONTROL_SUPPORT = SupportSpec(
     time={ContinuousTime},
     space={None},
     laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
     orders={OrderKind.INTEGER},
 )
-
-
-def _is_linear(gradients: list[Expression], controls: list[Expression]) -> bool:
-    """Check whether no gradient of the Hamiltonian by a control depends on any control."""
-    return all(gradient.diff(control).is_trivial_zero() for gradient in gradients for control in controls)
-
-
-def _stationary_controls(gradients: list[Expression], controls: list[Expression]) -> list[Expression]:
-    """Return the controls that make every gradient of the Hamiltonian vanish, solved symbolically."""
-    solutions = solve([gradient == 0 for gradient in gradients], *controls, solution_dict=True)
-    explicit = [
-        solution
-        for solution in solutions
-        if set(solution) == set(controls)
-        and all(not set(SR(value).variables()) & set(controls) for value in solution.values())
-    ]
-    if len(explicit) != 1:
-        error_msg = (
-            'The condition that the Hamiltonian is stationary in the controls has no unique explicit solution. Use '
-            'the CollocationSolver solver, which needs no such solution.'
-        )
-        raise SolverError(error_msg)
-    return [SR(explicit[0][control]) for control in controls]
-
-
-def _converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]) -> bool:
-    """Check whether every new array differs from the old one by at most a relative tolerance in the sum norm."""
-    return all(
-        np.abs(new - old).sum() <= tolerance * max(np.abs(new).sum(), np.finfo(float).tiny) for new, old in pairs
-    )
 
 
 class PontryaginSolver(OptimalControlSolver):
@@ -130,7 +100,7 @@ class PontryaginSolver(OptimalControlSolver):
         -0.762
     """
 
-    supports: ClassVar[SupportSpec] = CONTROL_SUPPORT
+    supports: ClassVar[SupportSpec] = _CONTROL_SUPPORT
 
     def __init__(
         self,
@@ -211,8 +181,8 @@ class PontryaginSolver(OptimalControlSolver):
         )
         controls = control_problem.control_symbols
         gradients = [hamiltonian.diff(control) for control in controls]
-        self._bang_bang = _is_linear(gradients, controls)
-        law = gradients if self._bang_bang else _stationary_controls(gradients, controls)
+        self._bang_bang = self._is_linear(gradients, controls)
+        law = gradients if self._bang_bang else self._stationary_controls(gradients, controls)
         self._adjoint: GridFunction = control_problem.function(
             [-hamiltonian.diff(item) for item in control_problem.states],
             costates,
@@ -256,7 +226,7 @@ class PontryaginSolver(OptimalControlSolver):
             update = self._update(times, states, controls, costates, p)
             gap = float(np.abs(update - controls).sum())
             if gap >= distance:
-                weight = max(weight / 2, MIN_RELAXATION)
+                weight = max(weight / 2, _MIN_RELAXATION)
             distance = gap
             new_controls = (1 - weight) * controls + weight * update
             new_states = self._integrate(initial, new_controls, times, p)
@@ -269,7 +239,7 @@ class PontryaginSolver(OptimalControlSolver):
                 raise SolverError(error_msg)
             pairs = [(new_controls, controls), (new_states, states), (new_costates, costates)]
             controls, states, costates = new_controls, new_states, new_costates
-            if _converged(self.tolerance, pairs):
+            if self._converged(self.tolerance, pairs):
                 named = {name: costates[:, index] for index, name in enumerate(control_problem.names)}
                 return self._solution(x0, times, states, controls, p, iterations=iteration, costates=named)
         error_msg = (
@@ -277,3 +247,33 @@ class PontryaginSolver(OptimalControlSolver):
             'max_iterations, or use the CollocationSolver solver.'
         )
         raise SolverError(error_msg)
+
+    @staticmethod
+    def _is_linear(gradients: list[Expression], controls: list[Expression]) -> bool:
+        """Check whether no gradient of the Hamiltonian by a control depends on any control."""
+        return all(gradient.diff(control).is_trivial_zero() for gradient in gradients for control in controls)
+
+    @staticmethod
+    def _stationary_controls(gradients: list[Expression], controls: list[Expression]) -> list[Expression]:
+        """Return the controls that make every gradient of the Hamiltonian vanish, solved symbolically."""
+        solutions = solve([gradient == 0 for gradient in gradients], *controls, solution_dict=True)
+        explicit = [
+            solution
+            for solution in solutions
+            if set(solution) == set(controls)
+            and all(not set(SR(value).variables()) & set(controls) for value in solution.values())
+        ]
+        if len(explicit) != 1:
+            error_msg = (
+                'The condition that the Hamiltonian is stationary in the controls has no unique explicit solution. Use '
+                'the CollocationSolver solver, which needs no such solution.'
+            )
+            raise SolverError(error_msg)
+        return [SR(explicit[0][control]) for control in controls]
+
+    @staticmethod
+    def _converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]) -> bool:
+        """Check whether every new array differs from the old one by at most a relative tolerance in the sum norm."""
+        return all(
+            np.abs(new - old).sum() <= tolerance * max(np.abs(new).sum(), np.finfo(float).tiny) for new, old in pairs
+        )

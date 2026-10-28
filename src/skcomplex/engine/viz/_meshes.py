@@ -14,7 +14,7 @@ import rerun.blueprint as rrb
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _phase_colors
-from ._utils import MODULUS, PHASE
+from ._utils import _MODULUS, _PHASE
 from ._visuals import BaseVisual
 
 
@@ -88,8 +88,8 @@ class MeshVisual(BaseVisual):
                 self._log_mesh(recording, path, mesh, values, self._colors(values, self.low, self.high))
                 continue
             modulus, phase = np.abs(values), np.angle(values)
-            self._log_mesh(recording, f'{path}/{MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
-            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, _phase_colors(phase))
+            self._log_mesh(recording, f'{path}/{_MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
+            self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, _phase_colors(phase))
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
@@ -122,7 +122,7 @@ class MeshVisual(BaseVisual):
             path = f'{element.path}/{state}'
             if problem.states.entry(name).is_complex:
                 views += [
-                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)
                 ]
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))

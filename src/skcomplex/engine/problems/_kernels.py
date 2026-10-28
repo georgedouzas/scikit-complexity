@@ -32,20 +32,6 @@ LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed'
 type NumericFunction = Callable[[float, Mapping[str, object]], object]
 
 
-def _single_reader(is_state: bool, index: int) -> Reader:
-    """Return the function that reads one component shared by every evaluation index."""
-    if is_state:
-        return lambda x, p, pairs, t: x[index]
-    return lambda x, p, pairs, t: p[index]
-
-
-def _broadcast(value: Any, size: int) -> Vector:  # noqa: ANN401
-    """Return the values of an output as one float per evaluation index."""
-    if np.ndim(value) == 0:
-        return np.full(size, value, dtype=float)
-    return np.broadcast_to(np.asarray(value, dtype=float), (size,))
-
-
 class Source(Enum):
     """How a symbol is read for each evaluation index of a kernel."""
 
@@ -605,7 +591,7 @@ class Kernel:
                 return self._gather_around(reference, x, p, pairs, t)
 
         elif source is Source.SINGLE or (source is Source.REDUCED and reference.entry.members is None):
-            read = _single_reader(reference.is_state, reference.index)
+            read = self._single_reader(reference.is_state, reference.index)
         else:
             read = self._member_reader(reference)
         self._readers[symbol] = read
@@ -660,7 +646,7 @@ class Kernel:
         function_results: dict[tuple[int, int], Vector] = {}
         for output, (start, count) in zip(self.outputs, self._slots, strict=True):
             if output.expression is not None:
-                values.append(_broadcast(computed[start], size))
+                values.append(self._broadcast(computed[start], size))
                 continue
             key = (id(output.function), start)
             if key not in function_results:
@@ -684,6 +670,20 @@ class Kernel:
         if result.size == size * output.components:
             return result.reshape(size, output.components)
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
+
+    @staticmethod
+    def _single_reader(is_state: bool, index: int) -> Reader:
+        """Return the function that reads one component shared by every evaluation index."""
+        if is_state:
+            return lambda x, p, pairs, t: x[index]
+        return lambda x, p, pairs, t: p[index]
+
+    @staticmethod
+    def _broadcast(value: Any, size: int) -> Vector:  # noqa: ANN401
+        """Return the values of an output as one float per evaluation index."""
+        if np.ndim(value) == 0:
+            return np.full(size, value, dtype=float)
+        return np.broadcast_to(np.asarray(value, dtype=float), (size,))
 
 
 def lower_noise(kernels: list[Kernel]) -> tuple[Indices, Indices, int, tuple[WienerBlock, ...]]:

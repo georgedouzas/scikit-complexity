@@ -13,27 +13,7 @@ from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import BasePass
 from .._specs import KernelSpec
-from .._stochastic import MatrixLaw, compile_matrix, markov_laws
-
-
-def _checked_matrices(
-    markov: list[tuple[KernelSpec, MatrixLaw]],
-    declarations: Declarations,
-) -> tuple[_MarkovMatrix, ...]:
-    """Return the matrices of the Markov laws after checking them at the initial parameter values."""
-    initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-    matrices = []
-    for spec, law in markov:
-        matrix = compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
-        violation = matrix.violation(initial)
-        if violation is not None:
-            error_msg = (
-                f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows sum '
-                'to 1.'
-            )
-            raise ValidationError(error_msg)
-        matrices.append(matrix)
-    return tuple(matrices)
+from .._stochastic import MatrixLaw, _compile_matrix, _markov_laws
 
 
 class MarkovPass(BasePass):
@@ -52,9 +32,29 @@ class MarkovPass(BasePass):
         lowered: BlockLaws = []
         markov: list[tuple[KernelSpec, MatrixLaw]] = []
         for spec, laws, block in cast('BlockLaws', compilation.lowered):
-            kept, matrices = markov_laws(spec.owner, laws, spec.references)
+            kept, matrices = _markov_laws(spec.owner, laws, spec.references)
             lowered.append((spec, kept, block))
             markov.extend((spec, matrix) for matrix in matrices)
         compilation.lowered = lowered
         compilation.markov = markov
-        compilation.matrices = _checked_matrices(markov, cast('Declarations', compilation.layout))
+        compilation.matrices = self._checked_matrices(markov, cast('Declarations', compilation.layout))
+
+    @staticmethod
+    def _checked_matrices(
+        markov: list[tuple[KernelSpec, MatrixLaw]],
+        declarations: Declarations,
+    ) -> tuple[_MarkovMatrix, ...]:
+        """Return the matrices of the Markov laws after checking them at the initial parameter values."""
+        initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        matrices = []
+        for spec, law in markov:
+            matrix = _compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
+            violation = matrix.violation(initial)
+            if violation is not None:
+                error_msg = (
+                    f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows '
+                    'sum to 1.'
+                )
+                raise ValidationError(error_msg)
+            matrices.append(matrix)
+        return tuple(matrices)

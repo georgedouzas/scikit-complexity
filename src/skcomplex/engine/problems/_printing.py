@@ -19,7 +19,7 @@ from sage.rings.rational import Rational
 from ...core.errors import ValidationError
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
-CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
+_CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
 RELATIONS = {
     operator.lt: 'lt',
     operator.le: 'le',
@@ -28,7 +28,7 @@ RELATIONS = {
     operator.eq: 'eq',
     operator.ne: 'ne',
 }
-PYTHON_RELATIONS = {
+_PYTHON_RELATIONS = {
     'lt': '({0} < {1})',
     'le': '({0} <= {1})',
     'gt': '({0} > {1})',
@@ -37,21 +37,11 @@ PYTHON_RELATIONS = {
     'ne': '({0} != {1})',
 }
 
-CONDITION = 'np.where('
-QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
+_CONDITION = 'np.where('
+_QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
 type Printed = tuple[str, int]
-NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
-
-
-def _is_sum(item: Expression) -> bool:
-    """Check whether an expression is a sum."""
-    return getattr(item.operator(), '__name__', '') == 'add_vararg'
-
-
-def _is_product(item: Expression) -> bool:
-    """Check whether an expression is a product."""
-    return getattr(item.operator(), '__name__', '') == 'mul_vararg'
+_NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
 
 
 def _is_reciprocal(item: Expression) -> bool:
@@ -60,19 +50,6 @@ def _is_reciprocal(item: Expression) -> bool:
         return False
     exponent = item.operands()[1]
     return bool(exponent.is_numeric() and exponent.pyobject() < 0)
-
-
-def _is_negative(value: Any) -> bool:  # noqa: ANN401
-    """Check whether a number is real and negative, so complex numbers are never negated."""
-    try:
-        return bool(float(value) < 0)
-    except TypeError:
-        return False
-
-
-def _numeric(item: Expression) -> Any:  # noqa: ANN401
-    """Return the Python or Sage number of a numeric expression."""
-    return item.pyobject()
 
 
 type _Key = tuple[int, str]
@@ -266,7 +243,7 @@ NUMPY_DIALECT = Dialect(
         'both': 'np.logical_and({0}, {1})',
         'mod': 'np.mod({0}, {1})',
     },
-    PYTHON_RELATIONS,
+    _PYTHON_RELATIONS,
     complex_numbers=True,
 )
 
@@ -305,7 +282,7 @@ SCALAR_DIALECT = Dialect(
         'both': '({0} and {1})',
         'mod': '({0} % {1})',
     },
-    PYTHON_RELATIONS,
+    _PYTHON_RELATIONS,
 )
 
 
@@ -344,10 +321,10 @@ def numpy_function(
     names = {item: f'_a{index}' for index, item in enumerate(arguments)} | {time: 't'}
     assignments, codes = print_expressions(expressions, NUMPY_DIALECT, lambda item: names[item])
     body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
-    if any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes):
-        body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
+    if any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes):
+        body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
     lines = [f'def _function(t, {", ".join(names[item] for item in arguments)}):', *(f'    {line}' for line in body)]
-    namespace = dict(NAMESPACE)
+    namespace = dict(_NAMESPACE)
     exec('\n'.join(lines), namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
     return namespace['_function']
 
@@ -386,7 +363,7 @@ class _Printer:
         templates = {**self.dialect.functions, **self.dialect.relations}
         if name not in templates:
             raise self.dialect.unknown(name)
-        call = CALL.fullmatch(templates[name]) is not None
+        call = _CALL.fullmatch(templates[name]) is not None
         codes = [self.print(argument)[0] if call else self.wrap(self.print(argument), ATOM) for argument in arguments]
         if name in self.dialect.folds:
             code = codes[0]
@@ -400,17 +377,17 @@ class _Printer:
         coefficient: Any = 1
         numerator: list[str] = []
         denominator: list[str] = []
-        for factor in item.operands() if _is_product(item) else [item]:
+        for factor in item.operands() if self._is_product(item) else [item]:
             if factor.is_numeric():
-                coefficient *= _numeric(factor)
+                coefficient *= self._numeric(factor)
                 continue
             exponent = factor.operands()[1] if factor.operator() is operator.pow else None
-            if exponent is not None and exponent.is_numeric() and _numeric(exponent) < 0:
+            if exponent is not None and exponent.is_numeric() and self._numeric(exponent) < 0:
                 base = factor.operands()[0]
                 denominator.append(self.wrap(self.power(base, -exponent), PRODUCT + 1))
                 continue
             numerator.append(self.wrap(self.print(factor), PRODUCT))
-        negative = _is_negative(coefficient)
+        negative = self._is_negative(coefficient)
         coefficient = -coefficient if negative else coefficient
         if isinstance(coefficient, Rational) and not isinstance(coefficient, Integer):
             if coefficient.numerator() != 1:
@@ -428,11 +405,11 @@ class _Printer:
 
     def power(self, base: Expression, exponent: Expression) -> Printed:
         """Return the code of a power, with square roots for exponents of a half."""
-        if exponent.is_numeric() and _numeric(exponent) == Rational((1, 2)):
+        if exponent.is_numeric() and self._numeric(exponent) == Rational((1, 2)):
             return self.template('sqrt', [base])
-        if exponent.is_numeric() and _numeric(exponent) == Rational((-1, 2)):
+        if exponent.is_numeric() and self._numeric(exponent) == Rational((-1, 2)):
             return f'1/{self.template("sqrt", [base])[0]}', PRODUCT
-        if exponent.is_numeric() and _numeric(exponent) == 1:
+        if exponent.is_numeric() and self._numeric(exponent) == 1:
             return self.print(base)
         code = f'{self.wrap(self.print(base), ATOM)}{self.dialect.power}{self.wrap(self.print(exponent), ATOM)}'
         return code, POWER
@@ -455,16 +432,16 @@ class _Printer:
             return name, ATOM
         if item.is_symbol():
             return self.names(item), ATOM
-        return self.number(_numeric(item) if item.is_numeric() else float(item))
+        return self.number(self._numeric(item) if item.is_numeric() else float(item))
 
     def print(self, item: Expression) -> Printed:
         """Return the code of an expression and how tightly it binds."""
         if item.is_symbol() or item.is_numeric() or item.is_constant() or (self.bound and _key(item) in self.bound):
             return self.leaf(item)
         function = item.operator()
-        if _is_sum(item):
+        if self._is_sum(item):
             return self.total(item)
-        if _is_product(item):
+        if self._is_product(item):
             return self.product(item)
         if function is operator.pow:
             return self.product(item) if _is_reciprocal(item) else self.power(*item.operands())
@@ -472,3 +449,26 @@ class _Printer:
             return self.template(RELATIONS[function], item.operands())
         name = function.name() if hasattr(function, 'name') else str(function)
         return self.template(name, item.operands())
+
+    @staticmethod
+    def _is_sum(item: Expression) -> bool:
+        """Check whether an expression is a sum."""
+        return getattr(item.operator(), '__name__', '') == 'add_vararg'
+
+    @staticmethod
+    def _is_product(item: Expression) -> bool:
+        """Check whether an expression is a product."""
+        return getattr(item.operator(), '__name__', '') == 'mul_vararg'
+
+    @staticmethod
+    def _is_negative(value: Any) -> bool:  # noqa: ANN401
+        """Check whether a number is real and negative, so complex numbers are never negated."""
+        try:
+            return bool(float(value) < 0)
+        except TypeError:
+            return False
+
+    @staticmethod
+    def _numeric(item: Expression) -> Any:  # noqa: ANN401
+        """Return the Python or Sage number of a numeric expression."""
+        return item.pyobject()

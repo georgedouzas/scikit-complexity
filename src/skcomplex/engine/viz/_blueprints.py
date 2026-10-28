@@ -19,12 +19,12 @@ from ._kinds import agents_visual_of, resolve_visual
 from ._points import PointsVisual
 from ._scalars import ScalarsVisual
 
-MAX_SERIES_PER_VIEW = 6
-MAX_VIEWS_PER_ROW = 3
-SERIES_WIDTH = 2.5
-SPATIAL_ROW_SHARE = 2.0
-SERIES_ROW_SHARE = 1.0
-WHOLE_RUN = rrb.TimeAxis(
+_MAX_SERIES_PER_VIEW = 6
+_MAX_VIEWS_PER_ROW = 3
+_SERIES_WIDTH = 2.5
+_SPATIAL_ROW_SHARE = 2.0
+_SERIES_ROW_SHARE = 1.0
+_WHOLE_RUN = rrb.TimeAxis(
     view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
 )
 
@@ -58,8 +58,8 @@ def _series_view(views: list[rrb.View], name: str) -> rrb.TimeSeriesView:
         origin='/',
         contents=contents,
         name=name,
-        defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
-        axis_x=WHOLE_RUN,
+        defaults=[rr.SeriesLines.from_fields(widths=_SERIES_WIDTH)],
+        axis_x=_WHOLE_RUN,
     )
 
 
@@ -72,8 +72,8 @@ def _whole_run(view: rrb.View) -> rrb.View:
         origin=view.origin,
         contents=view.contents,
         name=view.name,
-        defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
-        axis_x=WHOLE_RUN,
+        defaults=[rr.SeriesLines.from_fields(widths=_SERIES_WIDTH)],
+        axis_x=_WHOLE_RUN,
         plot_legend=legend if isinstance(legend, rrb.PlotLegend) else None,
     )
 
@@ -99,7 +99,7 @@ def _chunks(
     count = 0
     for element, view in elements:
         series = _series_count(element, problem)
-        if chunk and count + series > MAX_SERIES_PER_VIEW:
+        if chunk and count + series > _MAX_SERIES_PER_VIEW:
             yield chunk
             chunk, count = [], 0
         chunk.append((element, view))
@@ -208,7 +208,7 @@ def _row(views: list[rrb.View]) -> rrb.View | rrb.Container:
     """Return a single view, views side by side, or a grid of views."""
     if len(views) == 1:
         return views[0]
-    if len(views) <= MAX_VIEWS_PER_ROW:
+    if len(views) <= _MAX_VIEWS_PER_ROW:
         return rrb.Horizontal(*views)
     return rrb.Grid(*views, grid_columns=math.ceil(math.sqrt(len(views))))
 
@@ -293,7 +293,7 @@ def default_blueprint(
     ordered = [spatial, series] if primary is None else _with_primary(spatial, series, primary)
     rows = [_row(views) for views in ordered if views]
     if len(rows) > 1:
-        shares = [SPATIAL_ROW_SHARE, SERIES_ROW_SHARE] if ordered[0] is spatial else [SERIES_ROW_SHARE] * 2
+        shares = [_SPATIAL_ROW_SHARE, _SERIES_ROW_SHARE] if ordered[0] is spatial else [_SERIES_ROW_SHARE] * 2
         root: rrb.View | rrb.Container = rrb.Vertical(*rows, row_shares=shares)
     else:
         root = rows[0] if rows else rrb.Vertical()

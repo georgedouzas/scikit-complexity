@@ -32,44 +32,14 @@ from ..problems import (
     symbol,
     vector,
 )
-from ._tree import Node, coerce_value, noise_processes, shape_of
+from ._tree import Node, _coerce_value, _noise_processes, _shape_of
 
-ACTIVE = '_active'
+_ACTIVE = '_active'
 ENDS = ('_source', '_target')
-MEMBERS = '~members'
+_MEMBERS = '~members'
 
 
-def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
-    """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed.
-
-    A symbol without a variable, such as the handle of a Wiener process, keeps its name.
-    """
-    return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
-
-
-def _per_entry_shape(node: Node, variable: str, declaration: Variable) -> tuple[int, ...]:
-    """Return the shape of a parameter with one value per entry of a variadic role, after checking its length."""
-    roles = declarations_of(node.component_type, VariableKind.ROLE)
-    role = declaration.per
-    if role not in roles or not roles[role].variadic:
-        error_msg = (
-            f'{node.path}.{variable} is declared per entry of {role!r}, which is not a variadic role of '
-            f'{node.component_type.__name__}. Declare the role with `role(variadic=True)`.'
-        )
-        raise ValidationError(error_msg)
-    entries = len(getattr(node.component, role))
-    value = node.value_of(variable)
-    given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
-    if given is not None and given != entries:
-        error_msg = (
-            f'Interaction {node.path} gives its parameter {variable!r} {given} values, but its role {role!r} binds '
-            f'{entries} entries. Give one value per entry.'
-        )
-        raise ValidationError(error_msg)
-    return (entries,)
-
-
-def check_symbol_names(blocks: dict[str, 'Block']) -> None:
+def _check_symbol_names(blocks: dict[str, 'Block']) -> None:
     """Raise an error when two variables produce the same symbol name."""
     seen: dict[str, str] = {}
     for block in blocks.values():
@@ -84,12 +54,12 @@ def check_symbol_names(blocks: dict[str, 'Block']) -> None:
             seen[name] = reference.entry.name
 
 
-def is_interaction(node: Node) -> bool:
+def _is_interaction(node: Node) -> bool:
     """Check whether a node is an interaction."""
     return not isinstance(node.component, Element | GroupElement)
 
 
-def member_count(blocks: list['Block']) -> int:
+def _member_count(blocks: list['Block']) -> int:
     """Return the number of members of the groups of a system, leaving out agents, which chooses a default backend.
 
     Args:
@@ -123,11 +93,11 @@ class Block:
         symbols: dict[str, Any] = {}
         for name, value in self.symbols.items():
             if not isinstance(value, FreeModuleElement):
-                symbols[name] = _renamed(value, mapping)
+                symbols[name] = self._renamed(value, mapping)
             elif name in self.per:
-                symbols[name] = tuple(_renamed(item, mapping) for item in value)
+                symbols[name] = tuple(self._renamed(item, mapping) for item in value)
             else:
-                symbols[name] = vector(_renamed(item, mapping) for item in value)
+                symbols[name] = vector(self._renamed(item, mapping) for item in value)
         return SimpleNamespace(**symbols)
 
     def namespace(self, source: Source, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
@@ -174,6 +144,14 @@ class Block:
         }
         return self._namespace(mapping), references
 
+    @staticmethod
+    def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
+        """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed.
+
+        A symbol without a variable, such as the handle of a Wiener process, keeps its name.
+        """
+        return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
+
 
 @dataclass
 class Declarations:
@@ -192,7 +170,7 @@ class Declarations:
 
     def _declare_processes(self, node: Node) -> None:
         """Add a block with the handle `dW` of every Wiener process an interaction binds, one symbol per process."""
-        for path, wiener in noise_processes([node]).items():
+        for path, wiener in _noise_processes([node]).items():
             if path in self.processes:
                 continue
             block = Block(Node(path, node.scope, wiener, node.space))
@@ -213,14 +191,14 @@ class Declarations:
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
         if declaration.per is None:
-            member_shape = shape_of(name, declaration, node.space)
+            member_shape = _shape_of(name, declaration, node.space)
         else:
-            member_shape = _per_entry_shape(node, variable, declaration)
+            member_shape = self._per_entry_shape(node, variable, declaration)
             block.per.add(variable)
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(
-            coerce_value(
+            _coerce_value(
                 name,
                 node.value_of(variable),
                 member_shape,
@@ -255,7 +233,7 @@ class Declarations:
         node = block.node
         base = re.sub(r'[^0-9A-Za-z]', '_', node.path)
         members = symbol(f'members_{base}')
-        block.symbols = {MEMBERS: members, **block.symbols}
+        block.symbols = {_MEMBERS: members, **block.symbols}
         self.agents[members] = (node.path, '')
         for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
             if declaration.vector or declaration.domain is CC:
@@ -287,7 +265,7 @@ class Declarations:
         node = block.node
         group = cast('GroupElement', node.component)
         rows, active = node.members or 0, node.active or 0
-        self._declare_hidden(block, ACTIVE, (np.arange(rows) < active).astype(float))
+        self._declare_hidden(block, _ACTIVE, (np.arange(rows) < active).astype(float))
         if group.on != 'edges':
             return
         space = cast('NetworkSpace', node.space)
@@ -370,7 +348,7 @@ class Declarations:
                 The entries by layer.
         """
         return {
-            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[ACTIVE])
+            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[_ACTIVE])
             for layer, block in self.changing_edges(space).items()
         }
 
@@ -404,3 +382,25 @@ class Declarations:
             self._declare_topology(block)
         self.blocks[node.path] = block
         return block
+
+    @staticmethod
+    def _per_entry_shape(node: Node, variable: str, declaration: Variable) -> tuple[int, ...]:
+        """Return the shape of a parameter with one value per entry of a variadic role, after checking its length."""
+        roles = declarations_of(node.component_type, VariableKind.ROLE)
+        role = declaration.per
+        if role not in roles or not roles[role].variadic:
+            error_msg = (
+                f'{node.path}.{variable} is declared per entry of {role!r}, which is not a variadic role of '
+                f'{node.component_type.__name__}. Declare the role with `role(variadic=True)`.'
+            )
+            raise ValidationError(error_msg)
+        entries = len(getattr(node.component, role))
+        value = node.value_of(variable)
+        given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
+        if given is not None and given != entries:
+            error_msg = (
+                f'Interaction {node.path} gives its parameter {variable!r} {given} values, but its role {role!r} binds '
+                f'{entries} entries. Give one value per entry.'
+            )
+            raise ValidationError(error_msg)
+        return (entries,)

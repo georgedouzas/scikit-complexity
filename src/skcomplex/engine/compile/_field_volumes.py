@@ -22,18 +22,7 @@ from ..problems import Reference, Source, numpy_function, symbol
 type Array = npt.NDArray[np.float64]
 
 TIME = symbol('t')
-STENCIL = 2
-
-
-def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
-    """Return the limited slope of every cell from its backward and forward differences."""
-    if limiter is None:
-        return np.zeros_like(forward)
-    same = backward * forward > 0
-    if limiter == 'minmod':
-        return np.where(same, np.sign(forward) * np.minimum(np.abs(backward), np.abs(forward)), 0.0)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        return np.where(same, 2 * backward * forward / (backward + forward), 0.0)
+_STENCIL = 2
 
 
 def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
@@ -181,7 +170,7 @@ class FiniteVolume:
             for values in padded:
                 backward = take(values, 1, n + 3) - take(values, 0, n + 2)
                 forward = take(values, 2, n + 4) - take(values, 1, n + 3)
-                slopes = _limited(backward, forward, self.limiter)
+                slopes = self._limited(backward, forward, self.limiter)
                 cells = take(values, 1, n + 3)
                 left.append(take(cells + slopes / 2, 0, n + 1))
                 right.append(take(cells - slopes / 2, 1, n + 2))
@@ -234,7 +223,7 @@ class FiniteVolume:
         kinds = {kind for kind, _ in self.boundaries}
         rows, columns = [], []
         for axis, length in enumerate(self.dimensions):
-            for offset in range(-STENCIL, STENCIL + 1):
+            for offset in range(-_STENCIL, _STENCIL + 1):
                 shifted = np.arange(length) + offset
                 neighbours = []
                 if 'periodic' in kinds:
@@ -250,8 +239,19 @@ class FiniteVolume:
         second = np.concatenate([item for _, item in pairs])
         return scipy.sparse.csr_array((np.ones(first.size), (first, second)), shape=(size, size))
 
+    @staticmethod
+    def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
+        """Return the limited slope of every cell from its backward and forward differences."""
+        if limiter is None:
+            return np.zeros_like(forward)
+        same = backward * forward > 0
+        if limiter == 'minmod':
+            return np.where(same, np.sign(forward) * np.minimum(np.abs(backward), np.abs(forward)), 0.0)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            return np.where(same, 2 * backward * forward / (backward + forward), 0.0)
 
-def compile_volumes(
+
+def _compile_volumes(
     laws: Sequence[tuple[FluxLaw, Reference]],
     references: Mapping[Expression, Reference],
     place: FieldElement,

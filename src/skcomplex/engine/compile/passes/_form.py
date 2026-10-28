@@ -6,7 +6,7 @@
 from typing import cast
 
 from .._compilation import Compilation
-from .._forms import infer_form
+from .._forms import _infer_form
 from .._pipeline import BasePass
 
 
@@ -23,4 +23,4 @@ class FormPass(BasePass):
             compilation:
                 The compilation state.
         """
-        compilation.form = infer_form(cast('dict[str, set[type]]', compilation.kinds).values())
+        compilation.form = _infer_form(cast('dict[str, set[type]]', compilation.kinds).values())

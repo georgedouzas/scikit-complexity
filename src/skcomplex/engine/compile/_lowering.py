@@ -11,7 +11,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.errors import ValidationError
 
-SHIFT = 'shift_member'
+_SHIFT = 'shift_member'
 
 
 def _is_sympy(value: object) -> bool:
@@ -58,7 +58,7 @@ def _to_components(value: object, owner: str) -> list[object] | None:
     raise ValidationError(error_msg)
 
 
-def symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
+def _symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
     """Return the symbolic components of a law value, or `None` when the value is a callable.
 
     Args:
@@ -92,7 +92,7 @@ def symbolic_components(value: object, size: int, owner: str) -> list[Expression
     return expressions
 
 
-def calls_of(expression: Expression, name: str) -> list[Expression]:
+def _calls_of(expression: Expression, name: str) -> list[Expression]:
     """Return the calls of a symbolic function by name inside an expression.
 
     Args:

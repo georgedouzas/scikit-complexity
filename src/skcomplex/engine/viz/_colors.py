@@ -6,7 +6,7 @@
 import numpy as np
 import numpy.typing as npt
 
-SERIES_COLORS = (
+_SERIES_COLORS = (
     (230, 159, 0),
     (86, 180, 233),
     (0, 158, 115),
@@ -16,15 +16,15 @@ SERIES_COLORS = (
     (204, 121, 167),
     (170, 170, 170),
 )
-POINT_FLOOR = 0.25
-COLOR_SCALE = np.array(
+_POINT_FLOOR = 0.25
+_COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
 )
-PALETTE = (
+_PALETTE = (
     np.stack(
         [
-            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(COLOR_SCALE)), COLOR_SCALE[:, channel])
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(_COLOR_SCALE)), _COLOR_SCALE[:, channel])
             for channel in range(3)
         ],
         axis=-1,
@@ -32,14 +32,14 @@ PALETTE = (
     .round()
     .astype(np.uint8)
 )
-PHASE_SCALE = np.array(
+_PHASE_SCALE = np.array(
     [[230, 90, 80], [225, 190, 70], [90, 190, 110], [70, 160, 210], [150, 100, 200], [230, 90, 80]],
     dtype=float,
 )
-PHASE_PALETTE = (
+_PHASE_PALETTE = (
     np.stack(
         [
-            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(PHASE_SCALE)), PHASE_SCALE[:, channel])
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(_PHASE_SCALE)), _PHASE_SCALE[:, channel])
             for channel in range(3)
         ],
         axis=-1,
@@ -58,7 +58,7 @@ def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) 
 def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
     """Return the colors of phases in `(-pi, pi]` from a cyclic palette, so `-pi` and `pi` share one color."""
     levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
-    return PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
+    return _PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
 
 
 def _levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
@@ -92,9 +92,9 @@ def palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> 
         (2, 3)
     """
     if high <= low:
-        return np.broadcast_to(PALETTE[0], (*values.shape, 3))
+        return np.broadcast_to(_PALETTE[0], (*values.shape, 3))
     levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
-    return PALETTE[levels]
+    return _PALETTE[levels]
 
 
 def colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
@@ -121,7 +121,7 @@ def colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.N
         (2, 3)
     """
     fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
-    fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
-    anchors = np.linspace(0.0, 1.0, len(COLOR_SCALE))
-    channels = [np.interp(fractions, anchors, COLOR_SCALE[:, channel]) for channel in range(3)]
+    fractions = _POINT_FLOOR + (1.0 - _POINT_FLOOR) * fractions
+    anchors = np.linspace(0.0, 1.0, len(_COLOR_SCALE))
+    channels = [np.interp(fractions, anchors, _COLOR_SCALE[:, channel]) for channel in range(3)]
     return np.stack(channels, axis=-1).round().astype(np.uint8)

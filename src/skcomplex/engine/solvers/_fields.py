@@ -30,7 +30,7 @@ from ..compile._field_lowering import mesh_laplacian
 from ..problems import LATTICE_BOUNDARIES, Form, OrderKind, Problem, SupportSpec, numpy_function, step_count, symbol
 from ._stepper import Solver
 
-CONTOUR_POINTS = 64
+_CONTOUR_POINTS = 64
 TIME = symbol('t')
 
 type Complex = npt.NDArray[np.complex128]
@@ -50,115 +50,6 @@ def _coefficient(term: Any, p: Vector) -> Any:  # noqa: ANN401
 def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
     """Return the flat state index of a component for every member."""
     return reference.flat_indices
-
-
-def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_matrix:  # noqa: ANN401
-    """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
-    space = place.space
-    size = place.size_
-    kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])
-
-    def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
-        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
-        table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
-        inside = table < size
-        return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
-
-    if isinstance(space, NetworkSpace):
-        adjacency = csr_matrix(nx.to_scipy_sparse_array(space.graph, nodelist=list(space.graph.nodes), weight=None))
-        if name != 'laplacian':
-            error_msg = f'Only Laplacians act on fields on networks, but a term takes the {name}.'
-            raise SolverError(error_msg)
-        return adjacency - diags(np.asarray(adjacency.sum(axis=1)).ravel())
-    units = [tuple(int(other == index) for other in range(space.n_dim_)) for index in range(space.n_dim_)]
-    spacings = space.spacings_
-    if name == 'laplacian':
-        total = csr_matrix((size, size))
-        for unit, step in zip(units, spacings, strict=True):
-            total = total + (shift(unit) + shift(tuple(-item for item in unit)) - 2 * identity(size)) / step**2
-        return total
-    if name == 'partial':
-        unit = units[axis]
-        return (shift(unit) - shift(tuple(-item for item in unit))) / (2 * spacings[axis])
-    error_msg = f'The {name} of a finite-difference field has no stencil. Use a spectral field.'
-    raise SolverError(error_msg)
-
-
-def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
-    """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
-    place = term.place
-    matrix = identity(place.size_, format='csr')
-    for name, axis in reversed(term.chain):
-        operator = (
-            _mesh_operator(place.space, name)
-            if isinstance(place.space, MeshSpace)
-            else _lattice_operator(name, axis, place, term.source)
-        )
-        matrix = operator @ matrix
-    return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
-
-
-def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: Problem) -> csr_matrix | None:
-    """Return the sparse matrix of linear terms over the whole state vector, without rows of fixed nodes."""
-    if not triplets:
-        return None
-    size = problem.states.size
-    rows, columns, values = [], [], []
-    for target, source, matrix in triplets:
-        block = matrix.tocoo()
-        rows.append(_rows(target)[block.row])
-        columns.append(_rows(source)[block.col])
-        values.append(block.data)
-    sparse = csr_matrix((np.concatenate(values), (np.concatenate(rows), np.concatenate(columns))), shape=(size, size))
-    if problem.constrained.size:
-        keep = np.ones(size)
-        keep[problem.constrained] = 0.0
-        sparse = diags(keep) @ sparse
-    return sparse
-
-
-def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
-    """Return the Fourier block of the linear terms of the states of one spectral field."""
-    place = terms[0][0].place
-    states: dict[tuple[str, int], Any] = {}
-    for term, _ in terms:
-        for reference in (term.target, term.source):
-            states.setdefault((reference.entry.name, reference.column), reference)
-    order = {key: index for index, key in enumerate(states)}
-    dimensions, spacings = place.space.shape_, place.space.spacings_
-    matrix = np.zeros((*np.fft.rfftn(np.zeros(dimensions)).shape, len(states), len(states)), dtype=complex)
-    for term, coefficient in terms:
-        multiplier: Any = 1.0
-        for name, axis in term.chain:
-            multiplier = multiplier * spectral_multiplier(name, axis, dimensions, spacings)
-        target = order[(term.target.entry.name, term.target.column)]
-        source = order[(term.source.entry.name, term.source.column)]
-        matrix[..., target, source] += coefficient * multiplier
-    return _SpectralBlock(dimensions, [_rows(reference) for reference in states.values()], matrix)
-
-
-def _mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
-    """Return the finite element Laplacian of a mesh."""
-    if name != 'laplacian':
-        error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
-        raise SolverError(error_msg)
-    return mesh_laplacian(space)
-
-
-def _phi(z: Complex, h: float) -> list[Complex]:
-    """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
-
-    The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of the
-    formulas near zero for complex eigenvalues as well as real ones.
-    """
-    roots = np.exp(2j * np.pi * (np.arange(1, CONTOUR_POINTS + 1) - 0.5) / CONTOUR_POINTS)
-    points = z[..., None] + roots
-    exponential = np.exp(points)
-    q = h * np.mean((np.exp(points / 2) - 1) / points, axis=-1)
-    f1 = h * np.mean((-4 - points + exponential * (4 - 3 * points + points**2)) / points**3, axis=-1)
-    f2 = h * np.mean((2 + points + exponential * (-2 + points)) / points**3, axis=-1)
-    f3 = h * np.mean((-4 - 3 * points - points**2 + exponential * (4 - points)) / points**3, axis=-1)
-    return [np.exp(z), np.exp(z / 2), q, f1, f2, f3]
 
 
 @dataclass
@@ -341,11 +232,11 @@ class SplitOperator:
         for term in problem.linear:
             coefficient = _coefficient(term, p)
             if term.place.discretization != 'spectral':
-                triplets.append((term.target, term.source, _term_matrix(term, coefficient)))
+                triplets.append((term.target, term.source, cls._term_matrix(term, coefficient)))
             elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
                 groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
-        operator.sparse = _sparse(triplets, problem)
-        operator.blocks = [_spectral_block(terms) for terms in groups.values()]
+        operator.sparse = cls._sparse(triplets, problem)
+        operator.blocks = [cls._spectral_block(terms) for terms in groups.values()]
         rows = [row for block in operator.blocks for row in block.rows]
         operator.covered = np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
         return operator
@@ -393,6 +284,102 @@ class SplitOperator:
         for block, inverse in zip(self.blocks, inverses, strict=True):
             block.apply(inverse, rhs, out)
         return out
+
+    @staticmethod
+    def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_matrix:  # noqa: ANN401
+        """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
+        space = place.space
+        size = place.size_
+        kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])
+
+        def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
+            lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
+            table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
+            inside = table < size
+            return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
+
+        if isinstance(space, NetworkSpace):
+            adjacency = csr_matrix(nx.to_scipy_sparse_array(space.graph, nodelist=list(space.graph.nodes), weight=None))
+            if name != 'laplacian':
+                error_msg = f'Only Laplacians act on fields on networks, but a term takes the {name}.'
+                raise SolverError(error_msg)
+            return adjacency - diags(np.asarray(adjacency.sum(axis=1)).ravel())
+        units = [tuple(int(other == index) for other in range(space.n_dim_)) for index in range(space.n_dim_)]
+        spacings = space.spacings_
+        if name == 'laplacian':
+            total = csr_matrix((size, size))
+            for unit, step in zip(units, spacings, strict=True):
+                total = total + (shift(unit) + shift(tuple(-item for item in unit)) - 2 * identity(size)) / step**2
+            return total
+        if name == 'partial':
+            unit = units[axis]
+            return (shift(unit) - shift(tuple(-item for item in unit))) / (2 * spacings[axis])
+        error_msg = f'The {name} of a finite-difference field has no stencil. Use a spectral field.'
+        raise SolverError(error_msg)
+
+    @staticmethod
+    def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
+        """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
+        place = term.place
+        matrix = identity(place.size_, format='csr')
+        for name, axis in reversed(term.chain):
+            operator = (
+                SplitOperator._mesh_operator(place.space, name)
+                if isinstance(place.space, MeshSpace)
+                else SplitOperator._lattice_operator(name, axis, place, term.source)
+            )
+            matrix = operator @ matrix
+        return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
+
+    @staticmethod
+    def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: Problem) -> csr_matrix | None:
+        """Return the sparse matrix of linear terms over the whole state vector, without rows of fixed nodes."""
+        if not triplets:
+            return None
+        size = problem.states.size
+        rows, columns, values = [], [], []
+        for target, source, matrix in triplets:
+            block = matrix.tocoo()
+            rows.append(_rows(target)[block.row])
+            columns.append(_rows(source)[block.col])
+            values.append(block.data)
+        sparse = csr_matrix(
+            (np.concatenate(values), (np.concatenate(rows), np.concatenate(columns))),
+            shape=(size, size),
+        )
+        if problem.constrained.size:
+            keep = np.ones(size)
+            keep[problem.constrained] = 0.0
+            sparse = diags(keep) @ sparse
+        return sparse
+
+    @staticmethod
+    def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
+        """Return the Fourier block of the linear terms of the states of one spectral field."""
+        place = terms[0][0].place
+        states: dict[tuple[str, int], Any] = {}
+        for term, _ in terms:
+            for reference in (term.target, term.source):
+                states.setdefault((reference.entry.name, reference.column), reference)
+        order = {key: index for index, key in enumerate(states)}
+        dimensions, spacings = place.space.shape_, place.space.spacings_
+        matrix = np.zeros((*np.fft.rfftn(np.zeros(dimensions)).shape, len(states), len(states)), dtype=complex)
+        for term, coefficient in terms:
+            multiplier: Any = 1.0
+            for name, axis in term.chain:
+                multiplier = multiplier * spectral_multiplier(name, axis, dimensions, spacings)
+            target = order[(term.target.entry.name, term.target.column)]
+            source = order[(term.source.entry.name, term.source.column)]
+            matrix[..., target, source] += coefficient * multiplier
+        return _SpectralBlock(dimensions, [_rows(reference) for reference in states.values()], matrix)
+
+    @staticmethod
+    def _mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
+        """Return the finite element Laplacian of a mesh."""
+        if name != 'laplacian':
+            error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
+            raise SolverError(error_msg)
+        return mesh_laplacian(space)
 
 
 class IMEXEulerSolver(_SplitSolver):
@@ -512,7 +499,7 @@ class ETDRK4Solver(_SplitSolver):
                 values, vectors = np.linalg.eig(h * block.matrix)
                 inverse = np.linalg.inv(vectors)
                 blocks.append(
-                    [np.einsum('...ij,...j,...jk->...ik', vectors, item, inverse) for item in _phi(values, h)],
+                    [np.einsum('...ij,...j,...jk->...ik', vectors, item, inverse) for item in self._phi(values, h)],
                 )
             self._coefficients[h] = blocks
         return self._coefficients[h]
@@ -536,6 +523,22 @@ class ETDRK4Solver(_SplitSolver):
         c = self._map(1, h, a) + self._map(2, h, 2 * n_b - n_x)
         n_c = self._remainder(t + h, c, p)
         return self._map(0, h, x) + self._map(3, h, n_x) + 2 * self._map(4, h, n_a + n_b) + self._map(5, h, n_c)
+
+    @staticmethod
+    def _phi(z: Complex, h: float) -> list[Complex]:
+        """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
+
+        The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of
+        the formulas near zero for complex eigenvalues as well as real ones.
+        """
+        roots = np.exp(2j * np.pi * (np.arange(1, _CONTOUR_POINTS + 1) - 0.5) / _CONTOUR_POINTS)
+        points = z[..., None] + roots
+        exponential = np.exp(points)
+        q = h * np.mean((np.exp(points / 2) - 1) / points, axis=-1)
+        f1 = h * np.mean((-4 - points + exponential * (4 - 3 * points + points**2)) / points**3, axis=-1)
+        f2 = h * np.mean((2 + points + exponential * (-2 + points)) / points**3, axis=-1)
+        f3 = h * np.mean((-4 - 3 * points - points**2 + exponential * (4 - points)) / points**3, axis=-1)
+        return [np.exp(z), np.exp(z / 2), q, f1, f2, f3]
 
 
 class SSPRKSolver(Solver):

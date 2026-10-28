@@ -28,7 +28,7 @@ from ._quantities import StockFlow
 from ._reductions import CompiledReduction
 from ._variables import Variable, VariableKind, declarations_of
 
-ROW_TOLERANCE = 1e-9
+_ROW_TOLERANCE = 1e-9
 
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
@@ -245,7 +245,7 @@ class _MarkovMatrix:
                 row, column = negative[0]
                 return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
             sums = matrix.sum(axis=1)
-            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
+            wrong = np.flatnonzero(np.abs(sums - 1) > _ROW_TOLERANCE)
             if wrong.size:
                 return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
         return None

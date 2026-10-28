@@ -22,50 +22,11 @@ from ..problems import Form, Problem, numpy_function, symbols_of
 from ._stepper import Solver
 
 TIME_TOLERANCE = 1e-9
-SENSES = ('min', 'max')
-NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
+_SENSES = ('min', 'max')
+_NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
 
 type GridFunction = Callable[..., npt.NDArray[np.float64]]
 type Cost = Callable[[SimpleNamespace], object] | float
-
-
-def _cost_value(cost: Cost, namespace: SimpleNamespace) -> Expression:
-    """Return the expression of a cost, a function of the namespace of the system or a number."""
-    return SR(cost(namespace) if callable(cost) else cost)
-
-
-def _single_symbols(problem: Problem) -> list[Expression]:
-    """Return the state symbols in state vector order, after checking that every state is a real scalar of elements."""
-    if any(element.members is not None for element in problem.elements):
-        error_msg = 'Optimal control solvers take systems of single elements, but the system has groups.'
-        raise SolverError(error_msg)
-    symbols = problem.state_symbols
-    if len(symbols) != problem.states.size:
-        error_msg = 'Optimal control solvers take real states, but the system has complex states.'
-        raise SolverError(error_msg)
-    return symbols
-
-
-def _check_supported(problem: Problem) -> None:
-    """Raise an error for a problem with laws that have no symbolic vector field or no finite state space."""
-    if problem.form != Form.ODE:
-        error_msg = f'Optimal control solvers take ordinary differential equations, but the system is a {problem.form}.'
-        raise SolverError(error_msg)
-    if problem.has_callables or problem.has_group_sums or problem.delays or problem.events:
-        error_msg = (
-            'Optimal control solvers derive the costates and the stationarity condition symbolically, so they take '
-            'symbolic rate laws without callables, sums over members, delays, or events.'
-        )
-        raise SolverError(error_msg)
-
-
-def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Vector:
-    """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
-    lower = np.full(problem.states.size, -np.inf)
-    for entry in problem.states.entries:
-        if entry.domain in NONNEGATIVE_DOMAINS:
-            lower[entry.indices] = 0.0
-    return lower[list(indices)]
 
 
 @dataclass(frozen=True)
@@ -77,27 +38,6 @@ class _Control:
     symbol: Expression
     lower: float
     upper: float
-
-
-def _controls(problem: Problem, symbols: Sequence[Expression]) -> tuple[_Control, ...]:
-    """Return the bounded adaptive parameters of a problem as its controls."""
-    controls = []
-    for name, declaration in problem.adaptive_parameters.items():
-        if declaration.bounds is None:
-            continue
-        entry = problem.states.entry(name)
-        if entry.size != 1:
-            error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
-            raise SolverError(error_msg)
-        lower, upper = declaration.bounds
-        controls.append(_Control(name, entry.start, symbols[entry.start], lower, upper))
-    if not controls:
-        error_msg = (
-            'The system has no bounded adaptive parameter to control. Declare a control input with '
-            '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
-        )
-        raise SolverError(error_msg)
-    return tuple(controls)
 
 
 @dataclass(frozen=True)
@@ -173,9 +113,9 @@ class _ControlProblem:
     @classmethod
     def of(cls, problem: Problem, objective: Cost, terminal: Cost, sense: str) -> '_ControlProblem':
         """Return the optimal control problem of a compiled problem with bounded controls and an objective."""
-        _check_supported(problem)
-        symbols = _single_symbols(problem)
-        controls = _controls(problem, symbols)
+        cls._check_supported(problem)
+        symbols = cls._single_symbols(problem)
+        controls = cls._controls(problem, symbols)
         rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
@@ -190,13 +130,75 @@ class _ControlProblem:
             controls=controls,
             parameters=tuple(problem.parameter_symbols),
             rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
-            running=sign * _cost_value(objective, namespace),
-            terminal=sign * _cost_value(terminal, namespace),
+            running=sign * cls._cost_value(objective, namespace),
+            terminal=sign * cls._cost_value(terminal, namespace),
             sign=sign,
-            lower=_lower_bounds(problem, indices),
+            lower=cls._lower_bounds(problem, indices),
         )
         control_problem.check_symbols([*control_problem.rates, control_problem.running, control_problem.terminal])
         return control_problem
+
+    @staticmethod
+    def _cost_value(cost: Cost, namespace: SimpleNamespace) -> Expression:
+        """Return the expression of a cost, a function of the namespace of the system or a number."""
+        return SR(cost(namespace) if callable(cost) else cost)
+
+    @staticmethod
+    def _single_symbols(problem: Problem) -> list[Expression]:
+        """Return the state symbols in state vector order, after checking that every state is a real element scalar."""
+        if any(element.members is not None for element in problem.elements):
+            error_msg = 'Optimal control solvers take systems of single elements, but the system has groups.'
+            raise SolverError(error_msg)
+        symbols = problem.state_symbols
+        if len(symbols) != problem.states.size:
+            error_msg = 'Optimal control solvers take real states, but the system has complex states.'
+            raise SolverError(error_msg)
+        return symbols
+
+    @staticmethod
+    def _check_supported(problem: Problem) -> None:
+        """Raise an error for a problem with laws that have no symbolic vector field or no finite state space."""
+        if problem.form != Form.ODE:
+            error_msg = (
+                f'Optimal control solvers take ordinary differential equations, but the system is a {problem.form}.'
+            )
+            raise SolverError(error_msg)
+        if problem.has_callables or problem.has_group_sums or problem.delays or problem.events:
+            error_msg = (
+                'Optimal control solvers derive the costates and the stationarity condition symbolically, so they take '
+                'symbolic rate laws without callables, sums over members, delays, or events.'
+            )
+            raise SolverError(error_msg)
+
+    @staticmethod
+    def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Vector:
+        """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
+        lower = np.full(problem.states.size, -np.inf)
+        for entry in problem.states.entries:
+            if entry.domain in _NONNEGATIVE_DOMAINS:
+                lower[entry.indices] = 0.0
+        return lower[list(indices)]
+
+    @staticmethod
+    def _controls(problem: Problem, symbols: Sequence[Expression]) -> tuple[_Control, ...]:
+        """Return the bounded adaptive parameters of a problem as its controls."""
+        controls = []
+        for name, declaration in problem.adaptive_parameters.items():
+            if declaration.bounds is None:
+                continue
+            entry = problem.states.entry(name)
+            if entry.size != 1:
+                error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
+                raise SolverError(error_msg)
+            lower, upper = declaration.bounds
+            controls.append(_Control(name, entry.start, symbols[entry.start], lower, upper))
+        if not controls:
+            error_msg = (
+                'The system has no bounded adaptive parameter to control. Declare a control input with '
+                '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
+            )
+            raise SolverError(error_msg)
+        return tuple(controls)
 
 
 @dataclass(frozen=True)
@@ -284,8 +286,8 @@ class OptimalControlSolver(Solver):
                 'namespace of the system such as `lambda s: s.plant.x**2`.'
             )
             raise SolverError(error_msg)
-        if self.sense not in SENSES:
-            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(SENSES)}.'
+        if self.sense not in _SENSES:
+            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
             raise ValidationError(error_msg)
 
     def _integrate(self, x0: Vector, controls: Vector, times: Vector, p: Vector) -> Vector:

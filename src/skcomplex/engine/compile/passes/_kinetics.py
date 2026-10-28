@@ -12,40 +12,10 @@ from ....core.types import Vector
 from ...backends import BaseBackend, resolve_backend
 from ...problems import Problem
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations, member_count
+from .._declarations import Declarations, _member_count
 from .._kinetic_contractions import CompiledEncounter
-from .._kinetic_encounters import KINETIC_LAWS, compile_encounters
+from .._kinetic_encounters import _KINETIC_LAWS, _compile_encounters
 from .._pipeline import BasePass
-
-
-def _compiled_encounters(
-    specs: Laws,
-    declarations: Declarations,
-    backend: BaseBackend | None,
-) -> tuple[CompiledEncounter, ...]:
-    """Return the encounter laws of every component, lowered for their members."""
-    if not any(isinstance(law, KINETIC_LAWS) for _, laws in specs for law in laws):
-        return ()
-    members = member_count(list(declarations.blocks.values()))
-    fused = resolve_backend(backend, members).name == 'numba'
-    components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
-    return compile_encounters(components, declarations.time, fused=fused)
-
-
-def _with_encounters(functions: dict[str, Any], encounters: tuple[CompiledEncounter, ...], size: int) -> None:
-    """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled stepper loops."""
-    if not encounters:
-        return
-    drift = functions.get('drift')
-
-    def encountered(t: float, x: Vector, p: Vector) -> Vector:
-        rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
-        for encounter in encounters:
-            rates += encounter.rates(x, p)
-        return rates
-
-    functions['drift'] = encountered
-    functions['accelerated'] = None
 
 
 @dataclass(frozen=True)
@@ -75,8 +45,24 @@ class CompileEncountersPass(BasePass):
         """
         specs = cast('Laws', compilation.drawn)
         declarations = cast('Declarations', compilation.layout)
-        compilation.facts['encounters'] = _compiled_encounters(specs, declarations, compilation.backend)
-        compilation.drawn = [(spec, [law for law in laws if not isinstance(law, KINETIC_LAWS)]) for spec, laws in specs]
+        compilation.facts['encounters'] = self._compiled_encounters(specs, declarations, compilation.backend)
+        compilation.drawn = [
+            (spec, [law for law in laws if not isinstance(law, _KINETIC_LAWS)]) for spec, laws in specs
+        ]
+
+    @staticmethod
+    def _compiled_encounters(
+        specs: Laws,
+        declarations: Declarations,
+        backend: BaseBackend | None,
+    ) -> tuple[CompiledEncounter, ...]:
+        """Return the encounter laws of every component, lowered for their members."""
+        if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
+            return ()
+        members = _member_count(list(declarations.blocks.values()))
+        fused = resolve_backend(backend, members).name == 'numba'
+        components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
+        return _compile_encounters(components, declarations.time, fused=fused)
 
 
 class EncounterFunctionsPass(BasePass):
@@ -92,11 +78,27 @@ class EncounterFunctionsPass(BasePass):
             compilation:
                 The compilation state.
         """
-        _with_encounters(
+        self._with_encounters(
             cast('dict[str, Any]', compilation.functions),
             compilation.facts['encounters'],
             cast('Declarations', compilation.layout).ends[True],
         )
+
+    @staticmethod
+    def _with_encounters(functions: dict[str, Any], encounters: tuple[CompiledEncounter, ...], size: int) -> None:
+        """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled steppers."""
+        if not encounters:
+            return
+        drift = functions.get('drift')
+
+        def encountered(t: float, x: Vector, p: Vector) -> Vector:
+            rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
+            for encounter in encounters:
+                rates += encounter.rates(x, p)
+            return rates
+
+        functions['drift'] = encountered
+        functions['accelerated'] = None
 
 
 class EncounterJacobianPass(BasePass):

@@ -7,7 +7,7 @@ from functools import partial
 from typing import cast
 
 from .._compilation import BlockLaws, Compilation
-from .._complex import split_law
+from .._complex import _split_law
 from .._pipeline import BasePass
 from .._specs import state_name
 
@@ -28,7 +28,7 @@ class LowerComplexPass(BasePass):
         compilation.lowered = [
             (
                 spec,
-                [item for law in laws for item in split_law(law, spec.owner, partial(state_name, spec))],
+                [item for law in laws for item in _split_law(law, spec.owner, partial(state_name, spec))],
                 block,
             )
             for spec, laws, block in cast('BlockLaws', compilation.collected)

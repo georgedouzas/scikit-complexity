@@ -19,10 +19,10 @@ from ...core.types import Indices, Vector
 from ..problems import Entry, Reference, RenewalRecord, Source, components_of, numpy_function, symbol, symbols_of
 from ._renewal_law import RenewalLaw
 from ._specs import KernelSpec
-from ._stochastic import distribution_of, sample_draw
+from ._stochastic import _distribution_of, _sample_draw
 
 type Drawn = dict[str, Vector]
-READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
+_READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ def _member_function(
             readers.append(slots[item])
             continue
         reference = references.get(item)
-        if reference is None or reference.source not in READ_SOURCES:
+        if reference is None or reference.source not in _READ_SOURCES:
             error_msg = (
                 f'A renewal law of {owner} reads {item}, which is not a state or a parameter of its component. Renewal '
                 'laws read the states and parameters of the renewing member.'
@@ -89,7 +89,7 @@ class _Sampler:
     ) -> None:
         """Draw a value for every renewing member into the drawn values."""
         values = self.arguments.evaluate(times, x, p, fired, drawn) if self.draw.arguments else []
-        drawn[self.draw.name] = sample_draw(self.draw, values, fired.size, rng)
+        drawn[self.draw.name] = _sample_draw(self.draw, values, fired.size, rng)
 
 
 def _ordered(found: list[Draw]) -> list[Draw]:
@@ -136,7 +136,7 @@ def _lowest_value(owner: str, description: str, waiting: Expression) -> float:
         return numbers[0] if numbers[0] is not None else 0.0
     if found.kind != 'draw':
         return 0.0
-    distribution = distribution_of(owner, description, found)
+    distribution = _distribution_of(owner, description, found)
     values = dict(zip(found.keywords, numbers, strict=True))
     shapes = {key: value for key, value in values.items() if key not in {'loc', 'scale'}}
     lowest = (
@@ -312,7 +312,7 @@ def _target_places(
     places = []
     for item in targets:
         reference = references.get(item)
-        if reference is None or not reference.is_state or reference.source not in READ_SOURCES:
+        if reference is None or not reference.is_state or reference.source not in _READ_SOURCES:
             error_msg = f'A renewal law of {owner} resets {item}, which is not a state of an element or a group member.'
             raise ValidationError(error_msg)
         if reference.source is Source.SINGLE and rows > 1:
@@ -331,7 +331,7 @@ def _recorded_states(group: str, references: dict[Expression, Reference], rows: 
     columns: dict[int, tuple[Indices, str]] = {}
     for reference in references.values():
         owned = reference.entry.name.rpartition('.')[0] == group
-        if not reference.is_state or reference.source not in READ_SOURCES or not owned:
+        if not reference.is_state or reference.source not in _READ_SOURCES or not owned:
             continue
         flat = reference.flat_indices if reference.source is Source.MEMBER else np.asarray([reference.index])
         if flat.size != rows:
@@ -343,7 +343,7 @@ def _recorded_states(group: str, references: dict[Expression, Reference], rows: 
     return indices, tuple(name for _, name in ordered)
 
 
-def compile_renewal(
+def _compile_renewal(
     owner: str,
     law: RenewalLaw,
     references: dict[Expression, Reference],

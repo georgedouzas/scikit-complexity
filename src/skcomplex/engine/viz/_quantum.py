@@ -18,7 +18,7 @@ from ..compile._quantum_views import QuantumView, member_of
 from ..compile.passes._quantum import QuantumProblem, QuantumTerm, expect, state_of
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._images import SPACE_TIME, ImageVisual
+from ._images import _SPACE_TIME, ImageVisual
 from ._utils import log_scalars
 
 
@@ -33,13 +33,6 @@ def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
     if element.members is None and _view_of(element).display is not None:
         return None
     return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
-
-
-def _profile_name(element: CompiledElement) -> str:
-    """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
-    if element.members is None:
-        return 'probability'
-    return str(_view_of(element).display)
 
 
 def _local_matrices(problem: QuantumProblem, path: str, name: str) -> list[sp.csr_array]:
@@ -152,7 +145,7 @@ class ExpectationVisual(ImageVisual):
                 continue
             array: npt.NDArray[np.float64] = np.asarray(value, dtype=float)
             if len(shape) == 1:
-                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
+                self._log_space_time(recording, f'{element.path}/{_SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
     def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
@@ -174,9 +167,16 @@ class ExpectationVisual(ImageVisual):
         shape = _shape_of(element)
         if shape is None:
             return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
-        name = _profile_name(element)
+        name = self._profile_name(element)
         views: list[rrb.View] = []
         if len(shape) == 1 and self._history_of(shape[0]):
-            views.append(rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{name}', name=f'{name} history'))
+            views.append(rrb.Spatial2DView(origin=f'{element.path}/{_SPACE_TIME}/{name}', name=f'{name} history'))
         views.append(rrb.Spatial2DView(origin=f'{element.path}/{name}', name=name))
         return views
+
+    @staticmethod
+    def _profile_name(element: CompiledElement) -> str:
+        """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
+        if element.members is None:
+            return 'probability'
+        return str(_view_of(element).display)

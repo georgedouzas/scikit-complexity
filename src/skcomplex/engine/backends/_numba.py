@@ -75,30 +75,30 @@ from ..problems._kernels import jump_channels, lower_noise
 from ..problems._neighbourhoods import EdgeRows, MetricSearch
 from . import _numba_neighbours, _numba_stencils
 from ._base import (
-    AUTO_MEMBERS,
+    _AUTO_MEMBERS,
     BaseBackend,
     Lowering,
-    adding_function,
-    assigning_function,
-    concatenating_function,
+    _adding_function,
+    _assigning_function,
+    _concatenating_function,
+    _report_fallbacks,
     reads_reductions,
-    report_fallbacks,
 )
 from ._numba_kernels import _edge_kernel, _entry_function, _is_compilable, _member_kernel, _output_count, _pair_kernel
 from ._numba_loops import LOOPS, NO_BOUNDARY, _channel_arrays, _noise_arrays
 from ._numba_reductions import _reduce_function, _reductions_compile
 from ._numba_source import _Source
 
-DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
-FORM_KINDS: dict[Form, list[type]] = {
+_DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
+_FORM_KINDS: dict[Form, list[type]] = {
     Form.ODE: [RateLaw],
     Form.FRACTIONAL: [RateLaw],
     Form.SDE: [RateLaw, NoiseLaw],
     Form.JUMP: [JumpLaw],
     Form.DISCRETE: [UpdateLaw],
 }
-EVENT_FORMS = (Form.JUMP, Form.DISCRETE)
-HEADER = """import math
+_EVENT_FORMS = (Form.JUMP, Form.DISCRETE)
+_HEADER = """import math
 
 import numpy as np
 from numba import njit, prange
@@ -151,46 +151,6 @@ def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> Module
     sys.modules[name] = module
     specification.loader.exec_module(module)  # type: ignore[union-attr]
     return module
-
-
-def _search_entries(search: object) -> dict[str, Entry]:
-    """Return the entries a neighbourhood search reads, the edge rows of a changing layer or positions and headings."""
-    if isinstance(search, EdgeRows):
-        return {entry.name: entry for entry in (search.source, search.target, search.active)}
-    if not isinstance(search, MetricSearch):
-        return {}
-    found = {search.positions.name: search.positions}
-    if search.heading is not None:
-        found[search.heading.entry.name] = search.heading.entry
-    return found
-
-
-def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
-    """Return every entry the kernels and the reductions of a problem read, by name."""
-    entries = {
-        reference.entry.name: reference.entry
-        for items in used.values()
-        for kernel in items
-        for reference in kernel.references.values()
-    }
-    for items in used.values():
-        for kernel in items:
-            search = kernel.pairs
-            if isinstance(search, EdgeSearch) and search.source is not None and search.target is not None:
-                entries[search.source.name] = search.source
-                entries[search.target.name] = search.target
-    for item in reductions.reductions:
-        entries[item.entry.name] = item.entry
-        entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
-        if item.members is not None:
-            entries[item.members.name] = item.members
-    for neighbourhood in reductions.neighbourhoods:
-        entries[neighbourhood.entry.name] = neighbourhood.entry
-        entries.update(
-            {pair.read.entry.name: pair.read.entry for pair in neighbourhood.reads.values() if pair.read.entry},
-        )
-        entries.update(_search_entries(neighbourhood.search))
-    return entries
 
 
 HELPERS_FINGERPRINT = _helpers_fingerprint()
@@ -268,14 +228,14 @@ class NumbaBackend(BaseBackend):
 
     def _is_parallel(self, kernel: Kernel, form: Form) -> bool:
         """Check whether a kernel runs in parallel threads: outside event loops, over groups of many members."""
-        if not self.parallel or form in EVENT_FORMS:
+        if not self.parallel or form in _EVENT_FORMS:
             return False
         rows = [
             reference.entry.rows
             for reference in kernel.references.values()
             if reference.source in {Source.MEMBER, Source.FIRST, Source.SECOND}
         ]
-        return max(rows, default=0) >= AUTO_MEMBERS
+        return max(rows, default=0) >= _AUTO_MEMBERS
 
     def _kind(
         self,
@@ -346,10 +306,10 @@ class NumbaBackend(BaseBackend):
         compiled: dict[type, bool] = {
             kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
-        backends = report_fallbacks(self.name, used, compiled, reductions)
+        backends = _report_fallbacks(self.name, used, compiled, reductions)
         source = _Source()
         if reduced and fused:
-            _reduce_function(source, reductions, self.parallel and form not in EVENT_FORMS)
+            _reduce_function(source, reductions, self.parallel and form not in _EVENT_FORMS)
         plan: dict[type, tuple[str, str]] = {
             RateLaw: ('drift', 'add'),
             NoiseLaw: ('diffusion', 'concatenate'),
@@ -357,7 +317,7 @@ class NumbaBackend(BaseBackend):
             UpdateLaw: ('update', 'assign'),
             BoundaryLaw: ('boundary', 'assign'),
         }
-        needed = list(FORM_KINDS[form])
+        needed = list(_FORM_KINDS[form])
         if kernels.get(BoundaryLaw):
             needed = [*needed, BoundaryLaw]
         for kind in needed:
@@ -374,10 +334,10 @@ class NumbaBackend(BaseBackend):
         loops = (
             [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == Form.ODE else ''] if has_loop else []
         )
-        text = '\n'.join([HEADER, *source.lines, *loops]) + '\n'
-        cache_dir = Path(self.cache_dir) if self.cache_dir is not None else DEFAULT_CACHE_DIR
+        text = '\n'.join([_HEADER, *source.lines, *loops]) + '\n'
+        cache_dir = Path(self.cache_dir) if self.cache_dir is not None else _DEFAULT_CACHE_DIR
         module = _load(text, source.functions, cache_dir)
-        entries = _layout_entries(used, reductions)
+        entries = self._layout_entries(used, reductions)
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
         lowering = self._lowering(
@@ -418,11 +378,11 @@ class NumbaBackend(BaseBackend):
             return lambda t, x, p: function(t, x, p, layout)
 
         numpy: dict[type, Any] = {
-            RateLaw: lambda: adding_function(used[RateLaw], size),
-            NoiseLaw: lambda: concatenating_function(used[NoiseLaw]),
-            JumpLaw: lambda: concatenating_function(used[JumpLaw]),
-            UpdateLaw: lambda: assigning_function(used[UpdateLaw]),
-            BoundaryLaw: lambda: assigning_function(used[BoundaryLaw]),
+            RateLaw: lambda: _adding_function(used[RateLaw], size),
+            NoiseLaw: lambda: _concatenating_function(used[NoiseLaw]),
+            JumpLaw: lambda: _concatenating_function(used[JumpLaw]),
+            UpdateLaw: lambda: _assigning_function(used[UpdateLaw]),
+            BoundaryLaw: lambda: _assigning_function(used[BoundaryLaw]),
         }
         names: dict[type, str] = {
             RateLaw: 'drift',
@@ -443,11 +403,11 @@ class NumbaBackend(BaseBackend):
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = functions[RateLaw]
         if form == Form.SDE:
-            lowering.diffusion = functions.get(NoiseLaw, concatenating_function([]))
+            lowering.diffusion = functions.get(NoiseLaw, _concatenating_function([]))
             noise = lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form == Form.JUMP:
-            lowering.propensities = functions.get(JumpLaw, concatenating_function([]))
+            lowering.propensities = functions.get(JumpLaw, _concatenating_function([]))
             lowering.jumps = jump_channels(used[JumpLaw], changes)
         if form == Form.DISCRETE:
             lowering.update = functions[UpdateLaw]
@@ -494,3 +454,43 @@ class NumbaBackend(BaseBackend):
             offset, flags = draws.offset, draws.normal
             return Accelerated(iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags))
         return Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+
+    @staticmethod
+    def _search_entries(search: object) -> dict[str, Entry]:
+        """Return the entries a neighbourhood search reads, the edges of a changing layer or positions and headings."""
+        if isinstance(search, EdgeRows):
+            return {entry.name: entry for entry in (search.source, search.target, search.active)}
+        if not isinstance(search, MetricSearch):
+            return {}
+        found = {search.positions.name: search.positions}
+        if search.heading is not None:
+            found[search.heading.entry.name] = search.heading.entry
+        return found
+
+    @staticmethod
+    def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
+        """Return every entry the kernels and the reductions of a problem read, by name."""
+        entries = {
+            reference.entry.name: reference.entry
+            for items in used.values()
+            for kernel in items
+            for reference in kernel.references.values()
+        }
+        for items in used.values():
+            for kernel in items:
+                search = kernel.pairs
+                if isinstance(search, EdgeSearch) and search.source is not None and search.target is not None:
+                    entries[search.source.name] = search.source
+                    entries[search.target.name] = search.target
+        for item in reductions.reductions:
+            entries[item.entry.name] = item.entry
+            entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
+            if item.members is not None:
+                entries[item.members.name] = item.members
+        for neighbourhood in reductions.neighbourhoods:
+            entries[neighbourhood.entry.name] = neighbourhood.entry
+            entries.update(
+                {pair.read.entry.name: pair.read.entry for pair in neighbourhood.reads.values() if pair.read.entry},
+            )
+            entries.update(NumbaBackend._search_entries(neighbourhood.search))
+        return entries

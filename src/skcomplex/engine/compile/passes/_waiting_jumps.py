@@ -12,68 +12,13 @@ from sage.all__sagemath_symbolics import NN, Expression
 
 from ....core.laws import BaseLaw, JumpLaw
 from ...problems import Problem, symbol
-from .._census import renewal_group
+from .._census import _renewal_group
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
-from .._renewals import BoundRenewal, CompiledRenewal, compile_renewal
+from .._renewals import BoundRenewal, CompiledRenewal, _compile_renewal
 from .._specs import KernelSpec
-
-
-def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewal:
-    """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
-    group = renewal_group(spec, law)
-    rows = spec.rows
-    sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
-    entry = declarations.declare_state(
-        f'{group}.{sanitized}~renewals',
-        np.zeros(rows),
-        NN,
-        (rows,) if rows > 1 else (),
-        rows if rows > 1 else None,
-    )
-    return BoundRenewal(
-        spec,
-        law,
-        label,
-        group,
-        entry,
-        symbol(f'renewals_{sanitized}', NN),
-    )
-
-
-def _declared_renewals(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BoundRenewal]:
-    """Return the renewal laws of a spec, each with the hidden state that counts its renewals, after declaring it."""
-    renewals = [law for law in laws if isinstance(law, RenewalLaw)]
-    declared = []
-    for law in renewals:
-        position = renewals.index(law)
-        label = law.label or (spec.owner if len(renewals) == 1 else f'{spec.owner}:{position}')
-        declared.append(_declare_renewal(spec, law, declarations, label))
-    return declared
-
-
-def _compile_renewals(
-    renewals: list[BoundRenewal],
-    time: Expression,
-    owners: frozenset[str] | None,
-) -> tuple[CompiledRenewal, ...]:
-    """Return the renewal laws of the components a problem holds, compiled for their members."""
-    return tuple(
-        compile_renewal(
-            item.spec.owner,
-            item.law,
-            item.spec.references,
-            time=time,
-            rows=item.spec.rows,
-            label=item.label,
-            group=item.group,
-            counts=item.entry.start + np.arange(item.entry.size, dtype=np.intp),
-        )
-        for item in renewals
-        if owners is None or item.group in owners
-    )
 
 
 class UnpackRenewalsPass(BasePass):
@@ -121,7 +66,40 @@ class DeclareRenewalsPass(BasePass):
         """
         declarations = cast('Declarations', compilation.layout)
         for spec, laws in cast('Laws', compilation.delayed):
-            compilation.renewals += _declared_renewals(spec, laws, declarations)
+            compilation.renewals += self._declared_renewals(spec, laws, declarations)
+
+    @staticmethod
+    def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewal:
+        """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
+        group = _renewal_group(spec, law)
+        rows = spec.rows
+        sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
+        entry = declarations.declare_state(
+            f'{group}.{sanitized}~renewals',
+            np.zeros(rows),
+            NN,
+            (rows,) if rows > 1 else (),
+            rows if rows > 1 else None,
+        )
+        return BoundRenewal(
+            spec,
+            law,
+            label,
+            group,
+            entry,
+            symbol(f'renewals_{sanitized}', NN),
+        )
+
+    @staticmethod
+    def _declared_renewals(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BoundRenewal]:
+        """Return the renewal laws of a spec, each with the hidden state counting its renewals, after declaring it."""
+        renewals = [law for law in laws if isinstance(law, RenewalLaw)]
+        declared = []
+        for law in renewals:
+            position = renewals.index(law)
+            label = law.label or (spec.owner if len(renewals) == 1 else f'{spec.owner}:{position}')
+            declared.append(DeclareRenewalsPass._declare_renewal(spec, law, declarations, label))
+        return declared
 
 
 class SetRenewalsApartPass(BasePass):
@@ -161,6 +139,28 @@ class RenewalProblemPass(BasePass):
         symbols = {item.entry.name: item.symbol for item in compilation.renewals}
         compilation.problem = replace(
             problem,
-            renewals=_compile_renewals(compilation.renewals, time, compilation.owners),
+            renewals=self._compile_renewals(compilation.renewals, time, compilation.owners),
             symbols={**problem.symbols, **symbols},
+        )
+
+    @staticmethod
+    def _compile_renewals(
+        renewals: list[BoundRenewal],
+        time: Expression,
+        owners: frozenset[str] | None,
+    ) -> tuple[CompiledRenewal, ...]:
+        """Return the renewal laws of the components a problem holds, compiled for their members."""
+        return tuple(
+            _compile_renewal(
+                item.spec.owner,
+                item.law,
+                item.spec.references,
+                time=time,
+                rows=item.spec.rows,
+                label=item.label,
+                group=item.group,
+                counts=item.entry.start + np.arange(item.entry.size, dtype=np.intp),
+            )
+            for item in renewals
+            if owners is None or item.group in owners
         )

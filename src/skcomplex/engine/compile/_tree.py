@@ -20,16 +20,16 @@ from ...core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ...core.system import System
 from ..problems import Variable, VariableKind, contains, declarations_of, default_of, encode
-from ._laws import AGENT_LAWS
+from ._laws import _AGENT_LAWS
 from ._probe import probe_laws
 
-LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
-MAX_SHOWN_COMPONENTS = 10
+_LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
+_MAX_SHOWN_COMPONENTS = 10
 
 
 def _check_label(label: object, scope: str) -> None:
     """Raise an error for a label that is not a non-empty word."""
-    if isinstance(label, str) and LABEL_PATTERN.match(label):
+    if isinstance(label, str) and _LABEL_PATTERN.match(label):
         return
     where = scope or 'the root system'
     error_msg = (
@@ -167,7 +167,7 @@ def _with_capacity(
     space: BaseSpace | None,
 ) -> tuple[Element | GroupElement, int | None]:
     """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
-    if not is_topology_group(element, space):
+    if not _is_topology_group(element, space):
         return element, None
     group = cast('GroupElement', element)
     initial = group.size_
@@ -325,7 +325,7 @@ def _flatten(system: System, scope: str, space: BaseSpace | None, seen: list[Bas
 
 def _describe(value: object) -> str:
     """Return the repr of a small value, or its shape for an array with many components."""
-    if isinstance(value, np.ndarray | list | tuple) and np.size(value) > MAX_SHOWN_COMPONENTS:
+    if isinstance(value, np.ndarray | list | tuple) and np.size(value) > _MAX_SHOWN_COMPONENTS:
         return f'an array of shape {np.shape(value)}'
     return repr(value)
 
@@ -370,7 +370,7 @@ def _flat_value(
     return array.ravel()
 
 
-def noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
+def _noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
     """Return the Wiener processes that the noise roles of the interactions of a system tree bind, by path.
 
     Interactions of one system that bind processes of one label share them, at the path of the label in that system.
@@ -394,7 +394,7 @@ def noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
     return processes
 
 
-def is_topology_group(component: object, space: BaseSpace | None) -> bool:
+def _is_topology_group(component: object, space: BaseSpace | None) -> bool:
     """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
 
     Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
@@ -415,7 +415,7 @@ def is_topology_group(component: object, space: BaseSpace | None) -> bool:
         return False
     if not isinstance(space, NetworkSpace):
         return False
-    return not any(isinstance(law, AGENT_LAWS) for law in probe_laws(component) or [])
+    return not any(isinstance(law, _AGENT_LAWS) for law in probe_laws(component) or [])
 
 
 def flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[Node]:
@@ -445,7 +445,7 @@ def flatten_system(system: System, scope: str = '', space: BaseSpace | None = No
     return _flatten(system, scope, space)
 
 
-def declared_times(system: System, scope: str = '', inherited: type | None = None) -> dict[str, type | None]:
+def _declared_times(system: System, scope: str = '', inherited: type | None = None) -> dict[str, type | None]:
     """Return the class of the declared time of every system of a tree by path, a nested system inheriting its parent's.
 
     Args:
@@ -465,11 +465,11 @@ def declared_times(system: System, scope: str = '', inherited: type | None = Non
     time = type(system.time) if system.time is not None else inherited
     times = {scope: time}
     for child in system.systems:
-        times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
+        times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
     return times
 
 
-def shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
+def _shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
     """Return the shape of a declared variable in its space.
 
     Args:
@@ -504,7 +504,7 @@ def shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple
     return (int(space.n_dim_),)
 
 
-def coerce_value(
+def _coerce_value(
     name: str,
     value: object,
     shape: tuple[int, ...],

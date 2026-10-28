@@ -14,12 +14,12 @@ from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpac
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
-from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _radius_of
+from ._utils import _GRID_RADIUS, _NODE_SPACING, _UPWARD, _radius_of
 from ._visuals import BaseVisual
 
-PATH_COLOR = (86, 180, 233)
-PATH_WIDTH = 1.0
-VIEW_MARGIN = 0.05
+_PATH_COLOR = (86, 180, 233)
+_PATH_WIDTH = 1.0
+_VIEW_MARGIN = 0.05
 
 
 class AgentsVisual(BaseVisual):
@@ -97,7 +97,7 @@ class AgentsVisual(BaseVisual):
         if self.radius is not None:
             return float(self.radius)
         if space is None or isinstance(space, LatticeSpace | NetworkSpace):
-            return GRID_RADIUS
+            return _GRID_RADIUS
         if isinstance(space, ContinuousSpace):
             return _radius_of(float(max(space.extent_[:2])), len(positions))
         extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
@@ -131,12 +131,12 @@ class AgentsVisual(BaseVisual):
             if positions.shape[1] == 1:
                 entity = f'{path}/{self.position}'
                 if entity not in self.styled_:
-                    style = rr.SeriesLines(colors=[PATH_COLOR] * len(positions), widths=PATH_WIDTH)
+                    style = rr.SeriesLines(colors=[_PATH_COLOR] * len(positions), widths=_PATH_WIDTH)
                     recording.log(entity, style, static=True)
                     self.styled_.add(entity)
                 recording.log(entity, rr.Scalars(positions[:, 0]))
                 return
-            positions = positions[:, :2] * UPWARD
+            positions = positions[:, :2] * _UPWARD
             extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
             radius = _radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
             recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
@@ -154,7 +154,7 @@ class AgentsVisual(BaseVisual):
                     colors=colors,
                     labels=labels,
                     show_labels=False,
-                    radii=self._radius(space, np.zeros((0, 2))) * NODE_SPACING / 2,
+                    radii=self._radius(space, np.zeros((0, 2))) * _NODE_SPACING / 2,
                 ),
             )
             return
@@ -162,7 +162,7 @@ class AgentsVisual(BaseVisual):
         if isinstance(space, LatticeSpace):
             positions = positions + 0.5
         if isinstance(space, ContinuousSpace):
-            positions = positions * UPWARD
+            positions = positions * _UPWARD
         radius = self._radius(space, positions)
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
@@ -200,13 +200,13 @@ class AgentsVisual(BaseVisual):
             return []
         if isinstance(space, NetworkSpace):
             positions = np.array([[0.0, 0.0], *self._layout(space).values()])
-            low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
+            low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
             bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
         space = problem.agent_space
         if isinstance(space, ContinuousSpace):
             width, height = space.extent_[:2]
-            margin = VIEW_MARGIN * max(width, height)
+            margin = _VIEW_MARGIN * max(width, height)
             bounds = rrb.VisualBounds2D(
                 x_range=(-margin, width + margin),
                 y_range=(-height - margin, margin),

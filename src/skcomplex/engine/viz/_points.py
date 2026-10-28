@@ -14,13 +14,13 @@ import rerun.blueprint as rrb
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _widened, colors_of
-from ._utils import UPWARD, _radius_of, log_scalars
+from ._utils import _UPWARD, _radius_of, log_scalars
 from ._visuals import BaseVisual
 
-MAX_POINT_DIMENSIONS = 3
-TRAIL_LENGTH = 256
-MAX_TRAIL_POINTS = 10
-TRAIL_WIDTH = 0.25
+_MAX_POINT_DIMENSIONS = 3
+_TRAIL_LENGTH = 256
+_MAX_TRAIL_POINTS = 10
+_TRAIL_WIDTH = 0.25
 
 
 class PointsVisual(BaseVisual):
@@ -78,7 +78,7 @@ class PointsVisual(BaseVisual):
         color_range: tuple[float, float] | None = None,
         states: Sequence[str] | None = None,
         *,
-        trail: int = TRAIL_LENGTH,
+        trail: int = _TRAIL_LENGTH,
     ) -> None:
         self.position = position
         self.radius = radius
@@ -139,14 +139,14 @@ class PointsVisual(BaseVisual):
         colors: npt.NDArray[np.uint8] | None,
     ) -> None:
         """Log the recent positions of each point as one line strip per point, for small groups only."""
-        if not self.trail or len(points) > MAX_TRAIL_POINTS:
+        if not self.trail or len(points) > _MAX_TRAIL_POINTS:
             return
         if self.history_ and self.history_[-1].shape != points.shape:
             self.history_.clear()
         self.history_.append(points)
         strips = list(np.stack(self.history_, axis=1))
-        radius = self._extent_radius(points) * TRAIL_WIDTH
-        if points.shape[1] == MAX_POINT_DIMENSIONS:
+        radius = self._extent_radius(points) * _TRAIL_WIDTH
+        if points.shape[1] == _MAX_POINT_DIMENSIONS:
             recording.log(f'{path}/trail', rr.LineStrips3D(strips, radii=radius, colors=colors))
         else:
             recording.log(f'{path}/trail', rr.LineStrips2D(strips, radii=radius, colors=colors))
@@ -167,11 +167,11 @@ class PointsVisual(BaseVisual):
         points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
         colors = self._point_colors(element, frame, len(points))
         radius = self._radius(self._crowd(frame, points)) if points.shape[1] > 1 else 0.0
-        if points.shape[1] == MAX_POINT_DIMENSIONS:
+        if points.shape[1] == _MAX_POINT_DIMENSIONS:
             recording.log(element.path, rr.Points3D(points, radii=radius, colors=colors))
             self._log_trail(recording, element.path, points, colors)
-        elif points.shape[1] == MAX_POINT_DIMENSIONS - 1:
-            shown = points * UPWARD
+        elif points.shape[1] == _MAX_POINT_DIMENSIONS - 1:
+            shown = points * _UPWARD
             recording.log(element.path, rr.Points2D(shown, radii=radius, colors=colors))
             self._log_trail(recording, element.path, shown, colors)
         else:
@@ -214,9 +214,9 @@ class PointsVisual(BaseVisual):
         dimension = problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
         path = element.path
         views: list[rrb.View] = []
-        if dimension[0] == MAX_POINT_DIMENSIONS:
+        if dimension[0] == _MAX_POINT_DIMENSIONS:
             views.append(rrb.Spatial3DView(origin=path, name=path))
-        elif dimension[0] == MAX_POINT_DIMENSIONS - 1:
+        elif dimension[0] == _MAX_POINT_DIMENSIONS - 1:
             views.append(rrb.Spatial2DView(origin=path, name=path))
         else:
             views.append(rrb.TimeSeriesView(origin=f'{path}/{self.position}', name=f'{path}/{self.position}'))

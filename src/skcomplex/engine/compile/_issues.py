@@ -8,11 +8,11 @@ from dataclasses import dataclass, field
 
 from ...core.errors import SkcomplexError, ValidationError
 
-ERROR = 'error'
-WARNING = 'warning'
+_ERROR = 'error'
+_WARNING = 'warning'
 
 
-def names_of(terms: Iterable[object]) -> str:
+def _names_of(terms: Iterable[object]) -> str:
     """Return terms as a sorted, comma-separated list, as issues name them.
 
     Args:
@@ -55,7 +55,7 @@ class Issue:
     path: str
     message: str
     fix: str
-    severity: str = ERROR
+    severity: str = _ERROR
     error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
 
     @property

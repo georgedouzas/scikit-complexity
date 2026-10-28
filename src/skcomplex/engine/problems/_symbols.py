@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ._domains import sage_assumption
+from ._domains import _sage_assumption
 
 
 def symbol(name: str, domain: object = RR) -> Expression:
@@ -38,7 +38,7 @@ def symbol(name: str, domain: object = RR) -> Expression:
     item = SR.symbol(name)
     for previous in ('integer', 'real'):
         item.decl_forget(previous)
-    assumption = sage_assumption(domain)
+    assumption = _sage_assumption(domain)
     if assumption != 'complex':
         item.decl_assume('integer' if assumption == 'integer' else 'real')
     return item

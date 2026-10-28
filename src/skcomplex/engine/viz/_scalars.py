@@ -11,24 +11,9 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import SERIES_COLORS
+from ._colors import _SERIES_COLORS
 from ._utils import PARTS, log_scalars
 from ._visuals import BaseVisual
-
-
-def _series_index(problem: BaseProblem, path: str, state: str) -> int:
-    """Return the position of a state among the states of every element of a problem, in declaration order."""
-    names = [(element.path, name) for element in problem.elements for name in element.states]
-    return names.index((path, state)) if (path, state) in names else 0
-
-
-def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
-    """Log static series colors for the components of a value, from the categorical palette starting at an index."""
-    values = np.ravel(np.asarray(value))
-    parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
-    for offset, entity in enumerate(parts):
-        colors = [SERIES_COLORS[(index + offset + column) % len(SERIES_COLORS)] for column in range(values.size)]
-        recording.log(entity, rr.SeriesLines(colors=colors), static=True)
 
 
 class ScalarsVisual(BaseVisual):
@@ -85,7 +70,7 @@ class ScalarsVisual(BaseVisual):
                 continue
             path, value = f'{element.path}/{state}', self._value(frame.value(name))
             if path not in self.styled_:
-                _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
+                self._style_series(recording, path, value, self._series_index(frame.problem, element.path, state))
                 self.styled_.add(path)
             log_scalars(recording, path, value)
 
@@ -115,3 +100,18 @@ class ScalarsVisual(BaseVisual):
         if not getattr(element, 'states', True):
             return []
         return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
+
+    @staticmethod
+    def _series_index(problem: BaseProblem, path: str, state: str) -> int:
+        """Return the position of a state among the states of every element of a problem, in declaration order."""
+        names = [(element.path, name) for element in problem.elements for name in element.states]
+        return names.index((path, state)) if (path, state) in names else 0
+
+    @staticmethod
+    def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
+        """Log static series colors for the components of a value, from the categorical palette starting at an index."""
+        values = np.ravel(np.asarray(value))
+        parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
+        for offset, entity in enumerate(parts):
+            colors = [_SERIES_COLORS[(index + offset + column) % len(_SERIES_COLORS)] for column in range(values.size)]
+            recording.log(entity, rr.SeriesLines(colors=colors), static=True)

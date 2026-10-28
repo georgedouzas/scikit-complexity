@@ -5,7 +5,7 @@
 
 from typing import cast
 
-from .._census import census_of
+from .._census import _census_of
 from .._compilation import Compilation
 from .._pipeline import BasePass
 from .._tree import Node
@@ -24,4 +24,4 @@ class CensusPass(BasePass):
             compilation:
                 The compilation state.
         """
-        compilation.census = census_of(compilation.system, cast('list[Node]', compilation.nodes))
+        compilation.census = _census_of(compilation.system, cast('list[Node]', compilation.nodes))

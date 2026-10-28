@@ -22,9 +22,9 @@ from ._kinds import agents_visual_of, resolve_visual
 from ._utils import log_scalars
 from ._visuals import BaseVisual
 
-RENEWAL_MEMBERS = 20
-EXTRA = 'extra'
-UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
+_RENEWAL_MEMBERS = 20
+_EXTRA = 'extra'
+_UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
 
 
 def _viewer_executable() -> str | None:
@@ -34,24 +34,6 @@ def _viewer_executable() -> str | None:
         if candidate.is_file():
             return str(candidate)
     return None
-
-
-def _sanitised(path: str) -> str:
-    """Return an entity path with every character Rerun would escape, such as a space, replaced by an underscore."""
-    return UNSAFE.sub('_', path)
-
-
-def _entity_path(name: str, owners: set[str]) -> str:
-    """Return the entity path of an observable, under its element when it is an element's dotted output."""
-    owner, _, leaf = name.rpartition('.')
-    return _sanitised(f'{owner}/{leaf}' if owner in owners else name)
-
-
-def _renewal_text(record: RenewalRecord) -> str:
-    """Return the text log entry of the renewals of one pass, with the members that renewed."""
-    shown = ', '.join(str(member) for member in record.members[:RENEWAL_MEMBERS].tolist())
-    more = f' and {record.members.size - RENEWAL_MEMBERS} more' if record.members.size > RENEWAL_MEMBERS else ''
-    return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
 
 
 class RerunObserver(BaseObserver):
@@ -189,12 +171,12 @@ class RerunObserver(BaseObserver):
         owners = {element.path for element in frame.problem.elements}
         for name, value in frame.observables.items():
             values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
-            self.recording_.log(_entity_path(name, owners), rr.Scalars(values))
+            self.recording_.log(self._entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
             log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         for record in frame.events:
             if isinstance(record, RenewalRecord):
-                self.recording_.log(f'renewals/{record.label}', rr.TextLog(_renewal_text(record)))
+                self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))
         self.logged_frames_ += 1
 
     def _release(self) -> None:
@@ -217,4 +199,22 @@ class RerunObserver(BaseObserver):
             static:
                 Whether the archetype holds for the whole recording.
         """
-        self.recording_.log(f'{EXTRA}/{_sanitised(path)}', archetype, static=static)
+        self.recording_.log(f'{_EXTRA}/{self._sanitised(path)}', archetype, static=static)
+
+    @staticmethod
+    def _sanitised(path: str) -> str:
+        """Return an entity path with every character Rerun would escape, such as a space, replaced by an underscore."""
+        return _UNSAFE.sub('_', path)
+
+    @staticmethod
+    def _entity_path(name: str, owners: set[str]) -> str:
+        """Return the entity path of an observable, under its element when it is an element's dotted output."""
+        owner, _, leaf = name.rpartition('.')
+        return RerunObserver._sanitised(f'{owner}/{leaf}' if owner in owners else name)
+
+    @staticmethod
+    def _renewal_text(record: RenewalRecord) -> str:
+        """Return the text log entry of the renewals of one pass, with the members that renewed."""
+        shown = ', '.join(str(member) for member in record.members[:_RENEWAL_MEMBERS].tolist())
+        more = f' and {record.members.size - _RENEWAL_MEMBERS} more' if record.members.size > _RENEWAL_MEMBERS else ''
+        return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'

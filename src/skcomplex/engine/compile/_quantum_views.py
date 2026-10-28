@@ -18,7 +18,7 @@ from ...core.elements import BaseElement, Element, GroupElement
 from ...core.errors import ValidationError
 from ...core.specs import HilbertSpec
 from ..problems import VariableKind, declarations_of
-from ._quantum_operators import LocalOperator, sparse_matrix
+from ._quantum_operators import LocalOperator, _sparse_matrix
 
 NORM_TOLERANCE = 1e-8
 
@@ -54,7 +54,7 @@ def hilbert_state(element_type: type) -> str | None:
     return None
 
 
-def hilbert_of(element: BaseElement) -> HilbertSpec | None:
+def _hilbert_of(element: BaseElement) -> HilbertSpec | None:
     """Return the Hilbert space an element takes, of a member for a group, or `None` for a classical element.
 
     Args:
@@ -93,7 +93,7 @@ def member_of(element: BaseElement) -> Element | None:
     return element.element(element.label).set_params(**values)
 
 
-def is_quantum(element: object) -> bool:
+def _is_quantum(element: object) -> bool:
     """Check whether an element or a group is a quantum subsystem, which takes a `HilbertSpec`.
 
     Args:
@@ -104,7 +104,7 @@ def is_quantum(element: object) -> bool:
         quantum:
             Whether the element, or a member of the group, takes a Hilbert space.
     """
-    return isinstance(element, BaseElement) and hilbert_of(element) is not None
+    return isinstance(element, BaseElement) and _hilbert_of(element) is not None
 
 
 @dataclass(frozen=True)
@@ -149,7 +149,7 @@ class QuantumView:
     @property
     def space(self) -> HilbertSpec:
         """Hilbert space of the element, checked against the domain of its state."""
-        space = hilbert_of(self.element)
+        space = _hilbert_of(self.element)
         if space is None:
             error_msg = f'{type(self.element).__name__} {self.label!r} takes no HilbertSpec.'
             raise ValidationError(error_msg)
@@ -187,7 +187,7 @@ class QuantumView:
                 A mapping from name to local operator.
         """
         return {
-            name: LocalOperator(name, sparse_matrix(matrix), hermitian=hermitian)
+            name: LocalOperator(name, _sparse_matrix(matrix), hermitian=hermitian)
             for name, (matrix, hermitian) in self.space.operators.items()
         }
 

@@ -33,13 +33,13 @@ from ...problems._hybrid import _Breakpoints, _Delay
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._laws import replaced, values_of
-from .._lowering import calls_of
+from .._lowering import _calls_of
 from .._pipeline import BasePass
 from .._specs import KernelSpec
 
 type Scalars = Callable[[float, Vector, Vector], list[float]]
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
-SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
+_SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
 
 
 def _flat_sources(references: Mapping[Expression, Reference], owner: str) -> dict[Expression, tuple[bool, int]]:
@@ -108,7 +108,7 @@ def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _Breakpoint
             resolved = root is not None or time not in difference.variables()
             if root is not None:
                 fixed.add(root)
-            for call in calls_of(difference, 'mod'):
+            for call in _calls_of(difference, 'mod'):
                 argument, period = call.operands()
                 zero, rest = _linear_root(argument, time), difference - call
                 if zero is not None and period.is_numeric() and rest.is_numeric():
@@ -139,123 +139,13 @@ def _state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[E
         if operation in RELATIONS:
             left, right = item.operands()
             candidate = left - right
-        elif getattr(operation, 'name', lambda: '')() in SWITCHES:
+        elif getattr(operation, 'name', lambda: '')() in _SWITCHES:
             candidate = item.operands()[0]
         else:
             continue
         if set(candidate.variables()) - {time} and not any(_same_zeros(candidate, other) for other in found):
             found.append(candidate)
     return found
-
-
-def _delay_minimum(
-    spec: KernelSpec,
-    tau: Expression,
-    minimum: Expression | None,
-    declarations: Declarations,
-) -> float:
-    """Return the smallest value of a delay: the delay itself, its declared minimum, or its value at the parameters."""
-    if SR(tau).is_numeric():
-        return float(tau)
-    if minimum is not None and SR(minimum).is_numeric():
-        return float(minimum)
-    symbols = sorted(SR(tau).variables(), key=str)
-    references = [spec.references.get(item) for item in symbols]
-    if symbols and all(reference is not None and not reference.is_state for reference in references):
-        values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-        columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
-        delays = numpy_function(declarations.time, symbols, [SR(tau)])(0.0, *columns)[0]
-        return float(np.min(delays))
-    error_msg = (
-        f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '
-        'argument, `delayed(x, tau, minimum)`.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _substitute_delays(value: object, spec: KernelSpec, declarations: Declarations, compilation: Compilation) -> object:
-    """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history."""
-    if isinstance(value, FreeModuleElement):
-        return vector(_substitute_delays(item, spec, declarations, compilation) for item in value)
-    if not isinstance(value, Expression):
-        return value
-    replacements = {}
-    for call in calls_of(value, 'delayed'):
-        arguments = call.operands()
-        item, tau = arguments[0], arguments[1]
-        reference = spec.references.get(item)
-        if reference is None or not reference.is_state or reference.source not in {Source.SINGLE, Source.MEMBER}:
-            error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
-            raise ValidationError(error_msg)
-        key = (id(spec), reference.entry.name, reference.column, str(tau))
-        if key in compilation.placeholders:
-            replacements[call] = compilation.placeholders[key]
-            continue
-        entry = reference.entry
-        members = entry.members if reference.source is Source.MEMBER else None
-        indices = (
-            entry.start + np.arange(members) * entry.columns + reference.column
-            if members is not None
-            else np.asarray([entry.start + reference.column])
-        )
-        initial = np.concatenate([np.zeros(0), *declarations.initial_states])[indices]
-        index = len(compilation.delays)
-        hidden = Entry(
-            f'__delayed_{index}',
-            declarations.ends[False],
-            (members,) if members is not None else (),
-            RR,
-            members,
-        )
-        declarations.parameters.append(hidden)
-        declarations.ends[False] += hidden.size
-        declarations.initial_parameters.append(np.asarray(initial, dtype=float))
-        placeholder = symbol(f'_delayed_{index}')
-        spec.references[placeholder] = Reference(hidden, False, 0, reference.source)
-        compilation.delays.append(
-            {
-                'entry': hidden,
-                'states': indices,
-                'tau': tau,
-                'minimum': _delay_minimum(
-                    spec,
-                    tau,
-                    next(iter(arguments[2:]), None),
-                    declarations,
-                ),
-                'spec': spec,
-                'symbol': placeholder,
-                'state': item,
-            },
-        )
-        compilation.placeholders[key] = placeholder
-        replacements[call] = placeholder
-    return value.subs(replacements) if replacements else value
-
-
-def _with_delays(
-    spec: KernelSpec,
-    laws: list[BaseLaw],
-    declarations: Declarations,
-    compilation: Compilation,
-) -> list[BaseLaw]:
-    """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation."""
-    result: list[BaseLaw] = []
-    for law in laws:
-        if isinstance(law, CrossingLaw):
-            guard = _substitute_delays(SR(law.guard), spec, declarations, compilation)
-            reset = {
-                target: _substitute_delays(SR(value), spec, declarations, compilation)
-                for target, value in (law.reset or {}).items()
-            }
-            compilation.events.append((spec, CrossingLaw(guard, reset, law.direction, law.terminal, label=law.label)))
-        elif isinstance(law, JumpLaw):
-            result.append(JumpLaw(_substitute_delays(law.rate, spec, declarations, compilation), law.changes))
-        elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            result.append(replaced(law, value=_substitute_delays(law.value, spec, declarations, compilation)))
-        else:
-            result.append(law)
-    return result
 
 
 def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
@@ -318,7 +208,7 @@ def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
     return first
 
 
-def compile_events(
+def _compile_events(
     events: list[tuple[KernelSpec, CrossingLaw]],
     time: Expression,
     reductions: ReductionSchedule,
@@ -359,7 +249,7 @@ def compile_events(
     return tuple(compiled)
 
 
-def hidden_events(
+def _hidden_events(
     specs: list[tuple[KernelSpec, list[BaseLaw]]],
     time: Expression,
     reductions: ReductionSchedule,
@@ -399,7 +289,7 @@ def hidden_events(
     return tuple(compiled)
 
 
-def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Delay, ...]:
+def _compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Delay, ...]:
     """Return the delays of a system with their delay functions compiled.
 
     Args:
@@ -432,7 +322,7 @@ def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Del
     return tuple(compiled)
 
 
-def breakpoints_in(
+def _breakpoints_in(
     specs: list[tuple[KernelSpec, list[BaseLaw]]],
     events: list[tuple[KernelSpec, CrossingLaw]],
     time: Expression,
@@ -479,6 +369,127 @@ class DelaysPass(BasePass):
         """
         declarations = cast('Declarations', compilation.layout)
         compilation.delayed = [
-            (spec, _with_delays(spec, laws, declarations, compilation))
+            (spec, self._with_delays(spec, laws, declarations, compilation))
             for spec, laws in cast('Laws', compilation.ordered)
         ]
+
+    @staticmethod
+    def _delay_minimum(
+        spec: KernelSpec,
+        tau: Expression,
+        minimum: Expression | None,
+        declarations: Declarations,
+    ) -> float:
+        """Return the smallest value of a delay: itself, its declared minimum, or its value at the parameters."""
+        if SR(tau).is_numeric():
+            return float(tau)
+        if minimum is not None and SR(minimum).is_numeric():
+            return float(minimum)
+        symbols = sorted(SR(tau).variables(), key=str)
+        references = [spec.references.get(item) for item in symbols]
+        if symbols and all(reference is not None and not reference.is_state for reference in references):
+            values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+            columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
+            delays = numpy_function(declarations.time, symbols, [SR(tau)])(0.0, *columns)[0]
+            return float(np.min(delays))
+        error_msg = (
+            f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '
+            'argument, `delayed(x, tau, minimum)`.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
+    def _substitute_delays(
+        value: object,
+        spec: KernelSpec,
+        declarations: Declarations,
+        compilation: Compilation,
+    ) -> object:
+        """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history."""
+        if isinstance(value, FreeModuleElement):
+            return vector(DelaysPass._substitute_delays(item, spec, declarations, compilation) for item in value)
+        if not isinstance(value, Expression):
+            return value
+        replacements = {}
+        for call in _calls_of(value, 'delayed'):
+            arguments = call.operands()
+            item, tau = arguments[0], arguments[1]
+            reference = spec.references.get(item)
+            if reference is None or not reference.is_state or reference.source not in {Source.SINGLE, Source.MEMBER}:
+                error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
+                raise ValidationError(error_msg)
+            key = (id(spec), reference.entry.name, reference.column, str(tau))
+            if key in compilation.placeholders:
+                replacements[call] = compilation.placeholders[key]
+                continue
+            entry = reference.entry
+            members = entry.members if reference.source is Source.MEMBER else None
+            indices = (
+                entry.start + np.arange(members) * entry.columns + reference.column
+                if members is not None
+                else np.asarray([entry.start + reference.column])
+            )
+            initial = np.concatenate([np.zeros(0), *declarations.initial_states])[indices]
+            index = len(compilation.delays)
+            hidden = Entry(
+                f'__delayed_{index}',
+                declarations.ends[False],
+                (members,) if members is not None else (),
+                RR,
+                members,
+            )
+            declarations.parameters.append(hidden)
+            declarations.ends[False] += hidden.size
+            declarations.initial_parameters.append(np.asarray(initial, dtype=float))
+            placeholder = symbol(f'_delayed_{index}')
+            spec.references[placeholder] = Reference(hidden, False, 0, reference.source)
+            compilation.delays.append(
+                {
+                    'entry': hidden,
+                    'states': indices,
+                    'tau': tau,
+                    'minimum': DelaysPass._delay_minimum(
+                        spec,
+                        tau,
+                        next(iter(arguments[2:]), None),
+                        declarations,
+                    ),
+                    'spec': spec,
+                    'symbol': placeholder,
+                    'state': item,
+                },
+            )
+            compilation.placeholders[key] = placeholder
+            replacements[call] = placeholder
+        return value.subs(replacements) if replacements else value
+
+    @staticmethod
+    def _with_delays(
+        spec: KernelSpec,
+        laws: list[BaseLaw],
+        declarations: Declarations,
+        compilation: Compilation,
+    ) -> list[BaseLaw]:
+        """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation."""
+        result: list[BaseLaw] = []
+        for law in laws:
+            if isinstance(law, CrossingLaw):
+                guard = DelaysPass._substitute_delays(SR(law.guard), spec, declarations, compilation)
+                reset = {
+                    target: DelaysPass._substitute_delays(SR(value), spec, declarations, compilation)
+                    for target, value in (law.reset or {}).items()
+                }
+                compilation.events.append(
+                    (spec, CrossingLaw(guard, reset, law.direction, law.terminal, label=law.label)),
+                )
+            elif isinstance(law, JumpLaw):
+                result.append(
+                    JumpLaw(DelaysPass._substitute_delays(law.rate, spec, declarations, compilation), law.changes),
+                )
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+                result.append(
+                    replaced(law, value=DelaysPass._substitute_delays(law.value, spec, declarations, compilation)),
+                )
+            else:
+                result.append(law)
+        return result
