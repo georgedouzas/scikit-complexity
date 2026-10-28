@@ -51,7 +51,7 @@ from ._automata import (
     spatial_entropy_rates,
 )
 from ._base import BaseAnalysis
-from ._bifurcation import BasinStability, OrbitDiagram, basin_stability, orbit_diagram
+from ._bifurcation import OrbitDiagram, orbit_diagram
 from ._complexity import (
     ComplexityEntropy,
     EnsembleEntropy,
@@ -259,7 +259,6 @@ __all__: list[str] = [
     'AvalancheLaws',
     'Avalanches',
     'BaseAnalysis',
-    'BasinStability',
     'CausalEmergence',
     'Cloning',
     'Closure',
@@ -338,7 +337,6 @@ __all__: list[str] = [
     'autocorrelation',
     'autocorrelation_time',
     'avalanches',
-    'basin_stability',
     'binder_crossings',
     'binder_cumulant',
     'block_generating_function',

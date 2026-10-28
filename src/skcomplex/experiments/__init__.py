@@ -1,6 +1,7 @@
 """Study models through many runs: designs, scenarios, replicates, sensitivity analysis, and calibration."""
 
 from ._base import BaseDesign, BaseExperiment
+from ._basin_stability import BasinStabilityExperiment
 from ._calibration import CalibrationExperiment
 from ._experiment import Experiment
 from ._grid import GridDesign
@@ -18,6 +19,7 @@ from ._sobol import SobolDesign
 __all__: list[str] = [
     'BaseDesign',
     'BaseExperiment',
+    'BasinStabilityExperiment',
     'CalibrationExperiment',
     'Experiment',
     'ExperimentResult',
