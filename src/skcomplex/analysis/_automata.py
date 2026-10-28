@@ -1,4 +1,4 @@
-"""Decide injectivity and surjectivity of cellular automata on finite universes, and measure their information."""
+"""Decide injectivity and surjectivity of cellular automata and subshifts, and measure their entropy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,9 +15,10 @@ from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 from ..core.errors import AnalysisError
 from ..core.laws.utils import OuterTotalistic, Table, Totalistic
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ._entropy import _entropy_rate
-from ._kinds import DataKind, analysis
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
 from ._lazy import module
+from ._utils import check_kind
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -369,98 +370,21 @@ def _field_of(field: str) -> Any:  # noqa: ANN401
     raise AnalysisError(error_msg)
 
 
-def is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
-    """Check whether two different configurations never have the same image.
-
-    Small universes are decided by enumerating every configuration, and larger ones by a SAT encoding solved by PySAT.
-
-    Args:
-        automaton:
-            The automaton on a finite universe.
-
-        method:
-            `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
-
-    Returns:
-        injective:
-            Whether the automaton is injective on its universe.
-
-    Raises:
-        AnalysisError:
-            The method is unknown, or enumeration is asked for too many configurations.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, is_injective
-        >>> from skcomplex.core.laws.utils import Table
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
-        >>> is_injective(shift)
-        True
-    """
+def _is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
+    """Check whether two different configurations never have the same image."""
     if _check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
         _, codes = _images(automaton)
         return bool(np.unique(codes).size == codes.size)
     return _collision(automaton, range(automaton.size)) is None
 
 
-def is_surjective(automaton: Automaton, *, method: str = 'auto') -> bool:
-    """Check whether every configuration has a preimage, which on a finite universe holds exactly when it is injective.
-
-    Args:
-        automaton:
-            The automaton on a finite universe.
-
-        method:
-            `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
-
-    Returns:
-        surjective:
-            Whether the automaton is surjective on its universe.
-
-    Raises:
-        AnalysisError:
-            The method is unknown, or enumeration is asked for too many configurations.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, is_surjective
-        >>> from skcomplex.core.laws.utils import Totalistic
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> majority = Automaton(LatticeSpace(8), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
-        >>> is_surjective(majority)
-        False
-    """
-    return is_injective(automaton, method=method)
+def _is_surjective(automaton: Automaton, *, method: str = 'auto') -> bool:
+    """Check whether every configuration has a preimage, as when it is injective."""
+    return _is_injective(automaton, method=method)
 
 
-def is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
-    """Check whether two configurations that differ only inside a window never have the same image.
-
-    Args:
-        automaton:
-            The automaton on a finite universe.
-
-        window:
-            The sites where the configurations may differ, or `None` for every site.
-
-        method:
-            `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
-
-    Returns:
-        pre_injective:
-            Whether no two configurations that differ only inside the window share their image.
-
-    Raises:
-        AnalysisError:
-            The method is unknown, or enumeration is asked for too many configurations.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, is_pre_injective
-        >>> from skcomplex.core.laws.utils import Totalistic
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> xor = Automaton(LatticeSpace(6), LatticeNeighborhood(((0,), (1,))), Totalistic(lambda total: total % 2))
-        >>> is_pre_injective(xor, [2])
-        True
-    """
+def _is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
+    """Check whether two configurations that differ only inside a window never have the same image."""
     sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
     if not _check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
         return _collision(automaton, sites) is None
@@ -470,43 +394,14 @@ def is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, 
     return bool(np.unique(keys).size == keys.size)
 
 
-def garden_of_eden(
+def _garden_of_eden(
     automaton: Automaton,
     window: Sequence[int] | None = None,
     *,
     tries: int = 200,
     random_state: int | np.random.Generator | None = None,
 ) -> Codes | None:
-    """Return a pattern on a window that no configuration maps to, a Garden of Eden, or `None` when none is found.
-
-    Small universes enumerate the images of every configuration. Larger ones draw random patterns and keep the first
-    one whose preimage constraints a SAT solver finds unsatisfiable.
-
-    Args:
-        automaton:
-            The automaton on a finite universe.
-
-        window:
-            The sites of the pattern, or `None` for every site.
-
-        tries:
-            The number of random patterns tried by SAT.
-
-        random_state:
-            The seed or generator of the random patterns.
-
-    Returns:
-        pattern:
-            A configuration whose values on the window have no preimage, or `None`.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, garden_of_eden
-        >>> from skcomplex.core.laws.utils import Totalistic
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
-        >>> garden_of_eden(majority).tolist()
-        [0, 0, 1, 0, 1]
-    """
+    """Return a pattern on a window that no configuration maps to, or `None`."""
     sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
     if window is None and automaton.states**automaton.size <= MAX_CONFIGURATIONS:
         configurations, codes = _images(automaton)
@@ -520,36 +415,8 @@ def garden_of_eden(
     return None
 
 
-def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
-    """Return an automaton whose composition with a reversible automaton is the identity, with the smallest memory.
-
-    The search tries the neighbourhoods of every radius up to the largest, a box of offsets on a lattice or the ball
-    of group elements on a group space, and keeps the first on which the image determines every cell.
-
-    Args:
-        automaton:
-            The automaton on a universe small enough to enumerate.
-
-        max_radius:
-            The largest radius of the memory of the inverse.
-
-    Returns:
-        inverse:
-            The inverse automaton with a table rule, or `None` when the automaton is not injective or no memory up to
-            the radius determines the cells.
-
-    Raises:
-        AnalysisError:
-            The universe has too many configurations to enumerate.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, inverse
-        >>> from skcomplex.core.laws.utils import Table
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> shift = Automaton(LatticeSpace(6), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
-        >>> inverse(shift).step([1, 0, 0, 0, 0, 0]).tolist()
-        [0, 1, 0, 0, 0, 0]
-    """
+def _inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
+    """Return the automaton whose composition with a reversible one is the identity, or `None`."""
     configurations, codes = _images(automaton)
     if np.unique(codes).size != codes.size:
         return None
@@ -568,36 +435,8 @@ def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
     return None
 
 
-def compose(first: Automaton, second: Automaton) -> Automaton:
-    """Return the automaton that applies one automaton and then another on the same space.
-
-    Its neighbourhood holds the composite `t s` of every element `t` read by the second and `s` read by the first.
-
-    Args:
-        first:
-            The automaton applied first.
-
-        second:
-            The automaton applied second.
-
-    Returns:
-        composition:
-            The automaton of the composition, with a function rule.
-
-    Raises:
-        AnalysisError:
-            The automata have different spaces or numbers of states.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, compose
-        >>> from skcomplex.core.laws.utils import Table
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> space = LatticeSpace(5)
-        >>> left = Automaton(space, LatticeNeighborhood(((1,),)), Table({(1,): 1}))
-        >>> right = Automaton(space, LatticeNeighborhood(((-1,),)), Table({(1,): 1}))
-        >>> compose(left, right).step([0, 1, 0, 0, 1]).tolist()
-        [0, 1, 0, 0, 1]
-    """
+def _compose(first: Automaton, second: Automaton) -> Automaton:
+    """Return the automaton that applies one automaton and then another on the same space."""
     if first.space is not second.space or first.states != second.states:
         error_msg = 'Composed automata share their space and their number of states.'
         raise AnalysisError(error_msg)
@@ -623,80 +462,17 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
     return Automaton(first.space, reach, rule, first.states)
 
 
-def difference_pattern(
+def _difference_pattern(
     automaton: Automaton,
     configuration: npt.ArrayLike,
     site: int,
     steps: int,
 ) -> npt.NDArray[np.bool_]:
-    """Return where two runs differ when one starts from a configuration and the other from it with one cell changed.
-
-    The changed cell takes the next value modulo the number of states.
-
-    Args:
-        automaton:
-            The automaton.
-
-        configuration:
-            The initial values of the sites.
-
-        site:
-            The site of the changed cell.
-
-        steps:
-            The number of steps.
-
-    Returns:
-        differences:
-            One row per step, the initial one first, true where the runs differ.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton, difference_pattern
-        >>> from skcomplex.core.laws.utils import Totalistic
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> parity = Automaton(LatticeSpace(7), BoxNeighborhood(), Totalistic(lambda total: total % 2))
-        >>> difference_pattern(parity, [0] * 7, 3, 2).sum(axis=1).tolist()
-        [1, 3, 3]
-    """
+    """Return where two runs differ when one starts with one cell changed to its next value."""
     initial = np.asarray(configuration, dtype=np.int64)
     changed = initial.copy()
     changed[site] = (changed[site] + 1) % automaton.states
     return automaton.run(initial, steps) != automaton.run(changed, steps)
-
-
-@analysis(DataKind.FIELD)
-def spatial_entropy_rates(
-    configurations: npt.ArrayLike,
-    max_m: int = 8,
-    *,
-    base: float = 2.0,
-) -> npt.NDArray[np.float64]:
-    """Return the spatial entropy rate of every configuration of a run of a one-dimensional automaton.
-
-    The rate of every row is estimated from the block entropies up to the largest block length, as `entropy_rate`
-    does. Lindgren's theorem states that it never increases under a cellular automaton.
-
-    Args:
-        configurations:
-            One row of cell values per step.
-
-        max_m:
-            The largest block length.
-
-        base:
-            The base of the logarithm.
-
-    Returns:
-        rates:
-            One entropy rate per row.
-
-    Examples:
-        >>> from skcomplex.analysis import spatial_entropy_rates
-        >>> spatial_entropy_rates([[0, 1] * 50, [0, 0] * 50], 2).tolist()
-        [0.0, 0.0]
-    """
-    rows = np.atleast_2d(np.asarray(configurations))
-    return np.asarray([_entropy_rate(row, max_m, base=base) for row in rows])
 
 
 @dataclass(frozen=True)
@@ -876,38 +652,13 @@ class Subshift:
         return values
 
 
-def configuration_entropy(
+def _configuration_entropy(
     subject: Subshift | Automaton,
     windows: Sequence[Sites],
     *,
     base: float = 2.0,
 ) -> npt.NDArray[np.float64]:
-    """Return the entropy `log |X_F| / |F|` of the configurations of a subshift or of the image of an automaton.
-
-    `X_F` is the set of admissible configurations of a window `F`, or the set of images on the sites of `F` whose
-    cells lie inside it. Along a Følner sequence of windows the values approach the topological entropy.
-
-    Args:
-        subject:
-            The subshift, or the automaton whose rule and neighbourhood are applied on every window.
-
-        windows:
-            The windows, such as lattices with fixed edges of growing size.
-
-        base:
-            The base of the logarithm.
-
-    Returns:
-        entropies:
-            One entropy per window.
-
-    Examples:
-        >>> from skcomplex.analysis import Subshift, configuration_entropy
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-        >>> configuration_entropy(golden, [LatticeSpace(20, boundary='fixed')]).round(3).tolist()
-        [0.706]
-    """
+    """Return the entropy `log |X_F| / |F|` of a subshift or of the image of an automaton on every window."""
     entropies = []
     for window in windows:
         if isinstance(subject, Subshift):
@@ -965,8 +716,6 @@ class LinearAutomaton:
         >>> rule90 = LinearAutomaton(LatticeSpace(6), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
         >>> rule90.step([0, 0, 1, 0, 0, 0]).tolist()
         [0, 1, 0, 1, 0, 0]
-        >>> rule90.is_invertible(), rule90.is_surjective(infinite=True)
-        (False, True)
     """
 
     space: Sites
@@ -1038,45 +787,252 @@ class LinearAutomaton:
         )
         return sum(terms, ring.zero())
 
-    def is_invertible(self, *, infinite: bool = False) -> bool:
-        """Check whether the automaton is invertible, on its finite universe or on `Z^d`.
 
-        Args:
-            infinite:
-                Whether to decide on `Z^d` from the Laurent polynomial instead of on the space.
+def _linear_injective(automaton: LinearAutomaton, *, infinite: bool) -> bool:
+    """Check whether a linear automaton is invertible: its matrix on its universe, or a monomial on `Z^d`."""
+    if infinite:
+        return len(automaton.laurent_polynomial().exponents()) == 1
+    return bool(automaton.matrix().is_invertible())
 
-        Returns:
-            invertible:
-                Whether the matrix is invertible, or whether the polynomial is a monomial.
-        """
-        if infinite:
-            return len(self.laurent_polynomial().exponents()) == 1
-        return bool(self.matrix().is_invertible())
 
-    def is_surjective(self, *, infinite: bool = False) -> bool:
-        """Check whether the automaton is surjective, on its finite universe or on `Z^d`.
+def _linear_surjective(automaton: LinearAutomaton, *, infinite: bool) -> bool:
+    """Check whether a linear automaton is surjective: invertible on its universe, or not zero on `Z^d`."""
+    if infinite:
+        return not automaton.laurent_polynomial().is_zero()
+    return _linear_injective(automaton, infinite=False)
 
-        Args:
-            infinite:
-                Whether to decide on `Z^d` from the Laurent polynomial instead of on the space.
 
-        Returns:
-            surjective:
-                Whether the matrix is invertible, or whether the polynomial is not zero.
-        """
-        if infinite:
-            return not self.laurent_polynomial().is_zero()
-        return self.is_invertible()
+KINDS = ('injective', 'surjective', 'pre-injective', 'garden-of-eden', 'inverse', 'compose', 'difference', 'entropy')
+SETTINGS = {
+    'injective': {'method', 'infinite'},
+    'surjective': {'method', 'infinite'},
+    'pre-injective': {'method', 'window', 'infinite'},
+    'garden-of-eden': {'window', 'tries', 'random_state'},
+    'inverse': {'max_radius'},
+    'compose': {'second'},
+    'difference': {'configuration', 'site', 'steps'},
+    'entropy': {'windows', 'base'},
+}
+"""Settings every kind reads, besides `kind`."""
+SOURCES = {
+    'injective': (Automaton, LinearAutomaton),
+    'surjective': (Automaton, LinearAutomaton),
+    'pre-injective': (Automaton, LinearAutomaton),
+    'garden-of-eden': (Automaton,),
+    'inverse': (Automaton,),
+    'compose': (Automaton,),
+    'difference': (Automaton,),
+    'entropy': (Automaton, Subshift),
+}
+"""Models of a cellular automaton every kind reads."""
 
-    def is_pre_injective(self, *, infinite: bool = False) -> bool:
-        """Check whether the automaton is pre-injective, which for linear automata over fields means surjective.
 
-        Args:
-            infinite:
-                Whether to decide on `Z^d` from the Laurent polynomial instead of on the space.
+class AutomatonAnalysis(BaseAnalysis):
+    """Decisions and measures of a cellular automaton on a finite universe, of a linear automaton, or of a subshift.
 
-        Returns:
-            pre_injective:
-                Whether no nonzero configuration of finite support maps to zero.
-        """
-        return self.is_surjective(infinite=infinite)
+    The kinds read the automaton, the linear automaton, or the subshift a user builds:
+
+    - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
+      image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
+      injective, and whether two configurations that differ only inside a window never share their image. Small
+      universes are decided by enumerating every configuration, and larger ones by a SAT encoding solved by PySAT. A
+      linear automaton is decided from its matrix, all three holding exactly when the matrix is invertible, or on
+      `Z^d` from its Laurent polynomial, injective when it is a monomial and surjective and pre-injective when it is
+      not zero.
+    - `'garden-of-eden'`: a pattern on a window that no configuration maps to. Small universes enumerate the images of
+      every configuration, and larger ones draw random patterns and keep the first one whose preimage constraints a
+      SAT solver finds unsatisfiable.
+    - `'inverse'`: an automaton whose composition with a reversible automaton is the identity, with the smallest
+      memory. The search tries the neighbourhoods of every radius up to `max_radius`, a box of offsets on a lattice or
+      the ball of group elements on a group space, and keeps the first on which the image determines every cell.
+    - `'compose'`: the automaton that applies the automaton and then `second` on the same space, whose neighbourhood
+      holds the composite `t s` of every element `t` read by the second and `s` read by the first.
+    - `'difference'`: where two runs differ when one starts from `configuration` and the other from it with the cell
+      at `site` changed to its next value modulo the number of states.
+    - `'entropy'`: the entropy `log |X_F| / |F|` of the configurations of a subshift, or of the image of an automaton
+      whose rule and neighbourhood are applied on every window. `X_F` is the set of admissible configurations of a
+      window `F`, or the set of images on the sites of `F` whose cells lie inside it. Along a Følner sequence of
+      windows the values approach the topological entropy.
+
+    Args:
+        kind:
+            The decision or measure, one of the kinds above.
+
+        method:
+            `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
+
+        window:
+            The sites where configurations may differ, or of the Garden of Eden pattern, or `None` for every site.
+
+        infinite:
+            Whether to decide a linear automaton on `Z^d` from its Laurent polynomial instead of on its space.
+
+        tries:
+            The number of random patterns tried by SAT.
+
+        random_state:
+            The seed or generator of the random patterns.
+
+        max_radius:
+            The largest radius of the memory of the inverse.
+
+        second:
+            The automaton applied after the analysed one.
+
+        configuration:
+            The initial values of the sites of the difference pattern.
+
+        site:
+            The site of the changed cell.
+
+        steps:
+            The number of steps of the difference pattern.
+
+        windows:
+            The windows of the entropy, such as lattices with fixed edges of growing size.
+
+        base:
+            The base of the logarithm.
+
+    Attributes:
+        automaton_:
+            The automaton, the linear automaton, or the subshift.
+
+        injective_:
+            Whether the automaton is injective.
+
+        surjective_:
+            Whether the automaton is surjective.
+
+        pre_injective_:
+            Whether no two configurations that differ only inside the window share their image.
+
+        pattern_:
+            A configuration whose values on the window have no preimage, or `None` when none is found.
+
+        inverse_:
+            The inverse automaton with a table rule, or `None` when the automaton is not injective or no memory up to
+            the radius determines the cells.
+
+        composition_:
+            The automaton of the composition, with a function rule.
+
+        differences_:
+            One row per step, the initial one first, true where the runs differ.
+
+        entropy_:
+            One entropy per window.
+
+    Raises:
+        AnalysisError:
+            The model is not one the kind reads, the method is unknown, enumeration is asked for too many
+            configurations, or composed automata differ in space or number of states.
+
+    Examples:
+        >>> from skcomplex.analysis import Automaton, AutomatonAnalysis, Subshift
+        >>> from skcomplex.core.laws.utils import Table, Totalistic
+        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
+        >>> AutomatonAnalysis().check().prepare(shift).run().injective_
+        True
+        >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
+        >>> AutomatonAnalysis('garden-of-eden').check().prepare(majority).run().pattern_.tolist()
+        [0, 0, 1, 0, 1]
+        >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+        >>> analysis = AutomatonAnalysis('entropy', windows=[LatticeSpace(20, boundary='fixed')])
+        >>> analysis.check().prepare(golden).run().entropy_.round(3).tolist()
+        [0.706]
+    """
+
+    def __init__(
+        self,
+        kind: str = 'injective',
+        *,
+        method: str = 'auto',
+        window: Sequence[int] | None = None,
+        infinite: bool = False,
+        tries: int = 200,
+        random_state: int | np.random.Generator | None = None,
+        max_radius: int = 2,
+        second: Automaton | None = None,
+        configuration: npt.ArrayLike | None = None,
+        site: int = 0,
+        steps: int = 1,
+        windows: Sequence[Sites] | None = None,
+        base: float = 2.0,
+    ) -> None:
+        self.kind = kind
+        self.method = method
+        self.window = window
+        self.infinite = infinite
+        self.tries = tries
+        self.random_state = random_state
+        self.max_radius = max_radius
+        self.second = second
+        self.configuration = configuration
+        self.site = site
+        self.steps = steps
+        self.windows = windows
+        self.base = base
+
+    def _check(self) -> Self:
+        """Validate the kind, the method, that the kind reads every changed setting, and that it has what it needs."""
+        check_kind(self, KINDS, SETTINGS)
+        if self.method not in METHODS:
+            error_msg = f'{type(self).__name__} has method={self.method!r}. Use one of {", ".join(METHODS)}.'
+            raise AnalysisError(error_msg)
+        needed = {'compose': 'second', 'difference': 'configuration', 'entropy': 'windows'}.get(self.kind)
+        if needed is not None and getattr(self, needed) is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {needed}. Give it.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the system kind."""
+        return DataKind.SYSTEM
+
+    def _prepare(self, source: Source) -> Self:
+        """Keep the automaton, the linear automaton, or the subshift, after checking that the kind reads it."""
+        models = SOURCES[self.kind]
+        if not isinstance(source, models):
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} reads a '
+                f'{" or a ".join(model.__name__ for model in models)}'
+                f', not {type(source).__name__}. Build one of them.'
+            )
+            raise AnalysisError(error_msg)
+        self.automaton_ = source
+        return self
+
+    def _decide(self) -> None:
+        """Set whether the automaton is injective, surjective, or pre-injective."""
+        automaton = self.automaton_
+        if isinstance(automaton, LinearAutomaton):
+            injective = self.kind == 'injective'
+            decision = (
+                _linear_injective(automaton, infinite=self.infinite)
+                if injective
+                else _linear_surjective(automaton, infinite=self.infinite)
+            )
+        elif self.kind == 'pre-injective':
+            decision = _is_pre_injective(automaton, self.window, method=self.method)  # type: ignore[arg-type]
+        else:
+            decision = _is_injective(automaton, method=self.method)  # type: ignore[arg-type]
+        setattr(self, f'{self.kind.replace("-", "_")}_', decision)
+
+    def _run(self) -> Self:
+        """Decide or measure the automaton."""
+        automaton = self.automaton_
+        if self.kind in {'injective', 'surjective', 'pre-injective'}:
+            self._decide()
+        elif self.kind == 'garden-of-eden':
+            self.pattern_ = _garden_of_eden(automaton, self.window, tries=self.tries, random_state=self.random_state)
+        elif self.kind == 'inverse':
+            self.inverse_ = _inverse(automaton, self.max_radius)
+        elif self.kind == 'compose':
+            self.composition_ = _compose(automaton, self.second)  # type: ignore[arg-type]
+        elif self.kind == 'difference':
+            self.differences_ = _difference_pattern(automaton, self.configuration, self.site, self.steps)
+        else:
+            self.entropy_ = _configuration_entropy(automaton, self.windows, base=self.base)  # type: ignore[arg-type]
+        return self

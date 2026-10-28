@@ -28,6 +28,7 @@ class DataKind(StrEnum):
     AGENTS = 'agents'
     NETWORK = 'network'
     ENSEMBLE = 'ensemble'
+    SYSTEM = 'system'
 
     @property
     def reading(self) -> str:
@@ -47,6 +48,7 @@ READINGS = {
     DataKind.AGENTS: 'positions, velocities, headings, or states of agents, one row per agent',
     DataKind.NETWORK: 'a NetworkX graph, or one graph per frame',
     DataKind.ENSEMBLE: 'one row per run and one column per common time',
+    DataKind.SYSTEM: 'a system, a problem compiled from one, or a trajectory of one, whose equations are analysed',
 }
 ADAPTERS = {
     DataKind.SERIES: 'series_of',
@@ -55,6 +57,7 @@ ADAPTERS = {
     DataKind.AGENTS: 'snapshots_of',
     DataKind.NETWORK: 'networks_of',
     DataKind.ENSEMBLE: 'ensemble_of',
+    DataKind.SYSTEM: 'compiled_problem',
 }
 
 

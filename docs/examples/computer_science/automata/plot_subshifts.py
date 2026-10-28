@@ -12,7 +12,7 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import Subshift, configuration_entropy
+from skcomplex.analysis import AutomatonAnalysis, Subshift
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -37,7 +37,8 @@ alive = simulation.trajectory_.values('cells.alive')
 golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
 admissible = all(golden.is_admissible(row.astype(int), space) for row in alive)
 lengths = np.arange(2, 31, 4)
-entropies = configuration_entropy(golden, [LatticeSpace(int(length), boundary='fixed') for length in lengths])
+windows = [LatticeSpace(int(length), boundary='fixed') for length in lengths]
+entropies = AutomatonAnalysis('entropy', windows=windows).check().prepare(golden).run().entropy_
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(simulation.trajectory_.times, alive.mean(axis=1), label='density of ones')
 left.axhline((5 - np.sqrt(5)) / 10, linestyle='--', color='gray', label='maximal entropy')

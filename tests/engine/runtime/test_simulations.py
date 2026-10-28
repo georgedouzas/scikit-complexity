@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.analysis import flow_matrix
+from skcomplex.analysis import LoopAnalysis
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
 from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
@@ -170,7 +170,8 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
     created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
-        assert flow_matrix(trajectory, frame).values.sum(axis=1) == pytest.approx(0.0, abs=1e-12)
+        matrix = LoopAnalysis('flow-matrix', frame=frame).check().prepare(trajectory).run().matrix_
+        assert matrix.sum(axis=1) == pytest.approx(0.0, abs=1e-12)
 
 
 def test_trajectory_returns_group_arrays():

@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -64,7 +64,7 @@ observer.recording_.flush()
 # `± 2 ln φ ≈ ± 0.962` and the square should be stretched about 2.6 times per step. Once the stripes are thinner than
 # a cell, the share of the 100 cells of a 10 by 10 grid that the points occupy should approach 1.
 
-exponents = lyapunov_spectrum(simulation.system, until=2000)
+exponents = LyapunovAnalysis(until=2000).check().prepare(simulation.system).run().exponents_
 cells = [len(set(zip((10 * x[:, step]).astype(int), (10 * y[:, step]).astype(int), strict=True))) for step in range(7)]
 fig, (snapshots, occupied) = plt.subplots(1, 2, figsize=(10, 4.5))
 for step in (0, 1, STEPS):

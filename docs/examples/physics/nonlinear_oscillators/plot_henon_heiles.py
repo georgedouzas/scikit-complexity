@@ -12,7 +12,7 @@ A star orbiting in a triangular galactic potential: at low energy its orbit is a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import poincare_section
+from skcomplex.analysis import SectionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -38,8 +38,8 @@ simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).run(unt
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for y in np.linspace(-0.3, 0.45, 12):
-    section = poincare_section(start(y, 0.0), 'star.x', 0.0, until=2000)
-    ax.plot(section.values('star.y'), section.values('star.y_d1'), '.', markersize=1.5)
+    section = SectionAnalysis(state='star.x', value=0.0, until=2000).check().prepare(start(y, 0.0)).run()
+    ax.plot(section.values_['star.y'], section.values_['star.y_d1'], '.', markersize=1.5)
 ax.set_xlabel('y')
 ax.set_ylabel('p_y')
 ax.set_title('Poincaré section at x = 0, E = 1/8')

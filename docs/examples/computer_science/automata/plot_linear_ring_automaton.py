@@ -12,7 +12,7 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import LinearAutomaton
+from skcomplex.analysis import AutomatonAnalysis, LinearAutomaton
 from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -36,13 +36,15 @@ space = system.elements[0].space
 values = simulation.trajectory_.values('cells.value')
 steps = np.arange(values.shape[0])
 laplacian = LinearAutomaton(space, BoxNeighborhood(), (1, -2, 1), 'GF(3)')
+invertible = AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_
+surjective = AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(steps, (values != 0).sum(axis=1), 'o-', label='nonzero cells')
 ax.plot(steps, 2 * steps + 1, '--', label='light cone $2t + 1$')
 ax.set_xlabel('step $t$')
 ax.set_ylabel('cells')
 ax.set_title(
-    f'Invertible on the ring: {laplacian.is_invertible()}, surjective on Z: {laplacian.is_surjective(infinite=True)}',
+    f'Invertible on the ring: {invertible}, surjective on Z: {surjective}',
 )
 ax.legend()
 plt.show()

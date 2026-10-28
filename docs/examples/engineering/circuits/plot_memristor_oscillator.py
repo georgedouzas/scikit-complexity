@@ -12,7 +12,7 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.analysis import LyapunovAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=200)
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 20
-exponent = lyapunov_spectrum(system, n=1, until=500.0, dt=0.01)[0]
+exponent = LyapunovAnalysis(n_exponents=1, until=500.0, dt=0.01).check().prepare(system).run().exponents_[0]
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(trajectory.values('circuit.v')[settled], trajectory.values('circuit.i')[settled], linewidth=0.5)
 ax.set_xlabel('capacitor voltage v')

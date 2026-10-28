@@ -12,7 +12,7 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import purity
+from skcomplex.analysis import QuantumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -48,7 +48,8 @@ agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = create(MODEL, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
     trajectory = Simulation(dephased, dt=0.1).run(until=4.0).trajectory_
-    coherence.plot(trajectory.times, purity(trajectory), label=f'gamma = {gamma}')
+    purity = QuantumAnalysis('purity').check().prepare(trajectory).run().purity_
+    coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
 coherence.set_ylabel('purity')
 coherence.set_title('Position dephasing destroys coherence')
