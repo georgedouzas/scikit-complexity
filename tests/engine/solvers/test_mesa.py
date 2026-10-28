@@ -13,7 +13,7 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile.passes._agents import AgentsPass
 from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.engine.problems import Form
@@ -374,10 +374,10 @@ def test_mesa_validates_systems_against_its_support():
         elements=[PopulationElement('herd')],
         interactions=[ExponentialGrowthInteraction('growth', target='herd')],
     )
-    issues = validate(system, solver=MesaSolver()).issues
+    issues = PassCompiler(solver=MesaSolver()).check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['solver-unsupported']
     assert 'RateLaw' in issues[0].message
-    assert validate(_money_system(), solver=MesaSolver()).ok
+    assert PassCompiler(solver=MesaSolver()).check().prepare(_money_system()).report_.ok
 
 
 SEEN: list[object] = []

@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 from ...core.errors import ValidationError
 from ...core.specs import ObservableSpec
 from ...core.system import System
-from ..compile import compile_system, observables_of
+from ..compile import compile_system
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ._kinds import agents_visual_of, resolve_visual
 from ._points import PointsVisual
@@ -165,10 +165,7 @@ def _agent_views(problem: BaseProblem) -> list[rrb.View]:
 def _summary_views(problem: BaseProblem, *, parameters: bool) -> list[rrb.View]:
     """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
     views: list[rrb.View] = []
-    system = problem.system
-    paths = (
-        [f'{scope}/{item.label}' if scope else item.label for scope, item in observables_of(system)] if system else []
-    )
+    paths = [f'{scope}/{item.label}' if scope else item.label for scope, item in problem.observables]
     problems = (problem, *(partition.problem for partition in problem.partitions))
     paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
     if paths:

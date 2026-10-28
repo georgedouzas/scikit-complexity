@@ -358,7 +358,7 @@ def test_ising_on_grid_graph_has_transition():
         warmup=200,
         outputs=[_ising_magnetization],
         random_state=0,
-    ).prepare().run().result_
+    ).check().prepare().run().result_
     means = {row['temperature']: row['_ising_magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]
     assert means[1.5] > 0.95

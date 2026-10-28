@@ -19,7 +19,7 @@ from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
 from ..base import BaseEstimator
-from ..compile import ObservableEvaluator, compile_system, validate
+from ..compile import ObservableEvaluator, PassCompiler, compile_system
 from ..problems import BaseProblem, Entry, Form, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
 from ._clocks import AsFastAsPossibleClock, BaseClock
@@ -191,7 +191,8 @@ class Simulation(BaseEstimator):
                 The system cannot be compiled or run, with every problem found.
         """
         if not isinstance(self.system, BaseProblem):
-            validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+            compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
+            compiler.check().prepare(self.system).report_.check()
 
     def _prepare(self, until: float = math.inf) -> None:
         """Compile the system, prepare the stepper, and prepare the observers for a run until a time.

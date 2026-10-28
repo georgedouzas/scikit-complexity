@@ -15,7 +15,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 
 
 class PopulationElement(Element):
@@ -140,7 +140,7 @@ def test_unknown_part_is_rejected():
 def test_group_with_invalid_size_is_reported_with_its_path():
     """Test that a group built with an invalid size is reported by validating the system, with the path of the group."""
     system = System(systems=[System('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])])
-    (issue,) = validate(system).errors
+    (issue,) = PassCompiler().check().prepare(system).report_.errors
     assert issue.message.startswith("meadow/herds: Group 'herds' has size 0")
 
 

@@ -9,26 +9,27 @@ from typing import cast
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._members import MemberShifts
-from .._pipeline import BasePass
 
 
 class MemberShiftPass(BasePass):
     """Pass that lowers the member offset reads of laws to neighbour reads."""
 
-    reads = ('corrected', 'layout')
-    writes = ('shifted',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('corrected', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the member offset reads of the corrected laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('shifted',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the member offset reads of the corrected laws."""
+        compilation = self.compilation_
         time = cast('Declarations', compilation.layout).time
         compilation.shifted = [
             (spec, self._with_member_shifts(spec, laws, time)) for spec, laws in cast('Laws', compilation.corrected)

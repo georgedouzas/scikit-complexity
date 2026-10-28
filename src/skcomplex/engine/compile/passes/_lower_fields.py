@@ -16,34 +16,38 @@ from ...problems import (
     Reference,
     Source,
 )
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
 from .._field_splitting import OPERATORS, LinearTerm, Terms
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 class LowerFieldsPass(BasePass):
     """Pass that lowers the differential operators of laws to stencils and notes stable steps and linear terms."""
 
-    reads = ('corrected', 'layout')
-    writes = ('corrected', 'written', 'limits', 'volume_limits', 'linear')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('corrected', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the differential operators of the corrected laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('corrected', 'written', 'limits', 'volume_limits', 'linear')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the differential operators of the corrected laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         facts: dict[str, Any] = {'written': defaultdict(list), 'limits': [], 'volume_limits': [], 'linear': []}
         compilation.corrected = [
             (spec, self._with_fields(spec, laws, declarations, facts))
             for spec, laws in cast('Laws', compilation.corrected)
         ]
-        compilation.facts.update(facts)
+        compilation.written = facts['written']
+        compilation.limits = facts['limits']
+        compilation.volume_limits = facts['volume_limits']
+        compilation.linear = facts['linear']
 
     @staticmethod
     def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expression, float]:

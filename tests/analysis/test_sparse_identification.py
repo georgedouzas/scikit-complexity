@@ -7,7 +7,7 @@ from skcomplex.analysis import SparseIdentificationAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
 from skcomplex.models import create
@@ -50,7 +50,7 @@ def test_sparse_identification_rediscovers_lorenz():
 def test_sparse_identification_system_validates_with_ode_solver():
     """Test that a SINDy surrogate of Lorenz validates, declares continuous time, and gets an ODE solver."""
     model = _fit(_lorenz_trajectory())
-    report = validate(model.system_)
+    report = PassCompiler().check().prepare(model.system_).report_
     assert not report.errors
     assert isinstance(model.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(model.system_).form] is ScipyODESolver

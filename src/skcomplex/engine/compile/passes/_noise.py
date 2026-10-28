@@ -19,11 +19,11 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....core.specs import WienerProcessSpec
 from ...problems import components_of
+from .._base import BasePass
 from .._census_record import ProcessKey
-from .._compilation import Compilation, Laws
+from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 
 @dataclass(frozen=True)
@@ -41,16 +41,17 @@ class _NoiseTerm:
 class NoisePass(BasePass):
     """Pass that adds the drift correction of every noise law of a convention after it, in the Itô form."""
 
-    reads = ('delayed', 'layout')
-    writes = ('corrected',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('delayed', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the drift corrections of the noise laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('corrected',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the drift corrections of the noise laws."""
+        compilation = self.compilation_
         compilation.corrected = self._with_noise_corrections(
             cast('Laws', compilation.delayed),
             cast('Declarations', compilation.layout),

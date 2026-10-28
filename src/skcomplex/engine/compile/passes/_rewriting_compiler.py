@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element, GroupElement, HostGraphElement, PatchElement, WordElement
-from ....core.errors import IncompatibleLawsError, RewritingError, ValidationError
+from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ....core.system import System
 from ...problems import (
@@ -26,9 +26,10 @@ from ...problems import (
     declarations_of,
     symbol,
 )
+from .._base import BaseCompiler
 from .._compiled_word import CompiledWord
+from .._issue import Issue
 from .._parameters import Parameters
-from .._system_compilers import BaseSystemCompiler
 from .._tree import Node
 from ._compiled_graph import CompiledGraph
 from ._compiled_patch import CompiledPatch
@@ -48,38 +49,56 @@ _STRUCTURES = {WordElement: 'sequence', PatchElement: 'tiling', HostGraphElement
 type Production = ProductionLaw | SubstitutionLaw | GraphProductionLaw
 
 
-class RewritingCompiler(BaseSystemCompiler):
-    """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
+class RewritingCompiler(BaseCompiler):
+    """Compiler of a system of words, patches, or host graphs into a problem of the rewriting form.
 
-    def _prepare(self, system: System) -> None:
-        """Set `claims_`, whether a system holds a word, a patch, or a host graph.
+    The backend, the solver, and the initial state do not change a problem of the rewriting form.
+
+    Examples:
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import RewritingCompiler
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).claims_
+        False
+    """
+
+    def _claims(self, system: System) -> bool:
+        """Check whether a system holds a word, a patch, or a host graph.
 
         Args:
             system:
                 The system.
-        """
-        self.claims_ = self._is_rewriting(system)
 
-    def _run(
-        self,
-        system: System,
-        *,
-        backend: object,
-        solver: object,
-        initial_state: Mapping[str, object],
-    ) -> BaseProblem:
-        """Compile a rewriting system into a problem of the rewriting form.
+        Returns:
+            claims:
+                Whether the compiler compiles the system.
+        """
+        return self._is_rewriting(system)
+
+    def _issues(self, system: System) -> list[Issue]:
+        """Return the issue of a claimed system whose tree cannot be flattened.
 
         Args:
             system:
                 The system, with the observables of the run.
 
-            backend:
-                The backend requested for the problem, which the rewriting form does not use.
+        Returns:
+            issues:
+                The issues, none for a system the compiler does not claim.
+        """
+        if not self.claims_:
+            return []
+        try:
+            FlattenPass._flatten_system(system)
+        except SkcomplexError as error:
+            fix = 'Pass elements, groups, interactions, and systems as children.'
+            return [self._issue_of(error, system.label, 'structure', fix)]
+        return []
 
-            solver:
-                The solver the problem runs on, which the rewriting form does not use.
+    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblem:
+        """Compile the prepared rewriting system into a problem of the rewriting form.
 
+        Args:
             initial_state:
                 Initial values by dotted state name, which the rewriting form does not use.
 
@@ -87,8 +106,8 @@ class RewritingCompiler(BaseSystemCompiler):
             problem:
                 The problem of the rewriting form.
         """
-        del backend, solver, initial_state
-        return self._compile_rewriting(system)
+        del initial_state
+        return self._compile_rewriting(self.system_)
 
     @staticmethod
     def _is_rewriting(system: System) -> bool:

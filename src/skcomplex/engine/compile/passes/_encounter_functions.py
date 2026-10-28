@@ -8,28 +8,28 @@ from typing import Any, cast
 import numpy as np
 
 from ....core.types import Vector
-from .._compilation import Compilation
+from .._base import BasePass
 from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
-from .._pipeline import BasePass
 
 
 class EncounterFunctionsPass(BasePass):
     """Pass that adds the gain and loss rates of encounter laws to the drift."""
 
-    reads = ('functions', 'encounters', 'layout')
-    writes = ('functions',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('functions', 'encounters', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the rates of the encounter laws to the drift.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('functions',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the rates of the encounter laws to the drift."""
+        compilation = self.compilation_
         self._with_encounters(
             cast('dict[str, Any]', compilation.functions),
-            compilation.facts['encounters'],
+            compilation.encounters,
             cast('Declarations', compilation.layout).ends[True],
         )
 

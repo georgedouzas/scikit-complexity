@@ -34,13 +34,13 @@ from ...problems._compiled_reduction import CompiledReduction
 from ...problems._edge_rows import ACTIVE_THRESHOLD
 from ...problems._pair_read import PairRead
 from ...problems._reads import Read
-from .._compilation import Compilation, Laws
+from .._base import BasePass
+from .._compilation import Laws
 from .._complex import _modulus_form
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._kernel_spec import KernelSpec
 from .._observables import _HeldElement, _HeldReduction
-from .._pipeline import BasePass
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
 
@@ -430,16 +430,17 @@ class _Reductions:
 class ReductionsPass(BasePass):
     """Pass that lowers the reductions of the laws, of the laws set apart, and of the events, in that order."""
 
-    reads = ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')
-    writes = ('reduced', 'reduced_apart', 'reductions', 'events')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the reductions of the drawn laws, the laws set apart, and the events.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('reduced', 'reduced_apart', 'reductions', 'events')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the reductions of the drawn laws, the laws set apart, and the events."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         drawing = cast('DrawLowering', compilation.drawing)
         reductions = _Reductions(declarations, drawing.draws.size if drawing.draws else 0)

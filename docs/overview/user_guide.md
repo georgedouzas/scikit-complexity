@@ -1310,8 +1310,8 @@ engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in marke
 
 A control input is an adaptive parameter with bounds, annotated with `ParameterSpec(adaptive=True, bounds=(lower,
 upper))`. Laws read it like a parameter, trajectories record it like a state, and a schedule, an optimal control solver,
-or a feedback controller supplies its value. Without one it keeps its initial value. `validate` reports an initial value
-outside the bounds as an error at the parameter, whose fix names the bounds.
+or a feedback controller supplies its value. Without one it keeps its initial value. The `report_` of a compiler holds an
+initial value outside the bounds as an error at the parameter, whose fix names the bounds.
 
 ```python
 from typing import Annotated
@@ -1320,7 +1320,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
 
 
@@ -1341,7 +1341,8 @@ class HeaterElement(Element):
 
 
 room = System(elements=[HeaterElement('heater')])
-print([issue.path for issue in validate(System(elements=[HeaterElement('heater', power=2.0)])).errors])
+report = PassCompiler().check().prepare(System(elements=[HeaterElement('heater', power=2.0)])).report_
+print([issue.path for issue in report.errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
 print(heated.values('heater.power').tolist())
@@ -1407,9 +1408,9 @@ print(round(float(transcribed.trajectory_.values('plant.u')[0]), 3))
 
 Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate and
 equation laws, real and angle states, and elements. `PontryaginSolver` also applies boundary laws after every step of
-its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead. `validate` reports a
-system with noise, jumps, or updates run with them. It also reports a solver without an objective, and a system under
-discrete time, since an objective needs static or continuous time, each as a `SolverError`.
+its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead. The `report_` of the
+compiler holds a system with noise, jumps, or updates run with them. It also holds a solver without an objective, and a
+system under discrete time, since an objective needs static or continuous time, each as a `SolverError`.
 
 | Solver | Laws | Method |
 | --- | --- | --- |
@@ -1417,9 +1418,9 @@ discrete time, since an objective needs static or continuous time, each as a `So
 | `CollocationSolver` | rate, equation | direct transcription solved by SLSQP or trust-constr |
 
 ```python continuation
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 
-print([issue.code for issue in validate(plant, solver=PontryaginSolver()).errors])
+print([issue.code for issue in PassCompiler(solver=PontryaginSolver()).check().prepare(plant).report_.errors])
 ```
 
 ### Feedback controllers
@@ -1507,7 +1508,7 @@ order, so a module imports only the modules above it.
 
 - `problems`: the compiled problems, their layouts of states and parameters, and their numeric functions.
 - `backends`: the NumPy and Numba backends, which lower expressions to numeric functions.
-- `compile`: `validate`, `compile_system`, and the pipeline of passes that turns a system into a problem.
+- `compile`: `compile_system`, the compilers, and the passes that turn a system into a problem.
 - `solvers`: the solver contract, `step_count`, and every solver.
 - `runtime`: `Simulation`, clocks, observers, trajectories, and the catalog of models.
 - `viz`: the visuals and the Rerun observer.
@@ -1537,9 +1538,11 @@ visuals are parts of the engine, beside those of every other kind.
 | particles | `ParticleElement`, `PotentialInteraction`, `PairPotentialInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
-Most kinds compile through the passes of `compile_system`, which lower each law to the problem of its form. Quantum
-and rewriting systems are compiled whole by a system compiler, a `BaseSystemCompiler`, and `claiming_compiler` returns
-the compiler that claims a system, or `None` for the passes.
+Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
+sets `claims_`, whether it compiles the system, and `report_`, the issues it found, and `run(initial_state)` raises the
+errors of the report and returns the problem. `compile_system` asks the compilers of whole systems, `QuantumCompiler`
+and `RewritingCompiler`, whether they claim a system, and the general `PassCompiler` compiles every other system through
+its passes, which lower each law to the problem of its form.
 
 ### Writing a law
 
@@ -1559,7 +1562,7 @@ from skcomplex.core.laws import BaseLaw
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 
 
 class DecayLaw(BaseLaw):
@@ -1596,11 +1599,12 @@ class NucleusElement(Element):
         return [DecayLaw(s.n, s.k)]
 
 
-print([issue.code for issue in validate(System(elements=[NucleusElement('atom')])).errors])
+report = PassCompiler().check().prepare(System(elements=[NucleusElement('atom')])).report_
+print([issue.code for issue in report.errors])
 ```
 
 The passes and the system compilers are fixed lists of the engine, so a law of a new class
-checks, prepares, and runs on its own, but no form takes it in a system. `validate` reports it with the code
+checks, prepares, and runs on its own, but no form takes it in a system. The compiler reports it with the code
 `laws-mixed`, and a new kind of dynamics is a change to the engine.
 
 ## The model library
@@ -2633,7 +2637,7 @@ from skcomplex.core.laws import EncounterLaw
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
 
 
@@ -2667,7 +2671,7 @@ economy = System(
 )
 densities = Simulation(economy, dt=10.0).run(until=100).trajectory_.values('wealth.f')
 print(densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist())
-print(validate(economy).ok)
+print(PassCompiler().check().prepare(economy).report_.ok)
 ```
 
 ### External actions
@@ -2762,7 +2766,7 @@ from skcomplex.engine.solvers import KineticSolver
 
 sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).run(until=100)
 print(round(float(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum()), 2))
-print(validate(welfare, solver=KineticSolver()).ok)
+print(PassCompiler(solver=KineticSolver()).check().prepare(welfare).report_.ok)
 ```
 
 ### Levels
@@ -2819,7 +2823,7 @@ works:
 - A Sage `PermutationGroup` or `MatrixGroup` compares its elements directly.
 
 GAP comes with the `passagemath-gap` dependency and starts on the first ball that needs it. A ball whose size bound
-exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called, and `validate` reports it as
+exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called, and the compiler reports it as
 `space-too-large` with the largest radius that fits. A group space lacks the regular geometry of a square lattice and
 an image layout, so validation reports a checkerboard schedule as `schedule-unsupported` and an image visual as
 `visual-unsupported`. Groups on group spaces stream to Rerun with `CayleyVisual`: nodes on rings by word length,
@@ -3216,7 +3220,8 @@ every member of a variable group. In a system with rules, a group whose element 
 agents that rules read and change, unless an interaction whose laws are not rules binds it. A system with rules is
 agent-based, runs in discrete time, and runs on `MesaSolver`, one Mesa step per unit of time, with every agent
 activated in random order. `MesaSolver` declares what it runs like any solver, so
-`validate(system, solver=MesaSolver())` reports the laws, spaces, and times it does not support.
+`PassCompiler(solver=MesaSolver()).check().prepare(system).report_` holds the laws, spaces, and times it does not
+support.
 
 ```python
 from typing import Annotated
@@ -4191,7 +4196,7 @@ print(round(RecurrenceAnalysis().check().prepare(sine).run().determinism_, 2))
 
 `ModeDecompositionAnalysis`, `SparseIdentificationAnalysis`, and `ReservoirAnalysis` learn a system from data: they
 prepare on one or more trajectories or arrays sampled at a uniform step `dt`, and their run sets `system_`, a `System`
-of one surrogate element, which `validate` checks and `Simulation` runs like a hand-written system, `training_error_`
+of one surrogate element, which a compiler checks and `Simulation` runs like a hand-written system, `training_error_`
 and `validation_error_`, the relative errors of the fit on the training samples and on the end of every series held out
 by `validation`, and `forecast_`, the variables over `horizon` samples after the last one.
 
@@ -4210,12 +4215,13 @@ by `validation`, and `forecast_`, the variables over `horizon` samples after the
 import numpy as np
 
 from skcomplex.analysis import ModeDecompositionAnalysis, ReservoirAnalysis, SparseIdentificationAnalysis
-from skcomplex.engine.compile import validate
+from skcomplex.engine.compile import PassCompiler
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)])
 decomposition = ModeDecompositionAnalysis(['x', 'y'], dt=0.01).check().prepare(spiral).run()
-print(np.sort(decomposition.eigenvalues_.imag).round(3).tolist(), validate(decomposition.system_).ok)
+report = PassCompiler().check().prepare(decomposition.system_).report_
+print(np.sort(decomposition.eigenvalues_.imag).round(3).tolist(), report.ok)
 sparse = SparseIdentificationAnalysis(['x', 'y'], degree=1, threshold=0.05, horizon=50, dt=0.01)
 sparse = sparse.check().prepare(spiral).run()
 print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.forecast_.shape)

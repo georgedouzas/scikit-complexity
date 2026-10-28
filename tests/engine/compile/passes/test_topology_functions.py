@@ -16,7 +16,7 @@ from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSp
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 
 
@@ -412,7 +412,7 @@ def test_validation_reports_a_request_on_a_fixed_group():
         ],
         time=DiscreteTime(),
     )
-    issues = [issue for issue in validate(system).issues if issue.code == 'group-fixed']
+    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'group-fixed']
     assert len(issues) == 1
     assert 'links' in issues[0].message
     assert 'variable=True' in issues[0].fix
@@ -429,7 +429,7 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
         ],
         time=DiscreteTime(),
     )
-    issues = [issue for issue in validate(system).issues if issue.code == 'group-fixed']
+    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'group-fixed']
     assert [issue.path for issue in issues] == ['growth']
     assert 'nodes' in issues[0].message
 
@@ -458,7 +458,7 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
         elements=[LatticeElement('nodes', element=ReadingElement, space=NetworkSpace(nx.path_graph(3)))],
         time=DiscreteTime(),
     )
-    issues = validate(system).issues
+    issues = PassCompiler().check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'continuous space' in issues[0].fix
     assert 'layer' in issues[0].fix
@@ -485,8 +485,8 @@ def test_validation_reports_a_reduction_over_a_missing_layer():
             return [UpdateLaw(s.x, neighbors(s.other.x, over=AdjacencyNeighborhood(layer='trade')))]
 
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(3))])
-    issues = validate(
-        System(elements=[LatticeElement('nodes', element=ReadingElement, space=space)], time=DiscreteTime()),
-    ).issues
+    system = System(elements=[LatticeElement('nodes', element=ReadingElement, space=space)], time=DiscreteTime())
+    report = PassCompiler().check().prepare(system).report_
+    issues = report.issues
     assert [issue.code for issue in issues] == ['binding']
     assert "'work'" in issues[0].message

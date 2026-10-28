@@ -7,32 +7,33 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 from ...problems import VariableKind, declarations_of
-from .._compilation import BlockLaws, Compilation
+from .._base import BasePass
+from .._compilation import BlockLaws
 from .._declarations import Declarations
 from .._flows import TransferPass
-from .._pipeline import BasePass
 
 
 class ExpandFlowsPass(BasePass):
     """Pass that expands the flows of components into laws of other kinds."""
 
-    reads = ('collected', 'layout')
-    writes = ('collected', 'flows')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Expand the flows of the collected laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected', 'flows')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Expand the flows of the collected laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         flows = TransferPass(self._quantities_of(declarations.blocks))
         compilation.collected = [
             (spec, flows.expand(spec, list(laws)), block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
-        compilation.facts['flows'] = flows
+        compilation.flows = flows
 
     @staticmethod
     def _quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:

@@ -35,11 +35,11 @@ from ...problems import (
 )
 from ...problems._base_problem import _MarkovMatrix
 from ...problems._compiled_event import _Breakpoints, _Delay
+from .._base import BasePass
 from .._block import Block
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._tree import Node
 from ._events import _SWITCHES, RELATIONS, Scalars
 
@@ -47,27 +47,28 @@ from ._events import _SWITCHES, RELATIONS, Scalars
 class ProblemPass(BasePass):
     """Pass that assembles the problem of the general parts of a compilation."""
 
-    reads = (
-        'layout',
-        'specs',
-        'reduced',
-        'form',
-        'functions',
-        'jacobian',
-        'matrices',
-        'reductions',
-        'events',
-        'delays',
-    )
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return (
+            'layout',
+            'specs',
+            'reduced',
+            'form',
+            'functions',
+            'jacobian',
+            'matrices',
+            'reductions',
+            'events',
+            'delays',
+        )
 
-    def _run(self, compilation: Compilation) -> None:
-        """Assemble the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Assemble the problem."""
+        compilation = self.compilation_
         compilation.problem = self._problem_of(compilation)
 
     @staticmethod

@@ -15,13 +15,13 @@ from ...problems import (
     VariableKind,
     declarations_of,
 )
+from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._forms import _FORMS
 from .._issue import Issue
-from .._pipeline import BasePass
 from .._tree import Node, _declared_times
 from ._fractional_state import FractionalState
 
@@ -29,16 +29,17 @@ from ._fractional_state import FractionalState
 class FractionalFormPass(BasePass):
     """Pass that gives an ODE problem with a state of a fractional order among its owners the fractional form."""
 
-    reads = ('form', 'nodes', 'layout')
-    writes = ('form',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('form', 'nodes', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Give the problem the fractional form when an owned state has a fractional order.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('form',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Give the problem the fractional form when an owned state has a fractional order."""
+        compilation = self.compilation_
         if compilation.form == Form.ODE and self._owned_fractional(compilation):
             compilation.form = Form.FRACTIONAL
 

@@ -6,25 +6,26 @@
 from typing import cast
 
 from ....core.laws import BaseLaw, UpdateLaw
-from .._compilation import BlockLaws, Compilation, Laws
+from .._base import BasePass
+from .._compilation import BlockLaws, Laws
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._topology import Topology
 
 
 class SplitRequestsPass(BasePass):
     """Pass that sets the update laws that request topology changes apart from the laws lowered into kernels."""
 
-    reads = ('collected', 'apart')
-    writes = ('collected', 'apart')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected', 'apart')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Set the update laws that request topology changes apart.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected', 'apart')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Set the update laws that request topology changes apart."""
+        compilation = self.compilation_
         collected: BlockLaws = []
         apart = cast('Laws', compilation.apart)
         for spec, laws, block in cast('BlockLaws', compilation.collected):

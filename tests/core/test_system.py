@@ -17,7 +17,7 @@ from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import UnitarySolver
 
@@ -204,7 +204,7 @@ def test_systems_nest_and_interactions_couple_them_by_path():
 
 def test_duplicate_labels_are_reported():
     """Test that two direct children with one label give one issue at the system that names the label."""
-    report = validate(System('farm', elements=[StockElement('a'), StockElement('a')]))
+    report = PassCompiler().check().prepare(System('farm', elements=[StockElement('a'), StockElement('a')])).report_
     (issue,) = report.errors
     assert issue.path == 'farm'
     assert "'a'" in issue.message
@@ -217,7 +217,7 @@ def test_rate_under_discrete_time_is_reported():
         interactions=[GrowthInteraction('g', target='a')],
         time=DiscreteTime(),
     )
-    (issue,) = validate(system).errors
+    (issue,) = PassCompiler().check().prepare(system).report_.errors
     assert issue.code == 'law-time'
     assert 'needs ContinuousTime' in issue.message
 
@@ -225,8 +225,8 @@ def test_rate_under_discrete_time_is_reported():
 def test_nested_system_inherits_time():
     """Test that a nested system without a time is checked against the time of its parent."""
     nested = System('inner', elements=[CounterElement('clock')])
-    assert validate(System(systems=[nested], time=DiscreteTime())).ok
-    (issue,) = validate(System(systems=[nested], time=ContinuousTime())).errors
+    assert PassCompiler().check().prepare(System(systems=[nested], time=DiscreteTime())).report_.ok
+    (issue,) = PassCompiler().check().prepare(System(systems=[nested], time=ContinuousTime())).report_.errors
     assert issue.path == 'inner/clock'
 
 
@@ -237,7 +237,7 @@ def test_static_time_rejects_dynamic_laws():
         interactions=[GrowthInteraction('g', target='a')],
         time=StaticTime(),
     )
-    assert [issue.code for issue in validate(system).errors] == ['law-time']
+    assert [issue.code for issue in PassCompiler().check().prepare(system).report_.errors] == ['law-time']
 
 
 def test_periodic_space_wraps_positions():
@@ -279,9 +279,9 @@ def test_group_on_edges_has_one_member_per_edge():
 
 def test_group_on_edges_outside_a_network_is_reported():
     """Test that a group on edges in a lattice space is reported with the space it needs."""
-    (issue,) = validate(
-        System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4)),
-    ).errors
+    system = System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4))
+    report = PassCompiler().check().prepare(system).report_
+    (issue,) = report.errors
     assert (issue.code, issue.message) == ('space-missing', 'LatticeSpace has no edges.')
 
 

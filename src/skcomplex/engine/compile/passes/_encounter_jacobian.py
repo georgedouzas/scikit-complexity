@@ -3,22 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 
 
 class EncounterJacobianPass(BasePass):
     """Pass that drops the exact Jacobian of a problem with encounter laws, whose rates it does not derive."""
 
-    reads = ('jacobian', 'encounters')
-    writes = ('jacobian',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('jacobian', 'encounters')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Drop the Jacobian of a problem with encounter laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('jacobian',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        if compilation.facts['encounters']:
+    def _run(self, inputs: object = None) -> None:
+        """Drop the Jacobian of a problem with encounter laws."""
+        compilation = self.compilation_
+        if compilation.encounters:
             compilation.jacobian = None

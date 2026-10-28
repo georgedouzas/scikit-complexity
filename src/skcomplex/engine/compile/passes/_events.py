@@ -15,10 +15,10 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Vector
 from ...problems import Entry, Reference, Source, numpy_function, symbol, vector
+from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 
 type Scalars = Callable[[float, Vector, Vector], list[float]]
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
@@ -28,16 +28,18 @@ _SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
 class DelaysPass(BasePass):
     """Pass that reads delayed states through hidden parameters and takes the events of the laws aside."""
 
-    reads = ('ordered', 'layout')
-    writes = ('delayed', 'delays', 'placeholders', 'events')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('ordered', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the delays of the ordered laws and take their events aside.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('delayed', 'delays', 'placeholders', 'events')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the delays of the ordered laws and take their events aside."""
+        compilation = self.compilation_
+        compilation.delays, compilation.placeholders, compilation.events = [], {}, []
         declarations = cast('Declarations', compilation.layout)
         compilation.delayed = [
             (spec, self._with_delays(spec, laws, declarations, compilation))

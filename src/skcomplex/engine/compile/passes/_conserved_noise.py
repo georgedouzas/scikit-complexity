@@ -15,13 +15,13 @@ from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
 from ....core.types import Indices
 from ...problems import NoiseProcess, Output, Reference, Source
+from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._issue import Issue
 from .._kernel_spec import KernelSpec
-from .._pipeline import BasePass
 from .._tree import Node
 from ._lower_fields import LowerFieldsPass
 
@@ -64,18 +64,19 @@ def _conserved_issues(compilation: Compilation) -> list[Issue]:
 class ConservedNoisePass(BasePass):
     """Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
 
-    reads = ('reduced', 'layout', 'outputs')
-    writes = ('outputs',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('reduced', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the outputs of the conserved noise laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('outputs',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Set the outputs of the conserved noise laws."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
-        compilation.outputs.update(self._conserved_outputs(cast('Laws', compilation.reduced), declarations))
+        compilation.outputs = self._conserved_outputs(cast('Laws', compilation.reduced), declarations)
 
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:

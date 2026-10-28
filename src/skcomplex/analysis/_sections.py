@@ -12,7 +12,6 @@ import numpy.typing as npt
 
 from ..core.errors import AnalysisError
 from ..core.types import Vector
-from ..engine.compile import compiled_problem
 from ..engine.problems import CompiledEvent, EventRecord, Form, Problem
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
@@ -156,7 +155,7 @@ class SectionAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the flow of the section."""
-        problem = compiled_problem(self._read_system(source), 'A section')
+        problem = self._compiled_problem(self._read_system(source), 'A section')
         if problem.form not in {Form.ODE, Form.SDE}:
             error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
             raise AnalysisError(error_msg)

@@ -30,6 +30,7 @@ from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
 from .._arguments import Arguments, Indices
+from .._base import BasePass
 from .._census import Census
 from .._compilation import Compilation, Laws
 from .._compiled_drive import CompiledDrive
@@ -44,7 +45,6 @@ from .._lattice_context import LatticeContext
 from .._lattice_state import LatticeState
 from .._laws import LATTICE_LAWS
 from .._lookup import Lookup, Vector
-from .._pipeline import BasePass
 
 _COLORING_STRATEGY = 'largest_first'
 
@@ -82,16 +82,17 @@ def _schedule_issues(compilation: Compilation) -> list[Issue]:
 class LatticeProblemPass(BasePass):
     """Pass that adds the steps of local rules, drives, relaxations, extremal updates, and Monte Carlo sampling."""
 
-    reads = ('problem', 'reduced', 'layout')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'reduced', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the lattice steps to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the lattice steps to the problem."""
+        compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
         members = Declarations._member_count(list(declarations.blocks.values()))
         fused = resolve_backend(compilation.backend, members).name == 'numba'

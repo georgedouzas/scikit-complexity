@@ -4,8 +4,6 @@
 # License: MIT
 
 import copy
-import dataclasses
-import functools
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -49,62 +47,6 @@ type AgentsOf = Callable[[str], list[Any] | None]
 type Declared = dict[str, tuple[str, ObservableSpec]]
 
 
-def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
-    """Return the value of an expression of an element's namespace and the time, read from its system's namespace."""
-    return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
-
-
-def _of_root(observable: ObservableSpec) -> ObservableSpec:
-    """Return an observable of an element as the observable of the root system labelled `<element>.<label>`."""
-    if observable.element is None or not callable(observable.expression):
-        return observable
-    expression = functools.partial(_element_value, observable.element, observable.expression)
-    return dataclasses.replace(
-        observable,
-        label=f'{observable.element}.{observable.label}',
-        expression=expression,
-        element=None,
-    )
-
-
-def _with_observables(system: System, observables: Sequence[ObservableSpec]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name."""
-    by_scope: dict[str, list[ObservableSpec]] = {}
-    for observable in observables:
-        checked = _of_root(observable.check())
-        scope, _, label = checked.label.rpartition('/')
-        by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
-    if not by_scope:
-        return system
-    paths = {''} | set(_system_paths(system))
-    unknown = sorted(set(by_scope) - paths)
-    if unknown:
-        error_msg = (
-            f'The observables name the nested systems {", ".join(unknown)}, which do not exist. Label an observable '
-            'by its path from the root, such as `village/mean_wealth`.'
-        )
-        raise ValidationError(error_msg)
-    return _attached(system, by_scope, '')
-
-
-def _system_paths(system: System, scope: str = '') -> Iterator[str]:
-    """Yield the path of every nested system."""
-    for child in system.systems:
-        path = ObservableEvaluator._join(scope, child.label)
-        yield path
-        yield from _system_paths(child, path)
-
-
-def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
-    """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
-    copied = copy.copy(system)
-    copied.systems = [
-        _attached(child, by_scope, ObservableEvaluator._join(scope, child.label)) for child in system.systems
-    ]
-    copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
-    return copied
-
-
 def _role_paths(system: System, scope: str = '') -> set[str]:
     """Return the paths from the root of everything that roles of a system tree bind to."""
     paths = set()
@@ -139,7 +81,7 @@ def _held_label(reduction: '_HeldReduction', labels: set[str]) -> str:
     return label
 
 
-def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
     """Yield the path of every system in a tree that declares observables, with each observable.
 
     Args:
@@ -156,7 +98,7 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
     for observable in getattr(system, 'observables', ()):
         yield scope, observable
     for child in system.systems:
-        yield from observables_of(child, ObservableEvaluator._join(scope, child.label))
+        yield from _observables_of(child, ObservableEvaluator._join(scope, child.label))
 
 
 def _with_held_reductions(system: System, reductions: Sequence['_HeldReduction'], scope: str = '') -> System:
@@ -242,7 +184,7 @@ def _held_observables(system: System, nodes: list[Node]) -> set[str]:
             The paths of the held observables.
     """
     lowerable = ObservableEvaluator._lowerable_observables(system, nodes)
-    declared = {ObservableEvaluator._join(scope, observable.label) for scope, observable in observables_of(system)}
+    declared = {ObservableEvaluator._join(scope, observable.label) for scope, observable in _observables_of(system)}
     return (_role_paths(system) & declared) - set(lowerable)
 
 
@@ -250,7 +192,7 @@ def _check_held_reads(problem: Problem, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
     groups = {
         ObservableEvaluator._join(scope, observable.label): ObservableEvaluator._join(scope, observable.group or '')
-        for scope, observable in observables_of(problem.system)  # type: ignore[arg-type]
+        for scope, observable in _observables_of(problem.system)  # type: ignore[arg-type]
     }
     for path in held:
         readers = _readers_of(problem, path)
@@ -541,14 +483,14 @@ class ObservableEvaluator:
         """
         self.getters_: dict[str, Getter] = {}
         system = self.problem.system
-        observables = observables_of(system) if system is not None else ()
+        observables = _observables_of(system) if system is not None else ()
         own = self.problem.observable_getters(observables)
         if own is not None:
             self._scalars = {}
             self.getters_ = own
             return self
         self._scalars = self._scalar_sources()
-        for scope, observable in observables_of(system) if system is not None else ():
+        for scope, observable in _observables_of(system) if system is not None else ():
             path = self._join(scope, observable.label)
             if path in self.getters_:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
@@ -920,7 +862,7 @@ class ObservableEvaluator:
         by_path = {node.path: node for node in nodes}
         lowerable: Declared = {}
         blocked: set[str] = set()
-        for scope, observable in observables_of(system):
+        for scope, observable in _observables_of(system):
             if scope in blocked or not ObservableEvaluator._is_lowerable(scope, observable, by_path):
                 blocked.add(scope)
                 continue

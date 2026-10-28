@@ -14,7 +14,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
 
@@ -78,7 +78,7 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     """Test that the surrogate passes validation, declares continuous time, and runs with an ODE solver."""
     trajectory = _linear_trajectory()
     decomposition = _fit(trajectory)
-    assert validate(decomposition.system_).ok
+    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
     assert isinstance(decomposition.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
@@ -143,7 +143,7 @@ def test_mode_decomposition_dictionary_lifts_observables():
     )
     assert decomposition.labels_ == ['linear.x', 'linear.y', 'linear.x^2', 'linear.x linear.y', 'linear.y^2']
     assert decomposition.states_ == ['x', 'y', 'x_2', 'x_y', 'y_2']
-    assert validate(decomposition.system_).ok
+    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
 
 
 def test_mode_decomposition_fits_several_series():

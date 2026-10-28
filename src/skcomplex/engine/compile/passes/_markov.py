@@ -17,26 +17,27 @@ from ....core.laws.utils import categorical, where
 from ....core.types import Vector
 from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
 from ...problems._base_problem import _MarkovMatrix
-from .._compilation import BlockLaws, Compilation
+from .._base import BasePass
+from .._compilation import BlockLaws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._matrix_law import MatrixLaw
-from .._pipeline import BasePass
 
 
 class MarkovPass(BasePass):
     """Pass that rewrites transition and emission laws into Markov matrices checked at the initial values."""
 
-    reads = ('lowered', 'layout')
-    writes = ('lowered', 'markov', 'matrices')
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('lowered', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Take the Markov laws out of the lowered laws.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('lowered', 'markov', 'matrices')
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Take the Markov laws out of the lowered laws."""
+        compilation = self.compilation_
         lowered: BlockLaws = []
         markov: list[tuple[KernelSpec, MatrixLaw]] = []
         for spec, laws, block in cast('BlockLaws', compilation.lowered):

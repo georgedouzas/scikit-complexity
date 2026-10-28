@@ -19,7 +19,6 @@ from ..core.errors import AnalysisError
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
-from ..engine.compile import compiled_problem
 from ..engine.problems import Form, Problem, VariableKind, components_of, declarations_of, symbol
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion
@@ -329,7 +328,7 @@ class StabilityAnalysis(BaseAnalysis):
                 The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
                 or has a group of more than 64 members.
         """
-        problem = compiled_problem(system, 'Linear stability')
+        problem = BaseAnalysis._compiled_problem(system, 'Linear stability')
         if problem.form not in {Form.ODE, Form.DISCRETE}:
             error_msg = (
                 f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form.value}.'

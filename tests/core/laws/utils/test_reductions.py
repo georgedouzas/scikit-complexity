@@ -40,7 +40,7 @@ from skcomplex.core.spaces import (
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems._compiled_reduction import CompiledReduction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -476,7 +476,7 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
         space=NetworkSpace(nx.cycle_graph(5)),
         time=DiscreteTime(),
     )
-    issues = [issue for issue in validate(system).issues if issue.code == 'law-space']
+    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].fix
     assert 'over=None' in issues[0].fix
@@ -489,7 +489,7 @@ def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    assert [issue.code for issue in validate(system).issues] == ['law-space']
+    assert [issue.code for issue in PassCompiler().check().prepare(system).report_.issues] == ['law-space']
 
 
 def test_validate_reports_a_cone_without_a_heading():
@@ -500,7 +500,7 @@ def test_validate_reports_a_cone_without_a_heading():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    issues = validate(system).issues
+    issues = PassCompiler().check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'velocity_of' in issues[0].fix
 
@@ -533,7 +533,7 @@ def test_validate_accepts_a_cone_along_the_velocity():
 
     moving = MovingElement
     system = System(elements=[GroupElement('g', element=moving, size=5)], space=ContinuousSpace(extent=(2.0, 2.0)))
-    assert validate(system).ok
+    assert PassCompiler().check().prepare(system).report_.ok
 
 
 class OscillatorElement(Element):

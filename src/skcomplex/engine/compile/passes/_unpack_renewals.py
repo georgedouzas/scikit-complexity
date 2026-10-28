@@ -6,24 +6,25 @@
 from typing import cast
 
 from ....core.laws import JumpLaw
-from .._compilation import BlockLaws, Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
+from .._compilation import BlockLaws
 from .._renewal_law import RenewalLaw
 
 
 class UnpackRenewalsPass(BasePass):
     """Pass that replaces every jump on a clock of waiting times by the renewal the steppers run for it."""
 
-    reads = ('collected',)
-    writes = ('collected',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('collected',)
 
-    def _run(self, compilation: Compilation) -> None:
-        """Replace the jumps on clocks of waiting times by renewals.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('collected',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Replace the jumps on clocks of waiting times by renewals."""
+        compilation = self.compilation_
         compilation.collected = [
             (
                 spec,

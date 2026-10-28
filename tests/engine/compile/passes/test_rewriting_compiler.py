@@ -17,8 +17,7 @@ from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, Subs
 from skcomplex.core.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.core.types import Letters
-from skcomplex.engine.compile import PatchStructure, WordStructure, claiming_compiler, compile_system
-from skcomplex.engine.compile.passes import RewritingCompiler
+from skcomplex.engine.compile import PatchStructure, RewritingCompiler, WordStructure, compile_system
 from skcomplex.engine.problems import Form, symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
@@ -561,19 +560,20 @@ def test_graph_size_guard():
         Simulation(system).run(until=3)
 
 
-def test_rewriting_pass_claims_rewriting_systems():
-    """Test that the registered rewriting pass claims a system of words and leaves a classical one."""
-    assert isinstance(claiming_compiler(System(elements=[WordElement('algae', axiom='A')])), RewritingCompiler)
-    assert claiming_compiler(System(elements=[PopulationElement('rabbits', n=10)])) is None
+def test_rewriting_compiler_claims_rewriting_systems():
+    """Test that the rewriting compiler claims a system of words and leaves a classical one."""
+    compiler = RewritingCompiler().check()
+    assert compiler.prepare(System(elements=[WordElement('algae', axiom='A')])).claims_
+    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
 
 
 def test_rewriting_compiler_prepares_its_claim_and_runs_the_problem():
     """Test that the rewriting compiler sets `claims_` when prepared and returns the rewriting problem when run."""
     words = System(elements=[WordElement('algae', axiom='A')])
-    compiler = RewritingCompiler()
+    compiler = RewritingCompiler().check()
     assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
     assert compiler.prepare(words).claims_
-    problem = compiler.run(words, backend=None, solver=None, initial_state={})
+    problem = compiler.run()
     assert problem.form == Form.REWRITING
 
 

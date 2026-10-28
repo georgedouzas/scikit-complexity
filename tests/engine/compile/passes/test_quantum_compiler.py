@@ -17,10 +17,9 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
+    BaseCompiler,
     BasePass,
-    BaseSystemCompiler,
     ObservableEvaluator,
-    claiming_compiler,
     compile_system,
 )
 from skcomplex.engine.compile.passes import QuantumCompiler
@@ -257,16 +256,14 @@ def test_observable_evaluator_rejects_non_operators():
         ObservableEvaluator(compile_system(system, observables=[ObservableSpec('label', attrgetter('t'))])).prepare()
 
 
-def test_quantum_pass_claims_quantum_systems():
-    """Test that the registered quantum pass claims a quantum system and leaves a classical one."""
-    assert isinstance(
-        claiming_compiler(System(elements=[GroupElement('chain', element=SpinElement, size=2)])),
-        QuantumCompiler,
-    )
-    assert claiming_compiler(System(elements=[PopulationElement('rabbits', n=10)])) is None
+def test_quantum_compiler_claims_quantum_systems():
+    """Test that the quantum compiler claims a quantum system and leaves a classical one."""
+    compiler = QuantumCompiler().check()
+    assert compiler.prepare(System(elements=[GroupElement('chain', element=SpinElement, size=2)])).claims_
+    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
 
 
 def test_quantum_compiler_is_a_system_compiler_and_not_a_pass():
     """Test that the quantum compiler compiles whole systems and is not a step of the pipeline of passes."""
-    assert issubclass(QuantumCompiler, BaseSystemCompiler)
+    assert issubclass(QuantumCompiler, BaseCompiler)
     assert not issubclass(QuantumCompiler, BasePass)

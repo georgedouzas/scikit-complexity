@@ -19,12 +19,12 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ...problems import VariableKind, components_of, declarations_of, symbol, vector
+from .._base import BasePass
 from .._block import Block
-from .._compilation import BlockLaws, Compilation
+from .._compilation import BlockLaws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._laws import _KERNEL_FREE_LAWS
-from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 
@@ -68,16 +68,17 @@ class _Relation:
 class OrdersPass(BasePass):
     """Pass that reads derivatives and lags through companion states, adds their chains, and solves equations."""
 
-    reads = ('lowered', 'layout')
-    writes = ('ordered',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('lowered', 'layout')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Lower the orders and lags of the laws and solve their equations.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('ordered',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Lower the orders and lags of the laws and solve their equations."""
+        compilation = self.compilation_
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
         orders = _Orders.of(blocks)
         compilation.ordered = self._solve_equations(

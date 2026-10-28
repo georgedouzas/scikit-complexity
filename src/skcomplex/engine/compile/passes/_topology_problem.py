@@ -7,21 +7,21 @@ from dataclasses import replace
 from typing import cast
 
 from ...problems import Problem
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 
 
 class TopologyProblemPass(BasePass):
     """Pass that adds the topology changes to the problem."""
 
-    reads = ('problem', 'topology')
-    writes = ('problem',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('problem', 'topology')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the topology changes to the problem.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('problem',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
-        compilation.problem = replace(cast('Problem', compilation.problem), topology=compilation.facts['topology'])
+    def _run(self, inputs: object = None) -> None:
+        """Add the topology changes to the problem."""
+        compilation = self.compilation_
+        compilation.problem = replace(cast('Problem', compilation.problem), topology=compilation.topology)

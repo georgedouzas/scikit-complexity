@@ -5,28 +5,28 @@
 
 from dataclasses import replace
 
-from .._compilation import Compilation
-from .._pipeline import BasePass
+from .._base import BasePass
 
 
 class FieldJacobianPass(BasePass):
     """Pass that adds the conservation laws, symmetries, and fixed nodes of the fields to the exact Jacobian."""
 
-    reads = ('jacobian', 'volumes', 'symmetries', 'constrained')
-    writes = ('jacobian',)
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('jacobian', 'volumes', 'symmetries', 'constrained')
 
-    def _run(self, compilation: Compilation) -> None:
-        """Add the discretizations of the fields to the Jacobian.
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('jacobian',)
 
-        Args:
-            compilation:
-                The compilation state.
-        """
+    def _run(self, inputs: object = None) -> None:
+        """Add the discretizations of the fields to the Jacobian."""
+        compilation = self.compilation_
         if compilation.jacobian is None:
             return
         compilation.jacobian = replace(
             compilation.jacobian,
-            volumes=compilation.facts['volumes'],
-            symmetries=compilation.facts['symmetries'],
-            constrained=compilation.facts['constrained'][0],
+            volumes=compilation.volumes,
+            symmetries=compilation.symmetries,
+            constrained=compilation.constrained[0],
         )
