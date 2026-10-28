@@ -58,6 +58,8 @@
 - [x] 4.1 For `engine.compile`, list every re-exported name with its importers outside the package. Make the names used only inside the package private, and turn the single-class helpers into private methods. Verify that `pytest tests/engine/compile` passes and the surface test names no helper.
 - [x] 4.2 Do the same for `engine.problems`. Verify with `pytest tests/engine/problems`.
 - [x] 4.3 Do the same for `engine.solvers`, `engine.backends`, `engine.runtime`, and `engine.viz`. Verify with `pytest tests/engine`.
+- [ ] 4.4 In every engine package, make each module-level function that classes use a private method of the class it belongs to, or of the package's base when several classes share it. Keep module-level only the Numba-jitted kernels and the functions that generated kernel source imports by name. Verify that `pytest tests/engine` and the engine doctests pass.
+- [ ] 4.5 Split every engine module that holds several classes into one module per class, keeping `_base.py` for bases only. Verify with `pytest tests/engine` and `lint-imports`.
 
 ## 5. Layering and integration
 
