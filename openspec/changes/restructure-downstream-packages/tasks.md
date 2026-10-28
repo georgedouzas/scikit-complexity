@@ -73,7 +73,7 @@
 
 - [ ] 7.1 List the dead code of the engine: classes, methods, functions, constants, and attributes that nothing in `src`, `tests`, or `docs` reaches, found with `vulture` and with the coverage of the full test session, and delete it. Verify with the full test session and the gallery build.
 - [x] 7.2 Write the engine's concept model in the design: what the engine is (system, compiled problem, trajectory), its bases (compiler and passes, problem values, solvers, backends, observers and visuals, simulation), the class tree, and a verdict for every engine class and dataclass: a class of the tree, a frozen value, merged into another class, or removed.
-- [ ] 7.3 Stop for the user's review of the concept model.
+- [x] 7.3 Stop for the user's review of the concept model.
 - [ ] 7.4 Restructure the engine to the reviewed class tree: every class under one base of its package, dataclasses only for frozen values, and no public function outside the pipeline the design keeps. Verify with the full test session, the user guide, lint-imports, and the gallery build.
 
 ## 6. Layering and integration

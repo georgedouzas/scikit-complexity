@@ -584,12 +584,21 @@ These are candidates. Nothing is deleted here. An AST scan of `src`, `tests`, an
 - `ExternalSolver` with one child, unless `MesaSolver` moves under it.
 - `labels_of` and `partition_system`: no client outside the engine besides their own doctests and surface tests.
 
-#### Open questions
-1. **Kernels.** Do the compiled laws become one hierarchy under `BaseKernel` in `engine.problems`, with `run(t, x, p)` replacing `apply`, `evaluate`, `rewrite`, `fire`, and `rates`? Or do they stay frozen values, with only the protocols replaced by real types? The hierarchy is the larger change: it touches every solver that calls a compiled law.
-2. **Class variables.** Should the class variables of passes (`reads`, `writes`), solvers (`form`, `forms`, `supports`, `implicit`, `renews`, `fractional`, `reads_inputs`), and backends (`name`, `supports`) become hooks such as `_get_support()`, as the analysis's data kind did? A solver's form and flags would then move into its `SupportSpec`.
-3. **Validation entry.** Is `compile_system` enough as the one public function, with validation reached as `PassCompiler(...).prepare(system).report_`? Or should `validate` stay as a second pipeline function, since 19 test modules and the user guide call it?
-4. **Model catalog.** Should the catalog stay in `engine.runtime` as `ModelCatalog` with `register_model`? Or should it move to `skcomplex.models` whole, which needs `Experiment` to stop resolving models by name, since experiments cannot import models?
-5. **Kinetic distributions.** Should `distribution_from` and `members_from` move to the models library, or become constructors in the core, which this change otherwise leaves untouched?
+#### The user's decisions
+1. **Kernels.** The compiled laws become one hierarchy under `BaseKernel`, with `run` replacing `apply`, `evaluate`, `rewrite`, `fire`, and `rates`.
+2. **Class variables.** The class variables of passes, solvers, and backends become hooks, such as `_get_support()`, as the analysis's data kind did.
+3. **Validation.** `validate` is no public function. The compiler's `check()` validates its settings and its `prepare(system)` validates the system and sets `report_`; `run()` raises the report's errors and returns the problem.
+4. **Model catalog.** The catalog moves to `skcomplex.models` whole: registering, listing, describing, and creating models by name. `Experiment` and `Simulation` take a system or a factory; a user who wants a model by name gets it from the models package first.
+5. **Kinetic distributions.** `distribution_from` bins the members of a group over the values of one of their states, which is coarse-graining in state space. It becomes a setting of `CoarseGrainAnalysis` that bins a state over given values instead of positions over a grid. `members_from` builds a group, which a group's constructor already does from member values, so it is removed, and the model that samples members from densities draws the values with NumPy.
+
+#### The common API
+Every engine class follows one contract, so that a developer who learns one base knows them all, as with scikit-learn's estimators:
+- `__init__` only stores the settings.
+- `check()` validates the settings and returns the object.
+- `prepare(target)` takes the one object the class serves (a system for a compiler, a compilation for a pass, a problem for a kernel, a search, a backend, a solver, an observer, or a visual), validates it against the settings, sets the attributes that end in `_`, and returns the object.
+- `run(inputs)` acts on the one input the class transforms (the state for a kernel or a solver, the frame for an observer or a visual, the laws for a lowering) and returns the result or the object.
+- The arguments are the same kind of thing for every base: a base never takes extra positional arguments in `prepare` or `run` that another base of the same role does not take; what varies between subclasses goes in settings, never in the verbs' signatures.
+- `Compilation` and the model catalog are no exception: a pass's compilation is its prepared target, and the catalog in the models package is a collection read with named methods.
 
 ## Risks / Trade-offs
 
