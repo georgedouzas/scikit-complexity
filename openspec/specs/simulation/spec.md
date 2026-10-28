@@ -8,9 +8,10 @@ while it runs, and records the result as a trajectory.
 ## Requirements
 
 ### Requirement: A solver is chosen for each form
-A simulation SHALL choose a default solver for the form of its problem, and SHALL accept a solver chosen by name or
-given as an instance. The default ODE solver SHALL detect stiffness and switch methods during the run, so stiff
-systems run with the default solver, and SHALL choose a method whose storage fits the size of the state.
+A simulation SHALL compile its system with the compiler it is given, `PassCompiler()` by default, and SHALL run the
+default solver that the compiler names for the problem it compiled, or the solver given as an instance. The default ODE
+solver SHALL detect stiffness and switch methods during the run, so stiff systems run with the default solver, and
+SHALL choose a method whose storage fits the size of the state.
 
 #### Scenario: Automatic solver
 - **WHEN** a simulation of an ODE system runs with the solver left to its default
@@ -286,3 +287,17 @@ SHALL not declare support for it, so validation rejects the combination before c
 #### Scenario: Backend without shared noise
 - **WHEN** a system with a shared process is validated with the LAMMPS backend
 - **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise
+
+### Requirement: A model package plugs in its own compiler
+A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` or
+`compile_system` with `compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
+importing the package.
+
+#### Scenario: Rewriting from the models library
+- **WHEN** `Simulation(create('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
+  from `skcomplex.models.mathematics.fractals`
+- **THEN** the run rewrites the word once per frame, and `skcomplex.engine` imports nothing from `skcomplex.models`
+
+#### Scenario: Quantum system without its compiler
+- **WHEN** a quantum system runs with the default compiler
+- **THEN** checking it raises a validation error that names `compiler=QuantumCompiler()`

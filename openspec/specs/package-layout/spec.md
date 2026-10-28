@@ -7,15 +7,21 @@ the general interface and the interface never depends on a model.
 ## Requirements
 
 ### Requirement: Dependencies run from formalisms to engine to core
-Within `core` and within `engine`, each package SHALL import only the packages listed before it. `core` SHALL import
-neither `engine` nor `formalisms`, and `engine` SHALL import `core` and not `formalisms`.
+The top-level packages SHALL import downward in the order `experiments`, `analysis`, `engine`, `core`, and the root
+modules `base`, `types`, `specs`, and `errors` below them, so `analysis` never imports `experiments`, `engine` imports
+neither, `core` imports none of them, and the root modules import no package. Within `core` and within `engine`, each
+package SHALL import only the packages listed before it.
 
 #### Scenario: Upward import
-- **WHEN** a module of `skcomplex.engine.solvers` imports from `skcomplex.engine.backends`
+- **WHEN** a module of `skcomplex.engine.backends` imports from `skcomplex.engine.solvers`
 - **THEN** the import contracts of the checks session fail and name the importing module and the imported one
 
 #### Scenario: Core reaching the engine
-- **WHEN** a module of `skcomplex.core.components` imports from `skcomplex.engine.compile`
+- **WHEN** a module of `skcomplex.core.elements` imports from `skcomplex.engine.compile`
+- **THEN** the import contracts of the checks session fail and name the module
+
+#### Scenario: Analysis reaching experiments
+- **WHEN** a module of `skcomplex.analysis` imports from `skcomplex.experiments`
 - **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: The core never depends on models
@@ -82,61 +88,22 @@ builds on earlier blocks of its document SHALL be marked as their continuation.
 - **THEN** the test session fails and names the document and the block
 
 ### Requirement: The package holds four subpackages
-The package SHALL expose exactly four subpackages, which together hold every domain-agnostic package and the models:
-- `skcomplex.core` holds what a system is and what it compiles to: `base`, `space`, `laws`, `components`, `system`,
-  and `problems`.
-- `skcomplex.engine` holds what works on a system: `compile`, `solvers`, `backends`, `runtime`, `viz`,
-  `experiments`, and `analysis`.
-- `skcomplex.formalisms` holds the formalisms.
+The package SHALL expose exactly five subpackages, which together hold every domain-agnostic package and the models,
+beside the root modules that every subpackage shares:
+- `skcomplex.base`, `skcomplex.types`, `skcomplex.specs`, and `skcomplex.errors` hold the root class `BaseConfig`,
+  the type aliases, the specs, and the errors.
+- `skcomplex.core` holds what a system is: `base`, `spaces`, `laws`, `elements`, `interactions`, and `system`.
+- `skcomplex.engine` holds what turns a system into a trajectory: `problems`, `compile`, `backends`, `solvers`,
+  `runtime`, and `viz`.
+- `skcomplex.analysis` holds what measures a trajectory, an array, or a system.
+- `skcomplex.experiments` holds what runs many systems.
 - `skcomplex.models` holds the domain models.
 
 #### Scenario: Framework imports
-- **WHEN** a user imports `ElementComponent` from `skcomplex.core.components`, `Simulation` from
-  `skcomplex.engine.runtime`, `RK4Solver` from `skcomplex.engine.solvers`, `Problem` from `skcomplex.core.problems`,
-  and `NumericDomain` from `skcomplex.core.base`
+- **WHEN** a user imports `Element` from `skcomplex.core.elements`, `Simulation` from `skcomplex.engine.runtime`,
+  `RK4Solver` from `skcomplex.engine.solvers`, `EntropyAnalysis` from `skcomplex.analysis`, and `Experiment` from
+  `skcomplex.experiments`
 - **THEN** every import succeeds
-
-### Requirement: The core base holds the base classes of the framework
-`skcomplex.core.base` SHALL define `BaseComponent`, `BaseInteraction`, `BaseSpace`, `BaseTime`, `BaseLaw`,
-`BaseDomain`, `BaseProblem`, and `BaseSolver`, and the helpers they are declared with, in modules grouped by concept.
-It SHALL hold no name that only one formalism uses, and SHALL import no other package of `skcomplex`.
-
-#### Scenario: Base classes
-- **WHEN** a user imports the eight base classes from `skcomplex.core.base`
-- **THEN** every import succeeds
-
-#### Scenario: Formalism types
-- **WHEN** a user imports `HilbertDomain` and `StructureDomain` from `skcomplex.core.base`
-- **THEN** the import fails, and they import from `skcomplex.formalisms.quantum` and `skcomplex.formalisms.rewriting`
-
-### Requirement: No base class is another base class
-No base class SHALL derive from another. `BaseComponent`, `BaseInteraction`, `BaseSpace`, `BaseTime`,
-`BaseSolver`, and `BaseBackend` SHALL derive from `sklearn.base.BaseEstimator` alone, and `BaseLaw`, `BaseDomain`,
-`BaseProblem`, and `BaseSystemCompiler` from no class. `System` SHALL derive from `BaseEstimator` alone.
-
-#### Scenario: Unrelated bases
-- **WHEN** a test checks every pair of base classes with `issubclass`
-- **THEN** no base is a subclass of another
-
-#### Scenario: System and interaction
-- **WHEN** a test checks `System` and `BaseInteraction` against `BaseComponent`
-- **THEN** neither is a subclass, and a system built with a nested system and an interaction compiles and runs
-
-### Requirement: A class is named after what it is
-Every class whose ancestry reaches a base, or the concrete roots `Problem`, `Solver`, `System`, and `Schedule`,
-SHALL end with that concept's name: `Component`, `Interaction`, `Space`, `Time`, `Law`, `Domain`, `Problem`,
-`Solver`, `Backend`, `Observer`, `Visual`, `Clock`, `Design`, `Surrogate`, `Pass`, or `Schedule`. This SHALL hold
-in the library, its models, its tests, and its documents, and for names given to `define`.
-
-#### Scenario: Framework names
-- **WHEN** a user imports `RateLaw` from `skcomplex.core.laws`, `RK4Solver` from `skcomplex.engine.solvers`,
-  `MeshSpace` from `skcomplex.formalisms.fields`, `ElementComponent` from `skcomplex.core.components`, and
-  `ExternalSolver` from `skcomplex.engine.solvers`
-- **THEN** every import succeeds
-
-#### Scenario: Model names
-- **WHEN** every class that the model library defines or creates with `define` is listed after importing it
-- **THEN** each class's name ends with the concept of the base it derives from
 
 ### Requirement: The core problems package holds what a system compiles to
 `skcomplex.core.problems` SHALL hold the compiler's `Problem`, the kernels, reductions, neighbourhoods, and printing
@@ -170,22 +137,142 @@ compilation.
 - **THEN** it derives from the first and not from the second
 
 ### Requirement: Every class derives from the base it is
-Every element and group SHALL derive from `BaseComponent`, every interaction from `BaseInteraction`, every space from
-`BaseSpace`, every time from `BaseTime`, every law from `BaseLaw`, every domain from `BaseDomain`, every problem from
-`BaseProblem`, every solver from `BaseSolver`, and every backend from `BaseBackend`. Validation SHALL read a
-domain's kind from the domain.
+Every element and group SHALL derive from `BaseElement`, every interaction from `BaseInteraction`, every space from
+`BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblem`, every solver from `BaseSolver`, every backend
+from `BaseBackend`, every analysis from `BaseAnalysis`, and every spec from `BaseSpec`, and every one of these bases
+SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the domain.
 
 #### Scenario: Derived classes
-- **WHEN** a test checks `ElementComponent` and `GroupComponent` against `BaseComponent`,
-  `PairPotentialInteraction` against `BaseInteraction`, `QuantumProblem` against `BaseProblem`, `RK4Solver` and
-  `LammpsSolver` against `BaseSolver`, and `NumbaBackend` against `BaseBackend`
+- **WHEN** a test checks every class whose name starts with `Base` in `skcomplex.core`, `skcomplex.engine`,
+  `skcomplex.analysis`, `skcomplex.experiments`, and `skcomplex.specs` against `BaseConfig`
 - **THEN** every check holds
 
 #### Scenario: Formalism domain
 - **WHEN** a quantum state declares a `HilbertDomain` and the system is validated
-- **THEN** validation reads its kind from the domain, and `skcomplex.engine.compile` imports nothing from
-  `skcomplex.formalisms.quantum`
+- **THEN** validation reads its kind from the domain
 
 #### Scenario: Solver over a base problem
-- **WHEN** a solver is written against `BaseSolver` alone and initialized with a `BaseProblem` of its form
-- **THEN** it advances the problem without importing `skcomplex.engine`
+- **WHEN** a solver is written against `BaseSolver` alone and prepared with a `BaseProblem` of its form
+- **THEN** it advances the problem through `run`
+
+### Requirement: The core base holds the bases of a system's parts
+`skcomplex.core.base` SHALL hold seven modules: `_parts` with `BasePart`, `_elements` with `BaseElement`,
+`_interactions` with `BaseInteraction`, `_laws` with `BaseLaw`, and the shared `_types`, `_errors`, and `_utils`. It SHALL define no other
+base, and SHALL import no other package of `skcomplex`. The base of any other concept SHALL live in that concept's
+package.
+
+#### Scenario: Three bases
+- **WHEN** a user imports `BasePart`, `BaseElement`, `BaseInteraction`, and `BaseLaw` from `skcomplex.core.base`
+- **THEN** every import succeeds, and the modules of `skcomplex.core.base` are exactly `_parts`, `_elements`,
+  `_interactions`, `_laws`, `_types`, `_errors`, and `_utils`
+
+#### Scenario: Other bases
+- **WHEN** a user imports `BaseSpace` and `BaseTime` from `skcomplex.core.space`, and `Layout` and `BaseProblem` from
+  `skcomplex.core.problems`
+- **THEN** every import succeeds, and none of them imports from `skcomplex.core.base`
+
+### Requirement: Bases are unrelated
+No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System`
+SHALL derive from `BasePart`, which derives from scikit-learn's `BaseEstimator`. `BaseSpace`, `BaseTime`, `BaseSolver`,
+and `BaseBackend` SHALL derive from the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
+
+#### Scenario: Unrelated bases
+- **WHEN** a test checks every pair of base classes with `issubclass`
+- **THEN** no base is a subclass of another, except the bases of parts, which are subclasses of `BasePart`
+
+#### Scenario: System and interaction
+- **WHEN** a test checks `System` and `BaseInteraction` against `BaseElement`
+- **THEN** neither is a subclass, and a system built with a nested system and an interaction compiles and runs
+
+### Requirement: Classes are named after their base
+Every class whose ancestry reaches a base, or the concrete roots `Problem`, `Solver`, `System`, and `Schedule`, SHALL
+end with that concept's name, such as `Element`, `Interaction`, `Space`, `Time`, `Law`, `Domain`, `Problem`,
+`Solver`, or `Backend`, in the library, its models, its tests, its documents, and the names given to `define`.
+
+#### Scenario: Framework names
+- **WHEN** a user imports `RateLaw` from `skcomplex.core.laws`, `Element` and `GroupElement` from
+  `skcomplex.core.components`, and `RK4Solver` from `skcomplex.engine.solvers`
+- **THEN** every import succeeds
+
+#### Scenario: Model names
+- **WHEN** every class that the model library defines or creates with `define` is listed after importing it
+- **THEN** each class's name ends with the concept of the base it derives from, and none ends with `Component`
+
+### Requirement: What every package shares lives in root modules
+A module used by every subpackage SHALL live at the root of the package, not in one subpackage: `skcomplex.base`
+SHALL define `BaseConfig`, the root of every configurable class; `skcomplex.errors` SHALL define every error and
+warning; `skcomplex.specs` SHALL define the specs; and `skcomplex.types` SHALL define every type alias built from
+Python, NumPy, SciPy, and Sage types, one alias per type, such as `Array` for every float array. An alias that names
+a class of the library SHALL stay in the module of that class, and the models library SHALL keep its own aliases.
+
+#### Scenario: Root imports
+- **WHEN** a user imports `BaseConfig` from `skcomplex.base`, `ValidationError` from `skcomplex.errors`,
+  `StateSpec` from `skcomplex.specs`, and `Array` from `skcomplex.types`
+- **THEN** every import succeeds and none of these modules imports a subpackage
+
+#### Scenario: One alias per type
+- **WHEN** a module of the core, the engine, analysis, or experiments needs a float array
+- **THEN** it imports `Array` from `skcomplex.types` instead of defining its own alias
+
+### Requirement: Library packages hold general operations
+The core, the engine, analysis, and experiments SHALL hold general operations named mathematically: every public class
+SHALL name what it computes or simulates, and its choices SHALL name variants of that operation. A name taken from one
+application field SHALL appear only in the models library, as a realization that subclasses the general class in that
+field's package and fixes its settings.
+
+#### Scenario: Field name in a library package
+- **WHEN** a reviewer lists the public classes and the choices of the core, the engine, analysis, and experiments
+- **THEN** none is named after a quantity of one application field, such as the Binder cumulant, the polar order, or
+  the segregation index
+
+#### Scenario: Field measure in the models library
+- **WHEN** a physics model reports the Binder cumulant of its magnetisation
+- **THEN** it uses a realization of the physics field that subclasses the general distribution analysis and only fixes
+  its settings
+
+### Requirement: The engine surface is its pipeline
+Every package of `skcomplex.engine` SHALL re-export only classes: the bases a developer subclasses, the classes of the
+pipeline from a system to a trajectory, and the frozen values a client reads, with `compile_system` the only public
+function. Every helper of one class SHALL be a private method of that class.
+
+#### Scenario: Engine surface listing
+- **WHEN** a user lists the public names of every package of `skcomplex.engine`
+- **THEN** every name is a class derived from a base of its package, or `compile_system`, and none is `validate` or a
+  helper of a single pass, such as `values_of`, `member_of`, or `hilbert_of`
+
+#### Scenario: A user solver
+- **WHEN** a user subclasses the solver base, implements its hooks, and passes an instance to a simulation
+- **THEN** the simulation runs with that solver
+
+### Requirement: Every engine class follows the common API
+Every class of the engine SHALL derive from exactly one base of its package, SHALL store only its settings in
+`__init__`, SHALL validate them in `check()`, SHALL take the one object it serves in `prepare(target)` and set the
+attributes that end in `_`, and SHALL take the one input it acts on in `run(inputs)`. A base SHALL take no argument in
+its verbs that its peers do not take, and a variation between subclasses SHALL be a setting.
+
+#### Scenario: Compiling a system
+- **WHEN** a user builds the system compiler, checks it, prepares it on a system, and runs it
+- **THEN** `prepare` sets `report_` with the issues of the system, and `run` returns the compiled problem or raises the
+  report's errors
+
+#### Scenario: A user kernel
+- **WHEN** a developer subclasses the kernel base for a new law kind, with the pass that builds it and a solver that
+  runs it
+- **THEN** the kernel is prepared on the problem and run on the state like every built-in kernel
+
+### Requirement: Engine dataclasses are frozen values
+Every dataclass of the engine SHALL be a frozen value with `check()` and plain readers only, and a class that acts SHALL
+be a class of the engine's tree instead.
+
+#### Scenario: No acting dataclass
+- **WHEN** a reviewer lists the dataclasses of the engine
+- **THEN** every one is frozen and has no method besides `check()` and plain readers
+
+### Requirement: The engine names no form, compiler, or law of a model package
+The engine SHALL NOT list a compiler, a form, or a law kind other than those of its own packages. A form, its laws,
+its compiler, and its solver that serve the models of one field SHALL live in that field of the models library.
+
+#### Scenario: No rewriting in the engine
+- **WHEN** a test searches `skcomplex.core`, `skcomplex.engine`, `skcomplex.specs`, and `skcomplex.types` for
+  `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, `RewritingCompiler`, and the rewriting form
+- **THEN** it finds none

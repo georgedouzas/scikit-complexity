@@ -27,14 +27,6 @@ from the last synchronisation point.
 - **WHEN** an ODE law reads an agent aggregate and the agents change it in the middle of a synchronisation interval
 - **THEN** the ODE partition uses the value from the start of the interval until the next synchronisation point
 
-### Requirement: Aggregates summarise groups for other partitions
-An aggregate SHALL turn an agent group or element group into a scalar value, the count, the sum, the mean, or a custom
-reduction of a variable, that other partitions read like a state by its dotted name.
-
-#### Scenario: Count of agents
-- **WHEN** an aggregate counts the agents of the group `farmers` and 12 farmers are alive at a synchronisation point
-- **THEN** an ODE law that reads the aggregate sees the value 12 until the next synchronisation point
-
 ### Requirement: Agent rules read other partitions
 An agent rule SHALL read the states of other partitions by dotted name through its model view.
 
@@ -73,3 +65,12 @@ with the same dotted names as a single-form simulation.
 - **WHEN** a user asks the trajectory of a farmer and soil co-simulation for `land/soil.fertility` and the agent
   variable `village/farmers.wealth`
 - **THEN** it returns the fertility per frame and the wealth per agent alive at each frame
+
+### Requirement: Laws read reductions of other partitions
+A law SHALL read a reduction of a group of another partition, such as `count(s.farmers)` or
+`total(s.farmers.wealth)`, and the co-simulation SHALL compute it at every synchronisation point and hold it fixed
+until the next one.
+
+#### Scenario: Count of agents
+- **WHEN** an ODE law reads `count(s.farmers)` of an agent group and 12 farmers are alive at a synchronisation point
+- **THEN** the law sees the value 12 until the next synchronisation point

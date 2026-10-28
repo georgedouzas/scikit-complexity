@@ -555,14 +555,6 @@ the system SHALL be declared with `None`.
 - **WHEN** a rule transfers 1 unit of wealth from one agent to another
 - **THEN** both changes appear in the same frame, and the total wealth is unchanged
 
-### Requirement: Invariants declare conserved quantities
-An invariant SHALL declare an expression that stays constant within a tolerance. It SHALL be recorded and checked at
-every frame of every run, with a named error that names the invariant and the first frame that breaks it.
-
-#### Scenario: Violated invariant
-- **WHEN** a law creates wealth from nothing in a system that declares total wealth invariant
-- **THEN** the run raises a named error that names the invariant and the first frame that breaks it
-
 ### Requirement: Matching laws pair members of groups
 A matching law SHALL pair the members of one group or of two groups each step, with an optional capacity per member and
 a pairing function from the two groups to pairs, and the core SHALL provide only uniform random pairing. The pairs SHALL
@@ -653,14 +645,6 @@ validation is specified by `system-validation`.
 - **WHEN** a Wiener element has covariance `[[1, 1], [1, 1]]` and its two processes drive two states with unit noise
 - **THEN** the system compiles, and the two states stay equal at every frame
 
-### Requirement: Every component derives from one base
-Elements, groups, interactions, and systems SHALL derive from one component base that holds a label, declares variables
-and roles, and returns laws.
-
-#### Scenario: Hierarchy
-- **WHEN** a user checks `Element`, `Group`, `Interaction`, and `System` against `Component`
-- **THEN** each is a subclass of `Component`
-
 ### Requirement: Components store declared values without generated attributes
 A component type SHALL take its label and the values of its declared variables as constructor arguments stored
 unmodified, and the estimator contract SHALL list and clone them without generated class attributes. A type with a
@@ -693,26 +677,6 @@ interaction. Two direct children of a system with the same label SHALL be report
 - **WHEN** a user checks whether a `System` instance is an instance of `BaseComponent`
 - **THEN** the check is false, and the instance is an instance of `BaseSystem`
 
-### Requirement: Quantities are declared apart from laws
-Observables, auxiliaries, invariants, objectives, and aggregates SHALL derive from `BaseQuantity`, and none SHALL be
-a law or an element. A component SHALL return its laws from `laws` and its auxiliaries, invariants, and objectives
-from `quantities`, and a law SHALL be rejected from `quantities` and a quantity from `laws`, each with a named
-error.
-
-#### Scenario: Quantities of a component
-- **WHEN** a component returns a rate law from `laws` and an auxiliary and an invariant from `quantities`
-- **THEN** the system compiles, the auxiliary is substituted into the rate, and the invariant is checked at every
-  frame
-
-#### Scenario: Quantity among the laws
-- **WHEN** a component returns an invariant from `laws`
-- **THEN** validation raises a named error that names the component and says to declare it in `quantities`
-
-#### Scenario: No quantity is a law
-- **WHEN** a test checks `ObservableQuantity`, `AuxiliaryQuantity`, `InvariantQuantity`, `ObjectiveQuantity`, and `AggregateQuantity` against `BaseLaw`,
-  `BaseComponent`, and `BaseQuantity`
-- **THEN** each is a subclass of `BaseQuantity` only
-
 ### Requirement: Noise processes are not elements
 `WienerProcess` SHALL derive from no component base, and an interaction SHALL bind it through a role that takes noise
 processes.
@@ -721,3 +685,45 @@ processes.
 - **WHEN** an interaction binds a `WienerProcess` with covariance `C` and two noise laws draw its processes
 - **THEN** the increments over a step `h` have the covariance `h C`, and `WienerProcess` is not a subclass of
   `BaseComponent`
+
+### Requirement: Every element derives from one base
+Elements and groups SHALL derive from `BaseElement`, which holds a label, declares states, parameters, and roles, and
+returns laws. A modeller SHALL define a type of element by subclassing `Element`.
+
+#### Scenario: Hierarchy
+- **WHEN** a user checks `Element`, `GroupElement`, and `FieldElement` against `BaseElement`
+- **THEN** each is a subclass of `BaseElement`, and `System` and `BaseInteraction` are not
+
+### Requirement: A system is defined by elements, interactions, and laws
+A system SHALL be defined by its elements, its interactions, and the laws they return, and SHALL declare no other
+kind of part. A value that only names an expression SHALL be written in the laws, and what a run records or checks
+SHALL be an argument of the run.
+
+#### Scenario: Auxiliary as an expression
+- **WHEN** a law computes `leverage = s.debt / s.equity` and uses it in a rate, and the run records an observable of
+  the same expression
+- **THEN** the trajectory holds `leverage`, and the system has no quantity among its parts
+
+### Requirement: Runs check invariants
+`Simulation(invariants={name: tolerance})` SHALL check, at every frame, that each named observable stays within its
+tolerance of its first value, and SHALL raise `ConservationError` naming the observable and the first frame that
+breaks it.
+
+#### Scenario: Violated invariant
+- **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
+- **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
+
+### Requirement: Parts share three verbs
+Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`, `check()`,
+`prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from `check` and
+`prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a checked
+or prepared copy, and SHALL evaluate its contribution from `run(values)`.
+
+#### Scenario: System yields laws
+- **WHEN** a system of a population element and a growth interaction is prepared and run with a namespace
+- **THEN** it returns the laws of the element and of the interaction, in order
+
+#### Scenario: Law run alone
+- **WHEN** a user prepares `RateLaw(s.n, r * s.n)` against a namespace with `n` and `r`, and runs it at `n=10`,
+  `r=0.5`
+- **THEN** the result is `5.0`, its `targets_` holds `n`, and its `reads_` holds `n` and `r`

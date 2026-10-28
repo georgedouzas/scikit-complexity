@@ -8,63 +8,57 @@ trajectory or an experiment, lists the analyses that apply, and gives every data
 
 ### Requirement: Analyses are keyed by data kind
 Every analysis SHALL declare the one data kind it consumes, series, jump path, field, agent snapshot, network, or
-ensemble, SHALL take plain arrays or graphs of that kind, and SHALL NOT read a model, a domain, or a library model name.
+system, SHALL measure plain arrays or graphs of that kind once prepared, and SHALL NOT read a model, a domain, or a
+library model name.
 
 #### Scenario: Same function on two domains
-- **WHEN** a user passes the last frame of an Ising lattice and the last frame of a Gray-Scott field to the same
-  structure factor analysis
-- **THEN** both calls succeed with the same signature and return the same result type
+- **WHEN** a user prepares the same structure factor analysis on the last frame of an Ising lattice and on the last
+  frame of a Gray-Scott field
+- **THEN** both runs succeed with the same settings and set the same fitted attributes
 
 #### Scenario: Arrays without a simulation
-- **WHEN** a user passes a NumPy array of measured data, with no trajectory, to any analysis of its data kind
-- **THEN** the analysis returns its result, and no analysis requires a trajectory or a system
+- **WHEN** a user prepares any analysis of a data kind on a NumPy array of measured data, with no trajectory
+- **THEN** the analysis runs and sets its fitted attributes, and no data analysis requires a trajectory or a system
 
 ### Requirement: Adapters extract every data kind from a trajectory
-The analysis layer SHALL extract from a trajectory its series of named states, reporters, or observables, the jump
-paths of discrete states with their jump times, the frames of a lattice or a field in grid shape, the agent snapshots
-of a group with positions, velocities, and states, and the network of every frame, each as plain arrays or graphs.
+Every analysis SHALL extract from a trajectory, while it prepares, its series of named states, reporters, or
+observables, the jump paths of discrete states with their jump times, the frames of a lattice or a field in grid
+shape, the agent snapshots of a group with positions, velocities, and states, or the network of every frame, as plain
+arrays or graphs. The extraction SHALL NOT be a public function.
 
 #### Scenario: Series of an ODE
-- **WHEN** a user extracts the series of `prey.n` and `predators.n` from a Lotka-Volterra trajectory
-- **THEN** the result holds the times and a two-column array equal to `trajectory['prey.n']` and
-  `trajectory['predators.n']`
+- **WHEN** a user prepares a series analysis with `variables=['prey.n', 'predators.n']` on a Lotka-Volterra trajectory
+- **THEN** the analysis reads the times and a two-column array equal to `trajectory.values('prey.n')` and
+  `trajectory.values('predators.n')`
 
 #### Scenario: Jump path of a Gillespie run
-- **WHEN** a user extracts the jump path of a birth-death trajectory simulated with Gillespie's algorithm
-- **THEN** the result holds the jump times and the state after each jump, with no repeated state between jumps
+- **WHEN** a user prepares a path analysis on a birth-death trajectory simulated with Gillespie's algorithm
+- **THEN** the analysis reads the jump times and the state after each jump, with no repeated state between jumps
 
 #### Scenario: Frames of a lattice
-- **WHEN** a user extracts the frames of `spins.spin` from a 64 × 64 Ising trajectory of 100 frames
-- **THEN** the result has shape `(100, 64, 64)` and equals `trajectory.lattice('spins.spin')`
+- **WHEN** a user prepares a field analysis on `spins.spin` of a 64 × 64 Ising trajectory of 100 frames
+- **THEN** the analysis reads frames of shape `(100, 64, 64)` equal to `trajectory.lattice('spins.spin')`
 
 #### Scenario: Unwrapped agent positions
-- **WHEN** a user extracts the positions of random walkers in a periodic continuous space of side 10
-- **THEN** the adapter returns positions unwrapped across the boundary, so no step between frames exceeds half the side
+- **WHEN** a user prepares an agent analysis on random walkers in a periodic continuous space of side 10
+- **THEN** the analysis reads positions unwrapped across the boundary, so no step between frames exceeds half the side
 
 #### Scenario: Missing data kind
-- **WHEN** a user extracts agent snapshots from an ODE trajectory
+- **WHEN** a user prepares an agent analysis on an ODE trajectory
 - **THEN** a named error says that the trajectory has no agent group and lists the data kinds it has
 
-### Requirement: Adapters extract ensembles from experiments
-The analysis layer SHALL extract from an experiment result one array of a named series per run, aligned on common
-times, with the design row of every run, so ensemble analyses read replicates and sweeps as one array.
-
-#### Scenario: Replicates of a stochastic run
-- **WHEN** a user extracts the ensemble of `x` from an experiment of 200 replicates of an Ornstein-Uhlenbeck process
-- **THEN** the result has one row per replicate and one column per common time, and the rows carry their seeds
-
 ### Requirement: Applicable analyses are discovered
-The analysis layer SHALL list the analyses that apply to a trajectory, a system, an experiment result, or an array,
-each with its data kind, the adapter that feeds it, and how it reads the object.
+The analysis layer SHALL list the analysis classes that apply to a trajectory, a system, or an array, each with its data
+kind and how it reads the object.
 
 #### Scenario: Lattice model
 - **WHEN** a user lists the analyses for an Ising system
-- **THEN** the list holds structure factor, correlation length, cluster size distribution, and Binder cumulant under the
+- **THEN** the list holds the structure factor, correlation length, cluster size, and Binder cumulant analyses under the
   field kind, and series analyses for its observables, and no agent analysis
 
 #### Scenario: Agent model
 - **WHEN** a user lists the analyses for a Vicsek trajectory
-- **THEN** the list holds polarization, nearest-neighbour statistics, and mean squared displacement under the agent
+- **THEN** the list holds the order parameter, nearest-neighbour, and mean squared displacement analyses under the agent
   kind
 
 #### Scenario: Plain array
@@ -73,20 +67,20 @@ each with its data kind, the adapter that feeds it, and how it reads the object.
   assumes
 
 ### Requirement: Every data kind has a signature analysis
-The analysis layer SHALL compute one default analysis per data kind from a trajectory or an experiment result, and
-return its curves with axis labels, a title, and the measured values worth stating, so a gallery example can plot it
-without choosing an analysis.
+The analysis layer SHALL hold one signature analysis that, prepared on a trajectory, runs the default analysis of each
+of its data kinds and keeps their curves with axis labels, a title, and the measured values worth stating, so a gallery
+example can plot it without choosing an analysis.
 
 #### Scenario: Signatures per data kind
-- **WHEN** a user computes the signature analysis of a trajectory of each data kind
+- **WHEN** a user runs the signature analysis on a trajectory of each data kind
 - **THEN** a series gives its power spectrum with the autocorrelation time, a jump path its waiting-time distribution
   with the Fano factor, a field the structure factor of its last frame with the correlation length or the peak
-  wavelength, agents the order parameter over time and the nearest-neighbour distance distribution, a network its degree
-  distribution, and an ensemble the mean with a 90 percent band over runs
+  wavelength, agents the order parameter over time and the nearest-neighbour distance distribution, and a network its
+  degree distribution
 
 #### Scenario: Model with several data kinds
-- **WHEN** a user computes the signature analysis of an agent model on a lattice that also records reporters
-- **THEN** the result holds one signature per data kind, in the order agents, field, series
+- **WHEN** a user runs the signature analysis on an agent model on a lattice that also records reporters
+- **THEN** the analysis holds one signature per data kind, in the order agents, field, series
 
 #### Scenario: Gallery figure
 - **WHEN** a gallery example of the model library plots its analysis figure without naming an analysis

@@ -7,9 +7,10 @@ polygons by affine substitution, and graphs by graph productions, with one gener
 ## Requirements
 
 ### Requirement: Rewriting systems are a form
-A system whose elements hold a word, a patch of tiles, or a host graph rewritten by productions SHALL compile to the
-rewriting form. Each simulation step SHALL apply one generation, every part of the structure rewritten in parallel,
-and the time between frames SHALL be a positive integer number of generations.
+A system whose elements hold a word or a patch of tiles rewritten by productions SHALL compile to the rewriting form
+with the rewriting compiler of `skcomplex.models.mathematics.fractals`. Each simulation step SHALL apply one
+generation, every part of the structure rewritten in parallel, and the time between frames SHALL be a positive integer
+number of generations.
 
 #### Scenario: Generations as steps
 - **WHEN** an L-system with the axiom `A` and the productions `A → AB` and `B → A` runs with `until=5`
@@ -90,21 +91,6 @@ segments or polygons, and tiles whose prototile has no substitution SHALL be kep
 #### Scenario: Sierpiński triangle area
 - **WHEN** the unit triangle is substituted by its three half-scale corner copies for 6 generations
 - **THEN** the patch holds 729 triangles, and their area is `(3/4)^6` times the triangle's area within 1e-12
-
-### Requirement: Graph productions rewrite host graphs
-A host graph SHALL be rewritten by double-pushout graph productions, each a left graph, an interface, and a right
-graph with optional node and edge labels. Each generation SHALL apply a production at a maximal set of parallel
-independent matches, which overlap only in nodes and edges that every one of them preserves, chosen in a reproducible
-order from the simulation's random stream. It SHALL skip a match whose deletion would leave a dangling edge.
-
-#### Scenario: Edge subdivision
-- **WHEN** a cycle of 4 nodes is rewritten by a production that replaces each edge by a path of two edges for 3
-  generations
-- **THEN** the host graph is a cycle of 32 nodes, and the state `graph.size` is 32 at the last frame
-
-#### Scenario: Dangling edge
-- **WHEN** a production deletes a node of its left graph that has an edge outside the match
-- **THEN** that match is not applied, and the other matches are
 
 ### Requirement: Geometric measures are recorded
 The rewriting layer SHALL record the total length and the area of a patch or a turtle geometry at every frame under
