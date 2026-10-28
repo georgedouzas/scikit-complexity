@@ -17,7 +17,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import box_counting_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -76,7 +76,7 @@ finals = [
 ]
 fine = basins(1024)
 boundary = (np.diff(fine, axis=0, prepend=fine[:1]) != 0) | (np.diff(fine, axis=1, prepend=fine[:, :1]) != 0)
-dimension = box_counting_dimension(boundary)
+dimension = ScalingAnalysis('box-counting').check().prepare(boundary).run().exponent_
 fig, (picture, edges) = plt.subplots(1, 2, figsize=(10, 4.5))
 picture.imshow(palette[labels], extent=(-1.5, 1.5, -1.5, 1.5))
 for run in orbits:

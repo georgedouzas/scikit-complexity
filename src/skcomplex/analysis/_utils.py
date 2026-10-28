@@ -53,3 +53,22 @@ def sample_columns(data: npt.ArrayLike) -> npt.NDArray[Any]:
     """
     array = np.asarray(data)
     return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)
+
+
+def is_changed(value: object, default: object) -> bool:
+    """Return whether a setting differs from its default, comparing arrays and sequences by their items.
+
+    Args:
+        value:
+            The value of the setting.
+
+        default:
+            The default of the setting.
+
+    Returns:
+        changed:
+            Whether the value differs from the default.
+    """
+    if value is None or default is None:
+        return value is not default
+    return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))

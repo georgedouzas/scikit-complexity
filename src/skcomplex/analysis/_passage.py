@@ -1,4 +1,4 @@
-"""Measure first passages, returns, laminar phases, and absorption of paths."""
+"""Measure first passages, returns, and absorption of paths."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -143,39 +143,3 @@ def return_times(values: npt.ArrayLike, level: float = 0.0, times: npt.ArrayLike
     crossing = np.concatenate([[False], signs[1:] * signs[:-1] < 0])
     returns = np.flatnonzero((signs == 0) | crossing)
     return np.diff(clock[returns])
-
-
-@analysis(DataKind.SERIES)
-def laminar_durations(
-    values: npt.ArrayLike,
-    threshold: float,
-    times: npt.ArrayLike | None = None,
-) -> Array:
-    """Return the durations of the laminar phases of a series, the runs of values within a threshold of 0.
-
-    Args:
-        values:
-            The series, such as the distance from an invariant manifold of on-off intermittency.
-
-        threshold:
-            The largest absolute value of a laminar phase.
-
-        times:
-            The times of the values, or `None` for step indices.
-
-    Returns:
-        durations:
-            The duration of every complete laminar phase, between two bursts.
-
-    Examples:
-        >>> from skcomplex.analysis import laminar_durations
-        >>> laminar_durations([1, 0, 0, 1, 0, 1], 0.5).tolist()
-        [2.0, 1.0]
-    """
-    array = np.abs(np.asarray(values, dtype=float))
-    clock = _clock(times, array.size)
-    step = float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
-    laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
-    starts, ends = np.flatnonzero(np.diff(laminar) == 1), np.flatnonzero(np.diff(laminar) == -1)
-    complete = (starts > 0) & (ends < array.size)
-    return clock[ends[complete] - 1] - clock[starts[complete]] + step

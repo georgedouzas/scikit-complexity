@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import event_counts, fano_factor, kramers_moyal, relative_fluctuations
+from skcomplex.analysis import fano_factor, kramers_moyal, relative_fluctuations
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -33,14 +33,6 @@ def test_fano_factor_poisson_and_bursty_production():
     counts = np.diff(trajectory.values('counters.count')[:, 0][::10])
     assert fano_factor(counts) == pytest.approx(1, abs=0.05)
     assert fano_factor(_bursty_expression(np.random.default_rng(0), 20_000)) == pytest.approx(5, abs=0.3)
-
-
-def test_event_counts_and_fano_of_event_times():
-    """Test that the event times of a Poisson process give counts per window with a Fano factor near 1."""
-    times = np.cumsum(np.random.default_rng(1).exponential(1.0, 100_000))
-    counts = event_counts(times, 10.0)
-    assert counts.sum() <= times.size
-    assert fano_factor(counts) == pytest.approx(1, abs=0.1)
     with pytest.raises(AnalysisError, match='mean 0'):
         fano_factor([0, 0])
 

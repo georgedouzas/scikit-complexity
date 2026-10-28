@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import box_counting_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import GeometryVisual, RerunObserver, primary_view
@@ -18,7 +18,8 @@ def test_koch_curve():
     assert trajectory.values('koch.F')[-1] == 1024
     assert curve.length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
     grid = curve.raster(2048)
-    assert box_counting_dimension(grid, [16, 32, 64, 128, 256]) == pytest.approx(np.log(4) / np.log(3), abs=0.05)
+    dimension = ScalingAnalysis('box-counting', scales=[16, 32, 64, 128, 256]).check().prepare(grid).run().exponent_
+    assert dimension == pytest.approx(np.log(4) / np.log(3), abs=0.05)
     assert describe('koch_curve').formalism == 'rewriting system'
 
 

@@ -1,4 +1,4 @@
-"""Measure fluctuations: Fano factors, counts in windows, relative fluctuations, and Kramers-Moyal coefficients."""
+"""Measure fluctuations: Fano factors, relative fluctuations, and Kramers-Moyal coefficients."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,39 +42,6 @@ def fano_factor(values: npt.ArrayLike) -> float:
         error_msg = 'The counts have mean 0, so their Fano factor is undefined.'
         raise AnalysisError(error_msg)
     return float(array.var() / array.mean())
-
-
-@analysis(DataKind.PATH)
-def event_counts(event_times: npt.ArrayLike, window: float, *, start: float = 0.0, end: float | None = None) -> Array:
-    """Return the number of events in consecutive windows of equal length.
-
-    Args:
-        event_times:
-            The times of the events.
-
-        window:
-            The length of every window.
-
-        start:
-            The start of the first window.
-
-        end:
-            The end of the last full window, or `None` for the last event.
-
-    Returns:
-        counts:
-            The number of events in every window.
-
-    Examples:
-        >>> from skcomplex.analysis import event_counts
-        >>> event_counts([0.1, 0.2, 1.5, 2.2], 1.0, end=3.0).tolist()
-        [2.0, 1.0, 1.0]
-    """
-    times = np.asarray(event_times, dtype=float)
-    last = float(times.max()) if end is None else end
-    count = int((last - start) // window)
-    edges = start + window * np.arange(count + 1)
-    return np.histogram(times, bins=edges)[0].astype(float)
 
 
 @dataclass(frozen=True)

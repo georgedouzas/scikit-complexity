@@ -27,15 +27,7 @@ from ._agents import (
     polar_order,
     radial_distribution,
 )
-from ._aging import (
-    AgingCollapse,
-    DistributionCollapse,
-    aging_collapse,
-    collapse_distributions,
-    fluctuation_dissipation_ratio,
-    response,
-    two_time_correlation,
-)
+from ._aging import fluctuation_dissipation_ratio, response
 from ._automata import (
     Automaton,
     LinearAutomaton,
@@ -52,6 +44,7 @@ from ._automata import (
 )
 from ._base import BaseAnalysis
 from ._bifurcation import BasinStability, OrbitDiagram, basin_stability, orbit_diagram
+from ._collapse import CollapseAnalysis
 from ._complexity import (
     ComplexityEntropy,
     EnsembleEntropy,
@@ -62,6 +55,7 @@ from ._computational_mechanics import (
     EpsilonMachine,
     epsilon_machine,
 )
+from ._correlation import CorrelationAnalysis
 from ._criticality import (
     AvalancheLaws,
     Avalanches,
@@ -75,13 +69,8 @@ from ._criticality import (
     order_parameter_sweep,
     replica_overlap,
 )
-from ._embedding import (
-    Embedding,
-    auto_mutual_information,
-    delay_embedding,
-    embed,
-    false_nearest_neighbors,
-)
+from ._early_warning import EarlyWarningAnalysis
+from ._embedding import EmbeddingAnalysis, auto_mutual_information
 from ._emergence import (
     CausalEmergence,
     EffectiveInformation,
@@ -97,7 +86,7 @@ from ._emergence_criteria import (
 )
 from ._entropy import EntropyAnalysis
 from ._ergodicity import FluctuationMetric, ergodicity_breaking, ergodicity_distance, fluctuation_metric
-from ._events import Events, detect_events
+from ._events import EventAnalysis
 from ._extremes import (
     ExtremeValueFit,
     GoodnessOfFit,
@@ -108,23 +97,17 @@ from ._extremes import (
     record_counts,
 )
 from ._fields import (
-    DispersionRelation,
     DomainGrowth,
     NumberFluctuations,
     Pattern,
-    StructureFactor,
-    correlation_length,
-    dispersion_relation,
     domain_growth,
     domain_size,
     number_fluctuations,
     pattern_wavelength,
-    structure_factor,
 )
 from ._fluctuations import (
     KramersMoyal,
     RelativeFluctuations,
-    event_counts,
     fano_factor,
     kramers_moyal,
     relative_fluctuations,
@@ -140,9 +123,7 @@ from ._information import (
     transfer_entropy,
 )
 from ._invariants import (
-    CorrelationDimension,
     UlamChain,
-    correlation_dimension,
     invariant_density,
     kaplan_yorke_dimension,
     kolmogorov_sinai_entropy,
@@ -211,28 +192,18 @@ from ._networks import (
     network_frames,
     summarize_network,
 )
-from ._passage import first_passage_times, hitting_probabilities, laminar_durations, return_times
+from ._passage import first_passage_times, hitting_probabilities, return_times
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
 from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
-from ._recurrence import Recurrence, recurrence_matrix, recurrence_quantification
+from ._recurrence import RecurrenceAnalysis
 from ._reservoirs import ReservoirSurrogate
-from ._scaling import Collapse, binder_crossings, binder_cumulant, scaling_collapse
+from ._scaling import ScalingAnalysis, binder_crossings, binder_cumulant
 from ._sections import Section, poincare_section, stroboscopic
-from ._series import (
-    Displacement,
-    EarlyWarning,
-    Fluctuation,
-    autocorrelation,
-    autocorrelation_time,
-    detrended_fluctuation,
-    early_warning,
-    hurst_exponent,
-    mean_squared_displacement,
-    power_spectrum,
-)
+from ._series import Displacement, mean_squared_displacement
 from ._signatures import Signature, signature_analysis
 from ._sparse_identification import SINDySurrogate
-from ._spatial import Clusters, box_counting_dimension, correlation_function, label_clusters
+from ._spatial import Clusters, label_clusters
+from ._spectrum import SpectrumAnalysis
 from ._stability import Dynamics, Stability, divergence, dynamics_of, fixed_points, jacobian, nullclines, stability
 from ._statistics import PowerLawFit, ccdf, fit_power_law, gini, hill, histogram
 from ._surrogate_systems import BaseSurrogate
@@ -253,7 +224,6 @@ from ._transitions import (
 
 __all__: list[str] = [
     'ANALYSES',
-    'AgingCollapse',
     'AnalysisEntry',
     'Applicable',
     'Automaton',
@@ -266,32 +236,29 @@ __all__: list[str] = [
     'Cloning',
     'Closure',
     'Clusters',
-    'Collapse',
+    'CollapseAnalysis',
     'Communities',
     'ComplexityEntropy',
-    'CorrelationDimension',
+    'CorrelationAnalysis',
     'CracklingNoise',
     'DMDSurrogate',
     'DataKind',
     'DetailedBalance',
-    'DispersionRelation',
     'Displacement',
-    'DistributionCollapse',
     'DomainGrowth',
     'Dynamics',
-    'EarlyWarning',
+    'EarlyWarningAnalysis',
     'EffectiveInformation',
-    'Embedding',
+    'EmbeddingAnalysis',
     'EmergenceCriteria',
     'Ensemble',
     'EnsembleEntropy',
     'EntropyAnalysis',
     'EntropyProduction',
     'EpsilonMachine',
-    'Events',
+    'EventAnalysis',
     'ExtremeValueFit',
     'FlowMatrix',
-    'Fluctuation',
     'FluctuationMetric',
     'FluctuationTheorem',
     'GoodnessOfFit',
@@ -311,40 +278,37 @@ __all__: list[str] = [
     'Percolation',
     'PowerLawFit',
     'RateFunction',
-    'Recurrence',
+    'RecurrenceAnalysis',
     'RelativeFluctuations',
     'ReservoirSurrogate',
     'Reweighted',
     'SINDySurrogate',
+    'ScalingAnalysis',
     'Section',
     'Series',
     'Signature',
     'Snapshots',
     'Spectrum',
+    'SpectrumAnalysis',
     'Stability',
     'StableFit',
     'StateSpace',
-    'StructureFactor',
     'Subshift',
     'SurrogateTest',
     'Sweep',
     'UlamChain',
     'UncertaintyRelation',
     'active_information_storage',
-    'aging_collapse',
     'analyses_for',
     'analysis',
     'as_graph',
     'assortativity',
     'auto_mutual_information',
-    'autocorrelation',
-    'autocorrelation_time',
     'avalanches',
     'basin_stability',
     'binder_crossings',
     'binder_cumulant',
     'block_generating_function',
-    'box_counting_dimension',
     'branching_ratio',
     'causal_emergence',
     'ccdf',
@@ -354,7 +318,6 @@ __all__: list[str] = [
     'closure',
     'cluster_sizes',
     'coarse_grain',
-    'collapse_distributions',
     'committor',
     'communities',
     'compare_with_law',
@@ -363,30 +326,21 @@ __all__: list[str] = [
     'configuration_entropy',
     'conservation',
     'controllability',
-    'correlation_dimension',
-    'correlation_function',
     'correlation_information',
-    'correlation_length',
     'count_entropy_production',
     'crackling_noise',
     'data_kinds',
     'degree_moments',
     'degrees',
-    'delay_embedding',
     'detailed_balance',
-    'detect_events',
-    'detrended_fluctuation',
     'difference_pattern',
-    'dispersion_relation',
     'dissimilarity_index',
     'divergence',
     'domain_growth',
     'domain_size',
     'dual_total_correlation',
     'dynamics_of',
-    'early_warning',
     'effective_information',
-    'embed',
     'emergence_criteria',
     'ensemble_entropy',
     'ensemble_of',
@@ -396,8 +350,6 @@ __all__: list[str] = [
     'equations_of',
     'ergodicity_breaking',
     'ergodicity_distance',
-    'event_counts',
-    'false_nearest_neighbors',
     'fano_factor',
     'fields_of',
     'first_passage_times',
@@ -419,7 +371,6 @@ __all__: list[str] = [
     'histogram',
     'histogram_rate_function',
     'hitting_probabilities',
-    'hurst_exponent',
     'implied_timescales',
     'interface_density',
     'invariant_density',
@@ -435,7 +386,6 @@ __all__: list[str] = [
     'kolmogorov_sinai_entropy',
     'kramers_moyal',
     'label_clusters',
-    'laminar_durations',
     'langevin_entropy_production',
     'largest_lyapunov_exponent',
     'legendre_transform',
@@ -478,19 +428,15 @@ __all__: list[str] = [
     'phase_order',
     'poincare_section',
     'polar_order',
-    'power_spectrum',
     'purity',
     'radial_distribution',
     'record_counts',
-    'recurrence_matrix',
-    'recurrence_quantification',
     'relative_fluctuations',
     'relaxation_times',
     'replica_overlap',
     'response',
     'return_times',
     'reweight',
-    'scaling_collapse',
     'series_of',
     'signature_analysis',
     'snapshots_of',
@@ -502,7 +448,6 @@ __all__: list[str] = [
     'stability',
     'stationary_distribution',
     'stroboscopic',
-    'structure_factor',
     'summarize_network',
     'surrogate_test',
     'symbolize',
@@ -511,7 +456,6 @@ __all__: list[str] = [
     'transfer_entropy',
     'transition_counts',
     'transition_matrix',
-    'two_time_correlation',
     'ulam_chain',
     'uncertainty_relation',
 ]

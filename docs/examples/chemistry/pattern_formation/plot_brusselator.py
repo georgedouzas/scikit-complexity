@@ -12,7 +12,7 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of, structure_factor
+from skcomplex.analysis import SpectrumAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, default_blueprint
@@ -35,14 +35,14 @@ simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[ob
 
 a, b, Du, Dv = 1.0, 3.0, 1.0, 8.0
 u = fields_of(simulation.trajectory_, 'cells.u')[-1]
-factor = structure_factor(u)
+factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
 q = np.linspace(0.01, 2.0, 300)
 growth = [np.linalg.eigvals([[b - 1 - Du * k**2, a**2], [-b, -(a**2) - Dv * k**2]]).real.max() for k in q]
 fig, (field, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 field.imshow(u, cmap='viridis')
 field.set_title('u at the last frame')
 field.set_axis_off()
-spectrum.plot(factor.wavenumbers, factor.power / factor.power.max(), label='structure factor of u')
+spectrum.plot(factor.wavenumbers_, factor.power_ / factor.power_.max(), label='structure factor of u')
 spectrum.plot(q, np.array(growth) / max(growth), color='black', label='linear growth rate')
 spectrum.axvline(q[np.argmax(growth)], color='black', linestyle='--', linewidth=0.8)
 spectrum.set_xlim(0, 2)

@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import NN
 from scipy.spatial import cKDTree
 
 from skcomplex.analysis import (
+    SpectrumAnalysis,
     clark_evans_ratio,
     coarse_grain,
     kinetic_temperature,
@@ -22,7 +23,6 @@ from skcomplex.analysis import (
     polar_order,
     radial_distribution,
     snapshots_of,
-    structure_factor,
 )
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import AnalysisError
@@ -220,7 +220,7 @@ def test_coarse_grain_density():
     rng = np.random.default_rng(6)
     density = coarse_grain(rng.random((10_000, 2)) * 5, [5.0, 5.0], [32, 32])
     assert density.sum() == 10_000
-    assert structure_factor(density).power.size > 0
+    assert SpectrumAnalysis('structure-factor').check().prepare(density).run().power_.size > 0
     polarization = coarse_grain(rng.random((100, 2)), [1.0, 1.0], [4, 4], values=np.ones((100, 2)))
     assert polarization.shape == (4, 4, 2)
     with pytest.raises(AnalysisError, match='one entry per dimension'):

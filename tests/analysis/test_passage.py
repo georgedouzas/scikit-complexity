@@ -1,4 +1,4 @@
-"""Test first passages, returns, laminar phases, and absorption."""
+"""Test first passages, returns, and absorption."""
 
 import numpy as np
 import pytest
@@ -7,7 +7,6 @@ from skcomplex.analysis import (
     first_passage_times,
     fit_power_law,
     hitting_probabilities,
-    laminar_durations,
     return_times,
 )
 from skcomplex.core.errors import AnalysisError
@@ -58,20 +57,12 @@ def test_first_passage_times_downward_and_never():
         first_passage_times([0.0, 1.0], 1.0, direction='sideways')
 
 
-def test_return_times_on_two_domains():
-    """Test that returns of a random walk and laminar phases of on-off intermittency have tails of exponent 3/2."""
+def test_return_times_of_a_random_walk():
+    """Test that returns of a random walk have a tail of exponent 3/2."""
     rng = np.random.default_rng(1)
     walk = np.cumsum(rng.choice([-1, 1], 2_000_000))
     returns = return_times(walk) / 2
     assert fit_power_law(returns, xmin=10, discrete=True, bootstrap=0).alpha == pytest.approx(1.5, abs=0.1)
-    size = 2_000_000
-    values = np.empty(size)
-    values[0] = 0.5
-    factors = np.e * rng.random(size)
-    for t in range(1, size):
-        values[t] = max(factors[t] * values[t - 1] * (1 - values[t - 1]), 1e-12)
-    durations = laminar_durations(values, 1e-3)
-    assert fit_power_law(durations, xmin=10, discrete=True, bootstrap=0).alpha == pytest.approx(1.5, abs=0.1)
 
 
 def test_hitting_probabilities_fixation_of_a_mutant():

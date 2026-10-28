@@ -13,7 +13,7 @@ length: their durations follow a power law.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ccdf, laminar_durations
+from skcomplex.analysis import EventAnalysis, ccdf
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -37,7 +37,8 @@ series.set_ylabel('x')
 series.set_title('Laminar phases and bursts, z = 2')
 for z in (1.5, 2.0):
     values = Simulation(create(MODEL, z=z), dt=1).run(until=200_000).trajectory_.values('map.x')
-    durations, share = ccdf(laminar_durations(values, threshold=0.1))
+    laminar = EventAnalysis('laminar-durations', threshold=0.1).check().prepare(values).run()
+    durations, share = ccdf(laminar.durations_)
     (line,) = tails.loglog(durations, share, label=f'z = {z}')
     reference = durations[(durations > 20) & (durations < 2000)]
     anchor = share[np.searchsorted(durations, reference[0])]

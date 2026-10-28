@@ -12,7 +12,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import autocorrelation, histogram
+from skcomplex.analysis import CorrelationAnalysis, histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -40,7 +40,8 @@ edges, density = histogram(anomaly, bins=40)
 variance = sigma**2 / (2 * lam)
 grid = np.linspace(edges[0], edges[-1], 200)
 fig, (memory, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-memory.plot(lags, autocorrelation(anomaly, max_lag=79), label='simulation')
+correlation = CorrelationAnalysis(max_lag=79).check().prepare(anomaly).run().correlation_[0]
+memory.plot(lags, correlation, label='simulation')
 memory.plot(lags, np.exp(-lam * lags), color='black', linestyle='--', label='exp(-lam t)')
 memory.set_xlabel('lag')
 memory.set_ylabel('autocorrelation')

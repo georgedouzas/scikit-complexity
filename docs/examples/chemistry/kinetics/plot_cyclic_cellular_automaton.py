@@ -12,7 +12,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import correlation_function, fields_of
+from skcomplex.analysis import CorrelationAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -39,8 +39,9 @@ activity.set_xlabel('step')
 activity.set_ylabel('share of cells that advance')
 activity.set_title('Activity rises as the spirals take over')
 for step in (0, 20, 60, 300):
-    distances, values = correlation_function(np.cos(2 * np.pi * levels[step] / 14), max_r=40)
-    correlation.plot(distances, values, label=f'step {step}')
+    phase = CorrelationAnalysis('function', max_distance=40).check().prepare(np.cos(2 * np.pi * levels[step] / 14))
+    phase.run()
+    correlation.plot(phase.distances_, phase.correlation_, label=f'step {step}')
 correlation.axhline(0.0, color='gray', linewidth=0.8)
 correlation.set_xlabel('distance (cells)')
 correlation.set_ylabel('correlation of the phase')
