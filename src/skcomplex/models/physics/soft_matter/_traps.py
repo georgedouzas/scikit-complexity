@@ -15,9 +15,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})

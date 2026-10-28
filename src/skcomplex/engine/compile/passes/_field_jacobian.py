@@ -3,8 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import replace
-
+from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 
 
@@ -24,9 +23,12 @@ class FieldJacobianPass(BasePass):
         compilation = self.compilation_
         if compilation.jacobian is None:
             return
-        compilation.jacobian = replace(
-            compilation.jacobian,
-            volumes=compilation.volumes,
-            symmetries=compilation.symmetries,
-            constrained=compilation.constrained[0],
-        )
+        settings = compilation.jacobian.get_params(deep=False)
+        compilation.jacobian = JacobianKernel(
+            **settings
+            | {
+                'volumes': compilation.volumes,
+                'symmetries': compilation.symmetries,
+                'constrained': compilation.constrained[0],
+            },
+        ).check()

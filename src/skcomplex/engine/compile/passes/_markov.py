@@ -15,8 +15,12 @@ from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....errors import ValidationError
 from ....types import Array
-from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
-from ...problems._base_problem import _MarkovMatrix
+from ..._utils import symbols_of
+from ...problems import DomainKind, Entry, ExpressionPrinter
+from ...problems._markov_kernel import MarkovKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
+from ...problems._state import State
 from .._base import BasePass
 from .._compilation import BlockLaws
 from .._declarations import Declarations
@@ -52,13 +56,13 @@ class MarkovPass(BasePass):
     def _checked_matrices(
         markov: list[tuple[KernelSpec, MatrixLaw]],
         declarations: Declarations,
-    ) -> tuple[_MarkovMatrix, ...]:
+    ) -> tuple[MarkovKernel, ...]:
         """Return the matrices of the Markov laws after checking them at the initial parameter values."""
         initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         matrices = []
         for spec, law in markov:
             matrix = MarkovPass._compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
-            violation = matrix.violation(initial)
+            violation = matrix.run(State(0.0, np.zeros(0), initial))
             if violation is not None:
                 error_msg = (
                     f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows '
@@ -75,12 +79,12 @@ class MarkovPass(BasePass):
             error_msg = f'The {description} must target a scalar state of its component.'
             raise ValidationError(error_msg)
         domain = reference.entry.domain
-        labels = labels_of(domain)
+        labels = Entry._labels_of(domain)
         if labels is not None:
             return len(labels)
-        if domain_kind(domain) == DomainKind.BOOLEAN:
+        if Entry._domain_kind(domain) == DomainKind.BOOLEAN:
             return 2
-        if domain_kind(domain) == DomainKind.INTEGER:
+        if Entry._domain_kind(domain) == DomainKind.INTEGER:
             return None
         error_msg = (
             f'The {description} moves {reference.entry.name}, whose domain {domain} is not a finite alphabet. Declare '
@@ -116,7 +120,7 @@ class MarkovPass(BasePass):
     @staticmethod
     def _matrix_reader(reference: Reference) -> Callable[[Array], Any]:
         """Return the function that reads a parameter of a matrix for every evaluation row."""
-        if reference.source is Source.MEMBER:
+        if reference.source is ReadKind.MEMBER:
             members = reference.members
             return lambda p: p[members]
         index = reference.index
@@ -139,7 +143,7 @@ class MarkovPass(BasePass):
         references: dict[Expression, Reference],
         rows: int,
         time: Expression,
-    ) -> _MarkovMatrix:
+    ) -> MarkovKernel:
         """Return the matrix of a Markov law as a function of the parameter vector.
 
         Args:
@@ -173,14 +177,16 @@ class MarkovPass(BasePass):
                     'of the parameters of its component.'
                 )
                 raise ValidationError(error_msg)
-        function = numpy_function(time, arguments, entries)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries)
         readers = [MarkovPass._matrix_reader(references[item]) for item in arguments]
         shape = (len(law.matrix), len(law.matrix[0]))
         reads = frozenset(
             int(index)
             for item in arguments
             for index in (
-                references[item].flat_indices if references[item].source is Source.MEMBER else [references[item].index]
+                references[item].flat_indices
+                if references[item].source is ReadKind.MEMBER
+                else [references[item].index]
             )
         )
 
@@ -189,7 +195,7 @@ class MarkovPass(BasePass):
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)
 
-        return _MarkovMatrix(law.description, evaluate, reads)
+        return MarkovKernel(law.description, evaluate, reads).check()
 
     @staticmethod
     def _emission(

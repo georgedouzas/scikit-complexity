@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..problems import BaseProblem, NetworkSnapshot, Record, decode
+from ..problems import BaseProblem, BaseRecord, NetworkSnapshot
 from ..solvers import AgentSnapshot
 
 
@@ -71,7 +71,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[Record] = (),
+        events: Sequence[BaseRecord] = (),
         structures: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem
@@ -111,10 +111,10 @@ class Trajectory:
         """
         if self.problem.states.has(name):
             entry = self.problem.states.entry(name)
-            return self._present(name, decode(entry.domain, np.asarray(self.problem.states.read(self.states, name))))
+            return self._present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
         if self.problem.parameters.has(name):
             entry = self.problem.parameters.entry(name)
-            values = decode(entry.domain, np.asarray(self.problem.parameters.read(self.parameters, name)))
+            values = entry.read(np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._present(name, values)
         if self.reporters and name in self.reporters[0]:
             return np.asarray([frame[name] for frame in self.reporters], dtype=float)

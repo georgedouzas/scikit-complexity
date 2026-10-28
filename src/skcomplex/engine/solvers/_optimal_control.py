@@ -8,7 +8,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -17,8 +17,9 @@ from sage.sets.real_set import RealSet
 
 from ...errors import SolverError, ValidationError
 from ...types import Array, Cost, GridFunction
+from .._utils import symbols_of
 from ..compile import ObservableEvaluator
-from ..problems import Form, Problem, numpy_function, symbols_of
+from ..problems import BaseValue, ExpressionPrinter, Form, Problem
 from ._control_solution import ControlSolution
 from ._solver import Solver
 
@@ -28,7 +29,7 @@ _NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo
 
 
 @dataclass(frozen=True)
-class _Control:
+class _Control(BaseValue):
     """Control of an optimal control problem: its dotted name, state index, symbol, and bounds."""
 
     name: str
@@ -39,7 +40,7 @@ class _Control:
 
 
 @dataclass(frozen=True)
-class _ControlProblem:
+class _ControlProblem(BaseValue):
     """Optimal control problem of a compiled system, with its cost written to be minimised."""
 
     problem: Problem
@@ -80,7 +81,8 @@ class _ControlProblem:
     def function(self, expressions: Sequence[Any], extra: Sequence[Expression] = ()) -> GridFunction:
         """Return a function `f(t, x, u, p, *extra)` of expressions, whose last axes run over symbols and values."""
         arguments = [*self.states, *self.control_symbols, *self.parameters, *extra]
-        compiled = numpy_function(self.time, arguments, [SR(item) for item in expressions])
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
+        compiled = printer.run([SR(item) for item in expressions])
         count = len(expressions)
 
         def evaluate(t: float | Array, x: Array, u: Array, p: Array, *values: Array) -> npt.NDArray[np.float64]:
@@ -221,7 +223,10 @@ class OptimalControlSolver(Solver):
             The optimal solution of the run.
     """
 
-    form: ClassVar[Form] = Form.ODE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
     objective: Cost | None
     terminal: Cost
     sense: str
@@ -293,31 +298,25 @@ class OptimalControlSolver(Solver):
         cost = self._cost(times, states, controls, p)
         return ControlSolution(times, full, dict(costates or {}), cost, iterations)
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator, which the solver does not use.
-
-            until:
-                The end time of the run, the horizon of the objective, which must be finite.
-
         Raises:
             SolverError:
                 The problem is not an ODE, or has no bounded adaptive parameter or laws the solver cannot
                 differentiate symbolically, or the run has no end.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         control_problem = _ControlProblem.of(problem, cast('Cost', self.objective), self.terminal, self.sense)
-        if not math.isfinite(until):
+        if not math.isfinite(self.until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
             raise SolverError(error_msg)
         self.control_problem_ = control_problem
-        self.horizon_ = float(until)
+        self.horizon_ = float(self.until)
         self.rates_ = control_problem.function(control_problem.rates)
         self.running_ = control_problem.function([control_problem.running])
         self.terminal_ = control_problem.function([control_problem.terminal])

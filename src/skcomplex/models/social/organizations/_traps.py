@@ -13,8 +13,8 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import distributed_delay, lookup, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 

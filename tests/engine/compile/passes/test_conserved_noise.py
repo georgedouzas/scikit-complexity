@@ -10,8 +10,9 @@ from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import PassCompiler, compile_system
-from skcomplex.engine.problems import NoiseKind, symbol
+from skcomplex.engine.problems import NoiseKind
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 from skcomplex.errors import ValidationError
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
@@ -134,6 +135,6 @@ def test_validate_accepts_conserved_noise_on_lattice():
 
 def test_declared_conserved_support():
     """Test that Euler-Maruyama and Heun declare conserved noise and Milstein does not."""
-    assert NoiseKind.CONSERVED in EulerMaruyamaSolver.supports.noise
-    assert NoiseKind.CONSERVED in HeunSolver.supports.noise
-    assert NoiseKind.CONSERVED not in MilsteinSolver.supports.noise
+    assert NoiseKind.CONSERVED in EulerMaruyamaSolver._get_support().noise
+    assert NoiseKind.CONSERVED in HeunSolver._get_support().noise
+    assert NoiseKind.CONSERVED not in MilsteinSolver._get_support().noise

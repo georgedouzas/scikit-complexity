@@ -5,7 +5,6 @@
 
 import math
 from abc import abstractmethod
-from typing import ClassVar
 
 import numpy as np
 
@@ -30,34 +29,38 @@ class CaputoSolver(Solver):
     a new history from the changed state, and a change of a state of order 1 carries on.
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
-        orders=set(OrderKind),
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
+            orders=set(OrderKind),
+        )
 
-    form: ClassVar[Form] = Form.FRACTIONAL
-    forms: ClassVar[frozenset[Form]] = frozenset({Form.ODE})
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.FRACTIONAL
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    @classmethod
+    def _get_forms(cls) -> frozenset[Form]:
+        """Return the other forms the solver also solves."""
+        return frozenset({Form.ODE})
+
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem.
 
         Args:
             problem:
                 The compiled problem of the fractional form, or of the ODE form whose states all have order 1.
 
-            rng:
-                The random number generator.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         if problem.delays or problem.events:
             error_msg = f'{type(self).__name__} does not integrate delays or events.'
             raise SolverError(error_msg)

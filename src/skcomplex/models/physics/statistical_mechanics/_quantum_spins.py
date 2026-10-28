@@ -16,9 +16,9 @@ from ....core.laws import DissipatorLaw, GeneratorLaw
 from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec
+from ..._catalog import register_model
 from ..common.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')

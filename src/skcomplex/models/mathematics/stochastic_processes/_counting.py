@@ -14,9 +14,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw, RuleLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class PoissonCounterElement(Element):

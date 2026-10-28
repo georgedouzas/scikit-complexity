@@ -16,9 +16,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, ExtremalLaw
 from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),

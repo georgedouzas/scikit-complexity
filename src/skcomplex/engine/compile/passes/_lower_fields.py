@@ -12,15 +12,13 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
 from ....types import Terms
-from ...problems import (
-    Reference,
-    Source,
-)
+from ...problems._linear_term import OPERATORS, LinearTerm
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._field_splitting import OPERATORS, LinearTerm
 from .._kernel_spec import KernelSpec
 
 
@@ -56,7 +54,7 @@ class LowerFieldsPass(BasePass):
             if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
                 continue
             for reference in KernelSpec._target_references(law._get_targets()[0], spec):
-                if reference.entry.name in places and reference.source is Source.MEMBER:
+                if reference.entry.name in places and reference.source is ReadKind.MEMBER:
                     terms += LowerFieldsPass._linear_terms(law.value, reference, spec.references, places)
         return terms
 
@@ -170,7 +168,7 @@ class LowerFieldsPass(BasePass):
         states = {
             item: reference
             for item, reference in references.items()
-            if reference.is_state and reference.source is Source.MEMBER and reference.entry.name in fields
+            if reference.is_state and reference.source is ReadKind.MEMBER and reference.entry.name in fields
         }
         expanded = SR(value).expand()
         parts = expanded.operands() if LowerFieldsPass._name_of(expanded.operator()) == 'add_vararg' else [expanded]

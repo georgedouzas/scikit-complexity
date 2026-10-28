@@ -16,10 +16,13 @@ from ....core.laws.utils import Draw, draws_in, reductions_in
 from ....core.laws.utils._draws import DRAWS
 from ....errors import ValidationError
 from ....types import Indices
-from ...problems import Problem, Reference, Source, components_of, numpy_function, symbol, symbols_of
+from ..._utils import components_of, symbol, symbols_of
+from ...problems import ExpressionPrinter, Problem
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
+from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
 from .._bound_renewal import BoundRenewal
-from .._compiled_renewal import _READ_SOURCES, CompiledRenewal, _MemberFunction, _Sampler
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
@@ -53,7 +56,7 @@ class RenewalProblemPass(BasePass):
         renewals: list[BoundRenewal],
         time: Expression,
         owners: frozenset[str] | None,
-    ) -> tuple[CompiledRenewal, ...]:
+    ) -> tuple[RenewalKernel, ...]:
         """Return the renewal laws of the components a problem holds, compiled for their members."""
         return tuple(
             RenewalProblemPass._compile_renewal(
@@ -123,7 +126,7 @@ class RenewalProblemPass(BasePass):
         references: dict[Expression, Reference],
         slots: dict[Expression, str],
         time: Expression,
-    ) -> _MemberFunction:
+    ) -> MemberFunction:
         """Return the function of renewing members that evaluates expressions, after checking the symbols they read."""
         arguments = sorted(symbols_of(list(expressions)) - {time}, key=str)
         readers: list[Reference | str] = []
@@ -139,7 +142,8 @@ class RenewalProblemPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             readers.append(reference)
-        return _MemberFunction(numpy_function(time, arguments, list(expressions)), tuple(readers))
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
+        return printer.run(list(expressions)), tuple(readers)
 
     @staticmethod
     def _ordered(found: list[Draw]) -> list[Draw]:
@@ -163,7 +167,7 @@ class RenewalProblemPass(BasePass):
             owned = reference.entry.name.rpartition('.')[0] == group
             if not reference.is_state or reference.source not in _READ_SOURCES or not owned:
                 continue
-            flat = reference.flat_indices if reference.source is Source.MEMBER else np.asarray([reference.index])
+            flat = reference.flat_indices if reference.source is ReadKind.MEMBER else np.asarray([reference.index])
             if flat.size != rows:
                 continue
             name = (
@@ -190,13 +194,13 @@ class RenewalProblemPass(BasePass):
                     f'A renewal law of {owner} resets {item}, which is not a state of an element or a group member.'
                 )
                 raise ValidationError(error_msg)
-            if reference.source is Source.SINGLE and rows > 1:
+            if reference.source is ReadKind.SINGLE and rows > 1:
                 error_msg = (
                     f'A renewal law of {owner} resets {item}, a state of a single element, while its members renew on '
                     'their own clocks. Reset the states of the renewing members.'
                 )
                 raise ValidationError(error_msg)
-            flat = reference.flat_indices if reference.source is Source.MEMBER else np.asarray([reference.index])
+            flat = reference.flat_indices if reference.source is ReadKind.MEMBER else np.asarray([reference.index])
             places.append(np.asarray(flat, dtype=np.intp))
         return np.asarray(places, dtype=np.intp).reshape(len(places), rows)
 
@@ -211,7 +215,7 @@ class RenewalProblemPass(BasePass):
         label: str,
         group: str,
         counts: Indices,
-    ) -> CompiledRenewal:
+    ) -> RenewalKernel:
         """Return a renewal law compiled for the members of its component.
 
         Args:
@@ -281,9 +285,9 @@ class RenewalProblemPass(BasePass):
         calls = {item.call: slots[item.name] for item in [*first.values(), *later.values()]}
         names = {slot: name for name, slot in slots.items()}
 
-        def samplers(found: dict[str, Draw]) -> tuple[_Sampler, ...]:
+        def samplers(found: dict[str, Draw]) -> tuple[Sampler, ...]:
             return tuple(
-                _Sampler(
+                (
                     item,
                     RenewalProblemPass._member_function(
                         owner, [SR(arg).subs(calls) for arg in item.arguments], references, names, time,
@@ -293,7 +297,7 @@ class RenewalProblemPass(BasePass):
             )
 
         lowered = [item.subs(calls) for item in values]
-        return CompiledRenewal(
+        return RenewalKernel(
             label=label,
             members=rows,
             counts=counts,
@@ -304,4 +308,4 @@ class RenewalProblemPass(BasePass):
             waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
             before=samplers(first),
             after=samplers(later),
-        )
+        ).check()

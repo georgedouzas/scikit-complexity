@@ -11,8 +11,8 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ..problems import Problem, Reference
-from ..problems._reference import Search
+from ..problems import Problem
+from ..problems._reference import Reference, Search
 from ._set_symbol import SetSymbol
 
 

@@ -12,9 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import CollocationSolver
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 MAX_EFFORT = 1.0
 

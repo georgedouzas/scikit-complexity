@@ -17,9 +17,9 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class NodeContentElement(Element):

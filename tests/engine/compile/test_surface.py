@@ -4,7 +4,7 @@ import inspect
 
 from skcomplex.engine import compile as package
 
-FUNCTIONS = {'compile_system', 'distribution_from', 'members_from'}
+FUNCTIONS = {'compile_system'}
 
 
 def test_public_names_are_classes_or_compile_system():

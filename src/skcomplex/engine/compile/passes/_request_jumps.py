@@ -7,10 +7,10 @@ from typing import cast
 
 from ....core.laws import BaseLaw, JumpLaw
 from ....specs import TopologyRequestSpec
+from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Laws
 from .._kernel_spec import KernelSpec
-from .._topology import Topology
 
 
 class RequestJumpsPass(BasePass):
@@ -41,7 +41,7 @@ class RequestJumpsPass(BasePass):
         for spec, laws in specs:
             kept: list[BaseLaw] = []
             for law in laws:
-                request = Topology._request_of(law) if isinstance(law, JumpLaw) else None
+                request = TopologyKernel._request_of(law) if isinstance(law, JumpLaw) else None
                 if not isinstance(law, JumpLaw) or request is None:
                     kept.append(law)
                     continue

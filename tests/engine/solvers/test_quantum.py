@@ -1,6 +1,5 @@
 """Test the `QuantumSolver` class."""
 
-import numpy as np
 import pytest
 
 from skcomplex.core.system import System
@@ -12,4 +11,4 @@ from skcomplex.errors import SolverError
 def test_quantum_solvers_reject_classical_problems():
     """Test that a quantum solver refuses a classical problem."""
     with pytest.raises(SolverError):
-        LindbladSolver().prepare(compile_system(System()), np.random.default_rng(0))
+        LindbladSolver(random_state=0).check().prepare(compile_system(System()))

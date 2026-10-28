@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+import math
 
 import numpy as np
 import numpy.typing as npt
@@ -101,7 +102,10 @@ class PontryaginSolver(OptimalControlSolver):
         -0.762
     """
 
-    supports: ClassVar[SupportSpec] = _CONTROL_SUPPORT
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return _CONTROL_SUPPORT
 
     def __init__(
         self,
@@ -113,6 +117,8 @@ class PontryaginSolver(OptimalControlSolver):
         relaxation: float = 0.5,
         tolerance: float = 1e-6,
         max_iterations: int = 1000,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.objective = objective
         self.terminal = terminal
@@ -121,6 +127,8 @@ class PontryaginSolver(OptimalControlSolver):
         self.relaxation = relaxation
         self.tolerance = tolerance
         self.max_iterations = max_iterations
+        self.random_state = random_state
+        self.until = until
 
     def _check(self) -> None:
         """Raise an error for a missing objective, an unknown sense, too few nodes, or a bad relaxation.

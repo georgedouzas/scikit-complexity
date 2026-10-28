@@ -7,10 +7,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ...types import Array
+from ..problems import BaseValue
 
 
 @dataclass(frozen=True)
-class LammpsFix:
+class LammpsFix(BaseValue):
     """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
 
     Args:

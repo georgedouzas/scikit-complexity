@@ -19,7 +19,7 @@ from ....core.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
 from ....specs import WienerProcessSpec
 from ....types import ProcessKey
-from ...problems import components_of
+from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations

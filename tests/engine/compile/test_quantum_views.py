@@ -11,8 +11,8 @@ from skcomplex.core.elements import LatticeElement
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
-from skcomplex.engine.compile import LocalOperator, Operator, QuantumView
-from skcomplex.engine.problems import symbol
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import LocalOperator, Operator, QuantumView
 from skcomplex.errors import ValidationError
 from skcomplex.models.physics.common.quantum import (
     ModeElement,

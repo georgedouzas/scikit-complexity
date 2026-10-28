@@ -14,10 +14,10 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.laws.utils import pulse_train
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 PATIENT_FACTORS = {

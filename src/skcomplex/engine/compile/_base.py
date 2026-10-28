@@ -6,21 +6,19 @@
 import copy
 import dataclasses
 import functools
-import inspect
-from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Self, cast
 
 from sage.all__sagemath_symbolics import Expression
-from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseConfig
 from ...core.laws import BaseLaw
-from ...core.laws.utils import Call
 from ...core.system import System
 from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
 from ...specs import ObservableSpec
-from ..backends import BaseBackend
+from ..backends import BaseBackend, NumbaBackend, NumpyBackend
+from ..backends._base import _AUTO_MEMBERS
 from ..problems import BaseProblem
 from ._issue import Issue
 from ._validation_report import ValidationReport
@@ -198,6 +196,33 @@ class BaseCompiler(BaseConfig):
         return self._compile(dict(inputs or {}))
 
     @staticmethod
+    def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
+        """Return the backend passed, or the backend that suits the size of a system when none is passed.
+
+        Without a backend, `NumbaBackend` runs systems whose groups hold at least 1000 members in total, and
+        `NumpyBackend` the others.
+
+        Args:
+            backend:
+                The backend instance, or `None`.
+
+            members:
+                The total number of members of the system's groups.
+
+        Returns:
+            backend:
+                The checked backend passed, or a new checked backend.
+
+        Examples:
+            >>> from skcomplex.engine.compile import BaseCompiler
+            >>> type(BaseCompiler._resolve_backend(None, 10)).__name__
+            'NumpyBackend'
+        """
+        if backend is not None:
+            return backend.check()
+        return (NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()).check()
+
+    @staticmethod
     def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
         """Return the value of an expression of an element's namespace and the time, read from its system."""
         return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
@@ -369,56 +394,6 @@ class BasePass(BaseConfig):
             -2*x
         """
         return type(law)(**{**law.get_params(deep=False), **changes})
-
-    @staticmethod
-    def _values_of(
-        law: BaseLaw, *, include: Collection[str] | None = None, exclude: Collection[str] = (),
-    ) -> list[object]:
-        """Return the values of the arguments of a law besides its label, flattened in the order of its constructor.
-
-        A call gives its arguments, a mapping its keys and values in pairs, and a vector, a list, or a tuple its items,
-        at any depth. Every other value is returned as it is.
-
-        Args:
-            law:
-                The law.
-
-            include:
-                The names of the arguments to read, or `None` for every argument.
-
-            exclude:
-                The names of the arguments to leave out.
-
-        Returns:
-            values:
-                The flattened values.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.laws import JumpLaw
-            >>> from skcomplex.engine.compile import BasePass
-            >>> s, i = var('s'), var('i')
-            >>> BasePass._values_of(JumpLaw(0.1 * s * i, {s: -1, i: 1}), include=('rate',))
-            [0.1*i*s]
-        """
-        names = [
-            name
-            for name in inspect.signature(type(law)).parameters
-            if name != 'label' and (include is None or name in include) and name not in exclude
-        ]
-        stack: list[object] = [getattr(law, name) for name in reversed(names)]
-        found: list[object] = []
-        while stack:
-            value = stack.pop()
-            if isinstance(value, Mapping):
-                stack += reversed([item for pair in value.items() for item in pair])
-            elif isinstance(value, FreeModuleElement | list | tuple):
-                stack += reversed(list(value))
-            elif isinstance(value, Call):
-                stack += reversed(value.arguments)
-            else:
-                found.append(value)
-        return found
 
     @staticmethod
     def _calls_of(expression: Expression, name: str) -> list[Expression]:

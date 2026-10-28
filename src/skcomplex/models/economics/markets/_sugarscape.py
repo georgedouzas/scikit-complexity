@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 
 PEAKS = ((0.3, 0.3), (0.7, 0.7))

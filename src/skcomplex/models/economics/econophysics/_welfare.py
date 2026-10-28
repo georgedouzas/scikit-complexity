@@ -18,8 +18,8 @@ from ....core.laws import BaseLaw, EncounterLaw
 from ....core.laws.utils import moment, total
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
 

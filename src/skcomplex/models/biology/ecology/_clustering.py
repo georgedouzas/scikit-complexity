@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, JumpLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:

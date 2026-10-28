@@ -92,5 +92,3 @@ class PlanPass(BasePass):
         found = list(solvers or ())
         partitions, issues = PlanPass._planned(census.system, _Owners(declared, dict(kinds), found))
         return _Plan(tuple(partitions), tuple(issues))
-
-

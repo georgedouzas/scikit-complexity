@@ -17,9 +17,9 @@ from ....core.laws.utils import divergence, gradient, laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _active_model_b_laws(s: SimpleNamespace) -> list[BaseLaw]:

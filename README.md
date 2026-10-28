@@ -137,7 +137,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 

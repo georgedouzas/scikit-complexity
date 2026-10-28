@@ -1,24 +1,31 @@
-"""Test that the public names of the runtime package are its classes, values, and the functions its clients use."""
+"""Test that the public names of the runtime package are classes, and that it resolves no model name."""
 
 import inspect
 
+import pytest
+
 from skcomplex.engine import runtime as package
+from skcomplex.errors import ValidationError
 
-FUNCTIONS = {'catalog', 'create', 'describe', 'register_model', 'run', 'summarize'}
-VALUES = {'MODELS'}
+CATALOG_NAMES = {'MODELS', 'ModelEntry', 'catalog', 'create', 'describe', 'register_model', 'run', 'summarize'}
 
 
-def test_public_names_are_classes_values_or_functions():
-    """Every public name is a class, a value a client reads, or one of the kept functions."""
+def test_public_names_are_classes():
+    """Every public name is a class."""
     for name in package.__all__:
-        assert inspect.isclass(getattr(package, name)) or name in FUNCTIONS | VALUES, name
+        assert inspect.isclass(getattr(package, name)), name
 
 
-def test_kept_functions_are_public():
-    """Every kept function is public and callable."""
-    for name in FUNCTIONS:
-        assert name in package.__all__
-        assert callable(getattr(package, name))
+def test_no_catalog_in_the_engine():
+    """No public name registers, lists, describes, creates, or runs models by name."""
+    assert not CATALOG_NAMES & set(package.__all__)
+    assert not CATALOG_NAMES & set(dir(package))
+
+
+def test_simulation_rejects_a_model_name():
+    """A simulation of a model name raises an error that says to create the model with the models library."""
+    with pytest.raises(ValidationError, match=r'takes a system or a compiled problem, not .sir.\. Create a model'):
+        package.Simulation('sir').check()
 
 
 def test_classes_derive_from_a_base_of_the_package():

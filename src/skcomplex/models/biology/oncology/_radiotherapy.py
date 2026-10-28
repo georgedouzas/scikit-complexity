@@ -14,8 +14,8 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.laws.utils import pulse_train, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

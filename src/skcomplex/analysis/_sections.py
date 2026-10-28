@@ -9,7 +9,8 @@ from typing import Self
 
 import numpy as np
 
-from ..engine.problems import CompiledEvent, EventRecord, Form, Problem
+from ..engine.problems import EventRecord, Form, Problem
+from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
@@ -176,7 +177,7 @@ class SectionAnalysis(BaseAnalysis):
             return float(x[index] - value)
 
         transient = self.transient if self.transient is not None else 0.0
-        event = CompiledEvent(SECTION, guard, None, int(self.direction), False)
+        event = EventKernel(SECTION, guard, None, int(self.direction), False).check()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
             Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state).check()

@@ -10,7 +10,7 @@ from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import step_count
+from skcomplex.engine.problems._steps import step_count
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -18,6 +18,7 @@ from skcomplex.engine.solvers import (
     IterationSolver,
     MilsteinSolver,
     RK4Solver,
+    Step,
     VelocityVerletSolver,
 )
 from skcomplex.errors import SolverError
@@ -76,7 +77,7 @@ def _growth_problem():
 def test_stepper_wrong_form_raises_error():
     """Test that a stepper refuses a problem of another form."""
     with pytest.raises(SolverError, match='jump process form'):
-        GillespieSolver().prepare(_growth_problem(), np.random.default_rng(0))
+        GillespieSolver(random_state=0).check().prepare(_growth_problem())
 
 
 @pytest.mark.parametrize(
@@ -119,8 +120,8 @@ def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
     for backend in (NumpyBackend(), NumbaBackend()):
         problem = compile_system(_system(kind), backend=backend)
         rng = np.random.default_rng(0)
-        stepper.prepare(problem, rng)
-        states.append(stepper.run(0.1, problem.initial_state, problem.initial_parameters, 3.4))
+        stepper.set_params(random_state=rng).check().prepare(problem)
+        states.append(stepper.run(Step(0.1, problem.initial_state, problem.initial_parameters, 3.4)))
         generators.append(rng.bit_generator.state)
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)
     assert generators[0] == generators[1]

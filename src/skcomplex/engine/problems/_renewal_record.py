@@ -9,10 +9,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ...types import Array
+from ._base import BaseRecord
 
 
 @dataclass(frozen=True)
-class RenewalRecord:
+class RenewalRecord(BaseRecord):
     """Renewals of one renewal law that fired in one pass, each at the time of its member.
 
     Args:

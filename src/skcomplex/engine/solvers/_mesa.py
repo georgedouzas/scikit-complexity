@@ -6,7 +6,7 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import mesa
 import networkx as nx
@@ -22,20 +22,12 @@ from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpac
 from ...errors import ConservationError, SimulationError, SpaceError
 from ...specs import PhaseSpec, PhasesScheduleSpec
 from ...types import Array
+from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
-from ..problems import (
-    CompiledAgents,
-    Form,
-    OrderKind,
-    Problem,
-    SupportSpec,
-    VariableKind,
-    declarations_of,
-    default_of,
-)
+from ..problems import CompiledAgents, Form, OrderKind, Problem, SupportSpec, VariableKind
 from ._agent_snapshot import AgentSnapshot
 from ._agent_state import AgentState
-from ._solver import Solver
+from ._external import ExternalSolver
 
 _DEFAULT_PHASE = 'default'
 
@@ -649,7 +641,7 @@ class AgentView:
         return np.asarray([getattr(self, f'{state}_lag{index}') for index in range(lags, 0, -1)], dtype=float)
 
 
-class MesaSolver(Solver):
+class MesaSolver(ExternalSolver):
     """Mesa backend of agent-based problems, one Mesa step per unit of time.
 
     The agents are the members of the elements and groups whose laws include `RuleLaw`s, and of the variable groups.
@@ -688,38 +680,51 @@ class MesaSolver(Solver):
         [4.0, 4.0, 4.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={DiscreteTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
-        laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={DiscreteTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
+            laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.AGENT
-    reads_inputs: ClassVar[bool] = True
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.AGENT
+
+    @classmethod
+    def _reads_inputs(cls) -> bool:
+        """Return whether the solver reads the inputs of other partitions."""
+        return True
 
     def _seed(self) -> int:
         """Return a seed for Mesa drawn from the stepper's random number generator."""
         return int(self.rng_.integers(0, MAX_SEED))
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the library the solver wraps."""
+        return 'Mesa'
+
+    def _unsupported(self, problem: Problem) -> list[str]:
+        """Return nothing, since Mesa runs every agent-based problem."""
+        del problem
+        return []
+
+    def _build(self, problem: Problem) -> None:
         """Build the Mesa model of an agent-based problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that seeds Mesa.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem is not agent-based.
         """
-        super()._prepare(problem, rng, until)
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: dict[str, Any] = {}
         self.deposits_ = np.zeros(problem.states.size)

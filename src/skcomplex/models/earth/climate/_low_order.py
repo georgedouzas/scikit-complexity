@@ -13,8 +13,8 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _lorenz_96_laws(s: SimpleNamespace) -> list[BaseLaw]:

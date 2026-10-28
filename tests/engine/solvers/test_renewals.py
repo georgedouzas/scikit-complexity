@@ -302,7 +302,7 @@ def test_stepper_rejects_renewals_it_does_not_fire():
     """Test that a stepper without renewals names the steppers that fire them."""
     problem = compile_system(System(elements=[FlierElement('f')]))
     with pytest.raises(SolverError, match=r'ScipyODESolver does not fire renewal laws. Use RK4Solver'):
-        ScipyODESolver().prepare(problem, np.random.default_rng(0))
+        ScipyODESolver(random_state=0).check().prepare(problem)
 
 
 def test_renewal_stepper_solves_the_renewal_form():

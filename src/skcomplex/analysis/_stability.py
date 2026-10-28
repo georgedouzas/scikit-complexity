@@ -18,7 +18,8 @@ from ..core.elements import FieldElement
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
-from ..engine.problems import Form, Problem, VariableKind, components_of, declarations_of, symbol
+from ..engine._utils import components_of, declarations_of, symbol
+from ..engine.problems import Form, Problem, VariableKind
 from ..errors import AnalysisError
 from ..types import Array, Point
 from ._base import BaseAnalysis, Source

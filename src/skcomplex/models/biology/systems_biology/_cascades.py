@@ -15,9 +15,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 

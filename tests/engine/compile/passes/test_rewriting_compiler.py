@@ -14,8 +14,9 @@ from skcomplex.core.elements import HostGraphElement, PatchElement, WordElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PatchStructure, RewritingCompiler, WordStructure, compile_system
-from skcomplex.engine.problems import Form, symbol
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.compile import RewritingCompiler, compile_system
+from skcomplex.engine.problems import Form, PatchStructure, WordStructure
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
 from skcomplex.errors import IncompatibleLawsError, RewritingError, ValidationError
@@ -270,9 +271,9 @@ def test_benchmark_of_a_large_word():
         System(elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])]),
     )
     compiled = problem.rewriting[0]
-    word = WordStructure(compiled.names, np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
+    word = WordStructure(tuple(compiled.names), np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
-    rewritten = compiled.rewrite(word, problem.initial_parameters, np.random.default_rng(0))
+    rewritten = compiled._rewrite(word, problem.initial_parameters, np.random.default_rng(0))
     assert time.perf_counter() - start < 0.1
     assert len(rewritten) == 8 * 10**6
 

@@ -14,10 +14,15 @@ Kosterlitz-Thouless temperature, near 0.89, free vortices proliferate.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.problems import wrap_angle
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+
+
+def wrap_angle(angles):
+    """Return angles in `(-pi, pi]`."""
+    return np.angle(np.exp(1j * np.asarray(angles)))
+
 
 MODEL = 'xy'
 

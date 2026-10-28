@@ -13,9 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, RoleSpec, WienerProcessSpec
+from ..._catalog import register_model
 from ._assets import AssetElement
 
 

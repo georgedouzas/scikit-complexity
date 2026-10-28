@@ -8,10 +8,11 @@ from dataclasses import dataclass
 
 from ...core.elements import Element, GroupElement
 from ...specs import VisualSpec
+from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class CompiledElement:
+class CompiledElement(BaseValue):
     """Element or group of a compiled problem with the dotted names of its variables.
 
     Args:

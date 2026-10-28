@@ -10,7 +10,8 @@ from scipy.optimize import brentq
 
 from ...errors import SolverError
 from ...types import Array, Interpolant
-from ..problems import CompiledEvent, EventRecord, Problem, Record
+from ..problems import BaseRecord, EventRecord, Problem, State
+from ..problems._event_kernel import EventKernel
 
 SEPARATION = 1e-10
 
@@ -25,7 +26,7 @@ class EventLocator:
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        self.records: list[Record] = []
+        self.records: list[BaseRecord] = []
         self.stopped_at: float | None = None
         self._last: dict[str, float] = {}
 
@@ -89,7 +90,7 @@ class EventLocator:
 
     @staticmethod
     def _past_root(
-        event: CompiledEvent,
+        event: EventKernel,
         g0: float,
         t0: float,
         t1: float,
@@ -143,7 +144,7 @@ class EventLocator:
             )
             raise SolverError(error_msg)
         self._last[event.label] = time
-        after = event.reset(time, state, p) if event.reset is not None else state.copy()
+        after = event.run(State(time, state, p))
         self.records.append(EventRecord(event.label, time, state.copy(), after.copy()))
         if event.terminal:
             self.stopped_at = time

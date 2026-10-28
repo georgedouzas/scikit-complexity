@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
-from ._lattice_state import LatticeState
+from ..problems._lattice_state import LatticeState
 
 
 @dataclass(frozen=True)

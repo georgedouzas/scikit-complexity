@@ -16,9 +16,9 @@ from ....core.elements import Element
 from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 RAMAN = 'Raman 2021'
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)

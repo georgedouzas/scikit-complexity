@@ -13,8 +13,8 @@ from ....core.elements import Element
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class ListenersElement(Element):

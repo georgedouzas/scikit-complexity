@@ -7,8 +7,8 @@ import math
 
 import numpy as np
 
-from ...types import Array, Step
-from ..problems import Problem
+from ...types import Array, StepFunction
+from ..problems import Problem, State
 from ._event_locator import EventLocator
 
 
@@ -56,7 +56,7 @@ class RenewalClock:
                 The parameter vector.
         """
         if not self.following:
-            self.following = [law.start(t, x, p, self.rng) for law in self.problem.renewals]
+            self.following = [law.run(State(t, x, p, self.rng)) for law in self.problem.renewals]
 
     def earliest(self) -> float:
         """Return the earliest pending renewal time of any member.
@@ -76,7 +76,7 @@ class RenewalClock:
             due = np.flatnonzero((times <= limits[index]) & (times <= first))
             if not due.size:
                 continue
-            state, following, record = law.fire(times[due], due, state, p, self.rng)
+            state, following, record = law._fire(times[due], due, state, p, self.rng)
             times[due] = following
             self.locator.records.append(record)
             fired = True
@@ -113,7 +113,7 @@ class RenewalClock:
                 stops[law.states] = np.minimum(stops[law.states], np.minimum(times, end)[:, np.newaxis])
         return stops
 
-    def advance_members(self, t: float, end: float, x: Array, p: Array, step: Step) -> Array:
+    def advance_members(self, t: float, end: float, x: Array, p: Array, step: StepFunction) -> Array:
         """Advance members that do not interact, each with its own steps that end at its renewals.
 
         Args:
@@ -152,7 +152,7 @@ class RenewalClock:
             ]
             state, _ = self._fire_pass(limits, state, p)
 
-    def advance_split(self, t: float, end: float, x: Array, p: Array, step: Step) -> Array:
+    def advance_split(self, t: float, end: float, x: Array, p: Array, step: StepFunction) -> Array:
         """Advance interacting members together, splitting the step at every renewal time inside it.
 
         Args:

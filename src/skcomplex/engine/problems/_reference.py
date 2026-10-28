@@ -11,14 +11,15 @@ import numpy as np
 
 from ...errors import ValidationError
 from ...types import Array, Indices
+from ._base import BaseValue
 from ._edge_search import EdgeSearch
 from ._entry import Entry
 from ._pair_search import PairSearch
-from ._source import Source
+from ._read_kind import ReadKind
 
 
 @dataclass(frozen=True)
-class Reference:
+class Reference(BaseValue):
     """Component of a state or parameter that a symbol stands for.
 
     Args:
@@ -42,7 +43,7 @@ class Reference:
     entry: Entry
     is_state: bool
     column: int
-    source: Source = Source.SINGLE
+    source: ReadKind = ReadKind.SINGLE
     neighbor: Any = field(default=None, compare=False, repr=False)
 
     @functools.cached_property
@@ -70,7 +71,7 @@ class Reference:
                 A view with one value per member, or with the one value of a single read.
         """
         vector = x if self.is_state else p
-        if self.source is Source.SINGLE:
+        if self.source is ReadKind.SINGLE:
             return vector[self.index : self.index + 1]
         return vector[self.members]
 
@@ -96,15 +97,15 @@ class Reference:
             pairs:
                 The pairs of a pair kernel, or `None` in member mode.
         """
-        if target.source is Source.SINGLE:
+        if target.source is ReadKind.SINGLE:
             output[target.index] += values.sum()
             return
         column = output[target.members]
-        if target.source is Source.MEMBER:
+        if target.source is ReadKind.MEMBER:
             column += values
         else:
             assert pairs is not None
-            np.add.at(column, pairs[0] if target.source is Source.FIRST else pairs[1], values)
+            np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
 
     @staticmethod
     def _assign_into(output: Array, target: 'Reference', values: Array) -> None:
@@ -120,7 +121,7 @@ class Reference:
             values:
                 One value per evaluation index.
         """
-        if target.source is not Source.MEMBER:
+        if target.source is not ReadKind.MEMBER:
             output[target.index] = values[0]
             return
         output[target.members] = values
@@ -143,18 +144,18 @@ class Reference:
             ValidationError:
                 A target of an end of an edge lies on a network whose edges change.
         """
-        if self.source is Source.MEMBER:
+        if self.source is ReadKind.MEMBER:
             return self.flat_indices
-        if self.source in {Source.FIRST, Source.SECOND} and isinstance(pairs, EdgeSearch):
+        if self.source in {ReadKind.FIRST, ReadKind.SECOND} and isinstance(pairs, EdgeSearch):
             if pairs.source is not None:
                 error_msg = (
                     f'A law targets {self.entry.name} at an end of the edges of a network whose edges change, whose '
                     'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
                 )
                 raise ValidationError(error_msg)
-            ends = pairs.sources if self.source is Source.FIRST else pairs.targets
+            ends = pairs.sources if self.source is ReadKind.FIRST else pairs.targets
             return (self.entry.start + ends * self.entry.columns + self.column).astype(np.intp)
-        if self.source is Source.NEIGHBOR:
+        if self.source is ReadKind.NEIGHBOR:
             table = np.asarray(self.neighbor.table, dtype=np.intp)
             inside = table < self.entry.rows
             flat = self.entry.start + table * self.entry.columns + self.column

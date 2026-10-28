@@ -14,8 +14,8 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import lookup, step, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 from ._delays import delay3, smooth
 
 MONTHS_PER_YEAR = 12.0

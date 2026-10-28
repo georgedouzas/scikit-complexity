@@ -10,12 +10,15 @@ from typing import cast
 from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
-from ...problems import VariableKind, declarations_of
+from ..._utils import declarations_of
+from ...problems import VariableKind
 from .._base import BasePass
 from .._probe import probe_laws
 from .._tree import Node
 
 _MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
+
+
 class AgentsPass(BasePass):
     """Pass that marks the nodes of the elements and groups that run on the agent stepper.
 
@@ -107,5 +110,3 @@ class AgentsPass(BasePass):
         if not isinstance(component, BaseElement):
             return False
         return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
-
-

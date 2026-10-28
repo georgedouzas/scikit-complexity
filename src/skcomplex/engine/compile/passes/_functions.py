@@ -14,23 +14,17 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import BackendWarning
-from ....types import Array
-from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
-from ...problems import (
-    Accelerated,
-    Draws,
-    Form,
-    Kernel,
-    Layout,
-    Lowered,
-    Output,
-    Problem,
-    ReductionSchedule,
-    Source,
-    VectorFunction,
-    wrap_angle,
-)
-from .._base import BasePass
+from ....types import Array, VectorFunction
+from ...backends import BaseBackend, LoweredFunctions, NumpyBackend
+from ...problems import Entry, Form, Layout, Problem, State
+from ...problems._accelerated import Accelerated
+from ...problems._draw_kernel import DrawKernel
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
+from ...problems._output import Output
+from ...problems._read_kind import ReadKind
+from ...problems._reduction_schedule import ReductionSchedule
+from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
@@ -54,15 +48,15 @@ class FunctionsPass(BasePass):
         compilation.functions = self._lower(compilation)
 
     @staticmethod
-    def _sums_over_members(kernel: Kernel, item: Output) -> bool:
+    def _sums_over_members(kernel: LawKernel, item: Output) -> bool:
         """Check whether an output sums over the pairs or the members of a group."""
         if kernel.pairs is not None:
             return True
-        return item.target is not None and item.target.source is Source.SINGLE and kernel.rows > 1
+        return item.target is not None and item.target.source is ReadKind.SINGLE and kernel.rows > 1
 
     @staticmethod
     def _equations_of(
-        kernels: list[Kernel],
+        kernels: list[LawKernel],
         declarations: Declarations,
         form: Form,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
@@ -109,7 +103,7 @@ class FunctionsPass(BasePass):
             """Apply the boundary laws, then wrap the angle states."""
             state = x if boundary is None else boundary(t, x, p)
             state = state.copy()
-            state[indices] = wrap_angle(state[indices])
+            state[indices] = Entry._wrap_angle(state[indices])
             return state
 
         return wrapped
@@ -117,20 +111,23 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseBackend:
         """Return the backend that lowers a form, NumPy for a stepwise form, warning when it is not the one asked."""
-        requested = resolve_backend(compilation.backend, members)
+        requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
-        chosen = NumpyBackend()
-        if compilation.backend is not None and requested.name != chosen.name:
+        chosen = NumpyBackend().check()
+        name, asked = chosen._get_name(), requested._get_name()
+        if compilation.backend is not None and asked != name:
             message = (
-                f'The {form.value} form runs on the {chosen.name} backend, because its solvers evaluate the kernels '
-                f'step by step on {chosen.name} arrays, not on the {requested.name} backend asked for.'
+                f'The {form.value} form runs on the {name} backend, because its solvers evaluate the kernels '
+                f'step by step on {name} arrays, not on the {asked} backend asked for.'
             )
             warnings.warn(message, BackendWarning, stacklevel=2)
         return chosen
 
     @staticmethod
-    def _backends_of(form: Form, kernels: Mapping[type, list[Kernel]], name: str, lowering: Lowering) -> dict[str, str]:
+    def _backends_of(
+        form: Form, kernels: Mapping[type, list[LawKernel]], name: str, lowering: LoweredFunctions,
+    ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
         backends = {form.name: name}
         backends.update({cast('type', kind).__name__: name for kind, items in kernels.items() if items})
@@ -141,7 +138,7 @@ class FunctionsPass(BasePass):
     def _lower(compilation: Compilation) -> dict[str, object]:
         """Return the numeric functions and equations of a form, the update of a stochastic map taking a generator."""
         form = cast('Form', compilation.form)
-        lowered = cast('Lowered', compilation.kernels)
+        lowered = cast('LoweredKernels', compilation.kernels)
         declarations = cast('Declarations', compilation.layout)
         reductions = cast('ReductionSchedule', compilation.reductions)
         drawing = cast('DrawLowering', compilation.drawing)
@@ -150,10 +147,8 @@ class FunctionsPass(BasePass):
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         draws = drawing.draws_
-        lowering = cast(
-            'Lowering',
-            backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
-        )
+        complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
+        lowering = cast('LoweredFunctions', backend.prepare().run(complete))
         functions: dict[str, object] = vars(lowering).copy()
         if draws is not None and functions.get('update') is not None:
             functions['update'] = FunctionsPass._stochastic_update(
@@ -162,8 +157,8 @@ class FunctionsPass(BasePass):
         accelerated = cast('Accelerated | None', functions.get('accelerated'))
         if draws is not None and draws.sampled and accelerated is not None:
             functions['accelerated'] = replace(accelerated, iterate=None)
-        functions['backend'] = backend.name
-        functions['backends'] = FunctionsPass._backends_of(form, kernels, backend.name, lowering)
+        functions['backend'] = backend._get_name()
+        functions['backends'] = FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering)
         functions['draws'] = draws
         main = {
             Form.ODE: kernels[RateLaw],
@@ -181,7 +176,7 @@ class FunctionsPass(BasePass):
                 FunctionsPass._sums_over_members(kernel, item) for kernel in main for item in kernel.outputs
             ),
         )
-        states = Layout(declarations.states)
+        states = Layout(tuple(declarations.states))
         functions['boundary'] = FunctionsPass._wrapping_angles(
             cast('VectorFunction | None', functions.get('boundary')),
             states,
@@ -203,7 +198,7 @@ class FunctionsPass(BasePass):
         return form in STEPWISE_FORMS.values()
 
     @staticmethod
-    def _stochastic_update(update: Callable[..., Array], draws: Draws) -> Callable[..., Array]:
+    def _stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:
         """Return the update of a stochastic map, which draws its values from a generator before every step.
 
         Args:
@@ -220,7 +215,7 @@ class FunctionsPass(BasePass):
 
         def stochastic(t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
             extended = draws.extend(p)
-            draws.fill(extended, rng, t, x)
+            draws.run(State(t, x, extended, rng))
             return update(t, x, extended)
 
         return stochastic

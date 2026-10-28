@@ -16,19 +16,16 @@ from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....errors import ValidationError
 from ....types import Array
-from ...problems import (
-    Layout,
-    Reference,
-    Source,
-    VariableKind,
-    declarations_of,
-    numpy_function,
-)
+from ..._utils import declarations_of
+from ...problems import ExpressionPrinter, Layout, VariableKind
+from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
+from ...problems._state import State
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Laws
 from .._declarations import Declarations
-from .._field_volumes import TIME, FiniteVolume
 from .._kernel_spec import KernelSpec
 
 
@@ -48,7 +45,7 @@ class FieldFunctionsPass(BasePass):
         compilation = self.compilation_
         functions = cast('dict[str, Any]', compilation.functions)
         declarations = cast('Declarations', compilation.layout)
-        states = Layout(declarations.states)
+        states = Layout(tuple(declarations.states))
         functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
         blocks = list(declarations.blocks.values())
         volumes, constrained = self._with_discretizations(
@@ -79,7 +76,7 @@ class FieldFunctionsPass(BasePass):
     def _compile_fluxes(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: Declarations,
-    ) -> tuple[FiniteVolume, ...]:
+    ) -> tuple[FiniteVolumeKernel, ...]:
         """Return the conservation laws of every finite-volume field from the flux laws of its component."""
         volumes = []
         for spec, laws in specs:
@@ -187,7 +184,7 @@ class FieldFunctionsPass(BasePass):
         return constrained
 
     @staticmethod
-    def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa: ANN401
+    def _with_volumes(drift: Any, volumes: tuple[FiniteVolumeKernel, ...]) -> Any:  # noqa: ANN401
         """Return the drift with the flux differences of finite-volume fields added."""
         if not volumes or drift is None:
             return drift
@@ -195,7 +192,7 @@ class FieldFunctionsPass(BasePass):
         def conserved(t: float, x: Array, p: Array) -> Array:
             rates = drift(t, x, p)
             for volume in volumes:
-                rates = rates + volume.rates(x, p)
+                rates = rates + volume.run(State(t, x, p))
             return rates
 
         return conserved
@@ -206,7 +203,7 @@ class FieldFunctionsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: Declarations,
         blocks: list[Block],
-    ) -> tuple[tuple[FiniteVolume, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
+    ) -> tuple[tuple[FiniteVolumeKernel, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
         """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning laws and fixed nodes."""
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)
         symmetries = FieldFunctionsPass._symmetries(blocks)
@@ -223,7 +220,7 @@ class FieldFunctionsPass(BasePass):
     def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
         """Return the member symbol of a flux target after checking it is a member state."""
         reference = references.get(target)
-        if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+        if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = f'A flux targets {target}, which is not a state of a field.'
             raise ValidationError(error_msg)
         return target
@@ -234,7 +231,7 @@ class FieldFunctionsPass(BasePass):
         references: Mapping[Expression, Reference],
         place: FieldElement,
         owner: str,
-    ) -> FiniteVolume:
+    ) -> FiniteVolumeKernel:
         """Return the conservation laws of one finite-volume field.
 
         Args:
@@ -292,10 +289,10 @@ class FieldFunctionsPass(BasePass):
             )
             raise ValidationError(error_msg)
         columns = list(zip(*expressions, strict=True))
-        fluxes = tuple(numpy_function(TIME, [*states, *parameters], list(column)) for column in columns)
+        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *parameters])
+        fluxes = tuple(printer.run(list(column)) for column in columns)
         jacobians = tuple(
-            numpy_function(TIME, [*states, *parameters], [value.diff(state) for value in column for state in states])
-            for column in columns
+            printer.run([value.diff(state) for value in column for state in states]) for column in columns
         )
         first = laws[0][0]
         critical: tuple[Callable[..., Any], ...] = ()
@@ -304,15 +301,16 @@ class FieldFunctionsPass(BasePass):
                 error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
                 raise ValidationError(error_msg)
             roots = []
+            critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(parameters)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-                roots.append(numpy_function(TIME, parameters, found) if found else numpy_function(TIME, parameters, []))
+                roots.append(critical_printer.run(found))
             critical = tuple(roots)
         boundaries = tuple(
             (kind, float(value) if not callable(value) else 0.0)
             for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
         )
-        return FiniteVolume(
+        return FiniteVolumeKernel(
             owner,
             tuple(reference.entry.start for _, reference in laws),
             space.shape_,
@@ -324,4 +322,4 @@ class FieldFunctionsPass(BasePass):
             first.limiter,
             first.riemann,
             critical,
-        )
+        ).check()

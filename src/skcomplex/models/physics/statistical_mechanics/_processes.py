@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 BURNING = 2
 BURNT = 3

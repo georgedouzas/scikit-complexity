@@ -4,11 +4,12 @@
 # License: MIT
 
 import functools
+import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import ClassVar, cast
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -23,25 +24,23 @@ from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, Lattice
 from ...core.system import System
 from ...errors import BackendError, SolverError
 from ...types import Array, PairArguments
+from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
 from ..compile import compile_system
 from ..problems import (
     CompiledElement,
     CompiledInteraction,
+    ExpressionPrinter,
     Form,
     NoiseKind,
     OrderKind,
     Problem,
     SupportSpec,
     VariableKind,
-    declarations_of,
-    step_count,
-    symbol,
-    symbols_of,
 )
+from ..problems._steps import step_count
 from ._external import ExternalSolver
 from ._lammps_fix import LammpsFix
-from ._lepton import LeptonPrinter
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
@@ -112,27 +111,46 @@ class LammpsSolver(ExternalSolver):
         True
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-        noise={NoiseKind.DIAGONAL},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            noise={NoiseKind.DIAGONAL},
+            orders={OrderKind.INTEGER},
+        )
 
-    name: ClassVar[str] = 'LAMMPS'
-    form: ClassVar[Form] = Form.ODE
-    forms: ClassVar[frozenset[Form]] = frozenset({Form.ODE, Form.SDE})
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the external library the solver wraps."""
+        return 'LAMMPS'
+
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.ODE
+
+    @classmethod
+    def _get_forms(cls) -> frozenset[Form]:
+        """Return the other forms the solver also solves."""
+        return frozenset({Form.ODE, Form.SDE})
 
     def __init__(
         self,
         dt: float = 0.005,
         pairs: Mapping[type[BaseInteraction], tuple[str, PairArguments]] | None = None,
         fixes: Mapping[type[BaseInteraction], FixCommand] | None = None,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.dt = dt
         self.pairs = pairs
         self.fixes = fixes
+        self.random_state = random_state
+        self.until = until
 
     def _unsupported(self, problem: Problem) -> list[str]:
         """Return the elements and interactions of a problem that LAMMPS cannot run.
@@ -355,15 +373,13 @@ class LammpsSolver(ExternalSolver):
             parameters[entry.indices] = self.parameters_[self.problem_.parameters.entry(entry.name).indices]
         return parameters
 
-    def _build(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _build(self, problem: Problem) -> None:
         """Create the LAMMPS instance, the box, the atoms, and every pair style and fix.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that seeds the thermostats.
         """
         self.atoms_ = self._atoms_of(problem)
         external = self._external_paths(problem)
@@ -590,7 +606,7 @@ class LammpsSolver(ExternalSolver):
                 The energy has symbols other than the distance or functions Lepton does not know.
 
         Examples:
-            >>> from skcomplex.engine.problems import symbol
+            >>> from skcomplex.engine._utils import symbol
             >>> from skcomplex.engine.solvers import LammpsSolver
             >>> x = symbol('x')
             >>> LammpsSolver._lepton_expression(4 * (x**-12 - x**-6), x)
@@ -602,4 +618,5 @@ class LammpsSolver(ExternalSolver):
             names = ', '.join(sorted(map(str, others)))
             error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
             raise BackendError(error_msg)
-        return LeptonPrinter().doprint(expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand())
+        lepton = expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand()
+        return ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton])[1][0]

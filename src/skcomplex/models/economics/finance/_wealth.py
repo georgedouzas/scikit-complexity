@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import count, laplacian, mean
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class SaverElement(Element):

@@ -15,27 +15,18 @@ from ....core.elements import Element, GroupElement, HostGraphElement, PatchElem
 from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ....core.system import System
 from ....errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
-from ...problems import (
-    BaseProblem,
-    CompiledElement,
-    Entry,
-    Form,
-    Layout,
-    VariableKind,
-    contains,
-    declarations_of,
-    symbol,
-)
+from ..._utils import declarations_of, symbol
+from ...problems import BaseProblem, CompiledElement, Entry, Form, Layout, VariableKind
+from ...problems._graph_kernel import GraphKernel
+from ...problems._parameters import Parameters
+from ...problems._patch_kernel import PatchKernel
+from ...problems._rewriting_problem import Compiled, RewritingProblem
+from ...problems._word_kernel import WordKernel
 from .._base import BaseCompiler
-from .._compiled_word import CompiledWord
 from .._issue import Issue
-from .._parameters import Parameters
 from .._tree import Node
-from ._compiled_graph import CompiledGraph
-from ._compiled_patch import CompiledPatch
 from ._flatten import FlattenPass
 from ._problem import ProblemPass
-from ._rewriting_problem import Compiled, RewritingProblem
 
 _LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
 
@@ -154,7 +145,7 @@ class RewritingCompiler(BaseCompiler):
             names = {}
             for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
                 value = node.value_of(name)
-                if np.ndim(value) or not contains(declaration.domain, value):
+                if np.ndim(value) or not Entry._contains(declaration.domain, value):
                     error_msg = (
                         f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
                     )
@@ -188,18 +179,18 @@ class RewritingCompiler(BaseCompiler):
             )
             raise RewritingError(error_msg)
         if kind == 'sequence':
-            return CompiledWord(
+            return WordKernel(
                 node.path,
                 element,
                 [law for law in laws if isinstance(law, ProductionLaw)],
                 parameters,
                 values,
-            )
+            ).check()
         if kind == 'tiling':
-            return CompiledPatch(
+            return PatchKernel(
                 node.path, element, [law for law in laws if isinstance(law, SubstitutionLaw)], parameters,
-            )
-        return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)])
+            ).check()
+        return GraphKernel(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)]).check()
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:
@@ -283,11 +274,11 @@ class RewritingCompiler(BaseCompiler):
             )
             for name in names:
                 states.append(Entry(f'{item.path}.{name}', len(states), (), NN))
-            initial += item.counts(item.initial(initial_parameters))  # type: ignore[arg-type]
+            initial += item.counts(item._initial(initial_parameters))  # type: ignore[arg-type]
         return RewritingProblem(
             form=Form.REWRITING,
-            states=Layout(states),
-            parameters=Layout(entries),
+            states=Layout(tuple(states)),
+            parameters=Layout(tuple(entries)),
             initial_state=np.asarray(initial, dtype=float),
             initial_parameters=initial_parameters,
             time=symbol('t'),

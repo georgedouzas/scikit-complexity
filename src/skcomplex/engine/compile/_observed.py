@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ..problems import Reference
+from ..problems._reference import Reference
 
 
 @dataclass(frozen=True)

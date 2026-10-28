@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 def _bits_of(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:

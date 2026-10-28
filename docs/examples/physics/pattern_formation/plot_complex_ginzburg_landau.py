@@ -15,11 +15,16 @@ phase winds by a full turn around each of them.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.base import wrap_angle
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+
+
+def wrap_angle(angles):
+    """Return angles in `(-pi, pi]`."""
+    return np.angle(np.exp(1j * np.asarray(angles)))
+
 
 MODEL = 'complex_ginzburg_landau'
 

@@ -17,9 +17,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import total
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _mean_fitness(master: SimpleNamespace) -> Expression:

@@ -28,8 +28,8 @@ from sage.all__sagemath_symbolics import (
 )
 
 from skcomplex.core.laws.utils import both, either, mod, where
-from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions, symbol
-from skcomplex.engine.solvers import LeptonPrinter
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import ExpressionPrinter
 
 X, Y = symbol('x'), symbol('y')
 VALUES = {X: 0.3, Y: 1.7}
@@ -113,7 +113,7 @@ def _variables():
 @pytest.mark.parametrize('name', sorted(OPERATORS))
 def test_numpy_code_evaluates_operator(name):
     """Test that NumPy code of an operator gives the Sage value."""
-    assignments, (code,) = print_expressions([OPERATORS[name]], NUMPY_DIALECT)
+    assignments, (code,) = ExpressionPrinter().check().prepare().run([OPERATORS[name]])
     namespace = {'np': np, 'erf': scipy.special.erf, **_variables()}
     assert _evaluate_all(assignments, code, namespace) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
 
@@ -121,7 +121,7 @@ def test_numpy_code_evaluates_operator(name):
 @pytest.mark.parametrize('name', sorted(OPERATORS))
 def test_numba_code_evaluates_operator(name):
     """Test that scalar code of an operator, as the Numba backend compiles it, gives the Sage value."""
-    assignments, (code,) = print_expressions([OPERATORS[name]], SCALAR_DIALECT)
+    assignments, (code,) = ExpressionPrinter('scalar').check().prepare().run([OPERATORS[name]])
     namespace = {'np': np, 'math': math, **_variables()}
     assert _evaluate_all(assignments, code, namespace) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
 
@@ -129,13 +129,13 @@ def test_numba_code_evaluates_operator(name):
 @pytest.mark.parametrize('name', sorted(OPERATORS))
 def test_lepton_code_evaluates_operator(name):
     """Test that Lepton code of an operator, read with Lepton's functions, gives the Sage value."""
-    code = LeptonPrinter().doprint(OPERATORS[name]).replace('^', '**')
+    code = ExpressionPrinter('lepton', shared=False).check().prepare().run([OPERATORS[name]])[1][0].replace('^', '**')
     value = _evaluate(code, {**LEPTON_NAMESPACE, **_variables()})
     assert float(value) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
 
 
 def test_repeated_subexpressions_are_computed_once():
     """Test that a subexpression shared by two expressions is bound once and reused."""
-    assignments, codes = print_expressions([(X + Y) ** 2, 3 * (X + Y) ** 2], NUMPY_DIALECT)
+    assignments, codes = ExpressionPrinter().check().prepare().run([(X + Y) ** 2, 3 * (X + Y) ** 2])
     assert assignments == [('_cse0', '(x + y)**2')]
     assert codes == ['_cse0', '3*_cse0']

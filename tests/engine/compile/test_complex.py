@@ -251,7 +251,7 @@ def test_layout_of_real_systems_is_unchanged():
 
 def test_complex_view_is_zero_copy():
     """Test that the complex values of a layout view the stored floats without copying."""
-    layout = Layout([Entry('a.z', 0, (3,), CC, is_complex=True)])
+    layout = Layout((Entry('a.z', 0, (3,), CC, is_complex=True),))
     vector = np.arange(6.0)
     values = layout.read(vector, 'a.z')
     assert np.shares_memory(values, vector)
@@ -260,7 +260,7 @@ def test_complex_view_is_zero_copy():
 
 def test_complex_component_is_located_by_its_part():
     """Test that the real and imaginary parts of a complex variable are located as real components."""
-    layout = Layout([Entry('a.z', 0, (), CC, is_complex=True)])
+    layout = Layout((Entry('a.z', 0, (), CC, is_complex=True),))
     entry, indices = layout.locate('a.z.imag')
     assert (entry.domain, indices) == (RR, slice(1, 2))
 

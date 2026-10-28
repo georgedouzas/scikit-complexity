@@ -18,8 +18,8 @@ from ....core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import bernoulli, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ..._catalog import register_model
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

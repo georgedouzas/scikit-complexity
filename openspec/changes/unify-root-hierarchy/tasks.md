@@ -1,6 +1,6 @@
 ## 1. One branch
 
-- [ ] 1.1 Merge `engine-tree` and `engine-catalog` into `development`, rerun the root-module scripts on the merged tree, and delete both branches and worktrees. Verify with ruff, lint-imports, and the full test session.
+- [x] 1.1 Merge `engine-tree` and `engine-catalog` into `development`, rerun the root-module scripts on the merged tree, and delete both branches and worktrees. Verify with ruff, lint-imports, and the full test session.
 
 ## 2. One root
 

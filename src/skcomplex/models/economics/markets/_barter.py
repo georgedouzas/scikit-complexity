@@ -15,8 +15,8 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 from ._exchange import cobb_douglas
 from ._goods_traders import ExchangeInteraction
 

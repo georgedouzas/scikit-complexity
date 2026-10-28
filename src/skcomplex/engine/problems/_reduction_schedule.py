@@ -10,12 +10,14 @@ from typing import Any
 import numpy as np
 
 from ...types import Array
-from ._compiled_neighborhood import CompiledNeighborhood
-from ._compiled_reduction import CompiledReduction
+from ._base import BaseValue
+from ._neighborhood_kernel import NeighborhoodKernel
+from ._reduction_kernel import ReductionKernel
+from ._state import State
 
 
-@dataclass
-class ReductionSchedule:
+@dataclass(frozen=True)
+class ReductionSchedule(BaseValue):
     """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
 
     Args:
@@ -32,13 +34,13 @@ class ReductionSchedule:
             Every reduction of both kinds in dependency order, or empty for the reductions over groups in their order.
     """
 
-    reductions: tuple[CompiledReduction, ...] = ()
+    reductions: tuple[ReductionKernel, ...] = ()
     parameters: int = 0
-    neighbourhoods: tuple[CompiledNeighborhood, ...] = ()
-    sequence: tuple[CompiledReduction | CompiledNeighborhood, ...] = ()
+    neighbourhoods: tuple[NeighborhoodKernel, ...] = ()
+    sequence: tuple[ReductionKernel | NeighborhoodKernel, ...] = ()
 
     @property
-    def steps(self) -> tuple[CompiledReduction | CompiledNeighborhood, ...]:
+    def steps(self) -> tuple[ReductionKernel | NeighborhoodKernel, ...]:
         """Every reduction in the order it is evaluated."""
         return self.sequence or (*self.reductions, *self.neighbourhoods)
 
@@ -68,7 +70,7 @@ class ReductionSchedule:
         given = min(p.size, self.parameters)
         q[:given] = p[:given]
         for reduction in self.steps:
-            reduction.evaluate(t, x, q)
+            reduction.run(State(t, x, q))
         return q
 
     def wrap(self, function: Callable[[float, Array, Array], Any] | None) -> Callable[..., Any] | None:

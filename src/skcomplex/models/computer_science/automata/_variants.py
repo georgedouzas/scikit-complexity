@@ -18,10 +18,10 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ParameterError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 from ._automata import LifeCellElement
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')

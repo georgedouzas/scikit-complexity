@@ -19,9 +19,9 @@ from ....core.laws.utils import shift_member, where
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 TREE_ASPECT = 0.7
 

@@ -16,9 +16,9 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0

@@ -14,9 +14,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, RoleSpec
+from ..._catalog import register_model
 from ._populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
 
 

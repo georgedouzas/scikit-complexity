@@ -17,7 +17,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
+from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, Step, VelocityVerletSolver
 from skcomplex.errors import BackendError, SolverError
 from skcomplex.models.biology.ecology import (
     LogisticGrowthInteraction,
@@ -228,10 +228,10 @@ def test_lammps_walls_confine_atoms_on_their_own():
     """Test that LAMMPS walls keep atoms inside a reflecting box without the framework's boundary step."""
     problem = compile_system(ideal_gas(500, kT=4.0, size=10.0, random_state=0))
     backend = LammpsSolver(dt=0.01)
-    backend.prepare(problem, np.random.default_rng(0))
+    backend.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     state = problem.initial_state
     for step in range(20):
-        state = backend.run(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5)
+        state = backend.run(Step(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5))
         positions = problem.states.read(state, 'gas.x')
         assert np.all((positions >= 0) & (positions <= 10))
 
@@ -324,5 +324,5 @@ def test_lammps_final_run_closes_the_instance():
     assert simulation.stepper_.released_
     with pytest.raises(SolverError, match='closed its LAMMPS instance'):
         simulation.extend(until=0.2)
-    solver = simulation.stepper_.prepare(problem, np.random.default_rng(0))
+    solver = simulation.stepper_.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     assert not solver.released_

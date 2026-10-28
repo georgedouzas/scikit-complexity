@@ -18,10 +18,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 TOPICS = (0, 2)
 POSITIVE = (1.0, 1.0, -1.0)

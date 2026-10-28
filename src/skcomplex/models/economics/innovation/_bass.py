@@ -12,8 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.laws import BaseLaw, TransferLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _adoption(s: SimpleNamespace) -> list[BaseLaw]:

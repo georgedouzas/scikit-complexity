@@ -4,9 +4,6 @@
 # License: MIT
 
 import math
-from typing import ClassVar
-
-import numpy as np
 
 from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
@@ -26,45 +23,45 @@ class IterationSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-        >>> from skcomplex.engine.solvers import IterationSolver
+        >>> from skcomplex.engine.solvers import IterationSolver, Step
         >>> problem = compile_system(
         ...     System(
         ...         elements=[MarketElement('m', price=1)],
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
-        >>> stepper = IterationSolver().prepare(problem, np.random.default_rng(0))
-        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).tolist()
+        >>> stepper = IterationSolver(random_state=0).check().prepare(problem)
+        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).tolist()
         [4.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={DiscreteTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={DiscreteTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.DISCRETE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.DISCRETE
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -99,7 +96,7 @@ class IterationSolver(Solver):
         for step in range(round(t), math.floor(until + 1e-9)):
             following = update(float(step), state, p, *drawn)
             if topology is not None:
-                fired = topology.decide(float(step), state, p, self.rng_)
-                following = topology.apply(fired, float(step), following, p, self.rng_)
+                fired = topology._decide(float(step), state, p, self.rng_)
+                following = topology._apply(fired, float(step), following, p, self.rng_)
             state = self._bounded(float(step + 1), following, p)
         return state

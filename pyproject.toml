@@ -301,7 +301,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "skcomplex.models -> skcomplex.engine.*",
     "skcomplex.models.** -> skcomplex.core.*",
     "skcomplex.models.** -> skcomplex.core.laws.utils",
     "skcomplex.models.** -> skcomplex.engine.*",

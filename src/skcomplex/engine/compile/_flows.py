@@ -26,8 +26,10 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...errors import ConservationError, LabelError, ValidationError
-from ..problems import LoopTerm, Reference, TransferNetwork, VariableKind, declarations_of, symbol, symbols_of
-from ..problems import Source as Read
+from .._utils import declarations_of, symbol, symbols_of
+from ..problems import LoopTerm, TransferNetwork, VariableKind
+from ..problems._read_kind import ReadKind as Read
+from ..problems._reference import Reference
 from ..problems._transfer_network import _CompiledDelay, _CompiledFlow, _Recorded
 from ._base import BaseLowering, BasePass
 from ._block import Block

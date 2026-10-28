@@ -12,7 +12,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import both, either, mod, where
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
+from skcomplex.engine.problems import ExpressionPrinter
 from skcomplex.specs import StateSpec, VisualSpec
 
 
@@ -51,11 +51,11 @@ def test_functions_lower_to_numpy_and_numba():
     x = var('x')
     expression = where(either(x < 0, x > 2), -x, mod(x, 2))
     values = np.array([-1.5, 0.5, 3.5])
-    result = numpy_function(var('t'), [x], [expression])(0.0, values)[0]
+    result = ExpressionPrinter(time=var('t'), compiled=True).check().prepare([x]).run([expression])(0.0, values)[0]
     assert np.allclose(result, [1.5, 0.5, -3.5])
-    scalar = print_expressions([expression], SCALAR_DIALECT)[1][0]
+    scalar = ExpressionPrinter('scalar').check().prepare().run([expression])[1][0]
     assert eval(scalar, {'x': 0.5}) == 0.5  # noqa: S307  # nosec B307: evaluates printed code of a fixed expression
-    assert 'np.where' in print_expressions([expression], NUMPY_DIALECT)[1][0]
+    assert 'np.where' in ExpressionPrinter().check().prepare().run([expression])[1][0]
 
 
 def test_where_with_equal_branches_simplifies():
@@ -68,7 +68,7 @@ def test_where_with_equal_branches_simplifies():
 def test_where_branch_not_chosen_raises_no_warning():
     """Test that NumPy evaluates a condition with a division in the discarded branch without warnings."""
     t, x = var('t'), var('x')
-    function = numpy_function(t, [x], [where(x > 0, 1 / x, 0)])
+    function = ExpressionPrinter(time=t, compiled=True).check().prepare([x]).run([where(x > 0, 1 / x, 0)])
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         assert function(0.0, np.array([0.0, 2.0]))[0].tolist() == [0.0, 0.5]

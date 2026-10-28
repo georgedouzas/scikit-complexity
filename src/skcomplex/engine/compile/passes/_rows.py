@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
-from ...problems import Source, components_of
+from ..._utils import components_of
+from ...problems._read_kind import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws
 from .._draw_lowering import DrawLowering
@@ -87,7 +88,7 @@ class RowsPass(BasePass):
         owners = {
             reference.entry.name.rpartition('.')[0]
             for item in read
-            if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
+            if (reference := spec.references.get(item)) is not None and reference.source is ReadKind.MEMBER
         }
         groups = sorted(owners & set(spec.groups))
         RowsPass._check_aligned(spec, groups)
@@ -120,7 +121,7 @@ class RowsPass(BasePass):
             ):
                 continue
             values = [
-                value for value in BasePass._values_of(law, include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
+                value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
             ]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):

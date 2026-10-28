@@ -13,27 +13,31 @@ from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.system import System
 from ...specs import TopologyRequestSpec
 from ..backends import BaseBackend
-from ..problems import Form, Lowered, Output, Problem, ReductionSchedule, TransferNetwork
-from ..problems._base_problem import _MarkovMatrix
+from ..problems import Form, Problem, TransferNetwork
+from ..problems._diffusive_limit import DiffusiveLimit
+from ..problems._encounter_kernel import EncounterKernel
+from ..problems._finite_volume_kernel import FiniteVolumeKernel
+from ..problems._jacobian_kernel import JacobianKernel
+from ..problems._linear_term import LinearTerm
+from ..problems._lowered_kernels import LoweredKernels
+from ..problems._markov_kernel import MarkovKernel
+from ..problems._output import Output
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._topology_kernel import TopologyKernel
 from ._block import Block
 from ._bound_renewal import BoundRenewal
 from ._census import Census
-from ._compiled_encounter import CompiledEncounter
 from ._declarations import Declarations
-from ._diffusive_limit import DiffusiveLimit
 from ._draw_lowering import DrawLowering
-from ._field_splitting import LinearTerm
-from ._field_volumes import FiniteVolume
 from ._flows import TransferLowering
-from ._jacobians import ExactJacobian
 from ._kernel_spec import KernelSpec
 from ._matrix_law import MatrixLaw
 from ._plan import _Plan
-from ._topology import Topology
 from ._tree import Node
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], Block]]
+
 
 class Compilation:
     """State of one compilation of a system, whose fields its passes read and write in order.
@@ -204,7 +208,7 @@ class Compilation:
     apart: Laws | None = None
     lowered: BlockLaws | None = None
     markov: list[tuple[KernelSpec, MatrixLaw]] | None = None
-    matrices: tuple[_MarkovMatrix, ...] | None = None
+    matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
     corrected: Laws | None = None
@@ -217,9 +221,9 @@ class Compilation:
     reduced: Laws | None = None
     reduced_apart: Laws | None = None
     reductions: ReductionSchedule | None = None
-    kernels: Lowered | None = None
+    kernels: LoweredKernels | None = None
     functions: dict[str, Any] | None = None
-    jacobian: ExactJacobian | None = None
+    jacobian: JacobianKernel | None = None
     problem: Problem | None = None
     delays: list[dict[str, Any]] | None = None
     placeholders: dict[tuple[int, str, int, str], Expression] | None = None
@@ -230,15 +234,15 @@ class Compilation:
     limits: list[float] | None = None
     volume_limits: list[DiffusiveLimit] | None = None
     linear: list[LinearTerm] | None = None
-    volumes: tuple[FiniteVolume, ...] | None = None
+    volumes: tuple[FiniteVolumeKernel, ...] | None = None
     symmetries: tuple[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]], ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
-    encounters: tuple[CompiledEncounter, ...] | None = None
+    encounters: tuple[EncounterKernel, ...] | None = None
     flows: TransferLowering | None = None
     transfer_network: TransferNetwork | None = None
     rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None
-    topology: Topology | None = None
+    topology: TopologyKernel | None = None
     done: set[object] | None = None
 
     def __init__(

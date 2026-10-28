@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 NAND = (2, 0b0111)
 FALSE = (0, 0)

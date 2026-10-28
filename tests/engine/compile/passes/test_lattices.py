@@ -22,7 +22,9 @@ from skcomplex.core.spaces import (
 )
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.compile import CompiledExtremal, ExtremalRecord, compile_system
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import ExtremalRecord
+from skcomplex.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
 from skcomplex.errors import ValidationError
@@ -519,7 +521,7 @@ def test_extremal_runs_are_reproducible_across_backends():
         elements=[LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values})],
     )
     compiled = compile_system(system, backend=NumbaBackend())
-    assert isinstance(compiled.lattice[0], CompiledExtremal)
+    assert isinstance(compiled.lattice[0], ExtremalKernel)
     assert compiled.lattice[0].loop is not None
     for states, events in runs[1:]:
         assert np.array_equal(states, runs[0][0])

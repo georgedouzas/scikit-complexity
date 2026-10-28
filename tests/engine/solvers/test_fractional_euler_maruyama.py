@@ -14,7 +14,6 @@ from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     FractionalEulerMaruyamaSolver,
     HorizonError,
-    fractional_gaussian_noise,
 )
 from skcomplex.errors import SolverError
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
@@ -47,7 +46,7 @@ def _walkers(hurst, members=1000, fractional=True):
 @pytest.mark.parametrize('hurst', [0.2, 0.5, 0.8])
 def test_fractional_gaussian_noise_has_the_covariance_of_fractional_noise(hurst):
     """Test that sample covariances of 10000 paths match the covariance of fractional Gaussian noise."""
-    noise = fractional_gaussian_noise(64, hurst, 10000, np.random.default_rng(0))
+    noise = FractionalEulerMaruyamaSolver._fractional_gaussian_noise(64, hurst, 10000, np.random.default_rng(0))
     for lag in (0, 1, 2, 10):
         products = noise[: 64 - lag] * noise[lag:]
         expected = 0.5 * (abs(lag + 1) ** (2 * hurst) - 2 * lag ** (2 * hurst) + abs(lag - 1) ** (2 * hurst))
@@ -116,7 +115,7 @@ def test_euler_maruyama_rejects_fractional_noise():
     """Test that the Euler-Maruyama stepper names the fractional Euler-Maruyama stepper for fractional noise."""
     problem = compile_system(_walkers(0.7, members=2))
     with pytest.raises(SolverError, match=r'FractionalEulerMaruyamaSolver'):
-        EulerMaruyamaSolver().prepare(problem, np.random.default_rng(0))
+        EulerMaruyamaSolver(random_state=0).check().prepare(problem)
 
 
 def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():

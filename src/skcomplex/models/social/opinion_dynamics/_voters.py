@@ -18,10 +18,10 @@ from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw
 from ....core.laws.utils import Totalistic
 from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 MAJORITY = 5
 

@@ -11,9 +11,9 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import delayed
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class ClimateAnomalyElement(Element):

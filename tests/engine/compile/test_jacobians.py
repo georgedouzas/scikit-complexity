@@ -15,7 +15,8 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.compile._field_lowering import FieldLowering
-from skcomplex.engine.solvers import SplitOperator
+from skcomplex.engine.problems import State
+from skcomplex.engine.solvers._split_operator import SplitOperator
 from skcomplex.errors import ValidationError
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
@@ -90,7 +91,7 @@ def test_jacobian_against_finite_differences(laws):
     )
     problem = compile_system(system)
     x, p = problem.initial_state, problem.initial_parameters
-    exact = problem.jacobian.evaluate(0.0, x, p).toarray()
+    exact = problem.jacobian.prepare(problem).run(State(0.0, x, p)).toarray()
     estimate = _finite_differences(problem, x, p)
     np.testing.assert_allclose(exact, estimate, atol=1e-6)
     pattern = problem.jacobian.pattern().toarray()
@@ -101,7 +102,7 @@ def test_jacobian_of_pair_sums_is_not_derived():
     """Test that the exact Jacobian of a pair interaction raises an error that names the interaction."""
     problem = compile_system(nonlocal_ring_chimera(10, R=2))
     with pytest.raises(ValidationError, match=r'coupling.*finite differences'):
-        problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
+        problem.jacobian.prepare(problem).run(State(0.0, problem.initial_state, problem.initial_parameters))
 
 
 def test_pattern_is_omitted_above_the_limit():
@@ -216,7 +217,7 @@ def _relative_error(problem, rng):
     """Return the relative Frobenius error of the exact Jacobian against central finite differences."""
     x = problem.initial_state + 0.1 * rng.random(problem.initial_state.size)
     p = problem.initial_parameters
-    exact = problem.jacobian.evaluate(0.0, x, p).toarray()
+    exact = problem.jacobian.prepare(problem).run(State(0.0, x, p)).toarray()
     estimate = _finite_differences(problem, x, p)
     return np.linalg.norm(exact - estimate) / np.linalg.norm(estimate)
 
@@ -231,7 +232,7 @@ def test_exact_jacobian_of_mesh_with_reaction():
     """Test that the exact Jacobian of heat with a reaction on a mesh matches finite differences, fixed rows empty."""
     problem = compile_system(_reactive_mesh())
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
-    jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
+    jacobian = problem.jacobian.prepare(problem).run(State(0.0, problem.initial_state, problem.initial_parameters))
     assert not jacobian[problem.constrained].nnz
 
 
@@ -239,9 +240,9 @@ def test_exact_jacobian_reads_the_parameters_it_receives():
     """Test that the exact Jacobian is evaluated at the parameters of the call."""
     problem = compile_system(_fisher_line(20, 'zero-flux'))
     x, p = problem.initial_state, problem.initial_parameters.copy()
-    first = problem.jacobian.evaluate(0.0, x, p).toarray()
+    first = problem.jacobian.prepare(problem).run(State(0.0, x, p)).toarray()
     p[problem.parameters.entry('line.D').indices] *= 2
-    second = problem.jacobian.evaluate(0.0, x, p).toarray()
+    second = problem.jacobian.prepare(problem).run(State(0.0, x, p)).toarray()
     off = ~np.eye(20, dtype=bool)
     np.testing.assert_allclose(second[off], 2 * first[off])
 
@@ -273,5 +274,5 @@ def test_exact_jacobian_of_callable_law_raises():
 
     problem = compile_system(System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
-        problem.jacobian.validate()
+        problem.jacobian.prepare(problem)
     assert problem.jacobian.pattern().toarray().all()

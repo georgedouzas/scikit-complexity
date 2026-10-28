@@ -17,9 +17,9 @@ from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.laws.utils import Totalistic
 from ....core.spaces import BoxNeighborhood, CayleySpace, GeneratorNeighborhood, LatticeSpace, MemoryNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))

@@ -14,7 +14,10 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....types import Array
-from ...problems import Form, FractionalRows, Kernel, Layout, Lowered, Problem
+from ...problems import Form, Layout, Problem
+from ...problems._fractional_rows import FractionalRows
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
 from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass
@@ -36,7 +39,7 @@ class FractionalProblemPass(BasePass):
         """Add the fractional noise rows and the state orders to the problem."""
         compilation = self.compilation_
         problem = cast('Problem', compilation.problem)
-        lowered = cast('Lowered', compilation.kernels)
+        lowered = cast('LoweredKernels', compilation.kernels)
         compilation.problem = replace(
             problem,
             fractional=self._fractional_rows(lowered) if problem.form == Form.SDE else (),
@@ -48,7 +51,7 @@ class FractionalProblemPass(BasePass):
         )
 
     @staticmethod
-    def _hurst_function(kernel: Kernel, hurst: object) -> Callable[[Array], Array]:
+    def _hurst_function(kernel: LawKernel, hurst: object) -> Callable[[Array], Array]:
         """Return the function of the parameter vector that gives the Hurst index of every row of a noise kernel."""
         rows = kernel.rows
         if SR(hurst).is_numeric():
@@ -59,7 +62,7 @@ class FractionalProblemPass(BasePass):
         return lambda p: np.broadcast_to(np.asarray(reference.column_of(empty, p), dtype=float), (rows,)).copy()
 
     @staticmethod
-    def _fractional_rows(lowered: Lowered) -> tuple[FractionalRows, ...]:
+    def _fractional_rows(lowered: LoweredKernels) -> tuple[FractionalRows, ...]:
         """Return the noise rows that fractional noise laws drive, in the order of the noise rows."""
         rows, position = [], 0
         for kernel in lowered.kernels[NoiseLaw]:

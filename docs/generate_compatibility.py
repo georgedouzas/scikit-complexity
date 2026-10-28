@@ -81,10 +81,10 @@ def solver_lines() -> list[str]:
         if isinstance(item, type) and issubclass(item, BaseSolver) and hasattr(item, 'supports')
     ]
     for solver in sorted(found, key=lambda item: (item.form.name, item.__name__)):
-        supports = solver.supports
+        supports = solver._get_support()
         cells = [
             f'`{solver.__name__}`',
-            solver.form.name,
+            solver._get_form().name,
             _terms(supports.time),
             _terms(supports.space, 5),
             _terms(supports.laws, len(tuple(LawKind))),
@@ -114,7 +114,7 @@ def backend_lines() -> list[str]:
         '|---|---|---|---|',
     ]
     for backend in BACKENDS:
-        supports = backend.supports
+        supports = backend._get_support()
         cells = [
             _terms(supports.laws, len(tuple(LawKind))),
             _terms(supports.domains, 12),

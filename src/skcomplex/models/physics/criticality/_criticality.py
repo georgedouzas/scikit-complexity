@@ -23,9 +23,9 @@ from ....core.spaces import (
     VonNeumannNeighborhood,
 )
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 NEAREST = VonNeumannNeighborhood(center=True)
 SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {

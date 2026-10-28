@@ -15,9 +15,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import PatchElement, WordElement
 from ....core.laws import ProductionLaw, SubstitutionLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
+from ..._catalog import register_model
 
 SHAPES = ('triangle', 'carpet')
 

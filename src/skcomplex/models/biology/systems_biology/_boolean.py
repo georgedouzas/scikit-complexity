@@ -17,9 +17,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
 YEAST_INPUTS = {

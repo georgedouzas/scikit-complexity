@@ -10,8 +10,8 @@ from typing import Annotated
 from ....core.elements import Element
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class SoilTemperatureElement(Element):

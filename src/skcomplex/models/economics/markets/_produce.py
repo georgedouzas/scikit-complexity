@@ -14,10 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
 MAX_LIST_LENGTH = 8

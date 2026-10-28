@@ -32,7 +32,7 @@ def step_count(t: float, until: float, dt: float) -> int:
             The number of steps.
 
     Examples:
-        >>> from skcomplex.engine.problems import step_count
+        >>> from skcomplex.engine.problems._steps import step_count
         >>> step_count(0.1, 0.4, 0.1)
         3
     """

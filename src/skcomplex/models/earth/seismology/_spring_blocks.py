@@ -13,9 +13,9 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import both, laplacian, where
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _spring_block_laws(s: SimpleNamespace) -> list[BaseLaw]:

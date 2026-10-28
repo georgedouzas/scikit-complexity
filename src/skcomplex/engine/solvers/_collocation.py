@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+import math
+from typing import Any
 
 import numpy as np
 from scipy.optimize import Bounds, minimize
@@ -97,12 +98,15 @@ class CollocationSolver(OptimalControlSolver):
         -0.762
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None},
-        laws={RateLaw, FluxLaw, EquationLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None},
+            laws={RateLaw, FluxLaw, EquationLaw},
+            orders={OrderKind.INTEGER},
+        )
 
     def __init__(
         self,
@@ -115,6 +119,8 @@ class CollocationSolver(OptimalControlSolver):
         method: str = 'SLSQP',
         tolerance: float = 1e-10,
         max_iterations: int = 1000,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.objective = objective
         self.terminal = terminal
@@ -124,6 +130,8 @@ class CollocationSolver(OptimalControlSolver):
         self.method = method
         self.tolerance = tolerance
         self.max_iterations = max_iterations
+        self.random_state = random_state
+        self.until = until
 
     def _check(self) -> None:
         """Raise an error for a missing objective, an unknown sense, scheme, or method, or too few nodes.

@@ -15,10 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 def _hebbian_weights(patterns: Array) -> Array:

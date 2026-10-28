@@ -16,10 +16,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 def _block_of(location: object, side: int, columns: int) -> int:

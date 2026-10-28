@@ -5,7 +5,7 @@
 
 import difflib
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Self, cast
 
@@ -18,7 +18,11 @@ from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
 from ...errors import ValidationError
 from ...types import Array
-from ..problems import Draws, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
+from .._utils import components_of, symbol, symbols_of, vector
+from ..problems import Entry, ExpressionPrinter
+from ..problems._draw_kernel import DrawKernel
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ..problems._sampled_draw import SampledDraw
 from ._base import BaseLowering
 from ._declarations import Declarations
@@ -74,7 +78,7 @@ class DrawLowering(BaseLowering):
     offset_: int
     time_: Expression
     requests_: list[_Request]
-    draws_: Draws | None
+    draws_: DrawKernel | None
 
     def _prepare(self, context: object) -> Self:
         """Read where the parameters end and the time symbol of the compilation, with no draws yet.
@@ -207,7 +211,7 @@ class DrawLowering(BaseLowering):
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
             entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
-            source = Source.MEMBER if grouped else Source.SINGLE
+            source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
             request.references[request.slot] = Reference(entry, False, 0, source)
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
@@ -218,7 +222,7 @@ class DrawLowering(BaseLowering):
             if request.draw is not None:
                 sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time_)))
                 position += request.rows
-        self.draws_ = Draws(self.offset_, np.array(flags, dtype=bool), tuple(sampled))
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
 
     @staticmethod
     def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
@@ -266,20 +270,20 @@ class DrawLowering(BaseLowering):
         arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
         readers = [request.references.get(item) for item in symbols]
-        if any(reader is None or reader.source not in {Source.SINGLE, Source.MEMBER} for reader in readers):
+        if any(reader is None or reader.source not in {ReadKind.SINGLE, ReadKind.MEMBER} for reader in readers):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
-        function = numpy_function(time, symbols, arguments)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments)
         rows = request.rows
 
         def sample(t: float, x: Array, q: Array, rng: np.random.Generator) -> Array:
             values = (
                 function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
             )
-            return DrawLowering._sample_draw(draw, values, rows, rng)
+            return DrawKernel._sample_draw(draw, values, rows, rng)
 
         return sample
 
@@ -332,40 +336,3 @@ class DrawLowering(BaseLowering):
             )
             raise ValidationError(error_msg)
         return distribution
-
-    @staticmethod
-    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Array:
-        """Return values of a draw for a number of members, with arguments that hold one value or one per member.
-
-        Args:
-            draw:
-                The draw.
-
-            arguments:
-                The values of the draw's arguments, numbers or arrays with one value per member.
-
-            size:
-                The number of values.
-
-            rng:
-                The random number generator.
-
-        Returns:
-            values:
-                One value per member.
-        """
-        values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
-        if draw.kind == 'uniform':
-            return values[0] + (values[1] - values[0]) * rng.random(size)
-        if draw.kind == 'normal':
-            return values[0] + values[1] * rng.standard_normal(size)
-        if draw.kind == 'bernoulli':
-            return (rng.random(size) < values[0]).astype(float)
-        if draw.kind == 'categorical':
-            weights = np.stack(values, axis=-1)
-            cumulative = np.cumsum(weights, axis=-1)
-            chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
-            return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
-        distribution = getattr(stats, str(draw.distribution))
-        sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
-        return np.asarray(sampled, dtype=float)

@@ -12,8 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _eroi(s: SimpleNamespace) -> Expression:

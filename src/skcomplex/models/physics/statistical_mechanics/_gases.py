@@ -9,9 +9,9 @@ from ....core.elements import GroupElement, ParticleElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import VisualSpec
+from ..._catalog import register_model
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 

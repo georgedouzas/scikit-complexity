@@ -14,9 +14,9 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed, pulse_train, step, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)

@@ -6,6 +6,7 @@
 import numbers
 from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import cast
 
 import numpy as np
@@ -18,7 +19,14 @@ from ....core.laws.utils import Call
 from ....errors import ValidationError
 from ....specs import WienerProcessSpec
 from ....types import ProcessKey
-from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
+from ..._utils import components_of, symbols_of
+from ...problems import Layout
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
+from ...problems._noise_process import NoiseProcess
+from ...problems._output import Output
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
@@ -85,13 +93,13 @@ class KernelsPass(BasePass):
         """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
         kind = type(law).__name__
         for target in targets:
-            if target.source in {Source.FIRST, Source.SECOND}:
+            if target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 error_msg = (
                     f'A {kind} law of {spec.owner} sets {target.entry.name} at an end of every edge, which several '
                     'edges share. Set the edge member, or reduce over the neighbours in the laws of the nodes.'
                 )
                 raise ValidationError(error_msg)
-            if target.source is Source.SINGLE and spec.rows > 1 and not once:
+            if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
             key = (target.entry.name, target.column)
@@ -110,13 +118,13 @@ class KernelsPass(BasePass):
         ):
             return False
         if not all(
-            reference.source is Source.SINGLE
+            reference.source is ReadKind.SINGLE
             for reference in KernelSpec._target_references(law._get_targets()[0], spec)
         ):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
         sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
-        return Source.REDUCED in sources and Source.MEMBER not in sources
+        return ReadKind.REDUCED in sources and ReadKind.MEMBER not in sources
 
     @staticmethod
     def _single_references(spec: KernelSpec) -> dict[Expression, Reference]:
@@ -124,7 +132,7 @@ class KernelsPass(BasePass):
         return {
             item: reference
             for item, reference in spec.references.items()
-            if reference.source is not Source.MEMBER and reference.entry.members is None
+            if reference.source is not ReadKind.MEMBER and reference.entry.members is None
         }
 
     @staticmethod
@@ -149,15 +157,22 @@ class KernelsPass(BasePass):
             raise ValidationError(error_msg)
         outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
         if isinstance(law, NoiseLaw) and law.process is not None:
-            for item, key in zip(outputs, NoisePass._process_keys(spec, law, declarations), strict=True):
-                item.process = KernelsPass._noise_process(key, declarations.wieners)
+            keys = NoisePass._process_keys(spec, law, declarations)
+            outputs = [
+                replace(item, process=KernelsPass._noise_process(key, declarations.wieners))
+                for item, key in zip(outputs, keys, strict=True)
+            ]
         return outputs
 
     @staticmethod
-    def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]]) -> Lowered:
+    def _lower_laws(
+        specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]],
+    ) -> LoweredKernels:
         """Return the kernels of every law kind, with the law of every output."""
-        states, parameters = Layout(declarations.states), Layout(declarations.parameters)
-        lowered = Lowered()
+        states, parameters = Layout(tuple(declarations.states)), Layout(tuple(declarations.parameters))
+        kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
+        jump_changes: dict[int, list[tuple[Reference, float]]] = {}
+        laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
         assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
         for spec, laws in specs:
             outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
@@ -166,11 +181,11 @@ class KernelsPass(BasePass):
                     continue
                 if isinstance(law, JumpLaw):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
-                    lowered.jump_changes[id(output)] = [
+                    jump_changes[id(output)] = [
                         (KernelSpec._target_references(target, spec)[0], float(increment))
                         for target, increment in law.changes.items()
                     ]
-                    lowered.laws[id(output)] = (spec, law)
+                    laws_of[id(output)] = (spec, law)
                     outputs[(JumpLaw, False)].append(output)
                     continue
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
@@ -181,11 +196,11 @@ class KernelsPass(BasePass):
                 if isinstance(law, _ASSIGNED_KINDS):
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
                 law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
-                lowered.laws.update({id(item): (spec, law) for item in law_outputs})
+                laws_of.update({id(item): (spec, law) for item in law_outputs})
                 outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():
-                lowered.kernels[kind].append(
-                    Kernel(
+                kernels[kind].append(
+                    LawKernel(
                         spec.owner,
                         declarations.time,
                         KernelsPass._single_references(spec) if once else spec.references,
@@ -196,7 +211,7 @@ class KernelsPass(BasePass):
                         kind_outputs,
                     ).check(),
                 )
-        return lowered
+        return LoweredKernels(kernels, jump_changes, laws_of)
 
     @staticmethod
     def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:

@@ -211,7 +211,9 @@ def test_validate_fractional_state_with_backend_without_orders():
     class IntegerBackend(NumpyBackend):
         """NumPy backend that integrates integer orders alone."""
 
-        supports = SupportSpec(orders={OrderKind.INTEGER})
+        @classmethod
+        def _get_support(cls):
+            return SupportSpec(orders={OrderKind.INTEGER})
 
     report = PassCompiler(backend=IntegerBackend()).check().prepare(System(elements=[RelaxingElement('r')])).report_
     assert [issue.code for issue in report.errors] == ['order-unsupported']

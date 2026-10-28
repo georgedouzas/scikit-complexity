@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ....errors import ValidationError
-from ...problems import components_of
+from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws
 from .._complex import _is_zero, _real, _split_complex
@@ -187,7 +187,7 @@ class LowerComplexPass(BasePass):
                 state, or a law of a kind that takes only real values holds a complex value.
         """
         if isinstance(law, _AGENT_LAWS) or not any(
-            LowerComplexPass._has_complex(item) for item in BasePass._values_of(law)
+            LowerComplexPass._has_complex(item) for item in law._get_values()
         ):
             return [law]
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):

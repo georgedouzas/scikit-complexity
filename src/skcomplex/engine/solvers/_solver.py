@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
 import warnings
 from collections.abc import Callable
 
@@ -28,13 +27,13 @@ class Solver(BaseSolver[Problem]):
     def _check_capabilities(self, problem: Problem) -> None:
         """Raise an error for renewal laws or fractional noise of a problem that the stepper lacks."""
         name = type(self).__name__
-        if problem.renewals and not self.renews:
+        if problem.renewals and not self._is_renewing():
             error_msg = (
                 f'{name} does not fire renewal laws. Use RK4Solver for rate laws, EulerMaruyamaSolver for noise laws, '
                 'or RenewalSolver for renewal laws alone.'
             )
             raise SolverError(error_msg)
-        if problem.fractional and not self.fractional:
+        if problem.fractional and not self._is_fractional():
             laws = ', '.join(dict.fromkeys(rows.law for rows in problem.fractional))
             error_msg = (
                 f'{name} draws independent Wiener increments, but the {laws} needs correlated increments. Use the '
@@ -101,32 +100,26 @@ class Solver(BaseSolver[Problem]):
         if accelerated.iterate is not None:
             accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator of stochastic solvers.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
                 integrate.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         self._check_capabilities(problem)
         self.locator_ = EventLocator(problem)
-        self.renewals_ = RenewalClock(problem, rng, self.locator_) if problem.renewals else None
+        self.renewals_ = RenewalClock(problem, self.rng_, self.locator_) if problem.renewals else None
         self.history_: History | None = None
         step = getattr(self, 'dt', None)
         limit = problem.stable_step
-        if limit is not None and step is not None and step > limit and not self.implicit:
+        if limit is not None and step is not None and step > limit and not self._is_implicit():
             warning_msg = (
                 f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
                 f"of the fields. Use dt <= {limit:.6g}, ScipyODESolver(method='BDF') or ScipyODESolver(method='Radau') "

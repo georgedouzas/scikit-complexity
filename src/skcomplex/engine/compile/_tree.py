@@ -14,7 +14,7 @@ from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, LatticeSpace
 from ...core.system import System
 from ...specs import WienerProcessSpec
-from ..problems import default_of
+from .._utils import default_of
 
 _LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 _MAX_SHOWN_COMPONENTS = 10
@@ -125,5 +125,3 @@ def _declared_times(system: System, scope: str = '', inherited: type | None = No
     for child in system.systems:
         times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
     return times
-
-

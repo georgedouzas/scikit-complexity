@@ -487,9 +487,9 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
 class _ReleaseCountingSolver(RK4Solver):
     """RK4 solver that counts the final runs that release it."""
 
-    def _prepare(self, problem, rng, until=float('inf')):
+    def _prepare(self, problem):
         """Fit the solver and start with no release."""
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         self.releases_ = 0
 
     def _release(self):

@@ -75,5 +75,3 @@ def probe_laws(component: object) -> list[object] | None:
         return laws if isinstance(laws, list) else None
     except Exception:  # noqa: BLE001
         return None
-
-

@@ -18,10 +18,10 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import advection, divergence, gradient, laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 from ._particles import ActiveParticleElement
 
 

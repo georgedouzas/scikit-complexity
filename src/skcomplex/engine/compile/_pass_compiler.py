@@ -41,20 +41,12 @@ from ...errors import (
     ValidationError,
 )
 from ...specs import ObservableSpec, TopologyRequestSpec, WienerProcessSpec
+from .._utils import declarations_of, symbol
 from ..backends import BaseBackend
-from ..problems import (
-    BaseProblem,
-    DomainKind,
-    Form,
-    NoiseKind,
-    Partition,
-    Problem,
-    SupportSpec,
-    VariableKind,
-    declarations_of,
-    symbol,
-)
-from ..problems._compiled_neighborhood import CompiledNeighborhood
+from ..problems import BaseProblem, DomainKind, Form, NoiseKind, Problem, VariableKind
+from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._partition import Partition
+from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._census import Census
 from ._census_record import CensusRecord
@@ -69,7 +61,6 @@ from ._observables import (
     _with_held_reductions,
 )
 from ._plan import _Plan
-from ._topology import Topology
 from ._tree import Node, _declared_times
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
@@ -733,11 +724,11 @@ class PassCompiler(BaseCompiler):
         for record in records:
             name = f'{type(record.law).__name__} of {record.path}'
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
-            values = BasePass._values_of(record.law, include=include)
+            values = record.law._get_values(include=include)
             reductions = {str(item.call): item for value in values for item in PassCompiler._reductions_of(value)}
             for reduction in reductions.values():
                 over = reduction.over
-                spaces = _OWN_NEIGHBORHOOD if over is None else CompiledNeighborhood._spaces_of(over)
+                spaces = _OWN_NEIGHBORHOOD if over is None else NeighborhoodKernel._spaces_of(over)
                 described = 'the neighbours of its space' if over is None else repr(over)
                 if not isinstance(record.space, spaces):
                     lives = type(record.space).__name__ if record.space is not None else 'no space'
@@ -755,7 +746,7 @@ class PassCompiler(BaseCompiler):
                 if node is None or not isinstance(record.space, ContinuousSpace) or over is None:
                     continue
                 states = declarations_of(node.component_type, VariableKind.STATE)
-                if CompiledNeighborhood._position_state(states) is None:
+                if NeighborhoodKernel._position_state(states) is None:
                     message = (
                         f'The {name} reduces over {over!r}, which measures distances between positions, but '
                         f'{record.owner} declares no vector position state.'
@@ -765,7 +756,7 @@ class PassCompiler(BaseCompiler):
                     continue
                 if isinstance(over, ConeNeighborhood):
                     try:
-                        CompiledNeighborhood._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
+                        NeighborhoodKernel._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
                             "Declare a vector velocity, `StateSpec(vector=True, velocity_of='x')`, or name a heading "
@@ -791,7 +782,7 @@ class PassCompiler(BaseCompiler):
             fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
             issues.append(Issue('solver-argument', system.label, str(error), fix, error=type(error)))
         for category, terms in needs.items():
-            missing = stepper.supports.missing(category, terms)
+            missing = stepper._get_support().missing(category, terms)
             if missing:
                 message = f'The solver {stepper.__name__} does not support the {category} {", ".join(missing)}.'
                 fix = f'Pass a solver that supports the {category} {", ".join(missing)}.'
@@ -991,7 +982,7 @@ class PassCompiler(BaseCompiler):
             return []
         issues = []
         for role, runner in PassCompiler._noise_runners(solver, backend):
-            supported = getattr(runner, 'supports', SupportSpec()).noise
+            supported = runner._get_support().noise
             for term, record in needs.items():
                 if term not in supported:
                     name = PassCompiler._law_name(record)
@@ -1016,7 +1007,7 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _law_values(record: CensusRecord) -> Iterator[object]:
         """Yield the symbolic values of the law of a census record, with the items of vectors."""
-        for value in BasePass._values_of(record.law):
+        for value in record.law._get_values():
             if isinstance(value, FreeModuleElement):
                 yield from value
             elif isinstance(value, Expression):
@@ -1115,14 +1106,14 @@ class PassCompiler(BaseCompiler):
         edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
         sites = [node for node in groups if node.component.on == 'sites']
         changed = []
-        if Topology._changes_edges(request):
+        if TopologyKernel._changes_edges(request):
             changed += edges
         if request.kind in {'add-node', 'remove-node'}:
             changed += sites
         if owner is not None:
             changed.append(owner)
         fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-        return fixed, Topology._changes_edges(request) and not edges
+        return fixed, TopologyKernel._changes_edges(request) and not edges
 
     @staticmethod
     def _fixed_group_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
@@ -1131,7 +1122,7 @@ class PassCompiler(BaseCompiler):
         issues = []
         for record in records:
             try:
-                request = Topology._request_of(record.law)
+                request = TopologyKernel._request_of(record.law)
             except ValidationError as error:
                 issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
                 continue
@@ -1167,4 +1158,3 @@ class PassCompiler(BaseCompiler):
         """Return the topology requests of a compilation that change fixed groups or a layer without an edge group."""
         records = cast('Census', compilation.census).records
         return PassCompiler._fixed_group_issues(records, cast('list[Node]', compilation.nodes))
-

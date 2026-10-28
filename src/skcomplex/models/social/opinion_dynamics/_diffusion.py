@@ -18,11 +18,11 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 N_LEVELS = 4
 PASSIONATE = 3

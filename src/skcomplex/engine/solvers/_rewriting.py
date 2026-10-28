@@ -3,16 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
-from typing import Any, ClassVar
+from typing import Any
 
 import numpy as np
 
 from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...types import Array
-from ..compile.passes._rewriting_problem import RewritingProblem
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import Form, OrderKind, State, SupportSpec
+from ..problems._rewriting_problem import RewritingProblem
 from ._base import BaseSolver
 from ._structure_state import StructureState
 
@@ -39,32 +38,31 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={DiscreteTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={ProductionLaw, SubstitutionLaw, GraphProductionLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={DiscreteTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={ProductionLaw, SubstitutionLaw, GraphProductionLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.REWRITING
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.REWRITING
 
-    def _prepare(self, problem: RewritingProblem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: RewritingProblem) -> None:
         """Prepare the structures at generation 0.
 
         Args:
             problem:
                 The compiled problem.
-
-            rng:
-                The random stream of stochastic productions and graph matches.
-
-            until:
-                The end time of the run.
         """
-        super()._prepare(problem, rng, until)
-        values = problem.initial_parameters
+        super()._prepare(problem)
         self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
-        self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}
+        self.structures_: dict[str, Any] = {item.path: item.prepare(problem).structure_ for item in self.systems_}
         self._collect()
 
     def _state(self) -> Array:
@@ -92,11 +90,9 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
             state:
                 The counts and sizes at generation `until`.
         """
-        del x
-        for _ in range(round(until - t)):
-            self.structures_ = {
-                item.path: item.rewrite(self.structures_[item.path], p, self.rng_) for item in self.systems_
-            }
+        for generation in range(round(until - t)):
+            state = State(t + generation, x, p, self.rng_)
+            self.structures_ = {item.path: item.run(state) for item in self.systems_}
         return self._state()
 
     def _collect(self) -> None:

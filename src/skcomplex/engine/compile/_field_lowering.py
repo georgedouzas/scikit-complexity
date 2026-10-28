@@ -20,11 +20,16 @@ from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
 from ...types import Indices, Offset
-from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
+from .._utils import domain_of, symbol
+from ..problems import ExpressionPrinter
+from ..problems._diffusive_limit import DiffusiveLimit
+from ..problems._field_operator_kernel import FieldOperatorKernel
+from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read import NeighborRead
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
-from ._derived_read import DerivedRead
-from ._diffusive_limit import DiffusiveLimit
 from ._kernel_spec import KernelSpec
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
@@ -70,7 +75,7 @@ class FieldLowering(BaseLowering):
     fields_: Mapping[str, FieldElement]
     initial_: Mapping[Expression, float]
     shifted_: dict[Expression, tuple[Expression, Offset | int]]
-    derived_: dict[Expression, tuple[FieldElement, DerivedRead]]
+    derived_: dict[Expression, tuple[FieldElement, FieldOperatorKernel]]
     limits_: list[float]
     volume_limits_: list[DiffusiveLimit]
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
@@ -148,7 +153,7 @@ class FieldLowering(BaseLowering):
     def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
         reference = self.spec.references[item]
-        if reference.source is not Source.MEMBER:
+        if reference.source is not ReadKind.MEMBER:
             return None
         found = self.fields_.get(reference.entry.name)
         if found is None:
@@ -240,7 +245,7 @@ class FieldLowering(BaseLowering):
                     reference.entry,
                     reference.is_state,
                     reference.column,
-                    Source.NEIGHBOR,
+                    ReadKind.NEIGHBOR,
                     read,
                 )
                 self.shifted_[target] = (base, total)
@@ -353,15 +358,15 @@ class FieldLowering(BaseLowering):
         ahead = (self._shift(value, step) - value) / space.spacings_[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
-    def _derived(self, place: FieldElement, read: DerivedRead) -> Expression:
+    def _derived(self, place: FieldElement, read: FieldOperatorKernel) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
         target = symbol(f'_derived_{place.label}_{len(self.derived_)}')
         entry = next(
             self.spec.references[item].entry
             for item in read.symbols
-            if self.spec.references[item].source in {Source.MEMBER, Source.NEIGHBOR, Source.DERIVED}
+            if self.spec.references[item].source in {ReadKind.MEMBER, ReadKind.NEIGHBOR, ReadKind.DERIVED}
         )
-        self.spec.references[target] = Reference(entry, True, 0, Source.DERIVED, read)
+        self.spec.references[target] = Reference(entry, True, 0, ReadKind.DERIVED, read)
         self.derived_[target] = (place, read)
         return target
 
@@ -385,7 +390,9 @@ class FieldLowering(BaseLowering):
         if inner is not None and inner[1].multiplier is not None:
             operand, multiplier = inner[1].operand, multiplier * inner[1].multiplier
         symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
-        read = DerivedRead(operand, symbols, self._spectral_apply(multiplier, dimensions), multiplier, dimensions)
+        read = FieldOperatorKernel(
+            operand, symbols, self._spectral_apply(multiplier, dimensions), multiplier, dimensions,
+        ).check()
         return self._derived(place, read)
 
     def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
@@ -397,7 +404,7 @@ class FieldLowering(BaseLowering):
             raise ValidationError(error_msg)
         matrix = self._mesh_laplacian(place.space)  # type: ignore[arg-type]
         symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
-        read = DerivedRead(operand, symbols, lambda values: matrix @ values, matrix=matrix)
+        read = FieldOperatorKernel(operand, symbols, lambda values: matrix @ values, matrix=matrix).check()
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
@@ -406,7 +413,7 @@ class FieldLowering(BaseLowering):
         references = [self.spec.references[item] for item in symbols if item in self.spec.references]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
-        function = numpy_function(TIME, symbols, [coefficient])
+        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])
         self.volume_limits_.append(DiffusiveLimit(function, tuple(references), stiffness))
 
     def _note_limit(self, value: object) -> None:

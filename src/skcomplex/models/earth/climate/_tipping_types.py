@@ -15,10 +15,10 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import ramp
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 C0 = 1.10869e-8
 C1 = 9.7137e9

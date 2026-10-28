@@ -15,9 +15,9 @@ from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import StateSpec, VisualSpec
+from ..._catalog import register_model
 
 type AffineMap = Sequence[float]
 

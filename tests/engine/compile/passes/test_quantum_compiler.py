@@ -14,6 +14,7 @@ from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import (
     BaseCompiler,
     BasePass,
@@ -21,7 +22,6 @@ from skcomplex.engine.compile import (
     compile_system,
 )
 from skcomplex.engine.compile.passes import QuantumCompiler
-from skcomplex.engine.problems import symbol
 from skcomplex.errors import IncompatibleLawsError, ValidationError
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import (

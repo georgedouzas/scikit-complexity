@@ -13,8 +13,8 @@ from ....core.elements import ParticleElement
 from ....core.interactions import PotentialInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec
+from ..._catalog import register_model
 
 
 class ExponentialWellInteraction(PotentialInteraction):

@@ -13,10 +13,10 @@ from ....core.elements import Element
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 from ....errors import ParameterError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 

@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Any, ClassVar
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -17,9 +17,9 @@ from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, Lattice
 from ...errors import SolverError
 from ...types import Array
 from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
-from ..compile.passes._quantum_problem import QuantumProblem
-from ..compile.passes._quantum_term import QuantumTerm
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import Form, OrderKind, State, SupportSpec
+from ..problems._quantum_kernel import QuantumKernel
+from ..problems._quantum_problem import QuantumProblem
 from ._base import BaseSolver
 
 
@@ -44,14 +44,20 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             The largest dimension of the Hilbert space the solver accepts, which compiling checks.
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={GeneratorLaw, DissipatorLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={GeneratorLaw, DissipatorLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.QUANTUM
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.QUANTUM
 
     def __init__(
         self,
@@ -59,13 +65,18 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         rtol: float = 1e-10,
         nsteps: int = 100_000,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.atol = atol
         self.rtol = rtol
         self.nsteps = nsteps
         self.max_dimension = max_dimension
+        self.random_state = random_state
+        self.until = until
 
-    def _operator(self, terms: Sequence[QuantumTerm], p: Array) -> qutip.Qobj | qutip.QobjEvo:
+    def _operator(self, terms: Sequence[QuantumKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
         problem = self.quantum_
         dims = [list(problem.dimensions)] * 2
@@ -77,7 +88,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             if term.time_dependent:
                 varying.append([matrix, self._coefficient(term, p)])
             else:
-                constant = constant + complex(term.value(0.0, p)) * matrix
+                constant = constant + complex(term.run(State(0.0, np.zeros(0), p))) * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
@@ -135,24 +146,18 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         del problem
         return []
 
-    def _prepare(self, problem: QuantumProblem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: QuantumProblem) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that seeds quantum jumps.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblem) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
@@ -188,13 +193,11 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
-    def _coefficient(term: QuantumTerm, p: Array) -> Callable[[float], complex]:
+    def _coefficient(term: QuantumKernel, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 
         def value(t: float) -> complex:
-            return term.value(t, parameters)
+            return term.run(State(t, np.zeros(0), parameters))
 
         return value
-
-

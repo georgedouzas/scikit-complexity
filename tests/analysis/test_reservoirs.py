@@ -84,5 +84,3 @@ def test_reservoir_analysis_rejects_series_shorter_than_warmup():
     """Test that series with no sample after the warmup raise an error."""
     with pytest.raises(AnalysisError, match='warmup'):
         _fit(_sine_values(), warmup=600)
-
-

@@ -4,15 +4,14 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from typing import cast
 
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...types import Array
-from ..compile._compiled_extremal import CompiledExtremal
-from ..compile._compiled_relaxation import CompiledRelaxation
-from ..compile.passes._lattices import LatticeStep
-from ..problems import Form, OrderKind, SupportSpec
+from ..problems import BaseKernel, Form, OrderKind, State, SupportSpec
+from ..problems._extremal_kernel import ExtremalKernel
+from ..problems._relaxation_kernel import RelaxationKernel
 from ._solver import Solver
 
 
@@ -26,21 +25,27 @@ class LatticeSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.engine.solvers import LatticeSolver
+        >>> from skcomplex.engine.solvers import LatticeSolver, Step
         >>> problem = compile_system(elementary_automaton(30, size=11))
-        >>> stepper = LatticeSolver().prepare(problem, np.random.default_rng(0))
-        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).astype(int).tolist()
+        >>> stepper = LatticeSolver(random_state=0).check().prepare(problem)
+        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={DiscreteTime},
-        space={LatticeSpace, NetworkSpace},
-        laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={DiscreteTime},
+            space={LatticeSpace, NetworkSpace},
+            laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.LATTICE
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.LATTICE
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Apply the lattice laws once per integer time step from `t` up to `until`.
@@ -64,14 +69,12 @@ class LatticeSolver(Solver):
         """
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            for item in cast('tuple[LatticeStep, ...]', self.problem_.lattice):
-                if isinstance(item, CompiledRelaxation):
-                    record = item.apply(state, p, self.rng_, float(step + 1))
-                    if record is not None:
-                        self.locator_.records.append(record)
-                elif isinstance(item, CompiledExtremal):
-                    self.locator_.records.extend(item.apply(state, p, self.rng_, float(step + 1)))
-                else:
-                    item.apply(state, p, self.rng_)
+            current = State(float(step + 1), state, p, self.rng_)
+            for item in cast('tuple[BaseKernel, ...]', self.problem_.lattice):
+                result = item.run(current)
+                if isinstance(item, RelaxationKernel) and result is not None:
+                    self.locator_.records.append(result)
+                elif isinstance(item, ExtremalKernel):
+                    self.locator_.records.extend(result)
             state = self._bounded(float(step + 1), state, p)
         return state

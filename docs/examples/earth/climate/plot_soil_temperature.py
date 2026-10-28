@@ -15,7 +15,7 @@ import numpy as np
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'soil_temperature'
 
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=20
 epsilon = 0.1
 diagram = (
     OrbitDiagramExperiment(
-        MODEL,
+        describe(MODEL).factory,
         'r',
         np.linspace(2.5, 3.95, 300),
         'soil.x',

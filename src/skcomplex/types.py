@@ -30,6 +30,7 @@ type Pairs = tuple[Indices, Indices]
 type OptionalPairs = Pairs | None
 type EdgesFound = tuple[Indices, Indices, Indices | None]
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
+type Partials = tuple[list[tuple[int, Expression]], Callable[..., list[Any]] | None]
 
 # expressions and specs
 type Target = Expression | FreeModuleElement
@@ -47,10 +48,10 @@ type PrintedKey = tuple[int, str]
 type VectorFunction = Callable[[float, Array, Array], Array]
 type NumericFunction = Callable[[float, Mapping[str, object]], object]
 type GridFunction = Callable[..., Array]
-type Getter = Callable[[float, Array, Array, Mapping[str, Any]], Any]
+type Getter = Callable[[float, Array, Array, Mapping[str, object]], object]
 type Reader = Callable[[Array, Array, OptionalPairs, float], Any]
 type Scalars = Callable[[float, Array, Array], list[float]]
-type Step = Callable[[float, Array, Array, Array], Array]
+type StepFunction = Callable[[float, Array, Array, Array], Array]
 type Interpolant = Callable[[float], Array]
 type Bounded = Callable[[float, Array, Array], Array]
 type Take = Callable[[float, Array, float, float], tuple[Array, Interpolant]]

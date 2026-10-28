@@ -19,24 +19,14 @@ from ...core.laws.utils import Reduction, reductions_in
 from ...core.system import System
 from ...errors import RoleError, ValidationError
 from ...specs import ObservableSpec, StateSpec
-from ...types import AgentsOf, Array
-from ..problems import (
-    BaseProblem,
-    Entry,
-    Form,
-    Getter,
-    Problem,
-    ReductionSchedule,
-    Reference,
-    Source,
-    VariableKind,
-    declarations_of,
-    numpy_function,
-    symbol,
-    symbols_of,
-)
-from ..problems._compiled_reduction import CompiledReduction
+from ...types import AgentsOf, Array, Getter
+from .._utils import declarations_of, symbol, symbols_of
+from ..problems import BaseProblem, Entry, ExpressionPrinter, Form, Problem, VariableKind
+from ..problems._read_kind import ReadKind
 from ..problems._reads import Read
+from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
 from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
@@ -252,18 +242,19 @@ class _HeldReduction:
 
             def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
                 del t
-                return float(np.real(CompiledReduction._reduce_values(columns[0] if columns else members, reduce)))
+                return float(np.real(ReductionKernel._reduce_values(columns[0] if columns else members, reduce)))
 
             return reduce_values_of
         condition = SR(1) if self.condition is None else self.condition
-        function = numpy_function(time, list(self.symbols), [self.argument, condition])
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(self.symbols))
+        function = printer.run([self.argument, condition])
 
         def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
             size = len(members)
             argument, selected = (
                 np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
             )
-            return float(np.real(CompiledReduction._reduce_values(argument[selected.astype(bool)], reduce)))
+            return float(np.real(ReductionKernel._reduce_values(argument[selected.astype(bool)], reduce)))
 
         return reduce_expression
 
@@ -343,7 +334,7 @@ class _MemberReductions:
     reads: dict[Expression, Read]
     time: Expression
     parameters: int
-    found: dict[str, CompiledReduction] = field(default_factory=dict)
+    found: dict[str, ReductionKernel] = field(default_factory=dict)
 
     @property
     def extent(self) -> int:
@@ -412,7 +403,7 @@ class _MemberReductions:
         entry = Entry(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
-        self.found[key] = CompiledReduction(
+        self.found[key] = ReductionKernel(
             placeholder,
             reduction.kind,
             argument,
@@ -423,7 +414,7 @@ class _MemberReductions:
             self.group,
             reads,
             self.time,
-        )
+        ).check()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
         self.reads[placeholder] = Read(False, indices, entry)
         return placeholder
@@ -544,7 +535,7 @@ class ObservableEvaluator:
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
-        function = numpy_function(self.problem.time, arguments, [expression])
+        function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             value = function(t, *(read(x, p, done) for read in readers))[0]
@@ -558,7 +549,7 @@ class ObservableEvaluator:
         members: dict[Expression, Callable[[Array, Array], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
             reference = recorded.references.get(item)
-            if reference is None or reference.source not in {Source.SINGLE, Source.MEMBER}:
+            if reference is None or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
                 error_msg = (
                     f'{recorded.path} reads {item}, which is neither a variable of its component nor of a member of '
                     'its group, so trajectories cannot record it. Record it with an observable instead.'
@@ -635,7 +626,7 @@ class ObservableEvaluator:
             def read_variable(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
-                return CompiledReduction._reduce_values(
+                return ReductionKernel._reduce_values(
                     values if element.members is not None else values[np.newaxis], observable.reduce,
                 )
 
@@ -674,7 +665,7 @@ class ObservableEvaluator:
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
-            return CompiledReduction._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_expression
 
@@ -693,7 +684,7 @@ class ObservableEvaluator:
                 values = [observable.expression(agent) for agent in agents]
             else:
                 values = agents
-            return CompiledReduction._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_agents
 

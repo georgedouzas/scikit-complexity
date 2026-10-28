@@ -18,9 +18,9 @@ from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.laws.utils import delayed, laplacian, maximum
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
 LEGION_OBJECTS = ((1, 1, 0, 0), (1, 0, 0, 0), (0, 0, 0, 1), (0, 0, 0, 1))

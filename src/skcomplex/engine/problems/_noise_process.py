@@ -8,9 +8,11 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
+from ._base import BaseValue
+
 
 @dataclass(frozen=True)
-class NoiseProcess:
+class NoiseProcess(BaseValue):
     """Named Wiener process that a noise output draws, shared by every output with the same key.
 
     Args:

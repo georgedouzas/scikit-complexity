@@ -20,12 +20,12 @@ from ...core.spaces import (
 )
 from ...errors import SolverError
 from ...types import Array, ComplexArray
+from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import LATTICE_BOUNDARIES, Problem, numpy_function, symbol
+from ..problems import ExpressionPrinter, Problem
+from ..problems._law_kernel import LATTICE_BOUNDARIES
 
 TIME = symbol('t')
-
-
 
 
 @dataclass
@@ -253,7 +253,8 @@ class SplitOperator:
             reference = term.references[item]
             column = reference.entry.view(p)[:, reference.column]
             values.append(float(column[0]) if reference.entry.members is None else column)
-        return numpy_function(TIME, symbols, [term.coefficient])(0.0, *values)[0]
+        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols)
+        return printer.run([term.coefficient])(0.0, *values)[0]
 
     @staticmethod
     def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401

@@ -15,9 +15,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeSpace, MooreNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 class HodgepodgeCellElement(Element):

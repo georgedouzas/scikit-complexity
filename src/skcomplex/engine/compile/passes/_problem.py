@@ -15,26 +15,24 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....errors import ValidationError
 from ....specs import VisualSpec
-from ....types import Array, Scalars
+from ....types import Array, Scalars, VectorFunction
+from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     CompiledElement,
-    CompiledEvent,
     CompiledInteraction,
+    ExpressionPrinter,
     Form,
     Layout,
     Problem,
-    ReductionSchedule,
-    Reference,
-    Source,
     VariableKind,
-    VectorFunction,
-    components_of,
-    declarations_of,
-    numpy_function,
-    symbols_of,
 )
-from ...problems._base_problem import _MarkovMatrix
-from ...problems._compiled_event import _Breakpoints, _Delay
+from ...problems._breakpoints import _Breakpoints
+from ...problems._delay import _Delay
+from ...problems._event_kernel import EventKernel
+from ...problems._markov_kernel import MarkovKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reduction_schedule import ReductionSchedule
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Compilation, Laws
@@ -141,8 +139,8 @@ class ProblemPass(BasePass):
         functions = cast('dict[str, Any]', compilation.functions)
         return Problem(
             form=form,
-            states=Layout(declarations.states),
-            parameters=Layout(declarations.parameters),
+            states=Layout(tuple(declarations.states)),
+            parameters=Layout(tuple(declarations.parameters)),
             initial_state=np.concatenate([np.zeros(0), *declarations.initial_states]),
             initial_parameters=np.concatenate([np.zeros(0), *declarations.initial_parameters]),
             time=time,
@@ -165,7 +163,7 @@ class ProblemPass(BasePass):
             jacobian=compilation.jacobian,
             breakpoints=ProblemPass._breakpoints_in(reduced, compilation.events, time),
             history=ProblemPass._history(blocks),
-            matrices=cast('tuple[_MarkovMatrix, ...]', compilation.matrices),
+            matrices=cast('tuple[MarkovKernel, ...]', compilation.matrices),
             **functions,
         )
 
@@ -208,7 +206,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
         """Return the flat indices a reset of a single element's state or of every group member's state writes."""
-        if reference.entry.members is not None and reference.source in {Source.MEMBER, Source.REDUCED}:
+        if reference.entry.members is not None and reference.source in {ReadKind.MEMBER, ReadKind.REDUCED}:
             return reference.flat_indices.astype(np.intp)
         return np.asarray([reference.entry.start + reference.column], dtype=np.intp)
 
@@ -229,7 +227,7 @@ class ProblemPass(BasePass):
                 'Events and delays read states and parameters of single elements and interactions.'
             )
             raise ValidationError(error_msg)
-        function = numpy_function(time, arguments, values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
         places = [sources[item] for item in arguments]
 
         def evaluate(t: float, x: Array, p: Array) -> list[float]:
@@ -260,7 +258,7 @@ class ProblemPass(BasePass):
         ]
         references = [spec.references.get(item) for item in targets]
         if any(
-            item is None or not item.is_state or item.source not in {Source.SINGLE, Source.MEMBER}
+            item is None or not item.is_state or item.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
             for item in references
         ):
             error_msg = f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
@@ -276,7 +274,7 @@ class ProblemPass(BasePass):
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
         places = [ProblemPass._reset_indices(reference) for reference in references]  # type: ignore[arg-type]
-        function = numpy_function(time, arguments, values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
 
         def apply(t: float, x: Array, p: Array) -> Array:
             q = reductions.extend(t, x, p)
@@ -420,7 +418,7 @@ class ProblemPass(BasePass):
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
         reductions: ReductionSchedule,
-    ) -> tuple[CompiledEvent, ...]:
+    ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions of the state vector.
 
         Args:
@@ -446,13 +444,13 @@ class ProblemPass(BasePass):
             sources = ProblemPass._flat_sources(spec.references, spec.owner)
             guard = ProblemPass._scalar_function([event.guard], sources, time, spec.owner)
             compiled.append(
-                CompiledEvent(
+                EventKernel(
                     event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
                     reductions.wrap(ProblemPass._first_value(guard)),  # type: ignore[arg-type]
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
-                ),
+                ).check(),
             )
         return tuple(compiled)
 
@@ -461,7 +459,7 @@ class ProblemPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
         reductions: ReductionSchedule,
-    ) -> tuple[CompiledEvent, ...]:
+    ) -> tuple[EventKernel, ...]:
         """Return one hidden event per condition on the states of single components that switches a law of a flow.
 
         Args:
@@ -485,7 +483,7 @@ class ProblemPass(BasePass):
                 value
                 for law in laws
                 if isinstance(law, BaseLaw) and not isinstance(law, JumpLaw)
-                for value in BasePass._values_of(law, include=('value', 'lhs', 'rhs'))
+                for value in law._get_values(include=('value', 'lhs', 'rhs'))
                 if isinstance(value, Expression)
             ]
             for index, condition in enumerate(ProblemPass._state_conditions_of(values, time)):
@@ -494,7 +492,9 @@ class ProblemPass(BasePass):
                 guard = ProblemPass._scalar_function([condition], sources, time, spec.owner)
                 label = f'{spec.owner}:switch:{index}'
                 compiled.append(
-                    CompiledEvent(label, reductions.wrap(ProblemPass._first_value(guard)), None, 0, False, hidden=True),
+                    EventKernel(
+                        label, reductions.wrap(ProblemPass._first_value(guard)), None, 0, False, hidden=True,
+                    ).check(),
                 )  # type: ignore[arg-type]
         return tuple(compiled)
 

@@ -16,8 +16,8 @@ from ....core.laws import BaseLaw, SampleLaw
 from ....core.laws.utils import neighbors, where
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 NEAREST = VonNeumannNeighborhood()
 

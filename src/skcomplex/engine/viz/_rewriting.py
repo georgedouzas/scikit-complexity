@@ -11,11 +11,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..compile._graph_structure import GraphStructure
-from ..compile._patch_structure import PatchStructure
-from ..compile._structure import Structure
-from ..compile._word_structure import WordStructure
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
+from ..problems import BaseProblem, BaseStructure, CompiledAgents, CompiledElement
+from ..problems._graph_structure import GraphStructure
+from ..problems._patch_structure import PatchStructure
+from ..problems._word_structure import WordStructure
 from ..runtime import Frame
 from ._base import BaseVisual
 
@@ -174,16 +173,16 @@ class GeometryVisual(BaseVisual):
         except (TypeError, ValueError):
             return None
         xmin, ymin, xmax, ymax = PatchStructure(
-            component.prototiles,
-            codes,
-            np.reshape(matrices, (-1, 3, 3)),
+            tuple(component.prototiles),
+            BaseStructure._frozen(codes, np.int64),
+            BaseStructure._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
         ).bounds()
         pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
         return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
 
     @staticmethod
-    def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+    def _strips(structure: BaseStructure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the line strips of a structure, with y flipped for Rerun's downward axis, and a value per strip."""
         segments = structure.segments()
         if isinstance(structure, WordStructure):

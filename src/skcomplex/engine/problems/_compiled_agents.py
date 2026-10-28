@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from ...core.elements import Element, GroupElement
 from ...core.laws import BaseLaw
 from ...specs import VisualSpec
+from ._base import BaseValue
 
 
 @dataclass(frozen=True)
-class CompiledAgents:
+class CompiledAgents(BaseValue):
     """Agent element or agent group of an agent-based problem, whose states live in the Mesa model.
 
     Args:

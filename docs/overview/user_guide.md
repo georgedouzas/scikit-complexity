@@ -883,7 +883,7 @@ print(flight.trajectory_.values('fliers.x').shape)
 ### Jumps on clocks of waiting times
 
 `JumpLaw(waiting=..., reset=..., label=...)` fires after a waiting time, applies its reset to the states all at once,
-and draws the next waiting time from the states after the reset. Every member of a group renews on its own clock. Draws
+and draws the next waiting time from the states after the reset. Every member of a group renews on its own clock. DrawKernel
 in the waiting time and the reset take a fresh value at every renewal of every member, and every use of one name in a
 renewal reads the same value. A waiting time that is a single draw must come from a distribution with nonnegative
 support, and compiling rejects one that can be negative, such as `normal`.
@@ -1510,7 +1510,7 @@ order, so a module imports only the modules above it.
 - `backends`: the NumPy and Numba backends, which lower expressions to numeric functions.
 - `compile`: `compile_system`, the compilers, and the passes that turn a system into a problem.
 - `solvers`: the solver contract, `step_count`, and every solver.
-- `runtime`: `Simulation`, clocks, observers, trajectories, and the catalog of models.
+- `runtime`: `Simulation`, clocks, observers, and trajectories.
 - `viz`: the visuals and the Rerun observer.
 
 `skcomplex.analysis` holds the analyses of systems, trajectories, and data, and `skcomplex.experiments` the experiments
@@ -1633,7 +1633,9 @@ self-contained, so no model package imports another. A test of the package layou
 Every ready-made model is a factory registered with its field path, description, tags, references, and default run
 settings. `catalog` lists them, filtered by a field, such as `biology`, by a field path, such as `biology/ecology`, or
 by a tag, `describe` gives a model's parameters and the formalism inferred by compiling it, `create` builds it by name,
-and `run` simulates it with its defaults.
+and `run` simulates it with its defaults. The catalog belongs to the models library alone: the engine and experiments
+take a system or a factory, never a model name, so a model of the library is created with `create` or passed as its
+factory.
 
 ```python
 from skcomplex.models import catalog, create, describe, run
@@ -1663,7 +1665,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.engine.runtime import create, register_model
+from skcomplex.models import create, register_model
 
 
 class TankElement(Element):
@@ -1979,7 +1981,7 @@ print(bool(Simulation(ring, dt=1.0).check().run(until=50).trajectory_.values('ca
 ### Jacobians of reductions
 
 A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
-the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem evaluates the exact
+the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem is a kernel that, prepared with the problem and run at a `State`, returns the exact
 Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
 its structure, which the implicit methods of `ScipyODESolver` receive (see [Discretizations and stiff
 solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million entries, `pattern()` returns
@@ -1998,6 +2000,7 @@ from skcomplex.core.laws.utils import total
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import State
 
 
 class UnitElement(Element):
@@ -2011,7 +2014,7 @@ class UnitElement(Element):
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = compile_system(units)
-jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
+jacobian = problem.jacobian.prepare(problem).run(State(0.0, problem.initial_state, problem.initial_parameters))
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
@@ -2771,14 +2774,14 @@ print(PassCompiler(solver=KineticSolver()).check().prepare(welfare).report_.ok)
 
 ### Levels
 
-`distribution_from(group, state, activities, element=E)` bins the values of a state of a group's members, from their
-initial values or from a frame of a trajectory, into a distribution site group, every member counting at the nearest
-activity, so the density is 1. `members_from(distribution, element, n, activities=...)` draws the members of a
-variable group from a distribution. A model can then run one level in a partition of a co-simulation and feed another
-level its moments.
+`CoarseGrainAnalysis(over=values)` coarse-grains in state space: it bins the values of a state of a group's members,
+from their initial values or from a frame of a trajectory, over given values, every member counting at the nearest
+value, so the densities sum to 1 and start a distribution site group. Members drawn from a distribution are values
+sampled with NumPy in proportion to the densities, and the group's constructor builds them. A model can then run one
+level in a partition of a co-simulation and feed another level its moments.
 
 ```python continuation
-from skcomplex.engine.compile import distribution_from, members_from
+from skcomplex.analysis import CoarseGrainAnalysis
 
 
 class TraderElement(Element):
@@ -2787,9 +2790,11 @@ class TraderElement(Element):
         self.w = w
 
 
-traders = members_from(densities[-1], TraderElement, 1000, activities=classes, random_state=0)
-binned = distribution_from(traders, 'w', classes, element=WealthDensityElement, label='wealth')
-density = binned.values['f']
+profile = densities[-1] / densities[-1].sum()
+wealths = classes[np.random.default_rng(0).choice(classes.size, size=1000, p=profile)]
+traders = GroupElement('traders', element=TraderElement, size=1000, values={'w': wealths}, variable=True)
+density = CoarseGrainAnalysis(over=classes).check().prepare(traders.values['w']).run().field_
+binned = GroupElement('wealth', element=WealthDensityElement, size=classes.size, on='sites', values={'f': density})
 print(round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(traders.values['w'].mean()), 3))
 ```
 
@@ -3855,8 +3860,8 @@ Open both files with `rerun lotka_volterra.rrd lotka_volterra.rbl` to see the la
 
 ## Experiments
 
-Complex systems are studied through many runs. `Experiment` runs a model, a registered name, a factory, or a system,
-over a design of factory arguments and dotted paths, scenarios, and replicates. Every design row and replicate gets
+Complex systems are studied through many runs. `Experiment` runs a model, a factory of systems or a system, over a
+design of factory arguments and dotted paths, scenarios, and replicates. Every design row and replicate gets
 its own random stream spawned from `random_state` in a fixed order, so results are the same serially, on threads, or on
 processes, and every scenario of a row and replicate shares its stream. Parameter and initial-state overrides reuse one
 compiled problem, so sweeps of thousands of runs compile once. An experiment is an estimator: `check` validates its

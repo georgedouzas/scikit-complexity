@@ -14,8 +14,8 @@ from ....core.interactions import BaseInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import lag
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import StateSpec, VisualSpec
+from ..._catalog import register_model
 from ._populations import (
     DelayedLogisticGrowthInteraction,
     ExponentialGrowthInteraction,

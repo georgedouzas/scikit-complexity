@@ -15,9 +15,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....errors import ValidationError
 from ....specs import RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 from ._boolean import _pattern
 
 type Candidates = Sequence[tuple[Sequence[int], float]]

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ..problems import Reference
+from ..problems._reference import Reference
 from ._observed import Observed
 from ._tree import Node
 

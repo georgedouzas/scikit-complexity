@@ -3,8 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
-from typing import ClassVar
 
 import numpy as np
 
@@ -27,45 +25,45 @@ class GillespieSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
-        >>> from skcomplex.engine.solvers import GillespieSolver
+        >>> from skcomplex.engine.solvers import GillespieSolver, Step
         >>> problem = compile_system(
         ...     System(
         ...         elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
-        >>> stepper = GillespieSolver().prepare(problem, np.random.default_rng(0))
-        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
+        >>> stepper = GillespieSolver(random_state=0).check().prepare(problem)
+        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 100.0)).tolist()
         [0.0, 10.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={JumpLaw, BoundaryLaw, TransferLaw},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={JumpLaw, BoundaryLaw, TransferLaw},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.JUMP
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.JUMP
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -122,8 +120,8 @@ class GillespieSolver(Solver):
             channel = int(np.searchsorted(offsets, event, side='right')) - 1
             channels = jumps[channel]
             topology = self.problem_.topology
-            if topology is not None and channel in topology.channels:
-                state = topology.fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
+            if topology is not None and channel in (topology.channels or {}):
+                state = topology._fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
                 state = self._bounded(t, state, p)
                 continue
             targets = channels.targets[:, event - channels.offset]

@@ -18,9 +18,9 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 

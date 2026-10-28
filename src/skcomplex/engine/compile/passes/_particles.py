@@ -8,7 +8,8 @@ from typing import cast
 from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
-from ...problems import VariableKind, components_of, declarations_of
+from ..._utils import components_of, declarations_of
+from ...problems import VariableKind
 from .._base import BasePass
 from .._block import Block
 from .._compilation import BlockLaws

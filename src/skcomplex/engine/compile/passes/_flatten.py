@@ -14,7 +14,8 @@ from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
-from ...problems import VariableKind, declarations_of
+from ..._utils import declarations_of
+from ...problems import VariableKind
 from .._base import BasePass
 from .._laws import _AGENT_LAWS
 from .._probe import probe_laws

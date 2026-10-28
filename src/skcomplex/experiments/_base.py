@@ -26,16 +26,16 @@ from ..core.laws import (
     UpdateLaw,
 )
 from ..core.system import System
+from ..engine._utils import declared_variables
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
-from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
-from ..engine.runtime import MODELS, Simulation, Trajectory
-from ..errors import ValidationError
+from ..engine.problems import BaseProblem, VariableKind
+from ..engine.runtime import Simulation, Trajectory
+from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..types import Bounds, Row
 
-type Source = str | Callable[..., System] | System
-type Factory = Callable[..., System] | System
+type Source = Callable[..., System] | System
 _PROBLEMS: dict[tuple[object, ...], BaseProblem] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
 PLAIN_LAWS = (
@@ -117,26 +117,28 @@ class BaseDesign(BaseConfig, ABC):
 
 
 class BaseExperiment(BaseConfig, ABC):
-    """Base of experiments, which run a model, given by a registered name, a factory, or a system, many times.
+    """Base of experiments, which run a model, given by a factory of systems or a system, many times.
 
     An experiment stores its source and settings in `__init__`, validates them in `check`, resolves the source and
     what it runs in `prepare`, and runs in `run`, which returns the experiment with its results in the attributes that
-    end in `_`. A child implements `_prepare` and `_run`, and reads the model with the private methods of the base.
+    end in `_`. A child implements `_prepare` and `_run`, and reads the model with the private methods of the base. A
+    model of the library is passed as its factory, or as a system that `skcomplex.models.create` returns, since
+    experiments do not import the model library.
 
     Examples:
         >>> from skcomplex.experiments import BaseExperiment
         >>> from skcomplex.models.biology.ecology import logistic_growth
-        >>> class DefaultsExperiment(BaseExperiment):
+        >>> class SystemExperiment(BaseExperiment):
         ...     def __init__(self, source):
         ...         self.source = source
         ...
         ...     def _prepare(self, context):
-        ...         self.factory_, self.defaults_ = self._resolve_source(self.source)
+        ...         self.factory_ = self._check_source(self.source)
         ...
         ...     def _run(self, inputs):
         ...         return self
-        >>> DefaultsExperiment('logistic_growth').check().check().prepare().run().defaults_['until']
-        20.0
+        >>> len(SystemExperiment(logistic_growth).check().prepare().run().factory_().elements)
+        1
     """
 
     @abstractmethod
@@ -148,15 +150,23 @@ class BaseExperiment(BaseConfig, ABC):
         """Run the experiment, set its results as attributes that end in `_`, and return it."""
 
     @staticmethod
-    def _resolve_source(source: Source) -> tuple[Factory, dict[str, object]]:
-        """Return the factory or system of a model source and the default run settings of a registered model."""
+    def _check_source(source: object) -> Source:
+        """Return a model source, a factory of systems or a system, after checking it.
+
+        Raises:
+            ExperimentError:
+                The source is a model name or neither a factory nor a system.
+        """
         if isinstance(source, str):
-            entry = MODELS.resolve(source)
-            return entry.factory, dict(entry.defaults)
+            error_msg = (
+                f'An experiment takes a system or a factory of systems, not the model name {source!r}. Pass the '
+                f"model's factory, or the system that `skcomplex.models.create({source!r})` returns."
+            )
+            raise ExperimentError(error_msg)
         if isinstance(source, System) or callable(source):
-            return source, {}
-        error_msg = f'A model source is a registered model name, a factory, or a system, not {source!r}.'
-        raise ValidationError(error_msg)
+            return source
+        error_msg = f'A model source is a factory of systems or a system, not {source!r}.'
+        raise ExperimentError(error_msg)
 
     @staticmethod
     def _run_replicated(
@@ -167,31 +177,23 @@ class BaseExperiment(BaseConfig, ABC):
         random_state: int | None,
     ) -> tuple[Trajectory, System]:
         """Return one run of a source's system replicated once per value of every path, and the original system."""
-        factory, defaults = BaseExperiment._resolve_source(source)
+        factory = BaseExperiment._check_source(source)
         system = factory if isinstance(factory, System) else factory()
         size = len(next(iter(values.values())))
-        options = {key: value for key, value in defaults.items() if key in ('solver', 'backend')}
-        step = dt if dt is not None else defaults.get('dt', 1.0)
-        end = until if until is not None else defaults.get('until', 10.0)
-        simulation = Simulation(
-            BaseExperiment._replicate(system, size, values),
-            dt=step,
-            random_state=random_state,
-            **options,
-        ).check()
+        step = dt if dt is not None else 1.0
+        end = until if until is not None else 10.0
+        replicated = BaseExperiment._replicate(system, size, values)
+        simulation = Simulation(replicated, dt=step, random_state=random_state).check()
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod
     def _compile(
-        source: Factory,
+        source: Source,
         arguments: Mapping[str, object],
         system: System | None = None,
-        observables: Sequence[ObservableSpec] | str | None = None,
+        observables: Sequence[ObservableSpec] | None = None,
     ) -> BaseProblem:
-        """Return the compiled problem of a source with factory arguments, compiled once per process and arguments.
-
-        The observables are given ones, the name of the registered model whose standard observables to use, or `None`.
-        """
+        """Return the compiled problem of a source with factory arguments, compiled once per process and arguments."""
         if system is not None:
             key: tuple[object, ...] = ('system', id(system))
             built = system
@@ -206,14 +208,10 @@ class BaseExperiment(BaseConfig, ABC):
         else:
             key = (source, tuple(sorted((name, repr(value)) for name, value in arguments.items())))
             built = None
-        key = (*key, observables if isinstance(observables, str | None) else tuple(map(id, observables)))
+        key = (*key, tuple(map(id, observables or ())))
         if key not in _PROBLEMS:
             built = built if built is not None else source(**arguments)
-            if isinstance(observables, str):
-                specs = MODELS.resolve(observables).observables_of(built)
-            else:
-                specs = list(observables or ())
-            _PROBLEMS[key] = compile_system(built, observables=specs)
+            _PROBLEMS[key] = compile_system(built, observables=list(observables or ()))
         return _PROBLEMS[key]
 
     @staticmethod
@@ -227,7 +225,7 @@ class BaseExperiment(BaseConfig, ABC):
                 error_msg = f'{name} is neither a state nor a parameter of the model. Available paths are: {names}.'
                 raise ValidationError(error_msg)
             entry = layout.entry(name)
-            if not contains(entry.domain, value):
+            if not entry.contains(value):
                 error_msg = f'{name} = {value!r} is not in its domain {entry.domain}.'
                 raise ValidationError(error_msg)
             vector[entry.indices] = entry.encode(value)

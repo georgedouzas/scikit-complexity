@@ -16,9 +16,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))

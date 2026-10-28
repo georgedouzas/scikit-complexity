@@ -20,7 +20,7 @@ from ..base import BaseConfig
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system
-from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, Problem, domain_kind
+from ..engine.problems import BaseProblem, DomainKind, Form, NetworkSnapshot, Problem
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ValidationError
 from ..types import Array
@@ -314,7 +314,7 @@ class BaseAnalysis(BaseConfig, ABC):
             return names
         if problem.form == Form.DISCRETE:
             discrete = {DomainKind.CATEGORICAL, DomainKind.BOOLEAN, DomainKind.INTEGER}
-            return [name for name in names if domain_kind(problem.states.entry(name).domain) in discrete]
+            return [name for name in names if problem.states.entry(name).kind in discrete]
         return []
 
     @staticmethod

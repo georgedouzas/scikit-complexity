@@ -28,31 +28,29 @@ from ....core.system import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....specs import HilbertSpec, ObservableSpec
 from ....types import Array
+from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
 from ...problems import (
     BaseProblem,
     CompiledElement,
     CompiledInteraction,
     Entry,
+    ExpressionPrinter,
     Form,
     Layout,
     VariableKind,
-    declarations_of,
-    numpy_function,
-    symbol,
-    vector,
 )
+from ...problems._local_operator import LocalOperator
+from ...problems._operator import Operator
+from ...problems._quantum_kernel import QuantumKernel
+from ...problems._quantum_problem import REAL_TOLERANCE, QuantumProblem
+from ...problems._quantum_view import QuantumView
 from .._base import BaseCompiler
 from .._declarations import Declarations
 from .._issue import Issue
-from .._local_operator import LocalOperator
-from .._operator import Operator
-from .._quantum_views import QuantumView
 from .._tree import Node
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
-from ._quantum_problem import REAL_TOLERANCE, QuantumProblem
-from ._quantum_term import QuantumTerm
 
 DENSE_LIMIT = 1024
 
@@ -189,7 +187,7 @@ class _Lowering:
                 'parameter of the quantum system. Coefficients may read parameters and time only.'
             )
             raise ValidationError(error_msg)
-        lowered = numpy_function(self.time, variables, [coefficient])
+        lowered = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables).run([coefficient])
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Array) -> complex:
@@ -197,7 +195,7 @@ class _Lowering:
 
         return evaluate
 
-    def terms(self, expression: object, owner: str) -> tuple[QuantumTerm, ...]:
+    def terms(self, expression: object, owner: str) -> tuple[QuantumKernel, ...]:
         """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
 
         Args:
@@ -221,12 +219,12 @@ class _Lowering:
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumTerm(QuantumProblem._sum_matrices(constant, size), SR(1))] if constant else []
+        terms = [QuantumKernel(QuantumProblem._sum_matrices(constant, size), SR(1)).check()] if constant else []
         for coefficient, matrices in grouped.items():
             terms.append(
-                QuantumTerm(
+                QuantumKernel(
                     QuantumProblem._sum_matrices(matrices, size), coefficient, self.function(coefficient, owner),
-                ),
+                ).check(),
             )
         return tuple(terms)
 
@@ -291,7 +289,7 @@ class _Lowering:
             >>> import qutip
             >>> from sage.all__sagemath_symbolics import SR, var
             >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.compile import LocalOperator
+            >>> from skcomplex.engine.problems import LocalOperator
             >>> from skcomplex.engine.compile.passes._quantum_compiler import _Lowering
             >>> q = SR.symbol('q')
             >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
@@ -593,7 +591,7 @@ class QuantumCompiler(BaseCompiler):
         rng = np.random.default_rng(0)
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
-        def asymmetry(terms: Iterable[QuantumTerm]) -> float:
+        def asymmetry(terms: Iterable[QuantumKernel]) -> float:
             matrix = QuantumProblem._matrix_at(terms, _SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
@@ -609,7 +607,7 @@ class QuantumCompiler(BaseCompiler):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Array) -> tuple[tuple[QuantumTerm, ...], ...]:
+    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Array) -> tuple[tuple[QuantumKernel, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
         for owner, collapse, rate in laws.dissipators:
@@ -733,7 +731,7 @@ class QuantumCompiler(BaseCompiler):
         system: System,
         initial: object,
         subsystems: Mapping[str, _Subsystem],
-        hamiltonian: tuple[QuantumTerm, ...],
+        hamiltonian: tuple[QuantumKernel, ...],
         p: Array,
         is_open: bool,
     ) -> npt.NDArray[np.complex128]:
@@ -834,8 +832,8 @@ class QuantumCompiler(BaseCompiler):
         )
         return QuantumProblem(
             form=Form.QUANTUM,
-            states=Layout([state_entry]),
-            parameters=Layout(entries),
+            states=Layout((state_entry,)),
+            parameters=Layout(tuple(entries)),
             initial_state=state_entry.encode(state),
             initial_parameters=p,
             time=time,

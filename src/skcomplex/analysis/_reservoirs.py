@@ -12,7 +12,7 @@ import numpy as np
 from ..core.laws import BaseLaw, UpdateLaw
 from ..core.laws.utils import Call
 from ..core.spaces import DiscreteTime
-from ..engine.problems import vector
+from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..types import Array
 from ._base import BaseAnalysis, SurrogateSource

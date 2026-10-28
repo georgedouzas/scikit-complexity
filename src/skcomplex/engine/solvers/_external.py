@@ -3,27 +3,31 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
 from abc import abstractmethod
-from typing import ClassVar
-
-import numpy as np
 
 from ...errors import BackendError
-from ..problems import Form, Problem
+from ..problems import Problem
 from ._solver import Solver
 
 
 class ExternalSolver(Solver):
     """Base class of solvers that translate a compiled problem into a third-party library.
 
-    Subclasses set the class variables `name` and `forms`, and implement `_unsupported`, `_build`, and `_advance`.
+    Subclasses implement the hooks `_get_name`, `_get_form`, `_unsupported`, `_build`, and `_advance`, and list the
+    other forms the library runs in `_get_forms`.
     Before the first frame, `prepare` checks every element, interaction, and law, and raises one error that lists
     everything the library cannot run.
     """
 
-    name: ClassVar[str]
-    forms: ClassVar[frozenset[Form]]
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the library the solver wraps.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the hook.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def _unsupported(self, problem: Problem) -> list[str]:
@@ -44,15 +48,12 @@ class ExternalSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _build(self, problem: Problem, rng: np.random.Generator) -> None:
-        """Build the library model of a supported problem.
+    def _build(self, problem: Problem) -> None:
+        """Build the library model of a supported problem, drawing its seeds from the generator `rng_`.
 
         Args:
             problem:
                 The compiled problem.
-
-            rng:
-                The random number generator that seeds the library.
 
         Raises:
             NotImplementedError:
@@ -60,29 +61,24 @@ class ExternalSolver(Solver):
         """
         raise NotImplementedError
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Check that the library supports a problem and build its model.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator that seeds the library.
-
-            until:
-                The end time of the run.
-
         Raises:
             BackendError:
                 The problem has a form, a complex state, an element, an interaction, or a law the library cannot run.
         """
-        unsupported = [] if problem.form in self.forms else [f'the {problem.form.value} form']
+        forms = {self._get_form(), *self._get_forms()}
+        unsupported = [] if problem.form in forms else [f'the {problem.form.value} form']
         unsupported += [f'the complex state {entry.name}' for entry in problem.states.entries if entry.is_complex]
         unsupported += self._unsupported(problem)
         if unsupported:
             items = '; '.join(unsupported)
-            error_msg = f'The {self.name} backend cannot run this system. Unsupported: {items}.'
+            error_msg = f'The {self._get_name()} backend cannot run this system. Unsupported: {items}.'
             raise BackendError(error_msg)
-        super()._prepare(problem, rng, until)
-        self._build(problem, rng)
+        super()._prepare(problem)
+        self._build(problem)

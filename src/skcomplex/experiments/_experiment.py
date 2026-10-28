@@ -18,12 +18,11 @@ from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..types import Bounds, Row
-from ._base import BaseDesign, BaseExperiment, Factory, Source
+from ._base import BaseDesign, BaseExperiment, Source
 from ._results import ExperimentResult, _RunResult
 from ._scenarios import Scenario
 
 type Output = str | Callable[[Trajectory], object]
-RUN_SETTINGS = ('dt', 'solver', 'backend', 'checked')
 EXECUTORS = ('serial', 'thread', 'process')
 
 
@@ -63,14 +62,14 @@ class _Task:
             The simulated time before which kept series are discarded.
 
         observables:
-            The observables of the run, or the name of the registered model whose standard observables to use.
+            The observables of the run, or `None` for none.
 
         analyses:
             The unprepared analyses of the run by their column prefix.
     """
 
     index: int
-    source: Factory
+    source: Source
     row: Row
     scenario: Scenario
     replicate: int
@@ -79,7 +78,7 @@ class _Task:
     settings: Mapping[str, object]
     outputs: Sequence[Output] | None
     warmup: float
-    observables: Sequence[ObservableSpec] | str | None
+    observables: Sequence[ObservableSpec] | None
     analyses: tuple[tuple[str, BaseEstimator], ...]
 
 
@@ -96,7 +95,7 @@ class Experiment(BaseExperiment):
 
     Args:
         source:
-            A registered model name, a factory, or a system.
+            A factory of systems, or a system, such as one that `skcomplex.models.create` returns.
 
         design:
             The design of factory arguments and dotted paths, or `None` for one run of the defaults.
@@ -115,13 +114,13 @@ class Experiment(BaseExperiment):
             The unprepared analyses of every run, or `None`.
 
         until:
-            The simulated time of every run, or `None` for the model's default.
+            The simulated time of every run, or `None` for 10.
 
         dt:
-            The time between frames, or `None` for the model's default.
+            The time between frames, or `None` for the default of the simulation.
 
         solver:
-            The solver, or `None` for the model's default.
+            The solver, or `None` for the default of the simulation.
 
         outputs:
             The state and observable paths to keep as series, and functions of a trajectory that return a scalar or a
@@ -137,7 +136,7 @@ class Experiment(BaseExperiment):
             `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
 
         observables:
-            The observables of every run, or `None` for the standard observables of a registered model.
+            The observables of every run, or `None` for none.
 
     Attributes:
         tasks_:
@@ -150,7 +149,7 @@ class Experiment(BaseExperiment):
         >>> from skcomplex.experiments import Experiment, GridDesign
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> bounds = {'r': [0.5, 1.0]}
-        >>> experiment = Experiment('logistic_growth', GridDesign(), bounds, until=5, outputs=['population.n'])
+        >>> experiment = Experiment(logistic_growth, GridDesign(), bounds, until=5, outputs=['population.n'])
         >>> len(experiment.check().prepare().run().result_.rows)
         2
     """
@@ -189,7 +188,8 @@ class Experiment(BaseExperiment):
         self.observables = observables
 
     def _check(self) -> None:
-        """Raise an error for replicates that are not a positive integer, an unknown executor, or a bad analysis."""
+        """Raise an error for a model name as the source, bad replicates, executor, bounds, or analysis."""
+        self._check_source(self.source)
         if isinstance(self.replicates, bool) or not isinstance(self.replicates, int) or self.replicates < 1:
             error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
             raise ValidationError(error_msg)
@@ -216,12 +216,10 @@ class Experiment(BaseExperiment):
 
     def _prepare(self, context: object = None) -> None:
         """Resolve the source and set the runs of the experiment, compiling every problem once before serial runs."""
-        source, defaults = self._resolve_source(self.source)
-        named = self.source if isinstance(self.source, str) else None
-        observables = list(self.observables) if self.observables is not None else named
-        given = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
-        settings = {key: value for key, value in {**defaults, **given}.items() if key in RUN_SETTINGS}
-        until = float(self.until if self.until is not None else defaults.get('until', 10.0))  # type: ignore[arg-type]
+        source = self._check_source(self.source)
+        observables = list(self.observables) if self.observables is not None else None
+        settings = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
+        until = float(self.until if self.until is not None else 10.0)
         rows = self.design.check().prepare(self.bounds).run() if self.design is not None else [{}]
         scenarios = list(self.scenarios) if self.scenarios else [Scenario()]
         analyses = self._name_analyses()

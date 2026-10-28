@@ -15,8 +15,8 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed, mod, shift_member
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class CarElement(Element):

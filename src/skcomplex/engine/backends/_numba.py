@@ -10,9 +10,10 @@ import os
 import sys
 import warnings
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 import numba
 import numpy as np
@@ -59,30 +60,23 @@ from ...core.spaces import (
 )
 from ...errors import BackendWarning, ValidationError
 from ...types import Array
-from ..problems import (
-    SCALAR_DIALECT,
-    Accelerated,
-    Draws,
-    EdgeSearch,
-    Entry,
-    Form,
-    Kernel,
-    NoiseKind,
-    OrderKind,
-    ReductionSchedule,
-    Reference,
-    Source,
-    SupportSpec,
-    print_expressions,
-    step_count,
-)
-from ..problems._edge_rows import EdgeRows
+from ..problems import Entry, ExpressionPrinter, Form, NoiseKind, OrderKind, SupportSpec
+from ..problems._accelerated import Accelerated
+from ..problems._draw_kernel import DrawKernel
+from ..problems._edge_row_search import EdgeRowSearch
+from ..problems._edge_search import EdgeSearch
+from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels import LoweredKernels
 from ..problems._metric_search import MetricSearch
+from ..problems._read_kind import ReadKind
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
+from ..problems._steps import step_count
 from . import _numba_neighbours, _numba_stencils
-from ._base import _AUTO_MEMBERS, BaseBackend
-from ._lowering import Lowering
+from ._base import BaseBackend
+from ._lowered_functions import LoweredFunctions
 from ._numba_loops import LOOPS, NO_BOUNDARY
-from ._numba_source import _Source
+from ._numba_printer import NumbaPrinter
 
 _DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 _FORM_KINDS: dict[Form, list[type]] = {
@@ -99,31 +93,16 @@ import numpy as np
 from numba import njit, prange
 
 from skcomplex.engine.backends._numba_neighbours import (
-    build_grid,
-    cell_coordinate,
-    cone_neighbours,
-    edge_neighbours,
-    nearest_neighbours,
-    radius_neighbours,
+    _build_grid,
+    _cell_coordinate,
+    _cone_neighbours,
+    _edge_neighbours,
+    _nearest_neighbours,
+    _radius_neighbours,
 )
-from skcomplex.engine.backends._numba_stencils import neighbor_value
-from skcomplex.engine.problems import step_count
+from skcomplex.engine.backends._numba_stencils import _neighbor_value
+from skcomplex.engine.problems._steps import step_count
 """
-
-
-def _helpers_fingerprint() -> str:
-    """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
-
-    Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
-    cached against other helpers, such as those of another version of the library, would run stale code. The digest keys
-    the cached kernels on the helpers too, and on the module of the step count that the stepper loops call.
-    """
-    modules = (_numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
-    sources = [inspect.getsource(module).encode() for module in modules]
-    return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
-
-
-HELPERS_FINGERPRINT = _helpers_fingerprint()
 
 
 class NumbaBackend(BaseBackend):
@@ -154,132 +133,71 @@ class NumbaBackend(BaseBackend):
         [3.0, 6.0]
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime, DiscreteTime, StaticTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={
-            BoundaryLaw,
-            CrossingLaw,
-            DestructionLaw,
-            DissipatorLaw,
-            DriveLaw,
-            EmissionLaw,
-            EncounterLaw,
-            EquationLaw,
-            ExtremalLaw,
-            FluxLaw,
-            FractionalNoiseLaw,
-            GeneratorLaw,
-            GraphProductionLaw,
-            JumpLaw,
-            LocalRuleLaw,
-            MatchLaw,
-            NoiseLaw,
-            ProductionLaw,
-            ProliferationLaw,
-            RateLaw,
-            RelaxationLaw,
-            RuleLaw,
-            SampleLaw,
-            SubstitutionLaw,
-            TransferLaw,
-            TransitionLaw,
-            UpdateLaw,
-        },
-        noise=set(NoiseKind),
-        orders=set(OrderKind),
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the backend writes functions of."""
+        return SupportSpec(
+            time={ContinuousTime, DiscreteTime, StaticTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={
+                BoundaryLaw,
+                CrossingLaw,
+                DestructionLaw,
+                DissipatorLaw,
+                DriveLaw,
+                EmissionLaw,
+                EncounterLaw,
+                EquationLaw,
+                ExtremalLaw,
+                FluxLaw,
+                FractionalNoiseLaw,
+                GeneratorLaw,
+                GraphProductionLaw,
+                JumpLaw,
+                LocalRuleLaw,
+                MatchLaw,
+                NoiseLaw,
+                ProductionLaw,
+                ProliferationLaw,
+                RateLaw,
+                RelaxationLaw,
+                RuleLaw,
+                SampleLaw,
+                SubstitutionLaw,
+                TransferLaw,
+                TransitionLaw,
+                UpdateLaw,
+            },
+            noise=set(NoiseKind),
+            orders=set(OrderKind),
+        )
 
-    name: ClassVar[str] = 'numba'
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the backend that problems record."""
+        return 'numba'
 
     def __init__(self, cache_dir: str | Path | None = None, parallel: bool = True) -> None:
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _is_parallel(self, kernel: Kernel, form: Form) -> bool:
-        """Check whether a kernel runs in parallel threads: outside event loops, over groups of many members."""
-        if not self.parallel or form in _EVENT_FORMS:
-            return False
-        rows = [
-            reference.entry.rows
-            for reference in kernel.references.values()
-            if reference.source in {Source.MEMBER, Source.FIRST, Source.SECOND}
-        ]
-        return max(rows, default=0) >= _AUTO_MEMBERS
-
-    def _kind(
-        self,
-        source: _Source,
-        kernels: list[Kernel],
-        label: str,
-        mode: str,
-        *,
-        form: Form,
-        reduced: bool,
-    ) -> tuple[str, str]:
-        """Add the kernels of one law kind and return the top-level function name and its output size."""
-        names = []
-        for index, kernel in enumerate(kernels):
-            name = f'_{label}{index}_'
-            parallel = self._is_parallel(kernel, form)
-            if isinstance(kernel.pairs, EdgeSearch):
-                source._edge_kernel(kernel, name, mode)
-            elif kernel.pairs is not None:
-                source._pair_kernel(kernel, name, parallel)
-            else:
-                source._member_kernel(kernel, name, mode, parallel)
-            names.append(name)
-        size = ' + '.join(source._output_count(kernel) for kernel in kernels) or '0'
-        source._entry_function(label, names, mode, size, reduced=reduced)
-        return label, size
-
-    def _run(
-        self,
-        kernels: Mapping[type, list[Kernel]],
-        changes: Mapping[int, list[tuple[Reference, float]]],
-        *,
-        reductions: ReductionSchedule | None = None,
-        draws: Draws | None = None,
-    ) -> Lowering:
-        """Return the numeric functions of the prepared form compiled with Numba.
-
-        Args:
-            kernels:
-                The kernels of every law kind, in evaluation order.
-
-            changes:
-                The changes of every jump output, keyed by the output's identity.
-
-            reductions:
-                The reductions the kernels read, fused into one compiled function that every entry function runs
-                first, or `None`.
-
-            draws:
-                The random values a stochastic map draws at every step into the parameter vector extended after its
-                parameters, which the compiled loop takes from the generator, or `None` for a deterministic problem.
-
-        Returns:
-            lowering:
-                The numeric functions.
-        """
-        form, size = self.form_, self.size_
-        used: dict[type, list[Kernel]] = {
+    def _run(self, inputs: LoweredKernels) -> LoweredFunctions:
+        """Return the numeric functions of the form of the kernels, compiled with Numba where every law compiles."""
+        form, size, kernels, draws = cast('Form', inputs.form), inputs.size, inputs.kernels, inputs.draws
+        used: dict[type, list[LawKernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == Form.SDE else [],
             JumpLaw: kernels.get(JumpLaw, []) if form == Form.JUMP else [],
             UpdateLaw: kernels.get(UpdateLaw, []) if form == Form.DISCRETE else [],
         }
-        reductions = reductions or ReductionSchedule()
+        reductions = inputs.reductions or ReductionSchedule()
         reduced = bool(reductions.steps)
         fused = self._reductions_compile(reductions)
         compiled: dict[type, bool] = {
             kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
-        backends = self._report_fallbacks(self.name, used, compiled, reductions)
-        source = _Source()
-        if reduced and fused:
-            source._reduce_function(reductions, self.parallel and form not in _EVENT_FORMS)
+        backends = self._report_fallbacks(self._get_name(), used, compiled, reductions)
         plan: dict[type, tuple[str, str]] = {
             RateLaw: ('drift', 'add'),
             NoiseLaw: ('diffusion', 'concatenate'),
@@ -290,15 +208,13 @@ class NumbaBackend(BaseBackend):
         needed = list(_FORM_KINDS[form])
         if kernels.get(BoundaryLaw):
             needed = [*needed, BoundaryLaw]
-        for kind in needed:
-            if compiled[kind]:
-                self._kind(
-                    source,
-                    used[kind],
-                    *plan[kind],
-                    form=form,
-                    reduced=reduced and BaseBackend._reads_reductions(used[kind]),
-                )
+        parts = [
+            (*plan[kind], used[kind], reduced and any(kernel.reads_reductions for kernel in used[kind]))
+            for kind in needed
+            if compiled[kind]
+        ]
+        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS).check()
+        lines = printer.prepare(reductions if reduced and fused else None).run(parts)
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
@@ -310,43 +226,39 @@ class NumbaBackend(BaseBackend):
         loops = (
             [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == Form.ODE else ''] if has_loop else []
         )
-        text = '\n'.join([_HEADER, *source.lines, *loops]) + '\n'
+        text = '\n'.join([_HEADER, *lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else _DEFAULT_CACHE_DIR
-        module = self._load(text, source.functions, cache_dir)
-        entries = self._layout_entries(used, reductions)
-        layout = source.layout(entries)
-        loop = accelerated_loop if has_loop else None
+        module = self._load(text, printer.functions_, cache_dir)
+        layout = printer.layout(self._layout_entries(used, reductions))
         lowering = self._lowering(
             form,
             needed,
             used=used,
             compiled=compiled,
-            changes=changes,
+            changes=inputs.jump_changes,
             size=size,
             module=module,
             layout=layout,
-            loop=loop,
             reductions=reductions,
-            draws=draws,
         )
-        lowering.backends = backends
-        return lowering
+        if has_loop:
+            accelerated = self._accelerated(accelerated_loop, module, layout, lowering, draws)
+            lowering = replace(lowering, accelerated=accelerated)
+        return replace(lowering, backends=backends)
 
     def _lowering(
         self,
         form: Form,
         needed: list[type],
         *,
-        used: Mapping[type, list[Kernel]],
+        used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
         module: ModuleType,
         layout: np.ndarray,
-        loop: str | None,
         reductions: ReductionSchedule,
-        draws: Draws | None,
-    ) -> Lowering:
+    ) -> LoweredFunctions:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
         def bind(name: str) -> Callable[[float, Array, Array], Array]:
@@ -371,33 +283,33 @@ class NumbaBackend(BaseBackend):
             kind: (
                 bind(names[kind])
                 if compiled[kind]
-                else reductions.wrap(numpy[kind]()) if BaseBackend._reads_reductions(used[kind]) else numpy[kind]()
+                else reductions.wrap(numpy[kind]())
+                if any(kernel.reads_reductions for kernel in used[kind])
+                else numpy[kind]()
             )
             for kind in needed
         }
-        lowering = Lowering(boundary=functions.get(BoundaryLaw))
+        lowered: dict[str, object] = {'boundary': functions.get(BoundaryLaw)}
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
-            lowering.drift = functions[RateLaw]
+            lowered['drift'] = functions[RateLaw]
         if form == Form.SDE:
-            lowering.diffusion = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
-            noise = Kernel._lower_noise(used[NoiseLaw])
-            lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
+            lowered['diffusion'] = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
+            noise = LawKernel._lower_noise(used[NoiseLaw])
+            lowered.update(zip(('noise_rows', 'noise_columns', 'n_processes', 'noise_blocks'), noise, strict=True))
         if form == Form.JUMP:
-            lowering.propensities = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
-            lowering.jumps = Kernel._jump_channels(used[JumpLaw], changes)
+            lowered['propensities'] = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
+            lowered['jumps'] = LawKernel._jump_channels(used[JumpLaw], changes)
         if form == Form.DISCRETE:
-            lowering.update = functions[UpdateLaw]
-        if loop is not None:
-            lowering.accelerated = self._accelerated(loop, module, layout, lowering, draws)
-        return lowering
+            lowered['update'] = functions[UpdateLaw]
+        return LoweredFunctions(**lowered)
 
     def _accelerated(
         self,
         loop: str,
         module: ModuleType,
         layout: np.ndarray,
-        lowering: Lowering,
-        draws: Draws | None,
+        lowering: LoweredFunctions,
+        draws: DrawKernel | None,
     ) -> Accelerated:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
@@ -434,7 +346,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _search_entries(search: object) -> dict[str, Entry]:
         """Return the entries a neighbourhood search reads, the edges of a changing layer or positions and headings."""
-        if isinstance(search, EdgeRows):
+        if isinstance(search, EdgeRowSearch):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):
             return {}
@@ -444,7 +356,7 @@ class NumbaBackend(BaseBackend):
         return found
 
     @staticmethod
-    def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
+    def _layout_entries(used: Mapping[type, list[LawKernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
         entries = {
             reference.entry.name: reference.entry
@@ -472,11 +384,11 @@ class NumbaBackend(BaseBackend):
         return entries
 
     @staticmethod
-    def _is_compilable(kernel: Kernel) -> bool:
+    def _is_compilable(kernel: LawKernel) -> bool:
         """Check whether every output of a kernel can be compiled, so it has no Python callable."""
         lattice = all(
-            (reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None)
-            and reference.source is not Source.DERIVED
+            (reference.source is not ReadKind.NEIGHBOR or reference.neighbor.sizes is not None)
+            and reference.source is not ReadKind.DERIVED
             for reference in kernel.references.values()
         )
         return lattice and all(
@@ -489,18 +401,16 @@ class NumbaBackend(BaseBackend):
         """Check whether every reduction prints in Numba's dialect."""
         try:
             for reduction in reductions.reductions:
-                print_expressions(
-                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-                    SCALAR_DIALECT,
-                )
+                condition = reduction.condition if reduction.condition is not None else 1
+                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
             for neighbourhood in reductions.neighbourhoods:
-                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
         except ValidationError:
             return False
         return True
 
     @staticmethod
-    def _noise_arrays(lowering: Lowering) -> tuple[Any, ...]:
+    def _noise_arrays(lowering: LoweredFunctions) -> tuple[Any, ...]:
         """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
         blocks = lowering.noise_blocks
         sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
@@ -517,7 +427,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _channel_arrays(lowering: Lowering) -> tuple[np.ndarray, np.ndarray]:
+    def _channel_arrays(lowering: LoweredFunctions) -> tuple[np.ndarray, np.ndarray]:
         """Return the state targets and increments of every jump channel, padded with -1 targets."""
         n_channels = sum(channels.size for channels in lowering.jumps)
         width = max((len(channels.increments) for channels in lowering.jumps), default=0)
@@ -535,15 +445,13 @@ class NumbaBackend(BaseBackend):
         """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
         for reduction in reductions.reductions:
             try:
-                print_expressions(
-                    [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-                    SCALAR_DIALECT,
-                )
+                condition = reduction.condition if reduction.condition is not None else 1
+                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
             except ValidationError:
                 return f'the {reduction.kind} reduction {reduction.argument}'
         for neighbourhood in reductions.neighbourhoods:
             try:
-                print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
             except ValidationError:
                 return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
         return None
@@ -551,7 +459,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _report_fallbacks(
         name: str,
-        used: Mapping[type, list[Kernel]],
+        used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
         reductions: ReductionSchedule,
     ) -> dict[str, str]:
@@ -588,6 +496,19 @@ class NumbaBackend(BaseBackend):
         return {cast('type', kind).__name__: name if compiled[kind] else 'python' for kind in kinds}
 
     @staticmethod
+    def _helpers_fingerprint() -> str:
+        """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
+
+        Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
+        cached against other helpers, such as those of another version of the library, would run stale code. The
+        digest keys the cached kernels on the helpers too, and on the module of the step count that the stepper loops
+        call.
+        """
+        modules = (_numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
+        sources = [inspect.getsource(module).encode() for module in modules]
+        return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
+
+    @staticmethod
     def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
         """Return the module of generated source, from a cached file when it has no injected functions."""
         digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
@@ -611,3 +532,6 @@ class NumbaBackend(BaseBackend):
         sys.modules[name] = module
         specification.loader.exec_module(module)  # type: ignore[union-attr]
         return module
+
+
+HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()

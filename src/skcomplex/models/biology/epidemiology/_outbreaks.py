@@ -14,8 +14,8 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import total
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _recovered_share(member: SimpleNamespace) -> Expression:

@@ -16,7 +16,7 @@ from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import distributed_delay, mean, total
 from skcomplex.core.spaces import ContinuousTime, VonNeumannNeighborhood
 from skcomplex.core.system import System
-from skcomplex.engine.problems import symbol
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import RewritingError, RoleError, ValidationError
 from skcomplex.specs import (

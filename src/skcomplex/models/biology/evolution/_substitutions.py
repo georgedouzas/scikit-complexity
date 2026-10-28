@@ -17,9 +17,9 @@ from ....core.laws import BaseLaw, JumpLaw
 from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 def _fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:

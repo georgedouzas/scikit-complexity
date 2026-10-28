@@ -30,8 +30,11 @@ from ....core.laws import (
 )
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
-from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
+from ..._utils import components_of, declarations_of, symbol, symbols_of
+from ...problems import ElementKind, Entry, VariableKind
+from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
+from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
 from .._census import Census
@@ -41,7 +44,6 @@ from .._kernel_spec import KernelSpec
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
-from .._topology import Topology
 from .._tree import Node
 from ._noise import NoisePass
 from ._specs import SpecsPass
@@ -108,7 +110,7 @@ class CensusPass(BasePass):
         if not handles:
             return ()
         symbols = symbols_of(
-            [value for value in BasePass._values_of(law, exclude=('process',)) if isinstance(value, Expression)],
+            [value for value in law._get_values(exclude=('process',)) if isinstance(value, Expression)],
         )
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
@@ -213,7 +215,7 @@ class CensusPass(BasePass):
         if isinstance(law, RuleLaw | MatchLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-        if Topology._request_of(law) is not None:
+        if TopologyKernel._request_of(law) is not None:
             return spec.group or next(iter(spec.groups), spec.owner)
         return None
 

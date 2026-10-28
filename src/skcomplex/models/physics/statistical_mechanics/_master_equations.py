@@ -14,9 +14,9 @@ from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
 from ....core.spaces import BoxNeighborhood, LatticeSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 
 def _glauber(source: Array, destination: Array, beta: Any, w: Any) -> Array:  # noqa: ANN401

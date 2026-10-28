@@ -14,8 +14,8 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import lag, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 MAX_RECOVERY = 12
 

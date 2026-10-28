@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Mapping
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
@@ -44,11 +44,13 @@ from ...errors import SolverError, ValidationError
 from ...types import Array
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
-from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
+from ..problems import Entry, Form, NoiseKind, OrderKind, Problem, SupportSpec
+from ..problems._partition import Partition
 from ._agent_state import AgentState
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
 from ._solver import Solver
+from ._step import Step
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
 TOLERANCE = 1e-9
@@ -106,34 +108,40 @@ class CoSimulationSolver(Solver):
         ['a', 'b']
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime, DiscreteTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={
-            RateLaw,
-            FluxLaw,
-            NoiseLaw,
-            EquationLaw,
-            JumpLaw,
-            CrossingLaw,
-            UpdateLaw,
-            TransitionLaw,
-            EmissionLaw,
-            RuleLaw,
-            LocalRuleLaw,
-            ProductionLaw,
-            SubstitutionLaw,
-            GraphProductionLaw,
-            SampleLaw,
-            MatchLaw,
-            TransferLaw,
-            BoundaryLaw,
-        },
-        noise=set(NoiseKind),
-        orders=set(OrderKind),
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime, DiscreteTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={
+                RateLaw,
+                FluxLaw,
+                NoiseLaw,
+                EquationLaw,
+                JumpLaw,
+                CrossingLaw,
+                UpdateLaw,
+                TransitionLaw,
+                EmissionLaw,
+                RuleLaw,
+                LocalRuleLaw,
+                ProductionLaw,
+                SubstitutionLaw,
+                GraphProductionLaw,
+                SampleLaw,
+                MatchLaw,
+                TransferLaw,
+                BoundaryLaw,
+            },
+            noise=set(NoiseKind),
+            orders=set(OrderKind),
+        )
 
-    form: ClassVar[Form] = Form.COUPLED
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.COUPLED
 
     def __init__(
         self,
@@ -141,32 +149,39 @@ class CoSimulationSolver(Solver):
         sync_dt: float | None = None,
         scheme: str = 'gauss-seidel',
         split: bool = False,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
     ) -> None:
         self.solvers = solvers
         self.sync_dt = sync_dt
         self.scheme = scheme
         self.split = split
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _check(self) -> None:
+        """Raise an error for an unknown coupling scheme.
+
+        Raises:
+            SolverError:
+                The scheme is unknown.
+        """
+        if self.scheme not in SCHEMES:
+            error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
+            raise SolverError(error_msg)
+
+    def _prepare(self, problem: Problem) -> None:
         """Partition the problem when asked, and build and seed the stepper of every partition.
 
         Args:
             problem:
                 The co-simulation problem, or a problem of one form with `split=True`.
 
-            rng:
-                The random number generator from which every partition gets its own generator.
-
-            until:
-                The end time of the run.
-
         Raises:
             SolverError:
-                The problem is not a co-simulation and `split` is false, or the scheme is unknown.
+                The problem is not a co-simulation and `split` is false.
         """
-        if self.scheme not in SCHEMES:
-            error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
-            raise SolverError(error_msg)
         initial_state = problem.initial_state.copy()
         if problem.form != Form.COUPLED:
             if not self.split or problem.system is None:
@@ -175,17 +190,17 @@ class CoSimulationSolver(Solver):
                     '`split=True` to split it into one partition per subsystem.'
                 )
                 raise SolverError(error_msg)
-            backend = NumbaBackend() if problem.backend == NumbaBackend.name else NumpyBackend()
+            backend = NumbaBackend() if problem.backend == NumbaBackend._get_name() else NumpyBackend()
             compiler = PassCompiler(backend=backend, partition='subsystems')
             problem = cast('Problem', compiler.check().prepare(problem.system).run())
-        self.problem_, self.rng_ = problem, rng
-        generators = rng.spawn(len(problem.partitions))
+        self.problem_, self.rng_ = problem, np.random.default_rng(self.random_state)
+        generators = self.rng_.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
             solver = given.get(partition.name)
             stepper = clone(solver) if solver is not None else DEFAULT_SOLVERS[partition.problem.form]()
-            stepper.prepare(partition.problem, generator, until)
+            stepper.set_params(random_state=generator, until=self.until).check().prepare(partition.problem)
             self.steppers_[partition.name] = stepper
         self._held = [
             (path, reduction, reduction.reducer(problem.time))
@@ -205,7 +220,7 @@ class CoSimulationSolver(Solver):
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
-        if stepwise and not contains(ZZ, round(interval, 9)):
+        if stepwise and not Entry._contains(ZZ, round(interval, 9)):
             error_msg = f'sync_dt = {interval!r} must be a whole number of steps for discrete and agent partitions.'
             raise ValidationError(error_msg)
         return [
@@ -244,9 +259,9 @@ class CoSimulationSolver(Solver):
     def _advance_partition(self, partition: Partition, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition from the values of a source state vector and return its new state vector."""
         stepper = self.steppers_[partition.name]
-        if stepper.reads_inputs:
+        if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
-        state = stepper.run(start, source.copy(), p, end)
+        state = stepper.run(Step(start, source.copy(), p, end))
         if partition.problem.boundary is not None:
             state = partition.problem.boundary(end, state, p)
         return state
@@ -317,4 +332,5 @@ class CoSimulationSolver(Solver):
         """Release what the stepper of every partition acquired."""
         for partition in self.problem_.partitions:
             problem = partition.problem
-            self.steppers_[partition.name].run(0.0, problem.initial_state, problem.initial_parameters, 0.0, final=True)
+            step = Step(0.0, problem.initial_state, problem.initial_parameters, 0.0)
+            self.steppers_[partition.name].run(step, final=True)

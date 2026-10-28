@@ -15,9 +15,9 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import count
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class StockElement(Element):

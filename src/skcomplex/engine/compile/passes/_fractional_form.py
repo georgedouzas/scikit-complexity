@@ -9,12 +9,8 @@ from typing import cast
 
 from ....core.spaces import ContinuousTime
 from ....errors import BackendError, SolverError
-from ...problems import (
-    Form,
-    OrderKind,
-    VariableKind,
-    declarations_of,
-)
+from ..._utils import declarations_of
+from ...problems import Form, OrderKind, VariableKind
 from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord
@@ -80,13 +76,13 @@ class FractionalFormPass(BasePass):
         """Return the fractional states that the solver or the backend passed does not integrate."""
         issues = []
         for item in states:
-            if solver is not None and OrderKind.FRACTIONAL not in type(solver).supports.orders:
+            if solver is not None and OrderKind.FRACTIONAL not in type(solver)._get_support().orders:
                 message = (
                     f'The solver {type(solver).__name__} does not integrate {item.name}, a state of order {item.order}.'
                 )
                 fix = 'Pass a solver that integrates fractional orders, such as `FractionalABMSolver`.'
                 issues.append(Issue('order-unsupported', item.path, message, fix, error=SolverError))
-            if backend is not None and OrderKind.FRACTIONAL not in type(backend).supports.orders:
+            if backend is not None and OrderKind.FRACTIONAL not in type(backend)._get_support().orders:
                 message = (
                     f'The backend {type(backend).__name__} does not run {item.name}, a state of order {item.order}.'
                 )
@@ -147,5 +143,3 @@ class FractionalFormPass(BasePass):
                 issues.append(Issue('fractional-time', item.path, message, fix))
         issues += FractionalFormPass._law_issues(states, cast('Census', compilation.census).records)
         return issues + FractionalFormPass._support_issues(states, compilation.solver, compilation.backend)
-
-

@@ -17,9 +17,9 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
 HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))

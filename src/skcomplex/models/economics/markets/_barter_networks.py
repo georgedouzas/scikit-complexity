@@ -20,9 +20,9 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 

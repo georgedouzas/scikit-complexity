@@ -13,13 +13,15 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....errors import ValidationError
 from ....types import Indices
-from ...backends import BaseBackend, resolve_backend
-from ...problems import Reference, Source, symbols_of
-from .._base import BasePass
+from ..._utils import symbols_of
+from ...backends import BaseBackend
+from ...problems._encounter_kernel import EncounterKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
+from ...problems._table_values import TableValues
+from .._base import BaseCompiler, BasePass
 from .._compilation import Laws
-from .._compiled_encounter import CompiledEncounter
 from .._declarations import Declarations
-from .._table_values import TableValues
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 
@@ -52,12 +54,12 @@ class CompileEncountersPass(BasePass):
         specs: Laws,
         declarations: Declarations,
         backend: BaseBackend | None,
-    ) -> tuple[CompiledEncounter, ...]:
+    ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered for their members."""
         if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
             return ()
         members = Declarations._member_count(list(declarations.blocks.values()))
-        fused = resolve_backend(backend, members).name == 'numba'
+        fused = BaseCompiler._resolve_backend(backend, members)._get_name() == 'numba'
         components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused)
 
@@ -80,7 +82,7 @@ class CompileEncountersPass(BasePass):
     def _group_indices(item: Expression | None, references: Mapping[Expression, Reference], owner: str) -> Indices:
         """Return the flat state indices of the density a symbol of an encounter stands for, one per activity."""
         reference = references.get(item) if item is not None else None
-        if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+        if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = (
                 f'An encounter law of {owner} reads {item}, which is not a state of a group bound to a role. '
                 'Encounters read the densities of groups on the sites of activity lattices, such as `s.candidate.f`.'
@@ -155,7 +157,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
-    ) -> CompiledEncounter:
+    ) -> EncounterKernel:
         """Return an encounter law lowered to sparse contractions over the densities its roles bind.
 
         Args:
@@ -195,15 +197,15 @@ class CompileEncountersPass(BasePass):
         rate = TableValues(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
         if table is None:
             empty = np.zeros(0, dtype=np.intp)
-            return CompiledEncounter(
+            return EncounterKernel(
                 owner, CompileEncountersPass._effect(law), candidate, field_indices, test, rate, (empty,) * 3, None,
-            )
+            ).check()
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
         probabilities = TableValues(
             table, positions, CompileEncountersPass._parameter_indices(table, references, owner), time,
         )
-        return CompiledEncounter(
+        return EncounterKernel(
             owner,
             CompileEncountersPass._effect(law),
             candidate,
@@ -213,7 +215,7 @@ class CompileEncountersPass(BasePass):
             entries,
             probabilities,
             fused,
-        )
+        ).check()
 
     @staticmethod
     def _compile_encounters(
@@ -221,7 +223,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
-    ) -> tuple[CompiledEncounter, ...]:
+    ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered in declaration order.
 
         Args:

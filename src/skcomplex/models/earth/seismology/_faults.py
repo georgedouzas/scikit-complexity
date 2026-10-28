@@ -15,9 +15,9 @@ from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 NEAREST = VonNeumannNeighborhood(center=True)
 

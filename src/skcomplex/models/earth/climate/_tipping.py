@@ -18,8 +18,8 @@ from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousTime, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 FOLD = math.sqrt(4 / 27)
 

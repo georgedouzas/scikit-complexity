@@ -12,7 +12,7 @@ from sklearn.base import TransformerMixin, clone
 
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import ContinuousTime
-from ..engine.problems import vector
+from ..engine._utils import vector
 from ..types import Array, ComplexArray
 from ._base import BaseAnalysis, Samples, SurrogateSource
 from ._kinds import DataKind

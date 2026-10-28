@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -35,64 +34,6 @@ GRID_TOLERANCE = 1e-9
 
 
 _MAX_INCREMENTS = 100_000_000
-
-
-def _autocovariance(n: int, hurst: float) -> Array:
-    """Return the autocovariance of unit fractional Gaussian noise at lags 0 to `n`."""
-    lags = np.arange(n + 1, dtype=float)
-    exponent = 2 * hurst
-    return 0.5 * (np.abs(lags + 1) ** exponent - 2 * lags**exponent + np.abs(lags - 1) ** exponent)
-
-
-def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
-    """Return paths of unit fractional Gaussian noise, the increments of fractional Brownian motion on a unit grid.
-
-    The paths come from the circulant embedding of Davies and Harte, whose only costly step is an FFT of `scipy.fft`.
-    When the embedding has a negative eigenvalue, the paths come from the Cholesky factor of the covariance instead.
-
-    Args:
-        n:
-            The number of increments of every path.
-
-        hurst:
-            The Hurst index, between 0 and 1.
-
-        size:
-            The number of independent paths.
-
-        rng:
-            The random number generator.
-
-    Returns:
-        noise:
-            One row per increment and one column per path, with unit variance and the covariance
-            `(|k + 1|^(2H) - 2 |k|^(2H) + |k - 1|^(2H)) / 2` between increments `k` apart.
-
-    Raises:
-        ValidationError:
-            The Hurst index is not between 0 and 1, or the number of increments is not positive.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.engine.solvers import fractional_gaussian_noise
-        >>> noise = fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
-        >>> noise.shape
-        (100, 2000)
-        >>> round(float(np.mean(noise[1:] * noise[:-1])), 1)
-        0.4
-    """
-    if not 0 < hurst < 1 or n < 1:
-        error_msg = f'Fractional Gaussian noise takes a Hurst index in (0, 1) and n >= 1, but got {hurst} and {n}.'
-        raise ValidationError(error_msg)
-    covariance = _autocovariance(n, hurst)
-    row = np.concatenate([covariance, covariance[-2:0:-1]])
-    eigenvalues = scipy.fft.fft(row).real
-    if np.min(eigenvalues) < -_EIGENVALUE_TOLERANCE * np.max(eigenvalues):
-        factor = scipy.linalg.cholesky(scipy.linalg.toeplitz(covariance[:n]), lower=True)
-        return np.asarray(factor @ rng.standard_normal((n, size)), dtype=float)
-    scale = np.sqrt(np.clip(eigenvalues, 0.0, None) / row.size)[:, np.newaxis]
-    gaussian = rng.standard_normal((row.size, size)) + 1j * rng.standard_normal((row.size, size))
-    return np.asarray(scipy.fft.fft(scale * gaussian, axis=0)[:n].real, dtype=float)
 
 
 class FractionalEulerMaruyamaSolver(Solver):
@@ -128,7 +69,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+        >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver, Step
         >>> class WalkerElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -137,50 +78,64 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
         >>> problem = compile_system(System(elements=[GroupElement('walkers', element=WalkerElement, size=500)]))
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).prepare(problem, np.random.default_rng(0))
-        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).check().prepare(problem)
+        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> round(float(np.var(state)), 1)
         1.0
     """
 
-    supports: ClassVar[SupportSpec] = SupportSpec(
-        time={ContinuousTime},
-        space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
-        noise={NoiseKind.DIAGONAL},
-        orders={OrderKind.INTEGER},
-    )
+    @classmethod
+    def _get_support(cls) -> SupportSpec:
+        """Return the times, spaces, laws, noise, and orders the solver solves."""
+        return SupportSpec(
+            time={ContinuousTime},
+            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
+            noise={NoiseKind.DIAGONAL},
+            orders={OrderKind.INTEGER},
+        )
 
-    form: ClassVar[Form] = Form.SDE
-    fractional: ClassVar[bool] = True
+    @classmethod
+    def _get_form(cls) -> Form:
+        """Return the form the solver solves."""
+        return Form.SDE
 
-    def __init__(self, dt: float = 1e-3, horizon: float | None = None, max_increments: int = _MAX_INCREMENTS) -> None:
+    @classmethod
+    def _is_fractional(cls) -> bool:
+        """Return whether the solver integrates fractional noise."""
+        return True
+
+    def __init__(
+        self,
+        dt: float = 1e-3,
+        horizon: float | None = None,
+        max_increments: int = _MAX_INCREMENTS,
+        *,
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
         self.dt = dt
         self.horizon = horizon
         self.max_increments = max_increments
+        self.random_state = random_state
+        self.until = until
 
-    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem) -> None:
         """Prepare the stepper for a problem.
 
         Args:
             problem:
                 The compiled problem.
 
-            rng:
-                The random number generator.
-
-            until:
-                The end time of the run, the horizon of the drawn increments when the stepper has none.
-
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super()._prepare(problem, rng, until)
+        super()._prepare(problem)
         if problem.delays or problem.events:
             error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)
-        self.horizon_ = self.horizon if self.horizon is not None else until
+        self.horizon_ = self.horizon if self.horizon is not None else self.until
         self.hurst_: Array | None = None
         self._origin = 0.0
         self._increments: npt.NDArray[np.float64] | None = None
@@ -222,7 +177,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         increments = np.zeros((steps, hurst.size))
         for value in np.unique(hurst[fractional]):
             columns = fractional[hurst[fractional] == value]
-            noise = fractional_gaussian_noise(steps, float(value), columns.size, self.rng_)
+            noise = self._fractional_gaussian_noise(steps, float(value), columns.size, self.rng_)
             increments[:, columns] = noise * self.dt**value
         self._origin, self._increments, self._ordinary, self.hurst_ = t, increments, ~mask, hurst
         return increments
@@ -296,3 +251,63 @@ class FractionalEulerMaruyamaSolver(Solver):
             np.add.at(following, rows, problem.diffusion(time, state, p) * noise)
             state = self._bounded(time + self.dt, following, p)
         return state
+
+    @staticmethod
+    def _autocovariance(n: int, hurst: float) -> Array:
+        """Return the autocovariance of unit fractional Gaussian noise at lags 0 to `n`."""
+        lags = np.arange(n + 1, dtype=float)
+        exponent = 2 * hurst
+        return 0.5 * (np.abs(lags + 1) ** exponent - 2 * lags**exponent + np.abs(lags - 1) ** exponent)
+
+    @staticmethod
+    def _fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
+        """Return paths of unit fractional Gaussian noise, the increments of fractional Brownian motion on a unit grid.
+
+        The paths come from the circulant embedding of Davies and Harte, whose only costly step is an FFT of
+        `scipy.fft`. When the embedding has a negative eigenvalue, the paths come from the Cholesky factor of the
+        covariance instead.
+
+        Args:
+            n:
+                The number of increments of every path.
+
+            hurst:
+                The Hurst index, between 0 and 1.
+
+            size:
+                The number of independent paths.
+
+            rng:
+                The random number generator.
+
+        Returns:
+            noise:
+                One row per increment and one column per path, with unit variance and the covariance
+                `(|k + 1|^(2H) - 2 |k|^(2H) + |k - 1|^(2H)) / 2` between increments `k` apart.
+
+        Raises:
+            ValidationError:
+                The Hurst index is not between 0 and 1, or the number of increments is not positive.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+            >>> solver = FractionalEulerMaruyamaSolver
+            >>> noise = solver._fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
+            >>> noise.shape
+            (100, 2000)
+            >>> round(float(np.mean(noise[1:] * noise[:-1])), 1)
+            0.4
+        """
+        if not 0 < hurst < 1 or n < 1:
+            error_msg = f'Fractional Gaussian noise takes a Hurst index in (0, 1) and n >= 1, but got {hurst} and {n}.'
+            raise ValidationError(error_msg)
+        covariance = FractionalEulerMaruyamaSolver._autocovariance(n, hurst)
+        row = np.concatenate([covariance, covariance[-2:0:-1]])
+        eigenvalues = scipy.fft.fft(row).real
+        if np.min(eigenvalues) < -_EIGENVALUE_TOLERANCE * np.max(eigenvalues):
+            factor = scipy.linalg.cholesky(scipy.linalg.toeplitz(covariance[:n]), lower=True)
+            return np.asarray(factor @ rng.standard_normal((n, size)), dtype=float)
+        scale = np.sqrt(np.clip(eigenvalues, 0.0, None) / row.size)[:, np.newaxis]
+        gaussian = rng.standard_normal((row.size, size)) + 1j * rng.standard_normal((row.size, size))
+        return np.asarray(scipy.fft.fft(scale * gaussian, axis=0)[:n].real, dtype=float)

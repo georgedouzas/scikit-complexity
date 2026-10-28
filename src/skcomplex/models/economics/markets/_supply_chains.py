@@ -15,8 +15,8 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import distributed_delay, step, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 

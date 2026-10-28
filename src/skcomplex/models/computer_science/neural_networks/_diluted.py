@@ -16,8 +16,8 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import total, uniform, where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 def _overlap(member: SimpleNamespace) -> Expression:

@@ -16,9 +16,10 @@ from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateL
 from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine._utils import domain_of, symbol
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form, domain_of, symbol
+from skcomplex.engine.problems import Form
 from skcomplex.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,

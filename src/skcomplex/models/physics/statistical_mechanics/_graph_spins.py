@@ -17,8 +17,8 @@ from ....core.laws import BaseLaw, SampleLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 NODES = 400
 DEGREE = 4

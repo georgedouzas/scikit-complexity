@@ -21,8 +21,10 @@ from ...specs import ObservableSpec
 from ...types import Array
 from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, PassCompiler, compile_system
-from ..problems import BaseProblem, Entry, Form, contains
-from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
+from ..problems import BaseProblem, Entry, Form
+from ..problems._state import State
+from ..solvers import AgentState, BaseSolver, CoSimulationSolver, Step, StructureState
+from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._frames import Frame
@@ -171,10 +173,10 @@ class Simulation(BaseConfig):
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt
-        if not contains(RealSet.open(0, oo), dt):
+        if not Entry._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if stepwise and not contains(ZZ, dt):
+        if stepwise and not Entry._contains(ZZ, dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
@@ -191,8 +193,15 @@ class Simulation(BaseConfig):
 
         Raises:
             ValidationError:
-                The system cannot be compiled or run, with every problem found.
+                The system is not a system or a compiled problem, such as a model name, or it cannot be compiled or
+                run, with every problem found.
         """
+        if not isinstance(self.system, System | BaseProblem):
+            error_msg = (
+                f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a model of the '
+                'library with `skcomplex.models.create`, or simulate it by name with `skcomplex.models.run`.'
+            )
+            raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblem):
             compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
             compiler.check().prepare(self.system).report_.check()
@@ -232,7 +241,8 @@ class Simulation(BaseConfig):
                 The simulated time the run stops at.
         """
         self.dt_ = self._check_dt(self.problem_, until)
-        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
+        rng = np.random.default_rng(self.random_state)
+        self.stepper_.set_params(random_state=rng, until=until).check().prepare(self.problem_)
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
@@ -288,7 +298,7 @@ class Simulation(BaseConfig):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                self.state_ = self.stepper_.run(self.time_, self.state_, self.parameters_, target, final=released)
+                self.state_ = self.stepper_.run(Step(self.time_, self.state_, self.parameters_, target), final=released)
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -302,7 +312,7 @@ class Simulation(BaseConfig):
                 self.clock_.run(self.time_ - origin)
         finally:
             if not released:
-                self.stepper_.run(self.time_, self.state_, self.parameters_, self.time_, final=True)
+                self.stepper_.run(Step(self.time_, self.state_, self.parameters_, self.time_), final=True)
             for observer in self.observers_:
                 observer.run(final=True)
 
@@ -333,7 +343,7 @@ class Simulation(BaseConfig):
         """Raise an error when a state has left its domain."""
         for entry in self.problem_.states.entries:
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
-            if not contains(entry.domain, values):
+            if not entry.contains(values):
                 error_msg = (
                     f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
                     f'domain {entry.domain}. Check the laws that change it.'
@@ -346,7 +356,7 @@ class Simulation(BaseConfig):
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
             f'domain {entry.domain}.'
         )
-        if not contains(entry.domain, value):
+        if not entry.contains(value):
             raise ValidationError(error_msg)
         try:
             return entry.encode(value)
@@ -367,7 +377,7 @@ class Simulation(BaseConfig):
             changed.update(dict.fromkeys(positions[indices].tolist(), name))
         for matrix in matrices:
             names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.violation(candidate) if names else None
+            violation = matrix.run(State(self.time_, self.state_, candidate)) if names else None
             if violation is not None:
                 error_msg = (
                     f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '

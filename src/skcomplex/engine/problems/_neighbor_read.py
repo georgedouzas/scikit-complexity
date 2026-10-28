@@ -9,10 +9,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ...types import Indices, Offset
+from ._base import BaseValue
 
 
 @dataclass(frozen=True, eq=False)
-class NeighborRead:
+class NeighborRead(BaseValue):
     """How a symbol reads a field at a neighbouring site of every member.
 
     Args:

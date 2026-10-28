@@ -28,7 +28,7 @@ class CalibrationExperiment(BaseExperiment):
 
     Args:
         source:
-            A registered model name, a factory, or a system.
+            A factory of systems, or a system, such as one that `skcomplex.models.create` returns.
 
         data:
             A mapping from state or observable path to its observed `(times, values)`.
@@ -46,7 +46,7 @@ class CalibrationExperiment(BaseExperiment):
             The number of runs averaged per evaluation.
 
         dt:
-            The time between frames, or `None` for the model's default.
+            The time between frames, or `None` for the default of the simulation.
 
         random_state:
             The seed of the runs.
@@ -86,7 +86,7 @@ class CalibrationExperiment(BaseExperiment):
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
         >>> bounds = {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)}
-        >>> calibration = CalibrationExperiment('logistic_growth', {'population.n': (times, values)}, bounds)
+        >>> calibration = CalibrationExperiment(logistic_growth, {'population.n': (times, values)}, bounds)
         >>> estimates = calibration.check().prepare().run().estimates_
         >>> round(estimates['growth.r'], 2), round(estimates['growth.K'])
         (0.5, 100)
@@ -116,7 +116,8 @@ class CalibrationExperiment(BaseExperiment):
         self.arguments = arguments
 
     def _check(self) -> None:
-        """Raise an error for an unknown loss, no data, or replicates that are not a positive integer."""
+        """Raise an error for a model name as the source, an unknown loss, no data, or bad replicates."""
+        self._check_source(self.source)
         if self.loss not in LOSSES:
             error_msg = f'Unknown loss {self.loss!r}. Use one of {", ".join(LOSSES)}.'
             raise ValidationError(error_msg)
@@ -129,17 +130,13 @@ class CalibrationExperiment(BaseExperiment):
 
     def _prepare(self, context: object = None) -> None:
         """Compile the model, read the data, and set the run settings and the random streams."""
-        factory, defaults = self._resolve_source(self.source)
-        named = self.source if isinstance(self.source, str) else None
-        self.problem_ = self._compile(factory, self.arguments or {}, None, named)
+        factory = self._check_source(self.source)
+        self.problem_ = self._compile(factory, self.arguments or {})
         self.series_ = {
             path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
             for path, (times, values) in self.data.items()
         }
-        dt = self.dt if self.dt is not None else defaults.get('dt')
-        self.settings_ = {'dt': dt} if dt is not None else {}
-        if 'solver' in defaults:
-            self.settings_['solver'] = defaults['solver']
+        self.settings_ = {'dt': self.dt} if self.dt is not None else {}
         self.seeds_ = np.random.SeedSequence(self.random_state).spawn(self.replicates)
 
     def _simulate(self, values: Sequence[float]) -> dict[str, Array]:

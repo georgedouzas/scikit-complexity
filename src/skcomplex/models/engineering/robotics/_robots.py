@@ -17,9 +17,9 @@ from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import delayed, where
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9

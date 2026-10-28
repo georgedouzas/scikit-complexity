@@ -9,12 +9,12 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
+from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._topology import Topology
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 from ._weight import _Weight
@@ -56,7 +56,7 @@ class TowardsPass(BasePass):
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:
             for law in laws:
-                request = Topology._request_of(law)
+                request = TopologyKernel._request_of(law)
                 if request is None or request.toward is None:
                     continue
                 space, _ = TopologyFunctionsPass._request_network(spec, declarations)

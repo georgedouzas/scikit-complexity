@@ -13,8 +13,8 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.laws.utils import where
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
 
 
 class NeutralSpeciesElement(Element):

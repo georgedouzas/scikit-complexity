@@ -14,7 +14,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.laws.utils import delay_parts
-from ..engine.problems import LoopTerm, Problem, numpy_function, symbols_of
+from ..engine._utils import symbols_of
+from ..engine.problems import ExpressionPrinter, LoopTerm, Problem
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ._base import BaseAnalysis, Source
@@ -147,7 +148,7 @@ class _Graph:
         if unknown:
             error_msg = f'The loop gain {expression} reads {unknown[0]}, which is no state or parameter of the system.'
             raise AnalysisError(error_msg)
-        function = numpy_function(self.problem.time, arguments, [expression])
+        function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
         values = [
             (states if is_state else parameters)[:, index]
             for is_state, index in map(self.readers.__getitem__, arguments)

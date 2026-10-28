@@ -16,10 +16,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, EulerMaruyamaSolver, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
+from ..._catalog import register_model
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 

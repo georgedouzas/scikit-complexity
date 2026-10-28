@@ -3,9 +3,7 @@
 import numpy as np
 
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.solvers import (
-    SplitOperator,
-)
+from skcomplex.engine.solvers._split_operator import SplitOperator
 from skcomplex.models.physics.fluids import (
     rayleigh_benard,
 )
