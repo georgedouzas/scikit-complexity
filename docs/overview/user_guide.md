@@ -3603,23 +3603,25 @@ print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
 diffusion. The mean squared displacement comes from `tidynamics` over all lags of unwrapped positions, with its exponent
 and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
-The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation. `symbolize`,
-`ordinal_patterns`, `mutual_information`, and `transfer_entropy` measure structure and information flow, as in
+The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation.
+`InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
-permutation, and Lempel-Ziv entropies by its `kind`. Ordinal patterns are coded by the lexicographic rank of their
-permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv parsing comes from `antropy`.
+permutation, and Lempel-Ziv entropies by its `kind`. Its setting `symbols` turns real series into symbols first: bins of
+equal width, equally populated bins, or ordinal patterns, coded by the lexicographic rank of their permutation with
+`ordpy`, with a delay and of any length. The Lempel-Ziv parsing comes from `antropy`.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import EntropyAnalysis, hurst_exponent, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, hurst_exponent
 
 noise = np.random.default_rng(1).standard_normal(20_000)
 print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
 for kind in ('rate', 'excess'):
     print(EntropyAnalysis(kind, dimension=4).check().prepare([0, 0, 1, 1] * 200).run().entropy_.round(3))
 driver = np.random.default_rng(2).integers(0, 2, 5000)
-print(round(transfer_entropy(driver, np.roll(driver, 1)), 2))
+transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([driver, np.roll(driver, 1)])).run()
+print(round(transfer.information_[0, 1], 2))
 ```
 
 **Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `correlation_function` gives
@@ -3690,8 +3692,9 @@ and measure the regularity of a series. The kind `'permutation'` reads ordinal p
 two-dimensional fields in a window, in its Shannon, Rényi, or Tsallis `measure`. Discrete states such as spins have
 many equal values, which `ties='random'` ranks at random. `ensemble_entropy` follows the entropy of an ensemble and its
 divergence from a reference law frame by frame, as in the H-theorem, and `complexity_entropy` places data on Rosso's
-complexity-entropy plane between its bounding curves with `ordpy`. `active_information_storage` measures the information the past of a series holds
-about its next value, and `transfer_entropy` estimates the flow between series by plug-in counts of symbols or by the
+complexity-entropy plane between its bounding curves with `ordpy`. The kind `'active-storage'` of
+`InformationAnalysis` measures the information the past of a series holds about its next value, and the kind
+`'transfer'` estimates the flow from every series to every other by plug-in counts of symbols or by the
 nearest-neighbour estimator of `ennemi` on continuous values.
 
 ```python
@@ -3699,7 +3702,7 @@ import numpy as np
 
 import math
 
-from skcomplex.analysis import EntropyAnalysis, complexity_entropy, transfer_entropy
+from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, complexity_entropy
 
 rng = np.random.default_rng(0)
 renyi = EntropyAnalysis('renyi', order=2, probabilities=True).check().prepare(np.full(8, 1 / 8)).run()
@@ -3710,61 +3713,71 @@ plane = complexity_entropy(rng.standard_normal(20_000), 4)
 print(round(plane.entropy, 2), round(plane.complexity, 2))
 x = rng.standard_normal(5000)
 y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
-print(transfer_entropy(x, y, estimator='knn', base=math.e) > transfer_entropy(y, x, estimator='knn', base=math.e))
+transfer = InformationAnalysis('transfer', estimator='knn', base=math.e).check().prepare(np.column_stack([x, y])).run()
+print(transfer.information_[0, 1] > transfer.information_[1, 0])
 ```
 
 ### Higher-order information and emergence
 
-The measures of many variables take one row per sample and one column per variable. `total_correlation` counts the
-information shared at any order, `dual_total_correlation` the information shared by two or more variables, and
-`o_information`, their difference, is positive when the variables are redundant and negative when they are synergistic.
-`o_information_gradients` gives the share of every variable. They take the `'plugin'` estimator of `dit` for symbols,
-`'gaussian'` for the closed form of a fitted Gaussian, or `'knn'` for chains of `ennemi` estimates. `partial_information`
-splits what two sources of symbols tell about a target into redundant, unique, and synergistic parts with a redundancy
-measure of `dit`. `local_entropy`, `local_mutual_information`, and `local_transfer_entropy` return the value at every
-sample, and their means equal the global measures. `surrogate_test` compares any of these measures with its values on
-copies of the data whose variables are shuffled independently.
+The measures of many variables take one row per sample and one column per variable. Among the kinds of
+`InformationAnalysis`, `'total-correlation'` counts the information shared at any order, `'dual-total-correlation'` the
+information shared by two or more variables, and `'o-information'`, their difference, is positive when the variables
+are redundant and negative when they are synergistic. `'o-information-gradients'` gives the share of every variable.
+They take the `'plugin'` estimator of `dit` for symbols, `'gaussian'` for the closed form of a fitted Gaussian, or
+`'knn'` for chains of `ennemi` estimates. `PartialInformationAnalysis` splits what two sources of symbols tell about a
+target into redundant, unique, and synergistic parts with a redundancy measure of `dit`. `LocalInformationAnalysis`
+returns the entropy, the mutual information, or the transfer entropy at every sample, and their means equal the global
+measures. `surrogate_test` compares any of these measures with its values on copies of the data whose variables are
+shuffled independently.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.analysis import o_information, partial_information, surrogate_test
+from skcomplex.analysis import InformationAnalysis, PartialInformationAnalysis, surrogate_test
+
+
+def o_information(data):
+    return InformationAnalysis('o-information').check().prepare(data).run().information_
+
 
 bits = rng.integers(0, 2, (5000, 2))
 xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
 print(round(o_information(xor), 2))
-parts = partial_information(bits[:, 0], bits[:, 1], bits[:, 0] & bits[:, 1])
-print(round(parts.redundancy, 2), round(parts.synergy, 2))
+gate = np.column_stack([bits, bits[:, 0] & bits[:, 1]])
+parts = PartialInformationAnalysis().check().prepare(gate).run()
+print(round(parts.redundancy_, 2), round(parts.synergy_, 2))
 print(surrogate_test(o_information, xor, n=19, alternative='less', random_state=0).p_value)
 ```
 
-`emergence_criteria` computes the criteria of Rosas et al. (2020) for a macro feature of micro variables: Ψ is positive
-when the feature predicts its own future beyond what each micro variable predicts, Δ is positive when it predicts a micro
-variable beyond the micro variables, and Γ is zero for a feature decoupled from every micro variable. `closure` takes a
-partition of micro states, as a label per state or a function of the micro series, and compares how well the macro past
-and the micro past predict the macro future. A gap of zero means the coarse-graining is closed. `epsilon_machine`
-reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
+The kind `'criteria'` of `EmergenceAnalysis` computes the criteria of Rosas et al. (2020) for a macro feature of micro
+variables, given by `partition`: Ψ is positive when the feature predicts its own future beyond what each micro variable
+predicts, Δ is positive when it predicts a micro variable beyond the micro variables, and Γ is zero for a feature
+decoupled from every micro variable. The kind `'closure'` takes a partition of micro states, as a label per state or a
+function of the micro series, and compares how well the macro past and the micro past predict the macro future. A gap
+of zero means the coarse-graining is closed. `EpsilonMachineAnalysis` reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
 complexity, and entropy rate.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.analysis import closure, emergence_criteria, epsilon_machine
+from skcomplex.analysis import EmergenceAnalysis, EpsilonMachineAnalysis
 
 parity = rng.integers(0, 2, (5000, 4))
 parity[:, -1] = (parity[:, :-1].sum(axis=1) + np.arange(5000) // 100) % 2
-print(emergence_criteria(parity, parity.sum(axis=1) % 2).psi > 0.5)
-print(round(closure(rng.integers(0, 4, 5000), [0, 0, 1, 1]).gap, 2))
+criteria = EmergenceAnalysis('criteria', partition=lambda micro: micro.sum(axis=1) % 2).check().prepare(parity).run()
+print(criteria.psi_ > 0.5)
+closure = EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).check().prepare(rng.integers(0, 4, 5000)).run()
+print(round(closure.gap_, 2))
 golden = [1]
 for _ in range(20_000):
     golden.append(1 if golden[-1] == 0 else int(rng.random() < 0.5))
-machine = epsilon_machine(golden, 4)
-print(len(machine.histories), round(machine.statistical_complexity, 2))
+machine = EpsilonMachineAnalysis(max_length=4).check().prepare(golden).run()
+print(len(machine.histories_), round(machine.statistical_complexity_, 2))
 ```
 
 ### Invariants of dynamics
 
-`embed` builds delay coordinates of a series, with the delay at the first minimum of `auto_mutual_information` and the
+`embed` builds delay coordinates of a series, with the delay at the first minimum of the auto mutual information and the
 dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
 set with a k-d tree, so it serves embedded series and agent positions alike. `kaplan_yorke_dimension` and
 `kolmogorov_sinai_entropy` follow from a Lyapunov spectrum, `largest_lyapunov_exponent` estimates the largest exponent
@@ -3895,28 +3908,27 @@ print(uncertainty_relation(currents, entropy_production=10.0, random_state=0).ho
 
 ### Emergence and ergodicity
 
-`partition_coarse_grain` maps micro states to macro states by a partition, an integer label per state or a function of
-the state. It maps every frame of a discrete trajectory, or sums the transitions of a transition matrix within every
-block with `matrix=True`, weighting the states of a block uniformly or by the stationary distribution.
-`effective_information` measures how much a transition matrix constrains the next state: it is the mutual information
-in bits between a uniform intervention on the current state and the next state, and it equals the determinism of the
-matrix minus its degeneracy. Rows with no observed transition are left out with an `UnobservedStatesWarning` that names
-their states. `causal_emergence` reports the gain in effective information of a partition over the micro states, and
-without a partition it searches for one, greedily by merging the pair of blocks with the largest gain, or exhaustively
-for at most 10 states. In the chain of Hoel, Albantakis, and Tononi, seven noisy states merge into one deterministic
+`EmergenceAnalysis` reads a transition matrix for its kinds `'effective-information'` and `'causal'`. The effective
+information measures how much a transition matrix constrains the next state: it is the mutual information in bits
+between a uniform intervention on the current state and the next state, and it equals the determinism of the matrix
+minus its degeneracy. Rows with no observed transition are left out with an `UnobservedStatesWarning` that names their
+states. The kind `'causal'` reports the gain in effective information of a partition over the micro states, and without
+a partition it searches for one, greedily by merging the pair of blocks with the largest gain, or exhaustively for at
+most 10 states. The partition is an integer label per state or a function of the array of states, and the macro matrix
+sums the transitions within every block, weighting the states of a block uniformly or by the stationary distribution. In the chain of Hoel, Albantakis, and Tononi, seven noisy states merge into one deterministic
 macro state that carries more effective information than the micro states.
 
 ```python
 import numpy as np
 
-from skcomplex.analysis import causal_emergence, effective_information, partition_coarse_grain
+from skcomplex.analysis import EmergenceAnalysis
 
 noisy = np.zeros((8, 8))
 noisy[:7, :7], noisy[7, 7] = 1 / 7, 1.0
-print(round(effective_information(noisy).information, 3))
-found = causal_emergence(noisy)
-print(found.partition.tolist(), round(found.macro.information, 3), round(found.gain, 3))
-print(partition_coarse_grain(noisy, found.partition, matrix=True).tolist())
+print(round(EmergenceAnalysis('effective-information').check().prepare(noisy).run().information_, 3))
+found = EmergenceAnalysis('causal').check().prepare(noisy).run()
+print(found.partition_.tolist(), round(found.macro_information_, 3), round(found.gain_, 3))
+print(found.macro_matrix_.tolist())
 ```
 
 `ergodicity_breaking`, `fluctuation_metric`, and `ergodicity_distance` diagnose whether the runs of an ensemble, one row

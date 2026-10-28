@@ -58,10 +58,7 @@ from ._complexity import (
     complexity_entropy,
     ensemble_entropy,
 )
-from ._computational_mechanics import (
-    EpsilonMachine,
-    epsilon_machine,
-)
+from ._computational_mechanics import EpsilonMachineAnalysis
 from ._criticality import (
     AvalancheLaws,
     Avalanches,
@@ -77,24 +74,11 @@ from ._criticality import (
 )
 from ._embedding import (
     Embedding,
-    auto_mutual_information,
     delay_embedding,
     embed,
     false_nearest_neighbors,
 )
-from ._emergence import (
-    CausalEmergence,
-    EffectiveInformation,
-    causal_emergence,
-    effective_information,
-    partition_coarse_grain,
-)
-from ._emergence_criteria import (
-    Closure,
-    EmergenceCriteria,
-    closure,
-    emergence_criteria,
-)
+from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
 from ._ergodicity import FluctuationMetric, ergodicity_breaking, ergodicity_distance, fluctuation_metric
 from ._events import Events, detect_events
@@ -130,15 +114,7 @@ from ._fluctuations import (
     relative_fluctuations,
 )
 from ._fractional import mittag_leffler
-from ._information import (
-    active_information_storage,
-    correlation_information,
-    kl_divergence,
-    mutual_information,
-    ordinal_patterns,
-    symbolize,
-    transfer_entropy,
-)
+from ._information import InformationAnalysis
 from ._invariants import (
     CorrelationDimension,
     UlamChain,
@@ -173,11 +149,7 @@ from ._large_deviations import (
     tilted_generating_function,
 )
 from ._linearization import StateSpace, controllability, linearize, lqr, observability
-from ._local_information import (
-    local_entropy,
-    local_mutual_information,
-    local_transfer_entropy,
-)
+from ._local_information import LocalInformationAnalysis
 from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
 from ._markov import (
@@ -190,14 +162,6 @@ from ._markov import (
 from ._mixing import dissimilarity_index, interface_density, like_neighbor_share
 from ._mode_decomposition import DMDSurrogate
 from ._motifs import MotifScores, motif_counts, motif_zscores
-from ._multivariate import (
-    PartialInformation,
-    dual_total_correlation,
-    o_information,
-    o_information_gradients,
-    partial_information,
-    total_correlation,
-)
 from ._networks import (
     Communities,
     NetworkSummary,
@@ -211,6 +175,7 @@ from ._networks import (
     network_frames,
     summarize_network,
 )
+from ._partial_information import PartialInformationAnalysis
 from ._passage import first_passage_times, hitting_probabilities, laminar_durations, return_times
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
 from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
@@ -262,9 +227,7 @@ __all__: list[str] = [
     'BaseAnalysis',
     'BaseSurrogate',
     'BasinStability',
-    'CausalEmergence',
     'Cloning',
-    'Closure',
     'Clusters',
     'Collapse',
     'Communities',
@@ -280,14 +243,13 @@ __all__: list[str] = [
     'DomainGrowth',
     'Dynamics',
     'EarlyWarning',
-    'EffectiveInformation',
     'Embedding',
-    'EmergenceCriteria',
+    'EmergenceAnalysis',
     'Ensemble',
     'EnsembleEntropy',
     'EntropyAnalysis',
     'EntropyProduction',
-    'EpsilonMachine',
+    'EpsilonMachineAnalysis',
     'Events',
     'ExtremeValueFit',
     'FlowMatrix',
@@ -295,9 +257,11 @@ __all__: list[str] = [
     'FluctuationMetric',
     'FluctuationTheorem',
     'GoodnessOfFit',
+    'InformationAnalysis',
     'JumpPath',
     'KramersMoyal',
     'LinearAutomaton',
+    'LocalInformationAnalysis',
     'Loop',
     'LoopDominance',
     'Loops',
@@ -306,7 +270,7 @@ __all__: list[str] = [
     'NetworkSummary',
     'NumberFluctuations',
     'OrbitDiagram',
-    'PartialInformation',
+    'PartialInformationAnalysis',
     'Pattern',
     'Percolation',
     'PowerLawFit',
@@ -330,13 +294,11 @@ __all__: list[str] = [
     'Sweep',
     'UlamChain',
     'UncertaintyRelation',
-    'active_information_storage',
     'aging_collapse',
     'analyses_for',
     'analysis',
     'as_graph',
     'assortativity',
-    'auto_mutual_information',
     'autocorrelation',
     'autocorrelation_time',
     'avalanches',
@@ -346,12 +308,10 @@ __all__: list[str] = [
     'block_generating_function',
     'box_counting_dimension',
     'branching_ratio',
-    'causal_emergence',
     'ccdf',
     'centrality',
     'clark_evans_ratio',
     'cloning',
-    'closure',
     'cluster_sizes',
     'coarse_grain',
     'collapse_distributions',
@@ -365,7 +325,6 @@ __all__: list[str] = [
     'controllability',
     'correlation_dimension',
     'correlation_function',
-    'correlation_information',
     'correlation_length',
     'count_entropy_production',
     'crackling_noise',
@@ -382,17 +341,13 @@ __all__: list[str] = [
     'divergence',
     'domain_growth',
     'domain_size',
-    'dual_total_correlation',
     'dynamics_of',
     'early_warning',
-    'effective_information',
     'embed',
-    'emergence_criteria',
     'ensemble_entropy',
     'ensemble_of',
     'entanglement_entropy',
     'entropy_production',
-    'epsilon_machine',
     'equations_of',
     'ergodicity_breaking',
     'ergodicity_distance',
@@ -431,7 +386,6 @@ __all__: list[str] = [
     'jump_entropy_production',
     'kaplan_yorke_dimension',
     'kinetic_temperature',
-    'kl_divergence',
     'kolmogorov_sinai_entropy',
     'kramers_moyal',
     'label_clusters',
@@ -441,9 +395,6 @@ __all__: list[str] = [
     'legendre_transform',
     'like_neighbor_share',
     'linearize',
-    'local_entropy',
-    'local_mutual_information',
-    'local_transfer_entropy',
     'loop_dominance',
     'loops',
     'lqr',
@@ -456,7 +407,6 @@ __all__: list[str] = [
     'mittag_leffler',
     'motif_counts',
     'motif_zscores',
-    'mutual_information',
     'nearest_neighbor_distances',
     'neighbor_degree',
     'nematic_order',
@@ -464,14 +414,9 @@ __all__: list[str] = [
     'networks_of',
     'nullclines',
     'number_fluctuations',
-    'o_information',
-    'o_information_gradients',
     'observability',
     'orbit_diagram',
     'order_parameter_sweep',
-    'ordinal_patterns',
-    'partial_information',
-    'partition_coarse_grain',
     'path_of',
     'pattern_wavelength',
     'percolation',
@@ -505,10 +450,7 @@ __all__: list[str] = [
     'structure_factor',
     'summarize_network',
     'surrogate_test',
-    'symbolize',
     'tilted_generating_function',
-    'total_correlation',
-    'transfer_entropy',
     'transition_counts',
     'transition_matrix',
     'two_time_correlation',
