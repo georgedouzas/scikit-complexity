@@ -20,10 +20,10 @@ from .._census import Census
 from .._census_record import CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
+from .._field_lowering import FieldLowering
 from .._issue import Issue
 from .._kernel_spec import KernelSpec
 from .._tree import Node
-from ._lower_fields import LowerFieldsPass
 
 
 def _is_lattice_field(component: object) -> bool:
@@ -81,7 +81,7 @@ class ConservedNoisePass(BasePass):
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:
         """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
-        places = LowerFieldsPass._places(declarations)
+        places = FieldLowering._field_entries(declarations)
         outputs = {}
         for spec, laws in specs:
             for law in laws:

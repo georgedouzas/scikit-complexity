@@ -7,17 +7,16 @@ from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any, cast
 
-import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
-from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws import BaseLaw, RateLaw
 from ...problems import (
     Reference,
     Source,
 )
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
 from .._field_splitting import OPERATORS, LinearTerm, Terms
@@ -38,27 +37,15 @@ class LowerFieldsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the differential operators of the corrected laws."""
         compilation = self.compilation_
-        declarations = cast('Declarations', compilation.layout)
         facts: dict[str, Any] = {'written': defaultdict(list), 'limits': [], 'volume_limits': [], 'linear': []}
         compilation.corrected = [
-            (spec, self._with_fields(spec, laws, declarations, facts))
+            (spec, self._with_fields(spec, laws, compilation, facts))
             for spec, laws in cast('Laws', compilation.corrected)
         ]
         compilation.written = facts['written']
         compilation.limits = facts['limits']
         compilation.volume_limits = facts['volume_limits']
         compilation.linear = facts['linear']
-
-    @staticmethod
-    def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expression, float]:
-        """Return the initial value of every symbol of a component, the first member's for groups."""
-        states = np.concatenate([np.zeros(0), *declarations.initial_states])
-        parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-        return {
-            item: float((states if reference.is_state else parameters)[reference.entry.start + reference.column])
-            for item, reference in spec.references.items()
-            if reference.entry.start + reference.column < (states if reference.is_state else parameters).size
-        }
 
     @staticmethod
     def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldElement]) -> list[LinearTerm]:
@@ -76,36 +63,20 @@ class LowerFieldsPass(BasePass):
     def _with_fields(
         spec: KernelSpec,
         laws: list[BaseLaw],
-        declarations: Declarations,
+        compilation: Compilation,
         facts: dict[str, Any],
     ) -> list[BaseLaw]:
         """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
-        places = LowerFieldsPass._places(declarations)
+        places = FieldLowering._field_entries(cast('Declarations', compilation.layout))
         facts['linear'] += LowerFieldsPass._linear_terms_of(spec, laws, places)
         if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
             return laws
-        lowering = FieldLowering(
-            spec.owner,
-            spec.references,
-            places,
-            LowerFieldsPass._initial_values(spec, declarations),
-        )
-        result: list[BaseLaw] = []
-        for law in laws:
-            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not FieldLowering._has_operators(
-                law.value,
-            ):
-                result.append(law)
-                continue
-            if isinstance(law, RateLaw):
-                lowering.note_limit(law.value)
-            lowered = lowering.lower(law.value)
-            if isinstance(law.value, Expression):
-                for reference in KernelSpec._target_references(law._get_targets()[0], spec):
-                    facts['written'][(reference.entry.name, reference.column)].append((lowered, law.value))
-            result.append(BasePass._replaced(law, value=lowered))
-        facts['limits'] += lowering.limits
-        facts['volume_limits'] += lowering.volume_limits
+        lowering = FieldLowering(spec).check().prepare(compilation)
+        result = lowering.run(laws)
+        for key, written in lowering.written_.items():
+            facts['written'][key] += written
+        facts['limits'] += lowering.limits_
+        facts['volume_limits'] += lowering.volume_limits_
         return result
 
     @staticmethod
@@ -221,12 +192,3 @@ class LowerFieldsPass(BasePass):
                 )
         return terms
 
-    @staticmethod
-    def _places(declarations: Declarations) -> dict[str, FieldElement]:
-        """Return the fields by the name of each of their entries."""
-        return {
-            entry.name: block.node.component
-            for block in declarations.blocks.values()
-            if isinstance(block.node.component, FieldElement)
-            for entry in block.entries.values()
-        }

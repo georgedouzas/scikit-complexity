@@ -5,9 +5,9 @@
 
 import functools
 import re
+from collections import defaultdict
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -16,11 +16,15 @@ from scipy.sparse import diags
 
 from ...core.elements import FieldElement
 from ...core.errors import ValidationError
+from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
+from ._base import BaseLowering, BasePass
+from ._declarations import Declarations
 from ._derived_read import DerivedRead
 from ._diffusive_limit import DiffusiveLimit
+from ._kernel_spec import KernelSpec
 
 type Indices = npt.NDArray[np.intp]
 type Offset = tuple[int, ...]
@@ -29,44 +33,130 @@ OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
 
 
-@dataclass
-class FieldLowering:
-    """Stencils of the operators in the laws of one component, with the symbols they read.
+class FieldLowering(BaseLowering):
+    """Lowering of the differential operators in the laws of one component to stencils, with the symbols they read.
+
+    `prepare(compilation)` reads the fields and the initial values of the compilation, and `run(laws)` returns the laws
+    with every operator replaced by its stencil, noting the stable steps of the Laplacians of rate laws.
 
     Args:
-        owner:
-            The path of the component.
+        spec:
+            The kernel spec of the component, whose references receive the neighbour reads.
 
-        references:
-            The references of the component's symbols, extended with the neighbour reads.
-
-        fields:
+    Attributes:
+        fields_:
             The field of every member entry by entry name.
 
-        initial:
+        initial_:
             The initial value of every symbol that can be evaluated, for stability limits.
+
+        shifted_:
+            The symbol and offset every neighbour read reads.
+
+        derived_:
+            The field and the derived read of every spectral or finite element operator.
+
+        limits_:
+            The stable steps of the explicit Laplacians of finite-difference fields.
+
+        volume_limits_:
+            The stable steps of the Laplacians of finite-volume fields, as functions of the parameters.
+
+        written_:
+            The lowered value and the value as written of every law, by the entry name and column of its targets.
+
+        tables_:
+            The neighbour tables, by their axis, offset, boundary, and space.
     """
 
-    owner: str
-    references: dict[Expression, Any]
-    fields: Mapping[str, FieldElement]
-    initial: Mapping[Expression, float] = field(default_factory=dict)
-    shifted: dict[Expression, tuple[Expression, Offset | int]] = field(default_factory=dict)
-    derived: dict[Expression, tuple[FieldElement, DerivedRead]] = field(default_factory=dict)
-    limits: list[float] = field(default_factory=list)
-    volume_limits: list[DiffusiveLimit] = field(default_factory=list)
-    _tables: dict[tuple[Any, ...], tuple[Indices, float | None]] = field(default_factory=dict)
+    fields_: Mapping[str, FieldElement]
+    initial_: Mapping[Expression, float]
+    shifted_: dict[Expression, tuple[Expression, Offset | int]]
+    derived_: dict[Expression, tuple[FieldElement, DerivedRead]]
+    limits_: list[float]
+    volume_limits_: list[DiffusiveLimit]
+    written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
+    tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
+
+    def __init__(self, spec: KernelSpec) -> None:
+        self.spec = spec
+
+    def _prepare(self, context: object) -> Self:
+        """Read the fields and the initial values of the compilation, with no stencil yet.
+
+        Args:
+            context:
+                The compilation.
+
+        Returns:
+            self:
+                The prepared lowering.
+        """
+        super()._prepare(context)
+        declarations = cast('Declarations', self.compilation_.layout)
+        self.fields_ = self._field_entries(declarations)
+        self.initial_ = self._initial_values(self.spec, declarations)
+        self.shifted_, self.derived_, self.tables_ = {}, {}, {}
+        self.limits_, self.volume_limits_ = [], []
+        self.written_ = defaultdict(list)
+        return self
+
+    def _run(self, inputs: object) -> list[BaseLaw]:
+        """Return laws whose differential operators are lowered, noting the stable steps of rate laws.
+
+        Args:
+            inputs:
+                The laws of the component.
+
+        Returns:
+            laws:
+                The lowered laws.
+        """
+        result: list[BaseLaw] = []
+        for law in cast('list[BaseLaw]', inputs):
+            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not self._has_operators(law.value):
+                result.append(law)
+                continue
+            if isinstance(law, RateLaw):
+                self._note_limit(law.value)
+            lowered = self._lower(law.value)
+            if isinstance(law.value, Expression):
+                for reference in KernelSpec._target_references(law._get_targets()[0], self.spec):
+                    self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
+            result.append(BasePass._replaced(law, value=lowered))
+        return result
+
+    @staticmethod
+    def _field_entries(declarations: Declarations) -> dict[str, FieldElement]:
+        """Return the fields by the name of each of their entries."""
+        return {
+            entry.name: block.node.component
+            for block in declarations.blocks.values()
+            if isinstance(block.node.component, FieldElement)
+            for entry in block.entries.values()
+        }
+
+    @staticmethod
+    def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expression, float]:
+        """Return the initial value of every symbol of a component, the first member's for groups."""
+        states = np.concatenate([np.zeros(0), *declarations.initial_states])
+        parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        return {
+            item: float((states if reference.is_state else parameters)[reference.entry.start + reference.column])
+            for item, reference in spec.references.items()
+            if reference.entry.start + reference.column < (states if reference.is_state else parameters).size
+        }
 
     def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
-        reference = self.references[item]
+        reference = self.spec.references[item]
         if reference.source is not Source.MEMBER:
             return None
-        found = self.fields.get(reference.entry.name)
+        found = self.fields_.get(reference.entry.name)
         if found is None:
             error_msg = (
-                f'A law of {self.owner} applies a differential operator to {item}, which is not a state or parameter '
-                'of a field. Create the group with `FieldElement`.'
+                f'A law of {self.spec.owner} applies a differential operator to {item}, which is not a state or '
+                'parameter of a field. Create the group with `FieldElement`.'
             )
             raise ValidationError(error_msg)
         return found
@@ -78,7 +168,7 @@ class FieldLowering:
         offset: Offset | int,
     ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
-        reference = self.references[item]
+        reference = self.spec.references[item]
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
             kind, value = place._get_boundary(variable)
@@ -88,21 +178,21 @@ class FieldLowering:
                 0.0,
             )
         key = (id(place), kind, value, offset)
-        if key not in self._tables:
+        if key not in self.tables_:
             space = place.space
             if isinstance(space, NetworkSpace):
                 table = space._index_table(AdjacencyNeighborhood())
                 sites = np.arange(table.shape[0])[:, None]
-                self._tables[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
+                self.tables_[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
                 dimensions = cast('LatticeSpace', space).shape_
                 lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).check().prepare()
                 table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
-                self._tables[key] = (table, value if kind == 'fixed' else None)
-        table, ghost = self._tables[key]
+                self.tables_[key] = (table, value if kind == 'fixed' else None)
+        table, ghost = self.tables_[key]
         return table, ghost, MODES[kind]
 
-    def shift(self, expression: Expression, offset: Offset | int) -> Expression:
+    def _shift(self, expression: Expression, offset: Offset | int) -> Expression:
         """Return an expression read at a neighbouring site of every member.
 
         Args:
@@ -119,15 +209,15 @@ class FieldLowering:
         expression = SR(expression)
         replacements = {}
         for item in expression.variables():
-            base, current = self.shifted.get(item, (item, None))
-            if base not in self.references:
+            base, current = self.shifted_.get(item, (item, None))
+            if base not in self.spec.references:
                 continue
             place = self._field_of(base)
             if place is None:
                 continue
             if isinstance(offset, int) or isinstance(current, int):
                 if current is not None:
-                    error_msg = f'A law of {self.owner} nests operators on a network, which only take one step.'
+                    error_msg = f'A law of {self.spec.owner} nests operators on a network, which only take one step.'
                     raise ValidationError(error_msg)
                 total: Offset | int = offset
             else:
@@ -137,8 +227,8 @@ class FieldLowering:
                 continue
             name = f'{base}__{self._tag(total)}'
             target = symbol(name, domain_of(base))
-            if target not in self.references:
-                reference = self.references[base]
+            if target not in self.spec.references:
+                reference = self.spec.references[base]
                 table, ghost, mode = self._table(base, place, total)
                 lattice = isinstance(place.space, LatticeSpace)
                 read = NeighborRead(
@@ -148,14 +238,14 @@ class FieldLowering:
                     total if lattice else None,  # type: ignore[arg-type]
                     mode,
                 )
-                self.references[target] = Reference(
+                self.spec.references[target] = Reference(
                     reference.entry,
                     reference.is_state,
                     reference.column,
                     Source.NEIGHBOR,
                     read,
                 )
-                self.shifted[target] = (base, total)
+                self.shifted_[target] = (base, total)
             replacements[item] = target
         return expression.subs(replacements)
 
@@ -163,11 +253,11 @@ class FieldLowering:
         """Return the fields an expression reads, through member symbols, neighbour reads, and derived values."""
         places: dict[int, FieldElement] = {}
         for item in SR(expression).variables():
-            if item in self.derived:
-                place = self.derived[item][0]
+            if item in self.derived_:
+                place = self.derived_[item][0]
             else:
-                base = self.shifted.get(item, (item, None))[0]
-                place = self._field_of(base) if base in self.references else None  # type: ignore[assignment]
+                base = self.shifted_.get(item, (item, None))[0]
+                place = self._field_of(base) if base in self.spec.references else None  # type: ignore[assignment]
             if place is not None:
                 places[id(place)] = place
         return places
@@ -179,7 +269,7 @@ class FieldLowering:
         spaces = {id(place.space) for place in places.values()}
         if len(spaces) != 1 or len(discretizations) != 1:
             error_msg = (
-                f'A law of {self.owner} applies an operator to {expression}, which reads {len(spaces)} fields. An '
+                f'A law of {self.spec.owner} applies an operator to {expression}, which reads {len(spaces)} fields. An '
                 'operator acts on the states of fields of one space and one discretization.'
             )
             raise ValidationError(error_msg)
@@ -190,7 +280,7 @@ class FieldLowering:
         spaces = {id(place.space): place.space for place in self._places(expression).values()}
         if len(spaces) != 1:
             error_msg = (
-                f'A law of {self.owner} applies an operator to {expression}, which reads {len(spaces)} fields. An '
+                f'A law of {self.spec.owner} applies an operator to {expression}, which reads {len(spaces)} fields. An '
                 'operator acts on the states of fields of one space.'
             )
             raise ValidationError(error_msg)
@@ -201,12 +291,12 @@ class FieldLowering:
         space = self._space(expression)
         if isinstance(space, NetworkSpace):
             width = space._index_table(AdjacencyNeighborhood()).shape[1]
-            return sum((self.shift(expression, slot) - expression for slot in range(width)), SR(0))
+            return sum((self._shift(expression, slot) - expression for slot in range(width)), SR(0))
         total = SR(0)
         for axis in range(space.n_dim_):
             step = tuple(int(axis == other) for other in range(space.n_dim_))
             back = tuple(-item for item in step)
-            total += (self.shift(expression, step) + self.shift(expression, back) - 2 * expression) / (
+            total += (self._shift(expression, step) + self._shift(expression, back) - 2 * expression) / (
                 space.spacings_[axis] ** 2
             )
         return total
@@ -216,13 +306,13 @@ class FieldLowering:
         space = self._space(expression)
         if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
             error_msg = (
-                f'A law of {self.owner} takes the {name} of {expression} along axis {axis}, which needs a lattice.'
+                f'A law of {self.spec.owner} takes the {name} of {expression} along axis {axis}, which needs a lattice.'
             )
             raise ValidationError(error_msg)
         step = tuple(int(axis == other) for other in range(space.n_dim_))
         return space, step, tuple(-item for item in step)
 
-    def lower(self, expression: object) -> object:
+    def _lower(self, expression: object) -> object:
         """Return an expression with every operator replaced by its stencil, innermost first.
 
         Args:
@@ -237,7 +327,7 @@ class FieldLowering:
             return expression
         call = cast('Expression', expression)
         operator = call.operator()
-        operands = [self.lower(item) for item in call.operands()]
+        operands = [self._lower(item) for item in call.operands()]
         name = getattr(operator, 'name', lambda: '')()
         if name not in OPERATOR_NAMES:
             return operator(*operands)
@@ -253,50 +343,50 @@ class FieldLowering:
         if name == 'laplacian':
             return self._laplacian(SR(operands[0]))
         if name == 'inverse_laplacian':
-            error_msg = f'A law of {self.owner} solves a Poisson equation, which needs a spectral field.'
+            error_msg = f'A law of {self.spec.owner} solves a Poisson equation, which needs a spectral field.'
             raise ValidationError(error_msg)
         axis = int(SR(operands[1]))
         value = SR(operands[0])
         space, step, back = self._lattice(value, axis, 'derivative' if name == 'partial' else 'advection')
         if name == 'partial':
-            return (self.shift(value, step) - self.shift(value, back)) / (2 * space.spacings_[axis])
+            return (self._shift(value, step) - self._shift(value, back)) / (2 * space.spacings_[axis])
         velocity = SR(operands[2])
-        behind = (value - self.shift(value, back)) / space.spacings_[axis]
-        ahead = (self.shift(value, step) - value) / space.spacings_[axis]
+        behind = (value - self._shift(value, back)) / space.spacings_[axis]
+        ahead = (self._shift(value, step) - value) / space.spacings_[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
     def _derived(self, place: FieldElement, read: DerivedRead) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
-        target = symbol(f'_derived_{place.label}_{len(self.derived)}')
+        target = symbol(f'_derived_{place.label}_{len(self.derived_)}')
         entry = next(
-            self.references[item].entry
+            self.spec.references[item].entry
             for item in read.symbols
-            if self.references[item].source in {Source.MEMBER, Source.NEIGHBOR, Source.DERIVED}
+            if self.spec.references[item].source in {Source.MEMBER, Source.NEIGHBOR, Source.DERIVED}
         )
-        self.references[target] = Reference(entry, True, 0, Source.DERIVED, read)
-        self.derived[target] = (place, read)
+        self.spec.references[target] = Reference(entry, True, 0, Source.DERIVED, read)
+        self.derived_[target] = (place, read)
         return target
 
     def _spectral(self, name: str, operands: list[Any], place: FieldElement) -> Expression:
         """Return the symbol of a spectral operator applied to an expression, composing chains of operators."""
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
-            error_msg = f'A law of {self.owner} uses a spectral field, which needs a periodic lattice.'
+            error_msg = f'A law of {self.spec.owner} uses a spectral field, which needs a periodic lattice.'
             raise ValidationError(error_msg)
         if name == 'upwind':
             velocity = SR(operands[2])
             return velocity * self._spectral('partial', [operands[0], operands[1]], place)
         axis = int(SR(operands[1])) if name == 'partial' else 0
         if name == 'partial' and not 0 <= axis < space.n_dim_:
-            error_msg = f'A law of {self.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
+            error_msg = f'A law of {self.spec.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
         dimensions = space.shape_
         multiplier = self._spectral_multiplier(name, axis, dimensions, space.spacings_)
         operand = SR(operands[0])
-        inner = self.derived.get(operand)
+        inner = self.derived_.get(operand)
         if inner is not None and inner[1].multiplier is not None:
             operand, multiplier = inner[1].operand, multiplier * inner[1].multiplier
-        symbols = sorted((item for item in operand.variables() if item in self.references), key=str)
+        symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
         read = DerivedRead(operand, symbols, self._spectral_apply(multiplier, dimensions), multiplier, dimensions)
         return self._derived(place, read)
 
@@ -304,24 +394,24 @@ class FieldLowering:
         """Return the symbol of the finite element Laplacian of an expression."""
         if name != 'laplacian':
             error_msg = (
-                f'A law of {self.owner} takes the {name} of a finite element field, which takes Laplacians only.'
+                f'A law of {self.spec.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
         matrix = self._mesh_laplacian(place.space)  # type: ignore[arg-type]
-        symbols = sorted((item for item in operand.variables() if item in self.references), key=str)
+        symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
         read = DerivedRead(operand, symbols, lambda values: matrix @ values, matrix=matrix)
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
         """Record the diffusive step limit of a finite-volume field as a function of the parameters it reads."""
         symbols = sorted(set(coefficient.variables()) - {TIME}, key=str)
-        references = [self.references[item] for item in symbols if item in self.references]
+        references = [self.spec.references[item] for item in symbols if item in self.spec.references]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
         function = numpy_function(TIME, symbols, [coefficient])
-        self.volume_limits.append(DiffusiveLimit(function, tuple(references), stiffness))
+        self.volume_limits_.append(DiffusiveLimit(function, tuple(references), stiffness))
 
-    def note_limit(self, value: object) -> None:
+    def _note_limit(self, value: object) -> None:
         """Record the diffusive step limit of the Laplacians in a law value.
 
         A finite-difference field records the limit when the coefficient is a number at the initial values, and a
@@ -349,13 +439,13 @@ class FieldLowering:
             if place.discretization == 'finite-volume':
                 self._note_volume_limit(expression, stiffness)
                 continue
-            coefficient = expression.subs(self.initial)
+            coefficient = expression.subs(self.initial_)
             if coefficient.variables():
                 continue
             magnitude = abs(float(coefficient))
             if magnitude == 0:
                 continue
-            self.limits.append(1 / (stiffness * magnitude))
+            self.limits_.append(1 / (stiffness * magnitude))
 
     @staticmethod
     def _tag(offset: Offset | int) -> str:
