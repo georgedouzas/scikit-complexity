@@ -21,8 +21,8 @@ from ..problems._problem import Accelerated, Draws, VectorFunction, WienerBlock,
 from ..problems._reductions import ReductionSchedule
 from ..utils import BaseEstimator
 
-AUTO_MEMBERS = 1000
-FUNCTION_KINDS: dict[str, type] = {
+_AUTO_MEMBERS = 1000
+_FUNCTION_KINDS: dict[str, type] = {
     'drift': RateLaw,
     'diffusion': NoiseLaw,
     'propensities': JumpLaw,
@@ -59,7 +59,7 @@ def _unprinted_reduction(reductions: ReductionSchedule) -> str | None:
     return None
 
 
-def adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
+def _adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
     """Return the function that sums the outputs of kernels into a zero vector.
 
     Args:
@@ -86,7 +86,7 @@ def adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
     return evaluate
 
 
-def assigning_function(kernels: list[Kernel]) -> VectorFunction:
+def _assigning_function(kernels: list[Kernel]) -> VectorFunction:
     """Return the function that sets the outputs of kernels on a copy of the state vector.
 
     Args:
@@ -110,7 +110,7 @@ def assigning_function(kernels: list[Kernel]) -> VectorFunction:
     return evaluate
 
 
-def concatenating_function(kernels: list[Kernel]) -> VectorFunction:
+def _concatenating_function(kernels: list[Kernel]) -> VectorFunction:
     """Return the function that concatenates the outputs of kernels, one value per evaluation index.
 
     Args:
@@ -200,7 +200,7 @@ class Lowering:
     backends: dict[str, str] = field(default_factory=dict)
 
 
-def with_reductions(
+def _with_reductions(
     lowering: Lowering,
     reductions: ReductionSchedule | None,
     kernels: Mapping[type, list[Kernel]] | None = None,
@@ -224,13 +224,13 @@ def with_reductions(
     """
     if reductions is None or not reductions.steps:
         return lowering
-    for name, kind in FUNCTION_KINDS.items():
+    for name, kind in _FUNCTION_KINDS.items():
         if kernels is None or reads_reductions(kernels.get(kind, [])):
             setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
     return lowering
 
 
-def report_fallbacks(
+def _report_fallbacks(
     name: str,
     used: Mapping[type, list[Kernel]],
     compiled: Mapping[type, bool],
