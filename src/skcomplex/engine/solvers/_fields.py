@@ -25,8 +25,7 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...core.types import Vector
-from ..compile import spectral_multiplier
-from ..compile._field_lowering import mesh_laplacian
+from ..compile._field_lowering import FieldLowering
 from ..problems import LATTICE_BOUNDARIES, Form, OrderKind, Problem, SupportSpec, numpy_function, step_count, symbol
 from ._stepper import Solver
 
@@ -351,7 +350,7 @@ class SplitOperator:
         for term, coefficient in terms:
             multiplier: Any = 1.0
             for name, axis in term.chain:
-                multiplier = multiplier * spectral_multiplier(name, axis, dimensions, spacings)
+                multiplier = multiplier * FieldLowering._spectral_multiplier(name, axis, dimensions, spacings)
             target = order[(term.target.entry.name, term.target.column)]
             source = order[(term.source.entry.name, term.source.column)]
             matrix[..., target, source] += coefficient * multiplier
@@ -363,7 +362,7 @@ class SplitOperator:
         if name != 'laplacian':
             error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
             raise SolverError(error_msg)
-        return mesh_laplacian(space)
+        return FieldLowering._mesh_laplacian(space)
 
     @staticmethod
     def _coefficient(term: Any, p: Vector) -> Any:  # noqa: ANN401

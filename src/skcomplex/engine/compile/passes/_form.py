@@ -9,8 +9,9 @@ from typing import cast
 from ....core.errors import IncompatibleLawsError
 from ...problems import Form
 from .._compilation import Compilation
-from .._forms import _FORMS, _form_kinds
+from .._forms import _FORMS
 from .._pipeline import BasePass
+from .._planner import _Owners
 
 
 class FormPass(BasePass):
@@ -47,7 +48,7 @@ class FormPass(BasePass):
             IncompatibleLawsError:
                 No form takes the law classes.
         """
-        kinds = _form_kinds(owners)
+        kinds = _Owners._form_kinds(owners)
         if kinds not in _FORMS:
             found = ', '.join(sorted(kind.__name__ for kind in kinds))
             supported = '; '.join(

@@ -16,7 +16,7 @@ from ...core.errors import SolverError
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..compile.passes._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, state_of
+from ..compile.passes._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 from ..problems import Form, OrderKind, SupportSpec
 from ._base import BaseSolver
 
@@ -89,7 +89,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
         problem = self.quantum_
-        state = state_of(problem, x)
+        state = problem._state_of(x)
         if problem.pure:
             return self._ket(state)
         return qutip.Qobj(state, dims=[list(problem.dimensions)] * 2)
@@ -368,7 +368,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
         problem = self.quantum_
-        state = state_of(problem, x)
+        state = problem._state_of(x)
         if problem.pure:
             return self._ket(state)
         weights, vectors = np.linalg.eigh(state)

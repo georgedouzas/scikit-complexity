@@ -25,7 +25,6 @@ from skcomplex.engine.compile import (
     compile_system,
 )
 from skcomplex.engine.compile.passes import HilbertSpaceError, QuantumCompiler, QuantumProblem
-from skcomplex.engine.compile.passes._quantum import hamiltonian_at, state_of
 from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.models.biology.ecology import PopulationElement
@@ -156,7 +155,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system)
-    matrix = hamiltonian_at(problem, 0.0, problem.initial_parameters).toarray()
+    matrix = problem._hamiltonian_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
     for site in range(8):
@@ -216,7 +215,7 @@ def test_compile_system_stores_neel_states():
             ],
         ),
     )
-    state = state_of(problem, problem.initial_state)
+    state = problem._state_of(problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
 
@@ -232,7 +231,7 @@ def test_compile_system_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
     problem = compile_system(System(elements=[DecayingElement('q')]))
     assert not problem.pure
-    assert state_of(problem, problem.initial_state).shape == (2, 2)
+    assert problem._state_of(problem.initial_state).shape == (2, 2)
     mixed = compile_system(System(elements=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2})
     assert not mixed.pure
 

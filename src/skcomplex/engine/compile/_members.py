@@ -12,7 +12,8 @@ from ...core.errors import ValidationError
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
-from ._lowering import _SHIFT, _calls_of
+from ._lowering import _SHIFT
+from ._pipeline import BasePass
 
 
 @dataclass
@@ -127,7 +128,7 @@ class MemberShifts:
         """
         if isinstance(value, FreeModuleElement):
             return vector(self.lower(item) for item in value)
-        if not isinstance(value, Expression) or not _calls_of(value, _SHIFT):
+        if not isinstance(value, Expression) or not BasePass._calls_of(value, _SHIFT):
             return value
         operator = value.operator()
         if getattr(operator, 'name', lambda: '')() != _SHIFT:

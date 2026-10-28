@@ -43,10 +43,12 @@ from ...problems import (
     vector,
 )
 from ...problems._reductions import CompiledReduction
+from .._declarations import Declarations
 from .._quantum_operators import LocalOperator, Operator
-from .._quantum_views import QuantumView, _is_quantum, hilbert_state
+from .._quantum_views import QuantumView
 from .._system_compilers import BaseSystemCompiler
-from .._tree import Node, _coerce_value, flatten_system
+from .._tree import Node
+from ._flatten import FlattenPass
 
 DENSE_LIMIT = 1024
 _HERMITIAN_TOLERANCE = 1e-10
@@ -55,14 +57,6 @@ _SAMPLE_TIME = 0.37
 REAL_TOLERANCE = 1e-10
 
 DEFAULT_MAX_DIMENSION = 2**20
-
-
-def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
-    """Return the sum of sparse matrices, the zero matrix without any."""
-    total = sp.csr_array((size, size), dtype=complex)
-    for matrix in matrices:
-        total = total + matrix
-    return sp.csr_array(total)
 
 
 class HilbertSpaceError(SkcomplexError):
@@ -108,11 +102,6 @@ class QuantumTerm:
                 The coefficient.
         """
         return 1.0 if self.function is None else self.function(t, p)
-
-
-def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> sp.csr_array:
-    """Return the sum of the terms at a time and a parameter vector."""
-    return _sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
 
 
 @dataclass
@@ -267,9 +256,13 @@ class _Lowering:
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumTerm(_sum_matrices(constant, size), SR(1))] if constant else []
+        terms = [QuantumTerm(QuantumProblem._sum_matrices(constant, size), SR(1))] if constant else []
         for coefficient, matrices in grouped.items():
-            terms.append(QuantumTerm(_sum_matrices(matrices, size), coefficient, self.function(coefficient, owner)))
+            terms.append(
+                QuantumTerm(
+                    QuantumProblem._sum_matrices(matrices, size), coefficient, self.function(coefficient, owner),
+                ),
+            )
         return tuple(terms)
 
     @staticmethod
@@ -484,7 +477,7 @@ class QuantumProblem(BaseProblem):
 
         def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del done
-            values = np.asarray([expect(self, item, t, x, p) for item in terms])
+            values = np.asarray([self._expect(item, t, x, p) for item in terms])
             return CompiledReduction._reduce_values(values, observable.reduce)
 
         return get
@@ -502,7 +495,7 @@ class QuantumProblem(BaseProblem):
 
         def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del done
-            return expect(self, terms, t, x, p)
+            return self._expect(terms, t, x, p)
 
         return get
 
@@ -511,96 +504,81 @@ class QuantumProblem(BaseProblem):
 
         def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             del t, p, done
-            state = state_of(self, x)
+            state = self._state_of(x)
             return 1.0 if self.pure else float(np.sum(np.abs(state) ** 2))
 
         return get
 
+    @staticmethod
+    def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
+        """Return the sum of sparse matrices, the zero matrix without any."""
+        total = sp.csr_array((size, size), dtype=complex)
+        for matrix in matrices:
+            total = total + matrix
+        return sp.csr_array(total)
 
-def state_of(problem: QuantumProblem, x: Vector) -> npt.NDArray[np.complex128]:
-    """Return the complex state of a quantum problem, a vector or a density matrix, from a state vector.
+    @staticmethod
+    def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> sp.csr_array:
+        """Return the sum of the terms at a time and a parameter vector."""
+        return QuantumProblem._sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
 
-    Args:
-        problem:
-            The quantum problem.
+    def _state_of(self, x: Vector) -> npt.NDArray[np.complex128]:
+        """Return the complex state of a quantum problem, a vector or a density matrix, from a state vector.
 
-        x:
-            The state vector.
+        Args:
+            x:
+                The state vector.
 
-    Returns:
-        state:
-            The pure state of shape `(dimension,)` or the density matrix of shape `(dimension, dimension)`.
-    """
-    return np.asarray(problem.states.read(x, problem.states.names[0]))
+        Returns:
+            state:
+                The pure state of shape `(dimension,)` or the density matrix of shape `(dimension, dimension)`.
+        """
+        return np.asarray(self.states.read(x, self.states.names[0]))
 
+    def _expect(self, terms: Iterable[QuantumTerm], t: float, x: Vector, p: Vector) -> float | complex:
+        """Return the expectation value of an operator at a state of a quantum problem.
 
-def expect(problem: QuantumProblem, terms: Iterable[QuantumTerm], t: float, x: Vector, p: Vector) -> float | complex:
-    """Return the expectation value of an operator at a state of a quantum problem.
+        Args:
+            terms:
+                The terms of the operator.
 
-    Args:
-        problem:
-            The quantum problem.
+            t:
+                The time.
 
-        terms:
-            The terms of the operator.
+            x:
+                The state vector.
 
-        t:
-            The time.
+            p:
+                The parameter vector.
 
-        x:
-            The state vector.
+        Returns:
+            value:
+                `<psi|O|psi>` or `Tr(rho O)`, a float when its imaginary part vanishes.
+        """
+        state = self._state_of(x)
+        total = 0j
+        for term in terms:
+            value = np.vdot(state, term.matrix @ state) if self.pure else term.matrix.multiply(state.T).sum()
+            total += term.value(t, p) * complex(value)
+        if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
+            return float(total.real)
+        return total
 
-        p:
-            The parameter vector.
+    def _hamiltonian_at(self, t: float, p: Vector) -> sp.csr_array:
+        """Return the Hamiltonian matrix of a quantum problem at a time and a parameter vector.
 
-    Returns:
-        value:
-            `<psi|O|psi>` or `Tr(rho O)`, a float when its imaginary part vanishes.
-    """
-    state = state_of(problem, x)
-    total = 0j
-    for term in terms:
-        value = np.vdot(state, term.matrix @ state) if problem.pure else term.matrix.multiply(state.T).sum()
-        total += term.value(t, p) * complex(value)
-    if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
-        return float(total.real)
-    return total
+        Args:
+            t:
+                The time.
 
+            p:
+                The parameter vector.
 
-def hamiltonian_at(problem: QuantumProblem, t: float, p: Vector) -> sp.csr_array:
-    """Return the Hamiltonian matrix of a quantum problem at a time and a parameter vector.
-
-    Args:
-        problem:
-            The quantum problem.
-
-        t:
-            The time.
-
-        p:
-            The parameter vector.
-
-    Returns:
-        matrix:
-            The sparse Hamiltonian.
-    """
-    return _matrix_at(problem.hamiltonian, t, p, math.prod(problem.dimensions))
-
-
-def contains_quantum(system: System) -> bool:
-    """Check whether a system tree holds a quantum element or group.
-
-    Args:
-        system:
-            The root system.
-
-    Returns:
-        found:
-            Whether any element of the tree is quantum.
-    """
-    if any(_is_quantum(element) for element in system.elements):
-        return True
-    return any(contains_quantum(child) for child in system.systems)
+        Returns:
+            matrix:
+                The sparse Hamiltonian.
+        """
+        return QuantumProblem._matrix_at(self.hamiltonian, t, p, math.prod(self.dimensions))
 
 
 class QuantumCompiler(BaseSystemCompiler):
@@ -613,7 +591,7 @@ class QuantumCompiler(BaseSystemCompiler):
             system:
                 The system.
         """
-        self.claims_ = contains_quantum(system)
+        self.claims_ = self._contains_quantum(system)
 
     def _run(
         self,
@@ -639,9 +617,6 @@ class QuantumCompiler(BaseSystemCompiler):
                 The initial state of the whole system under `<system label>.state`.
 
         Returns:
-            problem:
-                The quantum problem.
-
         Raises:
             ValidationError:
                 An initial value names another state than the whole state of the system.
@@ -661,7 +636,7 @@ class QuantumCompiler(BaseSystemCompiler):
     @staticmethod
     def _is_quantum_node(node: Node) -> bool:
         """Check whether a node is a quantum element or a group of quantum elements."""
-        return not isinstance(node.component, BaseInteraction) and _is_quantum(node.component)
+        return not isinstance(node.component, BaseInteraction) and QuantumView._is_quantum(node.component)
 
     @staticmethod
     def _member_value(value: object, member: int, size: int) -> object:
@@ -707,7 +682,9 @@ class QuantumCompiler(BaseSystemCompiler):
                 if QuantumCompiler._is_quantum_node(node)
                 else {}
             )
-            states = {name: item for name, item in states.items() if name != hilbert_state(node.component_type)}
+            states = {
+                name: item for name, item in states.items() if name != QuantumView._hilbert_state(node.component_type)
+            }
             if states:
                 error_msg = (
                     f'Quantum element {node.path} declares the states {", ".join(states)} besides its state in a '
@@ -820,7 +797,7 @@ class QuantumCompiler(BaseSystemCompiler):
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
         def asymmetry(terms: Iterable[QuantumTerm]) -> float:
-            matrix = _matrix_at(terms, _SAMPLE_TIME, sample, size)
+            matrix = QuantumProblem._matrix_at(terms, _SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
 
@@ -970,7 +947,7 @@ class QuantumCompiler(BaseSystemCompiler):
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
-            matrix = _matrix_at(hamiltonian, 0.0, p, size)
+            matrix = QuantumProblem._matrix_at(hamiltonian, 0.0, p, size)
             return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
         state = QuantumCompiler._system_initial(system, initial, product, ground)
@@ -1032,7 +1009,7 @@ class QuantumCompiler(BaseSystemCompiler):
                 negative, or an initial state is not normalised.
         """
         time = symbol('t')
-        nodes = flatten_system(system)
+        nodes = FlattenPass._flatten_system(system)
         QuantumCompiler._check_classical(nodes)
         quantum = [node for node in nodes if QuantumCompiler._is_quantum_node(node)]
         subsystems = QuantumCompiler._subsystems_of(quantum)
@@ -1101,7 +1078,9 @@ class QuantumCompiler(BaseSystemCompiler):
                     raise ValidationError(error_msg)
                 members = node.members
                 shape = () if members is None else (members,)
-                values.append(_coerce_value(name, node.value_of(variable), (), declaration.domain, members))
+                values.append(
+                    Declarations._coerce_value(name, node.value_of(variable), (), declaration.domain, members),
+                )
                 entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
                 base = f'{variable}_{QuantumCompiler._name_of(node.path)}'
                 if members is None:
@@ -1111,3 +1090,19 @@ class QuantumCompiler(BaseSystemCompiler):
                         [symbol(f'{base}_{member}', declaration.domain) for member in range(members)],
                     )
         return entries, values, symbols
+
+    @staticmethod
+    def _contains_quantum(system: System) -> bool:
+        """Check whether a system tree holds a quantum element or group.
+
+        Args:
+            system:
+                The root system.
+
+        Returns:
+            found:
+                Whether any element of the tree is quantum.
+        """
+        if any(QuantumView._is_quantum(element) for element in system.elements):
+            return True
+        return any(QuantumCompiler._contains_quantum(child) for child in system.systems)

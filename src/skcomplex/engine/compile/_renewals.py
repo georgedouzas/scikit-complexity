@@ -16,7 +16,7 @@ from ...core.types import Indices, Vector
 from ..problems import Entry, Reference, RenewalRecord, Source
 from ._renewal_law import RenewalLaw
 from ._specs import KernelSpec
-from ._stochastic import _sample_draw
+from ._stochastic import DrawLowering
 
 type Drawn = dict[str, Vector]
 _READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
@@ -61,7 +61,7 @@ class _Sampler:
     ) -> None:
         """Draw a value for every renewing member into the drawn values."""
         values = self.arguments.evaluate(times, x, p, fired, drawn) if self.draw.arguments else []
-        drawn[self.draw.name] = _sample_draw(self.draw, values, fired.size, rng)
+        drawn[self.draw.name] = DrawLowering._sample_draw(self.draw, values, fired.size, rng)
 
 
 @dataclass(frozen=True)

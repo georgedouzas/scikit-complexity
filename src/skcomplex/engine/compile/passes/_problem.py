@@ -36,23 +36,11 @@ from ...problems import (
 from ...problems._hybrid import _Breakpoints, _Delay
 from ...problems._problem import _MarkovMatrix
 from .._compilation import Compilation, Laws
-from .._declarations import Block, Declarations, _is_interaction
-from .._laws import values_of
-from .._lowering import _calls_of
+from .._declarations import Block, Declarations
 from .._pipeline import BasePass
 from .._specs import KernelSpec
 from .._tree import Node
 from ._events import _SWITCHES, RELATIONS, Scalars
-
-
-def _visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element or a group: its own visual when it sets one, and its default otherwise."""
-    element = node.component
-    if element.visual is not None:
-        return element.visual
-    prepared = 'default_visual_' in vars(element)
-    default: VisualSpec = (element if prepared else element.check().prepare(node.space)).default_visual_
-    return default
 
 
 class ProblemPass(BasePass):
@@ -86,7 +74,7 @@ class ProblemPass(BasePass):
         """Return every companion state by name, with its kind, the name of its state, and its index."""
         companions = {}
         for block in blocks:
-            if _is_interaction(block.node) or block.node.is_agent:
+            if block.node._is_interaction() or block.node.is_agent:
                 continue
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():
@@ -116,11 +104,11 @@ class ProblemPass(BasePass):
                     name: f'{block.node.path}.{name}'
                     for name in declarations_of(block.node.component_type, VariableKind.PARAMETER)
                 },
-                visual=_visual_of(block.node),
+                visual=ProblemPass._visual_of(block.node),
                 members=block.node.members,
             )
             for block in blocks
-            if not _is_interaction(block.node) and not block.node.is_agent
+            if not block.node._is_interaction() and not block.node.is_agent
         )
 
     @staticmethod
@@ -136,7 +124,7 @@ class ProblemPass(BasePass):
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
             )
             for block in blocks
-            if _is_interaction(block.node)
+            if block.node._is_interaction()
         )
 
     @staticmethod
@@ -346,7 +334,7 @@ class ProblemPass(BasePass):
                 resolved = root is not None or time not in difference.variables()
                 if root is not None:
                     fixed.add(root)
-                for call in _calls_of(difference, 'mod'):
+                for call in BasePass._calls_of(difference, 'mod'):
                     argument, period = call.operands()
                     zero, rest = ProblemPass._linear_root(argument, time), difference - call
                     if zero is not None and period.is_numeric() and rest.is_numeric():
@@ -495,7 +483,7 @@ class ProblemPass(BasePass):
                 value
                 for law in laws
                 if isinstance(law, BaseLaw) and not isinstance(law, JumpLaw)
-                for value in values_of(law, include=('value', 'lhs', 'rhs'))
+                for value in BasePass._values_of(law, include=('value', 'lhs', 'rhs'))
                 if isinstance(value, Expression)
             ]
             for index, condition in enumerate(ProblemPass._state_conditions_of(values, time)):
@@ -513,7 +501,7 @@ class ProblemPass(BasePass):
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:
-            if _is_interaction(block.node) or block.node.is_agent:
+            if block.node._is_interaction() or block.node.is_agent:
                 continue
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():
@@ -521,3 +509,13 @@ class ProblemPass(BasePass):
                 if declaration is not None and declaration.history is not None:
                     history[entry.name] = declaration.history
         return history
+
+    @staticmethod
+    def _visual_of(node: Node) -> VisualSpec:
+        """Return the visual of an element or a group: its own visual when it sets one, and its default otherwise."""
+        element = node.component
+        if element.visual is not None:
+            return element.visual
+        prepared = 'default_visual_' in vars(element)
+        default: VisualSpec = (element if prepared else element.check().prepare(node.space)).default_visual_
+        return default

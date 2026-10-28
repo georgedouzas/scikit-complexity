@@ -1,6 +1,5 @@
 """Test the ordering of the passes of a compilation by the fields they read and write, and their run."""
 
-import sys
 
 import pytest
 
@@ -8,6 +7,7 @@ from skcomplex.core.errors import PipelineError
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import BasePass, Compilation, compile_system, order_passes, run_passes
+from skcomplex.engine.compile.passes._flatten import FlattenPass
 from skcomplex.models import create
 
 
@@ -89,14 +89,12 @@ def test_run_passes_runs_only_what_a_field_needs():
 def test_compile_system_flattens_the_system_once(monkeypatch):
     """Test that validating and compiling a system flattens its tree once."""
     calls = []
-    for name, module in list(sys.modules.items()):
-        flatten = getattr(module, 'flatten_system', None)
-        if name.startswith('skcomplex.engine') and callable(flatten):
+    flatten = FlattenPass._flatten_system
 
-            def counted(*args, flatten=flatten, **kwargs):
-                calls.append(args[0])
-                return flatten(*args, **kwargs)
+    def counted(*args, **kwargs):
+        calls.append(args[0])
+        return flatten(*args, **kwargs)
 
-            monkeypatch.setattr(module, 'flatten_system', counted)
+    monkeypatch.setattr(FlattenPass, '_flatten_system', staticmethod(counted))
     compile_system(create('lotka_volterra'), backend=NumpyBackend())
     assert len(calls) == 1

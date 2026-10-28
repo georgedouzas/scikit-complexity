@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import CC, Expression
+from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.errors import (
@@ -41,25 +41,24 @@ from ...core.spaces import (
 from ...core.specs import ObservableSpec, WienerProcessSpec
 from ...core.system import System
 from ..backends import BaseBackend
-from ..problems import DomainKind, Entry, NoiseKind, SupportSpec, VariableKind, declarations_of, domain_kind, symbol
+from ..problems import DomainKind, NoiseKind, SupportSpec, VariableKind, declarations_of, symbol
 from ..problems._neighbourhoods import CompiledNeighborhood
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
+from ._declarations import Declarations
 from ._issues import _ERROR, _WARNING, Issue, ValidationWarning
-from ._laws import values_of
-from ._noise import _process_covariance
 from ._observables import (
     _held_observables,
-    _held_reduction,
     _HeldReduction,
     _with_held_observables,
     _with_held_reductions,
     _with_observables,
 )
-from ._pipeline import run_passes
+from ._pipeline import BasePass, run_passes
 from ._planner import _Plan
-from ._tree import Node, _declared_times, _noise_processes
+from ._tree import Node, _declared_times
 from .passes._core import _CHECKS, _PASSES, claiming_compiler
+from .passes._noise import NoisePass
 
 _COVARIANCE_TOLERANCE = 1e-12
 _TIME_CLASSES = {
@@ -80,22 +79,6 @@ _REPLACEMENTS = {
     DomainKind.BOOLEAN: 'a jump or update law',
     DomainKind.HILBERT: 'a generator or dissipator law',
 }
-
-
-def _subclasses(base: type) -> list[type]:
-    """Return every subclass of a class, recursively."""
-    found: list[type] = []
-    subclasses: list[type] = base.__subclasses__()
-    for subclass in subclasses:
-        found += [subclass, *_subclasses(subclass)]
-    return found
-
-
-def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
-    """Return the kind of value a state of the layout holds."""
-    if vector or entry.is_complex or entry.domain is CC:
-        return DomainKind.VECTOR if vector else DomainKind.COMPLEX
-    return domain_kind(entry.domain, entry.period)
 
 
 def _names(classes: tuple[type | None, ...]) -> str:
@@ -270,7 +253,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
     issues = []
     for record in records:
         name = f'{type(record.law).__name__} of {record.path}'
-        values = values_of(record.law, include=('rate',) if isinstance(record.law, JumpLaw) else ('value',))
+        values = BasePass._values_of(record.law, include=('rate',) if isinstance(record.law, JumpLaw) else ('value',))
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
@@ -368,7 +351,7 @@ def _wiener_issues(system: System, nodes: list[Node]) -> list[Issue]:
     """Return the Wiener processes outside continuous time or with an invalid covariance."""
     times = _declared_times(system)
     issues = []
-    for path, wiener in _noise_processes(nodes).items():
+    for path, wiener in Declarations._noise_processes(nodes).items():
         time = times.get(path.rpartition('/')[0])
         if time is not None and not issubclass(time, ContinuousTime):
             message = f'The Wiener processes {path} exist only in continuous time.'
@@ -444,7 +427,7 @@ def _sharer(
             if item.path == record.path:
                 continue
             for state, process in zip(item.driven, item.processes, strict=True):
-                if process is not None and state in reads and _process_covariance(key, process, wieners):
+                if process is not None and state in reads and NoisePass._process_covariance(key, process, wieners):
                     return item
     return None
 
@@ -532,7 +515,7 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
     """Return the problems of the Wiener processes and the noise laws of a system."""
     nodes = cast('list[Node]', compilation.nodes)
     solver, backend = compilation.solver, compilation.backend
-    wieners = _noise_processes(nodes)
+    wieners = Declarations._noise_processes(nodes)
     issues = _wiener_issues(compilation.system, nodes) + _handle_issues(records)
     if any(issue.code == 'wiener-covariance' for issue in issues):
         return issues
@@ -543,7 +526,7 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
 
 def _law_values(record: CensusRecord) -> Iterator[object]:
     """Yield the symbolic values of the law of a census record, with the items of vectors."""
-    for value in values_of(record.law):
+    for value in BasePass._values_of(record.law):
         if isinstance(value, FreeModuleElement):
             yield from value
         elif isinstance(value, Expression):
@@ -556,7 +539,7 @@ def _held_reductions(census: Census, time: Expression) -> list[_HeldReduction]:
     for record in census.records:
         for value in _law_values(record):
             for reduction in reductions_in(value):
-                held = _held_reduction(reduction, census.agents, time, record.path)
+                held = _HeldReduction._held_reduction(reduction, census.agents, time, record.path)
                 if held is not None:
                     found.setdefault(held.key, held)
     return list(found.values())

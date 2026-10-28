@@ -14,7 +14,6 @@ from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import BaseProblem, Form, Partition, Problem
 from ._compilation import Compilation
-from ._declarations import _is_interaction
 from ._observables import _check_held_reads, _with_observables
 from ._pipeline import run_passes
 from ._planner import _Plan
@@ -251,7 +250,7 @@ def partition_system(system: System, backend: BaseBackend | None = None) -> Prob
     """
     system = _with_observables(system, ())
     compilation = run_passes(Compilation(system, backend), _PASSES, until='nodes')
-    elements = {node.path for node in cast('list[Node]', compilation.nodes) if not _is_interaction(node)}
+    elements = {node.path for node in cast('list[Node]', compilation.nodes) if not node._is_interaction()}
     own = frozenset(path for path in elements if '/' not in path)
     plan = [(system.label, own)] if own else []
     for child in system.systems:

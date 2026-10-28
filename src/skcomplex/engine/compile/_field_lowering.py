@@ -20,80 +20,12 @@ from ...core.errors import ValidationError
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
-from ._spectral import spectral_multiplier
 
 type Indices = npt.NDArray[np.intp]
 type Offset = tuple[int, ...]
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
-
-
-@functools.cache
-def _mesh_matrices(
-    points: bytes,
-    cells: bytes,
-    shape: tuple[int, int],
-    cell_shape: tuple[int, int],
-) -> Any:  # noqa: ANN401
-    """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
-    from skfem import Basis, ElementTetP1, ElementTriP1, asm  # noqa: PLC0415  # only finite elements need scikit-fem
-    from skfem.models.poisson import laplace, mass  # noqa: PLC0415
-
-    nodes = np.frombuffer(points).reshape(shape)
-    elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-    space = MeshSpace(nodes, elements)
-    basis = Basis(space.check().prepare().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
-    stiffness = asm(laplace, basis).tocsr()
-    lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
-    return stiffness, lumped
-
-
-def _has_operators(expression: object) -> bool:
-    """Check whether an expression applies a differential operator.
-
-    Args:
-        expression:
-            The expression.
-
-    Returns:
-        found:
-            Whether it calls `laplacian`, `partial`, `upwind`, or `inverse_laplacian`.
-    """
-    if not isinstance(expression, Expression):
-        return False
-    return bool(re.search(r'\b(laplacian|partial|upwind|inverse_laplacian)\(', str(expression)))
-
-
-def mesh_matrices(space: MeshSpace) -> tuple[Any, npt.NDArray[np.float64]]:
-    """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
-
-    Args:
-        space:
-            The mesh.
-
-    Returns:
-        matrices:
-            The stiffness matrix and the lumped mass of every node.
-    """
-    points = np.ascontiguousarray(np.asarray(space.points, dtype=float))
-    cells = np.ascontiguousarray(np.asarray(space.cells, dtype=np.int64))
-    return _mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
-
-
-def mesh_laplacian(space: MeshSpace) -> Any:  # noqa: ANN401
-    """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
-
-    Args:
-        space:
-            The mesh.
-
-    Returns:
-        laplacian:
-            The sparse matrix that maps nodal values to the nodal Laplacian.
-    """
-    stiffness, lumped = mesh_matrices(space)
-    return -diags(1.0 / lumped) @ stiffness
 
 
 @dataclass(eq=False)
@@ -391,7 +323,7 @@ class FieldLowering:
             lowered:
                 The value with stencils.
         """
-        if not _has_operators(expression):
+        if not self._has_operators(expression):
             return expression
         call = cast('Expression', expression)
         operator = call.operator()
@@ -449,7 +381,7 @@ class FieldLowering:
             error_msg = f'A law of {self.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
         dimensions = space.shape_
-        multiplier = spectral_multiplier(name, axis, dimensions, space.spacings_)
+        multiplier = self._spectral_multiplier(name, axis, dimensions, space.spacings_)
         operand = SR(operands[0])
         inner = self.derived.get(operand)
         if inner is not None and inner[1].multiplier is not None:
@@ -465,7 +397,7 @@ class FieldLowering:
                 f'A law of {self.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
-        matrix = mesh_laplacian(place.space)  # type: ignore[arg-type]
+        matrix = self._mesh_laplacian(place.space)  # type: ignore[arg-type]
         symbols = sorted((item for item in operand.variables() if item in self.references), key=str)
         read = DerivedRead(operand, symbols, lambda values: matrix @ values, matrix=matrix)
         return self._derived(place, read)
@@ -556,3 +488,130 @@ class FieldLowering:
             return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
 
         return apply
+
+    @staticmethod
+    def _has_operators(expression: object) -> bool:
+        """Check whether an expression applies a differential operator.
+
+        Args:
+            expression:
+                The expression.
+
+        Returns:
+            found:
+                Whether it calls `laplacian`, `partial`, `upwind`, or `inverse_laplacian`.
+        """
+        if not isinstance(expression, Expression):
+            return False
+        return bool(re.search(r'\b(laplacian|partial|upwind|inverse_laplacian)\(', str(expression)))
+
+    @staticmethod
+    @functools.cache
+    def _cached_mesh_matrices(
+        points: bytes,
+        cells: bytes,
+        shape: tuple[int, int],
+        cell_shape: tuple[int, int],
+    ) -> Any:  # noqa: ANN401
+        """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
+        from skfem import Basis, ElementTetP1, ElementTriP1, asm  # noqa: PLC0415  # only finite elements need scikit-fem
+        from skfem.models.poisson import laplace, mass  # noqa: PLC0415
+
+        nodes = np.frombuffer(points).reshape(shape)
+        elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
+        space = MeshSpace(nodes, elements)
+        basis = Basis(space.check().prepare().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
+        stiffness = asm(laplace, basis).tocsr()
+        lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
+        return stiffness, lumped
+
+    @staticmethod
+    def _mesh_matrices(space: MeshSpace) -> tuple[Any, npt.NDArray[np.float64]]:
+        """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
+
+        Args:
+            space:
+                The mesh.
+
+        Returns:
+            matrices:
+                The stiffness matrix and the lumped mass of every node.
+        """
+        points = np.ascontiguousarray(np.asarray(space.points, dtype=float))
+        cells = np.ascontiguousarray(np.asarray(space.cells, dtype=np.int64))
+        return FieldLowering._cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
+
+    @staticmethod
+    def _mesh_laplacian(space: MeshSpace) -> Any:  # noqa: ANN401
+        """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
+
+        Args:
+            space:
+                The mesh.
+
+        Returns:
+            laplacian:
+                The sparse matrix that maps nodal values to the nodal Laplacian.
+        """
+        stiffness, lumped = FieldLowering._mesh_matrices(space)
+        return -diags(1.0 / lumped) @ stiffness
+
+    @staticmethod
+    @functools.cache
+    def _wavenumbers(dimensions: tuple[int, ...], spacings: tuple[float, ...]) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the angular wavenumbers of the real Fourier modes of a periodic lattice, broadcast along each axis."""
+        axes = [2 * np.pi * np.fft.fftfreq(size, d=step) for size, step in zip(dimensions[:-1], spacings, strict=False)]
+        axes.append(2 * np.pi * np.fft.rfftfreq(dimensions[-1], d=spacings[-1]))
+        return tuple(np.meshgrid(*axes, indexing='ij'))
+
+    @staticmethod
+    @functools.cache
+    def _dealiasing_mask(dimensions: tuple[int, ...]) -> npt.NDArray[np.bool_]:
+        """Return the Fourier modes the two-thirds rule keeps, below two thirds of the largest along every axis."""
+        axes = [np.abs(np.fft.fftfreq(size, d=1.0 / size)) < size / 3 for size in dimensions[:-1]]
+        axes.append(np.fft.rfftfreq(dimensions[-1], d=1.0 / dimensions[-1]) < dimensions[-1] / 3)
+        grids = np.meshgrid(*axes, indexing='ij')
+        return np.logical_and.reduce(grids)
+
+    @staticmethod
+    def _spectral_multiplier(
+        name: str,
+        axis: int,
+        dimensions: tuple[int, ...],
+        spacings: tuple[float, ...],
+    ) -> npt.NDArray[np.complex128]:
+        """Return the Fourier multiplier of an operator on a periodic lattice.
+
+        The Laplacian and its inverse act on every mode, so the Laplacian damps the Nyquist mode by `-|k|^2` like any
+        other. A first derivative is zero at the Nyquist mode of its axis, and keeps only the modes of the two-thirds
+        rule, which dealiases the derivatives of products.
+
+        Args:
+            name:
+                `'laplacian'`, `'partial'`, or `'inverse_laplacian'`.
+
+            axis:
+                The axis of a derivative.
+
+            dimensions:
+                The lattice shape.
+
+            spacings:
+                The distance between sites along every axis.
+
+        Returns:
+            multiplier:
+                The factor of every real Fourier mode.
+        """
+        waves = FieldLowering._wavenumbers(dimensions, spacings)
+        squared = np.sum([wave**2 for wave in waves], axis=0)
+        if name == 'laplacian':
+            return -squared.astype(complex)
+        if name == 'inverse_laplacian':
+            with np.errstate(divide='ignore'):
+                return np.where(squared > 0, -1.0 / np.where(squared > 0, squared, 1.0), 0.0).astype(complex)
+        factor = 1j * waves[axis]
+        if dimensions[axis] % 2 == 0:
+            nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
+            factor = np.where(nyquist, 0.0, factor)
+        return np.where(FieldLowering._dealiasing_mask(dimensions), factor, 0.0)

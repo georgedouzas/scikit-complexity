@@ -32,11 +32,6 @@ DISTRIBUTIONS = tuple(
 )
 
 
-def _is_symbolic(value: object) -> bool:
-    """Check whether a law value is symbolic, as opposed to a call or a Python function."""
-    return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, Call) or callable(value))
-
-
 @dataclass(frozen=True)
 class MatrixLaw:
     """Matrix of a Markov law of a component, with the description of the law.
@@ -71,88 +66,6 @@ class _Request:
     slots: dict[str, Expression] = field(default_factory=dict)
 
 
-def _distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
-    """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
-
-    Args:
-        owner:
-            The path of the component the draw belongs to.
-
-        description:
-            The description of the law that holds the draw.
-
-        draw:
-            The draw, of kind `'draw'`.
-
-    Returns:
-        distribution:
-            The distribution of `scipy.stats`.
-
-    Raises:
-        ValidationError:
-            SciPy has no distribution of that name, or the draw gives a keyword the distribution does not accept or
-            leaves out one of its shape parameters.
-    """
-    name = str(draw.distribution)
-    if name not in DISTRIBUTIONS:
-        closest = ', '.join(difflib.get_close_matches(name, DISTRIBUTIONS, n=3)) or 'none'
-        error_msg = (
-            f'The {description} of {owner} draws {draw.name!r} from the distribution {name!r}, which scipy.stats does '
-            f'not provide. The closest available names are: {closest}.'
-        )
-        raise ValidationError(error_msg)
-    distribution = getattr(stats, name)
-    shapes = [item.strip() for item in (distribution.shapes or '').split(',') if item.strip()]
-    unknown = sorted(set(draw.keywords) - {*shapes, 'loc', 'scale'})
-    missing = sorted(set(shapes) - set(draw.keywords))
-    if unknown or missing:
-        accepted = ', '.join([*shapes, 'loc', 'scale'])
-        error_msg = (
-            f'The {description} of {owner} draws {draw.name!r} from {name} with the keywords '
-            f'{", ".join(draw.keywords) or "none"}, but {name} takes {accepted}, and needs its shape parameters '
-            f'{", ".join(shapes) or "none"}.'
-        )
-        raise ValidationError(error_msg)
-    return distribution
-
-
-def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
-    """Return values of a draw for a number of members, with arguments that hold one value or one per member.
-
-    Args:
-        draw:
-            The draw.
-
-        arguments:
-            The values of the draw's arguments, numbers or arrays with one value per member.
-
-        size:
-            The number of values.
-
-        rng:
-            The random number generator.
-
-    Returns:
-        values:
-            One value per member.
-    """
-    values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
-    if draw.kind == 'uniform':
-        return values[0] + (values[1] - values[0]) * rng.random(size)
-    if draw.kind == 'normal':
-        return values[0] + values[1] * rng.standard_normal(size)
-    if draw.kind == 'bernoulli':
-        return (rng.random(size) < values[0]).astype(float)
-    if draw.kind == 'categorical':
-        weights = np.stack(values, axis=-1)
-        cumulative = np.cumsum(weights, axis=-1)
-        chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
-        return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
-    distribution = getattr(stats, str(draw.distribution))
-    sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
-    return np.asarray(sampled, dtype=float)
-
-
 @dataclass
 class DrawLowering:
     """Draws of every component, lowered to values in an extended parameter vector.
@@ -180,7 +93,7 @@ class DrawLowering:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
         declared: dict[str, Draw] = {}
         for law in laws:
-            if not isinstance(law, UpdateLaw) or not _is_symbolic(law.value):
+            if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 continue
             for draw in draws_in(law.value):
                 known = declared.setdefault(draw.name, draw)
@@ -240,7 +153,7 @@ class DrawLowering:
             return laws
         lowered: list[BaseLaw] = []
         for law in laws:
-            if not isinstance(law, UpdateLaw) or not _is_symbolic(law.value):
+            if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 lowered.append(law)
                 continue
             values = [self._lowered(SR(item), slots) for item in components_of(law.value)]
@@ -334,6 +247,93 @@ class DrawLowering:
             values = (
                 function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
             )
-            return _sample_draw(draw, values, rows, rng)
+            return DrawLowering._sample_draw(draw, values, rows, rng)
 
         return sample
+
+    @staticmethod
+    def _is_symbolic(value: object) -> bool:
+        """Check whether a law value is symbolic, as opposed to a call or a Python function."""
+        return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, Call) or callable(value))
+
+    @staticmethod
+    def _distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
+        """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
+
+        Args:
+            owner:
+                The path of the component the draw belongs to.
+
+            description:
+                The description of the law that holds the draw.
+
+            draw:
+                The draw, of kind `'draw'`.
+
+        Returns:
+            distribution:
+                The distribution of `scipy.stats`.
+
+        Raises:
+            ValidationError:
+                SciPy has no distribution of that name, or the draw gives a keyword the distribution does not accept or
+                leaves out one of its shape parameters.
+        """
+        name = str(draw.distribution)
+        if name not in DISTRIBUTIONS:
+            closest = ', '.join(difflib.get_close_matches(name, DISTRIBUTIONS, n=3)) or 'none'
+            error_msg = (
+                f'The {description} of {owner} draws {draw.name!r} from the distribution {name!r}, which scipy.stats '
+                f'does not provide. The closest available names are: {closest}.'
+            )
+            raise ValidationError(error_msg)
+        distribution = getattr(stats, name)
+        shapes = [item.strip() for item in (distribution.shapes or '').split(',') if item.strip()]
+        unknown = sorted(set(draw.keywords) - {*shapes, 'loc', 'scale'})
+        missing = sorted(set(shapes) - set(draw.keywords))
+        if unknown or missing:
+            accepted = ', '.join([*shapes, 'loc', 'scale'])
+            error_msg = (
+                f'The {description} of {owner} draws {draw.name!r} from {name} with the keywords '
+                f'{", ".join(draw.keywords) or "none"}, but {name} takes {accepted}, and needs its shape parameters '
+                f'{", ".join(shapes) or "none"}.'
+            )
+            raise ValidationError(error_msg)
+        return distribution
+
+    @staticmethod
+    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
+        """Return values of a draw for a number of members, with arguments that hold one value or one per member.
+
+        Args:
+            draw:
+                The draw.
+
+            arguments:
+                The values of the draw's arguments, numbers or arrays with one value per member.
+
+            size:
+                The number of values.
+
+            rng:
+                The random number generator.
+
+        Returns:
+            values:
+                One value per member.
+        """
+        values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
+        if draw.kind == 'uniform':
+            return values[0] + (values[1] - values[0]) * rng.random(size)
+        if draw.kind == 'normal':
+            return values[0] + values[1] * rng.standard_normal(size)
+        if draw.kind == 'bernoulli':
+            return (rng.random(size) < values[0]).astype(float)
+        if draw.kind == 'categorical':
+            weights = np.stack(values, axis=-1)
+            cumulative = np.cumsum(weights, axis=-1)
+            chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
+            return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
+        distribution = getattr(stats, str(draw.distribution))
+        sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
+        return np.asarray(sampled, dtype=float)

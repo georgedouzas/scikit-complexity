@@ -19,13 +19,6 @@ type Factor = tuple[str, 'LocalOperator']
 type Term = tuple[Factor, ...]
 
 
-def _sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
-    """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
-    if isinstance(matrix, qutip.Qobj):
-        matrix = matrix.full()
-    return sp.csr_array(np.asarray(matrix.toarray() if sp.issparse(matrix) else matrix, dtype=complex))
-
-
 @dataclass(frozen=True)
 class LocalOperator:
     """Operator that acts on the Hilbert space of one subsystem, identified by its name.
@@ -66,8 +59,15 @@ class LocalOperator:
             name = self.name.removesuffix(_ADJOINT_SUFFIX)
         else:
             name = f'{self.name}{_ADJOINT_SUFFIX}'
-        matrix = _sparse_matrix(self.matrix).conj().T.tocsr()
+        matrix = self._sparse_matrix(self.matrix).conj().T.tocsr()
         return LocalOperator(name, matrix, hermitian=False)
+
+    @staticmethod
+    def _sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
+        """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
+        if isinstance(matrix, qutip.Qobj):
+            matrix = matrix.full()
+        return sp.csr_array(np.asarray(matrix.toarray() if sp.issparse(matrix) else matrix, dtype=complex))
 
 
 class Operator:

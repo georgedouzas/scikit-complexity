@@ -21,56 +21,6 @@ type Indices = npt.NDArray[np.intp]
 type Pair = tuple[int, int]
 
 
-def _request_of(law: object) -> TopologyRequestSpec | None:
-    """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
-
-    Args:
-        law:
-            The law.
-
-    Returns:
-        request:
-            The request.
-
-    Raises:
-        ValidationError:
-            A jump changes states and requests a topology change at once, or fires a request more than once.
-    """
-    if isinstance(law, UpdateLaw):
-        return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
-    changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
-    requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
-    if not requests:
-        return None
-    if len(changes) > 1 or float(changes[requests[0]]) != 1:
-        error_msg = (
-            f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
-            'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
-        )
-        raise ValidationError(error_msg)
-    return requests[0].check()
-
-
-def changes_edges(request: TopologyRequestSpec) -> bool:
-    """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
-
-    Args:
-        request:
-            The request.
-
-    Returns:
-        changes:
-            Whether the request adds, removes, or rewires edges of its layer.
-
-    Examples:
-        >>> from skcomplex.core.specs import TopologyRequestSpec
-        >>> from skcomplex.engine.compile._topology import changes_edges
-        >>> changes_edges(TopologyRequestSpec('rewire')), changes_edges(TopologyRequestSpec('remove-node'))
-        (True, False)
-    """
-    return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)
-
-
 @dataclass(frozen=True)
 class NetworkRows:
     """Variable groups of one network: the groups on its nodes and the edge group of every changing layer.
@@ -539,3 +489,54 @@ class Topology:
             network.edges[request.layer].clear(row, p)
         else:
             self._rewire(item, row, t, x, p, rng=rng)
+
+    @staticmethod
+    def _request_of(law: object) -> TopologyRequestSpec | None:
+        """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
+
+        Args:
+            law:
+                The law.
+
+        Returns:
+            request:
+                The request.
+
+        Raises:
+            ValidationError:
+                A jump changes states and requests a topology change at once, or fires a request more than once.
+        """
+        if isinstance(law, UpdateLaw):
+            return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
+        changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
+        requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
+        if not requests:
+            return None
+        if len(changes) > 1 or float(changes[requests[0]]) != 1:
+            error_msg = (
+                f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
+                'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
+            )
+            raise ValidationError(error_msg)
+        return requests[0].check()
+
+    @staticmethod
+    def _changes_edges(request: TopologyRequestSpec) -> bool:
+        """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
+
+        Args:
+            request:
+                The request.
+
+        Returns:
+            changes:
+                Whether the request adds, removes, or rewires edges of its layer.
+
+        Examples:
+            >>> from skcomplex.core.specs import TopologyRequestSpec
+            >>> from skcomplex.engine.compile._topology import Topology
+            >>> rewire, removal = TopologyRequestSpec('rewire'), TopologyRequestSpec('remove-node')
+            >>> Topology._changes_edges(rewire), Topology._changes_edges(removal)
+            (True, False)
+        """
+        return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)

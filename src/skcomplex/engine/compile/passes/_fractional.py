@@ -32,18 +32,12 @@ from ...problems import (
 )
 from .._census import Census, CensusRecord
 from .._compilation import BlockLaws, Compilation
-from .._declarations import Declarations, _is_interaction
+from .._declarations import Declarations
 from .._forms import _FORMS
 from .._issues import Issue
 from .._pipeline import BasePass
-from .._specs import KernelSpec, state_name
+from .._specs import KernelSpec
 from .._tree import Node, _declared_times
-
-
-def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
-    """Return the description of a fractional noise law by the states it drives."""
-    states = dict.fromkeys(state_name(spec, item) for item in components_of(law._get_targets()[0]))
-    return f'fractional noise law of {", ".join(states)}'
 
 
 def _support_issues(states: list[FractionalState], solver: object, backend: object) -> list[Issue]:
@@ -83,38 +77,6 @@ def _law_issues(states: list[FractionalState], records: list[CensusRecord]) -> l
     return issues
 
 
-def _owned_fractional(compilation: Compilation) -> list[FractionalState]:
-    """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
-    declared = {entry.name for entry in cast('Declarations', compilation.layout).states}
-    owners = compilation.owners
-    return [
-        item
-        for item in _fractional_states(cast('list[Node]', compilation.nodes))
-        if item.name in declared and (owners is None or item.path in owners)
-    ]
-
-
-def _fractional_states(nodes: list[Node]) -> list[FractionalState]:
-    """Return every state of a fractional order of the elements and groups of a system.
-
-    Args:
-        nodes:
-            The nodes of the system.
-
-    Returns:
-        states:
-            The states of a fractional order, in tree order.
-    """
-    found = []
-    for node in nodes:
-        if _is_interaction(node):
-            continue
-        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
-            if declaration.is_fractional:
-                found.append(FractionalState(node.path, f'{node.path}.{name}', declaration.order))
-    return found
-
-
 def _order_issues(compilation: Compilation) -> list[Issue]:
     """Return the fractional states with an order outside `(0, 1)`, a time that is not continuous, or no support.
 
@@ -126,7 +88,7 @@ def _order_issues(compilation: Compilation) -> list[Issue]:
         issues:
             The issues.
     """
-    states = _fractional_states(cast('list[Node]', compilation.nodes))
+    states = FractionalFormPass._fractional_states(cast('list[Node]', compilation.nodes))
     if not states:
         return []
     times = _declared_times(compilation.system)
@@ -218,7 +180,7 @@ class CheckFractionalNoisePass(BasePass):
             if not isinstance(law, FractionalNoiseLaw):
                 result.append(law)
                 continue
-            description = _fractional_description(spec, law)
+            description = CheckFractionalNoisePass._fractional_description(spec, law)
             CheckFractionalNoisePass._checked_hurst(spec, law, declarations, description)
             if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == 0.5:  # noqa: PLR2004
                 result.append(NoiseLaw(law._get_targets()[0], law.value, law.order))
@@ -237,12 +199,18 @@ class CheckFractionalNoisePass(BasePass):
             if read:
                 error_msg = (
                     f'The {description} of {spec.owner} has an amplitude that depends on the state '
-                    f'{state_name(spec, read[0])}. Only state-independent amplitudes are supported for a Hurst index '
-                    'other than 1/2.'
+                    f'{KernelSpec._state_name(spec, read[0])}. Only state-independent amplitudes are supported for a '
+                    'Hurst index other than 1/2.'
                 )
                 raise ValidationError(error_msg)
             result.append(law)
         return result
+
+    @staticmethod
+    def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
+        """Return the description of a fractional noise law by the states it drives."""
+        states = dict.fromkeys(KernelSpec._state_name(spec, item) for item in components_of(law._get_targets()[0]))
+        return f'fractional noise law of {", ".join(states)}'
 
 
 class FractionalFormPass(BasePass):
@@ -258,8 +226,40 @@ class FractionalFormPass(BasePass):
             compilation:
                 The compilation state.
         """
-        if compilation.form == Form.ODE and _owned_fractional(compilation):
+        if compilation.form == Form.ODE and self._owned_fractional(compilation):
             compilation.form = Form.FRACTIONAL
+
+    @staticmethod
+    def _fractional_states(nodes: list[Node]) -> list[FractionalState]:
+        """Return every state of a fractional order of the elements and groups of a system.
+
+        Args:
+            nodes:
+                The nodes of the system.
+
+        Returns:
+            states:
+                The states of a fractional order, in tree order.
+        """
+        found = []
+        for node in nodes:
+            if node._is_interaction():
+                continue
+            for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+                if declaration.is_fractional:
+                    found.append(FractionalState(node.path, f'{node.path}.{name}', declaration.order))
+        return found
+
+    @staticmethod
+    def _owned_fractional(compilation: Compilation) -> list[FractionalState]:
+        """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
+        declared = {entry.name for entry in cast('Declarations', compilation.layout).states}
+        owners = compilation.owners
+        return [
+            item
+            for item in FractionalFormPass._fractional_states(cast('list[Node]', compilation.nodes))
+            if item.name in declared and (owners is None or item.path in owners)
+        ]
 
 
 class FractionalProblemPass(BasePass):
@@ -281,7 +281,7 @@ class FractionalProblemPass(BasePass):
             problem,
             fractional=self._fractional_rows(lowered) if problem.form == Form.SDE else (),
             orders=(
-                self._state_orders(_owned_fractional(compilation), problem.states)
+                self._state_orders(FractionalFormPass._owned_fractional(compilation), problem.states)
                 if problem.form == Form.FRACTIONAL
                 else np.zeros(0)
             ),
@@ -307,7 +307,7 @@ class FractionalProblemPass(BasePass):
                 spec, law = lowered.laws[id(item)]
                 if isinstance(law, FractionalNoiseLaw):
                     positions = position + np.arange(kernel.rows, dtype=np.intp)
-                    description = _fractional_description(spec, law)
+                    description = CheckFractionalNoisePass._fractional_description(spec, law)
                     rows.append(
                         FractionalRows(
                             description,

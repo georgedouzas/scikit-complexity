@@ -31,7 +31,7 @@ from ...backends import resolve_backend
 from ...problems import Problem, Source, numpy_function, symbol
 from .._census import Census
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations, _member_count
+from .._declarations import Declarations
 from .._issues import Issue
 from .._lattice_steps import (
     _COLORING_STRATEGY,
@@ -95,7 +95,7 @@ class LatticeProblemPass(BasePass):
                 The compilation state.
         """
         declarations = cast('Declarations', compilation.layout)
-        members = _member_count(list(declarations.blocks.values()))
+        members = Declarations._member_count(list(declarations.blocks.values()))
         fused = resolve_backend(compilation.backend, members).name == 'numba'
         compilation.problem = replace(
             cast('Problem', compilation.problem),

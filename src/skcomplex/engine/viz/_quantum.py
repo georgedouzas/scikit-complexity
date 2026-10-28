@@ -14,8 +14,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
-from ..compile._quantum_views import QuantumView, member_of
-from ..compile.passes._quantum import QuantumProblem, QuantumTerm, expect, state_of
+from ..compile._quantum_views import QuantumView
+from ..compile.passes._quantum import QuantumProblem, QuantumTerm
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._images import _SPACE_TIME, ImageVisual
@@ -24,7 +24,7 @@ from ._utils import log_scalars
 
 def _view_of(element: CompiledElement) -> QuantumView:
     """Return the quantum view of a compiled element, of its first member for a group."""
-    return QuantumView(member_of(element.element))
+    return QuantumView(QuantumView._member_of(element.element))
 
 
 def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
@@ -49,7 +49,7 @@ def _local_matrices(problem: QuantumProblem, path: str, name: str) -> list[sp.cs
 
 def _probabilities(problem: QuantumProblem, x: Vector) -> npt.NDArray[np.float64]:
     """Return the probability of every basis state of the whole space."""
-    state = state_of(problem, x)
+    state = problem._state_of(x)
     return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
 
 
@@ -83,11 +83,11 @@ def local_values(problem: QuantumProblem, path: str, x: Vector) -> dict[str, Any
         return {'probability': shaped.sum(axis=others)}
     if element.members is not None and display is not None:
         matrices = _local_matrices(problem, path, display)
-        values = [expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
+        values = [problem._expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
         return {display: np.real(np.asarray(values))}
     names = [name for name, local in _view_of(element).local_operators().items() if local.hermitian]
     return {
-        name: float(np.real(expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
+        name: float(np.real(problem._expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
         for name in names
         for matrix in _local_matrices(problem, path, name)
     }

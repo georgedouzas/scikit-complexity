@@ -17,8 +17,6 @@ from ....core.types import Vector
 from ...problems import Entry, Reference, Source, numpy_function, symbol, vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._laws import replaced
-from .._lowering import _calls_of
 from .._pipeline import BasePass
 from .._specs import KernelSpec
 
@@ -84,7 +82,7 @@ class DelaysPass(BasePass):
         if not isinstance(value, Expression):
             return value
         replacements = {}
-        for call in _calls_of(value, 'delayed'):
+        for call in BasePass._calls_of(value, 'delayed'):
             arguments = call.operands()
             item, tau = arguments[0], arguments[1]
             reference = spec.references.get(item)
@@ -161,7 +159,9 @@ class DelaysPass(BasePass):
                 )
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 result.append(
-                    replaced(law, value=DelaysPass._substitute_delays(law.value, spec, declarations, compilation)),
+                    BasePass._replaced(
+                        law, value=DelaysPass._substitute_delays(law.value, spec, declarations, compilation),
+                    ),
                 )
             else:
                 result.append(law)

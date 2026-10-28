@@ -19,14 +19,14 @@ from ....core.laws.utils import Draw, draws_in, reductions_in
 from ....core.laws.utils._draws import DRAWS
 from ....core.types import Indices
 from ...problems import Problem, Reference, Source, components_of, numpy_function, symbol, symbols_of
-from .._census import _renewal_group
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 from .._renewals import _READ_SOURCES, BoundRenewal, CompiledRenewal, _MemberFunction, _Sampler
 from .._specs import KernelSpec
-from .._stochastic import _distribution_of
+from .._stochastic import DrawLowering
+from ._census import CensusPass
 
 
 class UnpackRenewalsPass(BasePass):
@@ -79,7 +79,7 @@ class DeclareRenewalsPass(BasePass):
     @staticmethod
     def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewal:
         """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
-        group = _renewal_group(spec, law)
+        group = CensusPass._renewal_group(spec, law)
         rows = spec.rows
         sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
         entry = declarations.declare_state(
@@ -206,7 +206,7 @@ class RenewalProblemPass(BasePass):
             return numbers[0] if numbers[0] is not None else 0.0
         if found.kind != 'draw':
             return 0.0
-        distribution = _distribution_of(owner, description, found)
+        distribution = DrawLowering._distribution_of(owner, description, found)
         values = dict(zip(found.keywords, numbers, strict=True))
         shapes = {key: value for key, value in values.items() if key not in {'loc', 'scale'}}
         lowest = (

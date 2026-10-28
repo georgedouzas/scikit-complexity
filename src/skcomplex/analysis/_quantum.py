@@ -17,7 +17,7 @@ from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
 from ..core.types import Vector
 from ..engine.compile import compile_system
-from ..engine.compile.passes._quantum import DENSE_LIMIT, QuantumProblem, hamiltonian_at
+from ..engine.compile.passes._quantum import DENSE_LIMIT, QuantumProblem
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
@@ -97,7 +97,7 @@ def _lowest_states(
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
     """Return the lowest eigenvalues and eigenstates of the Hamiltonian at time 0 through QuTiP, within a basis."""
     dimension = math.prod(problem.dimensions)
-    matrix = hamiltonian_at(problem, 0.0, p)
+    matrix = problem._hamiltonian_at(0.0, p)
     indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
     matrix = sp.csr_array(matrix[indices][:, indices])
     count = min(k, indices.size)

@@ -3,22 +3,8 @@
 from ._fields import ConservedNoisePass, FieldFunctionsPass, FieldJacobianPass, FieldProblemPass, LowerFieldsPass
 from ._kinetics import KineticProblem
 from ._lattices import LatticeProblemPass
-from ._quantum import (
-    DEFAULT_MAX_DIMENSION,
-    HilbertSpaceError,
-    QuantumCompiler,
-    QuantumProblem,
-    QuantumTerm,
-    contains_quantum,
-)
-from ._rewriting import (
-    CompiledGraph,
-    CompiledPatch,
-    RewritingCompiler,
-    RewritingProblem,
-    compile_rewriting,
-    structure_of,
-)
+from ._quantum import DEFAULT_MAX_DIMENSION, HilbertSpaceError, QuantumCompiler, QuantumProblem, QuantumTerm
+from ._rewriting import CompiledGraph, CompiledPatch, RewritingCompiler, RewritingProblem
 from ._topology import (
     MaskRequestsPass,
     RequestJumpsPass,
@@ -51,7 +37,4 @@ __all__: list[str] = [
     'TopologyFunctionsPass',
     'TopologyProblemPass',
     'TowardsPass',
-    'compile_rewriting',
-    'contains_quantum',
-    'structure_of',
 ]

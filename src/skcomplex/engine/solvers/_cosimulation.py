@@ -43,7 +43,7 @@ from ...core.spaces import (
 )
 from ...core.types import Vector
 from ..backends import NumbaBackend, NumpyBackend
-from ..compile import held_reductions_of, partition_system
+from ..compile import ObservableEvaluator, partition_system
 from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
@@ -187,7 +187,8 @@ class CoSimulationSolver(Solver):
             stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
         self._held = [
-            (path, reduction, reduction.reducer(problem.time)) for path, reduction in held_reductions_of(problem)
+            (path, reduction, reduction.reducer(problem.time))
+            for path, reduction in ObservableEvaluator._held_reductions_of(problem)
         ]
         self.initial_state_ = initial_state
         self._update_held(0.0, initial_state)

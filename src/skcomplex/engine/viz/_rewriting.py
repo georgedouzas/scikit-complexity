@@ -11,7 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..compile._structures import GraphStructure, PatchStructure, Structure, WordStructure, affine_matrix, is_segment
+from ..compile._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import colors_of
@@ -149,7 +149,10 @@ class GeometryVisual(BaseVisual):
         tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
         names = [prototile.name for prototile in component.prototiles]
         try:
-            matrices = [np.eye(3) if placement is None else affine_matrix(placement, {}) for _, placement in tiles]
+            matrices = [
+                np.eye(3) if placement is None else PatchStructure._affine_matrix(placement, {})
+                for _, placement in tiles
+            ]
             codes = [names.index(name) for name, _ in tiles]
         except (TypeError, ValueError):
             return None
@@ -169,7 +172,9 @@ class GeometryVisual(BaseVisual):
         if isinstance(structure, WordStructure):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
         elif isinstance(structure, PatchStructure):
-            codes = [code for code, prototile in enumerate(structure.prototiles) if is_segment(prototile)]
+            codes = [
+                code for code, prototile in enumerate(structure.prototiles) if PatchStructure._is_segment(prototile)
+            ]
             values = np.concatenate(
                 [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],
             )

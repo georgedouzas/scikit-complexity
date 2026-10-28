@@ -17,64 +17,6 @@ from ...core.specs import AffineSpec, ModuleSpec, PrototileSpec
 type Array = npt.NDArray[Any]
 
 
-def affine_matrix(affine: AffineSpec, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
-    """Return the homogeneous matrix of an affine map at values of the parameters its expressions read.
-
-    The map reflects across the x axis, rotates, scales, and translates, in this order.
-
-    Args:
-        affine:
-            The affine map.
-
-        values:
-            A mapping from parameter symbol to value.
-
-    Returns:
-        matrix:
-            The 3 by 3 matrix.
-
-    Examples:
-        >>> from skcomplex.core.specs import AffineSpec
-        >>> from skcomplex.engine.compile._structures import affine_matrix
-        >>> affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
-        [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
-    """
-    if affine.matrix is not None:
-        return np.asarray(affine.matrix, dtype=float)
-    scale, rotation, *translation = (
-        float(item.subs(values)) if hasattr(item, 'subs') else float(item)
-        for item in (affine.scale, affine.rotation, *affine.translation)
-    )
-    angle = np.deg2rad(rotation)
-    turn = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    reflection = np.diag([1.0, -1.0]) if affine.reflect else np.eye(2)
-    matrix = np.eye(3)
-    matrix[:2, :2] = scale * turn @ reflection
-    matrix[:2, 2] = translation
-    return matrix
-
-
-def is_segment(prototile: PrototileSpec) -> bool:
-    """Check whether a prototile is a segment, with two vertices, rather than a polygon.
-
-    Args:
-        prototile:
-            The prototile.
-
-    Returns:
-        is_segment:
-            Whether the prototile has two vertices.
-    """
-    return len(prototile.vertices) == 2  # noqa: PLR2004
-
-
-def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
-    """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
-    result: Array = np.array(array, dtype=dtype)
-    result.setflags(write=False)
-    return result
-
-
 class Structure:
     """Base class of the structure of a rewriting element at one generation.
 
@@ -223,6 +165,13 @@ class Structure:
         rows = np.clip(((ymax - points[:, 1]) / cell).astype(int), 0, resolution - 1)
         grid[rows, columns] = True
 
+    @staticmethod
+    def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
+        """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
+        result: Array = np.array(array, dtype=dtype)
+        result.setflags(write=False)
+        return result
+
 
 class WordStructure(Structure):
     """Word of a string rewriting system at one generation, with its segments where a word geometry is declared.
@@ -265,10 +214,10 @@ class WordStructure(Structure):
     ) -> None:
         super().__init__(generation)
         self.alphabet = tuple(alphabet)
-        self.codes = _frozen(codes, np.int64)
-        self.parameters = _frozen(parameters, np.float64)
-        self._segments = None if segments is None else _frozen(segments, np.float64)
-        self.depths = None if depths is None else _frozen(depths, np.int64)
+        self.codes = Structure._frozen(codes, np.int64)
+        self.parameters = Structure._frozen(parameters, np.float64)
+        self._segments = None if segments is None else Structure._frozen(segments, np.float64)
+        self.depths = None if depths is None else Structure._frozen(depths, np.int64)
 
     @property
     def parts(self) -> int:
@@ -363,8 +312,8 @@ class PatchStructure(Structure):
     ) -> None:
         super().__init__(generation)
         self.prototiles = tuple(prototiles)
-        self.codes = _frozen(codes, np.int64)
-        self.matrices = _frozen(matrices, np.float64).reshape(-1, 3, 3)
+        self.codes = Structure._frozen(codes, np.int64)
+        self.matrices = Structure._frozen(matrices, np.float64).reshape(-1, 3, 3)
 
     @property
     def parts(self) -> int:
@@ -413,7 +362,7 @@ class PatchStructure(Structure):
             segments:
                 The array of shape `(k, 2, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if is_segment(item)]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if self._is_segment(item)]
         return np.concatenate(parts) if parts else np.zeros((0, 2, 2))
 
     def polygons(self) -> Array:
@@ -423,10 +372,61 @@ class PatchStructure(Structure):
             polygons:
                 An object array of arrays of shape `(t, k, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not is_segment(item)]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not self._is_segment(item)]
         result = np.empty(len(parts), dtype=object)
         result[:] = parts
         return result
+
+    @staticmethod
+    def _affine_matrix(affine: AffineSpec, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
+        """Return the homogeneous matrix of an affine map at values of the parameters its expressions read.
+
+        The map reflects across the x axis, rotates, scales, and translates, in this order.
+
+        Args:
+            affine:
+                The affine map.
+
+            values:
+                A mapping from parameter symbol to value.
+
+        Returns:
+            matrix:
+                The 3 by 3 matrix.
+
+        Examples:
+            >>> from skcomplex.core.specs import AffineSpec
+            >>> from skcomplex.engine.compile import PatchStructure
+            >>> PatchStructure._affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
+            [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
+        """
+        if affine.matrix is not None:
+            return np.asarray(affine.matrix, dtype=float)
+        scale, rotation, *translation = (
+            float(item.subs(values)) if hasattr(item, 'subs') else float(item)
+            for item in (affine.scale, affine.rotation, *affine.translation)
+        )
+        angle = np.deg2rad(rotation)
+        turn = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        reflection = np.diag([1.0, -1.0]) if affine.reflect else np.eye(2)
+        matrix = np.eye(3)
+        matrix[:2, :2] = scale * turn @ reflection
+        matrix[:2, 2] = translation
+        return matrix
+
+    @staticmethod
+    def _is_segment(prototile: PrototileSpec) -> bool:
+        """Check whether a prototile is a segment, with two vertices, rather than a polygon.
+
+        Args:
+            prototile:
+                The prototile.
+
+        Returns:
+            is_segment:
+                Whether the prototile has two vertices.
+        """
+        return len(prototile.vertices) == 2  # noqa: PLR2004
 
 
 class GraphStructure(Structure):

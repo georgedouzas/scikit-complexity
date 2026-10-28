@@ -10,7 +10,7 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import CC
 
-from ....core.elements import GroupElement
+from ....core.elements import BaseElement, GroupElement
 from ....core.errors import BackendError, LabelError, ValidationError
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
@@ -20,10 +20,10 @@ from ...problems import CompiledAgents, Problem, VariableKind, declarations_of
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Block, Declarations
 from .._pipeline import BasePass
-from .._probe import probe_laws, runs_rules
+from .._probe import probe_laws
 from .._specs import KernelSpec
 from .._tree import Node
-from ._problem import _visual_of
+from ._problem import ProblemPass
 
 _MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 _AGENT_VIEW_NAMES = frozenset(
@@ -90,7 +90,7 @@ class AgentsPass(BasePass):
     @staticmethod
     def _agent_paths(nodes: list[Node]) -> set[str]:
         """Return the paths of the rule-running elements and groups, and of the passive groups that rules read."""
-        agents = {node.path for node in nodes if runs_rules(node.component) and node.active is None}
+        agents = {node.path for node in nodes if AgentsPass._runs_rules(node.component) and node.active is None}
         passive = [node for node in nodes if node.path not in agents and AgentsPass._is_passive(node.component)]
         if not passive:
             return agents
@@ -107,6 +107,37 @@ class AgentsPass(BasePass):
             for path in AgentsPass._bound_paths(node)
         }
         return agents | {node.path for node in passive if node.path not in bound}
+
+    @staticmethod
+    def _runs_rules(component: object) -> bool:
+        """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
+
+        Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
+        own in a system with rules, unless an interaction whose laws are not rules binds them.
+
+        Args:
+            component:
+                The element, group, interaction, or system.
+
+        Returns:
+            runs_rules:
+                Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
+
+        Examples:
+            >>> from skcomplex.core.elements import Element
+            >>> from skcomplex.core.laws import RuleLaw
+            >>> from skcomplex.engine.compile.passes._agents import AgentsPass
+            >>> class WalkerElement(Element):
+            ...     def _get_laws(self, namespace):
+            ...         return [RuleLaw(lambda agent, model: None)]
+            >>> AgentsPass._runs_rules(WalkerElement('walker')), AgentsPass._runs_rules(Element('plain'))
+            (True, False)
+        """
+        if isinstance(component, GroupElement) and component.variable:
+            return True
+        if not isinstance(component, BaseElement):
+            return False
+        return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
 
 
 class UnpackMatchesPass(BasePass):
@@ -189,7 +220,7 @@ class AgentsProblemPass(BasePass):
     @staticmethod
     def _agent_visual(node: Node) -> VisualSpec:
         """Return the visual of agents, their own or their element type's, and the agents' points without one."""
-        visual = _visual_of(node)
+        visual = ProblemPass._visual_of(node)
         return VisualSpec('agents') if visual == VisualSpec() else visual
 
     @staticmethod

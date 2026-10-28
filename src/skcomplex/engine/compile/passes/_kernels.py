@@ -3,27 +3,28 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import numbers
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
 from ...problems import Kernel, Layout, Lowered, NoiseProcess, Output, Reference, Source, components_of, symbols_of
-from .._census import _kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._laws import _KERNEL_FREE_LAWS
-from .._lowering import _symbolic_components
-from .._noise import ProcessKey, _process_keys
+from .._noise import ProcessKey
 from .._pipeline import BasePass
-from .._specs import KernelSpec, target_references
+from .._specs import KernelSpec
+from ._noise import NoisePass
 
 _ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
 
@@ -52,7 +53,9 @@ class KernelsPass(BasePass):
         """Return the outputs of one law value for its target components, with the law and component as owner."""
         if isinstance(value, Call):
             arguments = tuple(
-                item for argument in value.arguments for item in _symbolic_components(argument, 1, owner) or []
+                item
+                for argument in value.arguments
+                for item in KernelsPass._symbolic_components(argument, 1, owner) or []
             )
             if len(arguments) != len(value.arguments):
                 error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
@@ -61,7 +64,7 @@ class KernelsPass(BasePass):
                 Output(target, function=value.function, arguments=arguments, component=index, components=len(targets))  # type: ignore[arg-type]
                 for index, target in enumerate(targets)
             ]
-        expressions = _symbolic_components(value, len(targets), owner)
+        expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             return [
                 Output(target, function=value, component=index, components=len(targets))  # type: ignore[arg-type]
@@ -105,7 +108,10 @@ class KernelsPass(BasePass):
             or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw)
         ):
             return False
-        if not all(reference.source is Source.SINGLE for reference in target_references(law._get_targets()[0], spec)):
+        if not all(
+            reference.source is Source.SINGLE
+            for reference in KernelSpec._target_references(law._get_targets()[0], spec)
+        ):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
         sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
@@ -142,7 +148,7 @@ class KernelsPass(BasePass):
             raise ValidationError(error_msg)
         outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
         if isinstance(law, NoiseLaw) and law.process is not None:
-            for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):
+            for item, key in zip(outputs, NoisePass._process_keys(spec, law, declarations), strict=True):
                 item.process = KernelsPass._noise_process(key, declarations.wieners)
         return outputs
 
@@ -160,7 +166,7 @@ class KernelsPass(BasePass):
                 if isinstance(law, JumpLaw):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                     lowered.jump_changes[id(output)] = [
-                        (target_references(target, spec)[0], float(increment))
+                        (KernelSpec._target_references(target, spec)[0], float(increment))
                         for target, increment in law.changes.items()
                     ]
                     lowered.laws[id(output)] = (spec, law)
@@ -169,13 +175,13 @@ class KernelsPass(BasePass):
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                     error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
-                targets = target_references(law._get_targets()[0], spec)
+                targets = KernelSpec._target_references(law._get_targets()[0], spec)
                 once = KernelsPass._is_once(spec, law)
                 if isinstance(law, _ASSIGNED_KINDS):
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
                 law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
                 lowered.laws.update({id(item): (spec, law) for item in law_outputs})
-                outputs[(_kind_of(law), once)].extend(law_outputs)
+                outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():
                 lowered.kernels[kind].append(
                     Kernel(
@@ -212,3 +218,96 @@ class KernelsPass(BasePass):
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
         return NoiseProcess(owner, item, wiener.dimension, factor)
+
+    @staticmethod
+    def _kind_of(law: BaseLaw) -> type:
+        """Return the class of a law that decides its form, with every noise law counted as a noise law.
+
+        Args:
+            law:
+                The law.
+
+        Returns:
+            kind:
+                The class.
+        """
+        return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
+
+    @staticmethod
+    def _is_sympy(value: object) -> bool:
+        """Check whether a value comes from SymPy, without importing it."""
+        return type(value).__module__.split('.')[0] == 'sympy'
+
+    @staticmethod
+    def _sympy_error(value: object, owner: str) -> ValidationError:
+        """Return the error of a SymPy value in a law."""
+        error_msg = (
+            f'A {owner} has the SymPy value {value}. Sage is the symbolic layer, so write the expression with the '
+            'symbols of the namespace `s` and Sage functions, or convert it with `expression._sage_()`.'
+        )
+        return ValidationError(error_msg)
+
+    @staticmethod
+    def _to_expression(component: object, owner: str) -> Expression:
+        """Return a component as a Sage expression."""
+        if KernelsPass._is_sympy(component):
+            raise KernelsPass._sympy_error(component, owner)
+        if isinstance(component, Expression):
+            return component
+        if isinstance(component, numbers.Number | np.number):
+            return SR(float(component) if isinstance(component, np.floating) else component)
+        error_msg = f'A {owner} has the component {component!r}, which is neither a Sage expression nor a number.'
+        raise ValidationError(error_msg)
+
+    @staticmethod
+    def _to_components(value: object, owner: str) -> list[object] | None:
+        """Return the components of a symbolic value, or `None` for a callable."""
+        if KernelsPass._is_sympy(value):
+            raise KernelsPass._sympy_error(value, owner)
+        if isinstance(value, FreeModuleElement):
+            return list(value)
+        if isinstance(value, Expression | numbers.Number | np.number):
+            return [value]
+        if isinstance(value, list | tuple | np.ndarray):
+            return list(np.ravel(np.asarray(value, dtype=object)))
+        if callable(value):
+            return None
+        error_msg = (
+            f'A {owner} has the value {value!r}, which is neither a Sage expression, a number, a sequence, nor a '
+            'callable.'
+        )
+        raise ValidationError(error_msg)
+
+    @staticmethod
+    def _symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
+        """Return the symbolic components of a law value, or `None` when the value is a callable.
+
+        Args:
+            value:
+                The law value.
+
+            size:
+                The number of components of the law target. A scalar value is broadcast to every component.
+
+            owner:
+                The law and the path of the component that returned it, such as `RateLaw law of hunt`, used in error
+                messages.
+
+        Returns:
+            components:
+                The symbolic components, or `None` for a callable.
+
+        Raises:
+            ValidationError:
+                The value is a SymPy expression, is of an unknown type, or has the wrong size.
+        """
+        components = KernelsPass._to_components(value, owner)
+        if components is None:
+            return None
+        expressions = [KernelsPass._to_expression(component, owner) for component in components]
+        if len(expressions) == 1 and size > 1:
+            expressions *= size
+        if len(expressions) != size:
+            error_msg = f'A {owner} has a value with {len(expressions)} components for a target with {size}.'
+            raise ValidationError(error_msg)
+        return expressions

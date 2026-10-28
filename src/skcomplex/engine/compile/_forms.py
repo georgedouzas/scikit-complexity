@@ -4,7 +4,6 @@
 # License: MIT
 
 import itertools
-from collections.abc import Iterable
 
 from ...core.laws import (
     DriveLaw,
@@ -19,7 +18,6 @@ from ...core.laws import (
     UpdateLaw,
 )
 from ..problems import Form
-from ._laws import _FORMLESS_LAWS
 from ._renewal_law import RenewalLaw
 
 LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw)
@@ -48,24 +46,5 @@ _FORMS: dict[frozenset[type], Form] = {
 
 _COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
 """Law classes that combine with laws of other classes of the same components into their form, with those classes."""
-
-
-def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
-    """Return the law classes that decide the form of components with their own law classes.
-
-    A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
-    component has laws of that class alone. A component with laws of that class alone next to components with other laws
-    keeps it, so the system does not fit one form and runs as partitions.
-    """
-    owned = [{kind for kind in kinds if not issubclass(kind, _FORMLESS_LAWS)} for kinds in owners]
-    kinds: set[type] = set().union(*owned)
-    for kind, companions in _COMBINED.items():
-        rest = kinds - {kind}
-        if kind not in kinds or not rest:
-            continue
-        alone = any(item == {kind} for item in owned)
-        if not alone and rest <= companions:
-            kinds = rest
-    return frozenset(kinds)
 
 

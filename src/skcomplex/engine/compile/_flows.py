@@ -30,25 +30,9 @@ from ...core.types import Vector
 from ..problems import Entry, LoopTerm, Reference, StockFlow, symbol, symbols_of
 from ..problems import Source as Read
 from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
-from ._laws import replaced
+from ._pipeline import BasePass
 
 _BOUNDARY_PREFIX = '__boundary'
-
-
-def _delay_calls(expression: object) -> list[Expression]:
-    """Return the calls of delay functions in an expression whose inputs hold no other delay."""
-    if not isinstance(expression, Expression):
-        return []
-    found, stack = [], [expression]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        name = getattr(item.operator(), 'name', lambda: '')()
-        if delay_parts(name) is not None and not _delay_calls(item.operands()[0]):
-            found.append(item)
-        stack.extend(item.operands())
-    return found
 
 
 class _Declared(Protocol):
@@ -293,7 +277,7 @@ class StockFlowPass:
         counter = 0
         while True:
             values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
-            calls = [call for value in values for call in _delay_calls(value)]
+            calls = [call for value in values for call in self._delay_calls(value)]
             if not calls:
                 return
             if discrete or spec.rows > 1:
@@ -388,7 +372,7 @@ class StockFlowPass:
         if not mapping:
             return law
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            return replaced(law, value=StockFlowPass._substituted(law.value, mapping))
+            return BasePass._replaced(law, value=StockFlowPass._substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
             return JumpLaw(StockFlowPass._substituted(law.rate, mapping), law.changes)
         if isinstance(law, CrossingLaw):
@@ -397,7 +381,7 @@ class StockFlowPass:
                 if law.reset is None
                 else {key: StockFlowPass._substituted(item, mapping) for key, item in law.reset.items()}
             )
-            return replaced(law, guard=StockFlowPass._substituted(law.guard, mapping), reset=reset)
+            return BasePass._replaced(law, guard=StockFlowPass._substituted(law.guard, mapping), reset=reset)
         return law
 
     @staticmethod
@@ -495,3 +479,19 @@ class StockFlowPass:
             vector = states if reference.is_state else parameters
             values[name] = float(vector[reference.entry.start + reference.column])
         return float(SR(item).subs(values))
+
+    @staticmethod
+    def _delay_calls(expression: object) -> list[Expression]:
+        """Return the calls of delay functions in an expression whose inputs hold no other delay."""
+        if not isinstance(expression, Expression):
+            return []
+        found, stack = [], [expression]
+        while stack:
+            item = stack.pop()
+            if item.operator() is None:
+                continue
+            name = getattr(item.operator(), 'name', lambda: '')()
+            if delay_parts(name) is not None and not StockFlowPass._delay_calls(item.operands()[0]):
+                found.append(item)
+            stack.extend(item.operands())
+        return found

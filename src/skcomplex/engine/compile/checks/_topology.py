@@ -12,7 +12,7 @@ from ....core.specs import TopologyRequestSpec
 from .._census import Census, CensusRecord
 from .._compilation import Compilation
 from .._issues import Issue
-from .._topology import _request_of, changes_edges
+from .._topology import Topology
 from .._tree import Node
 
 
@@ -25,14 +25,14 @@ def _fixed_groups(
     edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
     sites = [node for node in groups if node.component.on == 'sites']
     changed = []
-    if changes_edges(request):
+    if Topology._changes_edges(request):
         changed += edges
     if request.kind in {'add-node', 'remove-node'}:
         changed += sites
     if owner is not None:
         changed.append(owner)
     fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-    return fixed, changes_edges(request) and not edges
+    return fixed, Topology._changes_edges(request) and not edges
 
 
 def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
@@ -41,7 +41,7 @@ def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issu
     issues = []
     for record in records:
         try:
-            request = _request_of(record.law)
+            request = Topology._request_of(record.law)
         except ValidationError as error:
             issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
             continue

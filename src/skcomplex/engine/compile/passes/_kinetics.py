@@ -17,7 +17,7 @@ from ....core.types import Vector
 from ...backends import BaseBackend, resolve_backend
 from ...problems import Problem, Reference, Source, symbols_of
 from .._compilation import Compilation, Laws
-from .._declarations import Declarations, _member_count
+from .._declarations import Declarations
 from .._kinetic_contractions import CompiledEncounter, Indices, TableValues
 from .._kinetic_encounters import _KINETIC_LAWS, KineticLaw
 from .._pipeline import BasePass
@@ -64,7 +64,7 @@ class CompileEncountersPass(BasePass):
         """Return the encounter laws of every component, lowered for their members."""
         if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
             return ()
-        members = _member_count(list(declarations.blocks.values()))
+        members = Declarations._member_count(list(declarations.blocks.values()))
         fused = resolve_backend(backend, members).name == 'numba'
         components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused)

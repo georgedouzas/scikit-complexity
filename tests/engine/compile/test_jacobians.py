@@ -15,7 +15,8 @@ from skcomplex.core.spaces import LatticeSpace, MeshSpace
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
-from skcomplex.engine.compile import compile_system, mesh_laplacian
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.compile._field_lowering import FieldLowering
 from skcomplex.engine.solvers import SplitOperator
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
@@ -183,7 +184,7 @@ def test_mesh_pattern():
     problem = compile_system(_reactive_mesh())
     pattern = problem.jacobian.pattern().toarray()
     grid = skfem.MeshTri.init_lshaped().refined(2)
-    stiffness = mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
+    stiffness = FieldLowering._mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()

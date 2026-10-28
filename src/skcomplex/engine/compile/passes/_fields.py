@@ -33,24 +33,13 @@ from .._census import Census, CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations
 from .._field_conserved import Indices
-from .._field_lowering import FieldLowering, _has_operators
+from .._field_lowering import FieldLowering
 from .._field_splitting import OPERATORS, LinearTerm, Terms
 from .._field_volumes import TIME, FiniteVolume
 from .._issues import Issue
-from .._laws import replaced
 from .._pipeline import BasePass
-from .._specs import KernelSpec, target_references
+from .._specs import KernelSpec
 from .._tree import Node
-
-
-def _places(declarations: Declarations) -> dict[str, FieldElement]:
-    """Return the fields by the name of each of their entries."""
-    return {
-        entry.name: block.node.component
-        for block in declarations.blocks.values()
-        if isinstance(block.node.component, FieldElement)
-        for entry in block.entries.values()
-    }
 
 
 def _is_lattice_field(component: object) -> bool:
@@ -127,7 +116,7 @@ class LowerFieldsPass(BasePass):
         for law in laws:
             if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
                 continue
-            for reference in target_references(law._get_targets()[0], spec):
+            for reference in KernelSpec._target_references(law._get_targets()[0], spec):
                 if reference.entry.name in places and reference.source is Source.MEMBER:
                     terms += LowerFieldsPass._linear_terms(law.value, reference, spec.references, places)
         return terms
@@ -140,9 +129,9 @@ class LowerFieldsPass(BasePass):
         facts: dict[str, Any],
     ) -> list[BaseLaw]:
         """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
-        places = _places(declarations)
+        places = LowerFieldsPass._places(declarations)
         facts['linear'] += LowerFieldsPass._linear_terms_of(spec, laws, places)
-        if not any(_has_operators(getattr(law, 'value', None)) for law in laws):
+        if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
             return laws
         lowering = FieldLowering(
             spec.owner,
@@ -152,16 +141,18 @@ class LowerFieldsPass(BasePass):
         )
         result: list[BaseLaw] = []
         for law in laws:
-            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not _has_operators(law.value):
+            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not FieldLowering._has_operators(
+                law.value,
+            ):
                 result.append(law)
                 continue
             if isinstance(law, RateLaw):
                 lowering.note_limit(law.value)
             lowered = lowering.lower(law.value)
             if isinstance(law.value, Expression):
-                for reference in target_references(law._get_targets()[0], spec):
+                for reference in KernelSpec._target_references(law._get_targets()[0], spec):
                     facts['written'][(reference.entry.name, reference.column)].append((lowered, law.value))
-            result.append(replaced(law, value=lowered))
+            result.append(BasePass._replaced(law, value=lowered))
         facts['limits'] += lowering.limits
         facts['volume_limits'] += lowering.volume_limits
         return result
@@ -279,6 +270,16 @@ class LowerFieldsPass(BasePass):
                 )
         return terms
 
+    @staticmethod
+    def _places(declarations: Declarations) -> dict[str, FieldElement]:
+        """Return the fields by the name of each of their entries."""
+        return {
+            entry.name: block.node.component
+            for block in declarations.blocks.values()
+            if isinstance(block.node.component, FieldElement)
+            for entry in block.entries.values()
+        }
+
 
 class FieldFunctionsPass(BasePass):
     """Pass that writes operators back into the equations and adds flux differences, symmetries, and fixed nodes."""
@@ -333,7 +334,7 @@ class FieldFunctionsPass(BasePass):
             fluxes = [law for law in laws if isinstance(law, FluxLaw)]
             if not fluxes:
                 continue
-            targets = [(law, target_references(law._get_targets()[0], spec)[0]) for law in fluxes]
+            targets = [(law, KernelSpec._target_references(law._get_targets()[0], spec)[0]) for law in fluxes]
             owners = {reference.entry.name.rpartition('.')[0] for _, reference in targets}
             for owner in sorted(owners):
                 block = declarations.blocks[owner]
@@ -644,12 +645,12 @@ class ConservedNoisePass(BasePass):
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:
         """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
-        places = _places(declarations)
+        places = LowerFieldsPass._places(declarations)
         outputs = {}
         for spec, laws in specs:
             for law in laws:
                 if isinstance(law, NoiseLaw) and law.conserved:
-                    targets = target_references(law._get_targets()[0], spec)
+                    targets = KernelSpec._target_references(law._get_targets()[0], spec)
                     outputs[id(law)] = ConservedNoisePass._law_outputs(
                         spec.owner, law, targets, places, spec.references,
                     )

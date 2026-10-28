@@ -14,7 +14,7 @@ from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, compile_system, validate
-from skcomplex.engine.compile.passes import contains_quantum
+from skcomplex.engine.compile.passes._quantum import QuantumCompiler
 from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 
@@ -77,7 +77,7 @@ class ReadInteraction(Interaction):
 def test_reductions_agree_with_observables(name):
     """Test that laws reading a model's observables at a state read the values the observable evaluator records."""
     model, observables, paths = _observed(name)
-    if contains_quantum(model):
+    if QuantumCompiler._contains_quantum(model):
         pytest.skip('A quantum system cannot share a co-simulation with classical readers.')
     if 'distribution' in describe(name).tags:
         pytest.skip('The observables of a distribution take its moments, which laws read only inside its reductions.')

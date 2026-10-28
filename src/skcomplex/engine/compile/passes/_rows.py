@@ -12,11 +12,10 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLa
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ...problems import Source, components_of
 from .._compilation import BlockLaws, Compilation, Laws
-from .._laws import values_of
 from .._pipeline import BasePass
 from .._renewal_law import RenewalLaw
 from .._specs import KernelSpec
-from .._stochastic import _RANDOM_FIELDS, _distribution_of, _is_symbolic
+from .._stochastic import _RANDOM_FIELDS, DrawLowering
 
 
 class RowsPass(BasePass):
@@ -118,7 +117,9 @@ class RowsPass(BasePass):
                 RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
             ):
                 continue
-            values = [value for value in values_of(law, include=_RANDOM_FIELDS) if _is_symbolic(value)]
+            values = [
+                value for value in BasePass._values_of(law, include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
+            ]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (
@@ -129,4 +130,4 @@ class RowsPass(BasePass):
                 raise IncompatibleLawsError(error_msg)
             for item in found:
                 if item.kind == 'draw':
-                    _distribution_of(owner, f'{type(law).__name__}', item)
+                    DrawLowering._distribution_of(owner, f'{type(law).__name__}', item)

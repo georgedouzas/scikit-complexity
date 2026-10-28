@@ -3,27 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from ...core.errors import SkcomplexError, ValidationError
 
 _ERROR = 'error'
 _WARNING = 'warning'
-
-
-def _names_of(terms: Iterable[object]) -> str:
-    """Return terms as a sorted, comma-separated list, as issues name them.
-
-    Args:
-        terms:
-            The terms.
-
-    Returns:
-        names:
-            The names.
-    """
-    return ', '.join(sorted(str(term) for term in terms))
 
 
 @dataclass(frozen=True)

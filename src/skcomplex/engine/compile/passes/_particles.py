@@ -10,7 +10,7 @@ from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
 from ...problems import VariableKind, components_of, declarations_of
 from .._compilation import BlockLaws, Compilation
-from .._declarations import Block, _is_interaction
+from .._declarations import Block
 from .._pipeline import BasePass
 from .._specs import KernelSpec
 
@@ -42,7 +42,7 @@ class BoundaryLawsPass(BasePass):
         state declared as the rate of the position, or the first derivative of a second-order position.
         """
         space = block.node.space
-        if _is_interaction(block.node) or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+        if block.node._is_interaction() or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
             return []
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []

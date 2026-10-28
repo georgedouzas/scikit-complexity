@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 
 from ...core.errors import SolverError, ValidationError
 from ...core.types import Vector
-from ..compile import namespace_of
+from ..compile import ObservableEvaluator
 from ..problems import Form, Problem, numpy_function, symbols_of
 from ._stepper import Solver
 
@@ -121,7 +121,7 @@ class _ControlProblem:
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
         names = [name for entry in problem.states.entries for name in entry.component_names]
         sign = 1.0 if sense == 'min' else -1.0
-        namespace = namespace_of(problem)
+        namespace = ObservableEvaluator._namespace_of(problem)
         control_problem = cls(
             problem=problem,
             names=tuple(names[index] for index in indices),

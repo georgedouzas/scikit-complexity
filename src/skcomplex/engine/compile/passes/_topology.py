@@ -7,7 +7,8 @@ import dataclasses
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
@@ -23,37 +24,20 @@ from ...problems import (
     Output,
     Problem,
     ReductionSchedule,
+    Source,
     VariableKind,
     declarations_of,
     declared_variables,
     default_of,
+    vector,
 )
 from .._capacity import CapacityRows
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import _ACTIVE, ENDS, Block, Declarations
 from .._pipeline import BasePass
-from .._specs import KernelSpec, _group_space, _mask_of, _masked_value, _member_spec
-from .._topology import CompiledRequest, NetworkRows, Topology, _request_of, changes_edges
-from .._tree import _coerce_value
-
-
-def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
-    """Return the network a request of a spec changes and the rows the spec runs on."""
-    if isinstance(spec.pairs, EdgeSearch):
-        nodes = declarations.blocks[cast('str', spec.roles['source'])]
-        return _group_space(nodes), 'edge'
-    if spec.group in declarations.capacity:
-        return _group_space(declarations.capacity[spec.group]), 'node'
-    if spec.rows == 1:
-        spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
-        if len(spaces) == 1:
-            return next(iter(spaces.values())), 'single'
-    error_msg = (
-        f'{spec.owner} requests topology changes, but it runs on neither the members of a variable group on the '
-        'nodes or edges of a network nor once for the one network whose groups are variable. Give the groups of the '
-        'network `variable=True`.'
-    )
-    raise ValidationError(error_msg)
+from .._specs import KernelSpec
+from .._topology import CompiledRequest, NetworkRows, Topology
+from ._specs import SpecsPass
 
 
 @dataclass(frozen=True, eq=False)
@@ -88,7 +72,9 @@ class SplitRequestsPass(BasePass):
     @staticmethod
     def _split_requests(spec: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
         """Return the laws of a spec without its update laws that request topology changes, and those update laws."""
-        updates: list[BaseLaw] = [law for law in laws if isinstance(law, UpdateLaw) and _request_of(law) is not None]
+        updates: list[BaseLaw] = [
+            law for law in laws if isinstance(law, UpdateLaw) and Topology._request_of(law) is not None
+        ]
         kept = [law for law in laws if not any(law is item for item in updates)]
         return kept, updates
 
@@ -115,13 +101,83 @@ class MaskRequestsPass(BasePass):
     @staticmethod
     def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
         """Return update laws that request topology changes, with probabilities that vanish on free rows."""
-        mask = _mask_of(spec, declarations)
+        mask = MaskRequestsPass._mask_of(spec, declarations)
         if mask is None:
             return laws
         return [
-            UpdateLaw(law._get_targets()[0], _masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law
+            UpdateLaw(law._get_targets()[0], MaskRequestsPass._masked_value(law.value, mask))
+            if isinstance(law, UpdateLaw)
+            else law
             for law in laws
         ]
+
+    @staticmethod
+    def _activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
+        """Return the symbol of the activity of the rows of a capacity group that a spec reads per member, or `None`.
+
+        Args:
+            spec:
+                The kernel spec.
+
+            group:
+                The path of the group, or `None`.
+
+        Returns:
+            activity:
+                The symbol, or `None`.
+        """
+        name = f'{group}.{_ACTIVE}'
+        return next(
+            (
+                item
+                for item, reference in spec.references.items()
+                if reference.entry.name == name and reference.source is Source.MEMBER
+            ),
+            None,
+        )
+
+    @staticmethod
+    def _mask_of(spec: KernelSpec, declarations: Declarations) -> Expression | None:
+        """Return the activity of the rows a spec runs on, the edges of a changing layer or a capacity group's members.
+
+        Args:
+            spec:
+                The kernel spec.
+
+            declarations:
+                The declarations of the components.
+
+        Returns:
+            mask:
+                The symbol of the activity, or `None` for a spec that runs on no capacity rows.
+        """
+        if isinstance(spec.pairs, EdgeSearch) and spec.pairs.source is not None:
+            name = spec.pairs.source.name.rpartition('.')[0]
+            return MaskRequestsPass._activity_symbol(spec, name)
+        if spec.group in declarations.capacity:
+            return MaskRequestsPass._activity_symbol(spec, spec.group)
+        return None
+
+    @staticmethod
+    def _masked_value(value: object, mask: Expression) -> object:
+        """Return a law value that vanishes on the free rows of a capacity layout.
+
+        Args:
+            value:
+                The law value.
+
+            mask:
+                The activity of the rows.
+
+        Returns:
+            value:
+                The masked value, or the value itself when it is neither symbolic nor a number.
+        """
+        if isinstance(value, FreeModuleElement):
+            return vector(SR(item) * mask for item in value)
+        if isinstance(value, Expression | int | float):
+            return SR(value) * mask
+        return value
 
 
 class TowardsPass(BasePass):
@@ -159,12 +215,12 @@ class TowardsPass(BasePass):
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:
             for law in laws:
-                request = _request_of(law)
+                request = Topology._request_of(law)
                 if request is None or request.toward is None:
                     continue
-                space, _ = _request_network(spec, declarations)
+                space, _ = TopologyFunctionsPass._request_network(spec, declarations)
                 nodes = TowardsPass._node_block(space, declarations)
-                node_spec = _member_spec(nodes, declarations.time)
+                node_spec = SpecsPass._member_spec(nodes, declarations.time)
                 towards.append((node_spec, [UpdateLaw(_Weight(request), SR(request.toward(node_spec.namespace)))]))
         return towards
 
@@ -196,7 +252,7 @@ class RequestJumpsPass(BasePass):
         for spec, laws in specs:
             kept: list[BaseLaw] = []
             for law in laws:
-                request = _request_of(law) if isinstance(law, JumpLaw) else None
+                request = Topology._request_of(law) if isinstance(law, JumpLaw) else None
                 if not isinstance(law, JumpLaw) or request is None:
                     kept.append(law)
                     continue
@@ -256,12 +312,12 @@ class TopologyFunctionsPass(BasePass):
         declarations: Declarations,
     ) -> CompiledRequest:
         """Return a request of a spec with its network, its rows, and the kernel of its weights."""
-        space, rows = _request_network(spec, declarations)
+        space, rows = TopologyFunctionsPass._request_network(spec, declarations)
         network = networks.get(id(space))
         if network is None:
             error_msg = f'{spec.owner} requests {request!r} on a network without variable groups on its nodes.'
             raise ValidationError(error_msg)
-        if changes_edges(request) and request.layer not in network.edges:
+        if Topology._changes_edges(request) and request.layer not in network.edges:
             error_msg = (
                 f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
                 'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
@@ -303,7 +359,7 @@ class TopologyFunctionsPass(BasePass):
         requests = []
         for spec, laws in updates:
             for law in laws:
-                request = cast('TopologyRequestSpec', _request_of(law))
+                request = cast('TopologyRequestSpec', Topology._request_of(law))
                 item = TopologyFunctionsPass._compiled_request(spec, request, networks, weights, declarations)
                 requests.append(
                     replace(
@@ -352,7 +408,7 @@ class TopologyFunctionsPass(BasePass):
             variables[name] = (entry, name in states)
             default = default_of(element, name) if name in declared_variables(element) else 0.0
             default = 0.0 if default is dataclasses.MISSING else default
-            defaults[name] = _coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
+            defaults[name] = Declarations._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
         return CapacityRows(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
 
@@ -383,6 +439,25 @@ class TopologyFunctionsPass(BasePass):
             directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
             networks[key] = NetworkRows(nodes, edges, directed)
         return networks
+
+    @staticmethod
+    def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
+        """Return the network a request of a spec changes and the rows the spec runs on."""
+        if isinstance(spec.pairs, EdgeSearch):
+            nodes = declarations.blocks[cast('str', spec.roles['source'])]
+            return SpecsPass._group_space(nodes), 'edge'
+        if spec.group in declarations.capacity:
+            return SpecsPass._group_space(declarations.capacity[spec.group]), 'node'
+        if spec.rows == 1:
+            spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
+            if len(spaces) == 1:
+                return next(iter(spaces.values())), 'single'
+        error_msg = (
+            f'{spec.owner} requests topology changes, but it runs on neither the members of a variable group on the '
+            'nodes or edges of a network nor once for the one network whose groups are variable. Give the groups of '
+            'the network `variable=True`.'
+        )
+        raise ValidationError(error_msg)
 
 
 class TopologyProblemPass(BasePass):

@@ -31,7 +31,7 @@ from ...problems import (
     wrap_angle,
 )
 from .._compilation import Compilation
-from .._declarations import Declarations, _member_count
+from .._declarations import Declarations
 from .._forms import STEPWISE_FORMS
 from .._pipeline import BasePass
 from .._stochastic import DrawLowering
@@ -144,7 +144,9 @@ class FunctionsPass(BasePass):
         declarations = cast('Declarations', compilation.layout)
         reductions = cast('ReductionSchedule', compilation.reductions)
         drawing = cast('DrawLowering', compilation.drawing)
-        backend = FunctionsPass._chosen_backend(compilation, form, _member_count(list(declarations.blocks.values())))
+        backend = FunctionsPass._chosen_backend(
+            compilation, form, Declarations._member_count(list(declarations.blocks.values())),
+        )
         kernels, size = lowered.kernels, declarations.ends[True]
         draws = drawing.draws
         lowering = cast(
