@@ -1,6 +1,8 @@
-"""Statistical mechanics: gases, fluids, spin models, lattice processes, urns, and master equations."""
+"""Statistical mechanics: gases, fluids, spin models, lattice processes, urns, master equations, and their measures."""
 
 from ._absorbing_processes import ReactingParticlesElement, absorbing_birth_death
+from ._binder_cumulant import BinderCumulantAnalysis
+from ._critical_exponent import CriticalExponentAnalysis
 from ._driven_particles import (
     ExclusionHopsInteraction,
     ParticleSiteElement,
@@ -15,6 +17,7 @@ from ._driven_particles import (
 from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
 from ._graph_spins import GraphIsingSpinElement, graph_ising
+from ._kinetic_temperature import KineticTemperatureAnalysis
 from ._master_equations import (
     MicrostateElement,
     OrderParameterElement,
@@ -23,6 +26,7 @@ from ._master_equations import (
     landau_relaxation,
     two_phase_zone_exchange,
 )
+from ._maxwell_boltzmann import MaxwellBoltzmannAnalysis
 from ._processes import (
     ContactSiteElement,
     ExclusionSiteElement,
@@ -43,14 +47,18 @@ from ._quantum_spins import (
     quantum_heisenberg,
     total_magnetization,
 )
+from ._replica_overlap import ReplicaOverlapAnalysis
 from ._spin_glasses import BondSpinElement, MattisSpinElement, edwards_anderson, mattis_spin_glass
 from ._spins import IsingSpinElement, PottsSpinElement, XYSpinElement, ising, potts, xy
+from ._susceptibility import SusceptibilityAnalysis
 from ._traps import TrapWalkerElement, trap_model
 from ._urns import EhrenfestUrnElement, ehrenfest_urn
 
 __all__: list[str] = [
+    'BinderCumulantAnalysis',
     'BondSpinElement',
     'ContactSiteElement',
+    'CriticalExponentAnalysis',
     'DephasingInteraction',
     'EhrenfestUrnElement',
     'ExclusionHopsInteraction',
@@ -58,7 +66,9 @@ __all__: list[str] = [
     'FullyConnectedSpinElement',
     'GraphIsingSpinElement',
     'IsingSpinElement',
+    'KineticTemperatureAnalysis',
     'MattisSpinElement',
+    'MaxwellBoltzmannAnalysis',
     'MicrostateElement',
     'OrderParameterElement',
     'ParticleSiteElement',
@@ -66,7 +76,9 @@ __all__: list[str] = [
     'PottsSpinElement',
     'Q2RSpinElement',
     'ReactingParticlesElement',
+    'ReplicaOverlapAnalysis',
     'ReservoirInteraction',
+    'SusceptibilityAnalysis',
     'TrapWalkerElement',
     'TreeNodeElement',
     'WalkerElement',

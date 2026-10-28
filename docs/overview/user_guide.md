@@ -1424,8 +1424,8 @@ print([issue.code for issue in validate(plant, solver=PontryaginSolver()).errors
 
 ### Feedback controllers
 
-Feedback controllers are realizations of the engineering field, in `skcomplex.models.engineering.realizations`, so the
-core holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
+Feedback controllers are realizations of the control models, in `skcomplex.models.engineering.control`, so the core
+holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
 control input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state
 `measure`, with the integral of the error in an `IntegratorElement` element. `StateFeedbackInteraction(label, plant=,
 control=, states=, gain=)` sets it to `-K x`. Both set the control after every solver step, as boundary laws, so a
@@ -3353,25 +3353,26 @@ agents learn from their past.
   writes apply at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
-- `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from `skcomplex.models.economics.realizations`,
-  matches two groups. Buyers state their limit `bid` and
+- `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from
+  `skcomplex.models.economics.realizations.markets`, matches two groups. Buyers state their limit `bid` and
   `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearch`, `SampleAndSwitch` (partner
   choice with switching), `RationedQueue`, `Walrasian` (tâtonnement), `OrderBook` (price-time priority), `CallAuction`
   (one uniform price), and `DeferredAcceptance` (stable matching by the `matching` library). Every trade moves
   `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
   `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
-- An `InstitutionInteraction` acts once per round of its phase with its method `act`. It reads `model.observable(name)`,
-  reporters through `model.history(name, window)`, and agents, and it sets parameters of any element or interaction with
-  `model.set_parameter(name, value)`. Rules see the change at once, and the trajectory records it. A subclass that
-  declares its own parameters takes them as annotated arguments of its `__init__` next to `rule` and `phase`.
+- An `InstitutionInteraction`, from `skcomplex.models.economics.realizations.institutions`, acts once per round of its
+  phase with its method `act`. It reads `model.observable(name)`, reporters through `model.history(name, window)`, and
+  agents, and it sets parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the
+  change at once, and the trajectory records it. A subclass that declares its own parameters takes them as annotated
+  arguments of its `__init__` next to `rule` and `phase`.
 - Elements and interactions declare the values they publish in the class variable `reports` and publish them with
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `memory(agent, state, window)`, from `skcomplex.engine.solvers`, returns the past values of a state
-  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations`, `heuristics` has adaptive,
-  trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past performance, and
-  `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
-  `skcomplex.models.social.realizations`, copies the best neighbour.
+  declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.realizations.learning`, `heuristics` has
+  adaptive, trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past
+  performance, and `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
+  `skcomplex.models.social.cooperation`, copies the best neighbour.
 
 ```python
 from typing import Annotated, ClassVar
@@ -3384,7 +3385,8 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.realizations import CallAuction, InstitutionInteraction, MarketInteraction
+from skcomplex.models.economics.realizations.institutions import InstitutionInteraction
+from skcomplex.models.economics.realizations.markets import CallAuction, MarketInteraction
 
 
 class TraderElement(Element):
@@ -3984,7 +3986,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
-trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.realizations` gathers them with spectral reddening as early
+trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.climate` gathers them with spectral reddening as early
 warnings of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
@@ -4349,8 +4351,10 @@ with `'wavelength'`, and the interfaces between domains with `'interface-density
 `ScalingAnalysis('variance-mean')` the number fluctuations of density fields in boxes of growing side. `ClusterAnalysis`
 with the kinds `'sizes'`, `'percolation'`, and `'spanning'` describes clusters of grids and components of graphs, and
 `DistributionAnalysis('moment-ratio')` with `CollapseAnalysis` of the kinds `'crossings'` and `'scaling'` locate
-transitions by finite-size scaling. The physics realizations name these measures: `BinderCumulantAnalysis`,
-`SusceptibilityAnalysis`, `GiantNumberFluctuationAnalysis`, and `ReplicaOverlapAnalysis`.
+transitions by finite-size scaling. The physics models name these measures next to the models they measure:
+`BinderCumulantAnalysis`, `SusceptibilityAnalysis`, and `ReplicaOverlapAnalysis` in
+`skcomplex.models.physics.statistical_mechanics`, and `GiantNumberFluctuationAnalysis` in
+`skcomplex.models.physics.active_matter`.
 `StabilityAnalysis('dispersion')` predicts patterns from a field model's laws before running it: it linearises them
 around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice, and returns the
 growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes is a Turing
@@ -4376,15 +4380,16 @@ print(DistributionAnalysis('moment-ratio').check().prepare(samples).run().cumula
 ### Agents
 
 `AlignmentAnalysis` measures the alignment of every frame of agents, of a field of angles or vectors, or of series of
-phases, by the length of the mean vector, the mean rotation, the axial order, or the mean phase. The physics
-realizations name them the polar, milling, nematic, and Kuramoto orders. `DistributionAnalysis` and `FitAnalysis` read
-the speeds of moving agents, and the physics realizations `KineticTemperatureAnalysis` and `MaxwellBoltzmannAnalysis`
-compare velocities with the Maxwell-Boltzmann law of their dimension. `NeighborAnalysis` describes point patterns in
+phases, by the length of the mean vector, the mean rotation, the axial order, or the mean phase. The active matter
+models name them the polar, milling, and nematic orders, and the synchronization models the Kuramoto order.
+`DistributionAnalysis` and `FitAnalysis` read the speeds of moving agents, and `KineticTemperatureAnalysis` and
+`MaxwellBoltzmannAnalysis`, next to the gases of `skcomplex.models.physics.statistical_mechanics`, compare velocities
+with the Maxwell-Boltzmann law of their dimension. `NeighborAnalysis` describes point patterns in
 open or periodic boxes by their nearest-neighbour `'distances'`, their `'clark-evans'` ratio, and their
 `'radial-distribution'`, and `CoarseGrainAnalysis` turns agents into density or polarization fields for the field
 analyses. `NeighborAnalysis('like-share')` and `DomainAnalysis('interface-density')` measure segregation on grids and
 networks, and `DistributionAnalysis('total-variation')` gives the distance between the distributions of two groups
-across units, the dissimilarity index that the social realization `DissimilarityIndexAnalysis` names.
+across units, the dissimilarity index that `DissimilarityIndexAnalysis` of the segregation models names.
 
 ```python
 import numpy as np
@@ -4404,11 +4409,11 @@ print(ratio.round(1).tolist(), float(field.sum()))
 
 `EventAnalysis('excursions')` extracts avalanches from activity series or relaxation records, and
 `FitAnalysis(law='power')` fits their size and duration laws. `EventAnalysis('branching')` estimates the branching
-ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling. The physics realizations
-name the excursions `AvalancheAnalysis`, and `CracklingNoiseAnalysis` checks the scaling relation between the
-exponents and collapses mean shapes. `DistributionAnalysis('moments')` gives the order parameter and its variance over
-a sweep, `ScalingAnalysis('power')` fits the order-parameter exponent, and `CorrelationAnalysis('overlap')` compares
-replicas.
+ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling. The sandpiles of
+`skcomplex.models.physics.criticality` name the excursions `AvalancheAnalysis`, and `CracklingNoiseAnalysis` checks
+the scaling relation between the exponents and collapses mean shapes. `DistributionAnalysis('moments')` gives the
+order parameter and its variance over a sweep, `ScalingAnalysis('power')` fits the order-parameter exponent, and
+`CorrelationAnalysis('overlap')` compares replicas.
 
 ```python
 import numpy as np

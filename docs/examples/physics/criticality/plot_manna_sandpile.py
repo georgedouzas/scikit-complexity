@@ -20,7 +20,7 @@ from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.physics.realizations import AvalancheAnalysis
+from skcomplex.models.physics.criticality import AvalancheAnalysis
 
 MODEL = 'manna_sandpile'
 
