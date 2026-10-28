@@ -48,7 +48,8 @@ class ReductionLowering(BaseLowering):
 
     `prepare(compilation)` reads the layout and the drawn values of the compilation, and `run(laws)` takes the laws of
     every kernel spec and returns them with every reduction replaced by the placeholder that kernels read, collecting
-    the reductions, deduplicated, with their hidden entries.
+    the reductions, deduplicated, with their hidden entries. `_apply_references()` then gives every spec the references
+    of its placeholders.
 
     Attributes:
         declarations_:
@@ -170,7 +171,7 @@ class ReductionLowering(BaseLowering):
             return spec.sets[item].label
         if item in self.by_symbol_ or item in self.local_:
             return self.readers_[item]
-        reference = spec.references.get(item)
+        reference = self._reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE}:
             return None
         owner = reference.entry.name.rpartition('.')[0]
@@ -182,7 +183,7 @@ class ReductionLowering(BaseLowering):
         over = None
         if reduction.over is not None:
             over = self._group_of(reduction.over, spec)
-            reference = spec.references.get(reduction.over)
+            reference = self._reference_of(reduction.over, spec)
             if over is None and reference is not None:
                 over = reference.entry.name.rpartition('.')[0]
             if over is not None:
@@ -226,7 +227,7 @@ class ReductionLowering(BaseLowering):
                 )
                 raise ValidationError(error_msg)
             return ReadSpec(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
-        reference = spec.references.get(item)
+        reference = self._reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE}:
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
@@ -353,7 +354,7 @@ class ReductionLowering(BaseLowering):
             )
             raise ValidationError(error_msg)
         value = cast('Expression', block.symbols['value'])
-        spec.references[value] = ReferenceSpec(block.entries['value'], True, 0, ReadKind.SINGLE)
+        self._add_reference(spec, value, ReferenceSpec(block.entries['value'], True, 0, ReadKind.SINGLE))
         return value
 
     def _placeholder(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
@@ -421,14 +422,14 @@ class ReductionLowering(BaseLowering):
             self.readers_[placeholder] = reading if weights is not None else None
         compiled = self.found_[key]
         column = spec.set_index if compiled.weights is not None and spec.sets else 0
-        spec.references[compiled.symbol] = ReferenceSpec(compiled.entry, False, column, ReadKind.REDUCED)
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, column, ReadKind.REDUCED))
         return compiled.symbol
 
     def _neighbor_group(self, reduction: NeighborReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str:
         """Return the group whose members read a neighbourhood reduction and are each other's neighbours."""
         groups = set()
         for item in symbols:
-            reference = spec.references.get(item)
+            reference = self._reference_of(item, spec)
             if item in self.local_:
                 groups.add(self.local_[item].group)
             elif item in self.by_symbol_ and self.readers_[item] is not None:
@@ -478,7 +479,7 @@ class ReductionLowering(BaseLowering):
         over: object = None,
     ) -> PairReadSpec:
         """Return how a neighbourhood reduction reads one symbol: shared, of the reading member, or of the neighbour."""
-        reference = spec.references.get(item)
+        reference = self._reference_of(item, spec)
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
             return PairReadSpec(self._read(item, spec, group, 0), 'reader')
         if item in self.by_symbol_:
@@ -568,5 +569,5 @@ class ReductionLowering(BaseLowering):
             self.local_[compiled.symbol] = compiled
             self.readers_[compiled.symbol] = group
         compiled = self.neighbourhoods_[key]
-        spec.references[compiled.symbol] = ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED)
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol

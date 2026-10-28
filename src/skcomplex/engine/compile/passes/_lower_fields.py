@@ -31,13 +31,16 @@ class LowerFieldsPass(BasePass):
         return ('corrected', 'written', 'limits', 'volume_limits', 'linear')
 
     def _run(self, inputs: object = None) -> None:
-        """Lower the differential operators of the corrected laws."""
+        """Lower the differential operators of the corrected laws.
+
+        Lowering the laws of a spec replaces the spec in the corrected laws, so their entry is read again.
+        """
         compilation = self.compilation_
         facts: dict[str, Any] = {'written': defaultdict(list), 'limits': [], 'volume_limits': [], 'linear': []}
-        compilation.corrected = [
-            (spec, self._with_fields(spec, laws, compilation, facts))
-            for spec, laws in cast('Laws', compilation.corrected)
-        ]
+        corrected = compilation.corrected = list(cast('Laws', compilation.corrected))
+        for index, (spec, laws) in enumerate(corrected):
+            lowered = self._with_fields(spec, laws, compilation, facts)
+            corrected[index] = (corrected[index][0], lowered)
         compilation.written = facts['written']
         compilation.limits = facts['limits']
         compilation.volume_limits = facts['volume_limits']
@@ -45,7 +48,9 @@ class LowerFieldsPass(BasePass):
 
     @staticmethod
     def _linear_terms_of(
-        spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldElement],
+        spec: KernelSpec,
+        laws: list[BaseLaw],
+        places: dict[str, FieldElement],
     ) -> list[LinearTermSpec]:
         """Return the linear terms with constant coefficients of the rates of field states."""
         terms = []
@@ -64,13 +69,18 @@ class LowerFieldsPass(BasePass):
         compilation: Compilation,
         facts: dict[str, Any],
     ) -> list[BaseLaw]:
-        """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
+        """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates.
+
+        The spec is replaced by a copy with the references of the neighbour reads and derived values in the
+        compilation.
+        """
         places = FieldLowering._field_entries(cast('DeclarationsSpec', compilation.layout))
         facts['linear'] += LowerFieldsPass._linear_terms_of(spec, laws, places)
         if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
             return laws
         lowering = FieldLowering(spec).check().prepare(compilation)
         result = lowering.run(laws)
+        lowering._apply_references()
         for key, written in lowering.written_.items():
             facts['written'][key] += written
         facts['limits'] += lowering.limits_

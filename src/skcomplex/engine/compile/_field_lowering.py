@@ -39,7 +39,8 @@ class FieldLowering(BaseLowering):
 
     Args:
         spec:
-            The kernel spec of the component, whose references receive the neighbour reads.
+            The kernel spec of the component, which `_apply_references` replaces by a copy with the neighbour reads
+            and the derived values.
 
     Attributes:
         fields_:
@@ -147,7 +148,7 @@ class FieldLowering(BaseLowering):
 
     def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
-        reference = self.spec.references[item]
+        reference = cast('ReferenceSpec', self._reference_of(item, self.spec))
         if reference.source is not ReadKind.MEMBER:
             return None
         found = self.fields_.get(reference.entry.name)
@@ -166,7 +167,7 @@ class FieldLowering(BaseLowering):
         offset: Offset | int,
     ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
-        reference = self.spec.references[item]
+        reference = cast('ReferenceSpec', self._reference_of(item, self.spec))
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
             kind, value = place._get_boundary(variable)
@@ -208,7 +209,7 @@ class FieldLowering(BaseLowering):
         replacements = {}
         for item in expression.variables():
             base, current = self.shifted_.get(item, (item, None))
-            if base not in self.spec.references:
+            if self._reference_of(base, self.spec) is None:
                 continue
             place = self._field_of(base)
             if place is None:
@@ -225,8 +226,8 @@ class FieldLowering(BaseLowering):
                 continue
             name = f'{base}__{self._tag(total)}'
             target = symbol(name, domain_of(base))
-            if target not in self.spec.references:
-                reference = self.spec.references[base]
+            if self._reference_of(target, self.spec) is None:
+                reference = cast('ReferenceSpec', self._reference_of(base, self.spec))
                 table, ghost, mode = self._table(base, place, total)
                 lattice = isinstance(place.space, LatticeSpace)
                 read = NeighborReadSpec(
@@ -236,12 +237,10 @@ class FieldLowering(BaseLowering):
                     total if lattice else None,  # type: ignore[arg-type]
                     mode,
                 )
-                self.spec.references[target] = ReferenceSpec(
-                    reference.entry,
-                    reference.is_state,
-                    reference.column,
-                    ReadKind.NEIGHBOR,
-                    read,
+                self._add_reference(
+                    self.spec,
+                    target,
+                    ReferenceSpec(reference.entry, reference.is_state, reference.column, ReadKind.NEIGHBOR, read),
                 )
                 self.shifted_[target] = (base, total)
             replacements[item] = target
@@ -255,7 +254,7 @@ class FieldLowering(BaseLowering):
                 place = self.derived_[item][0]
             else:
                 base = self.shifted_.get(item, (item, None))[0]
-                place = self._field_of(base) if base in self.spec.references else None  # type: ignore[assignment]
+                place = self._field_of(base) if self._reference_of(base, self.spec) is not None else None  # type: ignore[assignment]
             if place is not None:
                 places[id(place)] = place
         return places
@@ -356,12 +355,13 @@ class FieldLowering(BaseLowering):
     def _derived(self, place: FieldElement, read: FieldOperatorKernel) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
         target = symbol(f'_derived_{place.label}_{len(self.derived_)}')
+        references = [cast('ReferenceSpec', self._reference_of(item, self.spec)) for item in read.symbols]
         entry = next(
-            self.spec.references[item].entry
-            for item in read.symbols
-            if self.spec.references[item].source in {ReadKind.MEMBER, ReadKind.NEIGHBOR, ReadKind.DERIVED}
+            reference.entry
+            for reference in references
+            if reference.source in {ReadKind.MEMBER, ReadKind.NEIGHBOR, ReadKind.DERIVED}
         )
-        self.spec.references[target] = ReferenceSpec(entry, True, 0, ReadKind.DERIVED, read)
+        self._add_reference(self.spec, target, ReferenceSpec(entry, True, 0, ReadKind.DERIVED, read))
         self.derived_[target] = (place, read)
         return target
 
@@ -384,9 +384,16 @@ class FieldLowering(BaseLowering):
         inner = self.derived_.get(operand)
         if inner is not None and inner[1].multiplier is not None:
             operand, multiplier = inner[1].operand, multiplier * inner[1].multiplier
-        symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
+        symbols = sorted(
+            (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
+            key=str,
+        )
         read = FieldOperatorKernel(
-            operand, symbols, self._spectral_apply(multiplier, dimensions), multiplier, dimensions,
+            operand,
+            symbols,
+            self._spectral_apply(multiplier, dimensions),
+            multiplier,
+            dimensions,
         ).check()
         return self._derived(place, read)
 
@@ -398,14 +405,18 @@ class FieldLowering(BaseLowering):
             )
             raise ValidationError(error_msg)
         matrix = self._mesh_laplacian(place.space)  # type: ignore[arg-type]
-        symbols = sorted((item for item in operand.variables() if item in self.spec.references), key=str)
+        symbols = sorted(
+            (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
+            key=str,
+        )
         read = FieldOperatorKernel(operand, symbols, lambda values: matrix @ values, matrix=matrix).check()
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
         """Record the diffusive step limit of a finite-volume field as a function of the parameters it reads."""
         symbols = sorted(set(coefficient.variables()) - {TIME}, key=str)
-        references = [self.spec.references[item] for item in symbols if item in self.spec.references]
+        found = [self._reference_of(item, self.spec) for item in symbols]
+        references = [reference for reference in found if reference is not None]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
         function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])

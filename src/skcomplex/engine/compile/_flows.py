@@ -48,10 +48,6 @@ from ._base import BaseLowering, BasePass
 _BOUNDARY_PREFIX = '__boundary'
 
 
-
-
-
-
 class TransferLowering(BaseLowering):
     """Lowering of flows and delays, which checks that conserved quantities change only through flows.
 
@@ -264,7 +260,7 @@ class TransferLowering(BaseLowering):
                 reference = spec.references[target]
                 key: tuple[Any, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
-                    key = (*key, id(spec))
+                    key = (*key, spec.owner, spec.set_index)
                 increments[key].append((spec, target, SR(law.value)))
         for key, items in increments.items():
             host, index = self._update_of(key, specs)
@@ -307,7 +303,7 @@ class TransferLowering(BaseLowering):
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
-                born.spec.references[accumulator] = ReferenceSpec(entry, True, 0, Read.SINGLE)
+                self._add_reference(born.spec, accumulator, ReferenceSpec(entry, True, 0, Read.SINGLE))
             if discrete:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
@@ -359,13 +355,17 @@ class TransferLowering(BaseLowering):
             start = self._initial(value, spec, declarations)
             each = self._initial(SR(time), spec, declarations) / order if material else 1.0
             declarations, entry = self._declare_state(
-                declarations, f'{spec.owner}.{kind}_{counter}', np.full(order, start * each), (order,),
+                declarations,
+                f'{spec.owner}.{kind}_{counter}',
+                np.full(order, start * each),
+                (order,),
             )
-            for column, stage in enumerate(stages):
-                spec.references[stage] = ReferenceSpec(entry, True, column, Read.SINGLE)
+            references = {stage: ReferenceSpec(entry, True, column, Read.SINGLE) for column, stage in enumerate(stages)}
+            for stage, reference in references.items():
+                self._add_reference(spec, stage, reference)
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
-            self.delays_.append(_CompiledDelaySpec(call, output, {stage: spec.references[stage] for stage in stages}))
+            self.delays_.append(_CompiledDelaySpec(call, output, references))
             laws[:] = [self._substituted_law(law, mapping) for law in laws]
             laws.extend(self._delay_laws(kind, stages, value, time))
             self.records_ = [
@@ -377,6 +377,9 @@ class TransferLowering(BaseLowering):
 
     def _lower_flows(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> TransferNetworkSpec:
         """Check the conserved quantities and lower flows and delays into the laws of every spec, in place.
+
+        Every spec that reads a hidden state, or a symbol of a flow it updates, is replaced by a copy with its reference
+        in the compilation.
 
         Args:
             specs:
@@ -405,6 +408,7 @@ class TransferLowering(BaseLowering):
         for spec, laws in specs:
             declarations = self._expand_delays(spec, laws, declarations, discrete)
         self.compilation_.layout = declarations
+        self._apply_references()
         quantities: dict[str, list[str]] = defaultdict(list)
         for name, quantity in self.quantities_.items():
             quantities[quantity].append(name)
@@ -511,26 +515,25 @@ class TransferLowering(BaseLowering):
                     continue
                 found: tuple[Any, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
-                    found = (*found, id(spec))
+                    found = (*found, spec.owner, spec.set_index)
                 if found == key:
                     return laws, index
         return None, 0
 
-    @staticmethod
-    def _merge_references(host: KernelSpec, spec: KernelSpec, value: Expression) -> None:
+    def _merge_references(self, host: KernelSpec, spec: KernelSpec, value: Expression) -> None:
         """Add the references of an expression's symbols from one spec to another, which lowers it."""
         for item in symbols_of([value]):
-            reference = spec.references.get(item)
+            reference = self._reference_of(item, spec)
             if reference is None:
                 continue
-            known = host.references.get(item)
+            known = self._reference_of(item, host)
             if known is not None and known != reference:
                 error_msg = (
                     f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. '
                     'Declare the flow in the component that updates the state.'
                 )
                 raise ValidationError(error_msg)
-            host.references[item] = reference
+            self._add_reference(host, item, reference)
 
     @staticmethod
     def _claim_label(labels: set[str], owner: str, label: str) -> None:
@@ -540,14 +543,13 @@ class TransferLowering(BaseLowering):
             raise LabelError(error_msg)
         labels.add(label)
 
-    @staticmethod
-    def _initial(item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
+    def _initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
         """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         values: dict[Expression, float] = {declarations.time: 0.0}
         for name in symbols_of([item]) - {declarations.time}:
-            reference = spec.references.get(name)
+            reference = self._reference_of(name, spec)
             if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
                 error_msg = (
                     f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or '

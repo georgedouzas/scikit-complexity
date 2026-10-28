@@ -35,8 +35,8 @@ class RowsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Check the draws and settle the rows of every kernel spec.
 
-        A spec whose rows change is replaced by a copy with its rows settled in the laws, the laws set apart, and
-        the flows, which later passes read.
+        A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such
+        as the laws, the laws set apart, and the flows, which later passes read.
         """
         compilation = self.compilation_
         apart = cast('Laws', compilation.apart)
@@ -46,14 +46,7 @@ class RowsPass(BasePass):
             new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
             if new is not spec:
                 settled[id(spec)] = new
-        if not settled:
-            return
-        compilation.lowered = [
-            (settled.get(id(spec), spec), laws, block) for spec, laws, block in cast('BlockLaws', compilation.lowered)
-        ]
-        compilation.apart = [(settled.get(id(spec), spec), laws) for spec, laws in apart]
-        if compilation.flows is not None:
-            compilation.flows._replace_specs(settled)
+        compilation._replace_specs(settled)
 
     @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
@@ -138,9 +131,7 @@ class RowsPass(BasePass):
                 RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
             ):
                 continue
-            values = [
-                value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)
-            ]
+            values = [value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -48,7 +50,8 @@ class Compilation:
 
     The constructor stores the inputs of the compilation, and the passes set every other field, from `nodes` to
     `problem` in the order they are listed. A field that no pass has set yet is `None`. A pass may also declare hidden
-    states and parameters on the layout, which only grows.
+    states and parameters on the layout, which only grows. Kernel specs are frozen: a pass that adds references to a
+    spec builds a copy, which `_replace_specs` puts in every field that holds the spec.
 
     Args:
         system:
@@ -230,7 +233,7 @@ class Compilation:
     jacobian: JacobianKernel | None = None
     problem: ProblemSpec | None = None
     delays: list[dict[str, Any]] | None = None
-    placeholders: dict[tuple[int, str, int, str], Expression] | None = None
+    placeholders: dict[tuple[str, int, str, int, str], Expression] | None = None
     events: list[tuple[KernelSpec, CrossingLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
@@ -262,3 +265,43 @@ class Compilation:
         self.solver = solver
         self.owners = owners
         self.held = held
+
+    def _replace_specs(self, replaced: Mapping[int, KernelSpec]) -> None:
+        """Replace kernel specs by their copies in every field that holds them.
+
+        The fields keep their lists, so a pass that loops over a field reads the copies.
+
+        Args:
+            replaced:
+                The copy of every replaced spec, by the identity of the replaced spec.
+        """
+        if not replaced:
+            return
+        fields = (
+            self.specs,
+            self.collected,
+            self.apart,
+            self.lowered,
+            self.markov,
+            self.ordered,
+            self.delayed,
+            self.corrected,
+            self.shifted,
+            self.drawn,
+            self.drawn_apart,
+            self.reduced,
+            self.reduced_apart,
+            self.events,
+            self.rules,
+        )
+        for items in fields:
+            for index, (spec, *rest) in enumerate(items or []):
+                items[index] = (replaced.get(id(spec), spec), *rest)
+        for delay in self.delays or []:
+            delay['spec'] = replaced.get(id(delay['spec']), delay['spec'])
+        for index, renewal in enumerate(self.renewals or []):
+            self.renewals[index] = replace(renewal, spec=replaced.get(id(renewal.spec), renewal.spec))
+        for key, (spec, request) in (self.request_jumps or {}).items():
+            self.request_jumps[key] = (replaced.get(id(spec), spec), request)
+        if self.flows is not None:
+            self.flows._replace_specs(replaced)

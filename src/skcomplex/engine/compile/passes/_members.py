@@ -24,7 +24,8 @@ class MemberShiftPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the member offset reads of the corrected laws."""
         compilation = self.compilation_
-        compilation.shifted = [
-            (spec, MemberLowering(spec).check().prepare(compilation).run(laws))
-            for spec, laws in cast('Laws', compilation.corrected)
-        ]
+        compilation.shifted = []
+        for spec, laws in cast('Laws', compilation.corrected):
+            lowering = MemberLowering(spec).check().prepare(compilation)
+            compilation.shifted.append((spec, lowering.run(laws)))
+            lowering._apply_references()
