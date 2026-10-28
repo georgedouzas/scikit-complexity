@@ -14,7 +14,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import box_counting_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -48,7 +48,7 @@ grid = np.zeros((128, 128), dtype=bool)
 grid[cells[:, 1], cells[:, 0]] = True
 sizes = np.array([1, 2, 4, 8, 16, 32])
 counts = [grid.reshape(128 // size, size, 128 // size, size).any(axis=(1, 3)).sum() for size in sizes]
-dimension = box_counting_dimension(grid, sizes)
+dimension = ScalingAnalysis('box-counting', scales=sizes).check().prepare(grid).run().exponent_
 fern = Simulation(create(MODEL, preset='barnsley', n_points=20000), dt=30, random_state=0).run(30)
 leaves = fern.trajectory_.values('points.p')[-1]
 fig, (boxes, plant) = plt.subplots(1, 2, figsize=(10, 4.5))

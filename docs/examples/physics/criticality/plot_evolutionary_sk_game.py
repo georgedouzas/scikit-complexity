@@ -16,7 +16,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ErgodicityAnalysis, avalanches, fit_power_law, histogram
+from skcomplex.analysis import AvalancheAnalysis, DistributionAnalysis, ErgodicityAnalysis, FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -45,9 +45,10 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 # high for frozen runs at low `k`, near 0 for ergodic runs at high `k`, and in between at the evolved temperatures.
 
 threshold = float(np.quantile(fitness.min(axis=1), 0.97))
-sizes = avalanches((fitness < threshold).sum(axis=1)).sizes
-fit = fit_power_law(sizes, discrete=True, xmin=5)
-edges, density = histogram(sizes, 15, log=True)
+sizes = AvalancheAnalysis().check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
+fit = FitAnalysis(discrete=True, minimum=5).check().prepare(sizes).run()
+histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(sizes).run()
+edges, density = histogram.edges_, histogram.density_
 centers, shown = np.sqrt(edges[1:] * edges[:-1]), density > 0
 tail = shown & (centers >= 5)
 scale = np.exp(np.mean(np.log(density[tail]) + 1.5 * np.log(centers[tail])))
@@ -73,7 +74,12 @@ spread.set_xlabel('temperature T')
 spread.set_ylabel('density')
 spread.set_title('Selection lowers the temperatures')
 spread.legend()
-cascades.loglog(centers[shown], density[shown], 'o', label=f'{sizes.size} cascades, fitted exponent {fit.alpha:.2f}')
+cascades.loglog(
+    centers[shown],
+    density[shown],
+    'o',
+    label=f'{sizes.size} cascades, fitted exponent {fit.exponent_:.2f}',
+)
 guide = np.logspace(0, np.log10(centers[shown][-1]), 50)
 cascades.loglog(guide, scale * guide**-1.5, color='black', label='S^-3/2')
 cascades.set_xlabel('cascade size S')

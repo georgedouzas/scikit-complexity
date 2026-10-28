@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....analysis import gini
+from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
 from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, MatchLaw, RuleLaw
@@ -41,11 +41,16 @@ def _living(fates: npt.ArrayLike) -> float:
     return float(np.sum(np.asarray(fates) == ALIVE))
 
 
+def _money_gini(money: npt.ArrayLike) -> float:
+    """Return the Gini coefficient of the money of people."""
+    return DistributionAnalysis('gini').check().prepare(money).run().gini_
+
+
 def _metaphoria_observables(system: System) -> list[ObservableSpec]:
     """Return the living population, the Gini coefficient of money, and the bank balance of a monetary economy."""
     observables = [
         ObservableSpec('population', group='people', variable='fate', reduce=_living),
-        ObservableSpec('money_gini', group='people', variable='money', reduce=gini),
+        ObservableSpec('money_gini', group='people', variable='money', reduce=_money_gini),
     ]
     if any(element.label == 'bank' for element in system.elements):
         observables.append(ObservableSpec('bank_balance', _bank_balance, group='bank', reduce='sum'))

@@ -1,4 +1,4 @@
-"""Measure first passages, absorption, returns, committors, and laminar phases of paths."""
+"""Measure first passages, absorption, returns, and committors of paths."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from deeptime.markov.tools import analysis as msm_analysis
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind, analysis
+from ._kinds import DataKind
 from ._markov import _transition_matrix
 
 type Array = npt.NDArray[np.float64]
@@ -275,39 +275,3 @@ class PassageAnalysis(BaseAnalysis):
             time = msm_analysis.mfpt(self.matrix_, target, origin=origin, tau=self.lag)
             self.mean_first_passage_time_ = float(time * self.dt)
         return self
-
-
-@analysis(DataKind.SERIES)
-def laminar_durations(
-    values: npt.ArrayLike,
-    threshold: float,
-    times: npt.ArrayLike | None = None,
-) -> Array:
-    """Return the durations of the laminar phases of a series, the runs of values within a threshold of 0.
-
-    Args:
-        values:
-            The series, such as the distance from an invariant manifold of on-off intermittency.
-
-        threshold:
-            The largest absolute value of a laminar phase.
-
-        times:
-            The times of the values, or `None` for step indices.
-
-    Returns:
-        durations:
-            The duration of every complete laminar phase, between two bursts.
-
-    Examples:
-        >>> from skcomplex.analysis import laminar_durations
-        >>> laminar_durations([1, 0, 0, 1, 0, 1], 0.5).tolist()
-        [2.0, 1.0]
-    """
-    array = np.abs(np.asarray(values, dtype=float))
-    clock = _clock(times, array.size)
-    step = float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
-    laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
-    starts, ends = np.flatnonzero(np.diff(laminar) == 1), np.flatnonzero(np.diff(laminar) == -1)
-    complete = (starts > 0) & (ends < array.size)
-    return clock[ends[complete] - 1] - clock[starts[complete]] + step

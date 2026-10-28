@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.analysis import histogram
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -35,7 +35,8 @@ simulation = Simulation(system, dt=2, observers=[observer], random_state=0).run(
 
 steady = Simulation(create(MODEL, shape=(64, 64)), dt=1, random_state=1).run(5000)
 burning = (steady.trajectory_.values('forest.cover')[1000:] == 2).sum(axis=1)
-bins, density = histogram(burning[burning > 0], 15, log=True)
+histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(burning[burning > 0]).run()
+bins, density = histogram.edges_, histogram.density_
 centers = np.sqrt(bins[1:] * bins[:-1])
 
 graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)

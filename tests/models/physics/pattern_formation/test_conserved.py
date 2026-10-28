@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.analysis import dispersion_relation, fields_of
+from skcomplex.analysis import SpectrumAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.pattern_formation import (
     nonreciprocal_cahn_hilliard,
@@ -31,8 +31,9 @@ def test_nonreciprocal_cahn_hilliard_domains_travel_above_threshold():
 def test_nonreciprocal_cahn_hilliard_dispersion_relation():
     """Test that the unstable band propagates above threshold, on the band edge of Brauns and Marchetti."""
     for alpha, travels in [(0.3, True), (0.05, False)]:
-        relation = dispersion_relation(nonreciprocal_cahn_hilliard((256,), length=200.0, alpha=alpha))
-        growing = relation.growth_rates > 1e-9
-        assert (np.abs(relation.frequencies[growing]).max() > 1e-6) == travels
+        system = nonreciprocal_cahn_hilliard((256,), length=200.0, alpha=alpha)
+        relation = SpectrumAnalysis('dispersion').check().prepare(system).run()
+        growing = relation.growth_rates_ > 1e-9
+        assert (np.abs(relation.frequencies_[growing]).max() > 1e-6) == travels
         edge = np.sqrt(1 - 0.1) if travels else np.sqrt(1 - alpha**2 / 0.1)
-        np.testing.assert_allclose(relation.magnitudes[growing].max(), edge, atol=2 * np.pi / 200.0)
+        np.testing.assert_allclose(relation.magnitudes_[growing].max(), edge, atol=2 * np.pi / 200.0)

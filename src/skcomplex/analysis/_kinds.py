@@ -97,8 +97,8 @@ def analysis[F: Function](kind: DataKind) -> Callable[[F], F]:
 
     Examples:
         >>> from skcomplex.analysis import ANALYSES, DataKind
-        >>> ANALYSES.resolve('structure_factor').kind
-        <DataKind.FIELD: 'field'>
+        >>> ANALYSES.resolve('complexity_entropy').kind
+        <DataKind.SERIES: 'series'>
     """
 
     def register(function: F) -> F:

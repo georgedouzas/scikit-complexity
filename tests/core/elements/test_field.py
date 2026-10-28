@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import skfem
 
-from skcomplex.analysis import structure_factor
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw, RateLaw
@@ -141,6 +141,6 @@ def test_conserved_noise_gives_flat_structure_factor():
         .trajectory_
     )
     frames = trajectory.values('f.rho')[50:].reshape(-1, 16, 16)
-    factor = structure_factor(frames, frames=True)
-    np.testing.assert_allclose(factor.power, 0.5, rtol=0.1)
+    factor = SpectrumAnalysis('structure-factor', frames=True).check().prepare(frames).run()
+    np.testing.assert_allclose(factor.power_, 0.5, rtol=0.1)
     np.testing.assert_allclose(np.abs(np.fft.fftn(frames, axes=(1, 2))[:, 0, 0]) ** 2, 0.0, atol=1e-18)

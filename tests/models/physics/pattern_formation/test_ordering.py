@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import fields_of, structure_factor
+from skcomplex.analysis import SpectrumAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver, EulerMaruyamaSolver
 from skcomplex.models.physics.pattern_formation import (
@@ -14,8 +14,8 @@ from skcomplex.models.physics.pattern_formation import (
 
 def _mean_domain_size(field):
     """Return the domain size `2 pi / <k>` of a field from the mean wavenumber of its structure factor."""
-    factor = structure_factor(field - field.mean())
-    return 2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum()
+    factor = SpectrumAnalysis('structure-factor').check().prepare(field - field.mean()).run()
+    return 2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum()
 
 
 def test_allen_cahn_does_not_conserve_the_order_parameter():

@@ -14,7 +14,7 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import MotifAnalysis, NetworkAnalysis, ccdf, networks_of
+from skcomplex.analysis import DistributionAnalysis, MotifAnalysis, NetworkAnalysis, networks_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -41,7 +41,8 @@ trajectory = simulation.trajectory_
 
 graph = networks_of(trajectory)[-1]
 degrees = NetworkAnalysis('degrees').check().prepare(graph).run().degrees_[0]
-values, survival = ccdf(degrees)
+ccdf = DistributionAnalysis('ccdf').check().prepare(degrees).run()
+values, survival = ccdf.support_, ccdf.survival_
 scores = MotifAnalysis('z-scores', samples=10, random_state=0).check().prepare(graph).run().z_scores_[0]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(values, survival, 'o-', markersize=3)

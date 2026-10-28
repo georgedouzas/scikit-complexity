@@ -14,10 +14,10 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
-from ._fields import _spectrum, structure_factor
+from ._correlation import _correlation_function
 from ._kinds import DataKind
 from ._mixing import _pairs
-from ._spatial import correlation_function
+from ._spectrum import _mode_power, _structure_factor
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('size', 'growth', 'wavelength', 'interface-density')
@@ -34,12 +34,12 @@ SETTINGS = {
 def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:
     """Return `2 pi / <k>` over the structure factor of a frame, or the first zero of its correlation function."""
     if method == 'zero':
-        distances, values = correlation_function(field)
+        distances, values = _correlation_function(field)
         crossing = np.flatnonzero(values <= 0)
         index = int(crossing[0]) if crossing.size else distances.size - 1
         return float(distances[index] * spacing)
-    factor = structure_factor(field, spacing=spacing)
-    return float(2 * np.pi * factor.power.sum() / np.sum(factor.wavenumbers * factor.power))
+    wavenumbers, power = _structure_factor(np.asarray(field, dtype=float)[None], spacing)
+    return float(2 * np.pi * power.sum() / np.sum(wavenumbers * power))
 
 
 def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] | None) -> float:
@@ -58,9 +58,9 @@ def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] 
 def _pattern(field: npt.ArrayLike, spacing: float) -> tuple[float, float, float]:
     """Return the wavelength and the wavenumber of the peak of the structure factor and the order of its orientation."""
     grid = np.asarray(field, dtype=float)
-    factor = structure_factor(grid, spacing=spacing)
-    peak = float(factor.wavenumbers[factor.power.argmax()])
-    power = _spectrum(grid[None])
+    wavenumbers, shells = _structure_factor(grid[None], spacing)
+    peak = float(wavenumbers[shells.argmax()])
+    power = _mode_power(grid[None])
     axes = np.meshgrid(*(2 * np.pi * np.fft.fftfreq(size, spacing) for size in grid.shape), indexing='ij')
     moduli = np.sqrt(sum(axis**2 for axis in axes))
     width = 2 * np.pi / (max(grid.shape) * spacing)
