@@ -28,7 +28,4 @@ class KuramotoOrderAnalysis(AlignmentAnalysis):
     """
 
     def __init__(self, variables: Sequence[str] | None = None, *, group: str | None = None) -> None:
-        self.kind = 'mean-phase'
-        self.variables = variables
-        self.group = group
-        self.vectors = False
+        super().__init__('mean-phase', variables, group=group)
