@@ -155,10 +155,10 @@ def test_analyses_for_lattice_model():
 
 
 def test_analyses_for_agent_model():
-    """Test that a flocking trajectory lists polarization, neighbour statistics, and displacement as agent analyses."""
+    """Test that a flocking trajectory lists coarse-graining as an agent analysis."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
     agents = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.AGENTS}
-    assert {'polar_order', 'nearest_neighbor_distances', 'mean_squared_displacement'} <= agents
+    assert 'coarse_grain' in agents
 
 
 def test_analyses_for_plain_array():

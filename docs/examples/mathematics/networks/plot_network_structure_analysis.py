@@ -14,7 +14,7 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ccdf, degrees, motif_zscores, networks_of
+from skcomplex.analysis import MotifAnalysis, NetworkAnalysis, ccdf, networks_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
@@ -40,17 +40,18 @@ trajectory = simulation.trajectory_
 # should be over-represented with a large positive z-score.
 
 graph = networks_of(trajectory)[-1]
-values, survival = ccdf(degrees(graph))
-scores = motif_zscores(graph, samples=10, random_state=0)
+degrees = NetworkAnalysis('degrees').check().prepare(graph).run().degrees_[0]
+values, survival = ccdf(degrees)
+scores = MotifAnalysis('z-scores', samples=10, random_state=0).check().prepare(graph).run().z_scores_[0]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(values, survival, 'o-', markersize=3)
-left.axvline(np.mean(degrees(graph)), color='black', linestyle=':', label='mean degree')
+left.axvline(np.mean(degrees), color='black', linestyle=':', label='mean degree')
 left.set_yscale('log')
 left.set_xlabel('degree k')
 left.set_ylabel('P(degree >= k)')
 left.set_title(f"Degree distribution, modularity {trajectory.values('modularity')[-1]:.2f}")
 left.legend()
-right.bar(list(scores.zscores), list(scores.zscores.values()))
+right.bar(list(scores), list(scores.values()))
 right.axhline(0, color='black', linewidth=0.8)
 right.set_ylabel('z-score against edge switches')
 right.set_title('Triad z-scores')

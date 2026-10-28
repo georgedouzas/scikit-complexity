@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.analysis import fano_factor
+from skcomplex.analysis import FluctuationAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -39,7 +39,7 @@ distribution.set_xlabel('count')
 distribution.set_ylabel('probability')
 distribution.set_title('Counts at t = 50')
 distribution.legend()
-fano.plot(counts.times[1:], [fano_factor(row) for row in values[1:]])
+fano.plot(counts.times[1:], FluctuationAnalysis('fano').check().prepare(values[1:].T).run().factor_)
 fano.axhline(1, color='black', linestyle=':')
 fano.set_ylim(0.5, 1.5)
 fano.set_xlabel('time')

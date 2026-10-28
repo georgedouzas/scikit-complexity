@@ -3,19 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import itertools
 from collections import Counter
-from dataclasses import dataclass
+from typing import Self
 
 import networkx as nx
 import numpy as np
 
 from ..core.errors import AnalysisError
-from ._kinds import DataKind, analysis
-from ._networks import as_graph
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
 
+KINDS = ('counts', 'z-scores')
 NULLS = ('switch', 'configuration')
 SIZES = (3, 4)
+SETTINGS = {
+    'counts': {'size'},
+    'z-scores': {'size', 'null', 'samples', 'random_state'},
+}
+"""Settings every kind reads, besides `kind`."""
 SWAPS_PER_EDGE = 3
 UNDIRECTED_FOUR = {
     (3, (1, 1, 1, 3)): 'star',
@@ -85,6 +92,13 @@ def _three_node_counts(graph: nx.Graph) -> dict[str, int]:
     return {'path': int(wedges - 3 * triangles), 'triangle': int(triangles)}
 
 
+def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
+    """Return the number of connected induced subgraphs of every kind of three or four nodes."""
+    if size == 3:  # noqa: PLR2004
+        return _three_node_counts(graph)
+    return dict(Counter(_four_node_name(graph, nodes) for nodes in _connected_sets(graph, size)))
+
+
 def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Graph:
     """Return a random graph with the degrees of a graph, by edge switches or by the configuration model."""
     seed = int(rng.integers(2**31))
@@ -104,83 +118,45 @@ def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Grap
     return simple
 
 
-@analysis(DataKind.NETWORK)
-def motif_counts(network: object, size: int = 3) -> dict[str, int]:
-    """Return the number of connected induced subgraphs of three or four nodes of every kind in a network.
-
-    Directed triads carry the names of the triadic census, such as `'030T'` for the feed-forward loop. Undirected
-    motifs are named by their shape, and directed motifs of four nodes by their smallest adjacency code.
-
-    Args:
-        network:
-            A NetworkX graph, directed or not, or a network space.
-
-        size:
-            The number of nodes, 3 or 4.
-
-    Returns:
-        counts:
-            The number of occurrences of every motif.
-
-    Raises:
-        AnalysisError:
-            The size is not 3 or 4.
-
-    Examples:
-        >>> import networkx as nx
-        >>> from skcomplex.analysis import motif_counts
-        >>> motif_counts(nx.complete_graph(4))
-        {'path': 0, 'triangle': 4}
-        >>> motif_counts(nx.complete_graph(4), 4)
-        {'clique': 1}
-    """
-    if size not in SIZES:
-        error_msg = f'Motifs have 3 or 4 nodes, not {size}.'
-        raise AnalysisError(error_msg)
-    graph = as_graph(network)
-    if size == 3:  # noqa: PLR2004
-        return _three_node_counts(graph)
-    return dict(Counter(_four_node_name(graph, nodes) for nodes in _connected_sets(graph, size)))
+def _motif_scores(
+    graph: nx.Graph,
+    size: int,
+    null: str,
+    samples: int,
+    random_state: int | None,
+) -> tuple[dict[str, int], dict[str, float], dict[str, float], dict[str, float]]:
+    """Return the counts, the null means and deviations, and the z-scores of the motifs of a graph."""
+    counts = _motif_counts(graph, size)
+    rng = np.random.default_rng(random_state)
+    ensemble = [_motif_counts(_null_graph(graph, null, rng), size) for _ in range(samples)]
+    names = sorted(set(counts).union(*ensemble))
+    table = np.asarray([[sample.get(name, 0) for name in names] for sample in ensemble], dtype=float)
+    means, deviations = table.mean(axis=0), table.std(axis=0)
+    observed = np.asarray([counts.get(name, 0) for name in names], dtype=float)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        scores = np.where(deviations > 0, (observed - means) / deviations, np.nan)
+    return (
+        {name: int(counts.get(name, 0)) for name in names},
+        dict(zip(names, means.tolist(), strict=True)),
+        dict(zip(names, deviations.tolist(), strict=True)),
+        dict(zip(names, scores.tolist(), strict=True)),
+    )
 
 
-@dataclass(frozen=True)
-class MotifScores:
-    """Motif counts of a network against a null ensemble.
+class MotifAnalysis(BaseAnalysis):
+    """Motifs of three or four nodes of the network of every frame of a trajectory, or of a graph.
+
+    The kinds count or score motifs:
+
+    - `'counts'`: the number of connected induced subgraphs of every kind. Directed triads carry the names of the
+      triadic census, such as `'030T'` for the feed-forward loop. Undirected motifs are named by their shape, and
+      directed motifs of four nodes by their smallest adjacency code.
+    - `'z-scores'`: the counts against random graphs that keep the degrees, `(count - null_mean) / null_std` of every
+      motif, `nan` where the null count never varies.
 
     Args:
-        counts:
-            The count of every motif in the network.
-
-        null_mean:
-            The mean count of every motif over the null ensemble.
-
-        null_std:
-            The standard deviation of every count over the null ensemble.
-
-        zscores:
-            `(count - null_mean) / null_std` of every motif, `nan` where the null count never varies.
-    """
-
-    counts: dict[str, int]
-    null_mean: dict[str, float]
-    null_std: dict[str, float]
-    zscores: dict[str, float]
-
-
-@analysis(DataKind.NETWORK)
-def motif_zscores(
-    network: object,
-    size: int = 3,
-    *,
-    null: str = 'switch',
-    samples: int = 100,
-    random_state: int | None = None,
-) -> MotifScores:
-    """Return the z-scores of the motifs of a network against random graphs that keep its degrees.
-
-    Args:
-        network:
-            A NetworkX graph, directed or not, or a network space.
+        kind:
+            `'counts'` or `'z-scores'`.
 
         size:
             The number of nodes of the motifs, 3 or 4.
@@ -195,38 +171,97 @@ def motif_zscores(
         random_state:
             The seed of the ensemble.
 
-    Returns:
-        scores:
-            The counts, the null means and deviations, and the z-scores.
+    Attributes:
+        graphs_:
+            The graph of every frame.
 
-    Raises:
-        AnalysisError:
-            The null ensemble or the size is unknown.
+        counts_:
+            The count of every motif of every frame.
+
+        null_mean_:
+            The mean count of every motif over the null ensemble of every frame.
+
+        null_std_:
+            The standard deviation of every count over the null ensemble of every frame.
+
+        z_scores_:
+            The z-score of every motif of every frame.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.analysis import motif_zscores
+        >>> from skcomplex.analysis import MotifAnalysis
+        >>> MotifAnalysis().check().prepare(nx.complete_graph(4)).run().counts_
+        [{'path': 0, 'triangle': 4}]
+        >>> MotifAnalysis(size=4).check().prepare(nx.complete_graph(4)).run().counts_
+        [{'clique': 1}]
         >>> graph = nx.gnm_random_graph(30, 60, seed=0)
-        >>> scores = motif_zscores(graph, samples=10, random_state=0)
-        >>> sorted(scores.zscores)
+        >>> sorted(MotifAnalysis('z-scores', samples=10, random_state=0).check().prepare(graph).run().z_scores_[0])
         ['path', 'triangle']
     """
-    if null not in NULLS:
-        error_msg = f'Unknown null ensemble {null!r}. Use one of {", ".join(NULLS)}.'
-        raise AnalysisError(error_msg)
-    graph = as_graph(network)
-    counts = motif_counts(graph, size)
-    rng = np.random.default_rng(random_state)
-    ensemble = [motif_counts(_null_graph(graph, null, rng), size) for _ in range(samples)]
-    names = sorted(set(counts).union(*ensemble))
-    table = np.asarray([[sample.get(name, 0) for name in names] for sample in ensemble], dtype=float)
-    means, deviations = table.mean(axis=0), table.std(axis=0)
-    observed = np.asarray([counts.get(name, 0) for name in names], dtype=float)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        scores = np.where(deviations > 0, (observed - means) / deviations, np.nan)
-    return MotifScores(
-        {name: int(counts.get(name, 0)) for name in names},
-        dict(zip(names, means.tolist(), strict=True)),
-        dict(zip(names, deviations.tolist(), strict=True)),
-        dict(zip(names, scores.tolist(), strict=True)),
-    )
+
+    def __init__(
+        self,
+        kind: str = 'counts',
+        *,
+        size: int = 3,
+        null: str = 'switch',
+        samples: int = 100,
+        random_state: int | None = None,
+    ) -> None:
+        self.kind = kind
+        self.size = size
+        self.null = null
+        self.samples = samples
+        self.random_state = random_state
+
+    def _check_choice(self, name: str, value: object, choices: tuple[object, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
+            raise AnalysisError(error_msg)
+
+    def _check_ignored(self) -> None:
+        """Raise an error for a setting changed from its default that the kind does not read."""
+        defaults = {
+            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
+        }
+        read = SETTINGS[self.kind] | {'kind'}
+        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _check(self) -> Self:
+        """Validate the kind, the size, the null ensemble, the samples, and that the kind reads every setting."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_choice('size', self.size, SIZES)
+        self._check_choice('null', self.null, NULLS)
+        self._check_ignored()
+        if self.samples < 1:
+            error_msg = f'{type(self).__name__} has samples={self.samples!r}. Use 1 or more.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the network kind."""
+        return DataKind.NETWORK
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the graph of every frame of a trajectory, or a graph."""
+        self.graphs_ = self._read_networks(source)
+        return self
+
+    def _run(self) -> Self:
+        """Count or score the motifs of every frame."""
+        if self.kind == 'counts':
+            self.counts_ = [_motif_counts(graph, self.size) for graph in self.graphs_]
+            return self
+        scores = [_motif_scores(graph, self.size, self.null, self.samples, self.random_state) for graph in self.graphs_]
+        self.counts_ = [counts for counts, _, _, _ in scores]
+        self.null_mean_ = [means for _, means, _, _ in scores]
+        self.null_std_ = [deviations for _, _, deviations, _ in scores]
+        self.z_scores_ = [values for _, _, _, values in scores]
+        return self

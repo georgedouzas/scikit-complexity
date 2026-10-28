@@ -1,25 +1,17 @@
-"""Test centralities, mixing, communities, motifs, and measures of evolving networks."""
-
-import functools
+"""Test degrees, mixing, centralities, communities, neighbour degrees, and summaries of networks."""
 
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import (
-    assortativity,
-    centrality,
-    communities,
-    degree_moments,
-    motif_counts,
-    motif_zscores,
-    neighbor_degree,
-    network_frames,
-    snapshots_of,
-    summarize_network,
-)
+from skcomplex.analysis import NetworkAnalysis, snapshots_of
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
+
+
+def _network(kind: str, source: object, **settings: object) -> NetworkAnalysis:
+    """Return the network analysis of a source for one kind, run."""
+    return NetworkAnalysis(kind, **settings).check().prepare(source).run()
 
 
 def _schelling_contacts() -> nx.Graph:
@@ -48,15 +40,6 @@ def _planted_partition(blocks: int, size: int, inside: float, outside: float, se
         for row in range(blocks)
     ]
     return nx.stochastic_block_model([size] * blocks, probabilities, seed=seed)
-
-
-def _feed_forward_graph(rng: np.random.Generator) -> nx.DiGraph:
-    """Return a random directed graph of 200 nodes with 50 planted feed-forward loops."""
-    graph = nx.gnm_random_graph(200, 400, seed=0, directed=True)
-    for _ in range(50):
-        first, second, third = rng.choice(200, 3, replace=False)
-        graph.add_edges_from([(first, second), (second, third), (first, third)])
-    return graph
 
 
 def _adaptive_step(graph: nx.Graph, rng: np.random.Generator) -> None:
@@ -94,16 +77,16 @@ def _adaptive_voter_frames(rng: np.random.Generator) -> list[nx.Graph]:
 @pytest.mark.slow
 def test_summarize_network_small_world():
     """Test that rewiring 1 percent of a ring lattice keeps its clustering and shortens its paths."""
-    regular = summarize_network(nx.watts_strogatz_graph(1000, 10, 0.0, seed=0))
-    small = summarize_network(nx.watts_strogatz_graph(1000, 10, 0.01, seed=0))
-    assert small.clustering > 0.8 * regular.clustering
-    assert small.path_length < 0.3 * regular.path_length
-    assert degree_moments(nx.watts_strogatz_graph(1000, 10, 0.0, seed=0)) == [10.0, 100.0]
+    regular = _network('summary', nx.watts_strogatz_graph(1000, 10, 0.0, seed=0))
+    small = _network('summary', nx.watts_strogatz_graph(1000, 10, 0.01, seed=0))
+    assert small.clustering_[0] > 0.8 * regular.clustering_[0]
+    assert small.path_length_[0] < 0.3 * regular.path_length_[0]
+    assert _network('degrees', nx.watts_strogatz_graph(1000, 10, 0.0, seed=0)).moments_[0].tolist() == [10.0, 100.0]
 
 
 def test_centrality_of_a_star():
     """Test that the hub of a star of 11 nodes has normalized betweenness 1 and every leaf 0."""
-    betweenness = centrality(nx.star_graph(10), 'betweenness')
+    betweenness = _network('centrality', nx.star_graph(10), measure='betweenness').centrality_[0]
     assert betweenness[0] == 1
     assert all(betweenness[leaf] == 0 for leaf in range(1, 11))
 
@@ -115,90 +98,74 @@ def test_assortativity_attribute_mixing_on_two_domains():
     blocks = _planted_partition(2, 500, 10.0, 1.0, 1)
     nx.set_node_attributes(blocks, {node: blocks.nodes[node]['block'] for node in blocks}, 'state')
     for graph in (contacts, blocks):
-        assert assortativity(graph, 'state') > 0.5
+        assert _network('assortativity', graph, attribute='state').assortativity_[0] > 0.5
         states = [graph.nodes[node]['state'] for node in graph]
         nx.set_node_attributes(graph, dict(zip(graph.nodes, rng.permutation(states), strict=True)), 'state')
-        assert assortativity(graph, 'state') == pytest.approx(0, abs=0.05)
+        assert _network('assortativity', graph, attribute='state').assortativity_[0] == pytest.approx(0, abs=0.05)
 
 
 def test_neighbor_degree_and_degree_assortativity():
     """Test the mean neighbour degree of a star and the disassortativity of its degrees."""
-    degrees, connectivity = neighbor_degree(nx.star_graph(5))
-    assert degrees.tolist() == [1, 5]
-    assert connectivity.tolist() == [5.0, 1.0]
-    assert assortativity(nx.star_graph(5)) == pytest.approx(-1)
+    found = _network('neighbor-degree', nx.star_graph(5))
+    assert found.distinct_degrees_[0].tolist() == [1, 5]
+    assert found.neighbor_degree_[0].tolist() == [5.0, 1.0]
+    assert _network('assortativity', nx.star_graph(5)).assortativity_[0] == pytest.approx(-1)
 
 
 def test_communities_planted_partition():
     """Test that 4 blocks of 100 nodes with in-block degree 16 and out-block degree 2 are recovered."""
     graph = _planted_partition(4, 100, 16.0, 2.0, 2)
-    found = communities(graph, reference='block', random_state=0)
-    assert found.agreement > 0.9
-    assert found.modularity > 0.5
-    assert communities(graph, 'label_propagation', reference='block').agreement > 0.5
-    assert communities(graph, random_state=0).agreement is None
-    with pytest.raises(AnalysisError, match='Unknown method'):
-        communities(graph, 'spectral')
-
-
-def test_motif_zscores_feed_forward_loop():
-    """Test that planted feed-forward loops score above 3 against edge switches and the same seed repeats."""
-    graph = _feed_forward_graph(np.random.default_rng(3))
-    scores = motif_zscores(graph, samples=100, random_state=0)
-    assert scores.zscores['030T'] > 3
-    repeated = motif_zscores(graph, samples=100, random_state=0).zscores
-    np.testing.assert_array_equal(list(repeated.values()), list(scores.zscores.values()))
-    configuration = motif_zscores(graph, null='configuration', samples=20, random_state=0)
-    assert configuration.zscores['030T'] > 3
-
-
-def test_motif_counts_of_four_nodes():
-    """Test the four-node motifs of a clique, a path, a star, and a directed cycle."""
-    assert motif_counts(nx.complete_graph(4), 4) == {'clique': 1}
-    assert motif_counts(nx.path_graph(4), 4) == {'path': 1}
-    assert motif_counts(nx.star_graph(3), 4) == {'star': 1}
-    assert motif_counts(nx.cycle_graph(5), 4) == {'path': 5}
-    assert sum(motif_counts(nx.DiGraph(nx.cycle_graph(4, create_using=nx.DiGraph)), 4).values()) == 1
-    with pytest.raises(AnalysisError, match='3 or 4 nodes'):
-        motif_counts(nx.path_graph(3), 5)
-    with pytest.raises(AnalysisError, match='Unknown null'):
-        motif_zscores(nx.path_graph(3), null='shuffle')
+    found = _network('communities', graph, reference='block', random_state=0)
+    assert found.agreement_[0] > 0.9
+    assert found.modularity_[0] > 0.5
+    propagation = _network('communities', graph, method='label_propagation', reference='block')
+    assert propagation.agreement_[0] > 0.5
+    assert _network('communities', graph, random_state=0).agreement_ is None
+    with pytest.raises(AnalysisError, match='louvain, label_propagation'):
+        NetworkAnalysis('communities', method='spectral').check()
 
 
 @pytest.mark.slow
-def test_network_frames_growing_network():
-    """Test that frames of a preferential attachment run give one row each and a degree exponent near 3."""
+def test_degrees_of_a_growing_network():
+    """Test that frames of a preferential attachment network give a degree exponent near 3 on the last frame."""
     graph = nx.barabasi_albert_graph(10_000, 2, seed=0)
     frames = [graph.subgraph(range(size)).copy() for size in range(1000, 10_001, 1000)]
-    rows = network_frames(frames)
-    assert len(rows) == len(frames)
-    assert rows[-1]['nodes'] == 10_000
-    assert rows[-1]['degree_exponent'] == pytest.approx(3, abs=0.2)
+    found = [_network('degrees', frame) for frame in frames]
+    assert _network('summary', frames[-1]).nodes_[0] == 10_000
+    assert found[-1].exponent_[0] == pytest.approx(3, abs=0.2)
 
 
-def test_network_frames_adaptive_rewiring():
+def test_assortativity_of_adaptive_rewiring():
     """Test that the assortativity by state of an adaptive voter model rises and ends above 0.9."""
     frames = _adaptive_voter_frames(np.random.default_rng(4))
-    mixing = functools.partial(assortativity, attribute='state')
-    values = np.asarray([row['mixing'] for row in network_frames(frames, {'mixing': mixing})])
+    values = np.asarray([_network('assortativity', frame, attribute='state').assortativity_[0] for frame in frames])
     assert values[-1] > values[0]
     assert values[-1] > 0.9
 
 
 def test_small_world_measures():
     """Test that rewiring a ring lattice shortens paths while keeping much of its clustering."""
-    ring = summarize_network(nx.watts_strogatz_graph(500, 10, 0.0, seed=0))
-    small_world = summarize_network(nx.watts_strogatz_graph(500, 10, 0.05, seed=0))
-    assert small_world.path_length < ring.path_length / 2
-    assert small_world.clustering > 0.5 * ring.clustering
-    assert ring.components == [500]
+    ring = _network('summary', nx.watts_strogatz_graph(500, 10, 0.0, seed=0))
+    small_world = _network('summary', nx.watts_strogatz_graph(500, 10, 0.05, seed=0))
+    assert small_world.path_length_[0] < ring.path_length_[0] / 2
+    assert small_world.clustering_[0] > 0.5 * ring.clustering_[0]
+    assert ring.components_ == [[500]]
 
 
 def test_centralities():
     """Test that the hub of a star has the largest centrality of every kind."""
     star = nx.star_graph(5)
-    for kind in ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank'):
-        values = centrality(star, kind)
+    for measure in ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank'):
+        values = _network('centrality', star, measure=measure).centrality_[0]
         assert max(values, key=values.get) == 0
-    with pytest.raises(AnalysisError, match='Unknown centrality'):
-        centrality(star, 'fame')
+    with pytest.raises(AnalysisError, match='Use one of degree'):
+        NetworkAnalysis('centrality', measure='fame').check()
+
+
+def test_network_analysis_of_every_frame_of_a_trajectory():
+    """Test that a network trajectory gives one summary per frame and that an ignored setting raises an error."""
+    trajectory = run('network_diffusion', settings={'until': 0.2}).trajectory_
+    summary = _network('summary', trajectory)
+    assert summary.nodes_.tolist() == [34] * len(trajectory.times)
+    with pytest.raises(AnalysisError, match='does not read measure'):
+        NetworkAnalysis('summary', measure='pagerank').check()

@@ -10,7 +10,6 @@ from skcomplex.analysis import (
     early_warning,
     fit_power_law,
     hurst_exponent,
-    mean_squared_displacement,
 )
 from skcomplex.core.errors import AnalysisError
 
@@ -90,21 +89,6 @@ def test_fit_power_law_matches_previous_estimates():
     fit = fit_power_law(samples, xmin=1.0, bootstrap=0)
     assert fit.alpha == pytest.approx(2.5147885507011036, abs=1e-8)
     assert fit.comparisons["exponential"][0] == pytest.approx(1619.996186992908, rel=1e-6)
-
-
-def test_mean_squared_displacement_brownian_motion():
-    """Test that 1000 Brownian particles give an exponent within 0.05 of 1 and their diffusion coefficient."""
-    steps = np.random.default_rng(3).normal(0, np.sqrt(2 * 0.5 * 0.1), (2000, 1000, 2))
-    displacement = mean_squared_displacement(np.cumsum(steps, axis=0), dt=0.1)
-    assert displacement.exponent == pytest.approx(1, abs=0.05)
-    assert displacement.diffusion == pytest.approx(0.5, rel=0.05)
-    assert displacement.lags.size == 1999
-
-
-def test_mean_squared_displacement_rejects_an_empty_range():
-    """Test that a fit range without lags raises an error."""
-    with pytest.raises(AnalysisError, match='fit range'):
-        mean_squared_displacement(np.zeros((10, 2)), fit_range=(100.0, 200.0))
 
 
 def test_hurst_exponent_white_noise_memory():

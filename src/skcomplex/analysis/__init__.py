@@ -15,18 +15,7 @@ from ._adapters import (
     series_of,
     snapshots_of,
 )
-from ._agents import (
-    clark_evans_ratio,
-    coarse_grain,
-    kinetic_temperature,
-    maxwell_boltzmann_test,
-    milling_order,
-    nearest_neighbor_distances,
-    nematic_order,
-    phase_order,
-    polar_order,
-    radial_distribution,
-)
+from ._agents import coarse_grain
 from ._aging import AgingCollapse, DistributionCollapse, aging_collapse, collapse_distributions, two_time_correlation
 from ._automata import (
     Automaton,
@@ -59,6 +48,8 @@ from ._criticality import (
     order_parameter_sweep,
     replica_overlap,
 )
+from ._displacement import DisplacementAnalysis
+from ._domains import DomainAnalysis
 from ._embedding import Embedding, delay_embedding, embed, false_nearest_neighbors
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
@@ -73,21 +64,8 @@ from ._extremes import (
     fit_stable,
     record_counts,
 )
-from ._fields import (
-    DispersionRelation,
-    DomainGrowth,
-    NumberFluctuations,
-    Pattern,
-    StructureFactor,
-    correlation_length,
-    dispersion_relation,
-    domain_growth,
-    domain_size,
-    number_fluctuations,
-    pattern_wavelength,
-    structure_factor,
-)
-from ._fluctuations import RelativeFluctuations, event_counts, fano_factor, relative_fluctuations
+from ._fields import DispersionRelation, StructureFactor, correlation_length, dispersion_relation, structure_factor
+from ._fluctuations import FluctuationAnalysis, event_counts
 from ._fractional import mittag_leffler
 from ._information import InformationAnalysis
 from ._invariants import (
@@ -106,22 +84,12 @@ from ._local_information import LocalInformationAnalysis
 from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
 from ._markov import MarkovAnalysis
-from ._mixing import MixingAnalysis, interface_density
+from ._mixing import MixingAnalysis
 from ._mode_decomposition import ModeDecompositionAnalysis
-from ._motifs import MotifScores, motif_counts, motif_zscores
-from ._networks import (
-    Communities,
-    NetworkSummary,
-    as_graph,
-    assortativity,
-    centrality,
-    communities,
-    degree_moments,
-    degrees,
-    neighbor_degree,
-    network_frames,
-    summarize_network,
-)
+from ._motifs import MotifAnalysis
+from ._neighbors import NeighborAnalysis
+from ._networks import NetworkAnalysis, as_graph
+from ._order import OrderAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis, laminar_durations
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
@@ -131,7 +99,6 @@ from ._reservoirs import ReservoirAnalysis
 from ._scaling import Collapse, binder_crossings, binder_cumulant, scaling_collapse
 from ._sections import Section, poincare_section, stroboscopic
 from ._series import (
-    Displacement,
     EarlyWarning,
     Fluctuation,
     autocorrelation,
@@ -139,7 +106,6 @@ from ._series import (
     detrended_fluctuation,
     early_warning,
     hurst_exponent,
-    mean_squared_displacement,
     power_spectrum,
 )
 from ._signatures import Signature, signature_analysis
@@ -161,15 +127,14 @@ __all__: list[str] = [
     'BaseAnalysis',
     'Clusters',
     'Collapse',
-    'Communities',
     'ComplexityEntropy',
     'CorrelationDimension',
     'CracklingNoise',
     'DataKind',
     'DispersionRelation',
-    'Displacement',
+    'DisplacementAnalysis',
     'DistributionCollapse',
-    'DomainGrowth',
+    'DomainAnalysis',
     'Dynamics',
     'EarlyWarning',
     'Embedding',
@@ -183,6 +148,7 @@ __all__: list[str] = [
     'ExtremeValueFit',
     'FlowMatrix',
     'Fluctuation',
+    'FluctuationAnalysis',
     'GoodnessOfFit',
     'InformationAnalysis',
     'IrreversibilityAnalysis',
@@ -197,17 +163,16 @@ __all__: list[str] = [
     'MarkovAnalysis',
     'MixingAnalysis',
     'ModeDecompositionAnalysis',
-    'MotifScores',
-    'NetworkSummary',
-    'NumberFluctuations',
+    'MotifAnalysis',
+    'NeighborAnalysis',
+    'NetworkAnalysis',
     'OrbitDiagram',
+    'OrderAnalysis',
     'PartialInformationAnalysis',
     'PassageAnalysis',
-    'Pattern',
     'Percolation',
     'PowerLawFit',
     'Recurrence',
-    'RelativeFluctuations',
     'ReservoirAnalysis',
     'Section',
     'Series',
@@ -226,7 +191,6 @@ __all__: list[str] = [
     'analyses_for',
     'analysis',
     'as_graph',
-    'assortativity',
     'autocorrelation',
     'autocorrelation_time',
     'avalanches',
@@ -235,12 +199,9 @@ __all__: list[str] = [
     'box_counting_dimension',
     'branching_ratio',
     'ccdf',
-    'centrality',
-    'clark_evans_ratio',
     'cluster_sizes',
     'coarse_grain',
     'collapse_distributions',
-    'communities',
     'compare_with_law',
     'complexity_entropy',
     'compose',
@@ -252,16 +213,12 @@ __all__: list[str] = [
     'correlation_length',
     'crackling_noise',
     'data_kinds',
-    'degree_moments',
-    'degrees',
     'delay_embedding',
     'detect_events',
     'detrended_fluctuation',
     'difference_pattern',
     'dispersion_relation',
     'divergence',
-    'domain_growth',
-    'domain_size',
     'dynamics_of',
     'early_warning',
     'embed',
@@ -271,7 +228,6 @@ __all__: list[str] = [
     'equations_of',
     'event_counts',
     'false_nearest_neighbors',
-    'fano_factor',
     'fields_of',
     'fit_avalanches',
     'fit_extreme_values',
@@ -287,14 +243,12 @@ __all__: list[str] = [
     'hill',
     'histogram',
     'hurst_exponent',
-    'interface_density',
     'inverse',
     'is_injective',
     'is_pre_injective',
     'is_surjective',
     'jacobian',
     'kaplan_yorke_dimension',
-    'kinetic_temperature',
     'kolmogorov_sinai_entropy',
     'label_clusters',
     'laminar_durations',
@@ -304,35 +258,20 @@ __all__: list[str] = [
     'loops',
     'lqr',
     'lyapunov_spectrum',
-    'maxwell_boltzmann_test',
-    'mean_squared_displacement',
-    'milling_order',
     'mittag_leffler',
-    'motif_counts',
-    'motif_zscores',
-    'nearest_neighbor_distances',
-    'neighbor_degree',
-    'nematic_order',
-    'network_frames',
     'networks_of',
     'nullclines',
-    'number_fluctuations',
     'observability',
     'orbit_diagram',
     'order_parameter_sweep',
     'path_of',
-    'pattern_wavelength',
     'percolation',
-    'phase_order',
     'poincare_section',
-    'polar_order',
     'power_spectrum',
     'purity',
-    'radial_distribution',
     'record_counts',
     'recurrence_matrix',
     'recurrence_quantification',
-    'relative_fluctuations',
     'replica_overlap',
     'scaling_collapse',
     'series_of',
@@ -345,7 +284,6 @@ __all__: list[str] = [
     'stability',
     'stroboscopic',
     'structure_factor',
-    'summarize_network',
     'surrogate_test',
     'two_time_correlation',
 ]
