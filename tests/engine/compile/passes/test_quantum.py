@@ -29,7 +29,7 @@ from skcomplex.engine.compile.passes._quantum import hamiltonian_at, state_of
 from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.models.biology.ecology import PopulationElement
-from skcomplex.models.physics.realizations.quantum import (
+from skcomplex.models.physics.common.quantum import (
     QUBIT,
     ModeElement,
     QubitElement,

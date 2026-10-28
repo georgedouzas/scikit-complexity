@@ -20,8 +20,8 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSp
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
-from ..realizations.institutions import InstitutionInteraction
-from ..realizations.learning import heuristics
+from ..common.institutions import InstitutionInteraction
+from ..common.learning import heuristics
 
 type Array = npt.NDArray[np.float64]
 

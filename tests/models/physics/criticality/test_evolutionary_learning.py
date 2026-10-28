@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import FitAnalysis
+from skcomplex.analysis import EventAnalysis, FitAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
-from skcomplex.models.physics.criticality import AvalancheAnalysis, evolutionary_sk_game
+from skcomplex.models.physics.criticality import evolutionary_sk_game
 
 STEPS = 51_000
 
@@ -59,7 +59,7 @@ def test_evolutionary_sk_game_self_organisation():
     assert np.median(temperatures[-1]) < 0.5 < np.median(temperatures[0])
     fitness = np.asarray(evolved.values('agents.fitness'))[::3][TRANSIENT // 3 :]
     threshold = np.quantile(fitness.min(axis=1), 0.97)
-    sizes = AvalancheAnalysis().check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
+    sizes = EventAnalysis('excursions').check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
     fit = FitAnalysis(minimum=5, discrete=True).check().prepare(sizes).run()
     assert fit.exponent_ == pytest.approx(1.5, abs=0.15)
     reward = np.asarray(evolved.values('agents.reward'))[STEPS // 2 :].mean()

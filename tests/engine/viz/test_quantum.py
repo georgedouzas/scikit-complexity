@@ -3,7 +3,7 @@
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.viz._quantum import local_values
-from skcomplex.models.physics.realizations.quantum import QubitElement
+from skcomplex.models.physics.common.quantum import QubitElement
 
 
 def test_local_values_give_probabilities_and_expectations():

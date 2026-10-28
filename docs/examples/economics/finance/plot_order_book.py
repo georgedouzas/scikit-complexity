@@ -10,7 +10,7 @@ chartists falls.
 # %%
 # Every step every trader forecasts the price with its strategy and a 2% noise, and bids its forecast for one share
 # when it is above the last price or asks it when it is below. A matching law pairs the orders with the limit order
-# book of the economics realizations, with price-time priority, and every trade moves money and a share between the
+# book shared by the economics models, with price-time priority, and every trade moves money and a share between the
 # two traders. Then every trader may copy the strategy of a random neighbour whose wealth grew more. Half the traders
 # start as chartists. The blueprint shows the price and the share of chartists.
 
