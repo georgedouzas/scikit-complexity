@@ -137,7 +137,7 @@ def test_networks_of_a_network_space():
 
 def test_ensemble_of_replicates():
     """Test that 200 replicates of an Ornstein-Uhlenbeck process give one row per run with its seed."""
-    result = Experiment('hasselmann', replicates=200, until=2.0, random_state=0).run()
+    result = Experiment('hasselmann', replicates=200, until=2.0, random_state=0).prepare().run().result_
     name = next(iter(result.runs[0].series))
     ensemble = ensemble_of(result, name)
     assert ensemble.values.shape == (200, ensemble.times.size)

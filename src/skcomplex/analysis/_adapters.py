@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
@@ -17,8 +17,10 @@ from ..core.system import System
 from ..engine.compile import compile_system, observables_of
 from ..engine.problems import BaseProblem, DomainKind, Form, domain_kind
 from ..engine.runtime import Trajectory
-from ..experiments import ExperimentResult
 from ._kinds import ANALYSES, AnalysisEntry, DataKind
+
+if TYPE_CHECKING:
+    from ..experiments import ExperimentResult
 
 type Array = npt.NDArray[np.float64]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
@@ -282,7 +284,7 @@ def _array_reading(kind: DataKind, dimensions: int) -> str:
     return 'the array as one series'
 
 
-def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -> list[DataKind]:
+def data_kinds(source: 'Trajectory | System | ExperimentResult | npt.ArrayLike') -> list[DataKind]:
     """Return the kinds of data that a trajectory, a system, an experiment result, or an array holds.
 
     Args:
@@ -299,6 +301,8 @@ def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -
         >>> data_kinds(np.zeros((8, 8)))
         [<DataKind.FIELD: 'field'>, <DataKind.SERIES: 'series'>]
     """
+    from ..experiments import ExperimentResult  # noqa: PLC0415  # experiments import analysis, which imports this module
+
     if isinstance(source, ExperimentResult):
         return [DataKind.ENSEMBLE]
     if not isinstance(source, Trajectory | System | BaseProblem):
@@ -557,7 +561,7 @@ class Ensemble:
     seeds: npt.NDArray[np.int64]
 
 
-def ensemble_of(result: ExperimentResult, name: str) -> Ensemble:
+def ensemble_of(result: 'ExperimentResult', name: str) -> Ensemble:
     """Return one kept series of every run of an experiment, interpolated on the times of the shortest run.
 
     Args:
@@ -587,7 +591,7 @@ def ensemble_of(result: ExperimentResult, name: str) -> Ensemble:
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, -namespace.x), NoiseLaw(namespace.x, 0.5)]
         >>> system = System(elements=[WalkerElement('walker')])
-        >>> result = Experiment(system, replicates=3, until=5, dt=0.1, outputs=['walker.x']).run()
+        >>> result = Experiment(system, replicates=3, until=5, dt=0.1, outputs=['walker.x']).prepare().run().result_
         >>> ensemble_of(result, 'walker.x').values.shape[0]
         3
     """
@@ -627,7 +631,7 @@ class Applicable:
     reading: str
 
 
-def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -> list[Applicable]:
+def analyses_for(source: 'Trajectory | System | ExperimentResult | npt.ArrayLike') -> list[Applicable]:
     """Return the registered analyses that apply to a trajectory, a system, an experiment result, or an array.
 
     Args:
@@ -645,6 +649,8 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
         >>> found['structure_factor'], found['autocorrelation']
         ('the array as one grid', 'every column of the array as a series')
     """
+    from ..experiments import ExperimentResult  # noqa: PLC0415  # experiments import analysis, which imports this module
+
     kinds = data_kinds(source)
     entries: list[AnalysisEntry] = [ANALYSES.resolve(key) for key in ANALYSES.keys]
     is_array = not isinstance(source, Trajectory | System | ExperimentResult | BaseProblem)
