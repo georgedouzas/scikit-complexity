@@ -11,9 +11,8 @@ import numpy as np
 
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
-from ._information import _dit_distribution
+from ._information import InformationAnalysis
 from ._kinds import DataKind
-from ._lazy import module
 
 REDUNDANCIES = {
     'mmi': 'PID_MMI',
@@ -111,8 +110,8 @@ class PartialInformationAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Decompose the information of the sources about the target."""
         columns = np.column_stack([column.ravel() for column in self.values_.T])
-        measure = getattr(module('dit').pid, REDUNDANCIES[self.redundancy])
-        lattice = measure(_dit_distribution(columns), [[0], [1]], [2])
+        measure = getattr(self._import('dit').pid, REDUNDANCIES[self.redundancy])
+        lattice = measure(InformationAnalysis._dit_distribution(columns), [[0], [1]], [2])
         scale = math.log(2) / math.log(self.base)
         self.redundancy_ = float(lattice.get_pi(((0,), (1,)))) * scale
         self.unique_first_ = float(lattice.get_pi(((0,),))) * scale

@@ -11,7 +11,6 @@ import numpy as np
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._lazy import module
 
 
 class KramersMoyalAnalysis(BaseAnalysis):
@@ -96,7 +95,7 @@ class KramersMoyalAnalysis(BaseAnalysis):
 
     def _run(self) -> Self:
         """Compute the drift and the diffusion in every bin."""
-        moments, edges = module('kramersmoyal').km(
+        moments, edges = self._import('kramersmoyal').km(
             self.values_,
             bins=np.asarray([self.bins]),
             powers=np.asarray([0, 1, 2]),

@@ -15,7 +15,6 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 NAMED_LAWS = {
@@ -40,52 +39,6 @@ SETTINGS = {
 MIN_TAIL = 10
 MIN_BLOCKS = 10
 MIN_POINTS = 2
-
-
-def _fit_at(array: Array, minimum: float, maximum: float | None, *, discrete: bool) -> powerlaw.Fit:
-    """Return the maximum-likelihood power law of the samples between the cutoffs."""
-    return powerlaw.Fit(
-        array,
-        xmin=minimum,
-        xmax=maximum,
-        discrete=discrete,
-        estimate_discrete=False,
-        verbose=False,
-    )
-
-
-def _cutoffs(array: Array, maximum: float | None, candidates: int) -> Array:
-    """Return up to `candidates` lower cutoffs that leave at least `MIN_TAIL` samples in the tail."""
-    inside = np.sort(array if maximum is None else array[array <= maximum])
-    distinct = np.unique(inside)
-    above = inside.size - np.searchsorted(inside, distinct)
-    distinct = distinct[above >= MIN_TAIL]
-    if distinct.size > candidates:
-        distinct = distinct[np.unique(np.linspace(0, distinct.size - 1, candidates).astype(int))]
-    return distinct
-
-
-def _best_fit(array: Array, maximum: float | None, *, discrete: bool, candidates: int) -> powerlaw.Fit:
-    """Return the power law whose lower cutoff minimises the Kolmogorov-Smirnov distance over the candidates."""
-    cutoffs = _cutoffs(array, maximum, candidates)
-    if cutoffs.size == 0:
-        error_msg = f'No cutoff leaves at least {MIN_TAIL} samples in the tail. Give more samples.'
-        raise AnalysisError(error_msg)
-    fits = [_fit_at(array, float(cutoff), maximum, discrete=discrete) for cutoff in cutoffs]
-    return min(fits, key=lambda fit: float(fit.power_law.D))
-
-
-def _sample_power_law(size: int, alpha: float, minimum: float, rng: np.random.Generator, *, discrete: bool) -> Array:
-    """Return samples of a power law above `minimum`, rounded with Clauset's approximation when discrete."""
-    uniform = rng.random(size)
-    if discrete:
-        return np.floor((minimum - 0.5) * (1 - uniform) ** (-1 / (alpha - 1)) + 0.5)
-    return minimum * (1 - uniform) ** (-1 / (alpha - 1))
-
-
-def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
-    """Return SciPy's starting point of a fit, McCulloch's quantile estimate for stable laws, unchanged."""
-    return start
 
 
 class FitAnalysis(BaseAnalysis):
@@ -285,7 +238,7 @@ class FitAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the series of the source pooled into one sample."""
         series = self._read_series(source, self.variables)
-        self.values_ = real_array(series.values, 'values').ravel()
+        self.values_ = self._read_real(series.values, 'values').ravel()
         self.labels_ = series.labels
         return self
 
@@ -299,14 +252,14 @@ class FitAnalysis(BaseAnalysis):
             in_tail = rng.random(array.size) < self.tail_ / array.size
             synthetic = np.concatenate(
                 [
-                    _sample_power_law(int(in_tail.sum()), alpha, cutoff, rng, discrete=self.discrete),
+                    self._sample_power_law(int(in_tail.sum()), alpha, cutoff, rng, discrete=self.discrete),
                     rng.choice(body, int((~in_tail).sum())) if body.size else np.zeros(0),
                 ],
             )
             if self.minimum is None:
-                refit = _best_fit(synthetic, self.maximum, discrete=self.discrete, candidates=self.candidates)
+                refit = self._best_fit(synthetic, self.maximum, discrete=self.discrete, candidates=self.candidates)
             else:
-                refit = _fit_at(synthetic, self.minimum, self.maximum, discrete=self.discrete)
+                refit = self._fit_at(synthetic, self.minimum, self.maximum, discrete=self.discrete)
             exceed += float(refit.power_law.D) >= distance
         return exceed / self.bootstrap
 
@@ -315,7 +268,7 @@ class FitAnalysis(BaseAnalysis):
         array = self.values_[self.values_ > 0]
         upper = np.inf if self.maximum is None else self.maximum
         if self.minimum is None:
-            fit = _best_fit(array, self.maximum, discrete=self.discrete, candidates=self.candidates)
+            fit = self._best_fit(array, self.maximum, discrete=self.discrete, candidates=self.candidates)
         else:
             inside = array[(array >= self.minimum) & (array <= upper)]
             if inside.size < MIN_TAIL:
@@ -324,7 +277,7 @@ class FitAnalysis(BaseAnalysis):
                     f'{MIN_TAIL}. Lower the minimum or give more samples.'
                 )
                 raise AnalysisError(error_msg)
-            fit = _fit_at(array, float(self.minimum), self.maximum, discrete=self.discrete)
+            fit = self._fit_at(array, float(self.minimum), self.maximum, discrete=self.discrete)
         self.exponent_ = float(fit.power_law.alpha)
         self.minimum_ = float(fit.xmin)
         self.maximum_ = self.maximum
@@ -383,7 +336,7 @@ class FitAnalysis(BaseAnalysis):
                 warnings.filterwarnings('ignore', module=r'powerlaw\.')
                 self._run_power()
         elif self.law == 'stable':
-            index, skewness, location, scale = stats.levy_stable.fit(self.values_, optimizer=_starting_point)
+            index, skewness, location, scale = stats.levy_stable.fit(self.values_, optimizer=self._starting_point)
             self.index_, self.skewness_ = float(index), float(skewness)
             self.location_, self.scale_ = float(location), float(scale)
         elif self.law == 'extreme-value':
@@ -393,3 +346,56 @@ class FitAnalysis(BaseAnalysis):
         else:
             self._run_named_law()
         return self
+
+    @staticmethod
+    def _fit_at(array: Array, minimum: float, maximum: float | None, *, discrete: bool) -> powerlaw.Fit:
+        """Return the maximum-likelihood power law of the samples between the cutoffs."""
+        return powerlaw.Fit(
+            array,
+            xmin=minimum,
+            xmax=maximum,
+            discrete=discrete,
+            estimate_discrete=False,
+            verbose=False,
+        )
+
+    @staticmethod
+    def _cutoffs(array: Array, maximum: float | None, candidates: int) -> Array:
+        """Return up to `candidates` lower cutoffs that leave at least `MIN_TAIL` samples in the tail."""
+        inside = np.sort(array if maximum is None else array[array <= maximum])
+        distinct = np.unique(inside)
+        above = inside.size - np.searchsorted(inside, distinct)
+        distinct = distinct[above >= MIN_TAIL]
+        if distinct.size > candidates:
+            distinct = distinct[np.unique(np.linspace(0, distinct.size - 1, candidates).astype(int))]
+        return distinct
+
+    @staticmethod
+    def _best_fit(array: Array, maximum: float | None, *, discrete: bool, candidates: int) -> powerlaw.Fit:
+        """Return the power law whose lower cutoff minimises the Kolmogorov-Smirnov distance over the candidates."""
+        cutoffs = FitAnalysis._cutoffs(array, maximum, candidates)
+        if cutoffs.size == 0:
+            error_msg = f'No cutoff leaves at least {MIN_TAIL} samples in the tail. Give more samples.'
+            raise AnalysisError(error_msg)
+        fits = [FitAnalysis._fit_at(array, float(cutoff), maximum, discrete=discrete) for cutoff in cutoffs]
+        return min(fits, key=lambda fit: float(fit.power_law.D))
+
+    @staticmethod
+    def _sample_power_law(
+        size: int,
+        alpha: float,
+        minimum: float,
+        rng: np.random.Generator,
+        *,
+        discrete: bool,
+    ) -> Array:
+        """Return samples of a power law above `minimum`, rounded with Clauset's approximation when discrete."""
+        uniform = rng.random(size)
+        if discrete:
+            return np.floor((minimum - 0.5) * (1 - uniform) ** (-1 / (alpha - 1)) + 0.5)
+        return minimum * (1 - uniform) ** (-1 / (alpha - 1))
+
+    @staticmethod
+    def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
+        """Return SciPy's starting point of a fit, McCulloch's quantile estimate for stable laws, unchanged."""
+        return start

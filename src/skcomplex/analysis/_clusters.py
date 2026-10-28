@@ -27,44 +27,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 
-def _merge(labels: Labels, axis: int) -> None:
-    """Merge clusters that touch across the periodic edges of an axis, in place."""
-    parent = np.arange(labels.max() + 1)
-
-    def find(item: int) -> int:
-        while parent[item] != item:
-            parent[item] = parent[parent[item]]
-            item = int(parent[item])
-        return item
-
-    for first, last in zip(np.take(labels, 0, axis=axis).ravel(), np.take(labels, -1, axis=axis).ravel(), strict=True):
-        if first and last:
-            parent[find(int(first))] = find(int(last))
-    roots = np.asarray([find(int(item)) for item in range(parent.size)])
-    labels[...] = roots[labels]
-
-
-def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[Labels, Labels]:
-    """Return the label of every cell, 0 for empty cells and 1 onwards for clusters, and the size of every cluster."""
-    occupied = np.asarray(grid, dtype=bool)
-    structure = ndimage.generate_binary_structure(occupied.ndim, occupied.ndim if diagonal else 1)
-    labels, _ = ndimage.label(occupied, structure=structure)
-    if periodic:
-        for axis in range(occupied.ndim):
-            _merge(labels, axis)
-    distinct = np.unique(labels[labels > 0])
-    relabelled = np.zeros_like(labels)
-    relabelled[labels > 0] = np.searchsorted(distinct, labels[labels > 0]) + 1
-    return relabelled, np.bincount(relabelled.ravel())[1:]
-
-
-def _spans(labels: Labels, axis: int) -> bool:
-    """Return whether one cluster touches both opposite edges along an axis."""
-    first = set(np.take(labels, 0, axis=axis).ravel()) - {0}
-    last = set(np.take(labels, -1, axis=axis).ravel()) - {0}
-    return bool(first & last)
-
-
 class ClusterAnalysis(BaseAnalysis):
     """Clusters of the occupied cells of a grid, or the connected components of a graph, of one kind.
 
@@ -184,9 +146,9 @@ class ClusterAnalysis(BaseAnalysis):
             self._run_sizes()
             total, self.spanning_ = self.graph_.number_of_nodes(), False
         else:
-            labels, sizes = _label(self.grids_[0], periodic=False, diagonal=self.diagonal)
+            labels, sizes = self._label(self.grids_[0], periodic=False, diagonal=self.diagonal)
             self.sizes_ = np.sort(sizes)[::-1]
-            total, self.spanning_ = self.grids_[0].size, _spans(labels, self.axis)
+            total, self.spanning_ = self.grids_[0].size, self._spans(labels, self.axis)
         rest = self.sizes_[1:].astype(float)
         self.strength_ = float(self.sizes_[0] / total) if self.sizes_.size else 0.0
         self.mean_size_ = float(np.sum(rest**2) / rest.sum()) if rest.size else 0.0
@@ -197,19 +159,64 @@ class ClusterAnalysis(BaseAnalysis):
             components = nx.connected_components(self.graph_.to_undirected(as_view=True))
             sizes = np.asarray([len(component) for component in components], dtype=np.int64)
         else:
-            _, sizes = _label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
+            _, sizes = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
         self.sizes_ = np.sort(sizes)[::-1]
 
     def _run(self) -> Self:
         """Compute the clusters, their sizes, the percolation observables, or the spanning probability."""
         if self.kind == 'labels':
-            self.labels_, self.sizes_ = _label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
-            self.spanning_ = _spans(self.labels_, self.axis)
+            self.labels_, self.sizes_ = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
+            self.spanning_ = self._spans(self.labels_, self.axis)
         elif self.kind == 'sizes':
             self._run_sizes()
         elif self.kind == 'percolation':
             self._run_percolation()
         else:
-            spans = [_spans(_label(grid, periodic=False, diagonal=self.diagonal)[0], self.axis) for grid in self.grids_]
+            spans = [
+                self._spans(self._label(grid, periodic=False, diagonal=self.diagonal)[0], self.axis)
+                for grid in self.grids_
+            ]
             self.probability_ = float(np.mean(spans))
         return self
+
+    @staticmethod
+    def _merge(labels: Labels, axis: int) -> None:
+        """Merge clusters that touch across the periodic edges of an axis, in place."""
+        parent = np.arange(labels.max() + 1)
+
+        def find(item: int) -> int:
+            while parent[item] != item:
+                parent[item] = parent[parent[item]]
+                item = int(parent[item])
+            return item
+
+        for first, last in zip(
+            np.take(labels, 0, axis=axis).ravel(),
+            np.take(labels, -1, axis=axis).ravel(),
+            strict=True,
+        ):
+            if first and last:
+                parent[find(int(first))] = find(int(last))
+        roots = np.asarray([find(int(item)) for item in range(parent.size)])
+        labels[...] = roots[labels]
+
+    @staticmethod
+    def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[Labels, Labels]:
+        """Return the label of each cell, 0 for empty cells and 1 onwards for clusters, and the size of each cluster."""
+        occupied = np.asarray(grid, dtype=bool)
+        structure = ndimage.generate_binary_structure(occupied.ndim, occupied.ndim if diagonal else 1)
+        labels, _ = ndimage.label(occupied, structure=structure)
+        if periodic:
+            for axis in range(occupied.ndim):
+                ClusterAnalysis._merge(labels, axis)
+        distinct = np.unique(labels[labels > 0])
+        relabelled = np.zeros_like(labels)
+        relabelled[labels > 0] = np.searchsorted(distinct, labels[labels > 0]) + 1
+        return relabelled, np.bincount(relabelled.ravel())[1:]
+
+    @staticmethod
+    def _spans(labels: Labels, axis: int) -> bool:
+        """Return whether one cluster touches both opposite edges along an axis."""
+        first = set(np.take(labels, 0, axis=axis).ravel()) - {0}
+        last = set(np.take(labels, -1, axis=axis).ravel()) - {0}
+        return bool(first & last)

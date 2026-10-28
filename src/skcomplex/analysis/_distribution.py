@@ -12,7 +12,6 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('histogram', 'ccdf', 'gini', 'tail-index', 'records')
@@ -24,52 +23,6 @@ SETTINGS = {
     'records': set(),
 }
 """Settings every kind reads, besides `kind` and `variables`."""
-
-
-def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:
-    """Return the edges and the probability density of a histogram, with bins equally spaced in the logarithm."""
-    if log:
-        if np.any(array <= 0):
-            error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins with `log=False`.'
-            raise AnalysisError(error_msg)
-        edges = np.logspace(np.log10(array.min()), np.log10(array.max()), bins + 1)
-    else:
-        edges = np.linspace(array.min(), array.max(), bins + 1)
-    density, edges = np.histogram(array, bins=edges, density=True)
-    return edges, density
-
-
-def _ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
-    """Return the sorted distinct values of a sample and the share of samples at or above each of them."""
-    array = np.sort(real_array(values, 'values'))
-    distinct, first = np.unique(array, return_index=True)
-    return distinct, 1 - first / array.size
-
-
-def _gini(array: Array) -> float:
-    """Return the Gini coefficient of nonnegative values."""
-    array = np.sort(array)
-    if array.size == 0 or array.sum() == 0:
-        return 0.0
-    ranks = np.arange(1, array.size + 1)
-    return float(np.sum((2 * ranks - array.size - 1) * array) / (array.size * array.sum()))
-
-
-def _tail_index(array: Array, tail: int) -> float:
-    """Return the Hill estimate of the tail index from the `tail` largest samples."""
-    array = np.sort(array)[::-1]
-    if not 0 < tail < array.size:
-        error_msg = f'tail = {tail} must lie between 1 and the number of samples minus 1, {array.size - 1}.'
-        raise AnalysisError(error_msg)
-    return float(1 / np.mean(np.log(array[:tail] / array[tail])))
-
-
-def _record_counts(sequences: Array) -> npt.NDArray[np.int64]:
-    """Return the number of records of every row, the values larger than every value before them."""
-    previous = np.maximum.accumulate(sequences, axis=1)
-    first = np.ones((sequences.shape[0], 1), dtype=bool)
-    records = np.concatenate([first, sequences[:, 1:] > previous[:, :-1]], axis=1)
-    return records.sum(axis=1).astype(np.int64)
 
 
 class DistributionAnalysis(BaseAnalysis):
@@ -175,7 +128,7 @@ class DistributionAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the series of the source, pooled into one sample except for records."""
         series = self._read_series(source, self.variables)
-        values = real_array(series.values, 'values')
+        values = self._read_real(series.values, 'values')
         self.values_ = values if self.kind == 'records' else values.ravel()
         self.labels_ = series.labels
         return self
@@ -183,13 +136,59 @@ class DistributionAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the description of the sample."""
         if self.kind == 'histogram':
-            self.edges_, self.density_ = _histogram(self.values_, self.bins, log=self.log)
+            self.edges_, self.density_ = self._histogram(self.values_, self.bins, log=self.log)
         elif self.kind == 'ccdf':
-            self.support_, self.survival_ = _ccdf(self.values_)
+            self.support_, self.survival_ = self._ccdf(self.values_)
         elif self.kind == 'gini':
-            self.gini_ = _gini(self.values_)
+            self.gini_ = self._gini(self.values_)
         elif self.kind == 'tail-index':
-            self.tail_index_ = _tail_index(self.values_, self.tail)
+            self.tail_index_ = self._tail_index(self.values_, self.tail)
         else:
-            self.records_ = _record_counts(self.values_.T)
+            self.records_ = self._record_counts(self.values_.T)
         return self
+
+    @staticmethod
+    def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:
+        """Return the edges and the probability density of a histogram, with bins equally spaced in the logarithm."""
+        if log:
+            if np.any(array <= 0):
+                error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins with `log=False`.'
+                raise AnalysisError(error_msg)
+            edges = np.logspace(np.log10(array.min()), np.log10(array.max()), bins + 1)
+        else:
+            edges = np.linspace(array.min(), array.max(), bins + 1)
+        density, edges = np.histogram(array, bins=edges, density=True)
+        return edges, density
+
+    @staticmethod
+    def _ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
+        """Return the sorted distinct values of a sample and the share of samples at or above each of them."""
+        array = np.sort(BaseAnalysis._read_real(values, 'values'))
+        distinct, first = np.unique(array, return_index=True)
+        return distinct, 1 - first / array.size
+
+    @staticmethod
+    def _gini(array: Array) -> float:
+        """Return the Gini coefficient of nonnegative values."""
+        array = np.sort(array)
+        if array.size == 0 or array.sum() == 0:
+            return 0.0
+        ranks = np.arange(1, array.size + 1)
+        return float(np.sum((2 * ranks - array.size - 1) * array) / (array.size * array.sum()))
+
+    @staticmethod
+    def _tail_index(array: Array, tail: int) -> float:
+        """Return the Hill estimate of the tail index from the `tail` largest samples."""
+        array = np.sort(array)[::-1]
+        if not 0 < tail < array.size:
+            error_msg = f'tail = {tail} must lie between 1 and the number of samples minus 1, {array.size - 1}.'
+            raise AnalysisError(error_msg)
+        return float(1 / np.mean(np.log(array[:tail] / array[tail])))
+
+    @staticmethod
+    def _record_counts(sequences: Array) -> npt.NDArray[np.int64]:
+        """Return the number of records of every row, the values larger than every value before them."""
+        previous = np.maximum.accumulate(sequences, axis=1)
+        first = np.ones((sequences.shape[0], 1), dtype=bool)
+        records = np.concatenate([first, sequences[:, 1:] > previous[:, :-1]], axis=1)
+        return records.sum(axis=1).astype(np.int64)

@@ -28,79 +28,6 @@ MIN_SIZES = 2
 GRID = 50
 
 
-def _scaled(
-    grid: Array,
-    curves: Mapping[float, Array],
-    critical: float,
-    nu: float,
-    exponent: float,
-) -> list[tuple[Array, Array]]:
-    """Return every curve against `(p - p_c) L^(1/nu)` and scaled by `L^-exponent`."""
-    return [
-        ((grid - critical) * size ** (1 / nu), curve * float(size) ** (-exponent)) for size, curve in curves.items()
-    ]
-
-
-def _quality(scaled: list[tuple[Array, Array]]) -> float:
-    """Return the mean squared relative distance of every point to the other curves where they overlap."""
-    residuals = []
-    for (x, y), (u, v) in itertools.permutations(scaled, 2):
-        inside = (x >= u.min()) & (x <= u.max())
-        residuals.append((y[inside] - np.interp(x[inside], u, v)) ** 2)
-    joined = np.concatenate(residuals) if residuals else np.zeros(0)
-    if not joined.size:
-        return float('inf')
-    scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
-    return float(joined.mean() / scale)
-
-
-def _scaling_collapse(
-    grid: Array,
-    curves: Mapping[float, Array],
-    values: dict[str, float],
-    fit: Sequence[str],
-) -> tuple[dict[str, float], float]:
-    """Return the critical value, `nu`, and the exponent, fitted by minimizing the quality, and the quality."""
-
-    def objective(free: Array) -> float:
-        """Return the quality with the fitted values replaced."""
-        chosen = {**values, **dict(zip(fit, free, strict=True))}
-        if chosen['nu'] <= 0:
-            return float('inf')
-        return _quality(_scaled(grid, curves, chosen['critical'], chosen['nu'], chosen['exponent']))
-
-    values = dict(values)
-    if fit:
-        result = optimize.minimize(objective, [values[name] for name in fit], method='Nelder-Mead')
-        values.update(dict(zip(fit, (float(item) for item in result.x), strict=True)))
-    return values, _quality(_scaled(grid, curves, values['critical'], values['nu'], values['exponent']))
-
-
-def _spread(curves: list[tuple[Array, Array]]) -> float:
-    """Return the largest difference between curves interpolated on the overlap of their abscissas."""
-    low = max(float(x.min()) for x, _ in curves)
-    high = min(float(x.max()) for x, _ in curves)
-    if low >= high:
-        return float('nan')
-    grid = np.linspace(low, high, GRID)
-    values = np.asarray([np.interp(grid, x, y) for x, y in curves])
-    return float(np.max(values.max(axis=0) - values.min(axis=0)))
-
-
-def _scaled_densities(samples: Mapping[float, Array], edges: Array) -> tuple[Array, float]:
-    """Return the densities `t P(tau, t)` of samples at every age against `tau / t`, and their largest spread."""
-    ages = sorted(samples)
-    densities = np.asarray(
-        [np.histogram(samples[age] / age, bins=edges)[0] / (samples[age].size * np.diff(edges)) for age in ages],
-    )
-    positive = np.all(densities > 0, axis=0)
-    spread = float('nan')
-    if positive.any():
-        kept = densities[:, positive]
-        spread = float(np.max((kept.max(axis=0) - kept.min(axis=0)) / kept.mean(axis=0)))
-    return densities, spread
-
-
 class CollapseAnalysis(BaseAnalysis):
     """Collapse of curves or distributions of several sizes or ages onto one, of one kind.
 
@@ -251,17 +178,94 @@ class CollapseAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             start = {'critical': self.critical, 'nu': self.nu, 'exponent': self.exponent}
             grid = np.asarray(self.parameters, dtype=float)
-            values, self.quality_ = _scaling_collapse(grid, self.values_, start, self.fit)
+            values, self.quality_ = self._scaling_collapse(grid, self.values_, start, self.fit)
             self.critical_, self.nu_, self.exponent_ = values['critical'], values['nu'], values['exponent']
         elif self.kind == 'aging':
             grid = np.asarray(self.lags, dtype=float)
             curves = np.asarray(self.values_, dtype=float)
-            self.time_spread_ = _spread([(grid, row) for row in curves])
-            self.ratio_spread_ = _spread(
+            self.time_spread_ = self._spread([(grid, row) for row in curves])
+            self.ratio_spread_ = self._spread(
                 [(grid / start, row) for start, row in zip(self.waiting, curves, strict=True)],
             )
         else:
             edges = np.geomspace(0.01, 10, 21) if self.ratios is None else np.asarray(self.ratios, dtype=float)
-            self.densities_, self.spread_ = _scaled_densities(self.values_, edges)
+            self.densities_, self.spread_ = self._scaled_densities(self.values_, edges)
             self.ratios_ = np.sqrt(edges[1:] * edges[:-1])
         return self
+
+    @staticmethod
+    def _scaled(
+        grid: Array,
+        curves: Mapping[float, Array],
+        critical: float,
+        nu: float,
+        exponent: float,
+    ) -> list[tuple[Array, Array]]:
+        """Return every curve against `(p - p_c) L^(1/nu)` and scaled by `L^-exponent`."""
+        return [
+            ((grid - critical) * size ** (1 / nu), curve * float(size) ** (-exponent)) for size, curve in curves.items()
+        ]
+
+    @staticmethod
+    def _quality(scaled: list[tuple[Array, Array]]) -> float:
+        """Return the mean squared relative distance of every point to the other curves where they overlap."""
+        residuals = []
+        for (x, y), (u, v) in itertools.permutations(scaled, 2):
+            inside = (x >= u.min()) & (x <= u.max())
+            residuals.append((y[inside] - np.interp(x[inside], u, v)) ** 2)
+        joined = np.concatenate(residuals) if residuals else np.zeros(0)
+        if not joined.size:
+            return float('inf')
+        scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
+        return float(joined.mean() / scale)
+
+    @staticmethod
+    def _scaling_collapse(
+        grid: Array,
+        curves: Mapping[float, Array],
+        values: dict[str, float],
+        fit: Sequence[str],
+    ) -> tuple[dict[str, float], float]:
+        """Return the critical value, `nu`, and the exponent, fitted by minimizing the quality, and the quality."""
+
+        def objective(free: Array) -> float:
+            """Return the quality with the fitted values replaced."""
+            chosen = {**values, **dict(zip(fit, free, strict=True))}
+            if chosen['nu'] <= 0:
+                return float('inf')
+            return CollapseAnalysis._quality(
+                CollapseAnalysis._scaled(grid, curves, chosen['critical'], chosen['nu'], chosen['exponent']),
+            )
+
+        values = dict(values)
+        if fit:
+            result = optimize.minimize(objective, [values[name] for name in fit], method='Nelder-Mead')
+            values.update(dict(zip(fit, (float(item) for item in result.x), strict=True)))
+        return values, CollapseAnalysis._quality(
+            CollapseAnalysis._scaled(grid, curves, values['critical'], values['nu'], values['exponent']),
+        )
+
+    @staticmethod
+    def _spread(curves: list[tuple[Array, Array]]) -> float:
+        """Return the largest difference between curves interpolated on the overlap of their abscissas."""
+        low = max(float(x.min()) for x, _ in curves)
+        high = min(float(x.max()) for x, _ in curves)
+        if low >= high:
+            return float('nan')
+        grid = np.linspace(low, high, GRID)
+        values = np.asarray([np.interp(grid, x, y) for x, y in curves])
+        return float(np.max(values.max(axis=0) - values.min(axis=0)))
+
+    @staticmethod
+    def _scaled_densities(samples: Mapping[float, Array], edges: Array) -> tuple[Array, float]:
+        """Return the densities `t P(tau, t)` of samples at every age against `tau / t`, and their largest spread."""
+        ages = sorted(samples)
+        densities = np.asarray(
+            [np.histogram(samples[age] / age, bins=edges)[0] / (samples[age].size * np.diff(edges)) for age in ages],
+        )
+        positive = np.all(densities > 0, axis=0)
+        spread = float('nan')
+        if positive.any():
+            kept = densities[:, positive]
+            spread = float(np.max((kept.max(axis=0) - kept.min(axis=0)) / kept.mean(axis=0)))
+        return densities, spread

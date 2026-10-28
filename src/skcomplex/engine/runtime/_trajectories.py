@@ -143,10 +143,10 @@ class Trajectory:
         Examples:
             >>> import numpy as np
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.experiments._ensembles import _replicate
             >>> from skcomplex.engine.runtime import Simulation
+            >>> from skcomplex.experiments import BaseExperiment
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
-            >>> ensemble = _replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
+            >>> ensemble = BaseExperiment._replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
             >>> trajectory = Simulation(ensemble, dt=1).run(until=2).trajectory_
             >>> float(trajectory.member(1, compile_system(logistic_map())).values('map.x')[0])
             0.2

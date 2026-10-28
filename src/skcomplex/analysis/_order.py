@@ -24,40 +24,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `group`."""
 
 
-def _unit_vectors(headings: npt.ArrayLike, *, vectors: bool) -> Array:
-    """Return unit vectors from angles, or normalized velocity vectors, with agents on the second to last axis."""
-    array = np.asarray(headings, dtype=float)
-    if not vectors:
-        return np.stack([np.cos(array), np.sin(array)], axis=-1)
-    norms = np.linalg.norm(array, axis=-1, keepdims=True)
-    return array / np.where(norms > 0, norms, 1.0)
-
-
-def _polar_order(headings: npt.ArrayLike, *, vectors: bool = False) -> Array:
-    """Return the length of the mean heading of angles or velocity vectors, over the agents of every frame."""
-    units = _unit_vectors(headings, vectors=vectors)
-    return np.linalg.norm(units.mean(axis=-2), axis=-1)
-
-
-def _nematic_order(headings: npt.ArrayLike) -> Array:
-    """Return `|<exp(2 i theta)>|` of angles over the agents of every frame."""
-    return np.abs(np.mean(np.exp(2j * np.asarray(headings, dtype=float)), axis=-1))
-
-
-def _phase_order(phases: npt.ArrayLike) -> npt.NDArray[np.complex128]:
-    """Return Kuramoto's complex order parameter `<exp(i theta)>` over the agents of every frame."""
-    return np.asarray(np.mean(np.exp(1j * np.asarray(phases, dtype=float)), axis=-1), dtype=np.complex128)
-
-
-def _milling_order(positions: npt.ArrayLike, velocities: npt.ArrayLike) -> Array:
-    """Return the mean normalized angular momentum of agents in a plane about their centre, for every frame."""
-    places = np.asarray(positions, dtype=float)
-    moving = _unit_vectors(velocities, vectors=True)
-    relative = _unit_vectors(places - places.mean(axis=-2, keepdims=True), vectors=True)
-    momentum = relative[..., 0] * moving[..., 1] - relative[..., 1] * moving[..., 0]
-    return np.abs(momentum.mean(axis=-1))
-
-
 class OrderAnalysis(BaseAnalysis):
     """Collective order of the agents of a group at every frame, of one kind.
 
@@ -166,11 +132,47 @@ class OrderAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         if self.kind == 'milling':
-            self.order_ = _milling_order(positions, velocities)
+            self.order_ = self._milling_order(positions, velocities)
         elif self.kind == 'polar':
-            self.order_ = _polar_order(velocities, vectors=True) if velocities is not None else _polar_order(headings)
+            self.order_ = (
+                self._polar_order(velocities, vectors=True) if velocities is not None else self._polar_order(headings)
+            )
         elif self.kind == 'nematic':
-            self.order_ = _nematic_order(headings)
+            self.order_ = self._nematic_order(headings)
         else:
-            self.order_ = _phase_order(headings)
+            self.order_ = self._phase_order(headings)
         return self
+
+    @staticmethod
+    def _unit_vectors(headings: npt.ArrayLike, *, vectors: bool) -> Array:
+        """Return unit vectors from angles, or normalized velocity vectors, with agents on the second to last axis."""
+        array = np.asarray(headings, dtype=float)
+        if not vectors:
+            return np.stack([np.cos(array), np.sin(array)], axis=-1)
+        norms = np.linalg.norm(array, axis=-1, keepdims=True)
+        return array / np.where(norms > 0, norms, 1.0)
+
+    @staticmethod
+    def _polar_order(headings: npt.ArrayLike, *, vectors: bool = False) -> Array:
+        """Return the length of the mean heading of angles or velocity vectors, over the agents of every frame."""
+        units = OrderAnalysis._unit_vectors(headings, vectors=vectors)
+        return np.linalg.norm(units.mean(axis=-2), axis=-1)
+
+    @staticmethod
+    def _nematic_order(headings: npt.ArrayLike) -> Array:
+        """Return `|<exp(2 i theta)>|` of angles over the agents of every frame."""
+        return np.abs(np.mean(np.exp(2j * np.asarray(headings, dtype=float)), axis=-1))
+
+    @staticmethod
+    def _phase_order(phases: npt.ArrayLike) -> npt.NDArray[np.complex128]:
+        """Return Kuramoto's complex order parameter `<exp(i theta)>` over the agents of every frame."""
+        return np.asarray(np.mean(np.exp(1j * np.asarray(phases, dtype=float)), axis=-1), dtype=np.complex128)
+
+    @staticmethod
+    def _milling_order(positions: npt.ArrayLike, velocities: npt.ArrayLike) -> Array:
+        """Return the mean normalized angular momentum of agents in a plane about their centre, for every frame."""
+        places = np.asarray(positions, dtype=float)
+        moving = OrderAnalysis._unit_vectors(velocities, vectors=True)
+        relative = OrderAnalysis._unit_vectors(places - places.mean(axis=-2, keepdims=True), vectors=True)
+        momentum = relative[..., 0] * moving[..., 1] - relative[..., 1] * moving[..., 0]
+        return np.abs(momentum.mean(axis=-1))

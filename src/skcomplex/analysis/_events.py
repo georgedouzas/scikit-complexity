@@ -13,7 +13,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('detect', 'counts', 'laminar-durations')
@@ -23,42 +22,6 @@ SETTINGS = {
     'laminar-durations': {'threshold'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
-
-
-def _step(clock: Array) -> float:
-    """Return the median time between samples, 1 for a single sample."""
-    return float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
-
-
-def _detect_events(array: Array, clock: Array, threshold: float) -> tuple[Array, Array, Array, Array, Array]:
-    """Return the starts, sizes, durations, peaks, and waiting times of the runs of values above a threshold."""
-    step = _step(clock)
-    active = np.concatenate([[False], array > threshold, [False]])
-    edges = np.diff(active.astype(int))
-    first, last = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
-    sizes = np.asarray([array[start:end].sum() for start, end in zip(first, last, strict=True)])
-    peaks = np.asarray([array[start:end].max() for start, end in zip(first, last, strict=True)])
-    durations = (clock[last - 1] - clock[first] + step) if first.size else np.zeros(0)
-    waiting = clock[first[1:]] - clock[last[:-1] - 1] - step if first.size > 1 else np.zeros(0)
-    return clock[first], sizes, np.asarray(durations, dtype=float), peaks, np.asarray(waiting, dtype=float)
-
-
-def _event_counts(times: Array, window: float, start: float, end: float | None) -> Array:
-    """Return the number of events in consecutive windows of equal length."""
-    last = float(times.max()) if end is None else end
-    count = int((last - start) // window)
-    edges = start + window * np.arange(count + 1)
-    return np.histogram(times, bins=edges)[0].astype(float)
-
-
-def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
-    """Return the durations of the complete runs of values within a threshold of 0, between two bursts."""
-    array = np.abs(values)
-    step = _step(clock)
-    laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
-    starts, ends = np.flatnonzero(np.diff(laminar) == 1), np.flatnonzero(np.diff(laminar) == -1)
-    complete = (starts > 0) & (ends < array.size)
-    return clock[ends[complete] - 1] - clock[starts[complete]] + step
 
 
 class EventAnalysis(BaseAnalysis):
@@ -193,15 +156,51 @@ class EventAnalysis(BaseAnalysis):
     def _run(self) -> Self:
         """Compute the events, the counts, or the laminar durations."""
         if self.kind == 'counts':
-            self.counts_ = _event_counts(self.times_, float(self.window or 0), self.start, self.end)
+            self.counts_ = self._event_counts(self.times_, float(self.window or 0), self.start, self.end)
             return self
-        array = real_array(self.values_[:, 0], 'values')
+        array = self._read_real(self.values_[:, 0], 'values')
         if self.kind == 'laminar-durations':
-            self.durations_ = _laminar_durations(array, self.times_, self.threshold)
+            self.durations_ = self._laminar_durations(array, self.times_, self.threshold)
             return self
-        self.starts_, self.sizes_, self.durations_, self.peaks_, self.waiting_times_ = _detect_events(
+        self.starts_, self.sizes_, self.durations_, self.peaks_, self.waiting_times_ = self._detect_events(
             array,
             self.times_,
             self.threshold,
         )
         return self
+
+    @staticmethod
+    def _step(clock: Array) -> float:
+        """Return the median time between samples, 1 for a single sample."""
+        return float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
+
+    @staticmethod
+    def _detect_events(array: Array, clock: Array, threshold: float) -> tuple[Array, Array, Array, Array, Array]:
+        """Return the starts, sizes, durations, peaks, and waiting times of the runs of values above a threshold."""
+        step = EventAnalysis._step(clock)
+        active = np.concatenate([[False], array > threshold, [False]])
+        edges = np.diff(active.astype(int))
+        first, last = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+        sizes = np.asarray([array[start:end].sum() for start, end in zip(first, last, strict=True)])
+        peaks = np.asarray([array[start:end].max() for start, end in zip(first, last, strict=True)])
+        durations = (clock[last - 1] - clock[first] + step) if first.size else np.zeros(0)
+        waiting = clock[first[1:]] - clock[last[:-1] - 1] - step if first.size > 1 else np.zeros(0)
+        return clock[first], sizes, np.asarray(durations, dtype=float), peaks, np.asarray(waiting, dtype=float)
+
+    @staticmethod
+    def _event_counts(times: Array, window: float, start: float, end: float | None) -> Array:
+        """Return the number of events in consecutive windows of equal length."""
+        last = float(times.max()) if end is None else end
+        count = int((last - start) // window)
+        edges = start + window * np.arange(count + 1)
+        return np.histogram(times, bins=edges)[0].astype(float)
+
+    @staticmethod
+    def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
+        """Return the durations of the complete runs of values within a threshold of 0, between two bursts."""
+        array = np.abs(values)
+        step = EventAnalysis._step(clock)
+        laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
+        starts, ends = np.flatnonzero(np.diff(laminar) == 1), np.flatnonzero(np.diff(laminar) == -1)
+        complete = (starts > 0) & (ends < array.size)
+        return clock[ends[complete] - 1] - clock[starts[complete]] + step

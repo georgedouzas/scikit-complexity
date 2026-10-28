@@ -19,8 +19,7 @@ from ..engine.problems import SCALAR_DIALECT, BaseProblem, print_expressions
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._stability import _Dynamics, _dynamics_of
-from ._utils import system_of
+from ._stability import StabilityAnalysis, _Dynamics
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('spectrum', 'largest')
@@ -30,51 +29,6 @@ SETTINGS = {
 }
 """Settings every kind reads, besides `kind`."""
 FUNCTIONS: dict[str, Callable[..., Any]] = {}
-
-
-def _without_kinks(expression: Any) -> Any:
-    """Return an expression with every `abs(u)` written as `u sgn(u)`, whose derivative is `sgn(u)`, not `u / |u|`."""
-    wild = SR.wild(0)
-    return SR(expression).subs({abs(wild): wild * sgn(wild)})
-
-
-def _jacobian(dynamics: _Dynamics) -> list[Any]:
-    """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
-    wild = SR.wild(0)
-    rates = [_without_kinks(rate) for rate in dynamics.rates]
-    return [rate.diff(item).subs({dirac_delta(wild): 0}) for rate in rates for item in dynamics.symbols]
-
-
-def _function(
-    name: str,
-    dynamics: _Dynamics,
-    expressions: list[Any],
-    shape: tuple[int, ...],
-) -> Callable[..., Any]:
-    """Return a Numba function `f(t, x, p)` that fills an array of a shape, compiled once per printed source.
-
-    The parameters are read from `p` in the order of `dynamics.parameters`, so models of one structure share the
-    compiled function whatever their parameter values.
-    """
-    names = (
-        {item: f'x[{index}]' for index, item in enumerate(dynamics.symbols)}
-        | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
-        | {dynamics.time: 't'}
-    )
-    assignments, codes = print_expressions([SR(item) for item in expressions], SCALAR_DIALECT, lambda item: names[item])
-    lines = [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
-    lines += [f'    {bound} = {code}' for bound, code in assignments]
-    lines += [
-        f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
-        for index, code in enumerate(codes)
-    ]
-    lines.append('    return out')
-    source = '\n'.join(lines)
-    if source not in FUNCTIONS:
-        namespace: dict[str, Any] = {'np': np, 'math': math}
-        exec(source, namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
-        FUNCTIONS[source] = numba.njit(namespace[name])
-    return FUNCTIONS[source]
 
 
 @numba.njit
@@ -124,19 +78,6 @@ def _map_spectrum(f: Any, jac: Any, x: Any, p: Any, n: int, steps: int, skip: in
         if step >= skip:
             sums += np.log(np.abs(np.diag(r)))
     return sums / steps
-
-
-def _kaplan_yorke(exponents: Array) -> float:
-    """Return the Kaplan-Yorke dimension `j + Σ_{i<=j} λ_i / |λ_{j+1}|` of a Lyapunov spectrum."""
-    ordered = np.sort(np.asarray(exponents, dtype=float))[::-1]
-    sums = np.cumsum(ordered)
-    nonnegative = np.flatnonzero(sums >= 0)
-    if not nonnegative.size:
-        return 0.0
-    count = int(nonnegative[-1]) + 1
-    if count == ordered.size:
-        return float(count)
-    return float(count + sums[count - 1] / abs(ordered[count]))
 
 
 class LyapunovAnalysis(BaseAnalysis):
@@ -282,7 +223,7 @@ class LyapunovAnalysis(BaseAnalysis):
             self.labels_ = series.labels
             return self
         if isinstance(source, System | BaseProblem | Trajectory):
-            self.problem_ = _dynamics_of(system_of(source), self.parameters).problem
+            self.problem_ = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters).problem
             return self
         self.problem_ = None
         self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
@@ -299,8 +240,8 @@ class LyapunovAnalysis(BaseAnalysis):
             for column, name in enumerate(entry.generic_names)
         }
         start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
-        f = _function('field', dynamics, dynamics.rates, (size,))
-        jac = _function('jacobian', dynamics, _jacobian(dynamics), (size, size))
+        f = self._function('field', dynamics, dynamics.rates, (size,))
+        jac = self._function('jacobian', dynamics, self._jacobian(dynamics), (size, size))
         values = np.asarray([float(value) for value in dynamics.parameters.values()], dtype=float)
         if dynamics.discrete:
             steps = int(self.until if self.until is not None else 10_000)
@@ -335,7 +276,69 @@ class LyapunovAnalysis(BaseAnalysis):
             )
             return self
         if self.problem_ is not None:
-            self.exponents_ = self._compute_spectrum(_dynamics_of(self.problem_, self.parameters))
-        self.kaplan_yorke_dimension_ = _kaplan_yorke(self.exponents_)
+            self.exponents_ = self._compute_spectrum(StabilityAnalysis._dynamics_of(self.problem_, self.parameters))
+        self.kaplan_yorke_dimension_ = self._kaplan_yorke(self.exponents_)
         self.kolmogorov_sinai_entropy_ = float(self.exponents_[self.exponents_ > 0].sum())
         return self
+
+    @staticmethod
+    def _without_kinks(expression: Any) -> Any:
+        """Return an expression with each `abs(u)` as `u sgn(u)`, whose derivative is `sgn(u)`, not `u / |u|`."""
+        wild = SR.wild(0)
+        return SR(expression).subs({abs(wild): wild * sgn(wild)})
+
+    @staticmethod
+    def _jacobian(dynamics: _Dynamics) -> list[Any]:
+        """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
+        wild = SR.wild(0)
+        rates = [LyapunovAnalysis._without_kinks(rate) for rate in dynamics.rates]
+        return [rate.diff(item).subs({dirac_delta(wild): 0}) for rate in rates for item in dynamics.symbols]
+
+    @staticmethod
+    def _function(
+        name: str,
+        dynamics: _Dynamics,
+        expressions: list[Any],
+        shape: tuple[int, ...],
+    ) -> Callable[..., Any]:
+        """Return a Numba function `f(t, x, p)` that fills an array of a shape, compiled once per printed source.
+
+        The parameters are read from `p` in the order of `dynamics.parameters`, so models of one structure share the
+        compiled function whatever their parameter values.
+        """
+        names = (
+            {item: f'x[{index}]' for index, item in enumerate(dynamics.symbols)}
+            | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
+            | {dynamics.time: 't'}
+        )
+        assignments, codes = print_expressions(
+            [SR(item) for item in expressions],
+            SCALAR_DIALECT,
+            lambda item: names[item],
+        )
+        lines = [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
+        lines += [f'    {bound} = {code}' for bound, code in assignments]
+        lines += [
+            f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
+            for index, code in enumerate(codes)
+        ]
+        lines.append('    return out')
+        source = '\n'.join(lines)
+        if source not in FUNCTIONS:
+            namespace: dict[str, Any] = {'np': np, 'math': math}
+            exec(source, namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
+            FUNCTIONS[source] = numba.njit(namespace[name])
+        return FUNCTIONS[source]
+
+    @staticmethod
+    def _kaplan_yorke(exponents: Array) -> float:
+        """Return the Kaplan-Yorke dimension `j + Σ_{i<=j} λ_i / |λ_{j+1}|` of a Lyapunov spectrum."""
+        ordered = np.sort(np.asarray(exponents, dtype=float))[::-1]
+        sums = np.cumsum(ordered)
+        nonnegative = np.flatnonzero(sums >= 0)
+        if not nonnegative.size:
+            return 0.0
+        count = int(nonnegative[-1]) + 1
+        if count == ordered.size:
+            return float(count)
+        return float(count + sums[count - 1] / abs(ordered[count]))
