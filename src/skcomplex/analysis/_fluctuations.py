@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import math
 from collections.abc import Mapping, Sequence
 from typing import Self
@@ -184,26 +183,12 @@ class FluctuationAnalysis(BaseAnalysis):
         self.mass = mass
         self.temperature = temperature
 
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind'}
-        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind])) or "no other setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the mass, the temperature, and that the kind reads every changed setting."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
             raise AnalysisError(error_msg)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind])
         if self.mass <= 0 or (self.temperature is not None and self.temperature <= 0):
             error_msg = (
                 f'{type(self).__name__} has mass={self.mass!r} and temperature={self.temperature!r}. Use positive '

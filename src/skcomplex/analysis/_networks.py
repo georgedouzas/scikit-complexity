@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Sequence
 from typing import Self
 
@@ -12,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
-from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._fit import FitAnalysis
 from ._kinds import DataKind
@@ -229,36 +227,12 @@ class NetworkAnalysis(BaseAnalysis):
         self.reference = reference
         self.random_state = random_state
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and (value is not None if defaults[name] is None else value != defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind])) or "no other setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the centrality, the method, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('measure', self.measure, CENTRALITIES)
         self._check_choice('method', self.method, METHODS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind])
         return self
 
     def _get_data_kind(self) -> DataKind:

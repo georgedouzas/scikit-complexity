@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from typing import Self
 
 import numpy as np
@@ -118,26 +117,12 @@ class OrderAnalysis(BaseAnalysis):
         self.group = group
         self.vectors = vectors
 
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'group'}
-        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind])) or "no other setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind and that the kind reads every changed setting."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
             raise AnalysisError(error_msg)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'group'})
         return self
 
     def _get_data_kind(self) -> DataKind:

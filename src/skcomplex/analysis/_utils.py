@@ -3,66 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
 from ..core.errors import AnalysisError, ValidationError
 from ..core.system import System
 from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
-
-
-def _is_default(value: object, default: object) -> bool:
-    """Check whether a setting holds its default, comparing arrays by their values."""
-    if value is default:
-        return True
-    if value is None or default is None:
-        return False
-    try:
-        return bool(np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object)))
-    except (TypeError, ValueError):
-        return False
-
-
-def check_kind(analysis: BaseEstimator, kinds: tuple[str, ...], settings: Mapping[str, set[str]]) -> None:
-    """Raise an error for an unknown kind, or for a setting changed from its default that the kind does not read.
-
-    Args:
-        analysis:
-            The analysis, whose `kind` setting picks one of the kinds.
-
-        kinds:
-            The kinds the analysis takes.
-
-        settings:
-            The settings every kind reads, besides `kind`.
-
-    Raises:
-        AnalysisError:
-            The kind is unknown, or a changed setting is not read by the kind.
-    """
-    name = type(analysis).__name__
-    params = analysis.get_params()
-    kind = params['kind']
-    if kind not in kinds:
-        error_msg = f'{name} has kind={kind!r}. Use one of {", ".join(kinds)}.'
-        raise AnalysisError(error_msg)
-    signature = inspect.signature(type(analysis).__init__).parameters
-    read = settings[kind] | {'kind'}
-    ignored = [
-        key for key, value in params.items() if key not in read and not _is_default(value, signature[key].default)
-    ]
-    if ignored:
-        error_msg = (
-            f'{name} of kind {kind!r} does not read {", ".join(ignored)}. It reads '
-            f'{", ".join(sorted(settings[kind])) or "no other setting"}.'
-        )
-        raise AnalysisError(error_msg)
 
 
 def system_of(source: object) -> System | BaseProblem:
@@ -132,22 +81,3 @@ def sample_columns(data: npt.ArrayLike) -> npt.NDArray[Any]:
     """
     array = np.asarray(data)
     return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)
-
-
-def is_changed(value: object, default: object) -> bool:
-    """Return whether a setting differs from its default, comparing arrays and sequences by their items.
-
-    Args:
-        value:
-            The value of the setting.
-
-        default:
-            The default of the setting.
-
-    Returns:
-        changed:
-            Whether the value differs from the default.
-    """
-    if value is None or default is None:
-        return value is not default
-    return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))

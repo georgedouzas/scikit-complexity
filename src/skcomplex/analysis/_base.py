@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
 from typing import Self
 
@@ -193,6 +194,37 @@ class BaseAnalysis(BaseEstimator, ABC):
     def _check(self) -> Self:
         """Validate the settings of the analysis, raising a named error for one it cannot take."""
         return self
+
+    def _check_choice(self, name: str, value: object, choices: tuple[object, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
+            raise AnalysisError(error_msg)
+
+    def _check_settings(self, name: str, read: Set[str]) -> None:
+        """Raise an error for a setting changed from its default that the choice of the setting `name` does not read."""
+        defaults = inspect.signature(type(self).__init__).parameters
+        ignored = [
+            key
+            for key, value in self.get_params(deep=False).items()
+            if key != name and key not in read and self._is_changed(value, defaults[key].default)
+        ]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of {name} {getattr(self, name)!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(read)) or "no other setting"}.'
+            )
+            raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _is_changed(value: object, default: object) -> bool:
+        """Return whether a setting differs from its default, comparing arrays and sequences by their items."""
+        if value is None or default is None:
+            return value is not default
+        try:
+            return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))
+        except (TypeError, ValueError):
+            return value is not default
 
     @abstractmethod
     def _get_data_kind(self) -> DataKind:

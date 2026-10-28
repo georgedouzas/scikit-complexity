@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import itertools
 import math
 import warnings
@@ -42,12 +41,6 @@ SETTINGS = {
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
 
-
-def _is_changed(value: object, default: object) -> bool:
-    """Return whether a setting differs from its default, comparing arrays and functions by identity to `None`."""
-    if default is None:
-        return value is not None
-    return bool(value != default)
 
 
 def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> Labels:
@@ -370,35 +363,13 @@ class EmergenceAnalysis(BaseAnalysis):
         self.k = k
         self.base = base
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name for name, value in self.get_params().items() if name not in read and _is_changed(value, defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind])) or "no other setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('weighting', self.weighting, WEIGHTINGS)
         self._check_choice('search', self.search, SEARCHES)
         self._check_choice('estimator', self.estimator, ESTIMATORS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.kind in {'criteria', 'closure'} and self.partition is None:
             error_msg = (
                 f'{type(self).__name__} of kind {self.kind!r} needs the macro feature. Pass the macro label of every '

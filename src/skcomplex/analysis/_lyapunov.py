@@ -20,7 +20,7 @@ from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import _Dynamics, _dynamics_of
-from ._utils import check_kind, system_of
+from ._utils import system_of
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('spectrum', 'largest')
@@ -260,7 +260,8 @@ class LyapunovAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind, that the kind reads every changed setting, and the positive settings."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         if (self.dt is not None and self.dt <= 0) or self.dimension < 1 or self.delay < 1:
             error_msg = (
                 f'{type(self).__name__} has dt={self.dt!r}, dimension={self.dimension!r}, and delay={self.delay!r}. '

@@ -21,7 +21,7 @@ from ._fractional import _mittag_leffler
 from ._kinds import DataKind
 from ._loops import _stock_flow
 from ._quantum import _quantum_problem
-from ._utils import check_kind, system_of
+from ._utils import system_of
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
 SETTINGS: dict[str, set[str]] = {
@@ -399,7 +399,8 @@ class SymbolicAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind and that the kind reads every changed setting."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         return self
 
     def _get_data_kind(self) -> DataKind:

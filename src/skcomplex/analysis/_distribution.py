@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Sequence
 from typing import Self
 
@@ -158,26 +157,12 @@ class DistributionAnalysis(BaseAnalysis):
         self.log = log
         self.tail = tail
 
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind])) or "no setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, that the kind reads every changed setting, and the numbers of bins and tail samples."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
             raise AnalysisError(error_msg)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.bins < 1 or self.tail < 1:
             error_msg = f'{type(self).__name__} has bins={self.bins!r} and tail={self.tail!r}. Use 1 or more.'
             raise AnalysisError(error_msg)

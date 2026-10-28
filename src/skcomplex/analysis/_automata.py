@@ -17,7 +17,6 @@ from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNe
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._lazy import module
-from ._utils import check_kind
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -583,7 +582,8 @@ class AutomatonAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind, the method, that the kind reads every changed setting, and that it has what it needs."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         if self.method not in METHODS:
             error_msg = f'{type(self).__name__} has method={self.method!r}. Use one of {", ".join(METHODS)}.'
             raise AnalysisError(error_msg)
