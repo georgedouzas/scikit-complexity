@@ -15,7 +15,18 @@ from ..specs import ObservableSpec
 
 type Factory = Callable[..., System]
 
-RUN_SETTINGS = ('until', 'dt', 'solver', 'backend', 'clock', 'random_state', 'checked', 'invariants', 'initial_state')
+RUN_SETTINGS = (
+    'until',
+    'dt',
+    'compiler',
+    'solver',
+    'backend',
+    'clock',
+    'random_state',
+    'checked',
+    'invariants',
+    'initial_state',
+)
 _FORMALISMS: dict[str, str] = {}
 """Mathematical form of every model compiled so far, by name."""
 
@@ -132,5 +143,5 @@ class ModelEntry:
     def formalism(self) -> str:
         """Mathematical form of the model with its default parameters, inferred by compiling it once."""
         if self.name not in _FORMALISMS:
-            _FORMALISMS[self.name] = compile_system(self.factory()).form.value
+            _FORMALISMS[self.name] = compile_system(self.factory(), compiler=self.defaults.get('compiler')).form.value
         return _FORMALISMS[self.name]

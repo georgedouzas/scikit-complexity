@@ -56,25 +56,12 @@ class RewritingCompiler(BaseCompiler):
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import RewritingCompiler
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).claims_
+        >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
-    def _claims(self, system: System) -> bool:
-        """Check whether a system holds a word or a patch.
-
-        Args:
-            system:
-                The system.
-
-        Returns:
-            claims:
-                Whether the compiler compiles the system.
-        """
-        return self._is_rewriting(system)
-
     def _issues(self, system: System) -> list[IssueSpec]:
-        """Return the issue of a claimed system whose tree cannot be flattened.
+        """Return the issue of a system the compiler does not compile, or whose tree cannot be flattened.
 
         Args:
             system:
@@ -82,10 +69,12 @@ class RewritingCompiler(BaseCompiler):
 
         Returns:
             issues:
-                The issues, none for a system the compiler does not claim.
+                The issues.
         """
-        if not self.claims_:
-            return []
+        if not self._is_rewriting(system):
+            message = f'The system {system.label} holds no word or patch, so RewritingCompiler does not compile it.'
+            fix = 'Pass the compiler of the system, or none for PassCompiler.'
+            return [IssueSpec('compiler', system.label, message, fix)]
         try:
             FlattenPass._flatten_system(system)
         except SkcomplexError as error:
@@ -238,7 +227,8 @@ class RewritingCompiler(BaseCompiler):
             >>> class AlgaeElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-            >>> problem = compile_system(System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime()))
+            >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
+            >>> problem = compile_system(system, compiler=RewritingCompiler())
             >>> problem.form.value, problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
         """

@@ -210,8 +210,9 @@ def test_model_conforms(entry, tmp_path):
     """Test that a registered model is created, validated, compiled, simulated, logged, and cloned generically."""
     defaults = describe(entry.name).defaults
     system = create(entry.name)
-    assert PassCompiler().check().prepare(system).report_.ok
-    problem = compile_system(system)
+    compiler = defaults.get('compiler', PassCompiler())
+    assert clone(compiler).check().prepare(system).report_.ok
+    problem = compile_system(system, compiler=compiler)
     settings = {key: value for key, value in defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)
     until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
@@ -228,14 +229,15 @@ def test_model_conforms(entry, tmp_path):
         )
     copy = clone(system)
     assert copy is not system
-    assert compile_system(copy).states.names == problem.states.names
+    assert compile_system(copy, compiler=compiler).states.names == problem.states.names
     assert pickle.loads(pickle.dumps(system)) is not None  # noqa: S301  # nosec B301: loads data the test just dumped
 
 
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
 def test_jacobian_pattern_holds_finite_differences(entry):
     """Test that the Jacobian pattern of every model with an ODE form holds its finite differences at random states."""
-    problem = compile_system(create(entry.name), backend=NumpyBackend())
+    compiler = describe(entry.name).defaults.get('compiler')
+    problem = compile_system(create(entry.name), backend=NumpyBackend(), compiler=compiler)
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The model has no ODE form without delays.')
     rng = np.random.default_rng(0)

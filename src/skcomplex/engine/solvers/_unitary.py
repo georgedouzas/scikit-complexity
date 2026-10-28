@@ -49,7 +49,9 @@ class UnitarySolver(QuantumSolver):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
-        >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).check()
+        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> compiler = QuantumCompiler()
+        >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z).check()
         >>> float(round(simulation.run(until=np.pi).trajectory_.values('q.z')[-1], 6))
         -1.0
     """

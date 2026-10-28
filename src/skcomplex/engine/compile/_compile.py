@@ -1,4 +1,4 @@
-"""Compile a system into a problem of one mathematical form with the compiler that claims it."""
+"""Compile a system into a problem of one mathematical form with a compiler."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,13 +6,13 @@
 from collections.abc import Mapping, Sequence
 from typing import cast
 
+from sklearn.base import clone
+
 from ...core.system import System
 from ...specs import BaseProblemSpec, ObservableSpec
 from ..backends import BaseBackend
 from ._base import BaseCompiler
 from ._pass_compiler import PassCompiler
-from .passes._quantum_compiler import QuantumCompiler
-from .passes._rewriting_compiler import RewritingCompiler
 
 
 def compile_system(
@@ -22,12 +22,12 @@ def compile_system(
     *,
     solver: object = None,
     initial_state: Mapping[str, object] | None = None,
+    compiler: BaseCompiler | None = None,
 ) -> BaseProblemSpec:
     """Compile a system into a problem of the form its law kinds determine.
 
-    The compilers of whole systems, of quantum and of rewriting systems, are asked in turn whether they claim the
-    system, and the general `PassCompiler` compiles every other system. The compiler that claims it validates the
-    system in `prepare` and compiles it in `run`.
+    The compiler validates the system in `prepare` and compiles it in `run`. `PassCompiler` compiles every system but
+    quantum ones, which `QuantumCompiler` compiles, and a model package can bring the compiler of a form of its own.
 
     Args:
         system:
@@ -49,6 +49,9 @@ def compile_system(
             Initial values that replace those of the components, by the dotted name of the state, such as
             `{'rabbits.n': 20}`. The whole state of a quantum system is `<system label>.state`, which takes a vector, a
             density matrix, or `'ground'` for the lowest eigenstate of the Hamiltonian at the initial parameters.
+
+        compiler:
+            The compiler, whose backend, solver, and observables this function sets, or `None` for `PassCompiler`.
 
     Returns:
         problem:
@@ -92,10 +95,6 @@ def compile_system(
         >>> problem.equations
         {'rabbits.n': n_rabbits*r_growth}
     """
-    compilers: tuple[BaseCompiler, ...] = (
-        QuantumCompiler(backend, solver, observables),
-        RewritingCompiler(backend, solver, observables),
-        PassCompiler(backend=backend, solver=solver, observables=observables),
-    )
-    compiler = next(item for item in compilers if item.check().prepare(system).claims_)
-    return cast('BaseProblemSpec', compiler.run(initial_state))
+    compiler = PassCompiler() if compiler is None else clone(compiler)
+    compiler.set_params(backend=backend, solver=solver, observables=observables)
+    return cast('BaseProblemSpec', compiler.check().prepare(system).run(initial_state))

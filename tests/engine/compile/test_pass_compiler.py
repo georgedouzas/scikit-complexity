@@ -22,7 +22,6 @@ def _growth():
 def test_compiler_prepares_its_report_and_runs_to_the_problem():
     """Test that `prepare` sets the report of a system and `run` returns its problem."""
     compiler = PassCompiler().check().prepare(_growth())
-    assert compiler.claims_
     assert isinstance(compiler.report_, ValidationReportSpec)
     assert compiler.report_.ok
     problem = compiler.run({'rabbits.n': 20})
@@ -60,14 +59,14 @@ def test_compiler_rejects_a_target_that_is_not_a_system():
         PassCompiler().check().prepare(object())
 
 
-def test_general_compiler_leaves_whole_systems_to_their_compilers():
-    """Test that the general compiler does not claim a quantum system, which the quantum compiler claims."""
+def test_general_compiler_names_the_compiler_of_a_quantum_system():
+    """Test that the general compiler reports a quantum system with the compiler it needs, which compiles it."""
     system = System(elements=[QubitElement('q')])
-    assert QuantumCompiler().check().prepare(system).claims_
-    assert not RewritingCompiler().check().prepare(system).claims_
+    assert QuantumCompiler().check().prepare(system).report_.ok
+    assert not RewritingCompiler().check().prepare(system).report_.ok
     compiler = PassCompiler().check().prepare(system)
-    assert not compiler.claims_
-    with pytest.raises(ValidationError, match='does not compile the system'):
+    assert not compiler.report_.ok
+    with pytest.raises(ValidationError, match=r'compiler=QuantumCompiler\(\)'):
         compiler.run()
 
 

@@ -15,6 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.elements import PatchElement, WordElement
 from ....core.laws import ProductionLaw, SubstitutionLaw
 from ....core.system import System
+from ....engine.compile import RewritingCompiler
 from ....errors import ValidationError
 from ....specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 from ..._catalog import register_model
@@ -197,7 +198,7 @@ class SierpinskiElement(PatchElement):
     field='mathematics/fractals',
     tags=('fractal', 'L-system', 'rewriting system', 'turtle'),
     references=('Prusinkiewicz and Lindenmayer 1990', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'until': 5, 'dt': 1},
+    defaults={'compiler': RewritingCompiler(), 'until': 5, 'dt': 1},
 )
 def koch_curve(angle: float = 60.0) -> System:
     """Return the Koch curve as the L-system `F → F+F--F+F` drawn by a turtle.
@@ -233,7 +234,7 @@ def koch_curve(angle: float = 60.0) -> System:
     field='mathematics/fractals',
     tags=('fractal', 'substitution', 'rewriting system'),
     references=('Cantor 1883', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'until': 8, 'dt': 1},
+    defaults={'compiler': RewritingCompiler(), 'until': 8, 'dt': 1},
 )
 def cantor_set(ratio: float = 1 / 3) -> System:
     """Return the Cantor set as the substitution of every interval by its two outer parts.
@@ -272,7 +273,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
     field='mathematics/fractals',
     tags=('fractal', 'substitution', 'rewriting system'),
     references=('Sierpiński 1915', 'Sierpiński 1916', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'until': 6, 'dt': 1},
+    defaults={'compiler': RewritingCompiler(), 'until': 6, 'dt': 1},
 )
 def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> System:
     """Return the Sierpiński triangle or carpet as the substitution of a polygon by scaled copies of itself.

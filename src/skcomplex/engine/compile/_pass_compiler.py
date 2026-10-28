@@ -191,21 +191,6 @@ class PassCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         return self
 
-    def _claims(self, system: System) -> bool:
-        """Check whether no compiler of whole systems claims a system.
-
-        Args:
-            system:
-                The system.
-
-        Returns:
-            claims:
-                Whether the compiler compiles the system.
-        """
-        return not any(
-            compiler.check().prepare(system).claims_ for compiler in (QuantumCompiler(), RewritingCompiler())
-        )
-
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend, planning the compilation as it goes.
 
@@ -397,10 +382,16 @@ class PassCompiler(BaseCompiler):
             plan.append((child.label, frozenset(path for path in elements if path.startswith(f'{child.label}/'))))
         return self._partitioned(compilation, plan)
 
+    @staticmethod
+    def _compiler_issue(system: System, compiler: str) -> IssueSpec:
+        """Return the issue of a system that another compiler compiles, naming that compiler."""
+        message = f'The system {system.label} is compiled by {compiler}, not by PassCompiler.'
+        return IssueSpec('compiler', system.label, message, f'Pass `compiler={compiler}()`.')
+
     def _counted(self, system: System) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-        The compilation stops after flattening for a system that a compiler of whole systems claims. When laws read
+        The compilation stops after flattening for a system that another compiler compiles. When laws read
         reductions of agents, the compilation starts again from a system tree that holds each of them in an element.
         """
         compilation = self._new_compilation(system)
@@ -409,8 +400,10 @@ class PassCompiler(BaseCompiler):
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
             return None, [self._issue_of(error, system.label, 'structure', fix)]
-        if not self.claims_:
-            return compilation, []
+        if QuantumCompiler._contains_quantum(system):
+            return compilation, [self._compiler_issue(system, 'QuantumCompiler')]
+        if RewritingCompiler._is_rewriting(system):
+            return compilation, [self._compiler_issue(system, 'RewritingCompiler')]
         held = _held_observables(system, cast('list[NodeSpec]', compilation.nodes))
         if held:
             tree, paths = _with_held_observables(system, held)

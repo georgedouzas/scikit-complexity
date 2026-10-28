@@ -31,7 +31,10 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> trajectory = Simulation(system, solver=RewritingSolver()).check().run(until=5).trajectory_
+        >>> from skcomplex.engine.compile import RewritingCompiler
+        >>> compiler = RewritingCompiler()
+        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver()).check()
+        >>> trajectory = simulation.run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """

@@ -13,7 +13,7 @@ import qutip
 import scipy.sparse as sp
 
 from ..core.system import System
-from ..engine.compile import compile_system
+from ..engine.compile import QuantumCompiler, compile_system
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
@@ -106,6 +106,7 @@ class QuantumAnalysis(BaseAnalysis):
         >>> from skcomplex.core.laws.utils import local_operator
         >>> from skcomplex.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import QuantumCompiler
         >>> from skcomplex.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
@@ -125,7 +126,7 @@ class QuantumAnalysis(BaseAnalysis):
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
         >>> trajectory = Simulation(
-        ...     pair, dt=1.0, initial_state={'system.state': singlet},
+        ...     pair, compiler=QuantumCompiler(), dt=1.0, initial_state={'system.state': singlet},
         ... ).check().run(until=1.0).trajectory_
         >>> analysis = QuantumAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
         >>> bool(np.allclose(analysis.entropy_, np.log(2)))
@@ -203,7 +204,7 @@ class QuantumAnalysis(BaseAnalysis):
     @staticmethod
     def _quantum_problem(system: System | BaseProblemSpec) -> QuantumProblemSpec:
         """Return the quantum problem of a system, compiling it when needed."""
-        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
+        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=QuantumCompiler())
         if not isinstance(problem, QuantumProblemSpec):
             error_msg = (
                 f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'

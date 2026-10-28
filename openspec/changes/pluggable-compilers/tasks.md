@@ -5,8 +5,8 @@
 
 ## 2. The compiler setting
 
-- [ ] 2.1 Remove `claims_`, `_claims`, and the claim loop. Add the `compiler` setting to `compile_system` and `Simulation`. Add `_get_solver(problem)` and `solver_` to `BaseCompiler`, and implement them in `PassCompiler` and `QuantumCompiler`. Replace the form list of `Simulation._check_dt` by a `BaseSolver._is_stepwise()` hook. Verify with `pytest tests/engine`.
-- [ ] 2.2 Make quantum systems name their compiler: `PassCompiler` refuses them with an error that names `compiler=QuantumCompiler()`. Add a `compiler` to the model catalog entries, and update the quantum models, analyses, tests, gallery, and user guide. Verify with the quantum tests and the user guide.
+- [x] 2.1 Remove `claims_`, `_claims`, and the claim loop. Add the `compiler` setting to `compile_system` and `Simulation`. Add `_get_solver(problem)` and `solver_` to `BaseCompiler`, and implement them in `PassCompiler` and `QuantumCompiler`. Replace the form list of `Simulation._check_dt` by a `BaseSolver._is_stepwise()` hook. Verify with `pytest tests/engine`.
+- [x] 2.2 Make quantum systems name their compiler: `PassCompiler` refuses them with an error that names `compiler=QuantumCompiler()`. Add a `compiler` to the model catalog entries, and update the quantum models, analyses, tests, gallery, and user guide. Verify with the quantum tests and the user guide.
 
 ## 3. Rewriting in the models library
 

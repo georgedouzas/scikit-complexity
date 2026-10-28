@@ -34,9 +34,10 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 class BaseCompiler(BaseConfig):
     """Compiler of a system into a problem of one mathematical form.
 
-    `check()` validates the settings, `prepare(system)` validates the system and sets `claims_`, whether the compiler
-    compiles the system, and `report_`, the issues it finds, and `run(initial_state)` raises the errors of the report
-    and returns the problem. A subclass implements the hooks `_claims`, `_issues`, and `_compile`.
+    `check()` validates the settings, `prepare(system)` validates the system and sets `report_`, the issues it finds,
+    and `run(initial_state)` raises the errors of the report, returns the problem, and sets `solver_`, the solver the
+    problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form the engine does
+    not know names the solver of its problems in `_get_solver`.
 
     Args:
         backend:
@@ -54,16 +55,17 @@ class BaseCompiler(BaseConfig):
         system_:
             The prepared system, with the observables of the run.
 
-        claims_:
-            Whether the compiler compiles the prepared system.
-
         report_:
             The issues of the prepared system.
+
+        solver_:
+            The solver the compiled problem runs on: the solver setting, the solver the compiler names, or `None` for
+            the default solver of the problem's form.
     """
 
     system_: System
-    claims_: bool
     report_: ValidationReportSpec
+    solver_: object
 
     def __init__(
         self,
@@ -96,7 +98,7 @@ class BaseCompiler(BaseConfig):
         return self
 
     def _prepare(self, context: object) -> Self:
-        """Attach the observables to a system, decide whether the compiler claims it, and set the issues it finds.
+        """Attach the observables to a system and set the issues it finds.
 
         Args:
             context:
@@ -118,27 +120,12 @@ class BaseCompiler(BaseConfig):
             self.system_ = self._with_observables(system, self.observables)
         except ValidationError as error:
             self.system_ = system
-            self.claims_ = self._claims(system)
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return self
-        self.claims_ = self._claims(self.system_)
         self.report_ = ValidationReportSpec(tuple(self._issues(self.system_)))
         return self
-
-    def _claims(self, system: System) -> bool:
-        """Check whether the compiler compiles a system.
-
-        Args:
-            system:
-                The system, with the observables of the run.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the hook.
-        """
-        raise NotImplementedError
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
@@ -166,6 +153,22 @@ class BaseCompiler(BaseConfig):
         """
         raise NotImplementedError
 
+    def _get_solver(self, problem: BaseProblemSpec) -> object:
+        """Return the solver of a compiled problem, or `None` for the default solver of its form.
+
+        A compiler of a form the engine does not know, such as one defined in a model package, names its solver here.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            solver:
+                `None` here.
+        """
+        del problem
+        return None
+
     def _run(self, inputs: object) -> BaseProblemSpec:
         """Raise the errors of the report and compile the prepared system into a problem.
 
@@ -180,19 +183,17 @@ class BaseCompiler(BaseConfig):
 
         Raises:
             ValidationError:
-                The report holds an error, the compiler does not claim the system, or the initial values are not a
-                mapping.
+                The report holds an error, or the initial values are not a mapping.
         """
         self.report_.check()
-        if not self.claims_:
-            error_msg = f'{type(self).__name__} does not compile the system {self.system_.label}. Use compile_system.'
-            raise ValidationError(error_msg)
         if inputs is not None and not isinstance(inputs, Mapping):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
         problem = self._compile(dict(inputs or {}))
         observables = tuple(self._observables_of(problem.system)) if problem.system is not None else ()
-        return dataclasses.replace(problem, observables=observables)
+        problem = dataclasses.replace(problem, observables=observables)
+        self.solver_ = self.solver if self.solver is not None else self._get_solver(problem)
+        return problem
 
     @staticmethod
     def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:

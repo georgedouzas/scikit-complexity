@@ -7,12 +7,13 @@ import math
 import queue
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from typing import Self
+from typing import Self, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
+from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...core.system import System
@@ -29,7 +30,7 @@ from ...specs import (
 )
 from ...types import Array, FormKind
 from ..backends import BaseBackend
-from ..compile import ObservableEvaluator, PassCompiler, compile_system
+from ..compile import BaseCompiler, ObservableEvaluator, PassCompiler
 from ..solvers import BaseSolver, CoSimulationSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -62,11 +63,15 @@ class Simulation(BaseConfig):
             The system to simulate, or a problem already compiled from one, which skips compiling for repeated runs
             that change only parameters or initial values.
 
+        compiler:
+            The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for
+            `PassCompiler`. A quantum system takes `QuantumCompiler()`, and a model package can bring the compiler of
+            a form of its own, which names the solver of its problems.
+
         solver:
-            The solver, or `None` for the default solver of the system's form, `CoSimulationSolver` for a system that
-            runs as partitions.
-            The default ODE solver is `ScipyODESolver` with `LSODA`, which switches to BDF methods while the system is
-            stiff.
+            The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
+            `CoSimulationSolver` for a system that runs as partitions. The default ODE solver is `ScipyODESolver` with
+            `LSODA`, which switches to BDF methods while the system is stiff.
 
         backend:
             The backend that compiles the system, or `None` for `NumbaBackend` on systems with at least 1000 members and
@@ -146,6 +151,7 @@ class Simulation(BaseConfig):
         self,
         system: System | BaseProblemSpec,
         *,
+        compiler: BaseCompiler | None = None,
         solver: BaseSolver | None = None,
         backend: BaseBackend | None = None,
         dt: float | None = None,
@@ -160,6 +166,7 @@ class Simulation(BaseConfig):
         initial_state: Mapping[str, object] | None = None,
     ) -> None:
         self.system = system
+        self.compiler = compiler
         self.solver = solver
         self.backend = backend
         self.dt = dt
@@ -211,21 +218,25 @@ class Simulation(BaseConfig):
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
-            compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
-            compiler.check().prepare(self.system).report_.check()
+            self._compiler().check().prepare(self.system).report_.check()
 
     def _prepare(self, context: None = None) -> None:
         """Compile the system, choose the solver, and gather the clock and the observers of a run."""
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
-        self.problem_ = (
-            PassCompiler._with_initial_state(self.system, initial)
-            if isinstance(self.system, BaseProblemSpec)
-            else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
-        )
+        named = None
+        if isinstance(self.system, BaseProblemSpec):
+            self.problem_ = PassCompiler._with_initial_state(self.system, initial)
+        else:
+            compiler = self._compiler().check().prepare(self.system)
+            self.problem_ = cast('BaseProblemSpec', compiler.run(initial))
+            named = compiler.solver_
         self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
-        self.stepper_ = self.solver if self.solver is not None else self._default_solver(self.problem_.form)
+        if self.solver is not None:
+            self.stepper_ = self.solver
+        else:
+            self.stepper_ = named if named is not None else self._default_solver(self.problem_.form)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
@@ -401,6 +412,11 @@ class Simulation(BaseConfig):
         if not hasattr(self, 'problem_'):
             error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
             raise SimulationError(error_msg)
+
+    def _compiler(self) -> BaseCompiler:
+        """Return a copy of the compiler with the backend, the solver, and the observables of the simulation."""
+        compiler = PassCompiler() if self.compiler is None else clone(self.compiler)
+        return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
     def _default_solver(self, form: FormKind) -> BaseSolver:
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""

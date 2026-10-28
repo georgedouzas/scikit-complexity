@@ -51,7 +51,9 @@ class LindbladSolver(QuantumSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
-        >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).check()
+        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> compiler = QuantumCompiler()
+        >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z).check()
         >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True

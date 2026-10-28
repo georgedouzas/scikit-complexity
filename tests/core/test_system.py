@@ -15,7 +15,7 @@ from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PassCompiler, compile_system
+from skcomplex.engine.compile import PassCompiler, QuantumCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import UnitarySolver
 from skcomplex.errors import NotCheckedError, ValidationError
@@ -287,6 +287,7 @@ def test_group_on_edges_outside_a_network_is_reported():
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that an element with a complex state in a Hilbert space and a generator law runs unitary dynamics."""
-    simulation = Simulation(System(elements=[TwoLevelElement('q')]), solver=UnitarySolver(), dt=np.pi).check()
+    system = System(elements=[TwoLevelElement('q')])
+    simulation = Simulation(system, compiler=QuantumCompiler(), solver=UnitarySolver(), dt=np.pi).check()
     simulation.run(until=np.pi)
     assert simulation.problem_.form.name == 'QUANTUM'

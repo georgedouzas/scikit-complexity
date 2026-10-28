@@ -83,7 +83,7 @@ class QuantumCompiler(BaseCompiler):
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import QuantumCompiler
         >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> QuantumCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).claims_
+        >>> QuantumCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -114,21 +114,8 @@ class QuantumCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         return self
 
-    def _claims(self, system: System) -> bool:
-        """Check whether a system holds a quantum element or group.
-
-        Args:
-            system:
-                The system.
-
-        Returns:
-            claims:
-                Whether the compiler compiles the system.
-        """
-        return self._contains_quantum(system)
-
     def _issues(self, system: System) -> list[IssueSpec]:
-        """Return the issue of a claimed system whose tree cannot be flattened.
+        """Return the issue of a system the compiler does not compile, or whose tree cannot be flattened.
 
         Args:
             system:
@@ -136,10 +123,12 @@ class QuantumCompiler(BaseCompiler):
 
         Returns:
             issues:
-                The issues, none for a system the compiler does not claim.
+                The issues.
         """
-        if not self.claims_:
-            return []
+        if not self._contains_quantum(system):
+            message = f'The system {system.label} holds no quantum element or group for QuantumCompiler to compile.'
+            fix = 'Pass the compiler of the system, or none for PassCompiler.'
+            return [IssueSpec('compiler', system.label, message, fix)]
         try:
             FlattenPass._flatten_system(system)
         except SkcomplexError as error:

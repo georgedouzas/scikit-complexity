@@ -6,6 +6,7 @@ from skcomplex.core.elements import LatticeElement
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
+    QuantumCompiler,
     compile_system,
 )
 from skcomplex.models.physics.common.quantum import (
@@ -25,7 +26,7 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
             ModeElement('cavity', hilbert=mode_space(4)),
         ],
     )
-    problem = compile_system(system)
+    problem = compile_system(system, compiler=QuantumCompiler())
     assert isinstance(problem, QuantumProblemSpec)
     assert problem.form == FormKind.QUANTUM
     assert list(problem.dimensions) == [2] * 10 + [5]

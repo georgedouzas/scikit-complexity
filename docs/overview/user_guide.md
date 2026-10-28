@@ -1539,10 +1539,12 @@ visuals are parts of the engine, beside those of every other kind.
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
-sets `claims_`, whether it compiles the system, and `report_`, the issues it found, and `run(initial_state)` raises the
-errors of the report and returns the problem. `compile_system` asks the compilers of whole systems, `QuantumCompiler`
-and `RewritingCompiler`, whether they claim a system, and the general `PassCompiler` compiles every other system through
-its passes, which lower each law to the problem of its form.
+sets `report_`, the issues it found, and `run(initial_state)` raises the errors of the report, returns the problem, and
+sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
+`compiler` setting. The default `PassCompiler` compiles every system but quantum ones through its passes, which lower
+each law to the problem of its form, and names the compiler a system needs when it is another. A quantum system takes
+`compiler=QuantumCompiler()`, and a model package can bring the compiler of a form of its own, with the solver it
+names, as the fractal models do for rewriting.
 
 ### Writing a law
 
@@ -3521,6 +3523,7 @@ from skcomplex.core.elements import WordElement
 from skcomplex.core.laws import ProductionLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.compile import RewritingCompiler
 
 
 class AlgaeElement(WordElement):
@@ -3529,7 +3532,7 @@ class AlgaeElement(WordElement):
 
 
 algae = System(elements=[AlgaeElement('algae', axiom='A')])
-trajectory = Simulation(algae).check().run(until=5).trajectory_
+trajectory = Simulation(algae, compiler=RewritingCompiler()).check().run(until=5).trajectory_
 print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
 
@@ -3551,6 +3554,7 @@ from skcomplex.core.laws import ProductionLaw
 from skcomplex.specs import ModuleSpec, ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.compile import RewritingCompiler
 
 x = var('x')
 
@@ -3566,7 +3570,7 @@ class ShrinkingElement(WordElement):
 
 
 plant = System(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
-print(Simulation(plant).check().run(until=5).trajectory_.structure('plant', 5).text)
+print(Simulation(plant, compiler=RewritingCompiler()).check().run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
@@ -3588,6 +3592,7 @@ from skcomplex.core.laws import ProductionLaw, SubstitutionLaw
 from skcomplex.specs import AffineSpec, GeometrySpec, PrototileSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.compile import RewritingCompiler
 
 
 class KochElement(WordElement):
@@ -3596,7 +3601,7 @@ class KochElement(WordElement):
 
 
 koch = System(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
-curve = Simulation(koch).check().run(until=4).trajectory_.structure('koch', 4)
+curve = Simulation(koch, compiler=RewritingCompiler()).check().run(until=4).trajectory_.structure('koch', 4)
 print(len(curve.segments()), round(curve.length(), 6))
 
 interval = PrototileSpec('interval', [(0, 0), (1, 0)])
@@ -3609,7 +3614,7 @@ class CantorElement(PatchElement):
 
 
 cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
-trajectory = Simulation(cantor).check().run(until=5).trajectory_
+trajectory = Simulation(cantor, compiler=RewritingCompiler()).check().run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
 print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).check().prepare(grid).run().exponent_, 2))
@@ -3654,6 +3659,7 @@ from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.common.quantum import SpinElement
+from skcomplex.engine.compile import QuantumCompiler
 
 
 class CouplingInteraction(NeighborInteraction):
@@ -3681,7 +3687,7 @@ chain = System(
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-trajectory = Simulation(chain, dt=0.5, observables=observables).check().run(until=2.0).trajectory_
+trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=QuantumCompiler()).check().run(until=2.0).trajectory_
 print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 

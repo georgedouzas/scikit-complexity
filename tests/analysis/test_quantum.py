@@ -6,8 +6,9 @@ import pytest
 from skcomplex.analysis import QuantumAnalysis
 from skcomplex.core.elements import GroupElement
 from skcomplex.core.system import System
+from skcomplex.engine.compile import QuantumCompiler
 from skcomplex.engine.runtime import Simulation
-from skcomplex.errors import AnalysisError, ParameterError
+from skcomplex.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import SpinElement
@@ -50,7 +51,7 @@ def test_spectrum_rejects_bad_requests():
         _quantum('spectrum', system, parameters={'exchange.K': 1.0})
     with pytest.raises(AnalysisError, match='eigenvalue'):
         _quantum('spectrum', system, sector=(total_magnetization, 7.0))
-    with pytest.raises(AnalysisError, match='quantum elements'):
+    with pytest.raises(ValidationError, match='no quantum element'):
         _quantum('spectrum', System(elements=[PopulationElement('rabbits')]))
 
 
@@ -63,7 +64,9 @@ def test_ground_state_is_stationary():
     entry = describe('quantum_heisenberg')
     initial = entry.initial_state_of(n_sites=6, initial='ground')
     assert initial == {'quantum_heisenberg.state': 'ground'}
-    simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial).check()
+    simulation = Simulation(
+        system, dt=0.5, observables=entry.observables_of(system), initial_state=initial, compiler=QuantumCompiler(),
+    ).check()
     trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory.values('energy')) < 1e-8
     assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
@@ -74,7 +77,12 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
     system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
-    trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).check().run(until=1.0).trajectory_
+    trajectory = (
+        Simulation(system, dt=1.0, initial_state={'system.state': singlet}, compiler=QuantumCompiler())
+        .check()
+        .run(until=1.0)
+        .trajectory_
+    )
     assert np.allclose(_quantum('entanglement', trajectory, subsystems=['pair[0]']).entropy_, np.log(2), atol=1e-12)
     assert np.allclose(_quantum('entanglement', trajectory, subsystems=['pair']).entropy_, 0, atol=1e-10)
     with pytest.raises(AnalysisError, match='not a subsystem'):
@@ -83,12 +91,27 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
 
 def test_purity_of_pure_and_dephased_runs():
     """Test that purity is 1 for closed runs and falls under dephasing."""
-    closed = Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5).check().run(until=1.0).trajectory_
+    closed = (
+        Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5, compiler=QuantumCompiler())
+        .check()
+        .run(until=1.0)
+        .trajectory_
+    )
     assert np.allclose(_quantum('purity', closed).purity_, 1)
-    opened = Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5).check().run(until=2.0).trajectory_
+    opened = (
+        Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5, compiler=QuantumCompiler())
+        .check()
+        .run(until=2.0)
+        .trajectory_
+    )
     assert np.all(np.diff(_quantum('purity', opened).purity_) <= 1e-10)
     assert _quantum('purity', opened).purity_[-1] < 1
-    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().run(until=1.0).trajectory_
+    rabbits = (
+        Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0)
+        .check()
+        .run(until=1.0)
+        .trajectory_
+    )
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _quantum('purity', rabbits)
 

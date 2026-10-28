@@ -16,6 +16,7 @@ import numpy as np
 from scipy.special import jv
 
 from skcomplex.analysis import QuantumAnalysis
+from skcomplex.engine.compile import QuantumCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe, run
@@ -25,7 +26,11 @@ MODEL = 'quantum_heisenberg'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(
-    system, dt=0.05, observers=[observer], observables=describe(MODEL).observables_of(system),
+    system,
+    compiler=QuantumCompiler(),
+    dt=0.05,
+    observers=[observer],
+    observables=describe(MODEL).observables_of(system),
 ).check().run(
     until=8.0,
 )

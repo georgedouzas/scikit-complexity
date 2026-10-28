@@ -19,9 +19,9 @@ from skcomplex.engine.compile import (
     BaseCompiler,
     BasePass,
     ObservableEvaluator,
+    QuantumCompiler,
     compile_system,
 )
-from skcomplex.engine.compile.passes import QuantumCompiler
 from skcomplex.errors import IncompatibleLawsError, ValidationError
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import (
@@ -127,7 +127,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = compile_system(system)
+    problem = compile_system(system, compiler=QuantumCompiler())
     matrix = problem._hamiltonian_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
@@ -147,7 +147,7 @@ def test_compile_system_folds_constant_hamiltonians():
             FixedElement('q'),
         ],
     )
-    problem = compile_system(system)
+    problem = compile_system(system, compiler=QuantumCompiler())
     assert len(problem.hamiltonian) == 1
     assert problem.hamiltonian[0].function is None
 
@@ -155,27 +155,27 @@ def test_compile_system_folds_constant_hamiltonians():
 def test_compile_system_rejects_non_hermitian_hamiltonians():
     """Test that a Hamiltonian without its adjoint raises an error that names the law."""
     with pytest.raises(ValidationError, match=r'Hamiltonian of q is not Hermitian.*adjoint'):
-        compile_system(System(elements=[PlusElement('q')]))
+        compile_system(System(elements=[PlusElement('q')]), compiler=QuantumCompiler())
 
 
 def test_compile_system_rejects_classical_symbols_in_coefficients():
     """Test that a coefficient reading a symbol other than parameters and time raises an error."""
     with pytest.raises(ValidationError, match='n_rabbits'):
-        compile_system(System(elements=[ForeignElement('q')]))
+        compile_system(System(elements=[ForeignElement('q')]), compiler=QuantumCompiler())
 
 
 def test_compile_system_rejects_classical_elements_and_laws():
     """Test that quantum systems hold neither classical elements nor classical laws."""
     with pytest.raises(IncompatibleLawsError, match='rabbits'):
-        compile_system(System(elements=[QubitElement('q'), PopulationElement('rabbits')]))
+        compile_system(System(elements=[QubitElement('q'), PopulationElement('rabbits')]), compiler=QuantumCompiler())
     with pytest.raises(IncompatibleLawsError, match='RateLaw'):
-        compile_system(System(elements=[ClassicalElement('q')]))
+        compile_system(System(elements=[ClassicalElement('q')]), compiler=QuantumCompiler())
 
 
 def test_compile_system_rejects_negative_rates():
     """Test that a dissipator with a negative rate raises an error."""
     with pytest.raises(ValidationError, match='non-negative'):
-        compile_system(System(elements=[NegativeElement('q')]))
+        compile_system(System(elements=[NegativeElement('q')]), compiler=QuantumCompiler())
 
 
 def test_compile_system_stores_neel_states():
@@ -187,6 +187,7 @@ def test_compile_system_stores_neel_states():
                 LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}),
             ],
         ),
+        compiler=QuantumCompiler(),
     )
     state = problem._state_of(problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
@@ -197,15 +198,21 @@ def test_compile_system_stores_neel_states():
 def test_compile_system_rejects_invalid_initial_states(initial, message):
     """Test that an unnormalised vector or an unknown name raises an error that names the system."""
     with pytest.raises(ValidationError, match=message):
-        compile_system(System('box', elements=[QubitElement('q')]), initial_state={'box.state': initial})
+        compile_system(
+            System('box', elements=[QubitElement('q')]),
+            initial_state={'box.state': initial},
+            compiler=QuantumCompiler(),
+        )
 
 
 def test_compile_system_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
-    problem = compile_system(System(elements=[DecayingElement('q')]))
+    problem = compile_system(System(elements=[DecayingElement('q')]), compiler=QuantumCompiler())
     assert not problem.pure
     assert problem._state_of(problem.initial_state).shape == (2, 2)
-    mixed = compile_system(System(elements=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2})
+    mixed = compile_system(
+        System(elements=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2}, compiler=QuantumCompiler(),
+    )
     assert not mixed.pure
 
 
@@ -217,7 +224,7 @@ def test_compile_system_starts_from_the_ground_state():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = compile_system(system, initial_state={'system.state': 'ground'})
+    problem = compile_system(system, initial_state={'system.state': 'ground'}, compiler=QuantumCompiler())
     energy = (
         ObservableEvaluator(problem)
         .prepare()
@@ -243,7 +250,7 @@ def test_observable_evaluator_reads_local_magnetization():
         ObservableSpec('sz', local_z, group='chain', reduce=np.asarray),
         ObservableSpec('total', local_z, group='chain', reduce='sum'),
     ]
-    problem = compile_system(system, observables=observables)
+    problem = compile_system(system, observables=observables, compiler=QuantumCompiler())
     values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert values['sz'].tolist() == [0.5, -0.5] * 4
     assert values['total'] == 0.0
@@ -253,14 +260,16 @@ def test_observable_evaluator_rejects_non_operators():
     """Test that a quantum observable must give an operator."""
     system = System(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
-        ObservableEvaluator(compile_system(system, observables=[ObservableSpec('label', attrgetter('t'))])).prepare()
+        ObservableEvaluator(
+            compile_system(system, observables=[ObservableSpec('label', attrgetter('t'))], compiler=QuantumCompiler()),
+        ).prepare()
 
 
-def test_quantum_compiler_claims_quantum_systems():
-    """Test that the quantum compiler claims a quantum system and leaves a classical one."""
+def test_quantum_compiler_reports_a_classical_system():
+    """Test that the quantum compiler accepts a quantum system and reports a classical one."""
     compiler = QuantumCompiler().check()
-    assert compiler.prepare(System(elements=[GroupElement('chain', element=SpinElement, size=2)])).claims_
-    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
+    assert compiler.prepare(System(elements=[GroupElement('chain', element=SpinElement, size=2)])).report_.ok
+    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).report_.ok
 
 
 def test_quantum_compiler_is_a_system_compiler_and_not_a_pass():
