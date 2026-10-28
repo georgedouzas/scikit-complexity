@@ -16,7 +16,6 @@ from ..core.spaces import ContinuousTime
 from ..engine.problems import vector
 from ._base import BaseAnalysis
 from ._kinds import DataKind
-from ._lazy import module
 from ._surrogate_systems import (
     Samples,
     SurrogateSource,
@@ -192,7 +191,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         before = np.concatenate([values[:-1] for values in training]).T
         after = np.concatenate([values[1:] for values in training]).T
         rank = -1 if self.rank is None else self.rank
-        decomposition = module('pydmd').DMD(svd_rank=rank, exact=True).fit(before, after)
+        decomposition = self._import('pydmd').DMD(svd_rank=rank, exact=True).fit(before, after)
         modes = np.asarray(decomposition.modes, dtype=complex)
         eigenvalues: ComplexArray = np.asarray(
             np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt,

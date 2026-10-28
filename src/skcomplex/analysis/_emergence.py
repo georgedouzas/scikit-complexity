@@ -8,7 +8,7 @@ import math
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from functools import partial
-from typing import Self
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +20,6 @@ from ._base import BaseAnalysis, Source
 from ._information import _estimated_information, _plugin_entropy
 from ._kinds import DataKind
 from ._markov import _stationary_distribution
-from ._utils import sample_columns
 
 type Array = npt.NDArray[np.float64]
 type Labels = npt.NDArray[np.int64]
@@ -40,7 +39,6 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
-
 
 
 def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> Labels:
@@ -189,8 +187,8 @@ def _exhaustive(matrix: Array, weights: Array) -> Labels:
 def _macro_series(micro: npt.NDArray[np.generic], partition: Partition) -> npt.NDArray[np.generic]:
     """Return the macro series of a micro series under a partition given as labels or as a function."""
     if callable(partition):
-        return sample_columns(partition(micro))
-    return sample_columns(np.asarray(partition)[np.asarray(micro).ravel().astype(np.int64)])
+        return EmergenceAnalysis._read_columns(partition(micro))
+    return EmergenceAnalysis._read_columns(np.asarray(partition)[np.asarray(micro).ravel().astype(np.int64)])
 
 
 def _lagged(columns: npt.NDArray[np.generic], history: int) -> npt.NDArray[np.generic]:
@@ -462,3 +460,18 @@ class EmergenceAnalysis(BaseAnalysis):
         else:
             self._run_closure()
         return self
+
+    @staticmethod
+    def _read_columns(data: npt.ArrayLike) -> npt.NDArray[Any]:
+        """Return data as one row per sample and one column per variable, a series as a single column.
+
+        Args:
+            data:
+                A series, or one row per sample with the variables along the remaining axes.
+
+        Returns:
+            columns:
+                The data as a two-dimensional array.
+        """
+        array = np.asarray(data)
+        return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)

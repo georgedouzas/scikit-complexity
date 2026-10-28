@@ -16,7 +16,6 @@ from ..core.spaces import ContinuousTime
 from ..engine.runtime import Simulation
 from ._base import BaseAnalysis
 from ._kinds import DataKind
-from ._lazy import module
 from ._surrogate_systems import (
     SurrogateSource,
     _check_horizon,
@@ -184,7 +183,7 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         samples = self.samples_
         states = _state_names(samples.labels)
         training, held = _split_samples(samples.series, self.validation)
-        sindy = module('pysindy')
+        sindy = self._import('pysindy')
         model = sindy.SINDy(
             optimizer=sindy.STLSQ(threshold=self.threshold, alpha=self.alpha),
             feature_library=sindy.PolynomialLibrary(degree=self.degree),

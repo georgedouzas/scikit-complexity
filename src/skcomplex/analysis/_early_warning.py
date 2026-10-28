@@ -13,7 +13,6 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 MIN_WINDOW = 3
@@ -35,7 +34,7 @@ def _trend(indicator: Array) -> float:
 
 def _indicators(values: npt.ArrayLike, window: int, *, detrend: bool) -> Array:
     """Return the rolling variance, lag-1 autocorrelation, skewness, and reddening of a series, one row each."""
-    array = real_array(values, 'values')
+    array = BaseAnalysis._read_real(values, 'values')
     if not MIN_WINDOW <= window <= array.size:
         error_msg = (
             f'window = {window} must lie between {MIN_WINDOW} and the length of the series, {array.size}. '

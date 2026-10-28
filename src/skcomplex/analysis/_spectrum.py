@@ -21,7 +21,6 @@ from ..engine.problems import VariableKind, declarations_of, symbol
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('power', 'structure-factor', 'dispersion')
@@ -37,7 +36,7 @@ EIGENVALUE = symbol('_eigenvalue_')
 
 def _power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array]:
     """Return the frequencies and the power spectral density of a series by Welch's method."""
-    array = real_array(values, 'values')
+    array = BaseAnalysis._read_real(values, 'values')
     return signal.welch(array, fs=1 / dt, nperseg=min(array.size, 1024))
 
 

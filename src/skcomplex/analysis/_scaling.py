@@ -15,7 +15,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('detrended-fluctuation', 'rescaled-range', 'box-counting', 'correlation-dimension')
@@ -39,7 +38,7 @@ def _fluctuation(
     method: str = 'dfa',
 ) -> tuple[Array, Array, float]:
     """Return the window sizes, the fluctuations, and the exponent of a series by DFA or by the rescaled range."""
-    array = real_array(values, 'values')
+    array = BaseAnalysis._read_real(values, 'values')
     if array.size < MIN_FLUCTUATION_VALUES:
         error_msg = (
             f'A fluctuation analysis needs at least {MIN_FLUCTUATION_VALUES} values, not {array.size}. '

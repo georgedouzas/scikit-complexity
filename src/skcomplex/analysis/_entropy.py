@@ -16,7 +16,6 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._lazy import module
 
 type Array = npt.NDArray[np.float64]
 KINDS = (
@@ -151,7 +150,7 @@ def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
     """Return the sample entropy `-ln(A / B)` of a series, with the tolerance a fraction of its deviation."""
     array = np.ascontiguousarray(values, dtype=float)
     radius = _tolerance(array, tolerance)
-    return float(module('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0
+    return float(BaseAnalysis._import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0
 
 
 class EntropyAnalysis(BaseAnalysis):
@@ -355,7 +354,7 @@ class EntropyAnalysis(BaseAnalysis):
             return self._compute_blocks(values)
         if kind == 'lempel-ziv':
             _, codes = np.unique(np.asarray(values).ravel(), return_inverse=True)
-            return float(module('antropy').lziv_complexity(codes.astype(np.int64), normalize=self.normalize))
+            return float(self._import('antropy').lziv_complexity(codes.astype(np.int64), normalize=self.normalize))
         if kind == 'permutation':
             return self._compute_permutation(values)
         return self._compute_regularity(np.ascontiguousarray(values, dtype=float))
@@ -381,7 +380,7 @@ class EntropyAnalysis(BaseAnalysis):
 
     def _compute_regularity(self, array: Array) -> float | Array:
         """Return the sample, approximate, multiscale, or spectral entropy of a real series."""
-        antropy = module('antropy')
+        antropy = self._import('antropy')
         dimension = int(self.dimension)  # type: ignore[arg-type]
         if self.kind == 'sample':
             return _sample(array, dimension, self.tolerance)

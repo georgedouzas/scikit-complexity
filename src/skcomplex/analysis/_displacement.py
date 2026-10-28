@@ -14,7 +14,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 FIT_POINTS = 20
@@ -22,7 +21,7 @@ FIT_POINTS = 20
 
 def _particle_axes(positions: npt.ArrayLike) -> Array:
     """Return positions as frames by particles by dimensions."""
-    array = real_array(positions, 'positions')
+    array = BaseAnalysis._read_real(positions, 'positions')
     return array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
 
 

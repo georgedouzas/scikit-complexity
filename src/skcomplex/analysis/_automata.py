@@ -16,7 +16,6 @@ from ..core.laws.utils import Table
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._lazy import module
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -156,7 +155,7 @@ class _Clauses:
 
     def solve(self) -> list[int] | None:
         """Return a model of the clauses, or `None` when they are unsatisfiable."""
-        solvers = module('pysat.solvers')
+        solvers = BaseAnalysis._import('pysat.solvers')
         with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
             return solver.get_model() if solver.solve() else None
 

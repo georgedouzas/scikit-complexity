@@ -12,7 +12,6 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('histogram', 'ccdf', 'gini', 'tail-index', 'records')
@@ -41,7 +40,7 @@ def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:
 
 def _ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
     """Return the sorted distinct values of a sample and the share of samples at or above each of them."""
-    array = np.sort(real_array(values, 'values'))
+    array = np.sort(BaseAnalysis._read_real(values, 'values'))
     distinct, first = np.unique(array, return_index=True)
     return distinct, 1 - first / array.size
 
@@ -175,7 +174,7 @@ class DistributionAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the series of the source, pooled into one sample except for records."""
         series = self._read_series(source, self.variables)
-        values = real_array(series.values, 'values')
+        values = self._read_real(series.values, 'values')
         self.values_ = values if self.kind == 'records' else values.ravel()
         self.labels_ = series.labels
         return self

@@ -21,7 +21,6 @@ from ._assumptions import declare_domains
 from ._base import BaseAnalysis, Source
 from ._groups import expand_groups
 from ._kinds import DataKind
-from ._utils import system_of
 
 type Point = Mapping[str, Expression | float]
 ZERO = 1e-9
@@ -208,7 +207,7 @@ class StabilityAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it has a symbolic vector field."""
-        self.problem_ = _dynamics_of(system_of(source), self.parameters).problem
+        self.problem_ = _dynamics_of(self._read_system(source), self.parameters).problem
         return self
 
     def _find_points(self, dynamics: _Dynamics) -> list[dict[str, Expression | float]]:

@@ -21,7 +21,6 @@ from ._fractional import _mittag_leffler
 from ._kinds import DataKind
 from ._loops import _stock_flow
 from ._quantum import _quantum_problem
-from ._utils import system_of
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
 SETTINGS: dict[str, set[str]] = {
@@ -409,7 +408,7 @@ class SymbolicAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it has the form of the kind."""
-        system = system_of(source)
+        system = self._read_system(source)
         problem = system if isinstance(system, BaseProblem) else compile_system(system)
         if self.kind == 'hamiltonian':
             self.problem_ = _quantum_problem(problem)

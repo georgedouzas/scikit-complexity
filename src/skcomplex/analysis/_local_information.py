@@ -15,7 +15,6 @@ from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._information import _row_codes
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 type Columns = npt.NDArray[np.generic]
@@ -35,7 +34,7 @@ def _log_probabilities(columns: Columns, estimator: str) -> Array:
         codes = _row_codes(columns)
         counts = np.bincount(codes).astype(float)
         return np.log(counts[codes] / codes.size)
-    values = real_array(columns, 'values')
+    values = BaseAnalysis._read_real(columns, 'values')
     covariance = np.atleast_2d(np.cov(values, rowvar=False, bias=True))
     density = stats.multivariate_normal(values.mean(axis=0), covariance)
     return np.asarray(density.logpdf(values), dtype=float).reshape(-1)

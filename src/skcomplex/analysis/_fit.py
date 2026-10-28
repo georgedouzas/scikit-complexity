@@ -15,7 +15,6 @@ from scipy import stats
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 NAMED_LAWS = {
@@ -285,7 +284,7 @@ class FitAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the series of the source pooled into one sample."""
         series = self._read_series(source, self.variables)
-        self.values_ = real_array(series.values, 'values').ravel()
+        self.values_ = self._read_real(series.values, 'values').ravel()
         self.labels_ = series.labels
         return self
 

@@ -18,8 +18,6 @@ from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._entropy import _block_entropies, _shannon
 from ._kinds import DataKind
-from ._lazy import module
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 type Columns = npt.NDArray[np.generic]
@@ -81,7 +79,7 @@ def _symbolize(
     delay: int = 1,
 ) -> npt.NDArray[np.int64]:
     """Return a series as `n` equal-width bins, `n` equally populated bins, or ordinal patterns of length `order`."""
-    array = real_array(values, 'values')
+    array = BaseAnalysis._read_real(values, 'values')
     if method == 'bins':
         edges = np.linspace(array.min(), array.max(), n + 1)[1:-1]
         return np.digitize(array, edges).astype(np.int64)
@@ -232,14 +230,16 @@ def _dit_distribution(columns: Columns) -> object:
     """Return the `dit` distribution of the empirical frequencies of the rows."""
     counts = Counter(tuple(row) for row in columns.tolist())
     total = sum(counts.values())
-    return module('dit').Distribution(list(counts), [count / total for count in counts.values()])
+    return BaseAnalysis._import('dit').Distribution(list(counts), [count / total for count in counts.values()])
 
 
 def _total(columns: Columns, estimator: str, k: int) -> float:
     """Return the total correlation `Σ H(X_i) - H(X)` of the columns in nats."""
     if estimator == 'plugin':
-        return float(module('dit').multivariate.total_correlation(_dit_distribution(columns))) * math.log(2)
-    values = real_array(columns, 'data')
+        return float(BaseAnalysis._import('dit').multivariate.total_correlation(_dit_distribution(columns))) * math.log(
+            2,
+        )
+    values = BaseAnalysis._read_real(columns, 'data')
     if estimator == 'gaussian':
         return -_log_determinant(values / values.std(axis=0)) / 2
     return sum(_knn_chain(values[:, index], values[:, :index], k) for index in range(1, values.shape[1]))
@@ -248,8 +248,10 @@ def _total(columns: Columns, estimator: str, k: int) -> float:
 def _dual(columns: Columns, estimator: str, k: int) -> float:
     """Return the dual total correlation `H(X) - Σ H(X_i | X_-i)` of the columns in nats."""
     if estimator == 'plugin':
-        return float(module('dit').multivariate.dual_total_correlation(_dit_distribution(columns))) * math.log(2)
-    values = real_array(columns, 'data')
+        return float(
+            BaseAnalysis._import('dit').multivariate.dual_total_correlation(_dit_distribution(columns)),
+        ) * math.log(2)
+    values = BaseAnalysis._read_real(columns, 'data')
     if estimator == 'gaussian':
         precision = np.linalg.inv(np.atleast_2d(np.cov(values, rowvar=False, bias=True)))
         return (_log_determinant(values) + float(np.sum(np.log(np.diag(precision))))) / 2

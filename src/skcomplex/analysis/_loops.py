@@ -20,7 +20,6 @@ from ..engine.problems import LoopTerm, Problem, StockFlow, numpy_function, symb
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import system_of
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
 SETTINGS = {
@@ -254,7 +253,7 @@ class LoopAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
             raise AnalysisError(error_msg)
         self.trajectory_ = source if isinstance(source, Trajectory) else None
-        self.problem_ = compiled_problem(system_of(source), 'The feedback loop analysis')
+        self.problem_ = compiled_problem(self._read_system(source), 'The feedback loop analysis')
         _stock_flow(self.problem_)
         return self
 

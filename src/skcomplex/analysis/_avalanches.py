@@ -12,7 +12,6 @@ import numpy.typing as npt
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._lazy import module
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('sizes', 'crackling', 'branching')
@@ -253,7 +252,7 @@ class AvalancheAnalysis(BaseAnalysis):
         if self.kind == 'crackling':
             self._run_crackling()
         elif self.kind == 'branching':
-            mrestimator = module('mrestimator')
+            mrestimator = self._import('mrestimator')
             coefficients = mrestimator.coefficients(
                 self.activity_.T,
                 method='ts',

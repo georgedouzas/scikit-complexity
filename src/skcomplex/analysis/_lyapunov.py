@@ -20,7 +20,6 @@ from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import _Dynamics, _dynamics_of
-from ._utils import system_of
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('spectrum', 'largest')
@@ -282,7 +281,7 @@ class LyapunovAnalysis(BaseAnalysis):
             self.labels_ = series.labels
             return self
         if isinstance(source, System | BaseProblem | Trajectory):
-            self.problem_ = _dynamics_of(system_of(source), self.parameters).problem
+            self.problem_ = _dynamics_of(self._read_system(source), self.parameters).problem
             return self
         self.problem_ = None
         self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]

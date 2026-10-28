@@ -7,6 +7,9 @@ import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
+from functools import cache
+from importlib import import_module
+from types import ModuleType
 from typing import Self
 
 import networkx as nx
@@ -14,7 +17,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..core.errors import AnalysisError, NotCheckedError
+from ..core.errors import AnalysisError, NotCheckedError, ValidationError
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system, observables_of
@@ -652,3 +655,77 @@ class BaseAnalysis(BaseEstimator, ABC):
             error_msg = f'{type(self).__name__} must be prepared with a source before it runs. Call `prepare(source)`.'
             raise AnalysisError(error_msg)
         return self._run()
+
+    @staticmethod
+    @cache
+    def _import(name: str) -> ModuleType:
+        """Return a module, importing it on the first call.
+
+        Args:
+            name:
+                The dotted name of the module.
+
+        Returns:
+            module:
+                The imported module.
+
+        Examples:
+            >>> from skcomplex.analysis import BaseAnalysis
+            >>> BaseAnalysis._import('math').sqrt(4.0)
+            2.0
+        """
+        return import_module(name)
+
+    @staticmethod
+    def _read_system(source: object) -> System | BaseProblem:
+        """Return the system or the problem of a source: the problem of a trajectory, or a system or problem as it is.
+
+        Args:
+            source:
+                A system, a problem compiled from one, or a trajectory.
+
+        Returns:
+            system:
+                The system, or the problem.
+
+        Raises:
+            AnalysisError:
+                The source is not a system, a problem, or a trajectory.
+        """
+        if isinstance(source, Trajectory):
+            return source.problem
+        if isinstance(source, System | BaseProblem):
+            return source
+        error_msg = (
+            f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
+        )
+        raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _read_real(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:
+        """Return values as a float array after rejecting complex values, whose imaginary part a cast would drop.
+
+        Args:
+            values:
+                The values an analysis function receives.
+
+            argument:
+                The name of the argument that holds the values, used in the error message.
+
+        Returns:
+            array:
+                The values as floats.
+
+        Raises:
+            ValidationError:
+                The values are complex.
+        """
+        array = np.asarray(values)
+        if np.iscomplexobj(array):
+            error_msg = (
+                f'The {argument} are complex, and the analysis takes real values. Pass one real view of them: the real '
+                'part `values.real`, the imaginary part `values.imag`, the modulus `np.abs(values)`, or the argument '
+                '`np.angle(values)`.'
+            )
+            raise ValidationError(error_msg)
+        return np.asarray(array, dtype=float)

@@ -13,7 +13,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('detect', 'counts', 'laminar-durations')
@@ -195,7 +194,7 @@ class EventAnalysis(BaseAnalysis):
         if self.kind == 'counts':
             self.counts_ = _event_counts(self.times_, float(self.window or 0), self.start, self.end)
             return self
-        array = real_array(self.values_[:, 0], 'values')
+        array = self._read_real(self.values_[:, 0], 'values')
         if self.kind == 'laminar-durations':
             self.durations_ = _laminar_durations(array, self.times_, self.threshold)
             return self

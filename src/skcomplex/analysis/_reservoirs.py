@@ -17,7 +17,6 @@ from ..core.spaces import DiscreteTime
 from ..engine.problems import vector
 from ._base import BaseAnalysis
 from ._kinds import DataKind
-from ._lazy import module
 from ._surrogate_systems import (
     SurrogateSource,
     _check_horizon,
@@ -47,7 +46,7 @@ def _reservoir_node(
     random_state: int | None,
 ) -> Any:  # noqa: ANN401
     """Return the ReservoirPy node of a kind of reservoir, a nonlinear vector autoregression or a reservoir of units."""
-    nodes = module('reservoirpy.nodes')
+    nodes = BaseAnalysis._import('reservoirpy.nodes')
     if kind == 'next_generation':
         return nodes.NVAR(delay=delay, order=order, strides=1)
     return nodes.Reservoir(
@@ -356,7 +355,7 @@ class ReservoirAnalysis(BaseAnalysis):
         step = _ReservoirStep(
             self.kind,
             node,
-            module('reservoirpy.nodes').Ridge(ridge=self.ridge),
+            self._import('reservoirpy.nodes').Ridge(ridge=self.ridge),
             joined.mean(axis=0),
             np.where(joined.std(axis=0) > 0, joined.std(axis=0), 1.0),
         )

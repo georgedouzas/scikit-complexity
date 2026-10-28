@@ -17,7 +17,6 @@ from ..engine.problems import Form, Problem
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._stability import _dynamics_of
-from ._utils import system_of
 
 type Matrix = npt.NDArray[np.float64]
 
@@ -182,7 +181,7 @@ class LinearizationAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it runs in continuous time."""
-        problem = compiled_problem(system_of(source), 'Linearization')
+        problem = compiled_problem(self._read_system(source), 'Linearization')
         if problem.form != Form.ODE:
             error_msg = (
                 f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form.value}.'

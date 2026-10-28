@@ -22,7 +22,6 @@ from ..engine.problems import BaseProblem
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import system_of
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
 SETTINGS = {
@@ -270,7 +269,7 @@ class QuantumAnalysis(BaseAnalysis):
             self.problem_, _ = _states_of(source)
             self.trajectory_ = source
             return self
-        self.problem_ = _quantum_problem(system_of(source))
+        self.problem_ = _quantum_problem(self._read_system(source))
         return self
 
     def _run(self) -> Self:

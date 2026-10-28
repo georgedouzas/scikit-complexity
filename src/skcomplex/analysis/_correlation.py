@@ -14,7 +14,6 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('auto', 'two-time', 'function', 'length')
@@ -31,7 +30,7 @@ MOMENT_ITERATIONS = 8
 
 def _autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
     """Return the autocorrelation of a series at lags 0 to `max_lag`, or to half its length, computed with the FFT."""
-    array = real_array(values, 'values')
+    array = BaseAnalysis._read_real(values, 'values')
     array = array - array.mean()
     size = array.size
     spectrum = np.fft.rfft(array, n=2 * size)
@@ -69,7 +68,7 @@ def _two_time_correlation(ensemble: Array, waiting: Sequence[int], lags: Sequenc
 
 def _correlation_function(field: npt.ArrayLike, max_distance: int | None = None) -> tuple[Array, Array]:
     """Return the distances and the radially averaged spatial correlation of a field on a periodic grid."""
-    grid = real_array(field, 'field')
+    grid = BaseAnalysis._read_real(field, 'field')
     grid = grid - grid.mean()
     spectrum = np.fft.fftn(grid)
     correlation = np.real(np.fft.ifftn(spectrum * np.conj(spectrum))) / grid.size
