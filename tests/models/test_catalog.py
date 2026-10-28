@@ -41,7 +41,7 @@ def test_catalog_filters_by_field_without_imports():
 def test_create_imports_only_its_model():
     """Test that creating a model imports its subfield and the shared code of its field, and no other subfield."""
     loaded = _loaded("from skcomplex.models import create\ncreate('pendulum')")
-    assert loaded == ['skcomplex.models.physics.mechanics', 'skcomplex.models.physics.common']
+    assert loaded == ['skcomplex.models.physics.common', 'skcomplex.models.physics.mechanics']
 
 
 def test_create_unknown_name_suggests_close_names():
