@@ -1,4 +1,4 @@
-"""Find the neighbours of the members of a group and evaluate the reductions of laws over them."""
+"""Neighbourhood reduction that laws read, one value per member, compiled into a function of its symbols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,9 +9,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
-from scipy.spatial import cKDTree
 
 from ...core.errors import ValidationError
 from ...core.spaces import (
@@ -29,10 +27,14 @@ from ...core.spaces import (
     RadiusNeighborhood,
 )
 from ...core.types import Indices, Vector
-from ._layouts import Entry
+from ._edge_rows import EdgeRows
+from ._entry import Entry
+from ._heading import Heading
+from ._metric_search import MetricSearch, Rows
+from ._pair_read import PairRead
 from ._printing import numpy_function
-from ._reads import Read
-from ._variables import Variable
+from ._static_search import StaticSearch
+from ._variable import Variable
 
 _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
@@ -42,301 +44,7 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
 """Spaces every kind of neighbourhood is read on."""
 
 
-type Rows = tuple[Indices, Indices]
-type Found = tuple[Indices, Indices, Indices | None]
-
-ACTIVE_THRESHOLD = 0.5
-
-
-@dataclass(frozen=True)
-class EdgeRows:
-    """Neighbours of the nodes of a network layer whose edges change, read from the rows of its variable edge group.
-
-    Args:
-        source:
-            The parameter entry of the source node of every edge row.
-
-        target:
-            The parameter entry of the target node of every edge row.
-
-        active:
-            The parameter entry of the activity of every edge row.
-
-        size:
-            The number of node rows, the capacity of the groups on the nodes.
-
-        directed:
-            Whether the edges are directed, so a node reads its successors.
-
-        center:
-            Whether a node is its own neighbour.
-    """
-
-    source: Entry
-    target: Entry
-    active: Entry
-    size: int
-    directed: bool = False
-    center: bool = False
-
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every node along the active edges.
-
-        Args:
-            x:
-                The state vector, which the neighbours do not depend on.
-
-            q:
-                The extended parameter vector, which holds the edge rows.
-
-        Returns:
-            rows:
-                The row starts, the neighbours, and the edge row of every neighbour, -1 for the node itself.
-        """
-        del x
-        keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
-        edges = np.flatnonzero(keep).astype(np.intp)
-        sources = self.source.view(q)[keep, 0].astype(np.intp)
-        targets = self.target.view(q)[keep, 0].astype(np.intp)
-        readers = sources if self.directed else np.concatenate([sources, targets])
-        others = targets if self.directed else np.concatenate([targets, sources])
-        ids = edges if self.directed else np.concatenate([edges, edges])
-        if self.center:
-            own = np.arange(self.size, dtype=np.intp)
-            readers, others = np.concatenate([readers, own]), np.concatenate([others, own])
-            ids = np.concatenate([ids, np.full(self.size, -1, dtype=np.intp)])
-        order = np.argsort(readers * self.size + others, kind='stable')
-        counts = np.bincount(readers, minlength=self.size)
-        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-        return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
-
-
-@dataclass(frozen=True)
-class Heading:
-    """State that holds the heading of the members, a vector or a heading angle in two dimensions.
-
-    Args:
-        entry:
-            The entry of the state.
-
-        angle:
-            Whether the state is a scalar angle, whose heading is `(cos, sin)`.
-    """
-
-    entry: Entry
-    angle: bool
-
-    def vectors(self, x: Vector) -> Vector:
-        """Return the heading of every member as one row of components.
-
-        Args:
-            x:
-                The state vector.
-
-        Returns:
-            headings:
-                One row per member.
-        """
-        values = self.entry.view(x)
-        if self.angle:
-            return np.column_stack([np.cos(values[:, 0]), np.sin(values[:, 0])])
-        return values
-
-
-@dataclass(frozen=True)
-class MetricSearch:
-    """Neighbours in a continuous space found from the positions at every evaluation with a k-d tree.
-
-    Args:
-        neighbourhood:
-            The radius, nearest, or cone neighbourhood.
-
-        positions:
-            The entry of the position state of the members.
-
-        periods:
-            The sides of a periodic box, or `None` for distances without minimum images.
-
-        heading:
-            The heading state of a cone, or `None`.
-    """
-
-    neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood
-    positions: Entry
-    periods: tuple[float, ...] | None = None
-    heading: Heading | None = None
-
-    def wrapped(self, x: Vector) -> Vector:
-        """Return the positions of the members, wrapped into a periodic box.
-
-        Args:
-            x:
-                The state vector.
-
-        Returns:
-            positions:
-                One row of position components per member.
-        """
-        positions = self.positions.view(x)
-        if self.periods is None:
-            return positions
-        periods = np.asarray(self.periods)
-        wrapped = np.mod(positions, periods)
-        return np.where(wrapped >= periods, wrapped - periods, wrapped)
-
-    def differences(self, x: Vector, readers: Indices, others: Indices) -> Vector:
-        """Return the displacement from every reader to its neighbour, the minimum image in a periodic box.
-
-        Args:
-            x:
-                The state vector.
-
-            readers:
-                The reader of every pair.
-
-            others:
-                The neighbour of every pair.
-
-        Returns:
-            differences:
-                One row of components per pair, `x_reader - x_other` wrapped.
-        """
-        positions = self.positions.view(x)
-        difference = positions[readers] - positions[others]
-        if self.periods is None:
-            return difference
-        periods = np.asarray(self.periods)
-        return difference - periods * np.rint(difference / periods)
-
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every member at the current positions.
-
-        Args:
-            x:
-                The state vector.
-
-            q:
-                The extended parameter vector, which the neighbours do not depend on.
-
-        Returns:
-            rows:
-                The row starts and the neighbours, sorted by neighbour within every row, without edges.
-        """
-        del q
-        positions = self.wrapped(x)
-        size = positions.shape[0]
-        tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
-        neighbourhood = self.neighbourhood
-        if isinstance(neighbourhood, NearestNeighborhood):
-            readers, others = self._nearest(tree, positions, neighbourhood.k)
-        else:
-            pairs = tree.query_pairs(neighbourhood.radius, output_type='ndarray').astype(np.intp)
-            readers = np.concatenate([pairs[:, 0], pairs[:, 1]])
-            others = np.concatenate([pairs[:, 1], pairs[:, 0]])
-            if isinstance(neighbourhood, ConeNeighborhood):
-                keep = self._inside(x, readers, others, neighbourhood)
-                readers, others = readers[keep], others[keep]
-        if neighbourhood.center:
-            readers, others = self._with_center(readers, others, size)
-        return (*self._rows(readers, others, size), None)
-
-    @staticmethod
-    def _nearest(tree: cKDTree, positions: Vector, k: int) -> tuple[Indices, Indices]:
-        """Return the pairs of every member with its `k` nearest other members."""
-        size = positions.shape[0]
-        k = min(k, size - 1)
-        if k < 1:
-            return np.zeros(0, dtype=np.intp), np.zeros(0, dtype=np.intp)
-        _, found = tree.query(positions, k=k + 1)
-        found = np.asarray(found, dtype=np.intp).reshape(size, k + 1)
-        own = found == np.arange(size)[:, None]
-        own[~own.any(axis=1), -1] = True
-        return np.repeat(np.arange(size, dtype=np.intp), k), found[~own].astype(np.intp)
-
-    def _inside(self, x: Vector, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
-        """Return whether every pair has its neighbour inside the reader's cone."""
-        assert self.heading is not None
-        direction = -self.differences(x, readers, others)
-        heading = self.heading.vectors(x)[readers]
-        dot = np.sum(heading * direction, axis=1)
-        norms = np.sqrt(np.sum(heading * heading, axis=1)) * np.sqrt(np.sum(direction * direction, axis=1))
-        return dot >= np.cos(cone.angle) * norms
-
-    @staticmethod
-    def _rows(readers: Indices, others: Indices, size: int) -> Rows:
-        """Return the row starts and the neighbours, sorted by reader and then by neighbour, of a list of pairs."""
-        order = np.lexsort((others, readers))
-        counts = np.bincount(readers, minlength=size)
-        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-        return indptr, others[order].astype(np.intp)
-
-    @staticmethod
-    def _with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices, Indices]:
-        """Return pairs with every member paired with itself."""
-        own = np.arange(size, dtype=np.intp)
-        return np.concatenate([readers, own]), np.concatenate([others, own])
-
-
-@dataclass(frozen=True)
-class StaticSearch:
-    """Neighbours that do not change during a run, the edges of a network or the offsets of a lattice.
-
-    Args:
-        indptr:
-            The start of the neighbours of every member, and the number of pairs last.
-
-        indices:
-            The neighbours of every member in turn.
-
-        edges:
-            The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
-    """
-
-    indptr: Indices
-    indices: Indices
-    edges: Indices | None = None
-
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every member.
-
-        Args:
-            x:
-                The state vector, which the neighbours do not depend on.
-
-            q:
-                The extended parameter vector, which the neighbours do not depend on.
-
-        Returns:
-            rows:
-                The row starts, the neighbours, and the edge of every neighbour on a network.
-        """
-        del x, q
-        return self.indptr, self.indices, self.edges
-
-
 type Search = StaticSearch | EdgeRows | MetricSearch
-
-
-@dataclass(frozen=True)
-class PairRead:
-    """How a neighbourhood reduction reads one symbol for every pair of a member and a neighbour.
-
-    Args:
-        read:
-            The values of the symbol, one per member or one shared value.
-
-        side:
-            `'shared'` for one value, `'reader'` for the value of the member that reads the reduction, `'other'`
-            for the value of the neighbour, or `'edge'` for the value of the member of a group on the edges of a
-            network layer that joins them.
-
-        image:
-            Whether the symbol is a position component of the neighbour, read by its minimum image from the reader.
-    """
-
-    read: Read
-    side: str
-    image: bool = False
 
 
 @dataclass
@@ -477,7 +185,7 @@ class CompiledNeighborhood:
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
             >>> values = np.array([1.0, 3.0, 5.0])
             >>> CompiledNeighborhood._reduce_pairs('mean', readers, np.ones(3), values, counts).tolist()
@@ -519,7 +227,7 @@ class CompiledNeighborhood:
 
         Examples:
             >>> import networkx as nx
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
             >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
             >>> [item.tolist() for item in CompiledNeighborhood._network_rows(space, AdjacencyNeighborhood())]
@@ -554,7 +262,7 @@ class CompiledNeighborhood:
                 The row starts and the neighbours of every site.
 
         Examples:
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
             >>> space = LatticeSpace(3, boundary='fixed').check().prepare()
             >>> rows = CompiledNeighborhood._lattice_rows(space, LatticeNeighborhood(((-1,), (1,))))
@@ -581,7 +289,7 @@ class CompiledNeighborhood:
                 The neighbourhood, or `None` for a space without one of its own.
 
         Examples:
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> from sage.all__sagemath_gap import libgap
             >>> from skcomplex.core.spaces import CayleySpace, LatticeSpace
             >>> lattice = LatticeSpace((4, 4)).check().prepare()
@@ -639,7 +347,7 @@ class CompiledNeighborhood:
             >>> from typing import Annotated
             >>> from skcomplex.core.elements import Element
             >>> from skcomplex.core.specs import StateSpec
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> from skcomplex.engine.problems import VariableKind, declarations_of
             >>> from skcomplex.core.spaces import ConeNeighborhood
             >>> class BoidElement(Element):
@@ -782,7 +490,7 @@ class CompiledNeighborhood:
 
         Examples:
             >>> from skcomplex.core.spaces import RadiusNeighborhood
-            >>> from skcomplex.engine.problems._neighbourhoods import CompiledNeighborhood
+            >>> from skcomplex.engine.problems._compiled_neighborhood import CompiledNeighborhood
             >>> CompiledNeighborhood._spaces_of(RadiusNeighborhood(1.0))
             (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)
         """

@@ -39,9 +39,9 @@ from ..problems import (
     symbols_of,
     vector,
 )
-from ..problems._quantities import _Recorded
+from ..problems._compiled_reduction import CompiledReduction
 from ..problems._reads import Read
-from ..problems._reductions import CompiledReduction
+from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._declarations import Block, Declarations
 from ._flows import TransferPass
@@ -664,7 +664,7 @@ class ObservableEvaluator:
         path: str,
         expression: Any,  # noqa: ANN401
     ) -> tuple[Any, dict[Expression, Callable[[Vector, Vector], Any]]]:
-        """Return an expression with the delays of the laws read from their hidden states, and the hidden states' readers."""
+        """Return an expression with the delays of the laws read from their hidden states, and their readers."""
         transfer_network = self.problem.transfer_network
         if transfer_network is None or not isinstance(expression, Expression):
             return expression, {}

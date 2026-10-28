@@ -42,7 +42,7 @@ from ...problems import (
     symbol,
     vector,
 )
-from ...problems._reductions import CompiledReduction
+from ...problems._compiled_reduction import CompiledReduction
 from .._declarations import Declarations
 from .._quantum_operators import LocalOperator, Operator
 from .._quantum_views import QuantumView

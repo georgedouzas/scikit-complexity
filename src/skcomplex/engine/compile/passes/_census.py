@@ -31,7 +31,7 @@ from ....core.laws import (
 )
 from ....core.system import System
 from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
-from ...problems._kernels import PairSearch
+from ...problems._pair_search import PairSearch
 from .._census import Census, CensusRecord
 from .._compilation import Compilation
 from .._declarations import Block, Declarations

@@ -1,4 +1,4 @@
-"""Test the lowering of reductions and observable reads, their order, and their agreement across backends."""
+"""Test the `CompiledReduction` class."""
 
 import math
 import time

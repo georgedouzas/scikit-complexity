@@ -1,4 +1,4 @@
-"""Evaluate the reductions that laws read, in dependency order, before the kernels of every evaluation."""
+"""Reduction that laws read, compiled into a function of the values of its symbols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,8 +15,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
-from ._layouts import Entry
-from ._neighbourhoods import CompiledNeighborhood
+from ._entry import Entry
 from ._printing import numpy_function
 from ._reads import Read
 
@@ -184,7 +183,7 @@ class CompiledReduction:
                 The reduction is unknown.
 
         Examples:
-            >>> from skcomplex.engine.problems._reductions import CompiledReduction
+            >>> from skcomplex.engine.problems._compiled_reduction import CompiledReduction
             >>> CompiledReduction._reduce_values([1.0, 2.0, 6.0], 'mean')
             3.0
         """
@@ -200,80 +199,3 @@ class CompiledReduction:
         if np.ndim(result):
             return result
         return float(result) if np.isrealobj(result) else complex(result)
-
-
-@dataclass
-class ReductionSchedule:
-    """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
-
-    Args:
-        reductions:
-            The compiled reductions over groups, every one after the reductions it reads.
-
-        parameters:
-            The size of the parameter vector, where the reductions start.
-
-        neighbourhoods:
-            The compiled reductions over the neighbours of every member.
-
-        sequence:
-            Every reduction of both kinds in dependency order, or empty for the reductions over groups in their order.
-    """
-
-    reductions: tuple[CompiledReduction, ...] = ()
-    parameters: int = 0
-    neighbourhoods: tuple[CompiledNeighborhood, ...] = ()
-    sequence: tuple[CompiledReduction | CompiledNeighborhood, ...] = ()
-
-    @property
-    def steps(self) -> tuple[CompiledReduction | CompiledNeighborhood, ...]:
-        """Every reduction in the order it is evaluated."""
-        return self.sequence or (*self.reductions, *self.neighbourhoods)
-
-    @property
-    def extent(self) -> int:
-        """Size of the extended parameter vector."""
-        return max((item.entry.start + item.entry.size for item in self.steps), default=self.parameters)
-
-    def extend(self, t: float, x: Vector, p: Vector) -> Vector:
-        """Return the parameter vector followed by the value of every reduction at a state.
-
-        Args:
-            t:
-                The time.
-
-            x:
-                The state vector.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            extended:
-                The extended parameter vector.
-        """
-        q = np.zeros(self.extent)
-        given = min(p.size, self.parameters)
-        q[:given] = p[:given]
-        for reduction in self.steps:
-            reduction.evaluate(t, x, q)
-        return q
-
-    def wrap(self, function: Callable[[float, Vector, Vector], Any] | None) -> Callable[..., Any] | None:
-        """Return a function of the state and the parameters that reads the reductions at the state it receives.
-
-        Args:
-            function:
-                A function `f(t, x, q)` of the extended parameter vector, or `None`.
-
-        Returns:
-            wrapped:
-                The function `f(t, x, p)`, or the function itself without reductions.
-        """
-        if function is None or not self.steps:
-            return function
-
-        def reduced(t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
-            return function(t, x, self.extend(t, x, p))
-
-        return reduced

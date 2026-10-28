@@ -12,8 +12,8 @@ import numpy as np
 from ...core.errors import SolverError
 from ...core.types import Vector
 from ..problems import Problem
-from ..problems._kinds import Form
-from ..problems._problem import BaseProblem
+from ..problems._base_problem import BaseProblem
+from ..problems._form import Form
 from ..problems._support import SupportSpec
 from ..utils import BaseEstimator
 from ._hybrid import _RESTART, Bounded, EventLocator, History, Take

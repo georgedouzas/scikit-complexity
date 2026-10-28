@@ -25,10 +25,13 @@ from ..problems import (
     print_expressions,
     symbols_of,
 )
-from ..problems._kernels import PairSearch
-from ..problems._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
+from ..problems._compiled_neighborhood import CompiledNeighborhood
+from ..problems._compiled_reduction import CompiledReduction
+from ..problems._edge_rows import EdgeRows
+from ..problems._metric_search import MetricSearch
+from ..problems._pair_search import PairSearch
 from ..problems._reads import Read
-from ..problems._reductions import CompiledReduction
+from ..problems._static_search import StaticSearch
 
 INDENT = '    '
 

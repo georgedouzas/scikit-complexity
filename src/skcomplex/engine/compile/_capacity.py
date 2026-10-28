@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ...core.errors import CapacityError
 from ...core.types import Indices, Vector
 from ..problems import Entry
-from ..problems._neighbourhoods import ACTIVE_THRESHOLD
+from ..problems._edge_rows import ACTIVE_THRESHOLD
 
 
 @dataclass(frozen=True)

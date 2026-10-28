@@ -1,4 +1,4 @@
-"""Describe the hybrid parts of a problem: delayed states, discrete events, and the breakpoints of time inputs."""
+"""Event compiled into a guard function and a reset function of the state vector."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -107,27 +107,3 @@ class CompiledEvent:
     direction: int
     terminal: bool
     hidden: bool = False
-
-
-@dataclass(frozen=True)
-class EventRecord:
-    """Event that happened during a run.
-
-    Args:
-        label:
-            The name of the event.
-
-        time:
-            The time of the crossing.
-
-        before:
-            The state vector at the crossing, before the reset.
-
-        after:
-            The state vector after the reset.
-    """
-
-    label: str
-    time: float
-    before: Vector
-    after: Vector

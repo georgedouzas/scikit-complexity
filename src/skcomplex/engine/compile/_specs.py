@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.errors import ValidationError
 from ..problems import Problem, Reference
-from ..problems._kernels import Search
+from ..problems._reference import Search
 from ._tree import Node
 
 _MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')

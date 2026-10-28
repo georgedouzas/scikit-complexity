@@ -13,7 +13,7 @@ from ...core.laws import BaseLaw, CrossingLaw
 from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import Form, Lowered, Output, Problem, ReductionSchedule
-from ..problems._problem import _MarkovMatrix
+from ..problems._base_problem import _MarkovMatrix
 from ._census import Census
 from ._declarations import Block, Declarations
 from ._jacobians import ExactJacobian

@@ -16,7 +16,7 @@ from ....core.interactions import BaseInteraction, NeighborInteraction, PairInte
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ....core.specs import WienerProcessSpec
 from ...problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol
-from ...problems._kernels import PairSearch
+from ...problems._pair_search import PairSearch
 from .._compilation import Compilation
 from .._declarations import _ACTIVE, ENDS, Block, Declarations
 from .._observables import ObservableEvaluator, Observer

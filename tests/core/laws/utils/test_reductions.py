@@ -41,7 +41,7 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.problems._reductions import CompiledReduction
+from skcomplex.engine.problems._compiled_reduction import CompiledReduction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 

@@ -13,9 +13,14 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.types import Indices, Vector
 from ..problems import Form, SupportSpec
-from ..problems._kernels import Kernel, Reference, Source
-from ..problems._problem import Accelerated, Draws, VectorFunction, WienerBlock, _JumpChannels
-from ..problems._reductions import ReductionSchedule
+from ..problems._accelerated import Accelerated
+from ..problems._draws import Draws
+from ..problems._kernel import Kernel
+from ..problems._problem import VectorFunction, _JumpChannels
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
+from ..problems._source import Source
+from ..problems._wiener_block import WienerBlock
 from ..utils import BaseEstimator
 
 _AUTO_MEMBERS = 1000

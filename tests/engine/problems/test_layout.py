@@ -1,4 +1,4 @@
-"""Test the `_layouts` module of `skcomplex.engine.problems`."""
+"""Test the `Layout` class."""
 
 from sage.all__sagemath_symbolics import RR
 

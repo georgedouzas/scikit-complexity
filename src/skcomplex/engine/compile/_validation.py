@@ -42,7 +42,7 @@ from ...core.specs import ObservableSpec, WienerProcessSpec
 from ...core.system import System
 from ..backends import BaseBackend
 from ..problems import DomainKind, NoiseKind, SupportSpec, VariableKind, declarations_of, symbol
-from ..problems._neighbourhoods import CompiledNeighborhood
+from ..problems._compiled_neighborhood import CompiledNeighborhood
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._declarations import Declarations

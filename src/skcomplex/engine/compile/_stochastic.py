@@ -19,7 +19,7 @@ from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
 from ..problems import Draws, Entry, Reference, Source, components_of, numpy_function, symbol, symbols_of, vector
-from ..problems._problem import SampledDraw
+from ..problems._sampled_draw import SampledDraw
 
 _NORMAL_KINDS = frozenset({'normal'})
 _RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')

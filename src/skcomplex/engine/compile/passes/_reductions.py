@@ -29,9 +29,11 @@ from ...problems import (
     symbols_of,
     vector,
 )
-from ...problems._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead
+from ...problems._compiled_neighborhood import CompiledNeighborhood
+from ...problems._compiled_reduction import CompiledReduction
+from ...problems._edge_rows import ACTIVE_THRESHOLD
+from ...problems._pair_read import PairRead
 from ...problems._reads import Read
-from ...problems._reductions import CompiledReduction
 from .._compilation import Compilation, Laws
 from .._complex import _modulus_form
 from .._declarations import Declarations

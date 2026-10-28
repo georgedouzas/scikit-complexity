@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
 from ..problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function, symbols_of
-from ..problems._reductions import CompiledReduction
+from ..problems._compiled_reduction import CompiledReduction
 
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]

@@ -29,7 +29,7 @@ from ...core.laws.utils import delay_parts
 from ...core.types import Vector
 from ..problems import Entry, LoopTerm, Reference, TransferNetwork, symbol, symbols_of
 from ..problems import Source as Read
-from ..problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
+from ..problems._transfer_network import _CompiledDelay, _CompiledFlow, _Recorded
 from ._pipeline import BasePass
 
 _BOUNDARY_PREFIX = '__boundary'

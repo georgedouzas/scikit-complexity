@@ -1,23 +1,15 @@
-"""Read the states, parameters, and roles that parts declare, with the companion states the compiler adds."""
+"""Declaration of a state, a parameter, or a role of a part, as the compiler reads it."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import inspect
 from dataclasses import dataclass
-from enum import Enum
 
 from sage.all__sagemath_symbolics import CC, RR
 
 from ...core.specs import ParameterSpec, RoleSpec, StateSpec
-
-
-class VariableKind(Enum):
-    """Role a declared argument plays in a part."""
-
-    STATE = 'state'
-    PARAMETER = 'parameter'
-    ROLE = 'role'
+from ._variable_kind import VariableKind
 
 
 @dataclass(frozen=True)

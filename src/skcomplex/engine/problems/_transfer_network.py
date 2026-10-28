@@ -1,4 +1,4 @@
-"""Define the compiled flows, recorded values, and feedback terms of a system with conserved quantities."""
+"""Quantities, flows, and recorded values of a compiled system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
+
+from ._loop_term import LoopTerm
 
 
 @dataclass(frozen=True)
@@ -38,38 +40,6 @@ class _CompiledDelay:
     call: Expression
     output: Expression
     references: Mapping[Expression, Any]
-
-
-@dataclass(frozen=True)
-class LoopTerm:
-    """Node of the feedback graph of a system with the expression its value or its rate is computed from.
-
-    Args:
-        kind:
-            `'flow'`, or `'rate'` for a rate law outside flows.
-
-        path:
-            The node of a flow, or the state a rate law targets.
-
-        expression:
-            The expression.
-
-        references:
-            The references of the expression's symbols.
-
-        source:
-            The state a flow drains, or `None`.
-
-        sink:
-            The state a flow fills, or `None`.
-    """
-
-    kind: str
-    path: str
-    expression: Expression
-    references: Mapping[Expression, Any]
-    source: str | None = None
-    sink: str | None = None
 
 
 @dataclass(frozen=True)

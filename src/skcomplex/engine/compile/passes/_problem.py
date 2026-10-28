@@ -33,8 +33,8 @@ from ...problems import (
     numpy_function,
     symbols_of,
 )
-from ...problems._hybrid import _Breakpoints, _Delay
-from ...problems._problem import _MarkovMatrix
+from ...problems._base_problem import _MarkovMatrix
+from ...problems._compiled_event import _Breakpoints, _Delay
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations
 from .._pipeline import BasePass

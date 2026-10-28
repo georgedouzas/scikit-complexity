@@ -16,7 +16,7 @@ from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.types import Vector
 from ...problems import DomainKind, Reference, Source, domain_kind, labels_of, numpy_function, symbols_of
-from ...problems._problem import _MarkovMatrix
+from ...problems._base_problem import _MarkovMatrix
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import BasePass
