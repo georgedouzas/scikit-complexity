@@ -51,7 +51,7 @@
   - Verify with:
     - the double-well scenario;
     - a test that `skcomplex.experiments.__all__` holds no function.
-- [ ] 3.5 Update the docs and examples that call experiments, and verify that `pytest tests/experiments docs` and the experiments doctests pass.
+- [x] 3.5 Update the docs and examples that call experiments, and verify that `pytest tests/experiments docs` and the experiments doctests pass.
 
 ## 4. Engine surface
 
@@ -62,5 +62,5 @@
 ## 5. Layering and integration
 
 - [x] 5.1 Set the import-linter layers to `experiments`, `analysis`, `engine`, `core`, and verify that `lint-imports` passes and fails on a planted import of `experiments` from `analysis`.
-- [ ] 5.2 Update the user guide and the README to the classes, and verify that their code blocks run in the test session.
+- [x] 5.2 Update the user guide and the README to the classes, and verify that their code blocks run in the test session.
 - [ ] 5.3 Run the full test session with doctests, the checks session, and the gallery build, and verify that all pass.
