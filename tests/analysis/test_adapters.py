@@ -12,6 +12,7 @@ from skcomplex.analysis import (
     AnalysisEntry,
     DataKind,
     MarkovAnalysis,
+    SpectrumAnalysis,
     analyses_for,
     analysis,
     data_kinds,
@@ -21,7 +22,6 @@ from skcomplex.analysis import (
     path_of,
     series_of,
     snapshots_of,
-    structure_factor,
 )
 from skcomplex.core.elements import Element
 from skcomplex.core.errors import AnalysisError
@@ -59,17 +59,16 @@ def test_structure_factor_same_function_on_two_domains():
     """Test that an Ising frame and a Gray-Scott frame give the same structure factor type."""
     spins = fields_of(run('ising', size=32, settings={'until': 5}).trajectory_)[-1]
     gray_scott = fields_of(run('gray_scott', settings={'until': 40.0}).trajectory_)[-1]
-    first, second = structure_factor(spins), structure_factor(gray_scott)
-    assert type(first) is type(second)
-    assert first.power.ndim == second.power.ndim == 1
+    first, second = (SpectrumAnalysis('structure-factor').check().prepare(item).run() for item in (spins, gray_scott))
+    assert first.power_.ndim == second.power_.ndim == 1
 
 
 def test_analyses_for_arrays_without_a_simulation():
     """Test that every listed analysis of a measured series runs on the array alone."""
     values = np.random.default_rng(0).standard_normal(2000)
     found = {item.name for item in analyses_for(values)}
-    assert {'autocorrelation', 'hurst_exponent'} <= found
-    assert 0 < ANALYSES.resolve('hurst_exponent').function(values) < 1
+    assert {'ccdf', 'fit_stable'} <= found
+    assert ANALYSES.resolve('fit_stable').function(values).alpha > 1
 
 
 def test_series_of_an_ode():
@@ -149,7 +148,7 @@ def test_analyses_for_lattice_model():
     """Test that an Ising system lists field analyses and no agent analysis."""
     found = analyses_for(create('ising', size=16))
     fields = {item.name for item in found if item.kind == DataKind.FIELD}
-    assert {'structure_factor', 'correlation_length', 'cluster_sizes', 'binder_cumulant'} <= fields
+    assert {'cluster_sizes', 'percolation', 'binder_cumulant'} <= fields
     assert all(item.kind != DataKind.AGENTS for item in found)
     assert all(item.adapter == 'fields_of' for item in found if item.kind == DataKind.FIELD)
 

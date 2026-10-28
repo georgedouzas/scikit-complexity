@@ -97,7 +97,7 @@ def analysis[F: Function](kind: DataKind) -> Callable[[F], F]:
 
     Examples:
         >>> from skcomplex.analysis import ANALYSES, DataKind
-        >>> ANALYSES.resolve('structure_factor').kind
+        >>> ANALYSES.resolve('label_clusters').kind
         <DataKind.FIELD: 'field'>
     """
 

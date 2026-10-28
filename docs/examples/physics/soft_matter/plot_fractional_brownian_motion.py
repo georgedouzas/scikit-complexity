@@ -14,7 +14,7 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import hurst_exponent
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
@@ -38,7 +38,7 @@ trajectory = simulation.trajectory_
 times = trajectory.times[1:]
 positions = trajectory.values('walkers.x')
 squared = np.mean(np.sum(positions[1:] ** 2, axis=-1), axis=1)
-exponents = [hurst_exponent(np.diff(positions[:, member, 0])) for member in range(100)]
+exponents = ScalingAnalysis().check().prepare(np.diff(positions[:, :100, 0], axis=0)).run().exponent_
 fig, (displacement, memory) = plt.subplots(1, 2, figsize=(10, 4))
 displacement.loglog(times, squared, label='simulation')
 displacement.loglog(times, 4 * times**0.6, '--', color='black', label='4 D t^(2 H)')

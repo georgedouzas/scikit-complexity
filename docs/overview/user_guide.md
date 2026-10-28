@@ -3229,7 +3229,7 @@ as the turtle interpretation of L-systems does: `F` draws forward, `f` moves, `+
 a branch, and `contraction` scales the step at every generation. A `PatchElement` holds tiles, each a `Prototile` segment or
 polygon under an affine placement, and a `SubstitutionLaw` replaces every tile of a prototile by pieces placed by `Affine`
 maps relative to it. Structures with a geometry report `<element>.length` and `<element>.area` at every frame, and give
-`bounds()` and `raster(resolution)`, a boolean grid that `box_counting_dimension` reads.
+`bounds()` and `raster(resolution)`, a boolean grid that `ScalingAnalysis('box-counting')` reads.
 
 ```python
 from skcomplex.core.laws import ProductionLaw
@@ -3237,7 +3237,7 @@ from skcomplex.core.elements import WordElement
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.analysis import box_counting_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.specs import AffineSpec, PrototileSpec
 from skcomplex.core.elements import PatchElement
 from skcomplex.core.laws import SubstitutionLaw
@@ -3266,7 +3266,7 @@ cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
 trajectory = Simulation(cantor).run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
-print(round(box_counting_dimension(grid, [3, 9, 27]), 2))
+print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).check().prepare(grid).run().exponent_, 2))
 ```
 
 The `geometry` visual logs segments and outlines as line strips, a patch with `filled=True` as an image of its raster,
@@ -3609,7 +3609,7 @@ print(len(np.unique(np.round(section.states_, 4), axis=0)))
 ```
 
 **Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law`, `hill`, and `gini` describe
-heavy tails, and `detect_events` turns series into avalanches or bursts with sizes, durations, and waiting times.
+heavy tails, and `EventAnalysis` turns series into avalanches or bursts with sizes, durations, and waiting times.
 `fit_power_law` adapts the `powerlaw` library: it chooses the lower cutoff by Clauset, Shalizi, and Newman's
 Kolmogorov-Smirnov criterion, accepts an upper cutoff, uses the exact discrete likelihood for integers, gives a
 bootstrap p-value, and compares the power law with exponential, log-normal, stretched exponential, and truncated
@@ -3618,18 +3618,18 @@ power-law tails.
 ```python
 import numpy as np
 
-from skcomplex.analysis import detect_events, fit_power_law, gini
+from skcomplex.analysis import EventAnalysis, fit_power_law, gini
 
 samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
 fit = fit_power_law(samples, bootstrap=20, random_state=0)
 print(round(fit.alpha, 2), fit.p_value, round(gini(samples), 2))
-print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
+print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_)
 ```
 
-**Time series and information.** `autocorrelation`, `autocorrelation_time`, `power_spectrum`,
-`DisplacementAnalysis`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
-diffusion. The mean squared displacement of `DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped
-positions, with its exponent and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
+**Time series and information.** `CorrelationAnalysis`, `SpectrumAnalysis`, `DisplacementAnalysis`,
+`ScalingAnalysis`, and `EarlyWarningAnalysis` describe memory and diffusion. The mean squared displacement of
+`DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped positions, with its exponent and diffusion
+coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
@@ -3641,10 +3641,10 @@ equal width, equally populated bins, or ordinal patterns, coded by the lexicogra
 ```python
 import numpy as np
 
-from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, hurst_exponent
+from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, ScalingAnalysis
 
 noise = np.random.default_rng(1).standard_normal(20_000)
-print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
+print(ScalingAnalysis().check().prepare(np.column_stack([noise, np.cumsum(noise)])).run().exponent_.round(2))
 for kind in ('rate', 'excess'):
     print(EntropyAnalysis(kind, dimension=4).check().prepare([0, 0, 1, 1] * 200).run().entropy_.round(3))
 driver = np.random.default_rng(2).integers(0, 2, 5000)
@@ -3652,8 +3652,8 @@ transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([driv
 print(round(transfer.information_[0, 1], 2))
 ```
 
-**Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `correlation_function` gives
-radially averaged correlations, and `box_counting_dimension` measures fractals. `NetworkAnalysis` measures the
+**Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `CorrelationAnalysis`
+gives radially averaged correlations, and `ScalingAnalysis` measures fractals. `NetworkAnalysis` measures the
 degrees, the summary, and the centralities of NetworkX graphs and of the networks of trajectories.
 
 ```python
@@ -3661,19 +3661,19 @@ import numpy as np
 
 import networkx as nx
 
-from skcomplex.analysis import NetworkAnalysis, box_counting_dimension, label_clusters
+from skcomplex.analysis import NetworkAnalysis, ScalingAnalysis, label_clusters
 
 clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
 print(clusters.spans(0), clusters.sizes.max())
 rows, columns = np.indices((512, 512))
-print(round(box_counting_dimension((rows & columns) == columns), 2))
+print(round(ScalingAnalysis('box-counting').check().prepare((rows & columns) == columns).run().exponent_, 2))
 print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
 ```
 
 ### Kinds of data and signatures
 
 Every analysis consumes one kind of data, never a model or a field of science: a series, a jump path, a field, agent
-snapshots, a network, or an ensemble of runs. The same `structure_factor` serves an Ising lattice and a reaction-diffusion
+snapshots, a network, or an ensemble of runs. The same `SpectrumAnalysis` serves an Ising lattice and a reaction-diffusion
 field, and the same `avalanches` serves a sandpile and an earthquake model. Every analysis takes plain arrays or graphs,
 so it works on measured data as well.
 
@@ -3687,12 +3687,12 @@ new analysis under its kind.
 ```python
 import numpy as np
 
-from skcomplex.analysis import analyses_for, data_kinds, fields_of, series_of, structure_factor
+from skcomplex.analysis import SpectrumAnalysis, analyses_for, data_kinds, series_of
 from skcomplex.models import run
 
 spins = run('ising', size=32, settings={'until': 20}).trajectory_
 print([kind.value for kind in data_kinds(spins)])
-print(structure_factor(fields_of(spins)[-1]).wavenumbers[:3].round(3))
+print(SpectrumAnalysis('structure-factor').check().prepare(spins).run().wavenumbers_[:3].round(3))
 predation = run('lotka_volterra', settings={'until': 20.0}).trajectory_
 print(series_of(predation).labels)
 print(sorted({item.name for item in analyses_for(np.zeros((16, 16)))})[:4])
@@ -3805,32 +3805,33 @@ print(len(machine.histories_), round(machine.statistical_complexity_, 2))
 
 ### Invariants of dynamics
 
-`embed` builds delay coordinates of a series, with the delay at the first minimum of the auto mutual information and the
-dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
-set with a k-d tree, so it serves embedded series and agent positions alike. The Kaplan-Yorke dimension and the
-Kolmogorov-Sinai entropy of `LyapunovAnalysis` follow from a Lyapunov spectrum, `LyapunovAnalysis('largest')` estimates
-the largest exponent from one series with Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or
-`'ulam'` estimates the invariant density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
-laminarity, line lengths, trapping time, and line entropy of embedded series.
+`EmbeddingAnalysis` builds delay coordinates of a series, with the delay at the first minimum of the auto mutual
+information and the dimension where the false nearest neighbours fall below a threshold.
+`ScalingAnalysis('correlation-dimension')` counts close pairs of any point set with a k-d tree, so it serves embedded
+series and agent positions alike. The Kaplan-Yorke dimension and the Kolmogorov-Sinai entropy of `LyapunovAnalysis`
+follow from a Lyapunov spectrum, `LyapunovAnalysis('largest')` estimates the largest exponent from one series with
+Rosenstein's method of `nolds`, and `ErgodicityAnalysis` of kind `'invariant-density'` or `'ulam'` estimates the
+invariant density of a map. `RecurrenceAnalysis` gives the recurrence matrix, rate, determinism, laminarity, line
+lengths, trapping time, and line entropy of embedded series.
 
 ```python
 import numpy as np
 
 from skcomplex.analysis import (
+    EmbeddingAnalysis,
     ErgodicityAnalysis,
     LyapunovAnalysis,
-    correlation_dimension,
-    delay_embedding,
-    recurrence_quantification,
+    RecurrenceAnalysis,
+    ScalingAnalysis,
 )
 
 points = np.random.default_rng(1).random((3000, 2))
-print(round(correlation_dimension(points).dimension, 1))
+print(round(ScalingAnalysis('correlation-dimension').check().prepare(points).run().exponent_, 1))
 print(round(LyapunovAnalysis().check().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2))
 chain = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 21), samples=200)
 print(chain.check().prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3])
-sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)
-print(round(recurrence_quantification(sine).determinism, 2))
+sine = EmbeddingAnalysis(delay=15, dimension=2).check().prepare(np.sin(np.arange(1000) * 0.1)).run().points_
+print(round(RecurrenceAnalysis().check().prepare(sine).run().determinism_, 2))
 ```
 
 ### Surrogates fitted to data
@@ -3874,10 +3875,10 @@ print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrog
 ### Stochastic processes
 
 `PassageAnalysis` measures first passages, absorption, and returns of paths, and the committor and mean first-passage
-time of a transition matrix, by its `kind`, and `laminar_durations` measures laminar phases. `MarkovAnalysis` estimates
+time of a transition matrix, by its `kind`, and `EventAnalysis('laminar-durations')` measures laminar phases. `MarkovAnalysis` estimates
 transition matrices from paths, reads transition and rate matrices with `matrix`, and gives their stationary laws,
 spectral gaps, and relaxation times, and Markov state models and implied timescales with `deeptime`. `FluctuationAnalysis`
-with the kinds `'fano'` and `'relative'` and `event_counts` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and
+with the kinds `'fano'` and `'relative'` and `EventAnalysis('counts')` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and
 diffusion of a series with `kramersmoyal`. `IrreversibilityAnalysis` measures entropy production from rates, jump paths,
 Langevin paths, or transition counts, tests detailed balance and the fluctuation theorem, and checks the thermodynamic
 uncertainty relation: the squared relative fluctuation of a current times the entropy produced is at least 2. It also
@@ -3885,7 +3886,7 @@ gives the response to a field and the fluctuation-dissipation ratio. `LargeDevia
 generating function from a tilted generator, from blocks of one run, or by cloning a population of trajectories of a
 model through the simulation's steppers, for systems whose tilted generators are too large to write down, and its
 Legendre transform at `values`. It also gives rate functions from histograms at several sizes and reweights samples.
-`two_time_correlation`, `aging_collapse`, and `collapse_distributions` measure aging, and `fit_extreme_values`,
+`CorrelationAnalysis('two-time')` and `CollapseAnalysis` measure aging, and `fit_extreme_values`,
 `record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
 
 ```python
@@ -3984,13 +3985,14 @@ for runs in (mixing, frozen):
 
 ### Fields and lattices
 
-`structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`
-fits its Ornstein-Zernike form or the decay of the correlation function. `DomainAnalysis` measures coarsening with
-the kinds `'size'` and `'growth'`, the wavelength and orientation of patterns with `'wavelength'`, and the interfaces
-between domains with `'interface-density'`, and `FluctuationAnalysis('number')` the giant number fluctuations of
-density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
-and components of graphs, and `binder_cumulant`, `binder_crossings`, and `scaling_collapse` locate transitions by
-finite-size scaling. `dispersion_relation` predicts patterns from a field model's laws before running it: it
+`SpectrumAnalysis('structure-factor')` averages the power of a field radially on a periodic grid of any dimension,
+and `CorrelationAnalysis('length')` fits its Ornstein-Zernike form or the decay of the correlation function.
+`DomainAnalysis` measures coarsening with the kinds `'size'` and `'growth'`, the wavelength and orientation of patterns
+with `'wavelength'`, and the interfaces between domains with `'interface-density'`, and `FluctuationAnalysis('number')`
+the giant number fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe
+clusters of grids and components of graphs, and `binder_cumulant`, `binder_crossings`, and `CollapseAnalysis` locate
+transitions by finite-size scaling. `SpectrumAnalysis('dispersion')` predicts patterns from a field model's laws before
+running it: it
 linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
 and returns the growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes
 is a Turing instability, and a growing mode with a nonzero frequency travels.
@@ -3998,11 +4000,11 @@ is a Turing instability, and a growing mode with a nonzero frequency travels.
 ```python
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, binder_cumulant, dispersion_relation, percolation
+from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, binder_cumulant, percolation
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
-relation = dispersion_relation(brusselator((128,), b=1.9))
-print(relation.band.min().round(2), relation.band.max().round(2))
+relation = SpectrumAnalysis('dispersion').check().prepare(brusselator((128,), b=1.9)).run()
+print(relation.band_.min().round(2), relation.band_.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
 print(DomainAnalysis('wavelength').check().prepare(stripes).run().wavelength_)

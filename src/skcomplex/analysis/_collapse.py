@@ -1,0 +1,291 @@
+"""Measure collapses of curves: finite-size scaling, aging on the ratio of times, and distributions scaled by age."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+import inspect
+import itertools
+from collections.abc import Mapping, Sequence
+from typing import Self
+
+import numpy as np
+import numpy.typing as npt
+from scipy import optimize
+
+from ..core.errors import AnalysisError
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
+from ._utils import is_changed
+
+type Array = npt.NDArray[np.float64]
+KINDS = ('scaling', 'aging', 'distribution')
+FITTED = ('critical', 'nu', 'exponent')
+SETTINGS = {
+    'scaling': {'parameters', 'critical', 'nu', 'exponent', 'fit'},
+    'aging': {'waiting', 'lags'},
+    'distribution': {'ratios'},
+}
+"""Settings every kind reads, besides `kind`."""
+MIN_SIZES = 2
+GRID = 50
+
+
+def _scaled(
+    grid: Array,
+    curves: Mapping[float, Array],
+    critical: float,
+    nu: float,
+    exponent: float,
+) -> list[tuple[Array, Array]]:
+    """Return every curve against `(p - p_c) L^(1/nu)` and scaled by `L^-exponent`."""
+    return [
+        ((grid - critical) * size ** (1 / nu), curve * float(size) ** (-exponent)) for size, curve in curves.items()
+    ]
+
+
+def _quality(scaled: list[tuple[Array, Array]]) -> float:
+    """Return the mean squared relative distance of every point to the other curves where they overlap."""
+    residuals = []
+    for (x, y), (u, v) in itertools.permutations(scaled, 2):
+        inside = (x >= u.min()) & (x <= u.max())
+        residuals.append((y[inside] - np.interp(x[inside], u, v)) ** 2)
+    joined = np.concatenate(residuals) if residuals else np.zeros(0)
+    if not joined.size:
+        return float('inf')
+    scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
+    return float(joined.mean() / scale)
+
+
+def _scaling_collapse(
+    grid: Array,
+    curves: Mapping[float, Array],
+    values: dict[str, float],
+    fit: Sequence[str],
+) -> tuple[dict[str, float], float]:
+    """Return the critical value, `nu`, and the exponent, fitted by minimizing the quality, and the quality."""
+
+    def objective(free: Array) -> float:
+        """Return the quality with the fitted values replaced."""
+        chosen = {**values, **dict(zip(fit, free, strict=True))}
+        if chosen['nu'] <= 0:
+            return float('inf')
+        return _quality(_scaled(grid, curves, chosen['critical'], chosen['nu'], chosen['exponent']))
+
+    values = dict(values)
+    if fit:
+        result = optimize.minimize(objective, [values[name] for name in fit], method='Nelder-Mead')
+        values.update(dict(zip(fit, (float(item) for item in result.x), strict=True)))
+    return values, _quality(_scaled(grid, curves, values['critical'], values['nu'], values['exponent']))
+
+
+def _spread(curves: list[tuple[Array, Array]]) -> float:
+    """Return the largest difference between curves interpolated on the overlap of their abscissas."""
+    low = max(float(x.min()) for x, _ in curves)
+    high = min(float(x.max()) for x, _ in curves)
+    if low >= high:
+        return float('nan')
+    grid = np.linspace(low, high, GRID)
+    values = np.asarray([np.interp(grid, x, y) for x, y in curves])
+    return float(np.max(values.max(axis=0) - values.min(axis=0)))
+
+
+def _scaled_densities(samples: Mapping[float, Array], edges: Array) -> tuple[Array, float]:
+    """Return the densities `t P(tau, t)` of samples at every age against `tau / t`, and their largest spread."""
+    ages = sorted(samples)
+    densities = np.asarray(
+        [np.histogram(samples[age] / age, bins=edges)[0] / (samples[age].size * np.diff(edges)) for age in ages],
+    )
+    positive = np.all(densities > 0, axis=0)
+    spread = float('nan')
+    if positive.any():
+        kept = densities[:, positive]
+        spread = float(np.max((kept.max(axis=0) - kept.min(axis=0)) / kept.mean(axis=0)))
+    return densities, spread
+
+
+class CollapseAnalysis(BaseAnalysis):
+    """Collapse of curves or distributions of several sizes or ages onto one, of one kind.
+
+    The kinds read the curves or the samples of every size or age:
+
+    - `'scaling'`: the finite-size scaling collapse of curves `y_L(p) = L^a f((p - p_c) L^(1/nu))` of every size
+      `L`, against the control `parameters`, with the names of `fit` among `'critical'`, `'nu'`, and `'exponent'`
+      fitted by minimizing the quality.
+    - `'aging'`: how far correlation curves of several waiting times stay apart against the lag and against
+      `tau / t_w`, from one curve per waiting time, as the two-time correlation of `CorrelationAnalysis` gives them.
+    - `'distribution'`: the densities `t P(tau, t)` of samples of `tau` at several ages `t` against `tau / t`, which
+      collapse under aging.
+
+    Args:
+        kind:
+            The collapse to compute, one of the kinds above.
+
+        parameters:
+            The control parameter values, shared by every curve of `'scaling'`.
+
+        critical:
+            The critical value, or the starting value of a fit.
+
+        nu:
+            The correlation length exponent, or the starting value of a fit.
+
+        exponent:
+            The exponent `a` of the scaled curves `y L^-a`, such as `gamma / nu` for a susceptibility, or the
+            starting value of a fit.
+
+        fit:
+            The names among `'critical'`, `'nu'`, and `'exponent'` to fit.
+
+        waiting:
+            The waiting times of the curves of `'aging'`.
+
+        lags:
+            The lags shared by every curve of `'aging'`.
+
+        ratios:
+            The edges of the bins of `tau / t`, or `None` for 20 logarithmic bins from 0.01 to 10.
+
+    Attributes:
+        values_:
+            The curve of every size, the curves of every waiting time, or the samples of every age.
+
+        labels_:
+            The size, waiting time, or age of every curve.
+
+        critical_:
+            The critical value used or fitted.
+
+        nu_:
+            The correlation length exponent used or fitted.
+
+        exponent_:
+            The exponent `a` used or fitted.
+
+        quality_:
+            The mean squared relative distance between the scaled curves, 0 for a perfect collapse.
+
+        time_spread_:
+            The largest difference between the curves against the lag, 0 without aging.
+
+        ratio_spread_:
+            The largest difference between the curves against `tau / t_w`, 0 under simple aging.
+
+        ratios_:
+            The centres of the bins of `tau / t`.
+
+        densities_:
+            One row per age of `t P(tau, t)` on the bins.
+
+        spread_:
+            The largest relative difference between the rows where every row is positive.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.analysis import CollapseAnalysis
+        >>> grid = np.linspace(-1, 1, 401)
+        >>> curves = {size: np.tanh(grid * size) for size in (8, 16, 32)}
+        >>> collapse = CollapseAnalysis(parameters=grid, critical=0.2, nu=1.5, fit=('critical', 'nu'))
+        >>> round(collapse.check().prepare(curves).run().nu_, 1)
+        1.0
+        >>> lags = np.linspace(1, 100, 100)
+        >>> curves = [np.exp(-lags / tw) for tw in (10, 100)]
+        >>> aging = CollapseAnalysis('aging', waiting=[10, 100], lags=lags).check().prepare(curves).run()
+        >>> round(aging.ratio_spread_, 2), aging.time_spread_ > 0.5
+        (0.0, True)
+    """
+
+    def __init__(
+        self,
+        kind: str = 'scaling',
+        *,
+        parameters: Sequence[float] | None = None,
+        critical: float | None = None,
+        nu: float | None = None,
+        exponent: float = 0.0,
+        fit: Sequence[str] = (),
+        waiting: Sequence[float] | None = None,
+        lags: Sequence[float] | None = None,
+        ratios: Sequence[float] | None = None,
+    ) -> None:
+        self.kind = kind
+        self.parameters = parameters
+        self.critical = critical
+        self.nu = nu
+        self.exponent = exponent
+        self.fit = fit
+        self.waiting = waiting
+        self.lags = lags
+        self.ratios = ratios
+
+    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
+            raise AnalysisError(error_msg)
+
+    def _check_ignored(self) -> None:
+        """Raise an error for a setting changed from its default that the kind does not read."""
+        defaults = {
+            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
+        }
+        read = SETTINGS[self.kind] | {'kind'}
+        ignored = [
+            name for name, value in self.get_params().items() if name not in read and is_changed(value, defaults[name])
+        ]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _check(self) -> Self:
+        """Validate the kind, the fitted names, the settings the kind needs, and that it reads every changed one."""
+        self._check_choice('kind', self.kind, KINDS)
+        for name in self.fit:
+            self._check_choice('fit', name, FITTED)
+        self._check_ignored()
+        if self.kind == 'scaling' and (self.parameters is None or self.critical is None or self.nu is None):
+            error_msg = f'{type(self).__name__} of kind scaling needs parameters, critical, and nu. Give all three.'
+            raise AnalysisError(error_msg)
+        if self.kind == 'aging' and (self.waiting is None or self.lags is None):
+            error_msg = f'{type(self).__name__} of kind aging needs waiting times and lags. Give both.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the ensemble kind, since every curve or sample comes from a run or a set of runs."""
+        return DataKind.ENSEMBLE
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the curves or the samples of every size or age, or the rows of an array of curves."""
+        if isinstance(source, Mapping):
+            self.values_ = {key: np.asarray(value, dtype=float) for key, value in source.items()}
+            self.labels_ = list(source)
+            return self
+        self.values_ = np.asarray(source, dtype=float)
+        self.labels_ = list(self.waiting) if self.waiting is not None else list(range(len(self.values_)))
+        return self
+
+    def _run(self) -> Self:
+        """Compute the collapse of the kind."""
+        if self.kind == 'scaling':
+            if len(self.values_) < MIN_SIZES:
+                error_msg = f'A collapse needs at least {MIN_SIZES} sizes, not {len(self.values_)}. Give more sizes.'
+                raise AnalysisError(error_msg)
+            start = {'critical': self.critical, 'nu': self.nu, 'exponent': self.exponent}
+            grid = np.asarray(self.parameters, dtype=float)
+            values, self.quality_ = _scaling_collapse(grid, self.values_, start, self.fit)
+            self.critical_, self.nu_, self.exponent_ = values['critical'], values['nu'], values['exponent']
+        elif self.kind == 'aging':
+            grid = np.asarray(self.lags, dtype=float)
+            curves = np.asarray(self.values_, dtype=float)
+            self.time_spread_ = _spread([(grid, row) for row in curves])
+            self.ratio_spread_ = _spread(
+                [(grid / start, row) for start, row in zip(self.waiting, curves, strict=True)],
+            )
+        else:
+            edges = np.geomspace(0.01, 10, 21) if self.ratios is None else np.asarray(self.ratios, dtype=float)
+            self.densities_, self.spread_ = _scaled_densities(self.values_, edges)
+            self.ratios_ = np.sqrt(edges[1:] * edges[:-1])
+        return self

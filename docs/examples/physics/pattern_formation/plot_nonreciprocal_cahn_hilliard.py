@@ -17,7 +17,7 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import dispersion_relation, fields_of
+from skcomplex.analysis import SpectrumAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -39,8 +39,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ru
 # sites, whose wavenumbers resolve the band finely. In the run above, the phase of the dominant Fourier
 # mode of `phi` should advance at a constant rate once the domains form, the signature of domains that travel.
 
-above = dispersion_relation(create(MODEL, shape=(512,), length=400.0))
-below = dispersion_relation(create(MODEL, shape=(512,), length=400.0, alpha=0.05))
+above = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
+below = SpectrumAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
 edge = np.sqrt(1 - 0.1)
 phi = fields_of(simulation.trajectory_, 'mixture.phi')
 times = 2.0 * np.arange(len(phi))
@@ -53,11 +53,11 @@ speed = abs(drift) / (2 * np.pi * mode / LENGTH)
 
 fig, (rates, turning) = plt.subplots(1, 2, figsize=(11, 4))
 for relation, label in [(above, 'alpha = 0.3'), (below, 'alpha = 0.05')]:
-    order = np.argsort(relation.magnitudes)
-    rates.plot(relation.magnitudes[order], relation.growth_rates[order], label=f'growth rate, {label}')
+    order = np.argsort(relation.magnitudes_)
+    rates.plot(relation.magnitudes_[order], relation.growth_rates_[order], label=f'growth rate, {label}')
     rates.plot(
-        relation.magnitudes[order],
-        np.abs(relation.frequencies[order]),
+        relation.magnitudes_[order],
+        np.abs(relation.frequencies_[order]),
         '--',
         color=rates.lines[-1].get_color(),
         label=f'|frequency|, {label}',

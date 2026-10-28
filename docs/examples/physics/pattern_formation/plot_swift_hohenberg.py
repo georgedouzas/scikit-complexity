@@ -13,7 +13,7 @@ the wavelength `2π`. Patches of rolls with different orientations meet at defec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, fields_of, structure_factor
+from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, fields_of
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import run
 
@@ -30,14 +30,14 @@ simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'rand
 
 field = fields_of(simulation.trajectory_, 'cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
-factor = structure_factor(field, spacing=spacing)
+factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
 wavelength = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().wavelength_[0]
 fig, (image, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 image.imshow(field, cmap='viridis', extent=(0, 16 * np.pi, 0, 16 * np.pi))
 image.set_xlabel('x')
 image.set_ylabel('y')
 image.set_title(f'Rolls of wavelength {wavelength:.2f} (2π = {2 * np.pi:.2f})')
-spectrum.plot(factor.wavenumbers, factor.power, 'o-', markersize=3)
+spectrum.plot(factor.wavenumbers_, factor.power_, 'o-', markersize=3)
 spectrum.axvline(1.0, linestyle='--', color='black', label='k = 1')
 spectrum.set_xlabel('wavenumber k')
 spectrum.set_ylabel('structure factor S(k)')

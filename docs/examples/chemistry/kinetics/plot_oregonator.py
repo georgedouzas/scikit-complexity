@@ -13,7 +13,7 @@ while bromous acid and the catalyst stay low, and spikes again once it falls bel
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import detect_events
+from skcomplex.analysis import EventAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
@@ -40,7 +40,7 @@ times, x, y, z = (
     trajectory.values('reactor.y'),
     trajectory.values('reactor.z'),
 )
-spikes = detect_events(y, threshold=10.0, times=times).starts
+spikes = EventAnalysis(variables=['reactor.y'], threshold=10.0).check().prepare(trajectory).run().starts_
 periods = np.diff(spikes[1:])
 fig, (orbit, intervals) = plt.subplots(1, 2, figsize=(10, 4))
 cycle = times > spikes[1]

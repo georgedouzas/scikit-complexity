@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import box_counting_dimension
+from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.errors import ValidationError
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation
@@ -18,7 +18,8 @@ def test_chaos_game_draws_the_sierpinski_triangle():
     cells = np.clip((points * 128).astype(int), 0, 127)
     grid = np.zeros((128, 128), dtype=bool)
     grid[cells[:, 1], cells[:, 0]] = True
-    assert box_counting_dimension(grid, [1, 2, 4, 8, 16, 32]) == pytest.approx(np.log(3) / np.log(2), abs=0.05)
+    dimension = ScalingAnalysis('box-counting', scales=[1, 2, 4, 8, 16, 32]).check().prepare(grid).run().exponent_
+    assert dimension == pytest.approx(np.log(3) / np.log(2), abs=0.05)
 
 
 def test_chaos_game_agrees_across_backends():

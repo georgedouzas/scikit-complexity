@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, imag_part, real_part
 
-from skcomplex.analysis import power_spectrum
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.errors import BackendError, ValidationError
 from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
@@ -482,8 +482,8 @@ def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
     values = Simulation(System(elements=[PhaseElement('osc')]), dt=0.1).run(until=5).trajectory_.values('osc.z')
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
-        power_spectrum(values)
-    assert power_spectrum(values.real)[1].size
+        SpectrumAnalysis().check().prepare(values).run()
+    assert SpectrumAnalysis().check().prepare(values.real).run().power_.size
 
 
 def test_lammps_backend_rejects_complex_state():

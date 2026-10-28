@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import skew
 
-from skcomplex.analysis import DomainAnalysis, fields_of, structure_factor
+from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis, fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -48,9 +48,9 @@ spacing = LENGTH / hexagons.shape[0]
 
 fig, (spectrum, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 for field, label in [(hexagons, 'hexagons, g = 1'), (rolls, 'rolls, g = 0')]:
-    factor = structure_factor(field, spacing=spacing)
+    factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
     order = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().orientation_[0]
-    spectrum.plot(factor.wavenumbers, factor.power, 'o-', markersize=3, label=f'{label}, orientation {order:.2f}')
+    spectrum.plot(factor.wavenumbers_, factor.power_, 'o-', markersize=3, label=f'{label}, orientation {order:.2f}')
     histogram.hist(
         field.ravel(),
         bins=60,

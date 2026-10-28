@@ -12,13 +12,13 @@ from ..engine.problems import Form
 from ..engine.runtime import Trajectory
 from ..experiments import ExperimentResult
 from ._adapters import Snapshots, data_kinds, ensemble_of, fields_of, networks_of, path_of, series_of, snapshots_of
-from ._fields import correlation_length, structure_factor
+from ._correlation import _autocorrelation_time, _correlation_length
 from ._fluctuations import _fano_factor
 from ._kinds import DataKind
 from ._neighbors import _nearest_neighbor_distances
 from ._networks import _degrees, _summary
 from ._order import _milling_order, _polar_order
-from ._series import autocorrelation_time, power_spectrum
+from ._spectrum import _power_spectrum, _structure_factor
 from ._statistics import ccdf
 
 type Array = npt.NDArray[np.float64]
@@ -87,10 +87,10 @@ def _series_signature(trajectory: Trajectory) -> Signature:
         return Signature(DataKind.SERIES, 'Return map', 'x(t)', 'x(t + 1)', curves, points=True)
     curves = {}
     for label, column in zip(labels, columns.T, strict=True):
-        frequencies, density = power_spectrum(column, dt)
+        frequencies, density = _power_spectrum(column, dt)
         keep = (frequencies > 0) & (density > 0)
         curves[label] = (frequencies[keep], density[keep])
-    values = {f'autocorrelation time of {labels[0]}': autocorrelation_time(columns[:, 0], dt)}
+    values = {f'autocorrelation time of {labels[0]}': _autocorrelation_time(columns[:, 0], dt)}
     return Signature(
         DataKind.SERIES,
         'Power spectrum',
@@ -127,19 +127,19 @@ def _path_signature(trajectory: Trajectory) -> Signature:
 def _field_signature(trajectory: Trajectory) -> Signature:
     """Return the structure factor of the last frame with its peak wavelength or its correlation length."""
     last = fields_of(trajectory)[-1]
-    factor = structure_factor(last)
-    peak = int(np.argmax(factor.power))
+    wavenumbers, power = _structure_factor(last[None])
+    peak = int(np.argmax(power))
     values = (
-        {'peak wavelength': float(2 * np.pi / factor.wavenumbers[peak])}
-        if 0 < peak < factor.power.size - 1
-        else {'correlation length': correlation_length(last)}
+        {'peak wavelength': float(2 * np.pi / wavenumbers[peak])}
+        if 0 < peak < power.size - 1
+        else {'correlation length': _correlation_length(last[None], 'moment', 1.0)}
     )
     return Signature(
         DataKind.FIELD,
         'Structure factor of the last frame',
         'wavenumber',
         'S(k)',
-        {'S(k)': (factor.wavenumbers, factor.power)},
+        {'S(k)': (wavenumbers, power)},
         values,
         xscale='log',
         yscale='log',

@@ -15,7 +15,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.analysis import power_spectrum
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -57,7 +57,8 @@ observer.recording_.flush()
 
 x = Simulation(create(MODEL), dt=0.05).run(until=3000).trajectory_.values('rossler.x')[400:]
 maxima = x[find_peaks(x)[0]]
-frequencies, density = power_spectrum(x, dt=0.05)
+spectrum = SpectrumAnalysis(dt=0.05).check().prepare(x).run()
+frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 fig, (returns, power) = plt.subplots(1, 2, figsize=(10, 4))
 returns.plot(maxima[:-1], maxima[1:], '.', markersize=5)
 returns.set_xlabel('maximum $x_n$')

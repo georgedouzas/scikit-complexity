@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -11,16 +12,11 @@ from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
 from ..core.errors import AnalysisError
-from ._kinds import DataKind, analysis
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
 
 type Array = npt.NDArray[np.float64]
 PAIR_SAMPLE = 200_000
-
-
-def _points(points: npt.ArrayLike) -> Array:
-    """Return points as one row per point."""
-    array = np.asarray(points, dtype=float)
-    return array.reshape(array.shape[0], -1)
 
 
 def _radius_for_rate(array: Array, rate: float, random_state: int | None) -> float:
@@ -34,6 +30,16 @@ def _radius_for_rate(array: Array, rate: float, random_state: int | None) -> flo
         keep = first != second
         first, second = first[keep], second[keep]
     return float(np.quantile(np.linalg.norm(array[first] - array[second], axis=1), rate))
+
+
+def _recurrence_matrix(array: Array, radius: float) -> sparse.csr_array:
+    """Return the symmetric boolean recurrence matrix of points, true where two lie within a radius."""
+    tree = cKDTree(array)
+    pairs = tree.query_pairs(radius, output_type='ndarray')
+    size = array.shape[0]
+    rows = np.concatenate([pairs[:, 0], pairs[:, 1], np.arange(size)])
+    columns = np.concatenate([pairs[:, 1], pairs[:, 0], np.arange(size)])
+    return sparse.csr_array((np.ones(rows.size, dtype=bool), (rows, columns)), shape=(size, size))
 
 
 def _run_lengths(keys: npt.NDArray[np.int64], positions: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
@@ -52,103 +58,15 @@ def _line_share(lengths: npt.NDArray[np.int64], minimum: int, total: int) -> flo
     return float(lengths[lengths >= minimum].sum() / total) if total else 0.0
 
 
-@analysis(DataKind.SERIES)
-def recurrence_matrix(
-    points: npt.ArrayLike,
-    radius: float | None = None,
-    *,
-    rate: float = 0.05,
-    random_state: int | None = 0,
-) -> sparse.csr_array:
-    """Return the sparse recurrence matrix of points, true where two points lie within a radius of each other.
+class RecurrenceAnalysis(BaseAnalysis):
+    """Recurrence quantification of the points of a source: rate, determinism, laminarity, lines, and entropy.
+
+    Every row of the series of a source is a point, and every series a coordinate, so an embedded series or the
+    states of a trajectory give a point set. Two points recur when they lie within the radius of each other.
 
     Args:
-        points:
-            One row per point of an embedded series, or one value per point.
-
-        radius:
-            The recurrence radius, or `None` to choose the radius that gives the recurrence rate.
-
-        rate:
-            The share of recurrent pairs when the radius is not given.
-
-        random_state:
-            The seed of the sample of pairs that sets the radius of large sets.
-
-    Returns:
-        matrix:
-            The symmetric boolean recurrence matrix, with a true diagonal.
-
-    Examples:
-        >>> from skcomplex.analysis import recurrence_matrix
-        >>> recurrence_matrix([0.0, 0.1, 5.0], 0.5).toarray().astype(int).tolist()
-        [[1, 1, 0], [1, 1, 0], [0, 0, 1]]
-    """
-    array = _points(points)
-    chosen = _radius_for_rate(array, rate, random_state) if radius is None else radius
-    tree = cKDTree(array)
-    pairs = tree.query_pairs(chosen, output_type='ndarray')
-    size = array.shape[0]
-    rows = np.concatenate([pairs[:, 0], pairs[:, 1], np.arange(size)])
-    columns = np.concatenate([pairs[:, 1], pairs[:, 0], np.arange(size)])
-    return sparse.csr_array((np.ones(rows.size, dtype=bool), (rows, columns)), shape=(size, size))
-
-
-@dataclass(frozen=True)
-class Recurrence:
-    """Recurrence quantification of a point set.
-
-    Args:
-        rate:
-            The share of recurrent pairs off the Theiler window.
-
-        determinism:
-            The share of recurrent points on diagonal lines of at least the minimum length.
-
-        laminarity:
-            The share of recurrent points on vertical lines of at least the minimum length.
-
-        mean_diagonal:
-            The mean length of those diagonal lines.
-
-        longest_diagonal:
-            The length of the longest diagonal line.
-
-        trapping_time:
-            The mean length of those vertical lines.
-
-        entropy:
-            The Shannon entropy in nats of the distribution of those diagonal line lengths.
-
-        radius:
-            The recurrence radius.
-    """
-
-    rate: float
-    determinism: float
-    laminarity: float
-    mean_diagonal: float
-    longest_diagonal: int
-    trapping_time: float
-    entropy: float
-    radius: float
-
-
-@analysis(DataKind.SERIES)
-def recurrence_quantification(
-    points: npt.ArrayLike,
-    radius: float | None = None,
-    *,
-    rate: float = 0.05,
-    min_line: int = 2,
-    theiler: int = 1,
-    random_state: int | None = 0,
-) -> Recurrence:
-    """Return the recurrence quantification analysis of points: rate, determinism, laminarity, lines, and entropy.
-
-    Args:
-        points:
-            One row per point of an embedded series, or one value per point.
+        variables:
+            The variables of a trajectory to read as coordinates, or `None` for every scalar series.
 
         radius:
             The recurrence radius, or `None` to choose the radius that gives the recurrence rate.
@@ -165,44 +83,122 @@ def recurrence_quantification(
         random_state:
             The seed of the sample of pairs that sets the radius of large sets.
 
-    Returns:
-        recurrence:
-            The recurrence measures.
+    Attributes:
+        values_:
+            The points, one per row.
 
-    Raises:
-        AnalysisError:
-            No pair of points recurs outside the Theiler window.
+        labels_:
+            The label of every coordinate.
+
+        radius_:
+            The recurrence radius.
+
+        matrix_:
+            The symmetric sparse boolean recurrence matrix, with a true diagonal.
+
+        rate_:
+            The share of recurrent pairs off the Theiler window.
+
+        determinism_:
+            The share of recurrent points on diagonal lines of at least the minimum length.
+
+        laminarity_:
+            The share of recurrent points on vertical lines of at least the minimum length.
+
+        mean_diagonal_:
+            The mean length of those diagonal lines.
+
+        longest_diagonal_:
+            The length of the longest diagonal line.
+
+        trapping_time_:
+            The mean length of those vertical lines.
+
+        entropy_:
+            The Shannon entropy in nats of the distribution of those diagonal line lengths.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import delay_embedding, recurrence_quantification
-        >>> sine = delay_embedding(np.sin(np.arange(2000) * 0.1), 2, 15)
-        >>> bool(recurrence_quantification(sine).determinism > 0.95)
+        >>> from skcomplex.analysis import EmbeddingAnalysis, RecurrenceAnalysis
+        >>> sine = EmbeddingAnalysis(delay=15, dimension=2).check().prepare(np.sin(np.arange(2000) * 0.1)).run()
+        >>> bool(RecurrenceAnalysis().check().prepare(sine.points_).run().determinism_ > 0.95)
         True
+        >>> recurrence = RecurrenceAnalysis(radius=0.5).check().prepare([0.0, 0.1, 5.0, 5.1]).run()
+        >>> recurrence.matrix_.toarray().astype(int).tolist()
+        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
     """
-    array = _points(points)
-    chosen = _radius_for_rate(array, rate, random_state) if radius is None else radius
-    matrix = recurrence_matrix(array, chosen).tocoo()
-    rows, columns = matrix.row.astype(np.int64), matrix.col.astype(np.int64)
-    outside = np.abs(rows - columns) >= theiler
-    rows, columns = rows[outside], columns[outside]
-    if not rows.size:
-        error_msg = f'No pair of points recurs within radius {chosen} outside the Theiler window {theiler}.'
-        raise AnalysisError(error_msg)
-    diagonals = _run_lengths(columns - rows, rows)
-    verticals = _run_lengths(columns, rows)
-    long_diagonals = diagonals[diagonals >= min_line]
-    long_verticals = verticals[verticals >= min_line]
-    _, counts = np.unique(long_diagonals, return_counts=True)
-    size = array.shape[0]
-    allowed = size * size - size - 2 * sum(size - offset for offset in range(1, theiler))
-    return Recurrence(
-        rate=float(rows.size / max(allowed, 1)),
-        determinism=_line_share(diagonals, min_line, rows.size),
-        laminarity=_line_share(verticals, min_line, rows.size),
-        mean_diagonal=float(long_diagonals.mean()) if long_diagonals.size else 0.0,
-        longest_diagonal=int(diagonals.max()),
-        trapping_time=float(long_verticals.mean()) if long_verticals.size else 0.0,
-        entropy=float(stats.entropy(counts)) if counts.size else 0.0,
-        radius=chosen,
-    )
+
+    def __init__(
+        self,
+        variables: Sequence[str] | None = None,
+        *,
+        radius: float | None = None,
+        rate: float = 0.05,
+        min_line: int = 2,
+        theiler: int = 1,
+        random_state: int | None = 0,
+    ) -> None:
+        self.variables = variables
+        self.radius = radius
+        self.rate = rate
+        self.min_line = min_line
+        self.theiler = theiler
+        self.random_state = random_state
+
+    def _check(self) -> Self:
+        """Validate the radius, the rate, the shortest line, and the Theiler window."""
+        if (self.radius is not None and self.radius <= 0) or not 0 < self.rate < 1:
+            error_msg = (
+                f'{type(self).__name__} has radius={self.radius!r} and rate={self.rate!r}. Use a positive radius or '
+                'None, and a rate between 0 and 1.'
+            )
+            raise AnalysisError(error_msg)
+        if self.min_line < 1 or self.theiler < 0:
+            error_msg = (
+                f'{type(self).__name__} has min_line={self.min_line!r} and theiler={self.theiler!r}. Use a shortest '
+                'line of 1 or more and a Theiler window of 0 or more.'
+            )
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the series kind, whose rows are the points."""
+        return DataKind.SERIES
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the series as the coordinates of the points."""
+        series = self._read_series(source, self.variables)
+        self.values_ = series.values
+        self.labels_ = series.labels
+        return self
+
+    def _run(self) -> Self:
+        """Compute the recurrence matrix and its quantification."""
+        array = self.values_
+        self.radius_ = _radius_for_rate(array, self.rate, self.random_state) if self.radius is None else self.radius
+        self.matrix_ = _recurrence_matrix(array, self.radius_)
+        matrix = self.matrix_.tocoo()
+        rows, columns = matrix.row.astype(np.int64), matrix.col.astype(np.int64)
+        outside = np.abs(rows - columns) >= self.theiler
+        rows, columns = rows[outside], columns[outside]
+        if not rows.size:
+            error_msg = (
+                f'No pair of points recurs within radius {self.radius_} outside the Theiler window {self.theiler}. '
+                'Use a larger radius or rate.'
+            )
+            raise AnalysisError(error_msg)
+        diagonals = _run_lengths(columns - rows, rows)
+        verticals = _run_lengths(columns, rows)
+        long_diagonals = diagonals[diagonals >= self.min_line]
+        long_verticals = verticals[verticals >= self.min_line]
+        _, counts = np.unique(long_diagonals, return_counts=True)
+        size = array.shape[0]
+        allowed = size * size - size - 2 * sum(size - offset for offset in range(1, self.theiler))
+        self.rate_ = float(rows.size / max(allowed, 1))
+        self.determinism_ = _line_share(diagonals, self.min_line, rows.size)
+        self.laminarity_ = _line_share(verticals, self.min_line, rows.size)
+        self.mean_diagonal_ = float(long_diagonals.mean()) if long_diagonals.size else 0.0
+        self.longest_diagonal_ = int(diagonals.max())
+        self.trapping_time_ = float(long_verticals.mean()) if long_verticals.size else 0.0
+        self.entropy_ = float(stats.entropy(counts)) if counts.size else 0.0
+        return self

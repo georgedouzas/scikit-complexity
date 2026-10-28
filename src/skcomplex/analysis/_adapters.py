@@ -646,7 +646,7 @@ def analyses_for(source: 'Trajectory | System | ExperimentResult | npt.ArrayLike
         >>> import numpy as np
         >>> from skcomplex.analysis import analyses_for
         >>> found = {item.name: item.reading for item in analyses_for(np.zeros((8, 8)))}
-        >>> found['structure_factor'], found['autocorrelation']
+        >>> found['cluster_sizes'], found['histogram']
         ('the array as one grid', 'every column of the array as a series')
     """
     from ..experiments import ExperimentResult  # noqa: PLC0415  # experiments import analysis, which imports this module

@@ -12,7 +12,7 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import power_spectrum
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -34,7 +34,8 @@ trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
-frequencies, density = power_spectrum(anomaly[settled], dt=0.5)
+spectrum = SpectrumAnalysis(dt=0.5).check().prepare(anomaly[settled]).run()
+frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 loop.plot(anomaly[settled][shift:], anomaly[settled][:-shift])

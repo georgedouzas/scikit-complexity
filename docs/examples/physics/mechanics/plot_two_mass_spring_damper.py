@@ -13,7 +13,7 @@ slow frequency, and against each other at the fast one, so each mass alone trace
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import power_spectrum
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -31,7 +31,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
 # `sqrt(3)` of the normal modes, dashed, and nothing else since the system is linear and undamped.
 
 run = Simulation(create(MODEL, x1=1.2, x2=2.0), dt=0.1).run(until=2000)
-frequencies, density = power_spectrum(np.ravel(run.trajectory_.values('first.x')) - 1.0, dt=0.1)
+spectrum = SpectrumAnalysis(dt=0.1).check().prepare(np.ravel(run.trajectory_.values('first.x')) - 1.0).run()
+frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(2 * np.pi * frequencies, density)
 for omega in (1.0, np.sqrt(3.0)):

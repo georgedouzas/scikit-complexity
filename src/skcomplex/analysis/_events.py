@@ -1,77 +1,39 @@
-"""Detect events in series, such as avalanches and bursts, with their sizes, durations, and waiting times."""
+"""Detect events in series, such as avalanches and bursts, count events in windows, and time laminar phases."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+import inspect
+from collections.abc import Sequence
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 
-from ._kinds import DataKind, analysis
-from ._utils import real_array
+from ..core.errors import AnalysisError
+from ..engine.runtime import Trajectory
+from ._base import BaseAnalysis, Source
+from ._kinds import DataKind
+from ._utils import is_changed, real_array
 
 type Array = npt.NDArray[np.float64]
+KINDS = ('detect', 'counts', 'laminar-durations')
+SETTINGS = {
+    'detect': {'threshold'},
+    'counts': {'window', 'start', 'end'},
+    'laminar-durations': {'threshold'},
+}
+"""Settings every kind reads, besides `kind` and `variables`."""
 
 
-@dataclass(frozen=True)
-class Events:
-    """Events of a series: runs of consecutive values above a threshold.
-
-    Args:
-        starts:
-            The time or index at which every event starts.
-
-        sizes:
-            The sum of the values of every event.
-
-        durations:
-            The time or the number of steps every event lasts.
-
-        peaks:
-            The largest value of every event.
-
-        waiting_times:
-            The time or the number of steps between the end of every event and the start of the next.
-    """
-
-    starts: Array
-    sizes: Array
-    durations: Array
-    peaks: Array
-    waiting_times: Array
+def _step(clock: Array) -> float:
+    """Return the median time between samples, 1 for a single sample."""
+    return float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
 
 
-@analysis(DataKind.SERIES)
-def detect_events(values: npt.ArrayLike, threshold: float = 0.0, times: npt.ArrayLike | None = None) -> Events:
-    """Return the events of a series, every maximal run of consecutive values above a threshold.
-
-    For avalanches recorded as topplings per drive step, an event is an avalanche and its size is the total number of
-    topplings.
-
-    Args:
-        values:
-            The series.
-
-        threshold:
-            The value an event must exceed.
-
-        times:
-            The times of the values, or `None` to measure starts, durations, and waiting times in steps.
-
-    Returns:
-        events:
-            The starts, sizes, durations, peaks, and waiting times.
-
-    Examples:
-        >>> from skcomplex.analysis import detect_events
-        >>> events = detect_events([0, 3, 1, 0, 0, 2, 0])
-        >>> events.sizes.tolist(), events.durations.tolist(), events.waiting_times.tolist()
-        ([4.0, 2.0], [2.0, 1.0], [2.0])
-    """
-    array = real_array(values, 'values')
-    clock = np.arange(array.size, dtype=float) if times is None else np.asarray(times, dtype=float)
-    step = float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
+def _detect_events(array: Array, clock: Array, threshold: float) -> tuple[Array, Array, Array, Array, Array]:
+    """Return the starts, sizes, durations, peaks, and waiting times of the runs of values above a threshold."""
+    step = _step(clock)
     active = np.concatenate([[False], array > threshold, [False]])
     edges = np.diff(active.astype(int))
     first, last = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
@@ -79,4 +41,190 @@ def detect_events(values: npt.ArrayLike, threshold: float = 0.0, times: npt.Arra
     peaks = np.asarray([array[start:end].max() for start, end in zip(first, last, strict=True)])
     durations = (clock[last - 1] - clock[first] + step) if first.size else np.zeros(0)
     waiting = clock[first[1:]] - clock[last[:-1] - 1] - step if first.size > 1 else np.zeros(0)
-    return Events(clock[first], sizes, np.asarray(durations, dtype=float), peaks, np.asarray(waiting, dtype=float))
+    return clock[first], sizes, np.asarray(durations, dtype=float), peaks, np.asarray(waiting, dtype=float)
+
+
+def _event_counts(times: Array, window: float, start: float, end: float | None) -> Array:
+    """Return the number of events in consecutive windows of equal length."""
+    last = float(times.max()) if end is None else end
+    count = int((last - start) // window)
+    edges = start + window * np.arange(count + 1)
+    return np.histogram(times, bins=edges)[0].astype(float)
+
+
+def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
+    """Return the durations of the complete runs of values within a threshold of 0, between two bursts."""
+    array = np.abs(values)
+    step = _step(clock)
+    laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
+    starts, ends = np.flatnonzero(np.diff(laminar) == 1), np.flatnonzero(np.diff(laminar) == -1)
+    complete = (starts > 0) & (ends < array.size)
+    return clock[ends[complete] - 1] - clock[starts[complete]] + step
+
+
+class EventAnalysis(BaseAnalysis):
+    """Events of one series or of event times, of one kind.
+
+    The kinds read one series or the times of events:
+
+    - `'detect'`: the events of a series, every maximal run of consecutive values above `threshold`, with their
+      starts, sizes, durations, peaks, and the waiting times between them. For avalanches recorded as topplings per
+      drive step, an event is an avalanche and its size is the total number of topplings.
+    - `'counts'`: the number of events in consecutive windows of length `window`, from the times of the events, or
+      from the jump times of a discrete state of a trajectory.
+    - `'laminar-durations'`: the durations of the laminar phases of a series, the complete runs of values within
+      `threshold` of 0 between two bursts, such as the distance from an invariant manifold of on-off intermittency.
+
+    Times are the times of a trajectory, and the step indices of an array.
+
+    Args:
+        kind:
+            The events to measure, one of the kinds above.
+
+        variables:
+            The one variable of a trajectory to read, or `None` for the only scalar series or discrete state.
+
+        threshold:
+            The value an event must exceed, or the largest absolute value of a laminar phase.
+
+        window:
+            The length of every window of `'counts'`.
+
+        start:
+            The start of the first window.
+
+        end:
+            The end of the last full window, or `None` for the last event.
+
+    Attributes:
+        times_:
+            The time of every value, or of every event for `'counts'`.
+
+        values_:
+            The series, as one column.
+
+        labels_:
+            The label of the series or the state.
+
+        starts_:
+            The time at which every event starts.
+
+        sizes_:
+            The sum of the values of every event.
+
+        durations_:
+            The time every event lasts for `'detect'`, or every laminar phase lasts for `'laminar-durations'`.
+
+        peaks_:
+            The largest value of every event.
+
+        waiting_times_:
+            The time between the end of every event and the start of the next.
+
+        counts_:
+            The number of events in every window.
+
+    Examples:
+        >>> from skcomplex.analysis import EventAnalysis
+        >>> events = EventAnalysis().check().prepare([0, 3, 1, 0, 0, 2, 0]).run()
+        >>> events.sizes_.tolist(), events.durations_.tolist(), events.waiting_times_.tolist()
+        ([4.0, 2.0], [2.0, 1.0], [2.0])
+        >>> EventAnalysis('counts', window=1.0, end=3.0).check().prepare([0.1, 0.2, 1.5, 2.2]).run().counts_.tolist()
+        [2.0, 1.0, 1.0]
+        >>> laminar = EventAnalysis('laminar-durations', threshold=0.5)
+        >>> laminar.check().prepare([1, 0, 0, 1, 0, 1]).run().durations_.tolist()
+        [2.0, 1.0]
+    """
+
+    def __init__(
+        self,
+        kind: str = 'detect',
+        variables: Sequence[str] | None = None,
+        *,
+        threshold: float = 0.0,
+        window: float | None = None,
+        start: float = 0.0,
+        end: float | None = None,
+    ) -> None:
+        self.kind = kind
+        self.variables = variables
+        self.threshold = threshold
+        self.window = window
+        self.start = start
+        self.end = end
+
+    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
+        """Raise an error for a setting that is not one of its choices."""
+        if value not in choices:
+            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
+            raise AnalysisError(error_msg)
+
+    def _check_ignored(self) -> None:
+        """Raise an error for a setting changed from its default that the kind does not read."""
+        defaults = {
+            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
+        }
+        read = SETTINGS[self.kind] | {'kind', 'variables'}
+        ignored = [
+            name for name, value in self.get_params().items() if name not in read and is_changed(value, defaults[name])
+        ]
+        if ignored:
+            error_msg = (
+                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
+                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _check(self) -> Self:
+        """Validate the kind, the window of counts, and that the kind reads every changed setting."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_ignored()
+        if self.kind == 'counts' and (self.window is None or self.window <= 0):
+            error_msg = f'{type(self).__name__} of kind counts has window={self.window!r}. Give a positive window.'
+            raise AnalysisError(error_msg)
+        return self
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the path kind for counts of event times, and the series kind otherwise."""
+        return DataKind.PATH if self.kind == 'counts' else DataKind.SERIES
+
+    def _prepare(self, source: Source) -> Self:
+        """Read the one series with its times, or the times of the events."""
+        name = self.variables[0] if self.variables else None
+        if self.kind == 'counts':
+            if isinstance(source, Trajectory):
+                path = self._read_path(source, name)
+                self.times_ = path.times[1:]
+                self.labels_ = [path.label]
+            else:
+                self.times_ = np.asarray(source, dtype=float)
+                self.labels_ = [name or 'events']
+            self.values_ = self.times_[:, None]
+            return self
+        series = self._read_series(source, self.variables)
+        if series.values.shape[1] != 1:
+            error_msg = (
+                f'{type(self).__name__} reads one series, but the source has {series.values.shape[1]}: '
+                f'{", ".join(series.labels)}. Pick one with `variables`.'
+            )
+            raise AnalysisError(error_msg)
+        self.times_ = np.asarray(series.times, dtype=float)
+        self.values_ = series.values
+        self.labels_ = series.labels
+        return self
+
+    def _run(self) -> Self:
+        """Compute the events, the counts, or the laminar durations."""
+        if self.kind == 'counts':
+            self.counts_ = _event_counts(self.times_, float(self.window or 0), self.start, self.end)
+            return self
+        array = real_array(self.values_[:, 0], 'values')
+        if self.kind == 'laminar-durations':
+            self.durations_ = _laminar_durations(array, self.times_, self.threshold)
+            return self
+        self.starts_, self.sizes_, self.durations_, self.peaks_, self.waiting_times_ = _detect_events(
+            array,
+            self.times_,
+            self.threshold,
+        )
+        return self
