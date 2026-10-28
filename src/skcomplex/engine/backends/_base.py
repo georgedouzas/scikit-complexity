@@ -10,6 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.types import Vector
+from ..base import BaseEstimator
 from ..problems import Form, SupportSpec
 from ..problems._draws import Draws
 from ..problems._kernel import Kernel
@@ -17,7 +18,6 @@ from ..problems._problem import VectorFunction
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
 from ..problems._source import Source
-from ..base import BaseEstimator
 from ._lowering import Lowering
 
 _AUTO_MEMBERS = 1000

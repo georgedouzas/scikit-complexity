@@ -125,7 +125,7 @@ class MotifAnalysis(BaseAnalysis):
         self.graphs_ = self._read_networks(source)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Count or score the motifs of every frame."""
         if self.kind == 'counts':
             self.counts_ = [self._motif_counts(graph, self.size) for graph in self.graphs_]

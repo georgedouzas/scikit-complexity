@@ -212,7 +212,7 @@ class ErgodicityAnalysis(BaseAnalysis):
         self.transition_matrix_ = counts / self.samples
         self.density_ = MarkovAnalysis._stationary_distribution(self.transition_matrix_) / np.diff(grid)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the diagnostic of the kind."""
         if self.kind == 'breaking':
             spread = float(self.values_.var())

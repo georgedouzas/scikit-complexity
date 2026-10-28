@@ -162,7 +162,7 @@ class ClusterAnalysis(BaseAnalysis):
             _, sizes = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
         self.sizes_ = np.sort(sizes)[::-1]
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the clusters, their sizes, the percolation observables, or the spanning probability."""
         if self.kind == 'labels':
             self.labels_, self.sizes_ = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)

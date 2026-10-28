@@ -112,7 +112,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
         field = np.stack(columns, axis=-1).reshape(*shape, weights.shape[1])
         return field[..., 0] if weights.shape[1] == 1 else field
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the field of the snapshot, or of every frame of a trajectory."""
         if self.positions_.ndim > 2:  # noqa: PLR2004
             self.field_ = np.asarray([self._get_field(frame) for frame in self.positions_])

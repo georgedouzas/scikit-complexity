@@ -109,7 +109,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Reconstruct the causal states, their transitions, and their stationary distribution."""
         alphabet, codes = np.unique(self.values_, return_inverse=True)
         if not self.max_length < codes.size:

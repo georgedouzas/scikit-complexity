@@ -44,7 +44,7 @@ def test_sobol_indices_of_ishigami():
     observables = [ObservableSpec('y', _ishigami)]
     design = SaltelliDesign(n=2048, random_state=0)
     experiment = Experiment(system, design, bounds, until=0, outputs=['y'], observables=observables, random_state=0)
-    result = experiment.prepare().run().result_
+    result = experiment.check().prepare().run().result_
     analysis = SensitivityAnalysis('sobol', 'y', random_state=0).check().prepare(result).run()
     expected = {'p.x1': 0.3139, 'p.x2': 0.4424, 'p.x3': 0.0}
     for name, value in expected.items():
@@ -62,7 +62,7 @@ def test_morris_and_one_at_a_time_rank_parameters(design, method):
     """Test that Morris screening and one-at-a-time effects rank the carrying capacity first for the final size."""
     bounds = {'growth.r': (0.5, 1.0), 'growth.K': (50.0, 150.0)}
     experiment = Experiment('logistic_growth', design, bounds, until=20, outputs=['population.n'], random_state=0)
-    result = experiment.prepare().run().result_
+    result = experiment.check().prepare().run().result_
     analysis = SensitivityAnalysis(method, 'population.n', random_state=0).check().prepare(result).run()
     assert analysis.ranking_[0] == 'growth.K'
 

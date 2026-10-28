@@ -103,7 +103,7 @@ class DisplacementAnalysis(BaseAnalysis):
         self.positions_ = self._particle_axes(source)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the mean squared displacement and fit its exponent and the diffusion coefficient."""
         array = self.positions_
         msd = np.mean([tidynamics.msd(array[:, particle]) for particle in range(array.shape[1])], axis=0)[1:]

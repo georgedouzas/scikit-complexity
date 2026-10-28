@@ -299,7 +299,7 @@ class FitAnalysis(BaseAnalysis):
         self.statistic_ = float(result.statistic)
         self.p_value_ = float(result.pvalue)
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Fit the law to the sample."""
         if self.law == 'power':
             with warnings.catch_warnings():

@@ -205,7 +205,7 @@ class MarkovAnalysis(BaseAnalysis):
         """Return one path as a row, or several paths as rows, as deeptime reads them."""
         return self.path_[0] if self.path_.shape[0] == 1 else self.path_
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the quantity of the kind."""
         rates = self.matrix == 'rate'
         if self.kind == 'transition-matrix':

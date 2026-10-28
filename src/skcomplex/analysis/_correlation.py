@@ -204,7 +204,7 @@ class CorrelationAnalysis(BaseAnalysis):
         self.labels_ = [name or 'field']
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the correlation of the kind."""
         if self.kind == 'auto':
             self.correlation_ = np.asarray([self._autocorrelation(column, self.max_lag) for column in self.values_.T])

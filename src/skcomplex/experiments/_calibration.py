@@ -127,7 +127,7 @@ class CalibrationExperiment(BaseExperiment):
             error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self) -> None:
+    def _prepare(self, context: object = None) -> None:
         """Compile the model, read the data, and set the run settings and the random streams."""
         factory, defaults = self._resolve_source(self.source)
         named = self.source if isinstance(self.source, str) else None
@@ -163,7 +163,7 @@ class CalibrationExperiment(BaseExperiment):
         simulated = self._simulate(values)
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series_.items()])
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Fit the parameters and set the estimates, their covariance, and the fit statistics."""
         names = list(self.bounds)
         start = np.asarray([(self.initial or {}).get(name, sum(self.bounds[name]) / 2) for name in names], dtype=float)

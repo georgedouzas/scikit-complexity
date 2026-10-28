@@ -27,7 +27,7 @@ class MorrisDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import MorrisDesign
-        >>> len(MorrisDesign(n=4, random_state=0).check().prepare({'r': (0.0, 1.0), 'K': (50, 150)}).run())
+        >>> len(MorrisDesign(n=4, random_state=0).check().check().prepare({'r': (0.0, 1.0), 'K': (50, 150)}).run())
         12
     """
 

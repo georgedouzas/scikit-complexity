@@ -14,12 +14,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
+from ...core.base import BaseConfig
 from ...core.errors import ParameterError, SimulationError, ValidationError
 from ...core.specs import ObservableSpec
 from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
-from ..base import BaseEstimator
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..problems import BaseProblem, Entry, Form, contains
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
@@ -36,7 +36,7 @@ _FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
 
 
-class Simulation(BaseEstimator):
+class Simulation(BaseConfig):
     """Simulation of a system with the solver of its form.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
@@ -129,7 +129,7 @@ class Simulation(BaseEstimator):
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> simulation = Simulation(system, dt=1.0).run(until=20)
+        >>> simulation = Simulation(system, dt=1.0).check().run(until=20)
         >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
@@ -196,7 +196,7 @@ class Simulation(BaseEstimator):
         if not isinstance(self.system, BaseProblem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
 
-    def _prepare(self) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Compile the system, choose the solver, and gather the clock and the observers of a run."""
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
@@ -236,7 +236,7 @@ class Simulation(BaseEstimator):
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
         for observer in self.observers_:
-            observer.prepare(self.problem_)
+            observer.check().prepare(self.problem_)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
@@ -273,7 +273,7 @@ class Simulation(BaseEstimator):
         such as an external process.
         """
         origin, first = self.time_, self._step
-        self.clock_.prepare()
+        self.clock_.check().prepare()
         self._apply_schedule()
         if first == 0:
             self._emit(0)
@@ -385,7 +385,7 @@ class Simulation(BaseEstimator):
         return CoSimulationSolver() if form == Form.COUPLED else DEFAULT_SOLVERS[form]()
 
     def prepare(self) -> Self:
-        """Check the settings, compile the system, and choose the solver.
+        """Compile the system of the checked simulation and choose the solver.
 
         Returns:
             self:
@@ -453,7 +453,7 @@ class Simulation(BaseEstimator):
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
-            >>> simulation = Simulation(system, dt=1.0).run(until=5)
+            >>> simulation = Simulation(system, dt=1.0).check().run(until=5)
             >>> simulation.update_parameters({'growth.r': 0.0})
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()

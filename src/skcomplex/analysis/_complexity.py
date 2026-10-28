@@ -111,7 +111,7 @@ class ComplexityAnalysis(BaseAnalysis):
         self.labels_ = series.labels
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the place of every series or frame on the plane, and the bounds of the plane."""
         dx, dy = (self.dimension, 1) if isinstance(self.dimension, int) else self.dimension
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T

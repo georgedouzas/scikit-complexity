@@ -24,7 +24,7 @@ class RandomDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import RandomDesign
-        >>> len(RandomDesign(n=5, random_state=0).check().prepare({'r': (0.1, 1.0)}).run())
+        >>> len(RandomDesign(n=5, random_state=0).check().check().prepare({'r': (0.1, 1.0)}).run())
         5
     """
 

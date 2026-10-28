@@ -359,7 +359,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.product_, self.error_ = self._get_product(values), float(np.std(boots, ddof=1))
         self.holds_ = self.product_ + 2 * self.error_ >= TUR_BOUND
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Compute the measure of the kind."""
         if self.kind == 'entropy-production':
             self.entropy_production_ = self._entropy_production(self.values_)

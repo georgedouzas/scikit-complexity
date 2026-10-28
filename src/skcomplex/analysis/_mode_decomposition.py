@@ -141,7 +141,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Fit the decomposition and set the surrogate system, its errors, its modes, and the forecast."""
         samples = self.samples_
         lifted, labels, states = self._lift(samples, self.dictionary)

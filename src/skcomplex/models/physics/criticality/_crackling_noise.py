@@ -94,7 +94,7 @@ class CracklingNoiseAnalysis(EventAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _run(self) -> Self:
+    def _run(self, inputs: object = None) -> Self:
         """Find the avalanches, fit the mean size against the duration, predict its exponent, and compare shapes."""
         super()._run()
         distinct, counts = np.unique(self.durations_, return_counts=True)
