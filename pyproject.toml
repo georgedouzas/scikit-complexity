@@ -241,11 +241,11 @@ DEP004 = ["pandas"]
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Analysis builds on experiments, which build on the engine, which builds on the core"
+name = "Experiments build on analysis, which builds on the engine, which builds on the core"
 type = "layers"
 layers = [
-    "skcomplex.analysis",
     "skcomplex.experiments",
+    "skcomplex.analysis",
     "skcomplex.engine",
     "skcomplex.core",
 ]
