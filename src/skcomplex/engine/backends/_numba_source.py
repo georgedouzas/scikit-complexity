@@ -13,23 +13,20 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
-from ..problems import (
-    EdgeSearch,
-    Entry,
-    ExpressionPrinter,
-    LawKernel,
-    Output,
-    ReductionSchedule,
-    Reference,
-    Source,
-    symbols_of,
-)
+from .._utils import symbols_of
+from ..problems import Entry, ExpressionPrinter
 from ..problems._edge_row_search import EdgeRowSearch
+from ..problems._edge_search import EdgeSearch
+from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._output import Output
 from ..problems._pair_search import PairSearch
+from ..problems._read_kind import ReadKind
 from ..problems._reads import Read
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
 from ..problems._static_search import StaticSearch
 
 INDENT = '    '
@@ -121,8 +118,8 @@ class _Source:
     @staticmethod
     def _is_shared(reference: Reference) -> bool:
         """Check whether a reference holds one value for every evaluation index, a single element or a reduction."""
-        return reference.source is Source.SINGLE or (
-            reference.source is Source.REDUCED and reference.entry.members is None
+        return reference.source is ReadKind.SINGLE or (
+            reference.source is ReadKind.REDUCED and reference.entry.members is None
         )
 
     @staticmethod
@@ -200,7 +197,7 @@ class _Source:
         if isinstance(kernel.pairs, EdgeSearch):
             rows, _ = self._edge_rows(kernel.pairs)
             return f'{len(kernel.outputs)} * L[{rows[2:-1]}]'
-        entry = next((item.entry for item in kernel.references.values() if item.source is Source.MEMBER), None)
+        entry = next((item.entry for item in kernel.references.values() if item.source is ReadKind.MEMBER), None)
         if entry is None:
             return str(len(kernel.outputs))
         return f'{len(kernel.outputs)} * L[{2 * self.slot(entry) + 1}]'
@@ -231,9 +228,9 @@ class _Source:
             reference = kernel.references[item]
             if _Source._is_shared(reference):
                 return str(item)
-            if reference.source is Source.SECOND and reference.is_state and reference.entry == pairs.second:
+            if reference.source is ReadKind.SECOND and reference.is_state and reference.entry == pairs.second:
                 return f'positions_a[{first}, {reference.column}] - _d{reference.column}_'
-            member = first if reference.source is Source.FIRST else second
+            member = first if reference.source is ReadKind.FIRST else second
             return f'{_Source._vector(reference)}[{self._index(reference, member)}]'
 
         body, values = self._emit_values([output for _, output in selected], read, depth + 1)
@@ -292,8 +289,8 @@ class _Source:
         base = depth + 1
         if same:
             lines += [f'{INDENT * base}if _n_ == _a_:', f'{INDENT * (base + 1)}continue']
-        firsts = [(index, output) for index, output in outputs if output.target.source is Source.FIRST]  # type: ignore[union-attr]
-        seconds = [(index, output) for index, output in outputs if output.target.source is Source.SECOND]  # type: ignore[union-attr]
+        firsts = [(index, output) for index, output in outputs if output.target.source is ReadKind.FIRST]  # type: ignore[union-attr]
+        seconds = [(index, output) for index, output in outputs if output.target.source is ReadKind.SECOND]  # type: ignore[union-attr]
         for selected, first, second, condition in ((firsts, '_a_', '_n_', '>'), (seconds, '_n_', loop, '<')):
             if not selected:
                 continue
@@ -314,7 +311,7 @@ class _Source:
     def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
         """Add the source of a kernel evaluated once per member, for adding, assigning, or concatenating outputs."""
         member_entry = next(
-            (reference.entry for reference in kernel.references.values() if reference.source is Source.MEMBER),
+            (reference.entry for reference in kernel.references.values() if reference.source is ReadKind.MEMBER),
             None,
         )
         rows = f'_L{2 * self.slot(member_entry) + 1}_' if member_entry is not None else '1'
@@ -330,7 +327,7 @@ class _Source:
             reference = kernel.references[item]
             if _Source._is_shared(reference):
                 return str(item)
-            if reference.source is Source.NEIGHBOR:
+            if reference.source is ReadKind.NEIGHBOR:
                 read = reference.neighbor
                 return (
                     f'neighbor_value({_Source._vector(reference)}, _L{2 * self.slot(reference.entry)}_, '
@@ -342,7 +339,7 @@ class _Source:
         sums = [
             index
             for index, output in enumerate(kernel.outputs)
-            if output.target is not None and output.target.source is Source.SINGLE and mode == 'add'
+            if output.target is not None and output.target.source is ReadKind.SINGLE and mode == 'add'
         ]
         lines += [f'{INDENT}_sum{index}_ = 0.0' for index in sums]
         lines.append(f'{INDENT}for _m_ in prange(rows):')
@@ -355,7 +352,7 @@ class _Source:
                 lines.append(f'{INDENT * 2}_sum{index}_ += {value}')
             else:
                 target = output.target
-                member = '_m_' if target.source is Source.MEMBER else None  # type: ignore[union-attr]
+                member = '_m_' if target.source is ReadKind.MEMBER else None  # type: ignore[union-attr]
                 operator = '+=' if mode == 'add' else '='
                 lines.append(f'{INDENT * 2}out[{self._index(target, member)}] {operator} {value}')  # type: ignore[arg-type]
         for index in sums:
@@ -390,8 +387,8 @@ class _Source:
         if same:
             lines += self._pair_loop(kernel, outputs, '_a_', same=True)
         else:
-            firsts = [(index, output) for index, output in outputs if output.target.source is Source.FIRST]  # type: ignore[union-attr]
-            seconds = [(index, output) for index, output in outputs if output.target.source is Source.SECOND]  # type: ignore[union-attr]
+            firsts = [(index, output) for index, output in outputs if output.target.source is ReadKind.FIRST]  # type: ignore[union-attr]
+            seconds = [(index, output) for index, output in outputs if output.target.source is ReadKind.SECOND]  # type: ignore[union-attr]
             if firsts:
                 lines += self._pair_loop(kernel, firsts, '_a_', same=False)
             if seconds:
@@ -409,7 +406,7 @@ class _Source:
         rows, ends = self._edge_rows(search)
         lines = ['@njit(cache=CACHE)', f'def {name}(t, x, p, L, out, offset):', f'{INDENT}rows = {rows}']
         lines += self._single_reads(kernel, kernel.outputs)
-        members = {Source.MEMBER: '_m_', Source.FIRST: '_a_', Source.SECOND: '_b_'}
+        members = {ReadKind.MEMBER: '_m_', ReadKind.FIRST: '_a_', ReadKind.SECOND: '_b_'}
 
         def read(item: Expression) -> str:
             reference = kernel.references[item]
@@ -420,7 +417,7 @@ class _Source:
         sums = [
             index
             for index, output in enumerate(kernel.outputs)
-            if output.target is not None and output.target.source is Source.SINGLE and mode == 'add'
+            if output.target is not None and output.target.source is ReadKind.SINGLE and mode == 'add'
         ]
         lines += [f'{INDENT}_sum{index}_ = 0.0' for index in sums]
         lines += [f'{INDENT}for _m_ in range(rows):', *ends]

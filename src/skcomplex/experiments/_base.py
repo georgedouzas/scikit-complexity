@@ -28,9 +28,10 @@ from ..core.laws import (
 )
 from ..core.specs import ObservableSpec
 from ..core.system import System
+from ..engine._utils import declared_variables
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
-from ..engine.problems import BaseProblem, VariableKind, contains, declared_variables
+from ..engine.problems import BaseProblem, VariableKind
 from ..engine.runtime import MODELS, Simulation, Trajectory
 
 type Source = str | Callable[..., System] | System
@@ -228,7 +229,7 @@ class BaseExperiment(BaseConfig, ABC):
                 error_msg = f'{name} is neither a state nor a parameter of the model. Available paths are: {names}.'
                 raise ValidationError(error_msg)
             entry = layout.entry(name)
-            if not contains(entry.domain, value):
+            if not entry.contains(value):
                 error_msg = f'{name} = {value!r} is not in its domain {entry.domain}.'
                 raise ValidationError(error_msg)
             vector[entry.indices] = entry.encode(value)

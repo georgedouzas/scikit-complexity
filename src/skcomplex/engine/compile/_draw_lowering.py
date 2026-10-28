@@ -18,17 +18,11 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import Call, Draw, draws_in, where
 from ...core.types import Vector
-from ..problems import (
-    DrawKernel,
-    Entry,
-    ExpressionPrinter,
-    Reference,
-    Source,
-    components_of,
-    symbol,
-    symbols_of,
-    vector,
-)
+from .._utils import components_of, symbol, symbols_of, vector
+from ..problems import Entry, ExpressionPrinter
+from ..problems._draw_kernel import DrawKernel
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ..problems._sampled_draw import SampledDraw
 from ._base import BaseLowering
 from ._declarations import Declarations
@@ -217,7 +211,7 @@ class DrawLowering(BaseLowering):
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
             entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
-            source = Source.MEMBER if grouped else Source.SINGLE
+            source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
             request.references[request.slot] = Reference(entry, False, 0, source)
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
@@ -276,7 +270,7 @@ class DrawLowering(BaseLowering):
         arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
         readers = [request.references.get(item) for item in symbols]
-        if any(reader is None or reader.source not in {Source.SINGLE, Source.MEMBER} for reader in readers):
+        if any(reader is None or reader.source not in {ReadKind.SINGLE, ReadKind.MEMBER} for reader in readers):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'

@@ -15,8 +15,11 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.types import Vector
-from ...problems import DomainKind, ExpressionPrinter, Reference, Source, domain_kind, labels_of, symbols_of
+from ..._utils import symbols_of
+from ...problems import DomainKind, Entry, ExpressionPrinter
 from ...problems._markov_kernel import MarkovKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from ...problems._state import State
 from .._base import BasePass
 from .._compilation import BlockLaws
@@ -76,12 +79,12 @@ class MarkovPass(BasePass):
             error_msg = f'The {description} must target a scalar state of its component.'
             raise ValidationError(error_msg)
         domain = reference.entry.domain
-        labels = labels_of(domain)
+        labels = Entry._labels_of(domain)
         if labels is not None:
             return len(labels)
-        if domain_kind(domain) == DomainKind.BOOLEAN:
+        if Entry._domain_kind(domain) == DomainKind.BOOLEAN:
             return 2
-        if domain_kind(domain) == DomainKind.INTEGER:
+        if Entry._domain_kind(domain) == DomainKind.INTEGER:
             return None
         error_msg = (
             f'The {description} moves {reference.entry.name}, whose domain {domain} is not a finite alphabet. Declare '
@@ -117,7 +120,7 @@ class MarkovPass(BasePass):
     @staticmethod
     def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
         """Return the function that reads a parameter of a matrix for every evaluation row."""
-        if reference.source is Source.MEMBER:
+        if reference.source is ReadKind.MEMBER:
             members = reference.members
             return lambda p: p[members]
         index = reference.index
@@ -181,7 +184,9 @@ class MarkovPass(BasePass):
             int(index)
             for item in arguments
             for index in (
-                references[item].flat_indices if references[item].source is Source.MEMBER else [references[item].index]
+                references[item].flat_indices
+                if references[item].source is ReadKind.MEMBER
+                else [references[item].index]
             )
         )
 

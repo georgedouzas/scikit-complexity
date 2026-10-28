@@ -9,9 +9,9 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.types import Vector
+from .._utils import symbol
 from ._base import BaseKernel
 from ._state import State
-from ._symbols import symbol
 
 
 class QuantumKernel(BaseKernel):

@@ -10,10 +10,10 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 
+from .._utils import symbol
 from ._base import BaseKernel
 from ._reference import Reference
 from ._state import State
-from ._symbols import symbol
 
 type Array = npt.NDArray[np.float64]
 

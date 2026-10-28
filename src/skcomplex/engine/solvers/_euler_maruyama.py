@@ -12,7 +12,9 @@ from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..problems import NoiseKind, OrderKind, SupportSpec, VectorFunction, step_count
+from ..problems import NoiseKind, OrderKind, SupportSpec
+from ..problems._problem import VectorFunction
+from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
 

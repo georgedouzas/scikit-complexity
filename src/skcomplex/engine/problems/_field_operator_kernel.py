@@ -12,10 +12,10 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
+from .._utils import symbol
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._state import State
-from ._symbols import symbol
 
 
 class FieldOperatorKernel(BaseKernel):

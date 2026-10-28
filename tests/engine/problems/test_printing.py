@@ -28,7 +28,8 @@ from sage.all__sagemath_symbolics import (
 )
 
 from skcomplex.core.laws.utils import both, either, mod, where
-from skcomplex.engine.problems import ExpressionPrinter, symbol
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import ExpressionPrinter
 
 X, Y = symbol('x'), symbol('y')
 VALUES = {X: 0.3, Y: 1.7}

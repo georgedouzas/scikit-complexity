@@ -14,22 +14,16 @@ from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
 from ....core.specs import TopologyRequestSpec
 from ....core.types import Vector
-from ...problems import (
-    EdgeSearch,
-    Entry,
-    LawKernel,
-    Layout,
-    LoweredKernels,
-    Output,
-    ReductionSchedule,
-    VariableKind,
-    declarations_of,
-    declared_variables,
-    default_of,
-)
+from ..._utils import declarations_of, declared_variables, default_of
+from ...problems import Entry, Layout, VariableKind
 from ...problems._capacity_rows import CapacityRows
 from ...problems._compiled_request import CompiledRequest
+from ...problems._edge_search import EdgeSearch
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
 from ...problems._network_rows import NetworkRows
+from ...problems._output import Output
+from ...problems._reduction_schedule import ReductionSchedule
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
@@ -68,7 +62,7 @@ class TopologyFunctionsPass(BasePass):
     @staticmethod
     def _request_kernel(spec: KernelSpec, value: object, declarations: Declarations) -> LawKernel:
         """Return the kernel of the probability or the weight of a request for every row of its spec."""
-        states, parameters = Layout(declarations.states), Layout(declarations.parameters)
+        states, parameters = Layout(tuple(declarations.states)), Layout(tuple(declarations.parameters))
         expression = SR(value)
         return LawKernel(
             spec.owner,

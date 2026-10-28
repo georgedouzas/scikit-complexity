@@ -12,7 +12,7 @@ from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import step_count
+from skcomplex.engine.problems._steps import step_count
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,

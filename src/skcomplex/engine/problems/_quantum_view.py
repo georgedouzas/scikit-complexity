@@ -17,9 +17,9 @@ from sage.all__sagemath_symbolics import CC
 from ...core.elements import BaseElement, Element, GroupElement
 from ...core.errors import ValidationError
 from ...core.specs import HilbertSpec
+from .._utils import declarations_of
 from ._base import BaseValue
 from ._local_operator import LocalOperator
-from ._variable import declarations_of
 from ._variable_kind import VariableKind
 
 NORM_TOLERANCE = 1e-8

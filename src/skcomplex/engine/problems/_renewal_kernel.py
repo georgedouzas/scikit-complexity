@@ -13,9 +13,9 @@ from ...core.laws.utils import Draw
 from ...core.types import Indices, Vector
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
+from ._read_kind import ReadKind
 from ._reference import Reference
 from ._renewal_record import RenewalRecord
-from ._source import Source
 from ._state import State
 
 type Drawn = dict[str, Vector]
@@ -29,7 +29,7 @@ type Sampler = tuple[Draw, MemberFunction]
 """Draw of a renewal law with the function of its arguments."""
 
 
-_READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
+_READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 
 
 class RenewalKernel(BaseKernel):
@@ -111,7 +111,7 @@ class RenewalKernel(BaseKernel):
                 arguments.append(drawn[reader])
                 continue
             column = reader.column_of(x, p)
-            arguments.append(column[fired] if reader.source is Source.MEMBER else column)
+            arguments.append(column[fired] if reader.source is ReadKind.MEMBER else column)
         values = compiled(times, *arguments)
         return [np.broadcast_to(np.asarray(value, dtype=float), fired.shape).copy() for value in values]
 

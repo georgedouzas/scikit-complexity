@@ -12,7 +12,8 @@ from ...core.errors import SolverError
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..problems import Form, OrderKind, Problem, SupportSpec, step_count
+from ..problems import Form, OrderKind, Problem, SupportSpec
+from ..problems._steps import step_count
 from ._solver import Solver
 from ._split_operator import SplitOperator
 

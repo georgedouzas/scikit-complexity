@@ -15,8 +15,12 @@ from ....core.errors import LabelError, RoleError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ....core.specs import WienerProcessSpec
-from ...problems import EdgeSearch, Problem, Reference, Source, VariableKind, declarations_of, symbol
+from ..._utils import declarations_of, symbol
+from ...problems import Problem, VariableKind
+from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._block import Block
 from .._declarations import _ACTIVE, ENDS, Declarations
@@ -177,7 +181,7 @@ class SpecsPass(BasePass):
     @staticmethod
     def _entry_namespace(block: Block, index: int | None) -> tuple[SimpleNamespace, dict[Expression, Reference]]:
         """Return the namespace of an entry of a variadic role, an element or one member of a group."""
-        return block.namespace(Source.SINGLE) if index is None else block.member_namespace(index)
+        return block.namespace(ReadKind.SINGLE) if index is None else block.member_namespace(index)
 
     @staticmethod
     def _entry_path(block: Block, index: int | None) -> str:
@@ -194,7 +198,7 @@ class SpecsPass(BasePass):
         """
         if block.node.members is None or 'other' in vars(namespace):
             return namespace
-        other, other_references = block.namespace(Source.OTHER, alias='__other')
+        other, other_references = block.namespace(ReadKind.OTHER, alias='__other')
         references.update(other_references)
         return SimpleNamespace(**vars(namespace), other=other)
 
@@ -317,7 +321,7 @@ class SpecsPass(BasePass):
         node = block.node
         nodes, edges = SpecsPass._edge_roles(node, elements)
         search = SpecsPass._edge_search(node, nodes, edges, elements)
-        parameters, references = block.namespace(Source.SINGLE)
+        parameters, references = block.namespace(ReadKind.SINGLE)
         clashes = sorted(set(vars(parameters)) & {*_EDGE_NAMES, 't'})
         if clashes:
             error_msg = (
@@ -325,15 +329,15 @@ class SpecsPass(BasePass):
                 'its laws read as the ends and the member of an edge. Rename them.'
             )
             raise LabelError(error_msg)
-        source, source_references = nodes.namespace(Source.FIRST, alias='__source')
-        target, target_references = nodes.namespace(Source.SECOND, alias='__target')
+        source, source_references = nodes.namespace(ReadKind.FIRST, alias='__source')
+        target, target_references = nodes.namespace(ReadKind.SECOND, alias='__target')
         references.update(source_references)
         references.update(target_references)
         namespaces: dict[str, SimpleNamespace] = {'source': source, 'target': target}
         paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
         groups: dict[str, int] = {}
         if edges is not None:
-            edge, edge_references = edges.namespace(Source.MEMBER)
+            edge, edge_references = edges.namespace(ReadKind.MEMBER)
             references.update(edge_references)
             namespaces['edge'] = edge
             paths['edge'] = edges.node.path
@@ -341,7 +345,7 @@ class SpecsPass(BasePass):
         elif search.source is not None:
             changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', RR)
-            references[activity] = Reference(changing.entries[_ACTIVE], False, 0, Source.MEMBER)
+            references[activity] = Reference(changing.entries[_ACTIVE], False, 0, ReadKind.MEMBER)
             paths['edge'] = changing.node.path
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
         group = edges.node.path if edges is not None else None
@@ -352,7 +356,7 @@ class SpecsPass(BasePass):
     @staticmethod
     def _member_spec(block: Block, time: Expression) -> KernelSpec:
         """Return the kernel spec of the intrinsic laws of an element or group."""
-        namespace, references = block.namespace(Source.MEMBER)
+        namespace, references = block.namespace(ReadKind.MEMBER)
         namespace = SpecsPass._with_other(block, namespace, references)
         group = block.node.path if block.node.members is not None else None
         return KernelSpec(
@@ -374,9 +378,9 @@ class SpecsPass(BasePass):
             if entry is None or not entry.member_shape:
                 error_msg = f'Pair interaction {node.path} needs the vector state {position!r} in {bound.node.path}.'
                 raise ValidationError(error_msg)
-        parameters, references = block.namespace(Source.SINGLE)
-        first_namespace, first_references = first.namespace(Source.FIRST)
-        second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
+        parameters, references = block.namespace(ReadKind.SINGLE)
+        first_namespace, first_references = first.namespace(ReadKind.FIRST)
+        second_namespace, second_references = second.namespace(ReadKind.SECOND, alias='_pair')
         references.update(first_references)
         references.update(second_references)
         period = getattr(interaction, 'period', None)
@@ -440,11 +444,11 @@ class SpecsPass(BasePass):
         paths.update({role: SpecsPass._entry_path(*member) for role, member in single_members.items()})
         specs = []
         for index in range(next(iter(sizes), 1)):
-            parameters, references = block.namespace(Source.SINGLE)
+            parameters, references = block.namespace(ReadKind.SINGLE)
             namespaces: dict[str, SimpleNamespace | tuple[SimpleNamespace, ...]] = {}
             set_symbols: dict[Expression, SetSymbol] = {}
             for role, members in sets.items():
-                namespaces[role], role_references = members[index].namespace(Source.SINGLE)
+                namespaces[role], role_references = members[index].namespace(ReadKind.SINGLE)
                 references.update(role_references)
                 set_symbols.update(SpecsPass._set_symbols(members, index))
             for role, value in observed.items():
@@ -460,7 +464,7 @@ class SpecsPass(BasePass):
                 references.update(role_references)
             for role, item in bound.items():
                 role_namespace, role_references = item.namespace(
-                    Source.MEMBER if item.node.members is not None else Source.SINGLE,
+                    ReadKind.MEMBER if item.node.members is not None else ReadKind.SINGLE,
                 )
                 namespaces[role] = SpecsPass._with_other(item, role_namespace, role_references)
                 references.update(role_references)

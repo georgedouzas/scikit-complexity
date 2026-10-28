@@ -19,18 +19,14 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
-from ..problems import (
-    LATTICE_BOUNDARIES,
-    MODES,
-    ExpressionPrinter,
-    NeighborRead,
-    Reference,
-    Source,
-    domain_of,
-    symbol,
-)
+from .._utils import domain_of, symbol
+from ..problems import ExpressionPrinter
 from ..problems._diffusive_limit import DiffusiveLimit
 from ..problems._field_operator_kernel import FieldOperatorKernel
+from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read import NeighborRead
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
 from ._kernel_spec import KernelSpec
@@ -159,7 +155,7 @@ class FieldLowering(BaseLowering):
     def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
         reference = self.spec.references[item]
-        if reference.source is not Source.MEMBER:
+        if reference.source is not ReadKind.MEMBER:
             return None
         found = self.fields_.get(reference.entry.name)
         if found is None:
@@ -251,7 +247,7 @@ class FieldLowering(BaseLowering):
                     reference.entry,
                     reference.is_state,
                     reference.column,
-                    Source.NEIGHBOR,
+                    ReadKind.NEIGHBOR,
                     read,
                 )
                 self.shifted_[target] = (base, total)
@@ -370,9 +366,9 @@ class FieldLowering(BaseLowering):
         entry = next(
             self.spec.references[item].entry
             for item in read.symbols
-            if self.spec.references[item].source in {Source.MEMBER, Source.NEIGHBOR, Source.DERIVED}
+            if self.spec.references[item].source in {ReadKind.MEMBER, ReadKind.NEIGHBOR, ReadKind.DERIVED}
         )
-        self.spec.references[target] = Reference(entry, True, 0, Source.DERIVED, read)
+        self.spec.references[target] = Reference(entry, True, 0, ReadKind.DERIVED, read)
         self.derived_[target] = (place, read)
         return target
 

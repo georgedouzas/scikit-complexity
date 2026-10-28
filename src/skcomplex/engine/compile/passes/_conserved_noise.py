@@ -14,7 +14,10 @@ from ....core.errors import ValidationError
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
 from ....core.types import Indices
-from ...problems import NoiseProcess, Output, Reference, Source
+from ...problems._noise_process import NoiseProcess
+from ...problems._output import Output
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord
@@ -84,7 +87,7 @@ class ConservedNoisePass(BasePass):
             and isinstance(space, LatticeSpace)
             and space.geometry == 'square'
             and place.discretization == 'finite-difference'
-            and reference.source is Source.MEMBER
+            and reference.source is ReadKind.MEMBER
         )
         if not is_lattice:
             error_msg = (

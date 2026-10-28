@@ -19,7 +19,8 @@ from ..core.errors import AnalysisError
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
-from ..engine.problems import Form, Problem, VariableKind, components_of, declarations_of, symbol
+from ..engine._utils import components_of, declarations_of, symbol
+from ..engine.problems import Form, Problem, VariableKind
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion
 from ._kinds import DataKind

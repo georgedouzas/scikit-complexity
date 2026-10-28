@@ -23,7 +23,9 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.types import Vector
-from ..problems import Form, OrderKind, SupportSpec, VectorFunction, step_count
+from ..problems import Form, OrderKind, SupportSpec
+from ..problems._problem import VectorFunction
+from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._history import History, Interpolant
 from ._solver import Solver

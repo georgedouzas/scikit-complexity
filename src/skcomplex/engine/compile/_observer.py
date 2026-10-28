@@ -14,12 +14,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...core.errors import ValidationError
 from ...core.laws.utils import count, maximum, mean, minimum, total, variance
 from ...core.specs import ObservableSpec
-from ..problems import (
-    Problem,
-    Reference,
-    Source,
-    vector,
-)
+from .._utils import vector
+from ..problems import Problem
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ._block import Block
 from ._declarations import Declarations
 from ._observables import Declared, ObservableEvaluator
@@ -98,9 +96,9 @@ class Observer:
         return Observed(SimpleNamespace(value=value), dict(references))
 
     @staticmethod
-    def _source_of(block: Block) -> Source:
+    def _source_of(block: Block) -> ReadKind:
         """Return how laws read the variables of a block from outside it, per member for a group."""
-        return Source.MEMBER if block.node.members is not None else Source.SINGLE
+        return ReadKind.MEMBER if block.node.members is not None else ReadKind.SINGLE
 
     @staticmethod
     def _reduced_value(path: str, observable: ObservableSpec, block: Block) -> object:

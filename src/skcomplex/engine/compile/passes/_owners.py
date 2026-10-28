@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...problems import vector
+from ..._utils import vector
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations

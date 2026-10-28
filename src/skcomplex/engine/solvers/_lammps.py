@@ -23,6 +23,7 @@ from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.system import System
 from ...core.types import Vector
+from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
 from ..compile import compile_system
 from ..problems import (
@@ -35,11 +36,8 @@ from ..problems import (
     Problem,
     SupportSpec,
     VariableKind,
-    declarations_of,
-    step_count,
-    symbol,
-    symbols_of,
 )
+from ..problems._steps import step_count
 from ._external import ExternalSolver
 from ._lammps_fix import LammpsFix
 
@@ -591,7 +589,7 @@ class LammpsSolver(ExternalSolver):
                 The energy has symbols other than the distance or functions Lepton does not know.
 
         Examples:
-            >>> from skcomplex.engine.problems import symbol
+            >>> from skcomplex.engine._utils import symbol
             >>> from skcomplex.engine.solvers import LammpsSolver
             >>> x = symbol('x')
             >>> LammpsSolver._lepton_expression(4 * (x**-12 - x**-6), x)

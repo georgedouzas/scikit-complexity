@@ -45,16 +45,11 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from ..problems import (
-    DrawKernel,
-    Form,
-    LawKernel,
-    NoiseKind,
-    OrderKind,
-    ReductionSchedule,
-    Reference,
-    SupportSpec,
-)
+from ..problems import Form, NoiseKind, OrderKind, SupportSpec
+from ..problems._draw_kernel import DrawKernel
+from ..problems._law_kernel import LawKernel
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
 from ._base import BaseBackend
 from ._lowering import _FUNCTION_KINDS, Lowering
 

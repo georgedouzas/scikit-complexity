@@ -14,7 +14,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Vector
-from ...problems import Entry, ExpressionPrinter, Reference, Source, symbol, vector
+from ..._utils import symbol, vector
+from ...problems import Entry, ExpressionPrinter
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -89,7 +92,8 @@ class DelaysPass(BasePass):
             arguments = call.operands()
             item, tau = arguments[0], arguments[1]
             reference = spec.references.get(item)
-            if reference is None or not reference.is_state or reference.source not in {Source.SINGLE, Source.MEMBER}:
+            read = {ReadKind.SINGLE, ReadKind.MEMBER}
+            if reference is None or not reference.is_state or reference.source not in read:
                 error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
                 raise ValidationError(error_msg)
             key = (id(spec), reference.entry.name, reference.column, str(tau))
@@ -97,7 +101,7 @@ class DelaysPass(BasePass):
                 replacements[call] = compilation.placeholders[key]
                 continue
             entry = reference.entry
-            members = entry.members if reference.source is Source.MEMBER else None
+            members = entry.members if reference.source is ReadKind.MEMBER else None
             indices = (
                 entry.start + np.arange(members) * entry.columns + reference.column
                 if members is not None

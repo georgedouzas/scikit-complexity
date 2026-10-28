@@ -22,17 +22,9 @@ from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.specs import PhaseSpec, PhasesScheduleSpec
 from ...core.types import Vector
+from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
-from ..problems import (
-    CompiledAgents,
-    Form,
-    OrderKind,
-    Problem,
-    SupportSpec,
-    VariableKind,
-    declarations_of,
-    default_of,
-)
+from ..problems import CompiledAgents, Form, OrderKind, Problem, SupportSpec, VariableKind
 from ._agent_snapshot import AgentSnapshot
 from ._agent_state import AgentState
 from ._solver import Solver

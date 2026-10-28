@@ -14,7 +14,7 @@ from ..core.errors import AnalysisError
 from ..core.laws import BaseLaw, UpdateLaw
 from ..core.laws.utils import Call
 from ..core.spaces import DiscreteTime
-from ..engine.problems import vector
+from ..engine._utils import vector
 from ._base import BaseAnalysis, SurrogateSource
 from ._kinds import DataKind
 from ._sparse_identification import SparseIdentificationAnalysis

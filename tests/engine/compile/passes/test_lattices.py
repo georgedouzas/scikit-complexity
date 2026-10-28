@@ -25,7 +25,8 @@ from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpe
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import ExtremalKernel, ExtremalRecord
+from skcomplex.engine.problems import ExtremalRecord
+from skcomplex.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
 from skcomplex.experiments import Experiment, GridDesign

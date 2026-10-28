@@ -10,7 +10,8 @@ from typing import cast
 from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
-from ...problems import VariableKind, declarations_of
+from ..._utils import declarations_of
+from ...problems import VariableKind
 from .._base import BasePass
 from .._probe import probe_laws
 from .._tree import Node

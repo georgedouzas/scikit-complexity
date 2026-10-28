@@ -339,10 +339,11 @@ class BaseProblem(BaseValue):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.problems import Form, symbol
+        >>> from skcomplex.engine.problems import Form
+        >>> from skcomplex.engine._utils import symbol
         >>> from skcomplex.engine.problems import Layout
         >>> from skcomplex.engine.problems import BaseProblem
-        >>> problem = BaseProblem(Form.ODE, Layout([]), Layout([]), np.zeros(0), np.zeros(0), symbol('t'))
+        >>> problem = BaseProblem(Form.ODE, Layout(()), Layout(()), np.zeros(0), np.zeros(0), symbol('t'))
         >>> problem.stochastic, problem.adaptive_parameters, problem.lattice_shape('a.n')
         (False, {}, None)
     """

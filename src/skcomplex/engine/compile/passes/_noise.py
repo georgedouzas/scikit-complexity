@@ -18,7 +18,7 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....core.specs import WienerProcessSpec
-from ...problems import components_of
+from ..._utils import components_of
 from .._base import BasePass
 from .._census_record import ProcessKey
 from .._compilation import Laws

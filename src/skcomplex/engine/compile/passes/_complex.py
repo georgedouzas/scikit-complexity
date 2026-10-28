@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
-from ...problems import components_of
+from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws
 from .._complex import _is_zero, _real, _split_complex

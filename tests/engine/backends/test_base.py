@@ -19,9 +19,10 @@ from skcomplex.core.laws.utils import Call
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine._utils import vector
 from skcomplex.engine.backends import BaseBackend, Lowering, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form, vector
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,

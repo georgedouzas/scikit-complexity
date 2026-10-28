@@ -7,7 +7,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement, wrap_angle
+from ..problems import BaseProblem, CompiledAgents, CompiledElement, Entry
 from ..runtime import Frame
 from ._base import _UPWARD, BaseVisual
 
@@ -71,7 +71,7 @@ class PhaseRingVisual(BaseVisual):
             frame:
                 The frame.
         """
-        phases = wrap_angle(np.ravel(frame.value(element.states[self.phase])))
+        phases = Entry._wrap_angle(np.ravel(frame.value(element.states[self.phase])))
         if self.position is None:
             positions = np.arange(phases.size, dtype=float)
         else:

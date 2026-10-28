@@ -12,9 +12,11 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ..._utils import symbols_of
 from ...backends import BaseBackend, resolve_backend
-from ...problems import Reference, Source, symbols_of
 from ...problems._encounter_kernel import EncounterKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from ...problems._table_values import Indices, TableValues
 from .._base import BasePass
 from .._compilation import Laws
@@ -79,7 +81,7 @@ class CompileEncountersPass(BasePass):
     def _group_indices(item: Expression | None, references: Mapping[Expression, Reference], owner: str) -> Indices:
         """Return the flat state indices of the density a symbol of an encounter stands for, one per activity."""
         reference = references.get(item) if item is not None else None
-        if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+        if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = (
                 f'An encounter law of {owner} reads {item}, which is not a state of a group bound to a role. '
                 'Encounters read the densities of groups on the sites of activity lattices, such as `s.candidate.f`.'

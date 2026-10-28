@@ -6,7 +6,8 @@
 from typing import cast
 
 from ....core.laws import CrossingLaw
-from ...problems import ReductionSchedule, Source
+from ...problems._read_kind import ReadKind
+from ...problems._reduction_schedule import ReductionSchedule
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
@@ -54,7 +55,7 @@ class ReductionsPass(BasePass):
         owners = {
             reference.entry.name.rpartition('.')[0]
             for reference in spec.references.values()
-            if reference.source is Source.MEMBER
+            if reference.source is ReadKind.MEMBER
         }
         foreign = (owners & declarations.groups) - {spec.group, *spec.aligned}
         if not foreign:
@@ -62,5 +63,5 @@ class ReductionsPass(BasePass):
         spec.references = {
             item: reference
             for item, reference in spec.references.items()
-            if reference.source is not Source.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
+            if reference.source is not ReadKind.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
         }

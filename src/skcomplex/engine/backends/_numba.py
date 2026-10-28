@@ -59,24 +59,17 @@ from ...core.spaces import (
     StaticTime,
 )
 from ...core.types import Vector
-from ..problems import (
-    Accelerated,
-    DrawKernel,
-    EdgeSearch,
-    Entry,
-    ExpressionPrinter,
-    Form,
-    LawKernel,
-    NoiseKind,
-    OrderKind,
-    ReductionSchedule,
-    Reference,
-    Source,
-    SupportSpec,
-    step_count,
-)
+from ..problems import Entry, ExpressionPrinter, Form, NoiseKind, OrderKind, SupportSpec
+from ..problems._accelerated import Accelerated
+from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
+from ..problems._edge_search import EdgeSearch
+from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
+from ..problems._read_kind import ReadKind
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
+from ..problems._steps import step_count
 from . import _numba_neighbours, _numba_stencils
 from ._base import _AUTO_MEMBERS, BaseBackend
 from ._lowering import Lowering
@@ -106,7 +99,7 @@ from skcomplex.engine.backends._numba_neighbours import (
     radius_neighbours,
 )
 from skcomplex.engine.backends._numba_stencils import neighbor_value
-from skcomplex.engine.problems import step_count
+from skcomplex.engine.problems._steps import step_count
 """
 
 
@@ -202,7 +195,7 @@ class NumbaBackend(BaseBackend):
         rows = [
             reference.entry.rows
             for reference in kernel.references.values()
-            if reference.source in {Source.MEMBER, Source.FIRST, Source.SECOND}
+            if reference.source in {ReadKind.MEMBER, ReadKind.FIRST, ReadKind.SECOND}
         ]
         return max(rows, default=0) >= _AUTO_MEMBERS
 
@@ -474,8 +467,8 @@ class NumbaBackend(BaseBackend):
     def _is_compilable(kernel: LawKernel) -> bool:
         """Check whether every output of a kernel can be compiled, so it has no Python callable."""
         lattice = all(
-            (reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None)
-            and reference.source is not Source.DERIVED
+            (reference.source is not ReadKind.NEIGHBOR or reference.neighbor.sizes is not None)
+            and reference.source is not ReadKind.DERIVED
             for reference in kernel.references.values()
         )
         return lattice and all(

@@ -20,18 +20,9 @@ from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ...core.types import Vector
-from ..problems import (
-    Entry,
-    Reference,
-    Variable,
-    VariableKind,
-    components_of,
-    contains,
-    declarations_of,
-    encode,
-    symbol,
-    vector,
-)
+from .._utils import components_of, declarations_of, symbol, vector
+from ..problems import Entry, Variable, VariableKind
+from ..problems._reference import Reference
 from ._block import Block
 from ._tree import _MAX_SHOWN_COMPONENTS, Node
 
@@ -322,7 +313,7 @@ class Declarations:
         if space is None:
             error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
             raise SpaceError(error_msg)
-        if not contains(RealSet.open(0, oo), space.n_dim_) or not contains(ZZ, space.n_dim_):
+        if not Entry._contains(RealSet.open(0, oo), space.n_dim_) or not Entry._contains(ZZ, space.n_dim_):
             error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
         return (int(space.n_dim_),)
@@ -431,16 +422,16 @@ class Declarations:
             ValidationError:
                 The value is not numeric, has the wrong shape, or is outside the domain.
         """
-        if not contains(domain, value):
+        if not Entry._contains(domain, value):
             error_msg = f'{name} = {Declarations._describe(value)} is not in its domain {domain}.'
-            if contains(CC, value):
+            if Entry._contains(CC, value):
                 error_msg = (
                     f'{name} = {Declarations._describe(value)} has a nonzero imaginary part, which its domain {domain} '
                     f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
                     'values.'
                 )
             raise ValidationError(error_msg)
-        flat = Declarations._flat_value(name, value, encode(domain, value, period), shape, members)
+        flat = Declarations._flat_value(name, value, Entry._encode(domain, value, period), shape, members)
         return np.ascontiguousarray(flat).view(float) if domain is CC else flat
 
     @staticmethod

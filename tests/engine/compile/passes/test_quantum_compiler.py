@@ -16,6 +16,7 @@ from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import (
     BaseCompiler,
     BasePass,
@@ -23,7 +24,6 @@ from skcomplex.engine.compile import (
     compile_system,
 )
 from skcomplex.engine.compile.passes import QuantumCompiler
-from skcomplex.engine.problems import symbol
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import (
     QUBIT,

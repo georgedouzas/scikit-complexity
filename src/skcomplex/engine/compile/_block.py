@@ -10,14 +10,10 @@ from typing import Any
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ..problems import (
-    Entry,
-    Reference,
-    Source,
-    domain_of,
-    symbol,
-    vector,
-)
+from .._utils import domain_of, symbol, vector
+from ..problems import Entry
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ._tree import Node
 
 
@@ -48,7 +44,7 @@ class Block:
                 symbols[name] = vector(self._renamed(item, mapping) for item in value)
         return SimpleNamespace(**symbols)
 
-    def namespace(self, source: Source, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
+    def namespace(self, source: ReadKind, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
         """Return the namespace of the block's symbols and their references for one way of reading them.
 
         Args:
@@ -86,7 +82,7 @@ class Block:
                 reference.entry,
                 reference.is_state,
                 index * reference.entry.columns + reference.column,
-                Source.SINGLE,
+                ReadKind.SINGLE,
             )
             for item, reference in self.references.items()
         }

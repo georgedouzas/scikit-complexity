@@ -14,7 +14,10 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....core.types import Vector
-from ...problems import Form, FractionalRows, LawKernel, Layout, LoweredKernels, Problem
+from ...problems import Form, Layout, Problem
+from ...problems._fractional_rows import FractionalRows
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
 from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass

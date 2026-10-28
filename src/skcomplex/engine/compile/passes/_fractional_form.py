@@ -9,12 +9,8 @@ from typing import cast
 
 from ....core.errors import BackendError, SolverError
 from ....core.spaces import ContinuousTime
-from ...problems import (
-    Form,
-    OrderKind,
-    VariableKind,
-    declarations_of,
-)
+from ..._utils import declarations_of
+from ...problems import Form, OrderKind, VariableKind
 from .._base import BasePass
 from .._census import Census
 from .._census_record import CensusRecord

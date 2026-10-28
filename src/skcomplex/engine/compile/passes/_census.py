@@ -30,7 +30,9 @@ from ....core.laws import (
     UpdateLaw,
 )
 from ....core.system import System
-from ...problems import EdgeSearch, ElementKind, Entry, VariableKind, components_of, declarations_of, symbol, symbols_of
+from ..._utils import components_of, declarations_of, symbol, symbols_of
+from ...problems import ElementKind, Entry, VariableKind
+from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass

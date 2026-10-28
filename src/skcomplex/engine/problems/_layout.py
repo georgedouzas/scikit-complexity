@@ -3,17 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable
+import functools
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR
 
+from ._base import BaseValue
 from ._entry import Entry
 
 
-class Layout:
+@dataclass(frozen=True)
+class Layout(BaseValue):
     """Ordered collection of named variables stored in one flat vector.
 
     Args:
@@ -24,14 +27,17 @@ class Layout:
         >>> import numpy as np
         >>> from skcomplex.engine.problems import Entry, Layout
         >>> from sage.all__sagemath_symbolics import CC, RR
-        >>> layout = Layout([Entry('a.n', 0, (), RR), Entry('b.x', 1, (2,), RR)])
+        >>> layout = Layout((Entry('a.n', 0, (), RR), Entry('b.x', 1, (2,), RR)))
         >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
         array([2., 3.])
     """
 
-    def __init__(self, entries: Iterable[Entry]) -> None:
-        self.entries = tuple(entries)
-        self._by_name = {entry.name: entry for entry in self.entries}
+    entries: tuple[Entry, ...]
+
+    @functools.cached_property
+    def _by_name(self) -> dict[str, Entry]:
+        """Entries by dotted name."""
+        return {entry.name: entry for entry in self.entries}
 
     def has(self, name: str) -> bool:
         """Check whether a variable name is part of the layout.
@@ -99,7 +105,7 @@ class Layout:
         Examples:
             >>> from skcomplex.engine.problems import Entry, Layout
             >>> from sage.all__sagemath_symbolics import CC, RR
-            >>> layout = Layout([Entry('a.n', 0, (), RR), Entry('b.w', 1, (3,), RR)])
+            >>> layout = Layout((Entry('a.n', 0, (), RR), Entry('b.w', 1, (3,), RR)))
             >>> entry, indices = layout.locate('b.w[1]')
             >>> entry.name, entry.shape, indices
             ('b.w[1]', (), slice(2, 3, None))

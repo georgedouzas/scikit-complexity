@@ -17,8 +17,9 @@ from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, Subs
 from skcomplex.core.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.core.types import Letters
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import RewritingCompiler, compile_system
-from skcomplex.engine.problems import Form, PatchStructure, WordStructure, symbol
+from skcomplex.engine.problems import Form, PatchStructure, WordStructure
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
 from skcomplex.models.biology.ecology import PopulationElement

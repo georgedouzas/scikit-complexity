@@ -16,21 +16,15 @@ from ....core.errors import BackendWarning
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.types import Vector
 from ...backends import BaseBackend, Lowering, NumpyBackend, resolve_backend
-from ...problems import (
-    Accelerated,
-    DrawKernel,
-    Form,
-    LawKernel,
-    Layout,
-    LoweredKernels,
-    Output,
-    Problem,
-    ReductionSchedule,
-    Source,
-    State,
-    VectorFunction,
-    wrap_angle,
-)
+from ...problems import Entry, Form, Layout, Problem, State
+from ...problems._accelerated import Accelerated
+from ...problems._draw_kernel import DrawKernel
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
+from ...problems._output import Output
+from ...problems._problem import VectorFunction
+from ...problems._read_kind import ReadKind
+from ...problems._reduction_schedule import ReductionSchedule
 from .._base import BasePass
 from .._compilation import Compilation
 from .._declarations import Declarations
@@ -59,7 +53,7 @@ class FunctionsPass(BasePass):
         """Check whether an output sums over the pairs or the members of a group."""
         if kernel.pairs is not None:
             return True
-        return item.target is not None and item.target.source is Source.SINGLE and kernel.rows > 1
+        return item.target is not None and item.target.source is ReadKind.SINGLE and kernel.rows > 1
 
     @staticmethod
     def _equations_of(
@@ -110,7 +104,7 @@ class FunctionsPass(BasePass):
             """Apply the boundary laws, then wrap the angle states."""
             state = x if boundary is None else boundary(t, x, p)
             state = state.copy()
-            state[indices] = wrap_angle(state[indices])
+            state[indices] = Entry._wrap_angle(state[indices])
             return state
 
         return wrapped
@@ -184,7 +178,7 @@ class FunctionsPass(BasePass):
                 FunctionsPass._sums_over_members(kernel, item) for kernel in main for item in kernel.outputs
             ),
         )
-        states = Layout(declarations.states)
+        states = Layout(tuple(declarations.states))
         functions['boundary'] = FunctionsPass._wrapping_angles(
             cast('VectorFunction | None', functions.get('boundary')),
             states,

@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.laws import BaseLaw
-from ...problems import symbol
+from ..._utils import symbol
 from .._base import BasePass
 from .._bound_renewal import BoundRenewal
 from .._compilation import Laws

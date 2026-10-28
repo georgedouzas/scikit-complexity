@@ -19,8 +19,8 @@ from ._layout import Layout
 from ._noise_process import NoiseProcess
 from ._output import Output
 from ._pair_search import PairSearch
+from ._read_kind import ReadKind
 from ._reference import Reference, Search
-from ._source import Source
 from ._state import State
 from ._wiener_block import WienerBlock
 
@@ -154,7 +154,7 @@ class LawKernel(BaseKernel):
                 'or `parameter` and use them through the namespace `s` that `laws` receives.'
             )
             raise ValidationError(error_msg)
-        others = sorted(str(item) for item in used if self.references[item].source is Source.OTHER)
+        others = sorted(str(item) for item in used if self.references[item].source is ReadKind.OTHER)
         if others:
             error_msg = (
                 f'A law of {self.owner} reads the neighbour symbols {", ".join(others)} outside a neighbourhood '
@@ -223,7 +223,7 @@ class LawKernel(BaseKernel):
     ) -> Any:  # noqa: ANN401
         """Return the values of a symbol read at neighbouring sites or derived by a global operator."""
         read = reference.neighbor
-        if reference.source is Source.NEIGHBOR:
+        if reference.source is ReadKind.NEIGHBOR:
             return read.read(reference.column_of(x, p))
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
         return read.run(State(t, read.operand_values(t, values, reference.entry.rows), p))
@@ -235,15 +235,15 @@ class LawKernel(BaseKernel):
         reference = self.references[symbol]
         source = reference.source
         read: Reader
-        if source is Source.DERIVED or source is Source.NEIGHBOR:
-            if source is Source.DERIVED:
+        if source is ReadKind.DERIVED or source is ReadKind.NEIGHBOR:
+            if source is ReadKind.DERIVED:
                 for item in reference.neighbor.symbols:
                     self._reader(item)
 
             def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
                 return self._gather_around(reference, x, p, pairs, t)
 
-        elif source is Source.SINGLE or (source is Source.REDUCED and reference.entry.members is None):
+        elif source is ReadKind.SINGLE or (source is ReadKind.REDUCED and reference.entry.members is None):
             read = self._single_reader(reference.is_state, reference.index)
         else:
             read = self._member_reader(reference)
@@ -258,10 +258,10 @@ class LawKernel(BaseKernel):
 
         def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
             values = (x if is_state else p)[members]
-            if source is Source.MEMBER or pairs is None:
+            if source is ReadKind.MEMBER or pairs is None:
                 return values
             first, second = pairs
-            if source is Source.FIRST:
+            if source is ReadKind.FIRST:
                 return values[first]
             if images:
                 return self.pairs.second_images(x, first, second)[:, column]  # type: ignore[union-attr]
@@ -281,9 +281,9 @@ class LawKernel(BaseKernel):
     def _reads_reduction(self, item: Expression) -> bool:
         """Check whether a symbol reads a reduction, directly or through the operand of a derived read."""
         reference = self.references[item]
-        if reference.source is Source.REDUCED:
+        if reference.source is ReadKind.REDUCED:
             return True
-        if reference.source is Source.DERIVED:
+        if reference.source is ReadKind.DERIVED:
             return any(self._reads_reduction(symbol) for symbol in reference.neighbor.symbols)
         return False
 

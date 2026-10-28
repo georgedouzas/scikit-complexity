@@ -15,17 +15,8 @@ from ....core.elements import Element, GroupElement, HostGraphElement, PatchElem
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ....core.system import System
-from ...problems import (
-    BaseProblem,
-    CompiledElement,
-    Entry,
-    Form,
-    Layout,
-    VariableKind,
-    contains,
-    declarations_of,
-    symbol,
-)
+from ..._utils import declarations_of, symbol
+from ...problems import BaseProblem, CompiledElement, Entry, Form, Layout, VariableKind
 from ...problems._graph_kernel import GraphKernel
 from ...problems._parameters import Parameters
 from ...problems._patch_kernel import PatchKernel
@@ -154,7 +145,7 @@ class RewritingCompiler(BaseCompiler):
             names = {}
             for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
                 value = node.value_of(name)
-                if np.ndim(value) or not contains(declaration.domain, value):
+                if np.ndim(value) or not Entry._contains(declaration.domain, value):
                     error_msg = (
                         f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
                     )
@@ -286,8 +277,8 @@ class RewritingCompiler(BaseCompiler):
             initial += item.counts(item._initial(initial_parameters))  # type: ignore[arg-type]
         return RewritingProblem(
             form=Form.REWRITING,
-            states=Layout(states),
-            parameters=Layout(entries),
+            states=Layout(tuple(states)),
+            parameters=Layout(tuple(entries)),
             initial_state=np.asarray(initial, dtype=float),
             initial_parameters=initial_parameters,
             time=symbol('t'),

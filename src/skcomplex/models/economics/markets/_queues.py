@@ -14,9 +14,11 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.problems import VariableKind, declarations_of
 from ....engine.runtime import register_model
 from ....engine.solvers import AgentView, ModelView
+
+_PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
+
 
 WASH = 0
 VALET = 1
@@ -291,7 +293,7 @@ class CarWashOperationInteraction(Interaction):
             model:
                 The model.
         """
-        values = {name: float(model.parameter(name)) for name in declarations_of(self, VariableKind.PARAMETER)}
+        values = {name: float(model.parameter(name)) for name in _PARAMETERS}
         till = model.agents('till')[0]
         for car in model.agents('cars'):
             car.crew = 0

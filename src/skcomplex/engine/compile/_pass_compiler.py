@@ -41,20 +41,11 @@ from ...core.spaces import (
 )
 from ...core.specs import ObservableSpec, TopologyRequestSpec, WienerProcessSpec
 from ...core.system import System
+from .._utils import declarations_of, symbol
 from ..backends import BaseBackend
-from ..problems import (
-    BaseProblem,
-    DomainKind,
-    Form,
-    NoiseKind,
-    Partition,
-    Problem,
-    SupportSpec,
-    VariableKind,
-    declarations_of,
-    symbol,
-)
+from ..problems import BaseProblem, DomainKind, Form, NoiseKind, Problem, SupportSpec, VariableKind
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._partition import Partition
 from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._census import Census

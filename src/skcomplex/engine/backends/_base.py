@@ -15,9 +15,9 @@ from ..problems import Form, State, SupportSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._law_kernel import LawKernel
 from ..problems._problem import VectorFunction
+from ..problems._read_kind import ReadKind
 from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._reference import Reference
-from ..problems._source import Source
 from ._lowering import Lowering
 
 _AUTO_MEMBERS = 1000
@@ -162,9 +162,9 @@ class BaseBackend(BaseEstimator):
     def _reads_reduction(kernel: LawKernel, item: Expression) -> bool:
         """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
         reference = kernel.references[item]
-        if reference.source is Source.REDUCED:
+        if reference.source is ReadKind.REDUCED:
             return True
-        if reference.source is Source.DERIVED:
+        if reference.source is ReadKind.DERIVED:
             return any(BaseBackend._reads_reduction(kernel, symbol) for symbol in reference.neighbor.symbols)
         return False
 

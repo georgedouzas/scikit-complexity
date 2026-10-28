@@ -18,9 +18,10 @@ from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine._utils import domain_of, symbol
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form, domain_of, symbol
+from skcomplex.engine.problems import Form
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,

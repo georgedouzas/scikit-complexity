@@ -9,11 +9,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, UpdateLaw
-from ...problems import (
-    EdgeSearch,
-    Source,
-    vector,
-)
+from ..._utils import vector
+from ...problems._edge_search import EdgeSearch
+from ...problems._read_kind import ReadKind
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import _ACTIVE, Declarations
@@ -73,7 +71,7 @@ class MaskRequestsPass(BasePass):
             (
                 item
                 for item, reference in spec.references.items()
-                if reference.entry.name == name and reference.source is Source.MEMBER
+                if reference.entry.name == name and reference.source is ReadKind.MEMBER
             ),
             None,
         )

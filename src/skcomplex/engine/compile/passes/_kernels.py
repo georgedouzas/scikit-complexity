@@ -18,17 +18,14 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import Call
 from ....core.specs import WienerProcessSpec
-from ...problems import (
-    LawKernel,
-    Layout,
-    LoweredKernels,
-    NoiseProcess,
-    Output,
-    Reference,
-    Source,
-    components_of,
-    symbols_of,
-)
+from ..._utils import components_of, symbols_of
+from ...problems import Layout
+from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels import LoweredKernels
+from ...problems._noise_process import NoiseProcess
+from ...problems._output import Output
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._census_record import ProcessKey
 from .._compilation import Laws
@@ -96,13 +93,13 @@ class KernelsPass(BasePass):
         """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
         kind = type(law).__name__
         for target in targets:
-            if target.source in {Source.FIRST, Source.SECOND}:
+            if target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 error_msg = (
                     f'A {kind} law of {spec.owner} sets {target.entry.name} at an end of every edge, which several '
                     'edges share. Set the edge member, or reduce over the neighbours in the laws of the nodes.'
                 )
                 raise ValidationError(error_msg)
-            if target.source is Source.SINGLE and spec.rows > 1 and not once:
+            if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
             key = (target.entry.name, target.column)
@@ -121,13 +118,13 @@ class KernelsPass(BasePass):
         ):
             return False
         if not all(
-            reference.source is Source.SINGLE
+            reference.source is ReadKind.SINGLE
             for reference in KernelSpec._target_references(law._get_targets()[0], spec)
         ):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
         sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
-        return Source.REDUCED in sources and Source.MEMBER not in sources
+        return ReadKind.REDUCED in sources and ReadKind.MEMBER not in sources
 
     @staticmethod
     def _single_references(spec: KernelSpec) -> dict[Expression, Reference]:
@@ -135,7 +132,7 @@ class KernelsPass(BasePass):
         return {
             item: reference
             for item, reference in spec.references.items()
-            if reference.source is not Source.MEMBER and reference.entry.members is None
+            if reference.source is not ReadKind.MEMBER and reference.entry.members is None
         }
 
     @staticmethod
@@ -172,7 +169,7 @@ class KernelsPass(BasePass):
         specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]],
     ) -> LoweredKernels:
         """Return the kernels of every law kind, with the law of every output."""
-        states, parameters = Layout(declarations.states), Layout(declarations.parameters)
+        states, parameters = Layout(tuple(declarations.states)), Layout(tuple(declarations.parameters))
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[Reference, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}

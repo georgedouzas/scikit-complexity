@@ -10,7 +10,8 @@ from scipy.optimize import brentq
 
 from ...core.errors import SolverError
 from ...core.types import Vector
-from ..problems import BaseRecord, EventKernel, EventRecord, Problem, State
+from ..problems import BaseRecord, EventRecord, Problem, State
+from ..problems._event_kernel import EventKernel
 from ._history import Interpolant
 
 SEPARATION = 1e-10

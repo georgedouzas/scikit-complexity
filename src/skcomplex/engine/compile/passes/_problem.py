@@ -16,26 +16,24 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....core.specs import VisualSpec
 from ....core.types import Vector
+from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     CompiledElement,
     CompiledInteraction,
-    EventKernel,
     ExpressionPrinter,
     Form,
     Layout,
     Problem,
-    ReductionSchedule,
-    Reference,
-    Source,
     VariableKind,
-    VectorFunction,
-    components_of,
-    declarations_of,
-    symbols_of,
 )
 from ...problems._breakpoints import _Breakpoints
 from ...problems._delay import _Delay
+from ...problems._event_kernel import EventKernel
 from ...problems._markov_kernel import MarkovKernel
+from ...problems._problem import VectorFunction
+from ...problems._read_kind import ReadKind
+from ...problems._reduction_schedule import ReductionSchedule
+from ...problems._reference import Reference
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Compilation, Laws
@@ -142,8 +140,8 @@ class ProblemPass(BasePass):
         functions = cast('dict[str, Any]', compilation.functions)
         return Problem(
             form=form,
-            states=Layout(declarations.states),
-            parameters=Layout(declarations.parameters),
+            states=Layout(tuple(declarations.states)),
+            parameters=Layout(tuple(declarations.parameters)),
             initial_state=np.concatenate([np.zeros(0), *declarations.initial_states]),
             initial_parameters=np.concatenate([np.zeros(0), *declarations.initial_parameters]),
             time=time,
@@ -209,7 +207,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
         """Return the flat indices a reset of a single element's state or of every group member's state writes."""
-        if reference.entry.members is not None and reference.source in {Source.MEMBER, Source.REDUCED}:
+        if reference.entry.members is not None and reference.source in {ReadKind.MEMBER, ReadKind.REDUCED}:
             return reference.flat_indices.astype(np.intp)
         return np.asarray([reference.entry.start + reference.column], dtype=np.intp)
 
@@ -261,7 +259,7 @@ class ProblemPass(BasePass):
         ]
         references = [spec.references.get(item) for item in targets]
         if any(
-            item is None or not item.is_state or item.source not in {Source.SINGLE, Source.MEMBER}
+            item is None or not item.is_state or item.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
             for item in references
         ):
             error_msg = f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'

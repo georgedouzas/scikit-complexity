@@ -13,13 +13,16 @@ from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.specs import TopologyRequestSpec
 from ...core.system import System
 from ..backends import BaseBackend
-from ..problems import Form, LoweredKernels, Output, Problem, ReductionSchedule, TransferNetwork
+from ..problems import Form, Problem, TransferNetwork
 from ..problems._diffusive_limit import DiffusiveLimit
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._linear_term import LinearTerm
+from ..problems._lowered_kernels import LoweredKernels
 from ..problems._markov_kernel import MarkovKernel
+from ..problems._output import Output
+from ..problems._reduction_schedule import ReductionSchedule
 from ..problems._topology_kernel import TopologyKernel
 from ._block import Block
 from ._bound_renewal import BoundRenewal

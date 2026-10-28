@@ -17,8 +17,9 @@ from sage.sets.real_set import RealSet
 
 from ...core.errors import SolverError, ValidationError
 from ...core.types import Vector
+from .._utils import symbols_of
 from ..compile import ObservableEvaluator
-from ..problems import ExpressionPrinter, Form, Problem, symbols_of
+from ..problems import ExpressionPrinter, Form, Problem
 from ._control_solution import ControlSolution
 from ._solver import Solver
 

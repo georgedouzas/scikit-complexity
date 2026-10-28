@@ -12,7 +12,8 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
-from skcomplex.engine.problems import LocalOperator, Operator, QuantumView, symbol
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import LocalOperator, Operator, QuantumView
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
     QubitElement,

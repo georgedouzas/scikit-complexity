@@ -16,7 +16,10 @@ from ....core.errors import ValidationError
 from ....core.laws.utils import Draw, draws_in, reductions_in
 from ....core.laws.utils._draws import DRAWS
 from ....core.types import Indices
-from ...problems import ExpressionPrinter, Problem, Reference, Source, components_of, symbol, symbols_of
+from ..._utils import components_of, symbol, symbols_of
+from ...problems import ExpressionPrinter, Problem
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
 from .._bound_renewal import BoundRenewal
@@ -164,7 +167,7 @@ class RenewalProblemPass(BasePass):
             owned = reference.entry.name.rpartition('.')[0] == group
             if not reference.is_state or reference.source not in _READ_SOURCES or not owned:
                 continue
-            flat = reference.flat_indices if reference.source is Source.MEMBER else np.asarray([reference.index])
+            flat = reference.flat_indices if reference.source is ReadKind.MEMBER else np.asarray([reference.index])
             if flat.size != rows:
                 continue
             name = (
@@ -191,13 +194,13 @@ class RenewalProblemPass(BasePass):
                     f'A renewal law of {owner} resets {item}, which is not a state of an element or a group member.'
                 )
                 raise ValidationError(error_msg)
-            if reference.source is Source.SINGLE and rows > 1:
+            if reference.source is ReadKind.SINGLE and rows > 1:
                 error_msg = (
                     f'A renewal law of {owner} resets {item}, a state of a single element, while its members renew on '
                     'their own clocks. Reset the states of the renewing members.'
                 )
                 raise ValidationError(error_msg)
-            flat = reference.flat_indices if reference.source is Source.MEMBER else np.asarray([reference.index])
+            flat = reference.flat_indices if reference.source is ReadKind.MEMBER else np.asarray([reference.index])
             places.append(np.asarray(flat, dtype=np.intp))
         return np.asarray(places, dtype=np.intp).reshape(len(places), rows)
 

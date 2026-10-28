@@ -12,7 +12,8 @@ import numpy.typing as npt
 
 from ..core.errors import AnalysisError
 from ..core.types import Vector
-from ..engine.problems import EventKernel, EventRecord, Form, Problem
+from ..engine.problems import EventRecord, Form, Problem
+from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ._base import BaseAnalysis, Source

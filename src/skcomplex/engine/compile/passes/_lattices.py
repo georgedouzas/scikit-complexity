@@ -27,14 +27,16 @@ from ....core.spaces import (
     NetworkSpace,
 )
 from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
+from ..._utils import symbol
 from ...backends import resolve_backend
-from ...problems import ExpressionPrinter, Problem, Source, symbol
+from ...problems import ExpressionPrinter, Problem
 from ...problems._arguments import Arguments, Indices
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._lattice_state import LatticeState
 from ...problems._lookup import Lookup, Vector
 from ...problems._monte_carlo_kernel import MonteCarloKernel
+from ...problems._read_kind import ReadKind
 from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
 from .._base import BasePass
@@ -127,7 +129,7 @@ class LatticeProblemPass(BasePass):
                 states[item] = LatticeState(entry.name, entry.start, space)  # type: ignore[arg-type]
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
-            if reference.source is Source.OTHER:
+            if reference.source is ReadKind.OTHER:
                 others[item] = entry.name
         return LatticeContext(spec.owner, states, arguments, fused, others)
 

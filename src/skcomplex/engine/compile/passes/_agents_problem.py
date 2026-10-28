@@ -12,7 +12,8 @@ from ....core.errors import BackendError, LabelError, ValidationError
 from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
 from ....core.specs import VisualSpec
-from ...problems import CompiledAgents, Problem, VariableKind, declarations_of
+from ..._utils import declarations_of
+from ...problems import CompiledAgents, Problem, VariableKind
 from .._base import BasePass
 from .._block import Block
 from .._declarations import Declarations

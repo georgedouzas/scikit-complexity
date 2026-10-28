@@ -20,23 +20,14 @@ from ...core.laws.utils import Reduction, reductions_in
 from ...core.specs import ObservableSpec, StateSpec
 from ...core.system import System
 from ...core.types import Vector
-from ..problems import (
-    BaseProblem,
-    Entry,
-    ExpressionPrinter,
-    Form,
-    Problem,
-    ReductionSchedule,
-    Reference,
-    Source,
-    VariableKind,
-    declarations_of,
-    symbol,
-    symbols_of,
-)
+from .._utils import declarations_of, symbol, symbols_of
+from ..problems import BaseProblem, Entry, ExpressionPrinter, Form, Problem, VariableKind
 from ..problems._base import _Getter
+from ..problems._read_kind import ReadKind
 from ..problems._reads import Read
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule import ReductionSchedule
+from ..problems._reference import Reference
 from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
@@ -561,7 +552,7 @@ class ObservableEvaluator:
         members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
             reference = recorded.references.get(item)
-            if reference is None or reference.source not in {Source.SINGLE, Source.MEMBER}:
+            if reference is None or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
                 error_msg = (
                     f'{recorded.path} reads {item}, which is neither a variable of its component nor of a member of '
                     'its group, so trajectories cannot record it. Record it with an observable instead.'

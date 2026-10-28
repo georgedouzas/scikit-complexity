@@ -351,7 +351,8 @@ class NeighborhoodKernel(BaseKernel):
             >>> from skcomplex.core.elements import Element
             >>> from skcomplex.core.specs import StateSpec
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.engine.problems import VariableKind, declarations_of
+            >>> from skcomplex.engine.problems import VariableKind
+            >>> from skcomplex.engine._utils import declarations_of
             >>> from skcomplex.core.spaces import ConeNeighborhood
             >>> class BoidElement(Element):
             ...     def __init__(

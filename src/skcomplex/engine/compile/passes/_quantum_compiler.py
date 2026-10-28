@@ -28,6 +28,7 @@ from ....core.laws.utils._quantum import LOCAL_OPERATOR
 from ....core.specs import HilbertSpec, ObservableSpec
 from ....core.system import System
 from ....core.types import Vector
+from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
 from ...problems import (
     BaseProblem,
@@ -38,9 +39,6 @@ from ...problems import (
     Form,
     Layout,
     VariableKind,
-    declarations_of,
-    symbol,
-    vector,
 )
 from ...problems._local_operator import LocalOperator
 from ...problems._operator import Operator
@@ -834,8 +832,8 @@ class QuantumCompiler(BaseCompiler):
         )
         return QuantumProblem(
             form=Form.QUANTUM,
-            states=Layout([state_entry]),
-            parameters=Layout(entries),
+            states=Layout((state_entry,)),
+            parameters=Layout(tuple(entries)),
             initial_state=state_entry.encode(state),
             initial_parameters=p,
             time=time,

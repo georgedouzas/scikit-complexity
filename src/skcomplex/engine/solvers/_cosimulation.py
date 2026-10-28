@@ -44,7 +44,8 @@ from ...core.spaces import (
 from ...core.types import Vector
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
-from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
+from ..problems import Entry, Form, NoiseKind, OrderKind, Problem, SupportSpec
+from ..problems._partition import Partition
 from ._agent_state import AgentState
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
@@ -205,7 +206,7 @@ class CoSimulationSolver(Solver):
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
-        if stepwise and not contains(ZZ, round(interval, 9)):
+        if stepwise and not Entry._contains(ZZ, round(interval, 9)):
             error_msg = f'sync_dt = {interval!r} must be a whole number of steps for discrete and agent partitions.'
             raise ValidationError(error_msg)
         return [

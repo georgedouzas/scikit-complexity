@@ -16,8 +16,11 @@ from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.types import Vector
-from ...problems import ExpressionPrinter, Layout, Reference, Source, VariableKind, declarations_of
+from ..._utils import declarations_of
+from ...problems import ExpressionPrinter, Layout, VariableKind
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._read_kind import ReadKind
+from ...problems._reference import Reference
 from ...problems._state import State
 from .._base import BasePass
 from .._block import Block
@@ -42,7 +45,7 @@ class FieldFunctionsPass(BasePass):
         compilation = self.compilation_
         functions = cast('dict[str, Any]', compilation.functions)
         declarations = cast('Declarations', compilation.layout)
-        states = Layout(declarations.states)
+        states = Layout(tuple(declarations.states))
         functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
         blocks = list(declarations.blocks.values())
         volumes, constrained = self._with_discretizations(
@@ -217,7 +220,7 @@ class FieldFunctionsPass(BasePass):
     def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
         """Return the member symbol of a flux target after checking it is a member state."""
         reference = references.get(target)
-        if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+        if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = f'A flux targets {target}, which is not a state of a field.'
             raise ValidationError(error_msg)
         return target

@@ -20,8 +20,10 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...core.types import Vector
+from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import LATTICE_BOUNDARIES, ExpressionPrinter, Problem, symbol
+from ..problems import ExpressionPrinter, Problem
+from ..problems._law_kernel import LATTICE_BOUNDARIES
 
 TIME = symbol('t')
 

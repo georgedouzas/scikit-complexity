@@ -16,6 +16,7 @@ from ...core.elements import GroupElement
 from ...core.laws import BaseLaw
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
+from .._utils import declarations_of
 from ._accelerated import Accelerated
 from ._base import BaseKernel, BaseProblem
 from ._breakpoints import _Breakpoints
@@ -26,7 +27,7 @@ from ._fractional_rows import FractionalRows
 from ._jump_channels import _JumpChannels
 from ._layout import Layout
 from ._reduction_kernel import ReductionKernel
-from ._variable import Variable, declarations_of
+from ._variable import Variable
 from ._variable_kind import VariableKind
 from ._wiener_block import WienerBlock
 
@@ -381,7 +382,7 @@ class Problem(BaseProblem):
 
         Examples:
             >>> from sage.all__sagemath_symbolics import I
-            >>> from skcomplex.engine.problems import symbol, vector
+            >>> from skcomplex.engine._utils import symbol, vector
             >>> from skcomplex.engine.problems import Problem
             >>> x, y = symbol('x'), symbol('y')
             >>> Problem._real_components_of(vector([x + I * y, 2 * x]))

@@ -5,7 +5,8 @@ import pytest
 from sage.all__sagemath_symbolics import RR
 
 from skcomplex.core.errors import SolverError
-from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout, symbol
+from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout
 from skcomplex.engine.solvers import BaseSolver
 
 
@@ -17,7 +18,7 @@ def test_solver_rejects_a_problem_of_another_form():
 
         form = Form.ODE
 
-    problem = BaseProblem(Form.DISCRETE, Layout([]), Layout([]), None, None, symbol('t'))
+    problem = BaseProblem(Form.DISCRETE, Layout(()), Layout(()), None, None, symbol('t'))
     with pytest.raises(SolverError, match='discrete map'):
         OdeSolver().prepare(problem, None)
 
@@ -45,8 +46,8 @@ def _discrete_problem():
     """Return a discrete problem of one state with the initial value 1."""
     return BaseProblem(
         Form.DISCRETE,
-        Layout([Entry('a.x', 0, (), RR)]),
-        Layout([]),
+        Layout((Entry('a.x', 0, (), RR),)),
+        Layout(()),
         np.array([1.0]),
         np.zeros(0),
         symbol('t'),

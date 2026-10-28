@@ -21,7 +21,7 @@ from ...core.system import System
 from ...core.types import Vector
 from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, PassCompiler, compile_system
-from ..problems import BaseProblem, Entry, Form, contains
+from ..problems import BaseProblem, Entry, Form
 from ..problems._state import State
 from ..solvers import DEFAULT_SOLVERS, AgentState, BaseSolver, CoSimulationSolver, StructureState
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -172,10 +172,10 @@ class Simulation(BaseConfig):
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt
-        if not contains(RealSet.open(0, oo), dt):
+        if not Entry._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if stepwise and not contains(ZZ, dt):
+        if stepwise and not Entry._contains(ZZ, dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
@@ -334,7 +334,7 @@ class Simulation(BaseConfig):
         """Raise an error when a state has left its domain."""
         for entry in self.problem_.states.entries:
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
-            if not contains(entry.domain, values):
+            if not entry.contains(values):
                 error_msg = (
                     f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
                     f'domain {entry.domain}. Check the laws that change it.'
@@ -347,7 +347,7 @@ class Simulation(BaseConfig):
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
             f'domain {entry.domain}.'
         )
-        if not contains(entry.domain, value):
+        if not entry.contains(value):
             raise ValidationError(error_msg)
         try:
             return entry.encode(value)

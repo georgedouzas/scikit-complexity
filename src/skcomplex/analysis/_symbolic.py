@@ -31,8 +31,9 @@ from sage.symbolic.assumptions import assume, forget
 from sage.symbolic.function_factory import function as formal_function
 
 from ..core.errors import AnalysisError, ConservationError
+from ..engine._utils import components_of, domain_of
 from ..engine.compile import compile_system
-from ..engine.problems import BaseProblem, Form, Problem, TransferNetwork, components_of, domain_of
+from ..engine.problems import BaseProblem, Form, Problem, TransferNetwork
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._quantum import QuantumAnalysis

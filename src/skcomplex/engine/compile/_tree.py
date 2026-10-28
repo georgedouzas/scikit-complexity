@@ -14,7 +14,7 @@ from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, LatticeSpace
 from ...core.specs import WienerProcessSpec
 from ...core.system import System
-from ..problems import default_of
+from .._utils import default_of
 
 _LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 _MAX_SHOWN_COMPONENTS = 10

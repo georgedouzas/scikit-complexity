@@ -6,7 +6,7 @@
 from typing import cast
 
 from ....core.errors import LabelError
-from ...problems import symbol
+from ..._utils import symbol
 from .._base import BasePass
 from .._block import Block
 from .._declarations import Declarations

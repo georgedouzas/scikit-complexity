@@ -14,17 +14,17 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...core.errors import ValidationError
 from ...core.types import Indices, Vector
+from .._utils import symbols_of
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
 from ._output import Output
+from ._read_kind import ReadKind
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule import ReductionSchedule
 from ._reference import Reference
-from ._source import Source
 from ._state import State
-from ._symbols import symbols_of
 from ._too_dense import _TooDense
 
 type Sparse = scipy.sparse.csr_array
@@ -110,10 +110,10 @@ class JacobianKernel(BaseKernel):
         for kernel in self.kernels:
             references = [kernel.references[item] for item in kernel.arguments]
             spectral = any(
-                reference.source is Source.DERIVED and reference.neighbor.matrix is None for reference in references
+                reference.source is ReadKind.DERIVED and reference.neighbor.matrix is None for reference in references
             )
             pairs = kernel.pairs is not None or any(
-                reference.source in {Source.FIRST, Source.SECOND} for reference in references
+                reference.source in {ReadKind.FIRST, ReadKind.SECOND} for reference in references
             )
             if pairs or kernel.has_python_functions or spectral:
                 error_msg = (
@@ -241,9 +241,9 @@ class JacobianKernel(BaseKernel):
         """Return the gradient of a symbol by the state, one row per evaluation index, or `None` for parameters."""
         reference = kernel.references[item]
         rows = np.arange(kernel.rows)
-        if reference.source is Source.REDUCED:
+        if reference.source is ReadKind.REDUCED:
             return self._reduced_rows(kernel, reference, gradients[item])
-        if reference.source is Source.DERIVED:
+        if reference.source is ReadKind.DERIVED:
             read = reference.neighbor
             key = id(read)
             if key not in self.operand_partials_:
@@ -259,7 +259,7 @@ class JacobianKernel(BaseKernel):
             return scipy.sparse.csr_array(read.matrix @ total)
         if not reference.is_state:
             return None
-        if reference.source is Source.NEIGHBOR:
+        if reference.source is ReadKind.NEIGHBOR:
             members, columns = self._neighbor_columns(reference)
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
         return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
@@ -347,14 +347,14 @@ class JacobianKernel(BaseKernel):
     def _all_columns(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Indices:
         """Return every state index a symbol can read at any evaluation index."""
         reference = kernel.references[item]
-        if reference.source is Source.REDUCED:
+        if reference.source is ReadKind.REDUCED:
             return np.unique(supports[item].indices).astype(np.intp)
-        if reference.source is Source.DERIVED:
+        if reference.source is ReadKind.DERIVED:
             parts = [self._all_columns(kernel, symbol, supports) for symbol in reference.neighbor.symbols]
             return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *parts]))
         if not reference.is_state:
             return np.zeros(0, dtype=np.intp)
-        if reference.source is Source.SINGLE:
+        if reference.source is ReadKind.SINGLE:
             return np.array([reference.index], dtype=np.intp)
         return reference.flat_indices.astype(np.intp)
 
@@ -363,11 +363,11 @@ class JacobianKernel(BaseKernel):
         reference = kernel.references.get(item)
         if reference is None:
             return None
-        if reference.source is Source.REDUCED:
+        if reference.source is ReadKind.REDUCED:
             block = self._reduced_rows(kernel, reference, supports[item])
             self._note_dense(block.nnz)
             return block
-        if reference.source is Source.DERIVED:
+        if reference.source is ReadKind.DERIVED:
             return self._derived_support(kernel, item, supports)
         if not reference.is_state:
             return None
@@ -388,12 +388,12 @@ class JacobianKernel(BaseKernel):
     def _state_support(self, kernel: LawKernel, reference: Reference) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
         rows = kernel.rows
-        if reference.source is Source.NEIGHBOR:
+        if reference.source is ReadKind.NEIGHBOR:
             members, columns = self._neighbor_columns(reference)
             return self._selection(members, columns, 1.0, self.size, height=rows)
-        if reference.source is Source.SINGLE:
+        if reference.source is ReadKind.SINGLE:
             return self._selection(np.arange(rows), np.full(rows, reference.index, dtype=np.intp), 1.0, self.size, rows)
-        if reference.source is Source.MEMBER and reference.entry.rows == rows:
+        if reference.source is ReadKind.MEMBER and reference.entry.rows == rows:
             return self._selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
         return self._dense_rows(rows, reference.flat_indices)
 
@@ -404,8 +404,8 @@ class JacobianKernel(BaseKernel):
         for output in kernel.outputs:
             target: Reference = output.target  # type: ignore[assignment]
             used = self._output_symbols(output)
-            if kernel.pairs is not None or target.source in {Source.FIRST, Source.SECOND}:
-                targets = np.unique(target.flat_indices if target.source is not Source.SINGLE else [target.index])
+            if kernel.pairs is not None or target.source in {ReadKind.FIRST, ReadKind.SECOND}:
+                targets = np.unique(target.flat_indices if target.source is not ReadKind.SINGLE else [target.index])
                 columns = (
                     everything
                     if used is None
@@ -508,7 +508,7 @@ class JacobianKernel(BaseKernel):
     @staticmethod
     def _is_variable(reference: Reference) -> bool:
         """Check whether a reference is a state, a reduction, or a derived read, so derivatives reach the state."""
-        return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
+        return reference.source in {ReadKind.REDUCED, ReadKind.DERIVED} or reference.is_state
 
     @staticmethod
     def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401

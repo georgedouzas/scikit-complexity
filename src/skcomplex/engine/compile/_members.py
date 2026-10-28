@@ -13,7 +13,11 @@ from ...core.errors import ValidationError
 from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
-from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, symbol, vector
+from .._utils import domain_of, symbol, vector
+from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read import NeighborRead
+from ..problems._read_kind import ReadKind
+from ..problems._reference import Reference
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
 from ._kernel_spec import KernelSpec
@@ -92,7 +96,7 @@ class MemberLowering(BaseLowering):
         if item in self.shifted_:
             return self.shifted_[item]
         reference = self.spec.references.get(item)
-        if reference is None or reference.source is not Source.MEMBER:
+        if reference is None or reference.source is not ReadKind.MEMBER:
             name = reference.entry.name if reference is not None else str(item)
             error_msg = (
                 f'A law of {self.spec.owner} reads {name} at a member offset, but shift_member reads only states and '
@@ -116,7 +120,7 @@ class MemberLowering(BaseLowering):
             reference.entry,
             reference.is_state,
             reference.column,
-            Source.NEIGHBOR,
+            ReadKind.NEIGHBOR,
             read,
         )
         self.shifted_[target] = key
@@ -210,7 +214,7 @@ class MemberLowering(BaseLowering):
                 value read past the ends of a fixed boundary.
 
         Examples:
-            >>> from skcomplex.engine.problems import symbol
+            >>> from skcomplex.engine._utils import symbol
             >>> from skcomplex.engine.compile._members import MemberLowering
             >>> from skcomplex.core.laws.utils import shift_member
             >>> MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))

@@ -9,7 +9,8 @@ import numpy.typing as npt
 
 from ...core.elements import Element, GroupElement
 from ...core.errors import ValidationError
-from ..problems import VariableKind, declarations_of, default_of
+from .._utils import declarations_of, default_of
+from ..problems import VariableKind
 
 type Values = npt.NDArray[np.float64]
 

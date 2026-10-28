@@ -39,7 +39,7 @@ from skcomplex.core.specs import (
     WienerProcessSpec,
 )
 from skcomplex.core.system import System
-from skcomplex.engine.problems import symbol
+from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])

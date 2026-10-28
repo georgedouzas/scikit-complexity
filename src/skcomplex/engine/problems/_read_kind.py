@@ -6,7 +6,7 @@
 from enum import Enum
 
 
-class Source(Enum):
+class ReadKind(Enum):
     """How a symbol is read for each evaluation index of a kernel."""
 
     MEMBER = 'member'
