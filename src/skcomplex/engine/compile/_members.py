@@ -211,9 +211,9 @@ class MemberLowering(BaseLowering):
 
         Examples:
             >>> from skcomplex.engine.problems import symbol
-            >>> from skcomplex.engine.compile._members import MemberShifts
+            >>> from skcomplex.engine.compile._members import MemberLowering
             >>> from skcomplex.core.laws.utils import shift_member
-            >>> MemberShifts._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
+            >>> MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
             (x, -2, 'fixed', 1.0)
         """
         expression, offset, boundary, fill = call.operands()
