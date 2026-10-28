@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
-from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic, neighbors
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import (
     BoxNeighborhood,
     LatticeNeighborhood,
@@ -24,7 +24,17 @@ from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
 from skcomplex.models.physics.criticality import forest_fire
 from skcomplex.models.physics.statistical_mechanics import ising, xy
-from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from skcomplex.specs import (
+    EnergySpec,
+    MoveSpec,
+    OuterTotalisticSpec,
+    ParameterSpec,
+    SamplerSpec,
+    StateSpec,
+    TableSpec,
+    TotalisticSpec,
+    VisualSpec,
+)
 
 
 class ShiftElement(Element):
@@ -189,7 +199,7 @@ def test_table_and_totalistic_rules():
 
         def _get_laws(self, s):
             """Return the laws of the parity element."""
-            return [LocalRuleLaw(s.bit, BoxNeighborhood(), Totalistic({1: 1, 3: 1}))]
+            return [LocalRuleLaw(s.bit, BoxNeighborhood(), TotalisticSpec({1: 1, 3: 1}))]
 
     ring = System(
         elements=[
@@ -213,7 +223,7 @@ def test_table_and_totalistic_rules():
 
         def _get_laws(self, s):
             """Return the laws of the swap element."""
-            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((0,),)), Table({(0,): 1, (1,): 0}))]
+            return [LocalRuleLaw(s.bit, LatticeNeighborhood(((0,),)), TableSpec({(0,): 1, (1,): 0}))]
 
     flip = System(
         elements=[LatticeElement('ring', element=SwapElement, space=LatticeSpace(3), values={'bit': [0, 1, 0]})],
@@ -239,7 +249,7 @@ def test_table_and_totalistic_rules():
                 LocalRuleLaw(
                     s.bit,
                     LatticeNeighborhood(((-1,), (1,))),
-                    OuterTotalistic(lambda center, total: (center + total) % 2),
+                    OuterTotalisticSpec(lambda center, total: (center + total) % 2),
                 ),
             ]
 

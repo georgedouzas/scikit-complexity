@@ -16,12 +16,9 @@ from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.system import System
 from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
-from ...specs import ObservableSpec
+from ...specs import BaseProblemSpec, IssueSpec, ObservableSpec, ValidationReportSpec
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import _AUTO_MEMBERS
-from ..problems import BaseProblem
-from ._issue import Issue
-from ._validation_report import ValidationReport
 
 if TYPE_CHECKING:
     from ._compilation import Compilation
@@ -66,7 +63,7 @@ class BaseCompiler(BaseConfig):
 
     system_: System
     claims_: bool
-    report_: ValidationReport
+    report_: ValidationReportSpec
 
     def __init__(
         self,
@@ -122,12 +119,12 @@ class BaseCompiler(BaseConfig):
         except ValidationError as error:
             self.system_ = system
             self.claims_ = self._claims(system)
-            self.report_ = ValidationReport(
-                (Issue('observable-path', system.label, str(error), 'Label observables by their path.'),),
+            self.report_ = ValidationReportSpec(
+                (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return self
         self.claims_ = self._claims(self.system_)
-        self.report_ = ValidationReport(tuple(self._issues(self.system_)))
+        self.report_ = ValidationReportSpec(tuple(self._issues(self.system_)))
         return self
 
     def _claims(self, system: System) -> bool:
@@ -143,7 +140,7 @@ class BaseCompiler(BaseConfig):
         """
         raise NotImplementedError
 
-    def _issues(self, system: System) -> list[Issue]:
+    def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -156,7 +153,7 @@ class BaseCompiler(BaseConfig):
         """
         return []
 
-    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblem:
+    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
         """Compile the prepared system into a problem.
 
         Args:
@@ -169,7 +166,7 @@ class BaseCompiler(BaseConfig):
         """
         raise NotImplementedError
 
-    def _run(self, inputs: object) -> BaseProblem:
+    def _run(self, inputs: object) -> BaseProblemSpec:
         """Raise the errors of the report and compile the prepared system into a problem.
 
         Args:
@@ -296,7 +293,7 @@ class BaseCompiler(BaseConfig):
         return BaseCompiler._attached(system, by_scope, '')
 
     @staticmethod
-    def _issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> Issue:
+    def _issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
         """Return the issue of an error, with the code and fix of its class or the ones given.
 
         Args:
@@ -317,7 +314,7 @@ class BaseCompiler(BaseConfig):
                 The issue.
         """
         code, fix = _FIXES.get(type(error), (code, fix))
-        return Issue(code, path, str(error), fix, error=type(error))
+        return IssueSpec(code, path, str(error), fix, error=type(error))
 
 
 class BasePass(BaseConfig):

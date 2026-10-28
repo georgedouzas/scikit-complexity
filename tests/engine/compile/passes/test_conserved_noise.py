@@ -12,10 +12,10 @@ from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import PassCompiler, compile_system
-from skcomplex.engine.problems import NoiseKind
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 from skcomplex.errors import ValidationError
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.types import NoiseKind
 
 
 class ConservedElement(Element):

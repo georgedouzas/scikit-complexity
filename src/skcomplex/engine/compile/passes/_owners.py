@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....specs import NodeSpec
 from ..._utils import vector
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._tree import Node
 from ._census import CensusPass
 from ._kernels import KernelsPass
 from ._mask_requests import MaskRequestsPass
@@ -36,7 +36,7 @@ class OwnersPass(BasePass):
         """Keep the laws of the owners of the compilation and find their kinds."""
         compilation = self.compilation_
         declarations = cast('Declarations', compilation.layout)
-        agents = {node.path for node in cast('list[Node]', compilation.nodes) if node.is_agent}
+        agents = {node.path for node in cast('list[NodeSpec]', compilation.nodes) if node.is_agent}
         owned = self._owned(cast('Laws', compilation.shifted), compilation.owners, agents)
         compilation.drawn = [(spec, self._masked(spec, laws, declarations)) for spec, laws in owned]
         compilation.drawn_apart = self._owned(cast('Laws', compilation.apart), compilation.owners, agents)

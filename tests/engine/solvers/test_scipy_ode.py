@@ -19,14 +19,8 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import State
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import (
-    CrankNicolsonSolver,
-    RK4Solver,
-    ScipyODESolver,
-    Step,
-)
+from skcomplex.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver
 from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import (
@@ -37,7 +31,7 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpec, StepSpec, VisualSpec
 
 
 def _growth_problem():
@@ -55,7 +49,7 @@ def test_scipy_ode_matches_exponential(method):
     problem = _growth_problem()
     stepper = ScipyODESolver(method=method, rtol=1e-9, atol=1e-12)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
     assert state[0] == pytest.approx(np.exp(2.0), rel=1e-6)
 
 
@@ -84,7 +78,7 @@ def test_scipy_ode_failure_raises_error():
     stepper = ScipyODESolver()
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match='failed'):
-        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+        stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
 
 
 def test_simulation_runs_stiff_model_with_default_solver():
@@ -296,7 +290,7 @@ def _timed_scipy(problem, method, jacobian, until=10.0):
     stepper = ScipyODESolver(method=method, rtol=1e-6, jacobian=jacobian)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     start = time.perf_counter()
-    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, until))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, until))
     return time.perf_counter() - start, state, calls[0], stepper
 
 
@@ -429,7 +423,7 @@ def _advance(problem, until=1.0, p=None, **options):
     stepper = ScipyODESolver(**options)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     parameters = problem.initial_parameters if p is None else p
-    return stepper.run(Step(0.0, problem.initial_state, parameters, until)), stepper
+    return stepper.run(StepSpec(0.0, problem.initial_state, parameters, until)), stepper
 
 
 def _relative(first, second):
@@ -668,13 +662,13 @@ def test_exact_jacobian_follows_parameter_changes():
     for option in ['exact', 'dense']:
         stepper = ScipyODESolver(method='BDF', rtol=1e-8, jacobian=option)
         stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-        x = stepper.run(Step(0.0, problem.initial_state, p, 0.5))
+        x = stepper.run(StepSpec(0.0, problem.initial_state, p, 0.5))
         changed = p.copy()
         changed[problem.parameters.entry('line.D').indices] = 3.0
-        states[option] = stepper.run(Step(0.5, x, changed, 1.0))
+        states[option] = stepper.run(StepSpec(0.5, x, changed, 1.0))
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()
-            exact = problem.jacobian.prepare(problem).run(State(0.5, x, changed)).toarray()
+            exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.5, x, changed)).toarray()
             np.testing.assert_allclose(jacobian, exact)
     assert _relative(states['exact'], states['dense']) < 1e-5
 
@@ -707,7 +701,7 @@ def test_adaptive_explicit_method_warns_once_on_stiff_field():
     stepper = ScipyODESolver(method='RK45')
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
-        x = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+        x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        stepper.run(Step(2.0, x, problem.initial_parameters, 4.0))
+        stepper.run(StepSpec(2.0, x, problem.initial_parameters, 4.0))

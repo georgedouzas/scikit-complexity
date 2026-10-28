@@ -14,12 +14,9 @@ import scipy.sparse
 
 from ...core.spaces import BaseSpace
 from ...errors import SolverError
+from ...specs import ArgumentsSpec, LatticeStateSpec, LookupSpec, RunStateSpec
 from ...types import Array, Indices
-from ._arguments import Arguments
 from ._base import BaseKernel
-from ._lattice_state import LatticeState
-from ._lookup import Lookup
-from ._state import State
 
 _LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 
@@ -55,7 +52,7 @@ def _fused_lookup(  # noqa: PLR0917
     return following
 
 
-_NO_ARGUMENTS = Arguments()
+_NO_ARGUMENTS = ArgumentsSpec()
 
 
 class RuleKernel(BaseKernel):
@@ -102,14 +99,14 @@ class RuleKernel(BaseKernel):
     def __init__(  # noqa: PLR0917
         self,
         owner: str,
-        targets: tuple[LatticeState, ...],
-        reads: tuple[LatticeState, ...],
+        targets: tuple[LatticeStateSpec, ...],
+        reads: tuple[LatticeStateSpec, ...],
         table: Indices,
         rule: Callable[..., Any] | None,
-        lookup: Lookup | None,
+        lookup: LookupSpec | None,
         schedule: str,
         stochastic: bool,
-        arguments: Arguments = _NO_ARGUMENTS,
+        arguments: ArgumentsSpec = _NO_ARGUMENTS,
         fused: bool = False,
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
@@ -195,7 +192,7 @@ class RuleKernel(BaseKernel):
             else:
                 x[state.start + sites] = value
 
-    def _run_near(self, inputs: State, active: npt.NDArray[np.bool_]) -> None:
+    def _run_near(self, inputs: RunStateSpec, active: npt.NDArray[np.bool_]) -> None:
         """Update the state in place, synchronously, at the active sites and the sites that read one of them."""
         x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
         readers = active | (self.reading @ active.astype(np.float64) > 0)
@@ -203,7 +200,7 @@ class RuleKernel(BaseKernel):
         if sites.size:
             self._assign(x, self._next(x, p, sites, rng), sites)
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Update the state vector of the state in place by one application of the rule on its schedule."""
         x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
         size = self.targets[0].size

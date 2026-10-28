@@ -8,12 +8,11 @@ from typing import Any, cast
 
 from ....core.system import System
 from ....errors import IncompatibleLawsError
+from ....specs import CensusSpec, IssueSpec
+from ....specs._owners_spec import _OwnersSpec
+from ....specs._plan_spec import _PlanSpec
+from ....specs._planned_partition_spec import _PlannedPartitionSpec
 from .._base import BasePass
-from .._census import Census
-from .._issue import Issue
-from .._owners import _Owners
-from .._plan import _Plan
-from .._planned_partition import _PlannedPartition
 
 
 class PlanPass(BasePass):
@@ -31,7 +30,7 @@ class PlanPass(BasePass):
         """Plan the partitions of the system."""
         compilation = self.compilation_
         compilation.plan = self._plan_partitions(
-            cast('Census', compilation.census),
+            cast('CensusSpec', compilation.census),
             cast('dict[str, set[type]]', compilation.kinds),
             [] if compilation.solver is None else [type(compilation.solver)],
         )
@@ -51,28 +50,30 @@ class PlanPass(BasePass):
         declared: Mapping[str, set[type]],
         lowered: Mapping[str, set[type]],
         solvers: list[Any],
-    ) -> Issue:
+    ) -> IssueSpec:
         """Return the issue of a system whose own laws no solver runs or no form takes, by law kind or class."""
         fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
-        if not _Owners._solved(set().union(*declared.values()), solvers):
+        if not _OwnersSpec._solved(set().union(*declared.values()), solvers):
             message = f'No solver runs the laws of this system together ({PlanPass._listed(declared)}).'
         else:
             message = f'No form takes the laws of this system together ({PlanPass._listed(lowered)}).'
-        return Issue('laws-mixed', path, message, fix, error=IncompatibleLawsError)
+        return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
 
     @staticmethod
-    def _planned(system: System, owners: _Owners, scope: str = '') -> tuple[list['_PlannedPartition'], list[Issue]]:
+    def _planned(
+        system: System, owners: _OwnersSpec, scope: str = '',
+    ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:
         """Return the partitions of a system tree and the issues of the subsystems whose own laws fit no form."""
         name = scope.rstrip('/') or system.label
         declared, lowered = owners.under(scope, nested=True)
         if owners.fit(declared, lowered):
-            return ([_PlannedPartition(name, scope, nested=True)] if declared or lowered else []), []
+            return ([_PlannedPartitionSpec(name, scope, nested=True)] if declared or lowered else []), []
         own_declared, own_lowered = owners.under(scope, nested=False)
         if not system.systems or not owners.fit(own_declared, own_lowered):
             mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
             return [], [PlanPass._mixed_issue(name, *mixed, owners.solvers)]
-        partitions = [_PlannedPartition(name, scope, nested=False)] if own_declared or own_lowered else []
-        issues: list[Issue] = []
+        partitions = [_PlannedPartitionSpec(name, scope, nested=False)] if own_declared or own_lowered else []
+        issues: list[IssueSpec] = []
         for child in system.systems:
             found, mixed_issues = PlanPass._planned(child, owners, f'{scope}{child.label}/')
             partitions += found
@@ -81,14 +82,14 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _plan_partitions(
-        census: Census,
+        census: CensusSpec,
         kinds: Mapping[str, set[type]],
         solvers: Iterable[Any] | None = None,
-    ) -> '_Plan':
+    ) -> '_PlanSpec':
         """Return the partitions of a system, the subsystems whose laws compile to one form that one solver runs."""
         declared: dict[str, set[type]] = {}
         for record in census.records:
             declared.setdefault(record.owner, set()).add(type(record.law))
         found = list(solvers or ())
-        partitions, issues = PlanPass._planned(census.system, _Owners(declared, dict(kinds), found))
-        return _Plan(tuple(partitions), tuple(issues))
+        partitions, issues = PlanPass._planned(census.system, _OwnersSpec(declared, dict(kinds), found))
+        return _PlanSpec(tuple(partitions), tuple(issues))

@@ -17,7 +17,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, Step, VelocityVerletSolver
+from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.errors import BackendError, SolverError
 from skcomplex.models.biology.ecology import (
     LogisticGrowthInteraction,
@@ -34,7 +34,7 @@ from skcomplex.models.physics.common.particles import (
     LinearDragInteraction,
 )
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
-from skcomplex.specs import ParameterSpec
+from skcomplex.specs import ParameterSpec, StepSpec
 
 CUTOFF = 2.5
 
@@ -231,7 +231,7 @@ def test_lammps_walls_confine_atoms_on_their_own():
     backend.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     state = problem.initial_state
     for step in range(20):
-        state = backend.run(Step(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5))
+        state = backend.run(StepSpec(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5))
         positions = problem.states.read(state, 'gas.x')
         assert np.all((positions >= 0) & (positions <= 10))
 

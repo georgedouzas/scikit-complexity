@@ -36,7 +36,8 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.engine.solvers import GrunwaldLetnikovSolver, Step
+        >>> from skcomplex.engine.solvers import GrunwaldLetnikovSolver
+        >>> from skcomplex.specs import StepSpec
         >>> class RelaxingElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
         ...         super().__init__(label)
@@ -46,7 +47,7 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
         >>> stepper = GrunwaldLetnikovSolver(dt=0.001, random_state=0).check().prepare(problem)
-        >>> round(float(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 2)
+        >>> round(float(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 2)
         0.43
     """
 

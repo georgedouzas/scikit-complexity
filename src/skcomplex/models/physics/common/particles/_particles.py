@@ -14,8 +14,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.interactions import Interaction, PairPotentialInteraction, PotentialInteraction
 from .....core.laws import BaseLaw, NoiseLaw, RateLaw
-from .....engine.solvers import LammpsFix
-from .....specs import ParameterSpec, RoleSpec
+from .....specs import LammpsFixSpec, ParameterSpec, RoleSpec
 
 
 def _distance(first: FreeModuleElement, second: FreeModuleElement) -> Expression:
@@ -456,18 +455,18 @@ def _lennard_jones(value):  # noqa: ANN001, ANN202
     return f'{float(value("epsilon")[0])} {float(value("sigma")[0])}'
 
 
-def _addforce(fix: LammpsFix) -> str:
+def _addforce(fix: LammpsFixSpec) -> str:
     """Return the `fix addforce` command of a constant force."""
     force = [*map(float, fix.value('F')), 0.0, 0.0, 0.0]
     return f'fix {fix.name} {fix.group} addforce {force[0]} {force[1]} {force[2]}'
 
 
-def _viscous(fix: LammpsFix) -> str:
+def _viscous(fix: LammpsFixSpec) -> str:
     """Return the `fix viscous` command of a linear drag."""
     return f'fix {fix.name} {fix.group} viscous {float(fix.value("gamma")[0])}'
 
 
-def _langevin(fix: LammpsFix) -> str:
+def _langevin(fix: LammpsFixSpec) -> str:
     """Return the `fix langevin` command of a Langevin thermostat."""
     temperature, gamma = float(fix.value('temperature')[0]), float(fix.value('gamma')[0])
     return f'fix {fix.name} {fix.group} langevin {temperature} {temperature} {fix.mass() / gamma} {fix.seed()}'

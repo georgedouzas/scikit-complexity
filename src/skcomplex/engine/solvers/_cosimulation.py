@@ -41,18 +41,15 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...errors import SolverError, ValidationError
-from ...types import Array
+from ...specs import AgentStateSpec, EntrySpec, PartitionSpec, ProblemSpec, StepSpec, SupportSpec
+from ...types import Array, FormKind, NoiseKind, OrderKind
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
-from ..problems import Entry, Form, NoiseKind, OrderKind, Problem, SupportSpec
-from ..problems._partition import Partition
-from ._agent_state import AgentState
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
 from ._solver import Solver
-from ._step import Step
 
-STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
+STEPWISE_FORMS = (FormKind.DISCRETE, FormKind.AGENT)
 TOLERANCE = 1e-9
 SCHEMES = ('gauss-seidel', 'jacobi')
 
@@ -139,9 +136,9 @@ class CoSimulationSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.COUPLED
+        return FormKind.COUPLED
 
     def __init__(
         self,
@@ -171,7 +168,7 @@ class CoSimulationSolver(Solver):
             error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
             raise SolverError(error_msg)
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Partition the problem when asked, and build and seed the stepper of every partition.
 
         Args:
@@ -183,7 +180,7 @@ class CoSimulationSolver(Solver):
                 The problem is not a co-simulation and `split` is false.
         """
         initial_state = problem.initial_state.copy()
-        if problem.form != Form.COUPLED:
+        if problem.form != FormKind.COUPLED:
             if not self.split or problem.system is None:
                 error_msg = (
                     f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form.value} form. Pass '
@@ -192,7 +189,7 @@ class CoSimulationSolver(Solver):
                 raise SolverError(error_msg)
             backend = NumbaBackend() if problem.backend == NumbaBackend._get_name() else NumpyBackend()
             compiler = PassCompiler(backend=backend, partition='subsystems')
-            problem = cast('Problem', compiler.check().prepare(problem.system).run())
+            problem = cast('ProblemSpec', compiler.check().prepare(problem.system).run())
         self.problem_, self.rng_ = problem, np.random.default_rng(self.random_state)
         generators = self.rng_.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
@@ -220,7 +217,7 @@ class CoSimulationSolver(Solver):
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
-        if stepwise and not Entry._contains(ZZ, round(interval, 9)):
+        if stepwise and not EntrySpec._contains(ZZ, round(interval, 9)):
             error_msg = f'sync_dt = {interval!r} must be a whole number of steps for discrete and agent partitions.'
             raise ValidationError(error_msg)
         return [
@@ -256,17 +253,17 @@ class CoSimulationSolver(Solver):
                 return agents
         return None
 
-    def _advance_partition(self, partition: Partition, source: Array, p: Array, start: float, end: float) -> Array:
+    def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition from the values of a source state vector and return its new state vector."""
         stepper = self.steppers_[partition.name]
         if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
-        state = stepper.run(Step(start, source.copy(), p, end))
+        state = stepper.run(StepSpec(start, source.copy(), p, end))
         if partition.problem.boundary is not None:
             state = partition.problem.boundary(end, state, p)
         return state
 
-    def _add_deposits(self, partition: Partition, state: Array) -> None:
+    def _add_deposits(self, partition: PartitionSpec, state: Array) -> None:
         """Add the amounts that the agents of a partition deposited into fields since the last synchronisation."""
         deposits = getattr(self.steppers_[partition.name], 'deposits_', None)
         if deposits is not None and deposits.any():
@@ -321,16 +318,16 @@ class CoSimulationSolver(Solver):
         agents: dict[str, list[Any]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
-            if isinstance(external, AgentState):
+            if isinstance(external, AgentStateSpec):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
             agents.update(stepper.agents_)
-        self.snapshot_ = AgentState(groups, reporters) if groups or reporters else None
+        self.snapshot_ = AgentStateSpec(groups, reporters) if groups or reporters else None
         self.agents_ = agents
 
     def _release(self) -> None:
         """Release what the stepper of every partition acquired."""
         for partition in self.problem_.partitions:
             problem = partition.problem
-            step = Step(0.0, problem.initial_state, problem.initial_parameters, 0.0)
+            step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 0.0)
             self.steppers_[partition.name].run(step, final=True)

@@ -13,12 +13,16 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
+from ...specs import (
+    BaseProblemSpec,
+    CompiledAgentsSpec,
+    CompiledElementSpec,
+    FrameSpec,
+    QuantumProblemSpec,
+    QuantumViewSpec,
+)
 from ...types import Array
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..problems._quantum_kernel import QuantumKernel
-from ..problems._quantum_problem import QuantumProblem
-from ..problems._quantum_view import QuantumView
-from ..runtime import Frame
 from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
 
@@ -50,7 +54,7 @@ class ExpectationVisual(ImageVisual):
         ExpectationVisual(high=0.5, low=-0.5)
     """
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the local expectations of a quantum element or group at one frame.
 
         Args:
@@ -64,7 +68,7 @@ class ExpectationVisual(ImageVisual):
                 The frame.
         """
         problem = frame.problem
-        if not isinstance(problem, QuantumProblem):
+        if not isinstance(problem, QuantumProblemSpec):
             return
         values = self._local_values(problem, element.path, frame.state)
         shape = self._shape_of(element)
@@ -78,7 +82,7 @@ class ExpectationVisual(ImageVisual):
                 self._log_space_time(recording, f'{element.path}/{_SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the space-time and image views of a quantum group or particle, or a series view of an element.
 
         Args:
@@ -92,7 +96,7 @@ class ExpectationVisual(ImageVisual):
             views:
                 The space-time view first in one dimension, then the image view, or one time series view.
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         shape = self._shape_of(element)
         if shape is None:
@@ -105,19 +109,19 @@ class ExpectationVisual(ImageVisual):
         return views
 
     @staticmethod
-    def _profile_name(element: CompiledElement) -> str:
+    def _profile_name(element: CompiledElementSpec) -> str:
         """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
         if element.members is None:
             return 'probability'
         return str(ExpectationVisual._view_of(element).display)
 
     @staticmethod
-    def _view_of(element: CompiledElement) -> QuantumView:
+    def _view_of(element: CompiledElementSpec) -> QuantumViewSpec:
         """Return the quantum view of a compiled element, of its first member for a group."""
-        return QuantumView(QuantumView._member_of(element.element))
+        return QuantumViewSpec(QuantumViewSpec._member_of(element.element))
 
     @staticmethod
-    def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
+    def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
         """Return the lattice shape of the local values of a quantum group or particle, or `None` for scalar values."""
         space = getattr(element.element, 'space', None)
         if element.members is None and ExpectationVisual._view_of(element).display is not None:
@@ -125,13 +129,13 @@ class ExpectationVisual(ImageVisual):
         return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
     @staticmethod
-    def _probabilities(problem: QuantumProblem, x: Array) -> npt.NDArray[np.float64]:
+    def _probabilities(problem: QuantumProblemSpec, x: Array) -> npt.NDArray[np.float64]:
         """Return the probability of every basis state of the whole space."""
         state = problem._state_of(x)
         return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
 
     @staticmethod
-    def _local_matrices(problem: QuantumProblem, path: str, name: str) -> list[sp.csr_array]:
+    def _local_matrices(problem: QuantumProblemSpec, path: str, name: str) -> list[sp.csr_array]:
         """Return the matrices on the whole space of one local operator of every member of an element or group."""
         cached = problem.cache.get(f'{path}:{name}')
         if cached is None:
@@ -143,7 +147,7 @@ class ExpectationVisual(ImageVisual):
         return cached
 
     @staticmethod
-    def _local_values(problem: QuantumProblem, path: str, x: Array) -> dict[str, Any]:
+    def _local_values(problem: QuantumProblemSpec, path: str, x: Array) -> dict[str, Any]:
         """Return the local expectations of a quantum element or group at a state, which the visual draws.
 
         A group gives the expectation of the displayed local operator of every member. A single element without a

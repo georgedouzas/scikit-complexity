@@ -11,9 +11,9 @@ from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import draw, mean, normal
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.types import FormKind
 
 
 class CounterElement(Element):
@@ -93,7 +93,7 @@ class MeanResetElement(Element):
 def test_compile_system_gives_renewal_laws_alone_the_renewal_form():
     """Test that a system of renewal laws alone compiles to the renewal form with a hidden count per member."""
     problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
-    assert problem.form == Form.RENEWAL
+    assert problem.form == FormKind.RENEWAL
     assert problem.states.names == ['counters.n', 'counters.counters~renewals']
     assert problem.renewals[0].label == 'counters'
     assert problem.renewals[0].members == 3
@@ -105,8 +105,8 @@ def test_compile_system_partitions_renewals_beside_an_ode():
         systems=[System('renewing', elements=[CounterElement('c')]), System('decaying', elements=[DecayElement('d')])],
     )
     problem = compile_system(system)
-    assert problem.form == Form.COUPLED
-    assert [partition.problem.form for partition in problem.partitions] == [Form.RENEWAL, Form.ODE]
+    assert problem.form == FormKind.COUPLED
+    assert [partition.problem.form for partition in problem.partitions] == [FormKind.RENEWAL, FormKind.ODE]
 
 
 def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
@@ -132,7 +132,7 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
             return [RateLaw(s.x, s.v), JumpLaw(waiting=draw('wait', 'expon'), reset={s.v: -s.v})]
 
     walker = WalkerElement
-    assert compile_system(System(elements=[walker('w')])).form == Form.ODE
+    assert compile_system(System(elements=[walker('w')])).form == FormKind.ODE
 
 
 def test_compile_system_rejects_an_unknown_distribution():

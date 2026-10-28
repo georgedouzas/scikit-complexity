@@ -11,10 +11,10 @@ from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
-from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, SupportSpec, VisualSpec
+from skcomplex.types import FormKind, OrderKind
 
 
 class RoughElement(Element):
@@ -255,7 +255,7 @@ def test_compile_system_lowers_a_hurst_index_of_one_half_to_noise():
     """Test that fractional noise of Hurst index 1/2 compiles to an ordinary noise row with no fractional rows."""
     problem = compile_system(System(elements=[GroupElement('f', element=BrownianElement, size=3)]))
     plain = compile_system(System(elements=[GroupElement('f', element=PlainElement, size=3)]))
-    assert problem.form == Form.SDE
+    assert problem.form == FormKind.SDE
     assert problem.fractional == ()
     assert np.array_equal(problem.noise_rows, plain.noise_rows)
 

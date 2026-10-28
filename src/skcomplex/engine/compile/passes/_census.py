@@ -30,21 +30,19 @@ from ....core.laws import (
 )
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
+from ....specs import CensusRecordSpec, CensusSpec, EntrySpec, NodeSpec
+from ....types import ElementKind, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of
-from ...problems import ElementKind, Entry, VariableKind
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
-from .._census import Census
-from .._census_record import CensusRecord
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
-from .._tree import Node
 from ._noise import NoisePass
 from ._specs import SpecsPass
 
@@ -63,7 +61,7 @@ class CensusPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Take the census of the laws of the nodes."""
         compilation = self.compilation_
-        compilation.census = self._census_of(compilation.system, cast('list[Node]', compilation.nodes))
+        compilation.census = self._census_of(compilation.system, cast('list[NodeSpec]', compilation.nodes))
 
     @staticmethod
     def _state_reads(spec: KernelSpec, value: object) -> frozenset[tuple[str, int]]:
@@ -95,7 +93,7 @@ class CensusPass(BasePass):
         }
 
     @staticmethod
-    def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
+    def _is_vector(entry: EntrySpec, elements: dict[str, Block]) -> bool:
         """Check whether the state of a layout entry is declared as a vector of the space's dimension."""
         path, _, name = entry.name.rpartition('.')
         block = elements.get(path)
@@ -115,7 +113,7 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _component_kind(node: Node) -> ElementKind:
+    def _component_kind(node: NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
         if isinstance(node.component, GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
@@ -132,7 +130,7 @@ class CensusPass(BasePass):
         observe: Observer,
         declarations: Declarations,
         agents: set[str],
-    ) -> list[CensusRecord]:
+    ) -> list[CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
         for spec in SpecsPass._specs_of(block, elements, declarations.time, observe.evaluate):
@@ -145,7 +143,7 @@ class CensusPass(BasePass):
                 vectors = frozenset(entry.name for entry in targets if CensusPass._is_vector(entry, elements))
                 kind = CensusPass._component_kind(elements.get(owner, block).node)
                 records.append(
-                    CensusRecord(
+                    CensusRecordSpec(
                         block.node.path,
                         owner,
                         law,
@@ -161,7 +159,7 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _census_of(system: System, nodes: list[Node]) -> Census:
+    def _census_of(system: System, nodes: list[NodeSpec]) -> CensusSpec:
         """Return the census of the laws of a system, with the errors of the components that fail.
 
         The census declares every component and collects its laws as compilation does, without lowering them, and keeps
@@ -196,7 +194,7 @@ class CensusPass(BasePass):
                 records += CensusPass._records_of(block, elements, observe, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
-        return Census(system, records, errors, declarations.agents)
+        return CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
     def _renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -313,7 +311,7 @@ class CensusPass(BasePass):
         return checked
 
     @staticmethod
-    def _component_of(node: Node) -> object:
+    def _component_of(node: NodeSpec) -> object:
         """Return the object whose `laws` method describes a node, a representative member for a group."""
         if isinstance(node.component, GroupElement):
             return node.component.element(node.component.label, **(node.component.values or {})).check()

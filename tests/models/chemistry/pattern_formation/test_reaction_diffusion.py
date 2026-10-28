@@ -3,11 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
 from skcomplex.models.physics.heat import heat_diffusion
+from skcomplex.specs import FrameSpec
 
 
 class Images:
@@ -67,7 +68,7 @@ def test_gray_scott_streams_images(tmp_path):
         .prepare(problem)
     )
     for step in range(len(simulation.trajectory_.times)):
-        visual.run(Frame(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, problem))
+        visual.run(FrameSpec(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, problem))
     assert recording.images == [('cells/u', 'Image'), ('cells/v', 'Image')] * 3
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
     Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0), observers=[observer]).check().run(until=40)

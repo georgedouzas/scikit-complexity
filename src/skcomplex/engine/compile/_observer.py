@@ -13,16 +13,12 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.laws.utils import count, maximum, mean, minimum, total, variance
 from ...errors import ValidationError
-from ...specs import ObservableSpec
+from ...specs import NodeSpec, ObservableSpec, ObservedSpec, ProblemSpec, ReferenceSpec
+from ...types import ReadKind
 from .._utils import vector
-from ..problems import Problem
-from ..problems._read_kind import ReadKind
-from ..problems._reference import Reference
 from ._block import Block
 from ._declarations import Declarations
 from ._observables import Declared, ObservableEvaluator
-from ._observed import Observed
-from ._tree import Node
 
 _REDUCERS: dict[str, Callable[..., Expression]] = {
     'sum': total,
@@ -39,24 +35,27 @@ class Observer:
 
     declarations: Declarations
     live: Declared
-    values: dict[str, tuple[object, dict[Expression, Reference]]] = field(default_factory=dict)
+    values: dict[str, tuple[object, dict[Expression, ReferenceSpec]]] = field(default_factory=dict)
 
     def _system_value(
         self,
         path: str,
         scope: str,
         observable: ObservableSpec,
-    ) -> tuple[object, dict[Expression, Reference]]:
+    ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return an expression of the symbols of a system's elements, with earlier observables by label."""
         prefix = f'{scope}/' if scope else ''
         items: dict[str, Any] = {}
-        references: dict[Expression, Reference] = {}
+        references: dict[Expression, ReferenceSpec] = {}
         for block in self.declarations.blocks.values():
             for variable, entry in block.entries.items():
                 if entry.members is None and entry.name.startswith(prefix):
                     items[entry.name[len(prefix) :]] = block.symbols[variable]
                     references.update(
-                        {item: block.references[item] for item in Problem._real_components_of(block.symbols[variable])},
+                        {
+                            item: block.references[item]
+                            for item in ProblemSpec._real_components_of(block.symbols[variable])
+                        },
                     )
         namespace = ObservableEvaluator._tree(items)
         for other, (other_scope, earlier) in self.live.items():
@@ -74,7 +73,7 @@ class Observer:
         path: str,
         scope: str,
         observable: ObservableSpec,
-    ) -> tuple[object, dict[Expression, Reference]]:
+    ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return the value of an observable with the references of the symbols it reads."""
         if path in self.values:
             return self.values[path]
@@ -86,14 +85,14 @@ class Observer:
         self.values[path] = (self._reduced_value(path, observable, block), references)
         return self.values[path]
 
-    def evaluate(self, node: Node, label: object) -> Observed | None:
+    def evaluate(self, node: NodeSpec, label: object) -> ObservedSpec | None:
         """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable."""
         path = f'{node.scope}{label}' if isinstance(label, str) else None
         if path not in self.live:
             return None
         scope, observable = self.live[path]
         value, references = self.value(path, scope, observable)
-        return Observed(SimpleNamespace(value=value), dict(references))
+        return ObservedSpec(SimpleNamespace(value=value), dict(references))
 
     @staticmethod
     def _source_of(block: Block) -> ReadKind:

@@ -11,9 +11,8 @@ import numpy as np
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import History, IntArray
+from ..types import DataKind, History, IntArray
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 
 class EpsilonMachineAnalysis(BaseAnalysis):

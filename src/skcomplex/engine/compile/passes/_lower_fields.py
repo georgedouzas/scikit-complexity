@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
-from ....types import Terms
-from ...problems._linear_term import OPERATORS, LinearTerm
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
+from ....specs import LinearTermSpec, ReferenceSpec
+from ....specs._linear_term_spec import OPERATORS
+from ....types import ReadKind, Terms
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -47,7 +46,9 @@ class LowerFieldsPass(BasePass):
         compilation.linear = facts['linear']
 
     @staticmethod
-    def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldElement]) -> list[LinearTerm]:
+    def _linear_terms_of(
+        spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldElement],
+    ) -> list[LinearTermSpec]:
         """Return the linear terms with constant coefficients of the rates of field states."""
         terms = []
         for law in laws:
@@ -137,10 +138,10 @@ class LowerFieldsPass(BasePass):
     @staticmethod
     def _linear_terms(
         value: object,
-        target: Reference,
-        references: Mapping[Expression, Reference],
+        target: ReferenceSpec,
+        references: Mapping[Expression, ReferenceSpec],
         fields: Mapping[str, FieldElement],
-    ) -> list[LinearTerm]:
+    ) -> list[LinearTermSpec]:
         """Return the linear terms with constant coefficients of the rate of a field state.
 
         Additive terms that are not linear in the field's states, or whose coefficients depend on states, are left out,
@@ -180,7 +181,7 @@ class LowerFieldsPass(BasePass):
                     continue
                 source = states[state]
                 terms.append(
-                    LinearTerm(
+                    LinearTermSpec(
                         target,
                         source,
                         fields[source.entry.name],

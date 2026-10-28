@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
+from ....specs._matrix_law_spec import _RANDOM_FIELDS
+from ....types import ReadKind
 from ..._utils import components_of
-from ...problems._read_kind import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws
 from .._draw_lowering import DrawLowering
 from .._kernel_spec import KernelSpec
-from .._matrix_law import _RANDOM_FIELDS
 from .._renewal_law import RenewalLaw
 
 

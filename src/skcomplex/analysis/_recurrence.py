@@ -12,9 +12,8 @@ from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 PAIR_SAMPLE = 200_000
 

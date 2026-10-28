@@ -13,13 +13,13 @@ from ....core.interactions import BaseInteraction
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
-from ....specs import WienerProcessSpec
+from ....specs import NodeSpec, WienerProcessSpec
+from ....specs._node_spec import _LABEL_PATTERN
+from ....types import VariableKind
 from ..._utils import declarations_of
-from ...problems import VariableKind
 from .._base import BasePass
 from .._laws import _AGENT_LAWS
 from .._probe import probe_laws
-from .._tree import _LABEL_PATTERN, Node
 
 
 class FlattenPass(BasePass):
@@ -270,7 +270,7 @@ class FlattenPass(BasePass):
     @staticmethod
     def _flatten(
         system: System, scope: str, space: BaseSpace | None, seen: list[BaseSpace] | None = None,
-    ) -> list[Node]:
+    ) -> list[NodeSpec]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, System):
             error_msg = f'{system!r} is not an instance of System.'
@@ -283,9 +283,9 @@ class FlattenPass(BasePass):
         for element, place in zip(system.elements, places, strict=True):
             element.check().prepare(place)
             sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
-            nodes.append(Node(f'{scope}{element.label}', scope, sized, place, active=active))
+            nodes.append(NodeSpec(f'{scope}{element.label}', scope, sized, place, active=active))
         nodes += [
-            Node(f'{scope}{interaction.label}', scope, interaction.check().prepare(), space)
+            NodeSpec(f'{scope}{interaction.label}', scope, interaction.check().prepare(), space)
             for interaction in system.interactions
         ]
         for child in system.systems:
@@ -293,7 +293,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[Node]:
+    def _flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

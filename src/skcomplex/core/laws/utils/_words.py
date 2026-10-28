@@ -5,8 +5,7 @@
 
 from collections.abc import Sequence
 
-from ....specs import ModuleSpec
-from ....types import Letters
+from ....specs import Letters, ModuleSpec
 
 
 def parse_word(value: Letters, names: Sequence[str] = ()) -> list[ModuleSpec]:

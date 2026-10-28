@@ -10,11 +10,11 @@ from typing import cast
 from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
+from ....specs import NodeSpec
+from ....types import VariableKind
 from ..._utils import declarations_of
-from ...problems import VariableKind
 from .._base import BasePass
 from .._probe import probe_laws
-from .._tree import Node
 
 _MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
@@ -40,7 +40,7 @@ class AgentsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mark the agent nodes."""
         compilation = self.compilation_
-        nodes = cast('list[Node]', compilation.nodes)
+        nodes = cast('list[NodeSpec]', compilation.nodes)
         agents = self._agent_paths(nodes)
         compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 
@@ -50,7 +50,7 @@ class AgentsPass(BasePass):
         return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
-    def _bound_paths(node: Node) -> set[str]:
+    def _bound_paths(node: NodeSpec) -> set[str]:
         """Return the paths of the components the roles of an interaction bind, without member indices."""
         paths = set()
         for name in declarations_of(type(node.component), VariableKind.ROLE):
@@ -60,7 +60,7 @@ class AgentsPass(BasePass):
         return paths
 
     @staticmethod
-    def _agent_paths(nodes: list[Node]) -> set[str]:
+    def _agent_paths(nodes: list[NodeSpec]) -> set[str]:
         """Return the paths of the rule-running elements and groups, and of the passive groups that rules read."""
         agents = {node.path for node in nodes if AgentsPass._runs_rules(node.component) and node.active is None}
         passive = [node for node in nodes if node.path not in agents and AgentsPass._is_passive(node.component)]

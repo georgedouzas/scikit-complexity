@@ -8,6 +8,8 @@ from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
+from ._parameter_spec import ParameterSpec
+from ._state_spec import StateSpec
 
 
 @dataclass(frozen=True)
@@ -48,3 +50,6 @@ class RoleSpec(BaseSpec):
             error_msg = 'A role is either variadic or a noise role, not both.'
             raise ValidationError(error_msg)
         return self
+
+
+type Spec = StateSpec | ParameterSpec | RoleSpec

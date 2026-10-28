@@ -7,8 +7,8 @@ import math
 
 import numpy as np
 
+from ...specs import ProblemSpec, RunStateSpec
 from ...types import Array, StepFunction
-from ..problems import Problem, State
 from ._event_locator import EventLocator
 
 
@@ -31,7 +31,7 @@ class RenewalClock:
 
     def __init__(
         self,
-        problem: Problem,
+        problem: ProblemSpec,
         rng: np.random.Generator,
         locator: EventLocator,
     ) -> None:
@@ -56,7 +56,7 @@ class RenewalClock:
                 The parameter vector.
         """
         if not self.following:
-            self.following = [law.run(State(t, x, p, self.rng)) for law in self.problem.renewals]
+            self.following = [law.run(RunStateSpec(t, x, p, self.rng)) for law in self.problem.renewals]
 
     def earliest(self) -> float:
         """Return the earliest pending renewal time of any member.

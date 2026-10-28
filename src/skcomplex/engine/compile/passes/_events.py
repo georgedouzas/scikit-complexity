@@ -12,10 +12,10 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import ValidationError
+from ....specs import EntrySpec, ReferenceSpec
+from ....types import ReadKind
 from ..._utils import symbol, vector
-from ...problems import Entry, ExpressionPrinter
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
+from ...problems import ExpressionPrinter
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -106,7 +106,7 @@ class DelaysPass(BasePass):
             )
             initial = np.concatenate([np.zeros(0), *declarations.initial_states])[indices]
             index = len(compilation.delays)
-            hidden = Entry(
+            hidden = EntrySpec(
                 f'__delayed_{index}',
                 declarations.ends[False],
                 (members,) if members is not None else (),
@@ -117,7 +117,7 @@ class DelaysPass(BasePass):
             declarations.ends[False] += hidden.size
             declarations.initial_parameters.append(np.asarray(initial, dtype=float))
             placeholder = symbol(f'_delayed_{index}')
-            spec.references[placeholder] = Reference(hidden, False, 0, reference.source)
+            spec.references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
             compilation.delays.append(
                 {
                     'entry': hidden,

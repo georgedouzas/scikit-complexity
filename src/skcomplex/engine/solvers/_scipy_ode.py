@@ -7,7 +7,6 @@ import math
 import sys
 import warnings
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -26,9 +25,9 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...specs import BaseSpec
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, State, SupportSpec
+from ...specs import ProblemSpec, RunStateSpec, SupportSpec
+from ...specs._segment_spec import _SegmentSpec
+from ...types import Array, FormKind, OrderKind
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._solver import Solver
@@ -90,15 +89,6 @@ _TINY_NORM = 1e-15
 _FALLBACK_STEP = 1e-6
 
 
-@dataclass(frozen=True)
-class _Segment(BaseSpec):
-    """Accepted step of an integrator, with its states at both ends and its dense output."""
-
-    start: float
-    end: float
-    before: Array
-    after: Array
-    dense: Callable[[float], Array]
 
 
 class ScipyODESolver(Solver):
@@ -153,7 +143,8 @@ class ScipyODESolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.engine.solvers import ScipyODESolver, Step
+        >>> from skcomplex.engine.solvers import ScipyODESolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(
         ...     System(
         ...         elements=[PopulationElement('a', n=1)],
@@ -161,7 +152,7 @@ class ScipyODESolver(Solver):
         ...     ),
         ... )
         >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).check().prepare(problem)
-        >>> x = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> round(float(x[0]), 4)
         2.7183
     """
@@ -187,9 +178,9 @@ class ScipyODESolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     def __init__(
         self,
@@ -208,7 +199,7 @@ class ScipyODESolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem, with no integrator yet.
 
         Args:
@@ -253,7 +244,7 @@ class ScipyODESolver(Solver):
             self.method_ = 'RK45'
             self.jacobian_options_ = {}
         self._solver: OdeSolver | None = None
-        self._segment: _Segment | None = None
+        self._segment: _SegmentSpec | None = None
         self._time = math.nan
         self._frame = math.inf
         self._until = math.inf
@@ -264,7 +255,7 @@ class ScipyODESolver(Solver):
         """Check whether the dense or banded matrix of LSODA fits for a state of a size."""
         return size <= _LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
-    def _prepare_jacobian(self, problem: Problem) -> None:
+    def _prepare_jacobian(self, problem: ProblemSpec) -> None:
         """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
         jacobian = problem.jacobian
         assert jacobian is not None
@@ -297,7 +288,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Array) -> Any:  # noqa: ANN401
-            matrix = jacobian.run(State(time, state, History._with_delays(problem, history, time, state, p)))
+            matrix = jacobian.run(RunStateSpec(time, state, History._with_delays(problem, history, time, state, p)))
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}
@@ -386,7 +377,7 @@ class ScipyODESolver(Solver):
         self._segment = None
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
 
-    def _next_segment(self, p: Array) -> _Segment:
+    def _next_segment(self, p: Array) -> _SegmentSpec:
         """Return the step that covers the current time, taking a new step or restarting at a breakpoint."""
         segment = self._segment
         while segment is None or segment.end <= self._time:
@@ -420,7 +411,7 @@ class ScipyODESolver(Solver):
                 raise SolverError(error_msg)
             if self._stalls(start, solver.t):
                 self._leave_lsoda(solver.t, solver.y, p)
-            segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
+            segment = _SegmentSpec(start, solver.t, before, solver.y.copy(), solver.dense_output())
             if self.history_ is not None:
                 self.history_.add(start, solver.t, segment.dense)
             self._segment = segment

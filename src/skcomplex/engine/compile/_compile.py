@@ -7,9 +7,8 @@ from collections.abc import Mapping, Sequence
 from typing import cast
 
 from ...core.system import System
-from ...specs import ObservableSpec
+from ...specs import BaseProblemSpec, ObservableSpec
 from ..backends import BaseBackend
-from ..problems import BaseProblem
 from ._base import BaseCompiler
 from ._pass_compiler import PassCompiler
 from .passes._quantum_compiler import QuantumCompiler
@@ -23,7 +22,7 @@ def compile_system(
     *,
     solver: object = None,
     initial_state: Mapping[str, object] | None = None,
-) -> BaseProblem:
+) -> BaseProblemSpec:
     """Compile a system into a problem of the form its law kinds determine.
 
     The compilers of whole systems, of quantum and of rewriting systems, are asked in turn whether they claim the
@@ -99,4 +98,4 @@ def compile_system(
         PassCompiler(backend=backend, solver=solver, observables=observables),
     )
     compiler = next(item for item in compilers if item.check().prepare(system).claims_)
-    return cast('BaseProblem', compiler.run(initial_state))
+    return cast('BaseProblemSpec', compiler.run(initial_state))

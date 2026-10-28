@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable
-from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -16,10 +15,11 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import Call
 from ....errors import ValidationError
-from ..._utils import components_of, declarations_of, symbol, vector
-from ...problems import VariableKind
+from ....specs import CallSpec
+from ....specs._orders_spec import _OrdersSpec
+from ....specs._relation_spec import _RelationSpec
+from ..._utils import components_of, symbol, vector
 from .._base import BasePass
 from .._block import Block
 from .._compilation import BlockLaws
@@ -30,40 +30,6 @@ from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 
 _EQUATION_UNKNOWNS = 6
-
-
-@dataclass(frozen=True)
-class _Orders:
-    """Orders and lags of the states of a system by entry name."""
-
-    orders: dict[str, int]
-    lags: dict[str, int]
-
-    @classmethod
-    def of(cls, blocks: list[Block]) -> _Orders:
-        """Return the orders above 1 and the lags of every state of the blocks."""
-        orders, lags = {}, {}
-        for block in blocks:
-            if block.node._is_interaction() or block.node.is_agent:
-                continue
-            declarations = declarations_of(block.node.component_type, VariableKind.STATE)
-            for variable, entry in block.entries.items():
-                declaration = declarations.get(variable)
-                if declaration is not None and declaration.derivatives:
-                    orders[entry.name] = declaration.derivatives + 1
-                if declaration is not None and declaration.lags:
-                    lags[entry.name] = declaration.lags
-        return cls(orders, lags)
-
-
-@dataclass(frozen=True)
-class _Relation:
-    """Equation of a component as `expression == 0`, with the placeholders of its highest derivatives."""
-
-    spec: KernelSpec
-    expression: Expression
-    highest: dict[Expression, Expression]
-    description: str
 
 
 class OrdersPass(BasePass):
@@ -81,7 +47,7 @@ class OrdersPass(BasePass):
         """Lower the orders and lags of the laws and solve their equations."""
         compilation = self.compilation_
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
-        orders = _Orders.of(blocks)
+        orders = _OrdersSpec.of(blocks)
         compilation.ordered = self._solve_equations(
             [
                 (spec, self._with_orders(spec, laws, block, orders))
@@ -108,7 +74,7 @@ class OrdersPass(BasePass):
     def _substitute(
         value: object,
         spec: KernelSpec,
-        orders: _Orders,
+        orders: _OrdersSpec,
         owner: str,
         highest: dict[Expression, Expression] | None = None,
     ) -> object:
@@ -153,7 +119,7 @@ class OrdersPass(BasePass):
         return value.subs(replacements) if replacements else value
 
     @staticmethod
-    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> RateLaw | NoiseLaw:
+    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> RateLaw | NoiseLaw:
         """Return a rate or noise law that targets the highest derivative of its state, after checking its order."""
         items = components_of(law._get_targets()[0])
         references = [spec.references.get(item) for item in items]
@@ -173,7 +139,7 @@ class OrdersPass(BasePass):
         return BasePass._replaced(law, target=target)
 
     @staticmethod
-    def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[BaseLaw]:
+    def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _OrdersSpec) -> list[BaseLaw]:
         """Return the chain `x' = x_d1, ...` of every higher-order state and the shifts of every lagged state."""
         laws: list[BaseLaw] = []
         for variable, entry in block.entries.items():
@@ -190,7 +156,7 @@ class OrdersPass(BasePass):
         return laws
 
     @staticmethod
-    def _relation(spec: KernelSpec, law: EquationLaw, orders: _Orders) -> _Relation:
+    def _relation(spec: KernelSpec, law: EquationLaw, orders: _OrdersSpec) -> _RelationSpec:
         """Return an equation law as a relation in placeholders of the highest derivatives it contains."""
         description = f'the equation {law.lhs_} == {law.rhs_} of {spec.owner}'
         if spec.pairs is not None:
@@ -204,10 +170,10 @@ class OrdersPass(BasePass):
                 f'{description[0].upper()}{description[1:]} contains no highest derivative of a state to solve for.'
             )
             raise ValidationError(error_msg)
-        return _Relation(spec, SR(lhs) - SR(rhs), highest, description)
+        return _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description)
 
     @staticmethod
-    def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _Orders) -> object:
+    def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _OrdersSpec) -> object:
         """Return a jump, event, renewal, or assignment law with derivatives and lags replaced and rates retargeted."""
         owner = f'A {type(law).__name__} of {spec.owner}'
         if isinstance(law, JumpLaw):
@@ -230,7 +196,9 @@ class OrdersPass(BasePass):
                     reset=reset_value,
                 )
             return BasePass._replaced(
-                law, guard=OrdersPass._substitute(SR(law.guard), spec, orders, owner), reset=reset_value,
+                law,
+                guard=OrdersPass._substitute(SR(law.guard), spec, orders, owner),
+                reset=reset_value,
             )
         if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
             return law
@@ -240,7 +208,7 @@ class OrdersPass(BasePass):
         return BasePass._replaced(law, value=value)
 
     @staticmethod
-    def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _Orders) -> list[Any]:
+    def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _OrdersSpec) -> list[Any]:
         """Return laws with derivatives and lags replaced, rates retargeted, equations as relations, chains added."""
         if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
             return laws
@@ -257,7 +225,9 @@ class OrdersPass(BasePass):
                 item
                 for law in OrdersPass._intrinsic_laws(spec, block, orders)
                 for item in LowerComplexPass._split_law(
-                    law, spec.owner, lambda target: KernelSpec._state_name(spec, target),
+                    law,
+                    spec.owner,
+                    lambda target: KernelSpec._state_name(spec, target),
                 )
             ]
         return result
@@ -278,8 +248,8 @@ class OrdersPass(BasePass):
     @staticmethod
     def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by rate laws on the highest derivatives they solve for jointly."""
-        relations = [item for _, laws in specs for item in laws if isinstance(item, _Relation)]
-        kept = [(spec, [law for law in laws if not isinstance(law, _Relation)]) for spec, laws in specs]
+        relations = [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)]
+        kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
         if not relations:
             return kept
         highest: dict[Expression, Expression] = {}
@@ -322,7 +292,9 @@ class OrdersPass(BasePass):
         else:
             entries = [entry for row in coefficients for entry in row] + right
             laws = [
-                RateLaw(highest[item], Call(OrdersPass._numeric_solution(rows, len(unknowns), index), tuple(entries)))
+                RateLaw(
+                    highest[item], CallSpec(OrdersPass._numeric_solution(rows, len(unknowns), index), tuple(entries)),
+                )
                 for index, item in enumerate(unknowns)
             ]
         return [*kept, (merged, laws)]

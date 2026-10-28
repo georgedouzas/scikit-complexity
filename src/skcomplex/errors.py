@@ -94,3 +94,7 @@ class BackendWarning(UserWarning):
 
 class UnobservedStatesWarning(UserWarning):
     """An analysis drops states that have no observed transitions."""
+
+
+class ValidationWarning(UserWarning):
+    """Warning of a problem that does not stop compilation."""

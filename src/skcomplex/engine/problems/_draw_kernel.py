@@ -11,11 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ...core.laws.utils import Draw
+from ...specs import DrawSpec, RunStateSpec, SampledDrawSpec
 from ...types import Array
 from ._base import BaseKernel
-from ._sampled_draw import SampledDraw
-from ._state import State
 
 
 class DrawKernel(BaseKernel):
@@ -34,7 +32,7 @@ class DrawKernel(BaseKernel):
             them.
     """
 
-    def __init__(self, offset: int, normal: npt.NDArray[np.bool_], sampled: tuple[SampledDraw, ...] = ()) -> None:
+    def __init__(self, offset: int, normal: npt.NDArray[np.bool_], sampled: tuple[SampledDrawSpec, ...] = ()) -> None:
         self.offset = offset
         self.normal = normal
         self.sampled = sampled
@@ -59,7 +57,7 @@ class DrawKernel(BaseKernel):
         extended[: self.offset] = p[: self.offset]
         return extended
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Draw fresh values into the extended parameter vector of the state, uniform and normal runs as they come.
 
         The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state.
@@ -76,7 +74,7 @@ class DrawKernel(BaseKernel):
             q[item.start : item.start + item.rows] = item.sample(t, x, q, rng)
 
     @staticmethod
-    def _sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Array:
+    def _sample_draw(draw: DrawSpec, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Array:
         """Return values of a draw for a number of members, with arguments that hold one value or one per member.
 
         Args:

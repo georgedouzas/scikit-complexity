@@ -29,14 +29,13 @@ from ..core.system import System
 from ..engine._utils import declared_variables
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
-from ..engine.problems import BaseProblem, VariableKind
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
-from ..specs import ObservableSpec
-from ..types import Bounds, Row
+from ..specs import BaseProblemSpec, ObservableSpec
+from ..types import Bounds, Row, VariableKind
 
 type Source = Callable[..., System] | System
-_PROBLEMS: dict[tuple[object, ...], BaseProblem] = {}
+_PROBLEMS: dict[tuple[object, ...], BaseProblemSpec] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
 PLAIN_LAWS = (
     RateLaw,
@@ -192,7 +191,7 @@ class BaseExperiment(BaseConfig, ABC):
         arguments: Mapping[str, object],
         system: System | None = None,
         observables: Sequence[ObservableSpec] | None = None,
-    ) -> BaseProblem:
+    ) -> BaseProblemSpec:
         """Return the compiled problem of a source with factory arguments, compiled once per process and arguments."""
         if system is not None:
             key: tuple[object, ...] = ('system', id(system))
@@ -215,7 +214,7 @@ class BaseExperiment(BaseConfig, ABC):
         return _PROBLEMS[key]
 
     @staticmethod
-    def _with_values[P: BaseProblem](problem: P, paths: Mapping[str, object]) -> P:
+    def _with_values[P: BaseProblemSpec](problem: P, paths: Mapping[str, object]) -> P:
         """Return a copy of a problem whose initial states and parameters take values by dotted path."""
         states, parameters = problem.initial_state.copy(), problem.initial_parameters.copy()
         for name, value in paths.items():

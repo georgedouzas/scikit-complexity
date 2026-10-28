@@ -12,17 +12,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.laws.utils import Draw, draws_in, reductions_in
-from ....core.laws.utils._draws import DRAWS
+from ....core.laws.utils import draws_in, reductions_in
 from ....errors import ValidationError
-from ....types import Indices
+from ....specs import BoundRenewalSpec, DrawSpec, ProblemSpec, ReferenceSpec
+from ....specs._draw_spec import DRAWS
+from ....types import Indices, ReadKind
 from ..._utils import components_of, symbol, symbols_of
-from ...problems import ExpressionPrinter, Problem
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
+from ...problems import ExpressionPrinter
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
-from .._bound_renewal import BoundRenewal
 from .._declarations import Declarations
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
@@ -42,7 +40,7 @@ class RenewalProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the renewal laws to the problem."""
         compilation = self.compilation_
-        problem = cast('Problem', compilation.problem)
+        problem = cast('ProblemSpec', compilation.problem)
         time = cast('Declarations', compilation.layout).time
         symbols = {item.entry.name: item.symbol for item in compilation.renewals}
         compilation.problem = replace(
@@ -53,7 +51,7 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _compile_renewals(
-        renewals: list[BoundRenewal],
+        renewals: list[BoundRenewalSpec],
         time: Expression,
         owners: frozenset[str] | None,
     ) -> tuple[RenewalKernel, ...]:
@@ -74,9 +72,9 @@ class RenewalProblemPass(BasePass):
         )
 
     @staticmethod
-    def _declared(owner: str, found: list[Draw]) -> dict[str, Draw]:
+    def _declared(owner: str, found: list[DrawSpec]) -> dict[str, DrawSpec]:
         """Return the draws of a renewal law by name, after checking that each name has one declaration."""
-        declared: dict[str, Draw] = {}
+        declared: dict[str, DrawSpec] = {}
         for item in found:
             known = declared.setdefault(item.name, item)
             if (known.kind, known.distribution, known.parameters, known.arguments) != (
@@ -123,13 +121,13 @@ class RenewalProblemPass(BasePass):
     def _member_function(
         owner: str,
         expressions: Sequence[Expression],
-        references: dict[Expression, Reference],
+        references: dict[Expression, ReferenceSpec],
         slots: dict[Expression, str],
         time: Expression,
     ) -> MemberFunction:
         """Return the function of renewing members that evaluates expressions, after checking the symbols they read."""
         arguments = sorted(symbols_of(list(expressions)) - {time}, key=str)
-        readers: list[Reference | str] = []
+        readers: list[ReferenceSpec | str] = []
         for item in arguments:
             if item in slots:
                 readers.append(slots[item])
@@ -146,9 +144,9 @@ class RenewalProblemPass(BasePass):
         return printer.run(list(expressions)), tuple(readers)
 
     @staticmethod
-    def _ordered(found: list[Draw]) -> list[Draw]:
+    def _ordered(found: list[DrawSpec]) -> list[DrawSpec]:
         """Return draws ordered so that every draw comes after the draws in its arguments."""
-        ordered: list[Draw] = []
+        ordered: list[DrawSpec] = []
         pending = list(found)
         while pending:
             done = {item.name for item in ordered}
@@ -159,7 +157,7 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _recorded_states(
-        group: str, references: dict[Expression, Reference], rows: int,
+        group: str, references: dict[Expression, ReferenceSpec], rows: int,
     ) -> tuple[Indices, tuple[str, ...]]:
         """Return the flat indices and the names of the states of every member of the group a renewal law renews."""
         columns: dict[int, tuple[Indices, str]] = {}
@@ -182,7 +180,7 @@ class RenewalProblemPass(BasePass):
     def _target_places(
         owner: str,
         targets: list[Expression],
-        references: dict[Expression, Reference],
+        references: dict[Expression, ReferenceSpec],
         rows: int,
     ) -> Indices:
         """Return the flat indices every reset component writes, one row per component and one column per member."""
@@ -208,7 +206,7 @@ class RenewalProblemPass(BasePass):
     def _compile_renewal(
         owner: str,
         law: RenewalLaw,
-        references: dict[Expression, Reference],
+        references: dict[Expression, ReferenceSpec],
         *,
         time: Expression,
         rows: int,
@@ -285,7 +283,7 @@ class RenewalProblemPass(BasePass):
         calls = {item.call: slots[item.name] for item in [*first.values(), *later.values()]}
         names = {slot: name for name, slot in slots.items()}
 
-        def samplers(found: dict[str, Draw]) -> tuple[Sampler, ...]:
+        def samplers(found: dict[str, DrawSpec]) -> tuple[Sampler, ...]:
             return tuple(
                 (
                     item,

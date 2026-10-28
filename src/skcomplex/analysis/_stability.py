@@ -5,7 +5,6 @@
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Self
 
@@ -19,12 +18,12 @@ from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
 from ..engine._utils import components_of, declarations_of, symbol
-from ..engine.problems import Form, Problem, VariableKind
 from ..errors import AnalysisError
-from ..types import Array, Point
+from ..specs import ProblemSpec
+from ..specs._dynamics_spec import _DynamicsSpec
+from ..types import Array, DataKind, FormKind, Point, VariableKind
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion
-from ._kinds import DataKind
 from ._symbolic import SymbolicAnalysis
 
 KINDS = ('fixed-points', 'dispersion')
@@ -39,21 +38,6 @@ ZERO = 1e-9
 MEMBER_LIMIT = 64
 
 
-@dataclass(frozen=True)
-class _Dynamics:
-    """First-order equations of a system: its state symbols, their right sides, and its parameter values."""
-
-    problem: Problem
-    names: list[str]
-    symbols: list[Expression]
-    rates: list[Expression]
-    parameters: dict[Expression, float]
-    discrete: bool
-
-    @property
-    def time(self) -> Expression:
-        """Time symbol of the equations."""
-        return self.problem.time
 
 
 class StabilityAnalysis(BaseAnalysis):
@@ -184,7 +168,7 @@ class StabilityAnalysis(BaseAnalysis):
         self.problem_ = self._dynamics_of(self._read_system(source), self.parameters).problem
         return self
 
-    def _find_points(self, dynamics: _Dynamics) -> list[dict[str, Expression | float]]:
+    def _find_points(self, dynamics: _DynamicsSpec) -> list[dict[str, Expression | float]]:
         """Return the fixed points, solved symbolically or else searched numerically."""
         substitution = {item: value for item, value in dynamics.parameters.items() if self.parameters}
         SymbolicAnalysis._declare_domains([*dynamics.symbols, *dynamics.parameters], dynamics.parameters)
@@ -203,7 +187,7 @@ class StabilityAnalysis(BaseAnalysis):
         ]
         return points or self._numeric_points(dynamics)
 
-    def _eigenvalues_at(self, dynamics: _Dynamics, point: Point) -> npt.NDArray[np.complex128]:
+    def _eigenvalues_at(self, dynamics: _DynamicsSpec, point: Point) -> npt.NDArray[np.complex128]:
         """Return the eigenvalues of the Jacobian at a point, with the parameters at their values."""
         location = {item: SR(point[name]) for name, item in zip(dynamics.names, dynamics.symbols, strict=True)}
         numbers = {**location, **dynamics.parameters}
@@ -241,7 +225,7 @@ class StabilityAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _check_groups(problem: Problem) -> None:
+    def _check_groups(problem: ProblemSpec) -> None:
         """Raise an error for a group above the member limit or a weighted reduction read by an element set."""
         for element in problem.elements:
             if element.members is not None and element.members > MEMBER_LIMIT:
@@ -260,7 +244,7 @@ class StabilityAnalysis(BaseAnalysis):
 
     @staticmethod
     def _expand_groups(
-        problem: Problem,
+        problem: ProblemSpec,
         parameter_values: npt.NDArray[np.float64],
     ) -> tuple[list[str], list[Expression], list[Expression], dict[Expression, float]]:
         """Return the equations of a problem with every group member and every reduction written out.
@@ -320,7 +304,7 @@ class StabilityAnalysis(BaseAnalysis):
         return names, symbols, rates, expansion.values
 
     @staticmethod
-    def _dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None = None) -> _Dynamics:
+    def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
         """Return the first-order equations of a system with the current values of its parameters.
 
         Raises:
@@ -329,7 +313,7 @@ class StabilityAnalysis(BaseAnalysis):
                 or has a group of more than 64 members.
         """
         problem = BaseAnalysis._compiled_problem(system, 'Linear stability')
-        if problem.form not in {Form.ODE, Form.DISCRETE}:
+        if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
             error_msg = (
                 f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form.value}.'
             )
@@ -359,13 +343,13 @@ class StabilityAnalysis(BaseAnalysis):
             for column, item in enumerate(components_of(problem.symbols[entry.name])):
                 current[item] = float(values[entry.start + column])
         names, symbols, rates, members = StabilityAnalysis._expand_groups(problem, values)
-        return _Dynamics(
+        return _DynamicsSpec(
             problem=problem,
             names=names,
             symbols=symbols,
             rates=rates,
             parameters={**current, **members},
-            discrete=problem.form == Form.DISCRETE,
+            discrete=problem.form == FormKind.DISCRETE,
         )
 
     @staticmethod
@@ -375,7 +359,7 @@ class StabilityAnalysis(BaseAnalysis):
         return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
 
     @staticmethod
-    def _numeric_points(dynamics: _Dynamics) -> list[dict[str, Expression | float]]:
+    def _numeric_points(dynamics: _DynamicsSpec) -> list[dict[str, Expression | float]]:
         """Return fixed points found numerically from a grid of starting points."""
         values = [
             rate.subs(dynamics.parameters) - (item if dynamics.discrete else 0)

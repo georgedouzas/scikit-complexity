@@ -5,9 +5,9 @@
 
 from collections.abc import Callable
 
+from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
-from ._state import State
 
 
 class EventKernel(BaseKernel):
@@ -50,7 +50,7 @@ class EventKernel(BaseKernel):
         self.terminal = terminal
         self.hidden = hidden
 
-    def _run(self, inputs: State) -> Array:
+    def _run(self, inputs: RunStateSpec) -> Array:
         """Return the state vector after the event at the state, a copy of it without a reset."""
         if self.reset is None:
             return inputs.x.copy()

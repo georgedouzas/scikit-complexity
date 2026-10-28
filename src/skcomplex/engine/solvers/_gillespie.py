@@ -9,8 +9,8 @@ import numpy as np
 from ...core.laws import BoundaryLaw, JumpLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ._base import BaseSolver
 from ._solver import Solver
 
@@ -25,7 +25,8 @@ class GillespieSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
-        >>> from skcomplex.engine.solvers import GillespieSolver, Step
+        >>> from skcomplex.engine.solvers import GillespieSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(
         ...     System(
         ...         elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
@@ -33,7 +34,7 @@ class GillespieSolver(Solver):
         ...     ),
         ... )
         >>> stepper = GillespieSolver(random_state=0).check().prepare(problem)
-        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 100.0)).tolist()
+        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).tolist()
         [0.0, 10.0]
     """
 
@@ -48,11 +49,11 @@ class GillespieSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.JUMP
+        return FormKind.JUMP
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem.
 
         Args:

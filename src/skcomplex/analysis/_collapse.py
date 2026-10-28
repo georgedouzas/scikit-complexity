@@ -11,9 +11,8 @@ import numpy as np
 from scipy import optimize
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('scaling', 'aging', 'distribution', 'crossings')
 FITTED = ('critical', 'nu', 'exponent')

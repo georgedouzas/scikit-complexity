@@ -6,10 +6,9 @@
 import numpy as np
 
 from ...errors import ConservationError, SimulationError, ValidationError
+from ...specs import BaseProblemSpec, FrameSpec, TransferNetworkSpec
 from ...types import Array
-from ..problems import BaseProblem, TransferNetwork
 from ._base import BaseObserver
-from ._frames import Frame
 
 
 class ConservationObserver(BaseObserver):
@@ -73,7 +72,7 @@ class ConservationObserver(BaseObserver):
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the quantities of the problem.
 
         Args:
@@ -89,12 +88,12 @@ class ConservationObserver(BaseObserver):
             error_msg = 'The conservation monitor needs a problem compiled as one partition with its transfer network.'
             raise SimulationError(error_msg)
         self.problem_ = problem
-        self.transfer_network_: TransferNetwork = transfer_network
+        self.transfer_network_: TransferNetworkSpec = transfer_network
         self.totals_: dict[str, float] = {}
         self.initial_: dict[str, float] | None = None
         self.scale_: dict[str, float] = {}
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """Check the totals of a frame against the first frame.
 
         Args:

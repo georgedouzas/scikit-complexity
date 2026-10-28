@@ -17,17 +17,23 @@ from sage.sets.real_set import RealSet
 from ...base import BaseConfig
 from ...core.system import System
 from ...errors import ParameterError, SimulationError, ValidationError
-from ...specs import ObservableSpec
-from ...types import Array
+from ...specs import (
+    AgentStateSpec,
+    BaseProblemSpec,
+    EntrySpec,
+    FrameSpec,
+    ObservableSpec,
+    RunStateSpec,
+    StepSpec,
+    StructureStateSpec,
+)
+from ...types import Array, FormKind
 from ..backends import BaseBackend
 from ..compile import ObservableEvaluator, PassCompiler, compile_system
-from ..problems import BaseProblem, Entry, Form
-from ..problems._state import State
-from ..solvers import AgentState, BaseSolver, CoSimulationSolver, Step, StructureState
+from ..solvers import BaseSolver, CoSimulationSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
-from ._frames import Frame
 from ._invariants import InvariantObserver
 from ._recorder import RecorderObserver
 from ._trajectories import Trajectory
@@ -138,7 +144,7 @@ class Simulation(BaseConfig):
 
     def __init__(
         self,
-        system: System | BaseProblem,
+        system: System | BaseProblemSpec,
         *,
         solver: BaseSolver | None = None,
         backend: BaseBackend | None = None,
@@ -167,16 +173,18 @@ class Simulation(BaseConfig):
         self.invariants = invariants
         self.initial_state = initial_state
 
-    def _check_dt(self, problem: BaseProblem, until: float) -> float:
+    def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
         forms = {problem.form, *(item.form for item in self._partition_problems(problem))}
-        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
+        stepwise = bool(
+            forms & {FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO, FormKind.REWRITING},
+        )
         default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt
-        if not Entry._contains(RealSet.open(0, oo), dt):
+        if not EntrySpec._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if stepwise and not Entry._contains(ZZ, dt):
+        if stepwise and not EntrySpec._contains(ZZ, dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
@@ -185,7 +193,7 @@ class Simulation(BaseConfig):
         """Return the parameter names and values of the previous run of the same system, or `None` without one."""
         if getattr(self, '_prepared_system', None) is not self.system or not hasattr(self, 'parameters_'):
             return None
-        problem: BaseProblem = self.problem_
+        problem: BaseProblemSpec = self.problem_
         return problem.parameters.names, self.parameters_.copy()
 
     def _check(self) -> None:
@@ -196,13 +204,13 @@ class Simulation(BaseConfig):
                 The system is not a system or a compiled problem, such as a model name, or it cannot be compiled or
                 run, with every problem found.
         """
-        if not isinstance(self.system, System | BaseProblem):
+        if not isinstance(self.system, System | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a model of the '
                 'library with `skcomplex.models.create`, or simulate it by name with `skcomplex.models.run`.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(self.system, BaseProblem):
+        if not isinstance(self.system, BaseProblemSpec):
             compiler = PassCompiler(backend=self.backend, solver=self.solver, observables=self.observables)
             compiler.check().prepare(self.system).report_.check()
 
@@ -212,7 +220,7 @@ class Simulation(BaseConfig):
         initial = dict(self.initial_state or {})
         self.problem_ = (
             self.system.with_initial_state(initial)
-            if isinstance(self.system, BaseProblem)
+            if isinstance(self.system, BaseProblemSpec)
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
@@ -252,11 +260,11 @@ class Simulation(BaseConfig):
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
         external = self.stepper_.snapshot_
-        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
-        structures = external.structures if isinstance(external, StructureState) else {}
-        reporters = external.reporters if isinstance(external, StructureState) else reporters
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
+        structures = external.structures if isinstance(external, StructureStateSpec) else {}
+        reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_.get)
-        frame = Frame(
+        frame = FrameSpec(
             step,
             self.time_,
             self.state_.copy(),
@@ -298,7 +306,10 @@ class Simulation(BaseConfig):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                self.state_ = self.stepper_.run(Step(self.time_, self.state_, self.parameters_, target), final=released)
+                self.state_ = self.stepper_.run(
+                    StepSpec(self.time_, self.state_, self.parameters_, target),
+                    final=released,
+                )
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -312,7 +323,7 @@ class Simulation(BaseConfig):
                 self.clock_.run(self.time_ - origin)
         finally:
             if not released:
-                self.stepper_.run(Step(self.time_, self.state_, self.parameters_, self.time_), final=True)
+                self.stepper_.run(StepSpec(self.time_, self.state_, self.parameters_, self.time_), final=True)
             for observer in self.observers_:
                 observer.run(final=True)
 
@@ -350,7 +361,7 @@ class Simulation(BaseConfig):
                 )
                 raise ValidationError(error_msg)
 
-    def _check_value(self, name: str, entry: Entry, value: float | npt.ArrayLike) -> Array:
+    def _check_value(self, name: str, entry: EntrySpec, value: float | npt.ArrayLike) -> Array:
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
@@ -377,7 +388,7 @@ class Simulation(BaseConfig):
             changed.update(dict.fromkeys(positions[indices].tolist(), name))
         for matrix in matrices:
             names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.run(State(self.time_, self.state_, candidate)) if names else None
+            violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)) if names else None
             if violation is not None:
                 error_msg = (
                     f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '
@@ -391,9 +402,9 @@ class Simulation(BaseConfig):
             error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
             raise SimulationError(error_msg)
 
-    def _default_solver(self, form: Form) -> BaseSolver:
+    def _default_solver(self, form: FormKind) -> BaseSolver:
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
-        return CoSimulationSolver() if form == Form.COUPLED else DEFAULT_SOLVERS[form]()
+        return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
 
     def prepare(self) -> Self:
         """Compile the system of the checked simulation and choose the solver.
@@ -584,7 +595,7 @@ class Simulation(BaseConfig):
         return self.recorder_.trajectory_
 
     @staticmethod
-    def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
+    def _partition_problems(problem: BaseProblemSpec) -> tuple[BaseProblemSpec, ...]:
         """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
         return tuple(partition.problem for partition in problem.partitions)
 

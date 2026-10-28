@@ -15,9 +15,8 @@ from scipy import linalg
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 TOLERANCE = 1e-10
 KINDS = ('transition-matrix', 'stationary', 'spectral-gap', 'state-model', 'timescales')

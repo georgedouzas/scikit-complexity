@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.mathematics.fractional_dynamics import (
@@ -16,6 +15,7 @@ from skcomplex.models.mathematics.fractional_dynamics import (
     fractional_van_der_pol,
     relaxation_type,
 )
+from skcomplex.types import FormKind
 
 
 def test_fractional_relaxation_is_slower_than_exponential():
@@ -41,8 +41,8 @@ def test_fractional_relaxation_is_slower_than_exponential():
 
 def test_fractional_relaxation_order_one_is_ordinary():
     """Test that order 1 compiles to the ODE form and a fractional order to the fractional form."""
-    assert compile_system(fractional_relaxation(order=1)).form == Form.ODE
-    assert compile_system(fractional_relaxation(order=0.5)).form == Form.FRACTIONAL
+    assert compile_system(fractional_relaxation(order=1)).form == FormKind.ODE
+    assert compile_system(fractional_relaxation(order=0.5)).form == FormKind.FRACTIONAL
 
 
 def test_fractional_oscillator_damps_without_friction():

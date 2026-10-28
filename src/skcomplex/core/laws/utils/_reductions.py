@@ -10,7 +10,6 @@ in the expression as a symbol named after a digest of their value.
 
 import hashlib
 import numbers
-from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
@@ -19,7 +18,7 @@ from sage.all__sagemath_symbolics import SR, Expression, function, var, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....errors import ValidationError
-from ....specs import LayerSpec
+from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
 
@@ -464,64 +463,8 @@ def shift_member(expression: Expression, offset: int, *, boundary: str = 'period
     return SHIFT_MEMBER(expression, int(offset), BOUNDARIES.index(boundary), float(fill))
 
 
-@dataclass(frozen=True)
-class Reduction:
-    """Reduction call found in an expression, with its kind, argument, condition, weights, and group.
-
-    Args:
-        call:
-            The unevaluated call.
-
-        kind:
-            `'sum'`, `'mean'`, `'max'`, `'min'`, `'var'`, or `'count'`.
-
-        argument:
-            The expression of one reduced member, 1 for a count.
-
-        condition:
-            The condition that selects the members, or `None` for all members.
-
-        weights:
-            The constant weight matrix, or `None`.
-
-        over:
-            A symbol of the group to reduce over, or `None` for the group the argument reads.
-    """
-
-    call: Expression
-    kind: str
-    argument: Expression
-    condition: Expression | None
-    weights: object
-    over: Expression | None
 
 
-@dataclass(frozen=True)
-class NeighborReduction:
-    """Neighbourhood reduction found in an expression, with its kind, argument, weight, and neighbourhood.
-
-    Args:
-        call:
-            The unevaluated call.
-
-        kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
-
-        argument:
-            The value of one neighbour.
-
-        weight:
-            The weight of one neighbour, or `None` for 1.
-
-        over:
-            The neighbourhood, or `None` for the neighbours of the space.
-    """
-
-    call: Expression
-    kind: str
-    argument: Expression
-    weight: Expression | None
-    over: object
 
 
 def _calls_in(expression: object, names: set[str]) -> list[Expression]:
@@ -542,7 +485,7 @@ def _calls_in(expression: object, names: set[str]) -> list[Expression]:
     return list(found.values())
 
 
-def reductions_in(expression: object) -> list[Reduction]:
+def reductions_in(expression: object) -> list[ReductionSpec]:
     """Return the outermost reduction calls of an expression, which may hold further reductions in their arguments.
 
     Args:
@@ -564,7 +507,7 @@ def reductions_in(expression: object) -> list[Reduction]:
     for call in _calls_in(expression, set(KINDS)):
         argument, condition, weights, over = call.operands()
         reductions.append(
-            Reduction(
+            ReductionSpec(
                 call=call,
                 kind=KINDS[call.operator().name()],
                 argument=argument,
@@ -576,7 +519,7 @@ def reductions_in(expression: object) -> list[Reduction]:
     return reductions
 
 
-def neighborhoods_in(expression: object) -> list[NeighborReduction]:
+def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     """Return the outermost neighbourhood reductions of an expression.
 
     Args:
@@ -597,7 +540,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReduction]:
     for call in _calls_in(expression, {'neighbors'}):
         argument, weight, over, kind = call.operands()
         reductions.append(
-            NeighborReduction(
+            NeighborReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,

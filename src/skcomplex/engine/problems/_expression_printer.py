@@ -16,9 +16,9 @@ from sage.rings.integer import Integer
 from sage.rings.rational import Rational
 
 from ...errors import ValidationError
+from ...specs._dialect_spec import DIALECTS
 from ...types import Printed, PrintedKey
 from ._base import BasePrinter
-from ._dialect import DIALECTS
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
 _CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')

@@ -17,8 +17,8 @@ from rerun import bindings
 
 from ...core.spaces import NetworkSpace
 from ...errors import ValidationError
-from ..problems import BaseProblem, CompiledAgents, CompiledElement, RenewalRecord
-from ..runtime import BaseObserver, Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
+from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
@@ -188,7 +188,7 @@ class RerunObserver(BaseObserver):
             error_msg = f'interval = {self.interval!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Create the recording, build a visual for every element and agent group, and send the recording to its sinks.
 
         Raises:
@@ -225,12 +225,12 @@ class RerunObserver(BaseObserver):
                 self.recording_.log(group.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
         self.logged_frames_ = 0
 
-    def _visual_of(self, element: CompiledElement | CompiledAgents) -> BaseVisual:
+    def _visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
         """Return the visual the spec of an element names, built with the options of the spec."""
         spec = element.visual
         return _VISUALS[spec.kind](**dict(spec.options), path=element.path, recording=self.recording_)
 
-    def _agents_visual_of(self, agents: CompiledAgents, problem: BaseProblem) -> AgentsVisual:
+    def _agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group: its declared agents visual, or the histogram visual without a space."""
         visual = self._visual_of(agents)
         if not isinstance(visual, AgentsVisual):
@@ -241,9 +241,9 @@ class RerunObserver(BaseObserver):
             )
         return visual
 
-    def _scalar_views(self, problem: BaseProblem) -> list[rrb.View]:
+    def _scalar_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the time series views of the scalar elements, one per element type and at most six series each."""
-        groups: dict[str, list[tuple[CompiledElement, rrb.View]]] = {}
+        groups: dict[str, list[tuple[CompiledElementSpec, rrb.View]]] = {}
         for visual in self.visuals_:
             if isinstance(visual, ScalarsVisual):
                 element = visual.element_
@@ -265,7 +265,7 @@ class RerunObserver(BaseObserver):
         series: list[rrb.View] = []
         points: dict[type, list[rrb.View]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, CompiledAgents):
+            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, CompiledAgentsSpec):
                 continue
             for view in visual.views_:
                 if isinstance(view, rrb.TimeSeriesView):
@@ -276,9 +276,9 @@ class RerunObserver(BaseObserver):
                     spatial.append(view)
         return [*spatial, *(self._merged(views, 'points') for views in points.values())], series
 
-    def _agent_views(self, problem: BaseProblem) -> list[rrb.View]:
+    def _agent_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the views of the agents, merged into one per view class when the groups share a space."""
-        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, CompiledAgents)]
+        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, CompiledAgentsSpec)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
             return views
@@ -287,7 +287,7 @@ class RerunObserver(BaseObserver):
             by_class.setdefault(type(view), []).append(view)
         return [self._merged(group, 'agents') for group in by_class.values()]
 
-    def _summary_views(self, problem: BaseProblem) -> list[rrb.View]:
+    def _summary_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
         views: list[rrb.View] = []
         paths = [f'{scope}/{item.label}' if scope else item.label for scope, item in problem.observables]
@@ -301,7 +301,7 @@ class RerunObserver(BaseObserver):
             views.append(self._series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
         return views
 
-    def _ordered_views(self, problem: BaseProblem) -> tuple[list[rrb.View], list[rrb.View]]:
+    def _ordered_views(self, problem: BaseProblemSpec) -> tuple[list[rrb.View], list[rrb.View]]:
         """Return the spatial views and the time series views of a problem, each in order of importance."""
         spatial, series = self._element_views()
         spatial = [*spatial, *self._agent_views(problem)]
@@ -323,7 +323,7 @@ class RerunObserver(BaseObserver):
             collapse_panels=True,
         )
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """Log a frame when its step is a multiple of the interval, and nothing for the call that ends the run."""
         if frame is None or frame.step % self.interval:
             return
@@ -340,7 +340,7 @@ class RerunObserver(BaseObserver):
         for name in frame.problem.parameters.names:
             BaseVisual._log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         for record in frame.events:
-            if isinstance(record, RenewalRecord):
+            if isinstance(record, RenewalRecordSpec):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))
         self.logged_frames_ += 1
 
@@ -378,7 +378,7 @@ class RerunObserver(BaseObserver):
         return RerunObserver._sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
     @staticmethod
-    def _renewal_text(record: RenewalRecord) -> str:
+    def _renewal_text(record: RenewalRecordSpec) -> str:
         """Return the text log entry of the renewals of one pass, with the members that renewed."""
         shown = ', '.join(str(member) for member in record.members[:_RENEWAL_MEMBERS].tolist())
         more = f' and {record.members.size - _RENEWAL_MEMBERS} more' if record.members.size > _RENEWAL_MEMBERS else ''
@@ -438,18 +438,18 @@ class RerunObserver(BaseObserver):
         )
 
     @staticmethod
-    def _type_name(element: CompiledElement) -> str:
+    def _type_name(element: CompiledElementSpec) -> str:
         """Return the name of the element type of an element or of the members of a group."""
         kind = getattr(element.element, 'element', None) or type(element.element)
         return str(getattr(kind, '__name__', type(element.element).__name__))
 
     @staticmethod
     def _chunks(
-        elements: list[tuple[CompiledElement, rrb.View]],
-        problem: BaseProblem,
-    ) -> Iterator[list[tuple[CompiledElement, rrb.View]]]:
+        elements: list[tuple[CompiledElementSpec, rrb.View]],
+        problem: BaseProblemSpec,
+    ) -> Iterator[list[tuple[CompiledElementSpec, rrb.View]]]:
         """Yield consecutive runs of elements whose series fit in one view, leaving out lag states."""
-        chunk: list[tuple[CompiledElement, rrb.View]] = []
+        chunk: list[tuple[CompiledElementSpec, rrb.View]] = []
         count = 0
         for element, view in elements:
             shown = [name for name in element.states.values() if problem.companions.get(name, ('',))[0] != 'lag']

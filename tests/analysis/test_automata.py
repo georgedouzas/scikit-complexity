@@ -7,7 +7,6 @@ from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
 from skcomplex.analysis import AutomatonAnalysis, EntropyAnalysis
-from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
     BoxNeighborhood,
     CayleySpace,
@@ -18,8 +17,9 @@ from skcomplex.core.spaces import (
 )
 from skcomplex.errors import AnalysisError
 from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift
+from skcomplex.specs import OuterTotalisticSpec, TableSpec, TotalisticSpec
 
-LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
+LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2
 
 
@@ -31,7 +31,7 @@ def _automaton(kind, source, **settings):
 def _elementary(number, size):
     """Return an elementary automaton by its Wolfram number on a ring."""
     patterns = [(left, center, right) for left in (0, 1) for center in (0, 1) for right in (0, 1)]
-    table = Table({pattern: (number >> (4 * pattern[0] + 2 * pattern[1] + pattern[2])) & 1 for pattern in patterns})
+    table = TableSpec({pattern: (number >> (4 * pattern[0] + 2 * pattern[1] + pattern[2])) & 1 for pattern in patterns})
     return Automaton(LatticeSpace(size), BoxNeighborhood(), table)
 
 
@@ -68,7 +68,7 @@ def test_enumeration_limit_raises():
 
 def test_inverse_of_the_shift_is_the_opposite_shift():
     """Test that the inverse of the shift reads the other neighbour, and that their composition is the identity."""
-    shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
+    shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
     back = _automaton('inverse', shift, max_radius=1).inverse_
     configuration = np.random.default_rng(0).integers(2, size=8)
     np.testing.assert_array_equal(back.step(configuration), np.roll(configuration, 1))
@@ -80,7 +80,7 @@ def test_inverse_of_the_shift_is_the_opposite_shift():
 def test_inverse_on_a_group_space():
     """Test that the inverse of the rotation of the cyclic group of order 6 is found within the ball of radius 1."""
     space = _cycle(6)
-    rotation = Automaton(space, MemoryNeighborhood(('a',)), Table({(1,): 1}))
+    rotation = Automaton(space, MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))
     configuration = np.array([1, 0, 0, 1, 1, 0])
     back = _automaton('inverse', rotation, max_radius=1).inverse_
     np.testing.assert_array_equal(back.step(rotation.step(configuration)), configuration)
@@ -124,7 +124,7 @@ def test_configuration_entropy_of_an_automaton_image():
     """Test that the image of a surjective rule has full entropy and that of the majority rule less."""
     windows = [LatticeSpace(12, boundary='fixed')]
     assert _automaton('entropy', _elementary(90, 12), windows=windows).entropy_[0] == pytest.approx(1.0)
-    majority = Automaton(LatticeSpace(12), BoxNeighborhood(), Totalistic({2: 1, 3: 1}))
+    majority = Automaton(LatticeSpace(12), BoxNeighborhood(), TotalisticSpec({2: 1, 3: 1}))
     assert _automaton('entropy', majority, windows=windows).entropy_[0] < 0.9
 
 

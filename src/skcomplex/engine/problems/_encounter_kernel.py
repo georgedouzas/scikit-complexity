@@ -10,11 +10,10 @@ from typing import Any
 import numba
 import numpy as np
 
+from ...specs import RunStateSpec, TableValuesSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
-from ._state import State
-from ._table_values import TableValues
 
 
 @numba.njit(cache=True)
@@ -65,9 +64,9 @@ class EncounterKernel(BaseKernel):
         candidate: Indices,
         field: Indices,
         test: Indices,
-        rate: TableValues,
+        rate: TableValuesSpec,
         entries: tuple[Indices, Indices, Indices],
-        probabilities: TableValues | None,
+        probabilities: TableValuesSpec | None,
         fused: bool = False,
     ) -> None:
         self.owner = owner
@@ -85,7 +84,7 @@ class EncounterKernel(BaseKernel):
         """NumPy functions of the selected entries of the tables of expressions, compiled once, by table identity."""
         return {}
 
-    def _values(self, table: TableValues, p: Array) -> Array:
+    def _values(self, table: TableValuesSpec, p: Array) -> Array:
         """Return the values of the selected entries of a table at a parameter vector."""
         values = table.table
         selected = values[table.positions] if values.ndim else np.full(table.positions[0].size, values[()])
@@ -163,7 +162,7 @@ class EncounterKernel(BaseKernel):
         """
         return x[self.candidate] * (self.rate_matrix(p) @ x[self.field])
 
-    def _run(self, inputs: State) -> Array:
+    def _run(self, inputs: RunStateSpec) -> Array:
         """Return the contribution of the encounter to the rate of every state, zero outside its densities."""
         x, p = inputs.x, inputs.p
         rates = np.zeros(x.size)

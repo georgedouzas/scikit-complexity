@@ -20,13 +20,18 @@ from ...core.elements import GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...errors import ConservationError, SimulationError, SpaceError
-from ...specs import PhaseSpec, PhasesScheduleSpec
-from ...types import Array
+from ...specs import (
+    AgentSnapshotSpec,
+    AgentStateSpec,
+    CompiledAgentsSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    ProblemSpec,
+    SupportSpec,
+)
+from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
-from ..problems import CompiledAgents, Form, OrderKind, Problem, SupportSpec, VariableKind
-from ._agent_snapshot import AgentSnapshot
-from ._agent_state import AgentState
 from ._external import ExternalSolver
 
 _DEFAULT_PHASE = 'default'
@@ -691,9 +696,9 @@ class MesaSolver(ExternalSolver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.AGENT
+        return FormKind.AGENT
 
     @classmethod
     def _reads_inputs(cls) -> bool:
@@ -709,12 +714,12 @@ class MesaSolver(ExternalSolver):
         """Return the name of the library the solver wraps."""
         return 'Mesa'
 
-    def _unsupported(self, problem: Problem) -> list[str]:
+    def _unsupported(self, problem: ProblemSpec) -> list[str]:
         """Return nothing, since Mesa runs every agent-based problem."""
         del problem
         return []
 
-    def _build(self, problem: Problem) -> None:
+    def _build(self, problem: ProblemSpec) -> None:
         """Build the Mesa model of an agent-based problem.
 
         Args:
@@ -746,7 +751,7 @@ class MesaSolver(ExternalSolver):
             }
             for spec in problem.agents
         }
-        self._classes: dict[type, CompiledAgents] = {}
+        self._classes: dict[type, CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
         self.space_: Any = self._build_space(
@@ -776,7 +781,7 @@ class MesaSolver(ExternalSolver):
         self._populating = False
         self._collect()
 
-    def _agent_class(self, spec: CompiledAgents) -> type:
+    def _agent_class(self, spec: CompiledAgentsSpec) -> type:
         """Return the Mesa agent class of a group, created on first use."""
         for agent_class, known in self._classes.items():
             if known is spec:
@@ -879,7 +884,7 @@ class MesaSolver(ExternalSolver):
         self._place(agent, location)
         return agent
 
-    def _populate(self, spec: CompiledAgents) -> None:
+    def _populate(self, spec: CompiledAgentsSpec) -> None:
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
@@ -891,7 +896,7 @@ class MesaSolver(ExternalSolver):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
-    def _spec_of(self, agent: mesa.Agent) -> CompiledAgents:
+    def _spec_of(self, agent: mesa.Agent) -> CompiledAgentsSpec:
         """Return the group of a Mesa agent created by the stepper.
 
         Args:
@@ -1066,7 +1071,7 @@ class MesaSolver(ExternalSolver):
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
-        self.snapshot_ = AgentState(groups, {**reporters, **self.reports_})
+        self.snapshot_ = AgentStateSpec(groups, {**reporters, **self.reports_})
         self.agents_ = agents
 
     @staticmethod
@@ -1093,7 +1098,7 @@ class MesaSolver(ExternalSolver):
         return rule.phase or _DEFAULT_PHASE
 
     @staticmethod
-    def _phase_plan(phases: Sequence[PhaseSpec], problem: Problem) -> list[PhaseSpec] | None:
+    def _phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
         """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
         rules = MesaSolver._rules_of(
             [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.model_rules)],
@@ -1123,14 +1128,14 @@ class MesaSolver(ExternalSolver):
     def _snapshot_of(
         agents: list[mesa.Agent],
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
-    ) -> AgentSnapshot:
+    ) -> AgentSnapshotSpec:
         """Return the ids, reported values, and locations of agents."""
         agents = sorted(agents, key=lambda agent: agent.unique_id)
         ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
         values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
         locations = [MesaSolver._location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
-        return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
+        return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None)
 
     @staticmethod
     def _member_location(location: object, index: int, size: int) -> object:
@@ -1174,7 +1179,7 @@ class MesaSolver(ExternalSolver):
         return property(read, doc=f'Parameter {name} of the group of the agent.')
 
     @staticmethod
-    def _view_class(spec: CompiledAgents) -> type[AgentView]:
+    def _view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
         """Return the class of the views of a group's agents, with a property per state and parameter."""
         names: dict[str, Any] = {
             name: MesaSolver._parameter_property(name, entry)
@@ -1195,7 +1200,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
+    def _agent_type(spec: CompiledAgentsSpec) -> Any:  # noqa: ANN401
         """Return the element type of a compiled agent element or group."""
         return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
@@ -1208,7 +1213,7 @@ class MesaSolver(ExternalSolver):
         return location.item() if isinstance(location, np.generic) else location
 
     @staticmethod
-    def _check_variable(spec: CompiledAgents, action: str) -> None:
+    def _check_variable(spec: CompiledAgentsSpec, action: str) -> None:
         """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
         if isinstance(spec.element, GroupElement) and spec.element.variable:
             return

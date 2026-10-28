@@ -10,21 +10,19 @@ from typing import Any
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...specs import EntrySpec, NodeSpec, ReferenceSpec
+from ...types import ReadKind
 from .._utils import domain_of, symbol, vector
-from ..problems import Entry
-from ..problems._read_kind import ReadKind
-from ..problems._reference import Reference
-from ._tree import Node
 
 
 @dataclass
 class Block:
     """Variables of a component with the symbols of one member and the components they stand for."""
 
-    node: Node
+    node: NodeSpec
     symbols: dict[str, Expression | FreeModuleElement] = field(default_factory=dict)
-    entries: dict[str, Entry] = field(default_factory=dict)
-    references: dict[Expression, Reference] = field(default_factory=dict)
+    entries: dict[str, EntrySpec] = field(default_factory=dict)
+    references: dict[Expression, ReferenceSpec] = field(default_factory=dict)
     per: set[str] = field(default_factory=set)
 
     @property
@@ -44,7 +42,7 @@ class Block:
                 symbols[name] = vector(self._renamed(item, mapping) for item in value)
         return SimpleNamespace(**symbols)
 
-    def namespace(self, source: ReadKind, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, Reference]]:
+    def namespace(self, source: ReadKind, alias: str = '') -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of the block's symbols and their references for one way of reading them.
 
         Args:
@@ -60,12 +58,12 @@ class Block:
         """
         mapping = {item: symbol(f'{item}{alias}', domain_of(item)) for item in self.references}
         references = {
-            mapping[item]: Reference(reference.entry, reference.is_state, reference.column, source)
+            mapping[item]: ReferenceSpec(reference.entry, reference.is_state, reference.column, source)
             for item, reference in self.references.items()
         }
         return self._namespace(mapping), references
 
-    def member_namespace(self, index: int) -> tuple[SimpleNamespace, dict[Expression, Reference]]:
+    def member_namespace(self, index: int) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of one member of a group, read like a single element, and the references of its symbols.
 
         Args:
@@ -78,7 +76,7 @@ class Block:
         """
         mapping = {item: symbol(f'{item}__m{index}', domain_of(item)) for item in self.references}
         references = {
-            mapping[item]: Reference(
+            mapping[item]: ReferenceSpec(
                 reference.entry,
                 reference.is_state,
                 index * reference.entry.columns + reference.column,

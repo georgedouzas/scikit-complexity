@@ -7,8 +7,8 @@ import math
 
 from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ._base import BaseSolver
 from ._solver import Solver
 
@@ -23,7 +23,8 @@ class IterationSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-        >>> from skcomplex.engine.solvers import IterationSolver, Step
+        >>> from skcomplex.engine.solvers import IterationSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(
         ...     System(
         ...         elements=[MarketElement('m', price=1)],
@@ -31,7 +32,7 @@ class IterationSolver(Solver):
         ...     ),
         ... )
         >>> stepper = IterationSolver(random_state=0).check().prepare(problem)
-        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).tolist()
+        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).tolist()
         [4.0]
     """
 
@@ -46,11 +47,11 @@ class IterationSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.DISCRETE
+        return FormKind.DISCRETE
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem.
 
         Args:

@@ -23,8 +23,8 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array, Interpolant, VectorFunction
-from ..problems import Form, OrderKind, SupportSpec
+from ...specs import SupportSpec
+from ...types import Array, FormKind, Interpolant, OrderKind, VectorFunction
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._history import History
@@ -45,7 +45,8 @@ class RK4Solver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.engine.solvers import RK4Solver, Step
+        >>> from skcomplex.engine.solvers import RK4Solver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(
         ...     System(
         ...         elements=[PopulationElement('a', n=1)],
@@ -53,7 +54,7 @@ class RK4Solver(Solver):
         ...     ),
         ... )
         >>> stepper = RK4Solver(dt=0.001, random_state=0).check().prepare(problem)
-        >>> round(float(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 10)
+        >>> round(float(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 10)
         2.7182818285
     """
 
@@ -79,9 +80,9 @@ class RK4Solver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     @classmethod
     def _is_renewing(cls) -> bool:

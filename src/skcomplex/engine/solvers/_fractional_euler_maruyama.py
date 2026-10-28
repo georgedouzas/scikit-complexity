@@ -22,8 +22,8 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError, ValidationError
-from ...types import Array
-from ..problems import Form, NoiseKind, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, NoiseKind, OrderKind
 from ._horizon_error import HorizonError
 from ._solver import Solver
 
@@ -69,7 +69,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver, Step
+        >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+        >>> from skcomplex.specs import StepSpec
         >>> class WalkerElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -79,7 +80,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
         >>> problem = compile_system(System(elements=[GroupElement('walkers', element=WalkerElement, size=500)]))
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).check().prepare(problem)
-        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> round(float(np.var(state)), 1)
         1.0
     """
@@ -96,9 +97,9 @@ class FractionalEulerMaruyamaSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.SDE
+        return FormKind.SDE
 
     @classmethod
     def _is_fractional(cls) -> bool:
@@ -120,7 +121,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem.
 
         Args:

@@ -1,11 +1,8 @@
 """Advance compiled problems through time, with a default solver per form."""
 
-from ._agent_snapshot import AgentSnapshot
-from ._agent_state import AgentState
 from ._base import BaseSolver
 from ._caputo import CaputoSolver
 from ._collocation import CollocationSolver
-from ._control_solution import ControlSolution
 from ._cosimulation import CoSimulationSolver
 from ._crank_nicolson import CrankNicolsonSolver
 from ._etdrk4 import ETDRK4Solver
@@ -22,7 +19,6 @@ from ._imex_euler import IMEXEulerSolver
 from ._kinetics import KineticSolver
 from ._l1 import L1Solver
 from ._lammps import LammpsSolver
-from ._lammps_fix import LammpsFix
 from ._lattice import LatticeSolver
 from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
@@ -41,20 +37,15 @@ from ._sde import SDESolver
 from ._solver import Solver
 from ._split import SplitSolver
 from ._ssprk import SSPRKSolver
-from ._step import Step
-from ._structure_state import StructureState
 from ._unitary import UnitarySolver
 from ._velocity_verlet import VelocityVerletSolver
 
 __all__: list[str] = [
-    'AgentSnapshot',
-    'AgentState',
     'AgentView',
     'BaseSolver',
     'CaputoSolver',
     'CoSimulationSolver',
     'CollocationSolver',
-    'ControlSolution',
     'CrankNicolsonSolver',
     'ETDRK4Solver',
     'EulerMaruyamaSolver',
@@ -70,7 +61,6 @@ __all__: list[str] = [
     'IterationSolver',
     'KineticSolver',
     'L1Solver',
-    'LammpsFix',
     'LammpsSolver',
     'LatticeSolver',
     'LindbladSolver',
@@ -90,8 +80,6 @@ __all__: list[str] = [
     'ScipyODESolver',
     'Solver',
     'SplitSolver',
-    'Step',
-    'StructureState',
     'UnitarySolver',
     'VelocityVerletSolver',
 ]

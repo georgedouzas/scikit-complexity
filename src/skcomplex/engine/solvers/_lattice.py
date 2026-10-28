@@ -8,8 +8,9 @@ from typing import cast
 
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ...types import Array
-from ..problems import BaseKernel, Form, OrderKind, State, SupportSpec
+from ...specs import RunStateSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
+from ..problems import BaseKernel
 from ..problems._extremal_kernel import ExtremalKernel
 from ..problems._relaxation_kernel import RelaxationKernel
 from ._solver import Solver
@@ -25,10 +26,11 @@ class LatticeSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.engine.solvers import LatticeSolver, Step
+        >>> from skcomplex.engine.solvers import LatticeSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeSolver(random_state=0).check().prepare(problem)
-        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).astype(int).tolist()
+        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
 
@@ -43,9 +45,9 @@ class LatticeSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.LATTICE
+        return FormKind.LATTICE
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Apply the lattice laws once per integer time step from `t` up to `until`.
@@ -69,7 +71,7 @@ class LatticeSolver(Solver):
         """
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            current = State(float(step + 1), state, p, self.rng_)
+            current = RunStateSpec(float(step + 1), state, p, self.rng_)
             for item in cast('tuple[BaseKernel, ...]', self.problem_.lattice):
                 result = item.run(current)
                 if isinstance(item, RelaxationKernel) and result is not None:

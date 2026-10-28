@@ -16,10 +16,9 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, UnobservedStatesWarning
-from ..types import AnyArray, Array, IntArray, Partition
+from ..types import AnyArray, Array, DataKind, IntArray, Partition
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
-from ._kinds import DataKind
 from ._markov import MarkovAnalysis
 
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')

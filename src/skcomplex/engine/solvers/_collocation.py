@@ -12,10 +12,10 @@ from scipy.optimize import Bounds, minimize
 from ...core.laws import EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
-from ...types import Array, Cost, GridFunction
-from ..problems import OrderKind, SupportSpec
-from ._control_solution import ControlSolution
-from ._optimal_control import OptimalControlSolver, _ControlProblem
+from ...specs import ControlSolutionSpec, SupportSpec
+from ...specs._control_problem_spec import _ControlProblemSpec
+from ...types import Array, Cost, GridFunction, OrderKind
+from ._optimal_control import OptimalControlSolver
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
@@ -204,7 +204,7 @@ class CollocationSolver(OptimalControlSolver):
             np.concatenate([state_upper, np.tile(upper, points)]),
         )
 
-    def _set_up_control(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
         """Derive the Jacobians of the rates and the gradients of the costs symbolically.
 
         Args:
@@ -225,7 +225,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:

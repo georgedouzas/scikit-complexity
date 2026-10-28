@@ -9,8 +9,8 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ...errors import SolverError
+from ...specs import BaseRecordSpec, EventRecordSpec, ProblemSpec, RunStateSpec
 from ...types import Array, Interpolant
-from ..problems import BaseRecord, EventRecord, Problem, State
 from ..problems._event_kernel import EventKernel
 
 SEPARATION = 1e-10
@@ -24,9 +24,9 @@ class EventLocator:
             The compiled problem.
     """
 
-    def __init__(self, problem: Problem) -> None:
+    def __init__(self, problem: ProblemSpec) -> None:
         self.problem = problem
-        self.records: list[BaseRecord] = []
+        self.records: list[BaseRecordSpec] = []
         self.stopped_at: float | None = None
         self._last: dict[str, float] = {}
 
@@ -144,14 +144,14 @@ class EventLocator:
             )
             raise SolverError(error_msg)
         self._last[event.label] = time
-        after = event.run(State(time, state, p))
-        self.records.append(EventRecord(event.label, time, state.copy(), after.copy()))
+        after = event.run(RunStateSpec(time, state, p))
+        self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy()))
         if event.terminal:
             self.stopped_at = time
         return after
 
     @staticmethod
-    def _find_bounds(problem: Problem, t: float, until: float) -> list[float]:
+    def _find_bounds(problem: ProblemSpec, t: float, until: float) -> list[float]:
         """Return the breakpoints between two times followed by the end time.
 
         Args:
@@ -185,7 +185,7 @@ class EventLocator:
         return float(np.nextafter(bound, -math.inf))
 
     @staticmethod
-    def _find_smallest_delay(problem: Problem) -> float:
+    def _find_smallest_delay(problem: ProblemSpec) -> float:
         """Return the smallest delay of a problem, or infinity without delays.
 
         Args:

@@ -9,12 +9,9 @@ from typing import Any, cast
 import numpy as np
 
 from ...errors import SolverError
-from ...specs import MoveSpec, SamplerSpec
+from ...specs import ArgumentsSpec, LatticeStateSpec, MoveSpec, RunStateSpec, SamplerSpec
 from ...types import Array, Indices
-from ._arguments import Arguments
 from ._base import BaseKernel
-from ._lattice_state import LatticeState
-from ._state import State
 
 
 class MonteCarloKernel(BaseKernel):
@@ -55,10 +52,10 @@ class MonteCarloKernel(BaseKernel):
     def __init__(  # noqa: PLR0917
         self,
         owner: str,
-        target: LatticeState,
+        target: LatticeStateSpec,
         table: Indices,
         delta: Callable[..., Any],
-        arguments: Arguments,
+        arguments: ArgumentsSpec,
         temperature: Callable[..., Any],
         move: MoveSpec,
         sampler: SamplerSpec,
@@ -132,11 +129,11 @@ class MonteCarloKernel(BaseKernel):
         x[self.target.start + sites[accepted]] = proposal[accepted]
 
     @property
-    def targets(self) -> tuple[LatticeState, ...]:
+    def targets(self) -> tuple[LatticeStateSpec, ...]:
         """Lattice state the move changes, as the one target of the step."""
         return (self.target,)
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Update the state vector of the state in place by one sweep of the lattice."""
         x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
         size = self.target.size

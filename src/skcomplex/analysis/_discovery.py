@@ -11,10 +11,10 @@ import networkx as nx
 import numpy as np
 
 from ..core.system import System
-from ..engine.problems import NetworkSnapshot
 from ..engine.runtime import Trajectory
+from ..specs import NetworkSnapshotSpec
+from ..types import DataKind
 from ._base import SERIES_DIMENSIONS, BaseAnalysis, Source
-from ._kinds import DataKind
 
 
 class DiscoveryAnalysis(BaseAnalysis):
@@ -55,7 +55,7 @@ class DiscoveryAnalysis(BaseAnalysis):
         """Read the data kinds of the source and how the analyses of every kind read it."""
         kinds = self._get_data_kinds(source)
         self.kinds_ = [str(kind) for kind in kinds]
-        if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshot):
+        if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshotSpec):
             self.readings_ = {str(kind): kind.reading for kind in kinds}
             return self
         self.readings_ = {str(kind): self._get_array_reading(kind, np.ndim(source)) for kind in kinds}

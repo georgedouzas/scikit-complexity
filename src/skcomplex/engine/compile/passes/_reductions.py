@@ -6,8 +6,8 @@
 from typing import cast
 
 from ....core.laws import CrossingLaw
-from ...problems._read_kind import ReadKind
-from ...problems._reduction_schedule import ReductionSchedule
+from ....specs import ReductionScheduleSpec
+from ....types import ReadKind
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
@@ -40,7 +40,7 @@ class ReductionsPass(BasePass):
             self._prune_foreign(spec, declarations)
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.reductions = ReductionSchedule(
+        compilation.reductions = ReductionScheduleSpec(
             tuple(reductions.found_.values()),
             reductions.parameters_,
             tuple(reductions.neighbourhoods_.values()),

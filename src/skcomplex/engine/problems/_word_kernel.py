@@ -16,11 +16,20 @@ from ...core.elements import WordElement
 from ...core.laws import ProductionLaw
 from ...core.laws.utils import parse_word
 from ...errors import RewritingError
-from ...specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
+from ...specs import (
+    TURTLE_SYMBOLS,
+    BaseProblemSpec,
+    BaseStructureSpec,
+    GeometrySpec,
+    ModuleSpec,
+    ParametersSpec,
+    RunStateSpec,
+    WordStructureSpec,
+)
+from ...specs._group_spec import _GroupSpec
+from ...specs._successor_spec import _SuccessorSpec
 from ...types import Arrays
-from ._base import BaseKernel, BaseProblem, BaseStructure
-from ._parameters import Parameters
-from ._production_group import _Group
+from ._base import BaseKernel
 from ._rewriting_loops import (
     _ACTION_CODES,
     DRAW,
@@ -37,9 +46,6 @@ from ._rewriting_loops import (
     _neighbors,
     _walk_word,
 )
-from ._state import State
-from ._successor import _Successor
-from ._word_structure import WordStructure
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -78,7 +84,7 @@ class WordKernel(BaseKernel):
         path: str,
         word: WordElement,
         productions: Sequence[ProductionLaw],
-        parameters: Parameters,
+        parameters: ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> None:
         self.path = path
@@ -115,7 +121,7 @@ class WordKernel(BaseKernel):
                 [_ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
             )
-        self.successors: list[_Successor] = []
+        self.successors: list[_SuccessorSpec] = []
         self.groups = self._groups(productions)
         self._check_probabilities(values)
 
@@ -150,12 +156,12 @@ class WordKernel(BaseKernel):
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
         values = self.parameters.function(variables, expressions, text) if slots else None
-        self.successors.append(_Successor(codes, tuple(slots), values, len(variables)))
+        self.successors.append(_SuccessorSpec(codes, tuple(slots), values, len(variables)))
         return len(self.successors) - 1
 
-    def _groups(self, productions: Sequence[ProductionLaw]) -> list[_Group]:
+    def _groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
         """Return the groups of productions in the order they are tried."""
-        groups: dict[tuple[str, ...] | int, _Group] = {}
+        groups: dict[tuple[str, ...] | int, _GroupSpec] = {}
         members: dict[tuple[str, ...] | int, tuple[list[int], list[Callable[..., Arrays] | None]]] = {}
         for order, production in enumerate(productions):
             text = self._production_text(production)
@@ -181,7 +187,7 @@ class WordKernel(BaseKernel):
             )
             if key not in groups:
                 members[key] = ([], [])
-                groups[key] = _Group(
+                groups[key] = _GroupSpec(
                     code=code,
                     left=tuple(self._code(item, text) for item in left),
                     right=tuple(self._code(item, text) for item in right),
@@ -199,7 +205,7 @@ class WordKernel(BaseKernel):
         ]
         return sorted(found, key=lambda group: group.rank)
 
-    def _weights(self, group: _Group, values: npt.NDArray[np.float64], generation: int) -> npt.NDArray[np.float64]:
+    def _weights(self, group: _GroupSpec, values: npt.NDArray[np.float64], generation: int) -> npt.NDArray[np.float64]:
         """Return the probabilities of the productions of a group, after checking that they sum to one."""
         weights = np.array(
             [1.0 if item is None else float(item(generation, *values)[0]) for item in group.probabilities],
@@ -217,21 +223,21 @@ class WordKernel(BaseKernel):
         for group in self.groups:
             self._weights(group, values, 0)
 
-    def _prepare(self, context: BaseProblem) -> None:
+    def _prepare(self, context: BaseProblemSpec) -> None:
         """Start the word at generation 0 for a run of the problem, as `structure_`."""
         self.structure_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: State) -> WordStructure:
+    def _run(self, inputs: RunStateSpec) -> WordStructureSpec:
         """Rewrite the current word once, every module in parallel, with the parameters and the random stream."""
         self.structure_ = self._rewrite(self.structure_, inputs.p, cast('np.random.Generator', inputs.rng))
         return self.structure_
 
-    def _initial(self, values: npt.NDArray[np.float64]) -> WordStructure:
+    def _initial(self, values: npt.NDArray[np.float64]) -> WordStructureSpec:
         """Return the word at generation 0, the axiom with its geometry."""
         del values
         return self._structure(self.codes, self.table, 0)
 
-    def counts(self, word: WordStructure) -> list[float]:
+    def counts(self, word: WordStructureSpec) -> list[float]:
         """Return the count of every counted symbol and the size of a word.
 
         Args:
@@ -262,7 +268,7 @@ class WordKernel(BaseKernel):
 
     def _choose(
         self,
-        word: WordStructure,
+        word: WordStructureSpec,
         values: npt.NDArray[np.float64],
         rng: np.random.Generator,
     ) -> npt.NDArray[np.int64]:
@@ -295,7 +301,9 @@ class WordKernel(BaseKernel):
             chosen[rows] = successors[picks]
         return chosen
 
-    def _rewrite(self, word: WordStructure, values: npt.NDArray[np.float64], rng: np.random.Generator) -> WordStructure:
+    def _rewrite(
+        self, word: WordStructureSpec, values: npt.NDArray[np.float64], rng: np.random.Generator,
+    ) -> WordStructureSpec:
         """Return the word of the next generation, every module rewritten in parallel.
 
         Args:
@@ -352,19 +360,21 @@ class WordKernel(BaseKernel):
         codes: npt.NDArray[np.int64],
         table: npt.NDArray[np.float64],
         generation: int,
-    ) -> WordStructure:
+    ) -> WordStructureSpec:
         """Return a word with the segments its geometry draws."""
-        frozen_codes, frozen_table = BaseStructure._frozen(codes, np.int64), BaseStructure._frozen(table, np.float64)
+        frozen_codes, frozen_table = BaseStructureSpec._frozen(codes, np.int64), BaseStructureSpec._frozen(
+            table, np.float64,
+        )
         if self.geometry is None:
-            return WordStructure(self.names, frozen_codes, frozen_table, generation)
+            return WordStructureSpec(self.names, frozen_codes, frozen_table, generation)
         segments, depths = self._interpret(self.geometry, self.actions[codes], table, generation)
-        return WordStructure(
+        return WordStructureSpec(
             self.names,
             frozen_codes,
             frozen_table,
             generation,
-            strokes=BaseStructure._frozen(segments, np.float64),
-            depths=BaseStructure._frozen(depths, np.int64),
+            strokes=BaseStructureSpec._frozen(segments, np.float64),
+            depths=BaseStructureSpec._frozen(depths, np.int64),
         )
 
     @staticmethod

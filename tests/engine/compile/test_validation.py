@@ -15,22 +15,24 @@ from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
 from skcomplex.core.laws.utils import mean, neighbors
 from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import Issue, PassCompiler, ValidationReport, ValidationWarning, compile_system
-from skcomplex.engine.problems import Form, NoiseKind
+from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
-from skcomplex.errors import ValidationError
+from skcomplex.errors import ValidationError, ValidationWarning
 from skcomplex.specs import (
     EnergySpec,
+    IssueSpec,
     MoveSpec,
     ObservableSpec,
     ParameterSpec,
     RoleSpec,
     SamplerSpec,
     StateSpec,
+    ValidationReportSpec,
     VisualSpec,
     WienerProcessSpec,
 )
+from skcomplex.types import FormKind, NoiseKind
 
 from ...conftest import HoldingElement, NodeElement, _correlated
 from .conftest import PairElement
@@ -191,11 +193,11 @@ def test_mixed_laws_in_nested_systems_are_valid():
 
 def test_report_raises_every_error():
     """Test that checking a report raises every error with its path and code, and emits its warnings."""
-    report = ValidationReport(
+    report = ValidationReportSpec(
         (
-            Issue('role', 'growth', 'The role is unbound.', 'Bind it.'),
-            Issue('law-domain', 'drift', 'The law targets a categorical state.', 'Use a jump law.'),
-            Issue('note', 'system', 'Something to know.', 'Nothing to do.', severity='warning'),
+            IssueSpec('role', 'growth', 'The role is unbound.', 'Bind it.'),
+            IssueSpec('law-domain', 'drift', 'The law targets a categorical state.', 'Use a jump law.'),
+            IssueSpec('note', 'system', 'Something to know.', 'Nothing to do.', severity='warning'),
         ),
     )
     with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:
@@ -509,7 +511,7 @@ def test_validate_reports_lammps_with_shared_process():
 def test_validate_accepts_correlated_noise_with_automatic_solver():
     """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
     assert PassCompiler().check().prepare(_correlated([[1.0, 0.5], [0.5, 1.0]])).report_.ok
-    assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[Form.SDE]._get_support().noise
+    assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[FormKind.SDE]._get_support().noise
 
 
 def test_observable_among_the_laws_is_rejected():

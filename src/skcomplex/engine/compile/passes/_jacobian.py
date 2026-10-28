@@ -6,10 +6,9 @@
 from typing import cast
 
 from ....core.laws import RateLaw
-from ...problems import Form
+from ....specs import LoweredKernelsSpec, ReductionScheduleSpec
+from ....types import FormKind
 from ...problems._jacobian_kernel import JacobianKernel
-from ...problems._lowered_kernels import LoweredKernels
-from ...problems._reduction_schedule import ReductionSchedule
 from .._base import BasePass
 from .._declarations import Declarations
 
@@ -31,11 +30,11 @@ class JacobianPass(BasePass):
         declarations = cast('Declarations', compilation.layout)
         compilation.jacobian = (
             JacobianKernel(
-                tuple(cast('LoweredKernels', compilation.kernels).kernels[RateLaw]),
-                cast('ReductionSchedule', compilation.reductions),
+                tuple(cast('LoweredKernelsSpec', compilation.kernels).kernels[RateLaw]),
+                cast('ReductionScheduleSpec', compilation.reductions),
                 declarations.ends[True],
                 declarations.time,
             ).check()
-            if compilation.form == Form.ODE
+            if compilation.form == FormKind.ODE
             else None
         )

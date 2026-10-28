@@ -8,12 +8,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.system import System
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import CayleyVisual, RerunObserver
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import FrameSpec, StateSpec, TotalisticSpec, VisualSpec
 
 
 class ParityElement(Element):
@@ -31,7 +30,7 @@ class ParityElement(Element):
 
     def _get_laws(self, s):
         """Return the parity rule."""
-        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('1', 'a', 'b')), Totalistic({1: 1, 3: 1}))]
+        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('1', 'a', 'b')), TotalisticSpec({1: 1, 3: 1}))]
 
 
 class Logs:
@@ -62,7 +61,7 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
     logs = Logs()
     visual = CayleyVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem)
     for _ in range(2):
-        visual.run(Frame(0, 0.0, simulation.state_, simulation.parameters_, problem))
+        visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
     nodes = [archetype for path, archetype, static in logs.logs if not static]
     edges = [archetype for path, archetype, static in logs.logs if static]
     assert len(nodes) == 2

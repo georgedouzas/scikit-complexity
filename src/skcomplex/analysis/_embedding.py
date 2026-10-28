@@ -11,10 +11,9 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
-from ._kinds import DataKind
 
 KINDS = ('delay', 'false-nearest-neighbors')
 SETTINGS = {

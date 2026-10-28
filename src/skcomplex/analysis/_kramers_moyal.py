@@ -9,8 +9,8 @@ from typing import Self
 import numpy as np
 
 from ..errors import AnalysisError
+from ..types import DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 
 class KramersMoyalAnalysis(BaseAnalysis):

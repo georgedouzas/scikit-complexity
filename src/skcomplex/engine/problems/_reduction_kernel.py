@@ -13,12 +13,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
+from ...specs import EntrySpec, ReadSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
-from ._entry import Entry
 from ._expression_printer import ExpressionPrinter
-from ._reads import Read
-from ._state import State
 
 REDUCTIONS: dict[str, Callable[[Any], Any]] = {
     'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
@@ -75,12 +73,12 @@ class ReductionKernel(BaseKernel):
         argument: Expression,
         condition: Expression | None,
         weights: scipy.sparse.csr_array | None,
-        entry: Entry,
+        entry: EntrySpec,
         size: int,
         group: str | None,
-        reads: dict[Expression, Read],
+        reads: dict[Expression, ReadSpec],
         time: Expression,
-        members: Entry | None = None,
+        members: EntrySpec | None = None,
     ) -> None:
         self.symbol = symbol
         self.kind = kind
@@ -149,7 +147,7 @@ class ReductionKernel(BaseKernel):
             np.broadcast_to(np.asarray(condition, dtype=bool), (self.size,)),
         )
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Write the value of the reduction into the extended parameter vector of the state, the `p` of `inputs`."""
         q = inputs.p
         argument, condition = self.values(inputs.t, inputs.x, q)

@@ -11,9 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import BaseSpace
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
-from ..solvers import AgentSnapshot
+from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ._agents import AgentsVisual
 from ._base import _SERIES_COLORS, BaseVisual
 
@@ -90,7 +88,7 @@ class HistogramVisual(AgentsVisual):
         self.shown = shown
         self.histogram_first = histogram_first
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
         self.spans_: dict[str, tuple[float, float]] = {}
         super()._prepare(problem)
@@ -112,7 +110,7 @@ class HistogramVisual(AgentsVisual):
         if numbers.size <= _MAX_AGENT_SERIES:
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the histogram and the statistics of every state of the members of a group at one frame.
 
         Args:
@@ -134,7 +132,7 @@ class HistogramVisual(AgentsVisual):
         self,
         recording: rr.RecordingStream,
         path: str,
-        snapshot: AgentSnapshot,
+        snapshot: AgentSnapshotSpec,
         space: BaseSpace | None,
     ) -> None:
         """Log the histogram and the statistics of every trait of the agents of a group at one frame.
@@ -159,7 +157,7 @@ class HistogramVisual(AgentsVisual):
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', numbers)
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
 
         Args:

@@ -15,12 +15,11 @@ import scipy.sparse as sp
 from ..core.system import System
 from ..engine.compile import compile_system
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
-from ..engine.problems import BaseProblem, QuantumProblem, State
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
-from ..types import Array, Sector
+from ..specs import BaseProblemSpec, QuantumProblemSpec, RunStateSpec
+from ..types import Array, DataKind, Sector
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
 SETTINGS = {
@@ -202,10 +201,10 @@ class QuantumAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _quantum_problem(system: System | BaseProblem) -> QuantumProblem:
+    def _quantum_problem(system: System | BaseProblemSpec) -> QuantumProblemSpec:
         """Return the quantum problem of a system, compiling it when needed."""
-        problem = system if isinstance(system, BaseProblem) else compile_system(system)
-        if not isinstance(problem, QuantumProblem):
+        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
+        if not isinstance(problem, QuantumProblemSpec):
             error_msg = (
                 f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
             )
@@ -213,7 +212,7 @@ class QuantumAnalysis(BaseAnalysis):
         return problem
 
     @staticmethod
-    def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Array:
+    def _parameters_of(problem: QuantumProblemSpec, values: Mapping[str, Any] | None) -> Array:
         """Return the initial parameter vector with some values replaced by dotted name."""
         p = problem.initial_parameters.copy()
         for name, value in (values or {}).items():
@@ -227,14 +226,16 @@ class QuantumAnalysis(BaseAnalysis):
 
     @staticmethod
     def _sector_basis(
-        problem: QuantumProblem,
+        problem: QuantumProblemSpec,
         sector: Sector,
         p: Array,
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         expression, value = sector
         terms = problem.lowering.terms(expression(problem.namespaces['']), 'the sector')
-        matrix = sum((term.run(State(0.0, np.zeros(0), p)) * term.matrix for term in terms), start=0 * terms[0].matrix)
+        matrix = sum(
+            (term.run(RunStateSpec(0.0, np.zeros(0), p)) * term.matrix for term in terms), start=0 * terms[0].matrix,
+        )
         diagonal = matrix.diagonal()
         if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
             error_msg = (
@@ -248,17 +249,17 @@ class QuantumAnalysis(BaseAnalysis):
         return basis
 
     @staticmethod
-    def _states_of(trajectory: Trajectory) -> tuple[QuantumProblem, npt.NDArray[np.complex128]]:
+    def _states_of(trajectory: Trajectory) -> tuple[QuantumProblemSpec, npt.NDArray[np.complex128]]:
         """Return the quantum problem of a trajectory and its states, one per frame."""
         problem = trajectory.problem
-        if not isinstance(problem, QuantumProblem):
+        if not isinstance(problem, QuantumProblemSpec):
             error_msg = 'The trajectory is not the trajectory of a quantum system.'
             raise AnalysisError(error_msg)
         return problem, np.asarray(trajectory.values(problem.states.names[0]))
 
     @staticmethod
     def _lowest_states(
-        problem: QuantumProblem,
+        problem: QuantumProblemSpec,
         p: Array,
         k: int,
         basis: npt.NDArray[np.intp] | None,
@@ -277,7 +278,9 @@ class QuantumAnalysis(BaseAnalysis):
         return np.real(np.asarray(energies)), states
 
     @staticmethod
-    def _entanglement(problem: QuantumProblem, states: npt.NDArray[np.complex128], subsystems: Sequence[str]) -> Array:
+    def _entanglement(
+        problem: QuantumProblemSpec, states: npt.NDArray[np.complex128], subsystems: Sequence[str],
+    ) -> Array:
         """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
         keep = []
         for name in subsystems:

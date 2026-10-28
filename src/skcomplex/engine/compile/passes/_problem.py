@@ -14,31 +14,28 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....errors import ValidationError
-from ....specs import VisualSpec
-from ....types import Array, Scalars, VectorFunction
-from ..._utils import components_of, declarations_of, symbols_of
-from ...problems import (
-    CompiledElement,
-    CompiledInteraction,
-    ExpressionPrinter,
-    Form,
-    Layout,
-    Problem,
-    VariableKind,
+from ....specs import (
+    CompiledElementSpec,
+    CompiledInteractionSpec,
+    LayoutSpec,
+    NodeSpec,
+    ProblemSpec,
+    ReductionScheduleSpec,
+    ReferenceSpec,
+    VisualSpec,
 )
-from ...problems._breakpoints import _Breakpoints
-from ...problems._delay import _Delay
+from ....specs._breakpoints_spec import _BreakpointsSpec
+from ....specs._delay_spec import _DelaySpec
+from ....types import Array, FormKind, ReadKind, Scalars, VariableKind, VectorFunction
+from ..._utils import components_of, declarations_of, symbols_of
+from ...problems import ExpressionPrinter
 from ...problems._event_kernel import EventKernel
 from ...problems._markov_kernel import MarkovKernel
-from ...problems._read_kind import ReadKind
-from ...problems._reduction_schedule import ReductionSchedule
-from ...problems._reference import Reference
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._tree import Node
 from ._events import _SWITCHES, RELATIONS
 
 
@@ -90,10 +87,10 @@ class ProblemPass(BasePass):
         return companions
 
     @staticmethod
-    def _compiled_elements(blocks: list[Block]) -> tuple[CompiledElement, ...]:
+    def _compiled_elements(blocks: list[Block]) -> tuple[CompiledElementSpec, ...]:
         """Return the elements and groups that are not agents with the dotted names of their states and parameters."""
         return tuple(
-            CompiledElement(
+            CompiledElementSpec(
                 path=block.node.path,
                 element=block.node.component,
                 states={
@@ -115,10 +112,10 @@ class ProblemPass(BasePass):
     def _compiled_interactions(
         blocks: list[Block],
         specs: list[tuple[KernelSpec, Block]],
-    ) -> tuple[CompiledInteraction, ...]:
+    ) -> tuple[CompiledInteractionSpec, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
-            CompiledInteraction(
+            CompiledInteractionSpec(
                 path=block.node.path,
                 interaction=block.node.component,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
@@ -128,19 +125,19 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
-    def _problem_of(compilation: Compilation) -> Problem:
+    def _problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
         declarations = cast('Declarations', compilation.layout)
         blocks = list(declarations.blocks.values())
-        form = cast('Form', compilation.form)
+        form = cast('FormKind', compilation.form)
         reduced = cast('Laws', compilation.reduced)
-        reductions = cast('ReductionSchedule', compilation.reductions)
+        reductions = cast('ReductionScheduleSpec', compilation.reductions)
         time = declarations.time
         functions = cast('dict[str, Any]', compilation.functions)
-        return Problem(
+        return ProblemSpec(
             form=form,
-            states=Layout(tuple(declarations.states)),
-            parameters=Layout(tuple(declarations.parameters)),
+            states=LayoutSpec(tuple(declarations.states)),
+            parameters=LayoutSpec(tuple(declarations.parameters)),
             initial_state=np.concatenate([np.zeros(0), *declarations.initial_states]),
             initial_parameters=np.concatenate([np.zeros(0), *declarations.initial_parameters]),
             time=time,
@@ -157,7 +154,7 @@ class ProblemPass(BasePass):
             delays=ProblemPass._compile_delays(compilation.delays, time),
             events=(
                 *ProblemPass._compile_events(compilation.events, time, reductions),
-                *(ProblemPass._hidden_events(reduced, time, reductions) if form == Form.ODE else ()),
+                *(ProblemPass._hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
@@ -194,7 +191,7 @@ class ProblemPass(BasePass):
         return first
 
     @staticmethod
-    def _flat_sources(references: Mapping[Expression, Reference], owner: str) -> dict[Expression, tuple[bool, int]]:
+    def _flat_sources(references: Mapping[Expression, ReferenceSpec], owner: str) -> dict[Expression, tuple[bool, int]]:
         """Return the vector and flat index of every symbol of single components in a namespace."""
         del owner
         return {
@@ -204,7 +201,7 @@ class ProblemPass(BasePass):
         }
 
     @staticmethod
-    def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
+    def _reset_indices(reference: ReferenceSpec) -> npt.NDArray[np.intp]:
         """Return the flat indices a reset of a single element's state or of every group member's state writes."""
         if reference.entry.members is not None and reference.source in {ReadKind.MEMBER, ReadKind.REDUCED}:
             return reference.flat_indices.astype(np.intp)
@@ -242,7 +239,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         event: CrossingLaw,
         time: Expression,
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
     ) -> VectorFunction | None:
         """Return a function that sets the states an event resets, all from the state before the event."""
         reset = event.reset or {}
@@ -311,7 +308,7 @@ class ProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _Breakpoints:
+    def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _BreakpointsSpec:
         """Return the times where conditions on time in expressions change, as from step, pulse, and series inputs."""
         fixed: set[float] = set()
         periodic: set[tuple[float, float]] = set()
@@ -344,14 +341,14 @@ class ProblemPass(BasePass):
                         resolved = True
                 unresolved = unresolved or not resolved
             stack.extend(item.operands())
-        return _Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+        return _BreakpointsSpec(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
     @staticmethod
     def _breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
-    ) -> _Breakpoints:
+    ) -> _BreakpointsSpec:
         """Return the breakpoints of the time-dependent inputs in every law and event guard.
 
         Args:
@@ -379,7 +376,7 @@ class ProblemPass(BasePass):
         return ProblemPass._breakpoints_of(expressions, time)
 
     @staticmethod
-    def _compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Delay, ...]:
+    def _compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_DelaySpec, ...]:
         """Return the delays of a system with their delay functions compiled.
 
         Args:
@@ -401,7 +398,7 @@ class ProblemPass(BasePass):
             )
             hidden = item['entry']
             compiled.append(
-                _Delay(
+                _DelaySpec(
                     parameters=hidden.start + np.arange(hidden.size),
                     states=np.asarray(item['states'], dtype=np.intp),
                     tau=ProblemPass._first_value(tau),
@@ -417,7 +414,7 @@ class ProblemPass(BasePass):
     def _compile_events(
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
     ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions of the state vector.
 
@@ -458,7 +455,7 @@ class ProblemPass(BasePass):
     def _hidden_events(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
     ) -> tuple[EventKernel, ...]:
         """Return one hidden event per condition on the states of single components that switches a law of a flow.
 
@@ -513,7 +510,7 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _visual_of(node: Node) -> VisualSpec:
+    def _visual_of(node: NodeSpec) -> VisualSpec:
         """Return the visual of an element or a group: its own visual when it sets one, and its default otherwise."""
         element = node.component
         if element.visual is not None:

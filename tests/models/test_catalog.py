@@ -14,7 +14,6 @@ from sklearn.base import clone
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
-from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.errors import RegistryError, ValidationError
@@ -25,6 +24,7 @@ from skcomplex.models.biology.ecology import (
     PopulationElement,
     PredationInteraction,
 )
+from skcomplex.specs import ProblemSpec
 
 
 def _loaded(code: str) -> list[str]:
@@ -236,7 +236,7 @@ def test_model_conforms(entry, tmp_path):
 def test_jacobian_pattern_holds_finite_differences(entry):
     """Test that the Jacobian pattern of every model with an ODE form holds its finite differences at random states."""
     problem = compile_system(create(entry.name), backend=NumpyBackend())
-    if not isinstance(problem, Problem) or problem.jacobian is None or problem.delays or problem.drift is None:
+    if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The model has no ODE form without delays.')
     rng = np.random.default_rng(0)
     for _ in range(3):

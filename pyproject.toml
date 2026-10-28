@@ -249,10 +249,9 @@ layers = [
     "skcomplex.analysis",
     "skcomplex.engine",
     "skcomplex.core",
-    "skcomplex.types",
     "skcomplex.specs",
     "skcomplex.base",
-    "skcomplex.errors",
+    "skcomplex.types | skcomplex.errors",
 ]
 
 [[tool.importlinter.contracts]]

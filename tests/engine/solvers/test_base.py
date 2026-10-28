@@ -5,33 +5,34 @@ import pytest
 from sage.all__sagemath_symbolics import RR
 
 from skcomplex.engine._utils import symbol
-from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout
-from skcomplex.engine.solvers import BaseSolver, Step
+from skcomplex.engine.solvers import BaseSolver
 from skcomplex.errors import SolverError
+from skcomplex.specs import BaseProblemSpec, EntrySpec, LayoutSpec, StepSpec
+from skcomplex.types import FormKind
 
 
 def test_solver_rejects_a_problem_of_another_form():
     """Test that a solver rejects a problem whose form it does not solve, naming both forms."""
 
-    class OdeSolver(BaseSolver[BaseProblem]):
+    class OdeSolver(BaseSolver[BaseProblemSpec]):
         """Solver of ordinary differential equations."""
 
         @classmethod
         def _get_form(cls):
-            return Form.ODE
+            return FormKind.ODE
 
-    problem = BaseProblem(Form.DISCRETE, Layout(()), Layout(()), None, None, symbol('t'))
+    problem = BaseProblemSpec(FormKind.DISCRETE, LayoutSpec(()), LayoutSpec(()), None, None, symbol('t'))
     with pytest.raises(SolverError, match='discrete map'):
         OdeSolver().check().prepare(problem)
 
 
-class _DoublingSolver(BaseSolver[BaseProblem]):
+class _DoublingSolver(BaseSolver[BaseProblemSpec]):
     """Solver that doubles the state once per unit of time and counts its releases."""
 
     @classmethod
     def _get_form(cls):
         """Return the discrete map form."""
-        return Form.DISCRETE
+        return FormKind.DISCRETE
 
     def _prepare(self, problem):
         """Fit the base and start with no release."""
@@ -49,10 +50,10 @@ class _DoublingSolver(BaseSolver[BaseProblem]):
 
 def _discrete_problem():
     """Return a discrete problem of one state with the initial value 1."""
-    return BaseProblem(
-        Form.DISCRETE,
-        Layout((Entry('a.x', 0, (), RR),)),
-        Layout(()),
+    return BaseProblemSpec(
+        FormKind.DISCRETE,
+        LayoutSpec((EntrySpec('a.x', 0, (), RR),)),
+        LayoutSpec(()),
         np.array([1.0]),
         np.zeros(0),
         symbol('t'),
@@ -74,10 +75,10 @@ def test_solver_run_advances_and_releases_on_the_final_run():
     """Test that `run` returns the advanced state and releases only on the final run."""
     problem = _discrete_problem()
     solver = _DoublingSolver(random_state=0).check().prepare(problem)
-    state = solver.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+    state = solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
     assert state.tolist() == [4.0]
     assert solver.releases_ == 0
-    state = solver.run(Step(2.0, state, problem.initial_parameters, 3.0), final=True)
+    state = solver.run(StepSpec(2.0, state, problem.initial_parameters, 3.0), final=True)
     assert state.tolist() == [8.0]
     assert solver.releases_ == 1
 
@@ -87,7 +88,7 @@ def test_solver_run_of_no_length_returns_the_state():
     problem = _discrete_problem()
     solver = _DoublingSolver(random_state=0).check().prepare(problem)
     state = np.array([5.0])
-    assert solver.run(Step(1.0, state, problem.initial_parameters, 1.0), final=True) is state
+    assert solver.run(StepSpec(1.0, state, problem.initial_parameters, 1.0), final=True) is state
     assert solver.releases_ == 1
 
 

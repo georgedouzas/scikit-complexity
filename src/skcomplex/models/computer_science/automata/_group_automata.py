@@ -14,10 +14,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
-from ....core.laws.utils import Totalistic
 from ....core.spaces import BoxNeighborhood, CayleySpace, GeneratorNeighborhood, LatticeSpace, MemoryNeighborhood
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
@@ -149,7 +148,7 @@ class ParityCellElement(Element):
             LocalRuleLaw(
                 s.alive,
                 self.memory,
-                Totalistic({total: total % 2 for total in range(len(self.memory.elements) + 1)}),
+                TotalisticSpec({total: total % 2 for total in range(len(self.memory.elements) + 1)}),
             ),
         ]
 

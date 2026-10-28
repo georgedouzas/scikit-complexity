@@ -14,9 +14,8 @@ from scipy.spatial import cKDTree
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
 SETTINGS = {

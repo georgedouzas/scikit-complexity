@@ -3,15 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 import numpy as np
 
+from ...specs import EntrySpec, RunStateSpec
+from ...specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ...types import EdgesFound
 from ._base import BaseSearch
-from ._entry import Entry
-from ._state import State
-
-ACTIVE_THRESHOLD = 0.5
 
 
 class EdgeRowSearch(BaseSearch):
@@ -39,9 +36,9 @@ class EdgeRowSearch(BaseSearch):
 
     def __init__(  # noqa: PLR0917
         self,
-        source: Entry,
-        target: Entry,
-        active: Entry,
+        source: EntrySpec,
+        target: EntrySpec,
+        active: EntrySpec,
         size: int,
         directed: bool = False,
         center: bool = False,
@@ -53,7 +50,7 @@ class EdgeRowSearch(BaseSearch):
         self.directed = directed
         self.center = center
 
-    def _run(self, inputs: State) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec) -> EdgesFound:
         """Return the neighbours of every node along the active edges."""
         q = inputs.p
         keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD

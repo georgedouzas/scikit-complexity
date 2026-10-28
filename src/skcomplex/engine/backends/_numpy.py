@@ -45,12 +45,18 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from ..problems import Form, NoiseKind, OrderKind, SupportSpec
+from ...specs import LoweredFunctionsSpec, LoweredKernelsSpec, ReductionScheduleSpec, SupportSpec
+from ...types import FormKind, NoiseKind, OrderKind
 from ..problems._law_kernel import LawKernel
-from ..problems._lowered_kernels import LoweredKernels
-from ..problems._reduction_schedule import ReductionSchedule
 from ._base import BaseBackend
-from ._lowered_functions import _FUNCTION_KINDS, LoweredFunctions
+
+_FUNCTION_KINDS: dict[str, type] = {
+    'drift': RateLaw,
+    'diffusion': NoiseLaw,
+    'propensities': JumpLaw,
+    'update': UpdateLaw,
+    'boundary': BoundaryLaw,
+}
 
 
 class NumpyBackend(BaseBackend):
@@ -109,32 +115,32 @@ class NumpyBackend(BaseBackend):
         """Return the name of the backend that problems record."""
         return 'numpy'
 
-    def _run(self, inputs: LoweredKernels) -> LoweredFunctions:
+    def _run(self, inputs: LoweredKernelsSpec) -> LoweredFunctionsSpec:
         """Return the numeric functions of the form of the kernels, evaluated with NumPy."""
         form, size, kernels, changes = inputs.form, inputs.size, inputs.kernels, inputs.jump_changes
         functions: dict[str, object] = {}
         if kernels.get(BoundaryLaw):
             functions['boundary'] = BaseBackend._assigning_function(kernels[BoundaryLaw])
-        if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
+        if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE):
             functions['drift'] = BaseBackend._adding_function(kernels.get(RateLaw, []), size)
-        if form == Form.SDE:
+        if form == FormKind.SDE:
             functions['diffusion'] = BaseBackend._concatenating_function(kernels.get(NoiseLaw, []))
             noise = LawKernel._lower_noise(kernels.get(NoiseLaw, []))
             names = ('noise_rows', 'noise_columns', 'n_processes', 'noise_blocks')
             functions.update(zip(names, noise, strict=True))
-        if form == Form.JUMP:
+        if form == FormKind.JUMP:
             functions['propensities'] = BaseBackend._concatenating_function(kernels.get(JumpLaw, []))
             functions['jumps'] = LawKernel._jump_channels(kernels.get(JumpLaw, []), changes)
-        if form == Form.DISCRETE:
+        if form == FormKind.DISCRETE:
             functions['update'] = BaseBackend._assigning_function(kernels.get(UpdateLaw, []))
-        return self._with_reductions(LoweredFunctions(**functions), inputs.reductions, kernels)
+        return self._with_reductions(LoweredFunctionsSpec(**functions), inputs.reductions, kernels)
 
     @staticmethod
     def _with_reductions(
-        lowering: LoweredFunctions,
-        reductions: ReductionSchedule | None,
+        lowering: LoweredFunctionsSpec,
+        reductions: ReductionScheduleSpec | None,
         kernels: Mapping[type, list[LawKernel]] | None = None,
-    ) -> LoweredFunctions:
+    ) -> LoweredFunctionsSpec:
         """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
 
         Args:

@@ -3,11 +3,8 @@
 from ._base import BaseCompiler, BaseLowering, BasePass
 from ._compilation import Compilation
 from ._compile import compile_system
-from ._issue import Issue
 from ._observables import ObservableEvaluator
 from ._pass_compiler import PassCompiler
-from ._validation_report import ValidationReport
-from ._validation_warning import ValidationWarning
 from .passes._hilbert_space_error import HilbertSpaceError
 from .passes._quantum_compiler import QuantumCompiler
 from .passes._rewriting_compiler import RewritingCompiler
@@ -18,12 +15,9 @@ __all__: list[str] = [
     'BasePass',
     'Compilation',
     'HilbertSpaceError',
-    'Issue',
     'ObservableEvaluator',
     'PassCompiler',
     'QuantumCompiler',
     'RewritingCompiler',
-    'ValidationReport',
-    'ValidationWarning',
     'compile_system',
 ]

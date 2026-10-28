@@ -11,16 +11,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.laws.utils import Table, Totalistic
 from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, MemoryNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SpaceTooLargeError, ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
 
 HEISENBERG = (((1, 1, 0), (0, 1, 0), (0, 0, 1)), ((1, 0, 0), (0, 1, 1), (0, 0, 1)))
 GRIGORCHUK = 'a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)'
-MAJORITY = Totalistic({3: 1, 4: 1, 5: 1})
+MAJORITY = TotalisticSpec({3: 1, 4: 1, 5: 1})
 FREE_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1'))
 
 
@@ -70,7 +69,7 @@ class CopyElement(Element):
 
     def _get_laws(self, s):
         """Return the copy of the cell at `g a`."""
-        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('a',)), Table({(1,): 1}))]
+        return [LocalRuleLaw(s.alive, MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))]
 
 
 def _run(system, until):

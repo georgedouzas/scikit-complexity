@@ -17,29 +17,29 @@ from ...core.laws import (
     SampleLaw,
     UpdateLaw,
 )
-from ..problems import Form
+from ...types import FormKind
 from ._renewal_law import RenewalLaw
 
 LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw)
-STEPWISE_FORMS: dict[frozenset[type], Form] = {
-    frozenset({RenewalLaw}): Form.RENEWAL,
-    frozenset({RuleLaw}): Form.AGENT,
-    frozenset({SampleLaw}): Form.MONTE_CARLO,
+STEPWISE_FORMS: dict[frozenset[type], FormKind] = {
+    frozenset({RenewalLaw}): FormKind.RENEWAL,
+    frozenset({RuleLaw}): FormKind.AGENT,
+    frozenset({SampleLaw}): FormKind.MONTE_CARLO,
     **{
-        frozenset(kinds): Form.LATTICE
+        frozenset(kinds): FormKind.LATTICE
         for count in range(1, len(LATTICE_LAWS) + 1)
         for kinds in itertools.combinations(LATTICE_LAWS, count)
     },
 }
 """Forms whose solvers evaluate kernels step by step on the NumPy backend, by the law classes that compile to them."""
 
-_FORMS: dict[frozenset[type], Form] = {
-    frozenset(): Form.ODE,
-    frozenset({RateLaw}): Form.ODE,
-    frozenset({NoiseLaw}): Form.SDE,
-    frozenset({RateLaw, NoiseLaw}): Form.SDE,
-    frozenset({JumpLaw}): Form.JUMP,
-    frozenset({UpdateLaw}): Form.DISCRETE,
+_FORMS: dict[frozenset[type], FormKind] = {
+    frozenset(): FormKind.ODE,
+    frozenset({RateLaw}): FormKind.ODE,
+    frozenset({NoiseLaw}): FormKind.SDE,
+    frozenset({RateLaw, NoiseLaw}): FormKind.SDE,
+    frozenset({JumpLaw}): FormKind.JUMP,
+    frozenset({UpdateLaw}): FormKind.DISCRETE,
     **STEPWISE_FORMS,
 }
 """Forms by the law classes that compile to them."""

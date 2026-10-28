@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
+from ..types import DataKind
 from ._base import BaseAnalysis, Source
 from ._fit import FitAnalysis
-from ._kinds import DataKind
 
 KINDS = ('degrees', 'assortativity', 'centrality', 'communities', 'neighbor-degree', 'summary')
 CENTRALITIES = ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank')

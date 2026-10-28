@@ -12,12 +12,11 @@ from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, 
 from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
-from skcomplex.core.laws.utils import Call, derivative, laplacian, mod, total, where
+from skcomplex.core.laws.utils import derivative, laplacian, mod, total, where
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Entry, Layout
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CrankNicolsonSolver,
@@ -30,7 +29,7 @@ from skcomplex.engine.solvers import (
 )
 from skcomplex.errors import BackendError, ValidationError
 from skcomplex.models.physics.pattern_formation import GinzburgLandauElement
-from skcomplex.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import CallSpec, EntrySpec, LayoutSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 STIFF = (IMEXEulerSolver(dt=0.05), IMEX2Solver(dt=0.05), CrankNicolsonSolver(dt=0.05))
 
@@ -245,13 +244,13 @@ def test_complex_parameter_per_site_is_read_and_updated():
 
 def test_layout_of_real_systems_is_unchanged():
     """Test that a real variable keeps one float per component and its names."""
-    entry = Entry('a.x', 0, (2,), RR)
+    entry = EntrySpec('a.x', 0, (2,), RR)
     assert (entry.size, entry.columns, entry.component_names) == (2, 2, ['a.x[0]', 'a.x[1]'])
 
 
 def test_complex_view_is_zero_copy():
     """Test that the complex values of a layout view the stored floats without copying."""
-    layout = Layout((Entry('a.z', 0, (3,), CC, is_complex=True),))
+    layout = LayoutSpec((EntrySpec('a.z', 0, (3,), CC, is_complex=True),))
     vector = np.arange(6.0)
     values = layout.read(vector, 'a.z')
     assert np.shares_memory(values, vector)
@@ -260,7 +259,7 @@ def test_complex_view_is_zero_copy():
 
 def test_complex_component_is_located_by_its_part():
     """Test that the real and imaginary parts of a complex variable are located as real components."""
-    layout = Layout((Entry('a.z', 0, (), CC, is_complex=True),))
+    layout = LayoutSpec((EntrySpec('a.z', 0, (), CC, is_complex=True),))
     entry, indices = layout.locate('a.z.imag')
     assert (entry.domain, indices) == (RR, slice(1, 2))
 
@@ -571,7 +570,7 @@ def test_complex_equation_and_event_split_into_parts():
     ('law', 'message'),
     [
         (lambda s: [JumpLaw(1.0, {s.z: 1})], 'changes a complex state'),
-        (lambda s: [RateLaw(s.z, Call(_constant, (s.z,)))], 'calls a function with complex values'),
+        (lambda s: [RateLaw(s.z, CallSpec(_constant, (s.z,)))], 'calls a function with complex values'),
         (lambda s: [RateLaw(s.z, mod(s.z, 2))], 'only real values'),
         (lambda s: [RateLaw(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
         (

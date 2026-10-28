@@ -15,13 +15,11 @@ from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....errors import ValidationError
-from ....types import Array
+from ....specs import LayoutSpec, ReferenceSpec, RunStateSpec
+from ....types import Array, ReadKind, VariableKind
 from ..._utils import declarations_of
-from ...problems import ExpressionPrinter, Layout, VariableKind
+from ...problems import ExpressionPrinter
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
-from ...problems._state import State
 from .._base import BasePass
 from .._block import Block
 from .._compilation import Laws
@@ -45,7 +43,7 @@ class FieldFunctionsPass(BasePass):
         compilation = self.compilation_
         functions = cast('dict[str, Any]', compilation.functions)
         declarations = cast('Declarations', compilation.layout)
-        states = Layout(tuple(declarations.states))
+        states = LayoutSpec(tuple(declarations.states))
         functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
         blocks = list(declarations.blocks.values())
         volumes, constrained = self._with_discretizations(
@@ -61,7 +59,7 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _written_equations(
         equations: dict[str, Expression],
-        states: Layout,
+        states: LayoutSpec,
         written: dict[tuple[str, int], list[tuple[Expression, Expression]]],
     ) -> dict[str, Expression]:
         """Return equations with the stencils of operators replaced by the operators as written."""
@@ -192,7 +190,7 @@ class FieldFunctionsPass(BasePass):
         def conserved(t: float, x: Array, p: Array) -> Array:
             rates = drift(t, x, p)
             for volume in volumes:
-                rates = rates + volume.run(State(t, x, p))
+                rates = rates + volume.run(RunStateSpec(t, x, p))
             return rates
 
         return conserved
@@ -217,7 +215,7 @@ class FieldFunctionsPass(BasePass):
         return volumes, (constrained, fixed)
 
     @staticmethod
-    def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
+    def _symbol(target: Expression, references: Mapping[Expression, ReferenceSpec]) -> Expression:
         """Return the member symbol of a flux target after checking it is a member state."""
         reference = references.get(target)
         if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
@@ -227,8 +225,8 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _compile_volumes(
-        laws: Sequence[tuple[FluxLaw, Reference]],
-        references: Mapping[Expression, Reference],
+        laws: Sequence[tuple[FluxLaw, ReferenceSpec]],
+        references: Mapping[Expression, ReferenceSpec],
         place: FieldElement,
         owner: str,
     ) -> FiniteVolumeKernel:

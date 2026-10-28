@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import SR
 from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
 from ...core.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
-from ...types import Array, Indices, IntArray
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import KineticProblemSpec, ProblemSpec, SupportSpec
+from ...types import Array, FormKind, Indices, IntArray, OrderKind
 from ..problems._encounter_kernel import EncounterKernel
-from ..problems._kinetic_problem import KineticProblem
 from ._solver import Solver
 
 
@@ -55,9 +54,9 @@ class KineticSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     def __init__(
         self,
@@ -72,9 +71,9 @@ class KineticSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _check_problem(self, problem: Problem) -> None:
+    def _check_problem(self, problem: ProblemSpec) -> None:
         """Raise an error when a problem has laws other than encounters, or no encounter."""
-        if not isinstance(problem, KineticProblem) or not problem.encounters:
+        if not isinstance(problem, KineticProblemSpec) or not problem.encounters:
             error_msg = 'KineticSolver samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
         rates = any(not SR(value).is_zero() for value in problem.equations.values())
@@ -91,7 +90,7 @@ class KineticSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem and draw the particles of the initial state.
 
         Args:
@@ -105,7 +104,7 @@ class KineticSolver(Solver):
         """
         super()._prepare(problem)
         self._check_problem(problem)
-        self._encounters = cast('KineticProblem', problem).encounters
+        self._encounters = cast('KineticProblemSpec', problem).encounters
         self.densities_ = self._densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], IntArray] = {}

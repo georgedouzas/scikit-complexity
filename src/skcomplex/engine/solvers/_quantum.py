@@ -15,15 +15,14 @@ import scipy.sparse as sp
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
+from ...specs import QuantumProblemSpec, RunStateSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
-from ..problems import Form, OrderKind, State, SupportSpec
 from ..problems._quantum_kernel import QuantumKernel
-from ..problems._quantum_problem import QuantumProblem
 from ._base import BaseSolver
 
 
-class QuantumSolver(BaseSolver[QuantumProblem]):
+class QuantumSolver(BaseSolver[QuantumProblemSpec]):
     """Base class of solvers that advance quantum problems with a stepwise QuTiP solver.
 
     The solver is created at the first frame and again whenever the parameters change, from the current state, so a
@@ -55,9 +54,9 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.QUANTUM
+        return FormKind.QUANTUM
 
     def __init__(
         self,
@@ -88,7 +87,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             if term.time_dependent:
                 varying.append([matrix, self._coefficient(term, p)])
             else:
-                constant = constant + complex(term.run(State(0.0, np.zeros(0), p))) * matrix
+                constant = constant + complex(term.run(RunStateSpec(0.0, np.zeros(0), p))) * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
@@ -141,12 +140,12 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         """Start a QuTiP solver from a state at a time."""
         solver.start(self._start_state(x), t)
 
-    def _unsupported(self, problem: QuantumProblem) -> list[str]:
+    def _unsupported(self, problem: QuantumProblemSpec) -> list[str]:
         """Return a description of every part of a quantum problem the solver does not run."""
         del problem
         return []
 
-    def _prepare(self, problem: QuantumProblem) -> None:
+    def _prepare(self, problem: QuantumProblemSpec) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
@@ -158,11 +157,11 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
         super()._prepare(problem)
-        unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblem) else ['a classical problem']
+        unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblemSpec) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
             raise SolverError(error_msg)
-        self.quantum_: QuantumProblem = problem
+        self.quantum_: QuantumProblemSpec = problem
         self.solver_: Any = None
         self.parameters_: Array | None = None
 
@@ -198,6 +197,6 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         parameters = p.copy()
 
         def value(t: float) -> complex:
-            return term.run(State(t, np.zeros(0), parameters))
+            return term.run(RunStateSpec(t, np.zeros(0), parameters))
 
         return value

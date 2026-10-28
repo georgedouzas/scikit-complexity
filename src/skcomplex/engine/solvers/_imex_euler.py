@@ -21,10 +21,11 @@ class IMEXEulerSolver(SplitSolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.heat import heat_diffusion
-        >>> from skcomplex.engine.solvers import IMEXEulerSolver, Step
+        >>> from skcomplex.engine.solvers import IMEXEulerSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(heat_diffusion((16, 16)))
         >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).check().prepare(problem)
-        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 10.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0))
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """

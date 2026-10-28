@@ -9,12 +9,9 @@ from typing import Any, cast
 import numpy as np
 
 from ...errors import SolverError
+from ...specs import ArgumentsSpec, ExtremalRecordSpec, LatticeStateSpec, RunStateSpec
 from ...types import Array, Indices
-from ._arguments import Arguments
 from ._base import BaseKernel
-from ._extremal_record import ExtremalRecord
-from ._lattice_state import LatticeState
-from ._state import State
 
 
 class ExtremalKernel(BaseKernel):
@@ -59,12 +56,12 @@ class ExtremalKernel(BaseKernel):
         self,
         label: str,
         owner: str,
-        targets: tuple[LatticeState, ...],
-        key: LatticeState,
+        targets: tuple[LatticeStateSpec, ...],
+        key: LatticeStateSpec,
         members: Indices,
         counts: Indices,
         rule: Callable[..., Any],
-        arguments: Arguments,
+        arguments: ArgumentsSpec,
         maximum: bool,
         repeat: int,
         loop: Callable[..., None] | None = None,
@@ -101,7 +98,7 @@ class ExtremalKernel(BaseKernel):
             x[state.start + sites] = value
         return site, float(best)
 
-    def _run(self, inputs: State) -> list[ExtremalRecord]:
+    def _run(self, inputs: RunStateSpec) -> list[ExtremalRecordSpec]:
         """Apply the law `repeat` times to the state vector of the state in place, and return the records.
 
         Every record holds the time of the state, the site, and the extremal value of one application.
@@ -109,10 +106,10 @@ class ExtremalKernel(BaseKernel):
         x, p, rng, time = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng), inputs.t
         if self.loop is None:
             found = [self._apply_once(x, p, rng) for _ in range(self.repeat)]
-            return [ExtremalRecord(self.label, time, site, value) for site, value in found]
+            return [ExtremalRecordSpec(self.label, time, site, value) for site, value in found]
         sites, values = np.zeros(self.repeat, dtype=np.intp), np.zeros(self.repeat)
         self.loop(x, np.ascontiguousarray(p, dtype=float), rng, self.members, self.counts, self.repeat, sites, values)
         return [
-            ExtremalRecord(self.label, time, int(site), float(value))
+            ExtremalRecordSpec(self.label, time, int(site), float(value))
             for site, value in zip(sites.tolist(), values.tolist(), strict=True)
         ]

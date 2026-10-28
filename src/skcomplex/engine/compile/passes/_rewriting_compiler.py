@@ -15,16 +15,23 @@ from ....core.elements import Element, GroupElement, HostGraphElement, PatchElem
 from ....core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ....core.system import System
 from ....errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
+from ....specs import (
+    BaseProblemSpec,
+    CompiledElementSpec,
+    EntrySpec,
+    IssueSpec,
+    LayoutSpec,
+    NodeSpec,
+    ParametersSpec,
+    RewritingProblemSpec,
+)
+from ....specs._rewriting_problem_spec import Compiled
+from ....types import FormKind, VariableKind
 from ..._utils import declarations_of, symbol
-from ...problems import BaseProblem, CompiledElement, Entry, Form, Layout, VariableKind
 from ...problems._graph_kernel import GraphKernel
-from ...problems._parameters import Parameters
 from ...problems._patch_kernel import PatchKernel
-from ...problems._rewriting_problem import Compiled, RewritingProblem
 from ...problems._word_kernel import WordKernel
 from .._base import BaseCompiler
-from .._issue import Issue
-from .._tree import Node
 from ._flatten import FlattenPass
 from ._problem import ProblemPass
 
@@ -66,7 +73,7 @@ class RewritingCompiler(BaseCompiler):
         """
         return self._is_rewriting(system)
 
-    def _issues(self, system: System) -> list[Issue]:
+    def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issue of a claimed system whose tree cannot be flattened.
 
         Args:
@@ -86,7 +93,7 @@ class RewritingCompiler(BaseCompiler):
             return [self._issue_of(error, system.label, 'structure', fix)]
         return []
 
-    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblem:
+    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
         """Compile the prepared rewriting system into a problem of the rewriting form.
 
         Args:
@@ -122,7 +129,7 @@ class RewritingCompiler(BaseCompiler):
         return component.element if isinstance(component, GroupElement) else type(component)
 
     @staticmethod
-    def _productions(node: Node, namespace: SimpleNamespace) -> list[Production]:
+    def _productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions, substitutions, or graph productions of a word, a patch, or a host graph."""
         laws = node.component.run(namespace)
         wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
@@ -135,9 +142,11 @@ class RewritingCompiler(BaseCompiler):
         return [law.check() for law in laws]
 
     @staticmethod
-    def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, SimpleNamespace], dict[str, Any]]:
+    def _parameters(
+        nodes: list[NodeSpec],
+    ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Any]]:
         """Return the parameter entries and values of the rewritten elements, with their namespaces and symbols."""
-        entries: list[Entry] = []
+        entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
         symbols: dict[str, Any] = {}
@@ -145,7 +154,7 @@ class RewritingCompiler(BaseCompiler):
             names = {}
             for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
                 value = node.value_of(name)
-                if np.ndim(value) or not Entry._contains(declaration.domain, value):
+                if np.ndim(value) or not EntrySpec._contains(declaration.domain, value):
                     error_msg = (
                         f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
                     )
@@ -153,16 +162,16 @@ class RewritingCompiler(BaseCompiler):
                 dotted = f'{node.path}.{name}'
                 names[name] = symbol(f'{name}_{node.path}'.replace('/', '_').replace('-', '_'))
                 symbols[dotted] = names[name]
-                entries.append(Entry(dotted, len(entries), (), declaration.domain))
+                entries.append(EntrySpec(dotted, len(entries), (), declaration.domain))
                 values.append(float(value))
             namespaces[node.path] = SimpleNamespace(**names, t=symbol('t'))
         return entries, values, namespaces, symbols
 
     @staticmethod
     def _compiled(
-        node: Node,
+        node: NodeSpec,
         laws: list[Production],
-        parameters: Parameters,
+        parameters: ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> Compiled:
         """Return the compiled rewriting system of one element from the laws that target it."""
@@ -188,7 +197,10 @@ class RewritingCompiler(BaseCompiler):
             ).check()
         if kind == 'tiling':
             return PatchKernel(
-                node.path, element, [law for law in laws if isinstance(law, SubstitutionLaw)], parameters,
+                node.path,
+                element,
+                [law for law in laws if isinstance(law, SubstitutionLaw)],
+                parameters,
             ).check()
         return GraphKernel(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)]).check()
 
@@ -200,7 +212,7 @@ class RewritingCompiler(BaseCompiler):
         return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
     @staticmethod
-    def _compile_rewriting(system: System) -> 'RewritingProblem':
+    def _compile_rewriting(system: System) -> 'RewritingProblemSpec':
         """Compile a system of words, patches, or host graphs, each rewritten by the rewriting laws it returns.
 
         Args:
@@ -249,22 +261,25 @@ class RewritingCompiler(BaseCompiler):
                 )
                 raise IncompatibleLawsError(error_msg)
         entries, values, namespaces, symbols = RewritingCompiler._parameters(nodes)
-        parameters = Parameters(tuple(symbols.values()), symbol('t'))
+        parameters = ParametersSpec(tuple(symbols.values()), symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         compiled = tuple(
             RewritingCompiler._compiled(
-                node, RewritingCompiler._productions(node, namespaces[path]), parameters, initial_parameters,
+                node,
+                RewritingCompiler._productions(node, namespaces[path]),
+                parameters,
+                initial_parameters,
             )
             for path, node in elements.items()
         )
-        states: list[Entry] = []
+        states: list[EntrySpec] = []
         initial: list[float] = []
         compiled_elements = []
         for item in compiled:
             names = [*item.counted, 'size']
             component = cast('Element', elements[item.path].component)
             compiled_elements.append(
-                CompiledElement(
+                CompiledElementSpec(
                     path=item.path,
                     element=component,
                     states={name: f'{item.path}.{name}' for name in names},
@@ -273,12 +288,12 @@ class RewritingCompiler(BaseCompiler):
                 ),
             )
             for name in names:
-                states.append(Entry(f'{item.path}.{name}', len(states), (), NN))
+                states.append(EntrySpec(f'{item.path}.{name}', len(states), (), NN))
             initial += item.counts(item._initial(initial_parameters))  # type: ignore[arg-type]
-        return RewritingProblem(
-            form=Form.REWRITING,
-            states=Layout(tuple(states)),
-            parameters=Layout(tuple(entries)),
+        return RewritingProblemSpec(
+            form=FormKind.REWRITING,
+            states=LayoutSpec(tuple(states)),
+            parameters=LayoutSpec(tuple(entries)),
             initial_state=np.asarray(initial, dtype=float),
             initial_parameters=initial_parameters,
             time=symbol('t'),

@@ -9,8 +9,9 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import GillespieSolver, Step
+from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.specs import StepSpec
 
 
 def test_gillespie_conserves_individuals():
@@ -23,7 +24,7 @@ def test_gillespie_conserves_individuals():
     )
     stepper = GillespieSolver()
     stepper.set_params(random_state=np.random.default_rng(1)).check().prepare(problem)
-    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert state.sum() == 50
     assert 0 < state[0] < 50
     assert np.all(state == np.round(state))

@@ -25,17 +25,13 @@ from ...core.spaces import (
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
+from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
 from ...types import Array, Indices, Pairs
 from ._base import BaseKernel
 from ._edge_row_search import EdgeRowSearch
-from ._entry import Entry
 from ._expression_printer import ExpressionPrinter
-from ._heading import Heading
 from ._metric_search import MetricSearch
-from ._pair_read import PairRead
-from ._state import State
 from ._static_search import StaticSearch
-from ._variable import Variable
 
 _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
@@ -86,10 +82,10 @@ class NeighborhoodKernel(BaseKernel):
         kind: str,
         argument: Expression,
         weight: Expression,
-        entry: Entry,
+        entry: EntrySpec,
         group: str,
         search: Search,
-        reads: dict[Expression, PairRead],
+        reads: dict[Expression, PairReadSpec],
         time: Expression,
     ) -> None:
         self.symbol = symbol
@@ -145,7 +141,7 @@ class NeighborhoodKernel(BaseKernel):
                 values.append(column[others])
         return values
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Write the reduction of every member into the extended parameter vector of the state, the `p` of `inputs`."""
         t, x, q = inputs.t, inputs.x, inputs.p
         indptr, others, edges = self.search.run(inputs)
@@ -307,7 +303,7 @@ class NeighborhoodKernel(BaseKernel):
         return None
 
     @staticmethod
-    def _position_state(states: Mapping[str, Variable]) -> str | None:
+    def _position_state(states: Mapping[str, VariableSpec]) -> str | None:
         """Return the position state of an element type: the vector state declared as position, else the vector `x`.
 
         Args:
@@ -325,7 +321,7 @@ class NeighborhoodKernel(BaseKernel):
         return 'x' if found is not None and found.vector else None
 
     @staticmethod
-    def _cone_heading(cone: ConeNeighborhood, states: Mapping[str, Variable], n_dim: int) -> str:
+    def _cone_heading(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
         """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
 
         Args:
@@ -351,7 +347,7 @@ class NeighborhoodKernel(BaseKernel):
             >>> from skcomplex.core.elements import Element
             >>> from skcomplex.specs import StateSpec
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.engine.problems import VariableKind
+            >>> from skcomplex.types import VariableKind
             >>> from skcomplex.engine._utils import declarations_of
             >>> from skcomplex.core.spaces import ConeNeighborhood
             >>> class BoidElement(Element):
@@ -405,10 +401,10 @@ class NeighborhoodKernel(BaseKernel):
         ),
         space: object,
         rows: int,
-        entries: Mapping[str, Entry],
-        states: Mapping[str, Variable],
+        entries: Mapping[str, EntrySpec],
+        states: Mapping[str, VariableSpec],
         *,
-        changing: Mapping[str | None, tuple[Entry, Entry, Entry]] | None = None,
+        changing: Mapping[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]] | None = None,
     ) -> Search:
         """Return the search of the neighbours of the members of a group in its space.
 
@@ -474,7 +470,7 @@ class NeighborhoodKernel(BaseKernel):
         heading = None
         if isinstance(over, ConeNeighborhood):
             name = NeighborhoodKernel._cone_heading(over, states, continuous.n_dim_)
-            heading = Heading(entries[name], not states[name].vector) if name in entries else None
+            heading = HeadingSpec(entries[name], not states[name].vector) if name in entries else None
             if heading is None:
                 error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)

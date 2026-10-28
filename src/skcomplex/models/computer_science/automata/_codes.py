@@ -7,7 +7,7 @@ import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from ....core.laws.utils import OuterTotalistic, Table
+from ....specs import OuterTotalisticSpec, TableSpec
 
 ELEMENTARY_RULES = 256
 
@@ -30,7 +30,7 @@ class Wolfram:
 
     number: int
 
-    def table(self) -> Table:
+    def table(self) -> TableSpec:
         """Return the rule as a table of the eight patterns.
 
         Returns:
@@ -45,12 +45,12 @@ class Wolfram:
             error_msg = f'A Wolfram rule number is between 0 and 255, but it is {self.number}.'
             raise ValueError(error_msg)
         patterns = itertools.product((0, 1), repeat=3)
-        return Table(
+        return TableSpec(
             {pattern: (self.number >> (4 * pattern[0] + 2 * pattern[1] + pattern[2])) & 1 for pattern in patterns},
         )
 
 
-def life(born: Iterable[int] = (3,), survive: Iterable[int] = (2, 3)) -> OuterTotalistic:
+def life(born: Iterable[int] = (3,), survive: Iterable[int] = (2, 3)) -> OuterTotalisticSpec:
     """Return a life-like rule in the notation `B3/S23` of Conway's Game of Life.
 
     Args:
@@ -70,4 +70,4 @@ def life(born: Iterable[int] = (3,), survive: Iterable[int] = (2, 3)) -> OuterTo
         >>> rule.rule[(0, 3)], rule.rule[(1, 2)], (1, 4) in rule.rule
         (1, 1, False)
     """
-    return OuterTotalistic({**{(0, count): 1 for count in born}, **{(1, count): 1 for count in survive}})
+    return OuterTotalisticSpec({**{(0, count): 1 for count in born}, **{(1, count): 1 for count in survive}})

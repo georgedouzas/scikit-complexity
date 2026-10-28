@@ -19,7 +19,6 @@ from skcomplex.core.system import System
 from skcomplex.engine._utils import domain_of, symbol
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form
 from skcomplex.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
@@ -33,6 +32,7 @@ from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.types import FormKind
 
 from ...conftest import CallableGrowthInteraction, NodeElement, _correlated, _summed
 from .conftest import PairElement
@@ -338,23 +338,23 @@ class SympyGrowthInteraction(Interaction):
 @pytest.mark.parametrize(
     ('system', 'form'),
     [
-        (_ecology(LogisticGrowthInteraction('growth', target='rabbits')), Form.ODE),
+        (_ecology(LogisticGrowthInteraction('growth', target='rabbits')), FormKind.ODE),
         (
             System(
                 elements=[AssetElement('stock', price=100)],
                 interactions=[GeometricBrownianMotionInteraction('gbm', target='stock')],
             ),
-            Form.SDE,
+            FormKind.SDE,
         ),
         (
             System(
                 elements=[CompartmentElement('I', n=5), CompartmentElement('R')],
                 interactions=[RecoveryInteraction('rec', infected='I', recovered='R', stochastic=True)],
             ),
-            Form.JUMP,
+            FormKind.JUMP,
         ),
-        (System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]), Form.DISCRETE),
-        (System(elements=[PopulationElement('a')]), Form.ODE),
+        (System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]), FormKind.DISCRETE),
+        (System(elements=[PopulationElement('a')]), FormKind.ODE),
     ],
 )
 def test_compile_system_infers_form(system, form):

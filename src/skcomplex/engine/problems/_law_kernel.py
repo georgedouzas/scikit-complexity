@@ -11,18 +11,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...types import Array, Indices, OptionalPairs, Reader
+from ...specs import LayoutSpec, NoiseProcessSpec, OutputSpec, ReferenceSpec, RunStateSpec, WienerBlockSpec
+from ...specs._jump_channels_spec import _JumpChannelsSpec
+from ...specs._reference_spec import Search
+from ...types import Array, Indices, OptionalPairs, Reader, ReadKind
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
-from ._jump_channels import _JumpChannels
-from ._layout import Layout
-from ._noise_process import NoiseProcess
-from ._output import Output
 from ._pair_search import PairSearch
-from ._read_kind import ReadKind
-from ._reference import Reference, Search
-from ._state import State
-from ._wiener_block import WienerBlock
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 
@@ -64,12 +59,12 @@ class LawKernel(BaseKernel):
         self,
         owner: str,
         time: Expression,
-        references: Mapping[Expression, Reference],
+        references: Mapping[Expression, ReferenceSpec],
         rows: int,
-        layout_states: Layout,
-        layout_parameters: Layout,
+        layout_states: LayoutSpec,
+        layout_parameters: LayoutSpec,
         pairs: Search | None = None,
-        outputs: Sequence[Output] = (),
+        outputs: Sequence[OutputSpec] = (),
     ) -> None:
         self.owner = owner
         self.time = time
@@ -209,7 +204,7 @@ class LawKernel(BaseKernel):
 
     def _gather_around(
         self,
-        reference: Reference,
+        reference: ReferenceSpec,
         x: Array,
         p: Array,
         pairs: tuple[Indices, Indices] | None,
@@ -220,7 +215,7 @@ class LawKernel(BaseKernel):
         if reference.source is ReadKind.NEIGHBOR:
             return read.read(reference.column_of(x, p))
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
-        return read.run(State(t, read.operand_values(t, values, reference.entry.rows), p))
+        return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p))
 
     def _reader(self, symbol: Expression) -> Reader:
         """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
@@ -244,7 +239,7 @@ class LawKernel(BaseKernel):
         self._readers[symbol] = read
         return read
 
-    def _member_reader(self, reference: Reference) -> Reader:
+    def _member_reader(self, reference: ReferenceSpec) -> Reader:
         """Return the function that reads a member symbol, indexed by the pairs of a pair kernel."""
         is_state, members, source = reference.is_state, reference.members, reference.source
         images = isinstance(self.pairs, PairSearch) and reference.entry == self.pairs.second and is_state
@@ -281,7 +276,7 @@ class LawKernel(BaseKernel):
             return any(self._reads_reduction(symbol) for symbol in reference.neighbor.symbols)
         return False
 
-    def _run(self, inputs: State) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
+    def _run(self, inputs: RunStateSpec) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
         """Return the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
         t, x, p = inputs.t, inputs.x, inputs.p
         pairs = self.pairs.run(inputs) if self.pairs is not None else None
@@ -305,7 +300,7 @@ class LawKernel(BaseKernel):
             values.append(function_results[key][:, output.component])
         return size, pairs, values
 
-    def _call(self, output: Output, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
+    def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as one row per evaluation index and one column per component."""
         function: Callable[..., Any] = output.function  # type: ignore[assignment]
         if output.arguments is not None:
@@ -333,7 +328,7 @@ class LawKernel(BaseKernel):
         return np.broadcast_to(np.asarray(value, dtype=float), (size,))
 
     @staticmethod
-    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[WienerBlock, ...]]:
+    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[WienerBlockSpec, ...]]:
         """Return the state and the Wiener process of every amplitude of noise kernels, with the processes they draw.
 
         Processes are numbered in order of first use. An output without a named process takes one new process per
@@ -360,7 +355,7 @@ class LawKernel(BaseKernel):
         columns: list[Indices] = []
         local: dict[object, Indices] = {}
         starts: dict[object, int] = {}
-        blocks: list[WienerBlock] = []
+        blocks: list[WienerBlockSpec] = []
         counter = [0, -1]
         for kernel in kernels:
             for item in kernel.outputs:
@@ -381,13 +376,13 @@ class LawKernel(BaseKernel):
 
     @staticmethod
     def _process_columns(
-        process: NoiseProcess | None,
+        process: NoiseProcessSpec | None,
         size: int,
         *,
         counter: list[int],
         local: dict[object, Indices],
         starts: dict[object, int],
-        blocks: list[WienerBlock],
+        blocks: list[WienerBlockSpec],
     ) -> Indices:
         """Return the process of every evaluation index of a noise output, numbering new processes in `counter`.
 
@@ -399,7 +394,7 @@ class LawKernel(BaseKernel):
         if process.key not in starts and (process.links is not None or process.dimension):
             starts[process.key] = counter[0]
             if process.factor is not None and process.links is None:
-                blocks.append(WienerBlock(counter[0], process.dimension, process.factor))
+                blocks.append(WienerBlockSpec(counter[0], process.dimension, process.factor))
             counter[0] += process.dimension
         if process.links is not None:
             links = cast('Indices', process.links)
@@ -407,7 +402,7 @@ class LawKernel(BaseKernel):
                 return (starts[process.key] + links).astype(np.intp)
             if counter[1] < 0:
                 counter[1] = counter[0]
-                blocks.append(WienerBlock(counter[0], 1, np.zeros((1, 1))))
+                blocks.append(WienerBlockSpec(counter[0], 1, np.zeros((1, 1))))
                 counter[0] += 1
             return np.where(links >= 0, starts[process.key] + links, counter[1]).astype(np.intp)
         if process.dimension:
@@ -426,8 +421,8 @@ class LawKernel(BaseKernel):
     @staticmethod
     def _jump_channels(
         kernels: list['LawKernel'],
-        changes: Mapping[int, list[tuple[Reference, float]]],
-    ) -> tuple[_JumpChannels, ...]:
+        changes: Mapping[int, list[tuple[ReferenceSpec, float]]],
+    ) -> tuple[_JumpChannelsSpec, ...]:
         """Return the channels of every jump law of jump kernels.
 
         Args:
@@ -450,6 +445,6 @@ class LawKernel(BaseKernel):
                     dtype=np.intp,
                 ).reshape(len(law_changes), kernel.rows)
                 increments = np.array([increment for _, increment in law_changes], dtype=float)
-                channels.append(_JumpChannels(offset, targets, increments))
+                channels.append(_JumpChannelsSpec(offset, targets, increments))
                 offset += kernel.rows
         return tuple(channels)

@@ -9,14 +9,13 @@ from typing import Self
 
 import numpy as np
 
-from ..engine.problems import EventRecord, Form, Problem
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import EventRecordSpec, ProblemSpec
+from ..types import Array, DataKind, FormKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('poincare', 'stroboscopic')
 SETTINGS = {
@@ -155,7 +154,7 @@ class SectionAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Compile the flow of the section."""
         problem = self._compiled_problem(self._read_system(source), 'A section')
-        if problem.form not in {Form.ODE, Form.SDE}:
+        if problem.form not in {FormKind.ODE, FormKind.SDE}:
             error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
             raise AnalysisError(error_msg)
         if self.kind == 'poincare' and (
@@ -168,7 +167,7 @@ class SectionAnalysis(BaseAnalysis):
         self.problem_ = problem
         return self
 
-    def _crossings(self, problem: Problem) -> tuple[Array, Array]:
+    def _crossings(self, problem: ProblemSpec) -> tuple[Array, Array]:
         """Return the times and the states where the state crosses the value of the Poincaré section."""
         index = problem.states.entry(self.state).start
         value = self.value
@@ -187,14 +186,14 @@ class SectionAnalysis(BaseAnalysis):
         crossings = [
             record
             for record in trajectory.events
-            if isinstance(record, EventRecord) and record.label == SECTION and record.time >= transient
+            if isinstance(record, EventRecordSpec) and record.label == SECTION and record.time >= transient
         ]
         states = np.zeros((len(crossings), problem.states.size))
         for row, record in enumerate(crossings):
             states[row] = record.before
         return np.asarray([record.time for record in crossings], dtype=np.float64), states
 
-    def _samples(self, problem: Problem) -> tuple[Array, Array]:
+    def _samples(self, problem: ProblemSpec) -> tuple[Array, Array]:
         """Return the times and the states at multiples of the forcing period."""
         period = float(self.period)  # type: ignore[arg-type]
         transient = int(self.transient if self.transient is not None else 100)

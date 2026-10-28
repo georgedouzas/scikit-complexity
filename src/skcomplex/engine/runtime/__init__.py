@@ -3,7 +3,6 @@
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._conservation import ConservationObserver
-from ._frames import Frame
 from ._invariants import InvariantObserver
 from ._real_time import RealTimeClock
 from ._recorder import RecorderObserver
@@ -15,7 +14,6 @@ __all__: list[str] = [
     'BaseClock',
     'BaseObserver',
     'ConservationObserver',
-    'Frame',
     'InvariantObserver',
     'RealTimeClock',
     'RecorderObserver',

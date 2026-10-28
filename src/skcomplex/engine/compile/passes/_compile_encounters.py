@@ -12,13 +12,11 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....errors import ValidationError
-from ....types import Indices
+from ....specs import ReferenceSpec, TableValuesSpec
+from ....types import Indices, ReadKind
 from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...problems._encounter_kernel import EncounterKernel
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
-from ...problems._table_values import TableValues
 from .._base import BaseCompiler, BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
@@ -79,7 +77,7 @@ class CompileEncountersPass(BasePass):
         return tuple(np.asarray(item, dtype=np.intp) for item in np.nonzero(mask))
 
     @staticmethod
-    def _group_indices(item: Expression | None, references: Mapping[Expression, Reference], owner: str) -> Indices:
+    def _group_indices(item: Expression | None, references: Mapping[Expression, ReferenceSpec], owner: str) -> Indices:
         """Return the flat state indices of the density a symbol of an encounter stands for, one per activity."""
         reference = references.get(item) if item is not None else None
         if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
@@ -93,7 +91,7 @@ class CompileEncountersPass(BasePass):
     @staticmethod
     def _parameter_indices(
         table: npt.NDArray[Any],
-        references: Mapping[Expression, Reference],
+        references: Mapping[Expression, ReferenceSpec],
         owner: str,
     ) -> dict[Expression, int]:
         """Return the flat parameter index of every symbol of a table, after checking that it is a parameter."""
@@ -153,7 +151,7 @@ class CompileEncountersPass(BasePass):
     def _compile_encounter(
         law: KineticLaw,
         owner: str,
-        references: Mapping[Expression, Reference],
+        references: Mapping[Expression, ReferenceSpec],
         time: Expression,
         *,
         fused: bool = False,
@@ -194,7 +192,7 @@ class CompileEncountersPass(BasePass):
         rates = CompileEncountersPass._checked_rate(law, sizes, owner)
         table = CompileEncountersPass._outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-        rate = TableValues(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
+        rate = TableValuesSpec(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
         if table is None:
             empty = np.zeros(0, dtype=np.intp)
             return EncounterKernel(
@@ -202,7 +200,7 @@ class CompileEncountersPass(BasePass):
             ).check()
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
-        probabilities = TableValues(
+        probabilities = TableValuesSpec(
             table, positions, CompileEncountersPass._parameter_indices(table, references, owner), time,
         )
         return EncounterKernel(
@@ -219,7 +217,7 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _compile_encounters(
-        components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[BaseLaw]]],
+        components: Sequence[tuple[str, Mapping[Expression, ReferenceSpec], Sequence[BaseLaw]]],
         time: Expression,
         *,
         fused: bool = False,

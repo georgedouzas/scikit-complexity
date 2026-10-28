@@ -10,9 +10,8 @@ import numpy as np
 from sklearn.base import clone
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
 

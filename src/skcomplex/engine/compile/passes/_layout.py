@@ -6,11 +6,11 @@
 from typing import cast
 
 from ....errors import LabelError
+from ....specs import NodeSpec
 from ..._utils import symbol
 from .._base import BasePass
 from .._block import Block
 from .._declarations import Declarations
-from .._tree import Node
 
 
 class LayoutPass(BasePass):
@@ -28,7 +28,7 @@ class LayoutPass(BasePass):
         """Declare the components of the nodes."""
         compilation = self.compilation_
         declarations = Declarations(time=symbol('t'))
-        for node in cast('list[Node]', compilation.nodes):
+        for node in cast('list[NodeSpec]', compilation.nodes):
             declarations.declare_component(node)
         self._check_symbol_names(declarations.blocks)
         compilation.layout = declarations

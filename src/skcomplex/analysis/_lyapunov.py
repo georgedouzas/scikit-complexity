@@ -13,13 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
 from ..core.system import System
-from ..engine.problems import BaseProblem, ExpressionPrinter
+from ..engine.problems import ExpressionPrinter
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import BaseProblemSpec
+from ..specs._dynamics_spec import _DynamicsSpec
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
-from ._stability import StabilityAnalysis, _Dynamics
+from ._stability import StabilityAnalysis
 
 KINDS = ('spectrum', 'largest')
 SETTINGS = {
@@ -221,14 +222,14 @@ class LyapunovAnalysis(BaseAnalysis):
             self.values_ = series.values
             self.labels_ = series.labels
             return self
-        if isinstance(source, System | BaseProblem | Trajectory):
+        if isinstance(source, System | BaseProblemSpec | Trajectory):
             self.problem_ = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters).problem
             return self
         self.problem_ = None
         self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
         return self
 
-    def _compute_spectrum(self, dynamics: _Dynamics) -> Array:
+    def _compute_spectrum(self, dynamics: _DynamicsSpec) -> Array:
         """Return the exponents of the system from its tangent dynamics."""
         size = len(dynamics.symbols)
         count = size if self.n_exponents is None else self.n_exponents
@@ -287,7 +288,7 @@ class LyapunovAnalysis(BaseAnalysis):
         return SR(expression).subs({abs(wild): wild * sgn(wild)})
 
     @staticmethod
-    def _jacobian(dynamics: _Dynamics) -> list[Any]:
+    def _jacobian(dynamics: _DynamicsSpec) -> list[Any]:
         """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
         wild = SR.wild(0)
         rates = [LyapunovAnalysis._without_kinks(rate) for rate in dynamics.rates]
@@ -296,7 +297,7 @@ class LyapunovAnalysis(BaseAnalysis):
     @staticmethod
     def _function(
         name: str,
-        dynamics: _Dynamics,
+        dynamics: _DynamicsSpec,
         expressions: list[Any],
         shape: tuple[int, ...],
     ) -> Callable[..., Any]:

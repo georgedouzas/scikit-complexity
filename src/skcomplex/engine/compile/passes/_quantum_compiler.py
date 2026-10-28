@@ -3,9 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 import math
-import operator
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -15,40 +13,35 @@ from typing import Any, Self
 import numpy as np
 import numpy.typing as npt
 import qutip
-import scipy.sparse as sp
-from sage.all__sagemath_symbolics import CC, SR, ZZ, Expression
-from sage.symbolic.operators import add_vararg, mul_vararg
+from sage.all__sagemath_symbolics import CC, SR, Expression
 
 from ....core.elements import GroupElement
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
-from ....core.laws.utils import dagger, has_operator, operator_product
-from ....core.laws.utils._quantum import LOCAL_OPERATOR
 from ....core.system import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
-from ....specs import HilbertSpec, ObservableSpec
-from ....types import Array
+from ....specs import (
+    BaseProblemSpec,
+    CompiledElementSpec,
+    CompiledInteractionSpec,
+    EntrySpec,
+    HilbertSpec,
+    IssueSpec,
+    LayoutSpec,
+    NodeSpec,
+    ObservableSpec,
+    QuantumProblemSpec,
+    QuantumViewSpec,
+)
+from ....specs._lowering_spec import _LoweringSpec
+from ....specs._quantum_problem_spec import REAL_TOLERANCE
+from ....specs._subsystem_spec import _SubsystemSpec
+from ....types import Array, FormKind, VariableKind
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
-from ...problems import (
-    BaseProblem,
-    CompiledElement,
-    CompiledInteraction,
-    Entry,
-    ExpressionPrinter,
-    Form,
-    Layout,
-    VariableKind,
-)
-from ...problems._local_operator import LocalOperator
-from ...problems._operator import Operator
 from ...problems._quantum_kernel import QuantumKernel
-from ...problems._quantum_problem import REAL_TOLERANCE, QuantumProblem
-from ...problems._quantum_view import QuantumView
 from .._base import BaseCompiler
 from .._declarations import Declarations
-from .._issue import Issue
-from .._tree import Node
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
 
@@ -73,248 +66,6 @@ class _Laws:
 
     hamiltonians: list[tuple[str, Expression]] = field(default_factory=list)
     dissipators: list[tuple[str, Expression, object]] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class _Subsystem:
-    """Quantum subsystem with its key, its element, its index in the tensor product, its state symbol, and operators."""
-
-    key: str
-    element: QuantumView
-    index: int
-    symbol: Expression
-    operators: Mapping[str, LocalOperator]
-
-
-@dataclass(frozen=True)
-class _Lowering:
-    """Lowering of operators to sparse matrices on the whole space and of coefficients to functions."""
-
-    time: Expression
-    subsystems: Mapping[str, _Subsystem]
-    dimensions: tuple[int, ...]
-    arguments: Mapping[Expression, int]
-
-    def operator(self, expression: object, owner: str) -> Operator:
-        """Return the operator of a Sage expression of local operators of the subsystems.
-
-        Args:
-            expression:
-                The expression, built with `local_operator`, `operator_product`, and `dagger`.
-
-            owner:
-                The description of the law or observable, for error messages.
-
-        Returns:
-            operator:
-                The operator.
-
-        Raises:
-            ValidationError:
-                The expression is not an operator of the subsystems.
-        """
-        subsystems = {item.symbol: (item.key, item.operators) for item in self.subsystems.values()}
-        try:
-            return self._operator_of(expression, subsystems)
-        except ValidationError as error:
-            error_msg = f'The operator of {owner} is invalid: {error}'
-            raise ValidationError(error_msg) from error
-
-    def matrix(self, key: tuple[Any, ...], owner: str) -> sp.csr_array:
-        """Return the matrix of a product of local operators on the whole space.
-
-        Args:
-            key:
-                The factors of the product, each the key of a subsystem and a local operator.
-
-            owner:
-                The description of the law or observable, for error messages.
-
-        Returns:
-            matrix:
-                The sparse matrix.
-
-        Raises:
-            ValidationError:
-                A factor acts on a subsystem that is not part of the system.
-        """
-        products: dict[int, sp.csr_array] = {}
-        for name, local in key:
-            if name not in self.subsystems:
-                error_msg = f'The operator of {owner} acts on {name}, which is not a quantum subsystem of the system.'
-                raise ValidationError(error_msg)
-            subsystem = self.subsystems[name]
-            matrix = sp.csr_array(local.matrix)
-            previous = products.get(subsystem.index)
-            products[subsystem.index] = matrix if previous is None else sp.csr_array(previous @ matrix)
-        blocks: list[Any] = []
-        pending = 1
-        for index, size in enumerate(self.dimensions):
-            if index not in products:
-                pending *= size
-                continue
-            if pending > 1:
-                blocks.append(sp.identity(pending, dtype=complex, format='csr'))
-            blocks.append(products[index])
-            pending = 1
-        if pending > 1 or not blocks:
-            blocks.append(sp.identity(pending, dtype=complex, format='csr'))
-        return sp.csr_array(functools.reduce(lambda left, right: sp.kron(left, right, format='csr'), blocks))
-
-    def function(self, coefficient: Expression, owner: str) -> Callable[[float, Array], complex]:
-        """Return the function of a coefficient after checking that it reads parameters and time only.
-
-        Args:
-            coefficient:
-                The symbolic coefficient.
-
-            owner:
-                The description of the law or observable, for error messages.
-
-        Returns:
-            function:
-                The function `c(t, p)`.
-
-        Raises:
-            ValidationError:
-                The coefficient uses a symbol that is neither a parameter nor time.
-        """
-        variables = sorted(set(coefficient.variables()) - {self.time}, key=str)
-        unknown = [item for item in variables if item not in self.arguments]
-        if unknown:
-            error_msg = (
-                f'The operator of {owner} has a coefficient that uses {", ".join(map(str, unknown))}, which is not a '
-                'parameter of the quantum system. Coefficients may read parameters and time only.'
-            )
-            raise ValidationError(error_msg)
-        lowered = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables).run([coefficient])
-        indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
-
-        def evaluate(t: float, p: Array) -> complex:
-            return complex(lowered(t, *p[indices])[0])
-
-        return evaluate
-
-    def terms(self, expression: object, owner: str) -> tuple[QuantumKernel, ...]:
-        """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
-
-        Args:
-            expression:
-                The Sage expression of the operator, built with `local_operator`, `operator_product`, and `dagger`.
-
-            owner:
-                The description of the law or observable, for error messages.
-
-        Returns:
-            terms:
-                The constant term first, if any, then one term per distinct coefficient.
-        """
-        size = math.prod(self.dimensions)
-        constant: list[sp.csr_array] = []
-        grouped: dict[Expression, list[sp.csr_array]] = {}
-        for key, value in self.operator(expression, owner).terms.items():
-            coefficient = SR(value)
-            matrix = self.matrix(key, owner)
-            if coefficient.variables():
-                grouped.setdefault(coefficient, []).append(matrix)
-            else:
-                constant.append(complex(coefficient) * matrix)
-        terms = [QuantumKernel(QuantumProblem._sum_matrices(constant, size), SR(1)).check()] if constant else []
-        for coefficient, matrices in grouped.items():
-            terms.append(
-                QuantumKernel(
-                    QuantumProblem._sum_matrices(matrices, size), coefficient, self.function(coefficient, owner),
-                ).check(),
-            )
-        return tuple(terms)
-
-    @staticmethod
-    def _acted_on(operator: Operator) -> set[str]:
-        """Return the keys of the subsystems any term of an operator acts on."""
-        return {subsystem for key in operator.terms for subsystem, _ in key}
-
-    @staticmethod
-    def _local_of(
-        expression: Expression,
-        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
-    ) -> Operator:
-        """Return the operator of a call `local_operator(subsystem, name)`."""
-        subsystem, name = expression.operands()
-        if subsystem not in subsystems:
-            error_msg = f'{expression} acts on {subsystem}, which is not the state of a quantum element of the system.'
-            raise ValidationError(error_msg)
-        key, locals_ = subsystems[subsystem]
-        if str(name) not in locals_:
-            error_msg = f'{expression} names the operator {name}, but {key} has the operators {", ".join(locals_)}.'
-            raise ValidationError(error_msg)
-        return Operator({((key, locals_[str(name)]),): 1})
-
-    @staticmethod
-    def _product_of(factors: list[Operator], expression: Expression) -> Operator:
-        """Return the product of the factors of a Sage product, which commute only on distinct subsystems."""
-        acting = [_Lowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
-        if sum(len(item) for item in acting) != len(set().union(*acting)):
-            error_msg = (
-                f'{expression} multiplies operators that act on the same subsystem with `*`, which commutes. Write the '
-                'product in its order with `operator_product`.'
-            )
-            raise ValidationError(error_msg)
-        return functools.reduce(Operator.__mul__, factors, Operator({(): 1}))
-
-    @staticmethod
-    def _operator_of(
-        expression: object,
-        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperator]]],
-    ) -> Operator:
-        """Return the operator of a Sage expression of local operators, products, and adjoints.
-
-        Args:
-            expression:
-                A Sage expression built with `local_operator`, `operator_product`, and `dagger`, or a number or a scalar
-                expression, which stands for that multiple of the identity.
-
-            subsystems:
-                A mapping from the state symbol of every quantum subsystem to its key and its local operators by name.
-
-        Returns:
-            operator:
-                The operator.
-
-        Raises:
-            ValidationError:
-                A local operator acts on an unknown subsystem or names an unknown operator, or a Sage product multiplies
-                operators of the same subsystem.
-
-        Examples:
-            >>> import qutip
-            >>> from sage.all__sagemath_symbolics import SR, var
-            >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.problems import LocalOperator
-            >>> from skcomplex.engine.compile.passes._quantum_compiler import _Lowering
-            >>> q = SR.symbol('q')
-            >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-            >>> _Lowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
-            'h*q.z'
-        """
-        value = SR(expression)
-        if not has_operator(value):
-            return Operator({(): value})
-        function, operands = value.operator(), value.operands()
-        if function == LOCAL_OPERATOR:
-            return _Lowering._local_of(value, subsystems)
-        if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
-            function, operands = operator_product, [operands[0]] * int(operands[1])
-        parts = [_Lowering._operator_of(item, subsystems) for item in operands]
-        if function == dagger:
-            return parts[0].adjoint()
-        if function == operator_product:
-            return functools.reduce(Operator.__mul__, parts)
-        if function is add_vararg:
-            return functools.reduce(Operator.__add__, parts)
-        if function is mul_vararg:
-            return _Lowering._product_of(parts, value)
-        error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'
-        raise ValidationError(error_msg)
 
 
 class QuantumCompiler(BaseCompiler):
@@ -381,7 +132,7 @@ class QuantumCompiler(BaseCompiler):
         """
         return self._contains_quantum(system)
 
-    def _issues(self, system: System) -> list[Issue]:
+    def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issue of a claimed system whose tree cannot be flattened.
 
         Args:
@@ -401,7 +152,7 @@ class QuantumCompiler(BaseCompiler):
             return [self._issue_of(error, system.label, 'structure', fix)]
         return []
 
-    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblem:
+    def _compile(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
         """Compile the prepared quantum system into a problem of the quantum form.
 
         Args:
@@ -429,9 +180,9 @@ class QuantumCompiler(BaseCompiler):
         return self._compile_quantum(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod
-    def _is_quantum_node(node: Node) -> bool:
+    def _is_quantum_node(node: NodeSpec) -> bool:
         """Check whether a node is a quantum element or a group of quantum elements."""
-        return not isinstance(node.component, BaseInteraction) and QuantumView._is_quantum(node.component)
+        return not isinstance(node.component, BaseInteraction) and QuantumViewSpec._is_quantum(node.component)
 
     @staticmethod
     def _member_value(value: object, member: int, size: int) -> object:
@@ -441,11 +192,11 @@ class QuantumCompiler(BaseCompiler):
         return value[member] if len(value) == size else value
 
     @staticmethod
-    def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
+    def _members_of(node: NodeSpec) -> list[tuple[str, QuantumViewSpec]]:
         """Return the key and the element of every member of a quantum element or group."""
         component = node.component
         if not isinstance(component, GroupElement):
-            return [(node.path, QuantumView(component))]
+            return [(node.path, QuantumViewSpec(component))]
         size = node.members or 0
         members = []
         for member in range(size):
@@ -454,11 +205,11 @@ class QuantumCompiler(BaseCompiler):
                 for name, value in (component.values or {}).items()
             }
             element = component.element(f'{component.label}_{member}').set_params(**values).check()
-            members.append((f'{node.path}[{member}]', QuantumView(element)))
+            members.append((f'{node.path}[{member}]', QuantumViewSpec(element)))
         return members
 
     @staticmethod
-    def _check_classical(nodes: list[Node]) -> None:
+    def _check_classical(nodes: list[NodeSpec]) -> None:
         """Raise an error when a quantum system holds classical elements or quantum elements with states."""
         classical = [
             node.path
@@ -478,7 +229,9 @@ class QuantumCompiler(BaseCompiler):
                 else {}
             )
             states = {
-                name: item for name, item in states.items() if name != QuantumView._hilbert_state(node.component_type)
+                name: item
+                for name, item in states.items()
+                if name != QuantumViewSpec._hilbert_state(node.component_type)
             }
             if states:
                 error_msg = (
@@ -488,7 +241,7 @@ class QuantumCompiler(BaseCompiler):
                 raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_dimension(nodes: list[Node], dimensions: list[int], limit: int) -> None:
+    def _check_dimension(nodes: list[NodeSpec], dimensions: list[int], limit: int) -> None:
         """Raise an error when the dimension of the Hilbert space exceeds the limit of the solver."""
         total = math.prod(dimensions)
         if total <= limit:
@@ -505,7 +258,7 @@ class QuantumCompiler(BaseCompiler):
         raise HilbertSpaceError(error_msg)
 
     @staticmethod
-    def _parameter_symbols(node: Node, symbols: Mapping[str, Any], member: int | None) -> dict[str, Any]:
+    def _parameter_symbols(node: NodeSpec, symbols: Mapping[str, Any], member: int | None) -> dict[str, Any]:
         """Return the parameter symbols of a component, of one member for a group."""
         found = {}
         for variable in declarations_of(node.component_type, VariableKind.PARAMETER):
@@ -515,7 +268,7 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _role_namespace(
-        node: Node,
+        node: NodeSpec,
         label: str,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
@@ -544,10 +297,10 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _interaction_laws(
-        node: Node,
+        node: NodeSpec,
         symbols: Mapping[str, Any],
         members: Mapping[str, tuple[SimpleNamespace, ...]],
-        groups: dict[str, Node],
+        groups: dict[str, NodeSpec],
         laws: _Laws,
     ) -> None:
         """Add the laws of an interaction, once per pair of neighbours of its group for a neighbour interaction."""
@@ -585,14 +338,14 @@ class QuantumCompiler(BaseCompiler):
         QuantumCompiler._collect_laws(laws, node.path, interaction.run(SimpleNamespace(**roles, **parameters)))
 
     @staticmethod
-    def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Array) -> None:
+    def _check_hermitian(laws: _Laws, lowering: _LoweringSpec, p: Array) -> None:
         """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
         size = math.prod(lowering.dimensions)
         rng = np.random.default_rng(0)
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
         def asymmetry(terms: Iterable[QuantumKernel]) -> float:
-            matrix = QuantumProblem._matrix_at(terms, _SAMPLE_TIME, sample, size)
+            matrix = QuantumProblemSpec._matrix_at(terms, _SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
 
@@ -607,7 +360,7 @@ class QuantumCompiler(BaseCompiler):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Array) -> tuple[tuple[QuantumKernel, ...], ...]:
+    def _dissipator_terms(laws: _Laws, lowering: _LoweringSpec, p: Array) -> tuple[tuple[QuantumKernel, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
         for owner, collapse, rate in laws.dissipators:
@@ -678,17 +431,17 @@ class QuantumCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _subsystems_of(quantum: list[Node]) -> dict[str, _Subsystem]:
+    def _subsystems_of(quantum: list[NodeSpec]) -> dict[str, _SubsystemSpec]:
         """Return the subsystems of the quantum elements and groups in tensor order, each with its state symbol."""
-        subsystems: dict[str, _Subsystem] = {}
+        subsystems: dict[str, _SubsystemSpec] = {}
         for node in quantum:
             for key, element in QuantumCompiler._members_of(node):
                 state = symbol(f'{element.state}_{QuantumCompiler._name_of(key)}', CC)
-                subsystems[key] = _Subsystem(key, element, len(subsystems), state, element.local_operators())
+                subsystems[key] = _SubsystemSpec(key, element, len(subsystems), state, element.local_operators())
         return subsystems
 
     @staticmethod
-    def _arguments_of(entries: list[Entry], symbols: Mapping[str, Any]) -> dict[Expression, int]:
+    def _arguments_of(entries: list[EntrySpec], symbols: Mapping[str, Any]) -> dict[Expression, int]:
         """Return the index in the parameter vector of every parameter symbol."""
         arguments = {}
         for entry in entries:
@@ -699,8 +452,8 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _element_laws(
-        quantum: list[Node],
-        subsystems: Mapping[str, _Subsystem],
+        quantum: list[NodeSpec],
+        subsystems: Mapping[str, _SubsystemSpec],
         symbols: Mapping[str, Any],
         time: Expression,
         laws: _Laws,
@@ -730,7 +483,7 @@ class QuantumCompiler(BaseCompiler):
     def _stored_state(  # noqa: PLR0917
         system: System,
         initial: object,
-        subsystems: Mapping[str, _Subsystem],
+        subsystems: Mapping[str, _SubsystemSpec],
         hamiltonian: tuple[QuantumKernel, ...],
         p: Array,
         is_open: bool,
@@ -742,30 +495,30 @@ class QuantumCompiler(BaseCompiler):
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
-            matrix = QuantumProblem._matrix_at(hamiltonian, 0.0, p, size)
+            matrix = QuantumProblemSpec._matrix_at(hamiltonian, 0.0, p, size)
             return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
         state = QuantumCompiler._system_initial(system, initial, product, ground)
         return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
 
     @staticmethod
-    def _compiled_element(node: Node) -> CompiledElement:
+    def _compiled_element(node: NodeSpec) -> CompiledElementSpec:
         """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
         component = node.component
         visual = component.visual if component.visual is not None else component.default_visual_
         parameters = {
             name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)
         }
-        return CompiledElement(node.path, component, {}, parameters, visual, node.members)
+        return CompiledElementSpec(node.path, component, {}, parameters, visual, node.members)
 
     @staticmethod
-    def _compiled_interaction(node: Node) -> CompiledInteraction:
+    def _compiled_interaction(node: NodeSpec) -> CompiledInteractionSpec:
         """Return the compiled interaction of a quantum system with the paths its roles bind to."""
         component = node.component
         roles = {
             name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
         }
-        return CompiledInteraction(node.path, component, roles)
+        return CompiledInteractionSpec(node.path, component, roles)
 
     @staticmethod
     def _compile_quantum(
@@ -773,7 +526,7 @@ class QuantumCompiler(BaseCompiler):
         *,
         initial: object = None,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
-    ) -> QuantumProblem:
+    ) -> QuantumProblemSpec:
         """Compile a system of quantum elements into a problem of the quantum form.
 
         Args:
@@ -812,7 +565,7 @@ class QuantumCompiler(BaseCompiler):
         QuantumCompiler._check_dimension(nodes, list(dimensions), max_dimension)
         entries, values, symbols = QuantumCompiler._parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
-        lowering = _Lowering(time, subsystems, dimensions, QuantumCompiler._arguments_of(entries, symbols))
+        lowering = _LoweringSpec(time, subsystems, dimensions, QuantumCompiler._arguments_of(entries, symbols))
         groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
         laws = _Laws()
         members = QuantumCompiler._element_laws(quantum, subsystems, symbols, time, laws)
@@ -825,15 +578,15 @@ class QuantumCompiler(BaseCompiler):
         dissipators = QuantumCompiler._dissipator_terms(laws, lowering, p)
         state = QuantumCompiler._stored_state(system, initial, subsystems, hamiltonian, p, bool(dissipators))
         pure = state.ndim == 1
-        state_entry = Entry(f'{system.label}.state', 0, state.shape, CC, None, is_complex=True)
+        state_entry = EntrySpec(f'{system.label}.state', 0, state.shape, CC, None, is_complex=True)
         elements = tuple(QuantumCompiler._compiled_element(node) for node in quantum)
         interactions = tuple(
             QuantumCompiler._compiled_interaction(node) for node in nodes if isinstance(node.component, BaseInteraction)
         )
-        return QuantumProblem(
-            form=Form.QUANTUM,
-            states=Layout((state_entry,)),
-            parameters=Layout(tuple(entries)),
+        return QuantumProblemSpec(
+            form=FormKind.QUANTUM,
+            states=LayoutSpec((state_entry,)),
+            parameters=LayoutSpec(tuple(entries)),
             initial_state=state_entry.encode(state),
             initial_parameters=p,
             time=time,
@@ -858,9 +611,9 @@ class QuantumCompiler(BaseCompiler):
         return '_'.join(part for part in re.split(r'\W+', path) if part)
 
     @staticmethod
-    def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Array], dict[str, Any]]:
+    def _parameters(nodes: list[NodeSpec]) -> tuple[list[EntrySpec], list[Array], dict[str, Any]]:
         """Return the parameter entries, initial values, and symbols of every component, per member for groups."""
-        entries: list[Entry] = []
+        entries: list[EntrySpec] = []
         values: list[Array] = []
         symbols: dict[str, Any] = {}
         for node in nodes:
@@ -876,7 +629,7 @@ class QuantumCompiler(BaseCompiler):
                 values.append(
                     Declarations._coerce_value(name, node.value_of(variable), (), declaration.domain, members),
                 )
-                entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
+                entries.append(EntrySpec(name, sum(item.size for item in entries), shape, declaration.domain, members))
                 base = f'{variable}_{QuantumCompiler._name_of(node.path)}'
                 if members is None:
                     symbols[name] = symbol(base, declaration.domain)
@@ -898,6 +651,6 @@ class QuantumCompiler(BaseCompiler):
             found:
                 Whether any element of the tree is quantum.
         """
-        if any(QuantumView._is_quantum(element) for element in system.elements):
+        if any(QuantumViewSpec._is_quantum(element) for element in system.elements):
             return True
         return any(QuantumCompiler._contains_quantum(child) for child in system.systems)

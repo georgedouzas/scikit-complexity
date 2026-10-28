@@ -15,22 +15,29 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...core.elements import Element
-from ...core.laws.utils import Reduction, reductions_in
+from ...core.laws.utils import reductions_in
 from ...core.system import System
 from ...errors import RoleError, ValidationError
-from ...specs import ObservableSpec, StateSpec
-from ...types import AgentsOf, Array, Getter
+from ...specs import (
+    BaseProblemSpec,
+    EntrySpec,
+    NodeSpec,
+    ObservableSpec,
+    ProblemSpec,
+    ReadSpec,
+    ReductionScheduleSpec,
+    ReductionSpec,
+    ReferenceSpec,
+    StateSpec,
+)
+from ...specs._held_reduction_spec import _HeldReductionSpec
+from ...specs._recorded_spec import _RecordedSpec
+from ...types import AgentsOf, Array, FormKind, Getter, ReadKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
-from ..problems import BaseProblem, Entry, ExpressionPrinter, Form, Problem, VariableKind
-from ..problems._read_kind import ReadKind
-from ..problems._reads import Read
+from ..problems import ExpressionPrinter
 from ..problems._reduction_kernel import ReductionKernel
-from ..problems._reduction_schedule import ReductionSchedule
-from ..problems._reference import Reference
-from ..problems._transfer_network import _Recorded
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
-from ._tree import Node
 
 type Declared = dict[str, tuple[str, ObservableSpec]]
 
@@ -48,7 +55,7 @@ def _role_paths(system: System, scope: str = '') -> set[str]:
     return paths
 
 
-def _readers_of(problem: Problem, path: str) -> set[str]:
+def _readers_of(problem: ProblemSpec, path: str) -> set[str]:
     """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
     readers: set[str] = set()
     for interaction in problem.interactions:
@@ -60,7 +67,7 @@ def _readers_of(problem: Problem, path: str) -> set[str]:
     return readers
 
 
-def _held_label(reduction: '_HeldReduction', labels: set[str]) -> str:
+def _held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
     """Return a label for the element that holds a reduction of a group, unique among the labels of its system."""
     base = f'{reduction.group.rpartition("/")[2]}_{reduction.reduce}'
     label, index = base, 1
@@ -89,7 +96,7 @@ def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obse
         yield from _observables_of(child, ObservableEvaluator._join(scope, child.label))
 
 
-def _with_held_reductions(system: System, reductions: Sequence['_HeldReduction'], scope: str = '') -> System:
+def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSpec'], scope: str = '') -> System:
     """Return a system tree that holds every reduction of agents in an element of the system of its group.
 
     Args:
@@ -141,7 +148,7 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
             )
             raise ValidationError(error_msg)
         variables = (observable.variable,) if observable.variable is not None else ()
-        reduction = _HeldReduction(ObservableEvaluator._join(scope, observable.group), observable.reduce, variables)
+        reduction = _HeldReductionSpec(ObservableEvaluator._join(scope, observable.group), observable.reduce, variables)
         elements.append(_HeldElement(observable.label, reduction=reduction))
         held.append(path)
     children = []
@@ -157,7 +164,7 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
     return copied, held
 
 
-def _held_observables(system: System, nodes: list[Node]) -> set[str]:
+def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
     """Return the paths of the observables that roles bind to and laws read only at synchronisation points.
 
     Args:
@@ -176,7 +183,7 @@ def _held_observables(system: System, nodes: list[Node]) -> set[str]:
     return (_role_paths(system) & declared) - set(lowerable)
 
 
-def _check_held_reads(problem: Problem, held: list[str]) -> None:
+def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
     groups = {
         ObservableEvaluator._join(scope, observable.label): ObservableEvaluator._join(scope, observable.group or '')
@@ -185,7 +192,7 @@ def _check_held_reads(problem: Problem, held: list[str]) -> None:
     for path in held:
         readers = _readers_of(problem, path)
         shared = [item.name for item in problem.partitions if groups[path] in item.owners and readers & item.owners]
-        if problem.form != Form.COUPLED or shared:
+        if problem.form != FormKind.COUPLED or shared:
             error_msg = (
                 f'A law reads the observable {path} in the partition that computes it, but the observable is a Python '
                 'function of the values or reduces agents, which laws cannot read at the current state. Write it '
@@ -203,125 +210,13 @@ class _HeldElement(Element):
         label: str,
         value: Annotated[float, StateSpec()] = 0.0,
         *,
-        reduction: '_HeldReduction | None' = None,
+        reduction: '_HeldReductionSpec | None' = None,
     ) -> None:
         super().__init__(label)
         self.value = value
         self.reduction = reduction
 
 
-@dataclass(frozen=True)
-class _HeldReduction:
-    """Reduction of a group that a co-simulation computes at every synchronisation point and holds until the next."""
-
-    group: str
-    reduce: str | Callable[[Any], Any]
-    variables: tuple[str, ...] = ()
-    symbols: tuple[Expression, ...] = ()
-    argument: Expression | None = None
-    condition: Expression | None = None
-
-    @property
-    def key(self) -> tuple[str, ...]:
-        """Group, reduction, argument, and condition, which identify the reduction."""
-        return (self.group, str(self.reduce), str(self.argument), str(self.condition))
-
-    def reducer(self, time: Expression) -> Callable[[float, Sequence[Array], Sequence[Any]], float]:
-        """Return the function of time, the values of the variables, and the members that computes the reduction.
-
-        Args:
-            time:
-                The time symbol.
-
-        Returns:
-            reducer:
-                The function.
-        """
-        reduce = self.reduce
-        if self.argument is None:
-
-            def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
-                del t
-                return float(np.real(ReductionKernel._reduce_values(columns[0] if columns else members, reduce)))
-
-            return reduce_values_of
-        condition = SR(1) if self.condition is None else self.condition
-        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(self.symbols))
-        function = printer.run([self.argument, condition])
-
-        def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[Any]) -> float:
-            size = len(members)
-            argument, selected = (
-                np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
-            )
-            return float(np.real(ReductionKernel._reduce_values(argument[selected.astype(bool)], reduce)))
-
-        return reduce_expression
-
-    @staticmethod
-    def _held_reduction(
-        reduction: Reduction,
-        agents: Mapping[Expression, tuple[str, str]],
-        time: Expression,
-        owner: str,
-    ) -> '_HeldReduction | None':
-        """Return the held reduction of a reduction of agents, or `None` for a reduction of elements.
-
-        Args:
-            reduction:
-                The reduction a law reads.
-
-            agents:
-                The path of the agent group and the variable of every symbol of agents.
-
-            time:
-                The time symbol.
-
-            owner:
-                The path of the component whose law reads the reduction.
-
-        Returns:
-            held:
-                The held reduction, or `None`.
-
-        Raises:
-            RoleError:
-                The reduction reads the agents of more than one group.
-
-            ValidationError:
-                The reduction has weights, or reads a symbol that is not a variable of the agents.
-        """
-        expressions = [SR(reduction.argument), *([SR(reduction.condition)] if reduction.condition is not None else [])]
-        symbols = symbols_of(expressions) - {time}
-        read = symbols | ({reduction.over} if reduction.over is not None else set())
-        groups = {agents[item][0] for item in read if item in agents}
-        if not groups:
-            return None
-        if len(groups) > 1:
-            error_msg = (
-                f'The reduction {reduction.call} of {owner} reads the agents of {" and ".join(sorted(groups))}. A '
-                'reduction reduces over one group, so write one reduction per group.'
-            )
-            raise RoleError(error_msg)
-        group = next(iter(groups))
-        others = sorted(str(item) for item in symbols if item not in agents or agents[item][0] != group)
-        if reduction.weights is not None or others:
-            error_msg = (
-                f'The reduction {reduction.call} of {owner} reduces the agents of {group}, which a co-simulation '
-                'computes at its synchronisation points from the scalar states and parameters of the agents alone, '
-                f'without weights{", but it reads " + ", ".join(others) if others else ""}. Reduce an expression of '
-                'the agents.'
-            )
-            raise ValidationError(error_msg)
-        ordered = tuple(sorted((item for item in symbols if agents[item][1]), key=str))
-        return _HeldReduction(
-            group,
-            reduction.kind,
-            tuple(agents[item][1] for item in ordered),
-            ordered,
-            SR(reduction.argument),
-            None if reduction.condition is None else SR(reduction.condition),
-        )
 
 
 @dataclass
@@ -331,7 +226,7 @@ class _MemberReductions:
     path: str
     group: str
     size: int
-    reads: dict[Expression, Read]
+    reads: dict[Expression, ReadSpec]
     time: Expression
     parameters: int
     found: dict[str, ReductionKernel] = field(default_factory=dict)
@@ -341,7 +236,7 @@ class _MemberReductions:
         """Size of the parameter vector extended by the values of the reductions."""
         return max((item.entry.start + item.entry.size for item in self.found.values()), default=self.parameters)
 
-    def _check_over(self, reduction: Reduction) -> None:
+    def _check_over(self, reduction: ReductionSpec) -> None:
         """Raise an error when a reduction reduces over a group other than the observable's group."""
         read = self.reads.get(reduction.over) if reduction.over is not None else None
         if reduction.over is None or (read is not None and read.per_member):
@@ -353,7 +248,7 @@ class _MemberReductions:
         )
         raise RoleError(error_msg)
 
-    def _read(self, item: Expression) -> Read:
+    def _read(self, item: Expression) -> ReadSpec:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item not in self.reads:
             error_msg = (
@@ -364,7 +259,7 @@ class _MemberReductions:
             raise ValidationError(error_msg)
         return self.reads[item]
 
-    def _weights(self, reduction: Reduction) -> Any:  # noqa: ANN401
+    def _weights(self, reduction: ReductionSpec) -> Any:  # noqa: ANN401
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
@@ -381,7 +276,7 @@ class _MemberReductions:
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(weights, dtype=float)
 
-    def _placeholder(self, reduction: Reduction) -> Expression:
+    def _placeholder(self, reduction: ReductionSpec) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""
         key = str(reduction.call)
         if key in self.found:
@@ -400,7 +295,7 @@ class _MemberReductions:
         index = len(self.found)
         shape = (self.size,) if weights is not None else ()
         members = self.size if weights is not None else None
-        entry = Entry(f'__observed_{index}', self.extent, shape, RR, members)
+        entry = EntrySpec(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
         self.found[key] = ReductionKernel(
@@ -416,7 +311,7 @@ class _MemberReductions:
             self.time,
         ).check()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
-        self.reads[placeholder] = Read(False, indices, entry)
+        self.reads[placeholder] = ReadSpec(False, indices, entry)
         return placeholder
 
     def lower(self, expression: Any) -> Any:  # noqa: ANN401
@@ -455,7 +350,7 @@ class ObservableEvaluator:
         {'total': 8.0}
     """
 
-    def __init__(self, problem: BaseProblem) -> None:
+    def __init__(self, problem: BaseProblemSpec) -> None:
         self.problem = problem
 
     def prepare(self) -> Self:
@@ -506,7 +401,7 @@ class ObservableEvaluator:
             for entry in layout.entries:
                 if entry.members is not None or entry.name not in self.problem.symbols:
                     continue
-                for column, item in enumerate(Problem._real_components_of(self.problem.symbols[entry.name])):
+                for column, item in enumerate(ProblemSpec._real_components_of(self.problem.symbols[entry.name])):
                     sources[item] = (name, entry.start + column)
         return sources
 
@@ -544,7 +439,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: _Recorded) -> Getter:
+    def _recorded_getter(self, recorded: _RecordedSpec) -> Getter:
         """Return the getter of a flow or an objective, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Array, Array], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
@@ -586,7 +481,7 @@ class ObservableEvaluator:
         transfer_network = self.problem.transfer_network
         if transfer_network is None or not isinstance(expression, Expression):
             return expression, {}
-        references: dict[Expression, Reference] = {}
+        references: dict[Expression, ReferenceSpec] = {}
         for delay in transfer_network.delays:
             expression = SR(expression).subs({delay.call: delay.output})
             references.update(delay.references)
@@ -637,19 +532,19 @@ class ObservableEvaluator:
                 error_msg = f'ObservableSpec {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(size)
-        members: dict[Expression, Read] = {}
+        members: dict[Expression, ReadSpec] = {}
         for name in names.values():
             entry = self._entry(name)
             is_state = self.problem.states.has(name)
-            for column, item in enumerate(Problem._real_components_of(self.problem.symbols[name])):
+            for column, item in enumerate(ProblemSpec._real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
-                members[item] = Read(is_state, indices, entry, column, entry.columns)
+                members[item] = ReadSpec(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        scalars = {item: Read(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        scalars = {item: ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         lowering = _MemberReductions(
             path,
             group,
@@ -661,7 +556,7 @@ class ObservableEvaluator:
         expression = lowering.lower(expression)
         readers = {item: self._read_of(read) for item, read in lowering.reads.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
-        reductions = ReductionSchedule(tuple(lowering.found.values()), lowering.parameters)
+        reductions = ReductionScheduleSpec(tuple(lowering.found.values()), lowering.parameters)
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
@@ -725,7 +620,7 @@ class ObservableEvaluator:
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: Read) -> Callable[[Array, Array], Any]:
+    def _read_of(read: ReadSpec) -> Callable[[Array, Array], Any]:
         """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
         return ObservableEvaluator._from_vector(read.is_state, read.index)
 
@@ -767,7 +662,7 @@ class ObservableEvaluator:
         return real if _is_zero(imaginary) else real + I * imaginary
 
     @staticmethod
-    def _entry_of(problem: BaseProblem, name: str) -> Entry | None:
+    def _entry_of(problem: BaseProblemSpec, name: str) -> EntrySpec | None:
         """Return the entry of a state or parameter of a problem by name, or `None`."""
         for layout in (problem.states, problem.parameters):
             if layout.has(name):
@@ -794,7 +689,7 @@ class ObservableEvaluator:
         return SimpleNamespace(**{key: build(value) for key, value in nested.items()}, **root)
 
     @staticmethod
-    def _namespace_of(problem: BaseProblem, scope: str = '') -> SimpleNamespace:
+    def _namespace_of(problem: BaseProblemSpec, scope: str = '') -> SimpleNamespace:
         """Return the namespace of the states and parameters of the single elements and interactions of a system.
 
         The namespace nests the symbols by their dotted names, so `s.plant.x` is the state `plant.x`, and
@@ -836,7 +731,7 @@ class ObservableEvaluator:
         return f'{scope}/{path}' if scope else path
 
     @staticmethod
-    def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, Node]) -> bool:
+    def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, NodeSpec]) -> bool:
         """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
         if observable.group is None:
             return True
@@ -844,7 +739,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _lowerable_observables(system: System, nodes: list[Node]) -> Declared:
+    def _lowerable_observables(system: System, nodes: list[NodeSpec]) -> Declared:
         """Return every observable of a system tree that laws can read at the current state, by path.
 
         An expression of a system's symbols is lowerable when every observable declared before it in its system is.
@@ -860,7 +755,7 @@ class ObservableEvaluator:
         return lowerable
 
     @staticmethod
-    def _held_reductions_of(problem: BaseProblem) -> list[tuple[str, '_HeldReduction']]:
+    def _held_reductions_of(problem: BaseProblemSpec) -> list[tuple[str, '_HeldReductionSpec']]:
         """Return the reductions that a co-simulation computes at every synchronisation point, with where it holds them.
 
         A law of one partition reads a reduction of the agents of another, such as `count(s.farmers)`, through an

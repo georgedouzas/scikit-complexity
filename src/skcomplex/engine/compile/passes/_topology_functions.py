@@ -12,18 +12,22 @@ from sage.all__sagemath_symbolics import SR
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
 from ....errors import ValidationError
-from ....specs import TopologyRequestSpec
-from ....types import Array
+from ....specs import (
+    CapacityRowsSpec,
+    CompiledRequestSpec,
+    EntrySpec,
+    LayoutSpec,
+    LoweredKernelsSpec,
+    NetworkRowsSpec,
+    OutputSpec,
+    ReductionScheduleSpec,
+    TopologyRequestSpec,
+)
+from ....specs._weight_spec import _WeightSpec
+from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
-from ...problems import Entry, Layout, VariableKind
-from ...problems._capacity_rows import CapacityRows
-from ...problems._compiled_request import CompiledRequest
 from ...problems._edge_search import EdgeSearch
 from ...problems._law_kernel import LawKernel
-from ...problems._lowered_kernels import LoweredKernels
-from ...problems._network_rows import NetworkRows
-from ...problems._output import Output
-from ...problems._reduction_schedule import ReductionSchedule
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
@@ -31,7 +35,6 @@ from .._compilation import Laws
 from .._declarations import _ACTIVE, ENDS, Declarations
 from .._kernel_spec import KernelSpec
 from ._specs import SpecsPass
-from ._weight import _Weight
 
 
 class TopologyFunctionsPass(BasePass):
@@ -49,10 +52,10 @@ class TopologyFunctionsPass(BasePass):
         """Compile the topology changes of the networks."""
         compilation = self.compilation_
         topology = self._topology(
-            cast('LoweredKernels', compilation.kernels),
+            cast('LoweredKernelsSpec', compilation.kernels),
             cast('Laws', compilation.reduced_apart),
             cast('Declarations', compilation.layout),
-            cast('ReductionSchedule', compilation.reductions),
+            cast('ReductionScheduleSpec', compilation.reductions),
             compilation.request_jumps,
         )
         if topology is not None and (topology.requests or topology.channels):
@@ -62,7 +65,7 @@ class TopologyFunctionsPass(BasePass):
     @staticmethod
     def _request_kernel(spec: KernelSpec, value: object, declarations: Declarations) -> LawKernel:
         """Return the kernel of the probability or the weight of a request for every row of its spec."""
-        states, parameters = Layout(tuple(declarations.states)), Layout(tuple(declarations.parameters))
+        states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         expression = SR(value)
         return LawKernel(
             spec.owner,
@@ -72,17 +75,17 @@ class TopologyFunctionsPass(BasePass):
             states,
             parameters,
             spec.pairs,
-            [Output(None, expression)],
+            [OutputSpec(None, expression)],
         ).check()
 
     @staticmethod
     def _compiled_request(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        networks: dict[int, NetworkRows],
+        networks: dict[int, NetworkRowsSpec],
         weights: dict[int, LawKernel],
         declarations: Declarations,
-    ) -> CompiledRequest:
+    ) -> CompiledRequestSpec:
         """Return a request of a spec with its network, its rows, and the kernel of its weights."""
         space, rows = TopologyFunctionsPass._request_network(spec, declarations)
         network = networks.get(id(space))
@@ -99,19 +102,19 @@ class TopologyFunctionsPass(BasePass):
         if needs is not None and needs != rows:
             error_msg = f'{spec.owner} requests {request!r}, which runs for every {needs}, from laws of every {rows}.'
             raise ValidationError(error_msg)
-        return CompiledRequest(request, spec.owner, network, rows, toward=weights.get(id(request)))
+        return CompiledRequestSpec(request, spec.owner, network, rows, toward=weights.get(id(request)))
 
     @staticmethod
     def _is_weight(law: BaseLaw) -> bool:
         """Check whether a law sets the weight of the candidate nodes of a request."""
-        return isinstance(next(iter(law._get_targets()), None), _Weight)
+        return isinstance(next(iter(law._get_targets()), None), _WeightSpec)
 
     @staticmethod
     def _topology(
-        lowered: LoweredKernels,
+        lowered: LoweredKernelsSpec,
         apart: Laws,
         declarations: Declarations,
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
         jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]],
     ) -> TopologyKernel | None:
         """Return the topology pass of the variable groups of networks and the requests of laws, or `None` if none."""
@@ -155,7 +158,7 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).check()
 
     @staticmethod
-    def _capacity_rows(block: Block, declarations: Declarations) -> CapacityRows:
+    def _capacity_rows(block: Block, declarations: Declarations) -> CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
@@ -172,7 +175,7 @@ class TopologyFunctionsPass(BasePass):
         node = block.node
         element = node.component_type
         states = declarations_of(element, VariableKind.STATE)
-        variables: dict[str, tuple[Entry, bool]] = {}
+        variables: dict[str, tuple[EntrySpec, bool]] = {}
         defaults: dict[str, Array] = {}
         for name, entry in block.entries.items():
             if name in {_ACTIVE, *ENDS}:
@@ -182,10 +185,10 @@ class TopologyFunctionsPass(BasePass):
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = Declarations._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
-        return CapacityRows(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
+        return CapacityRowsSpec(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
 
     @staticmethod
-    def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
+    def _networks(declarations: Declarations) -> dict[int, NetworkRowsSpec]:
         """Return the variable groups of every network whose groups are variable, by the identity of the space."""
         spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
         networks = {}
@@ -209,7 +212,7 @@ class TopologyFunctionsPass(BasePass):
                 for layer, block in declarations.changing_edges(space).items()
             }
             directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
-            networks[key] = NetworkRows(nodes, edges, directed)
+            networks[key] = NetworkRowsSpec(nodes, edges, directed)
         return networks
 
     @staticmethod

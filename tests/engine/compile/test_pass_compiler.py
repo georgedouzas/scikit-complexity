@@ -3,13 +3,12 @@
 import pytest
 
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PassCompiler, QuantumCompiler, RewritingCompiler, ValidationReport
-from skcomplex.engine.problems import Problem
+from skcomplex.engine.compile import PassCompiler, QuantumCompiler, RewritingCompiler
 from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.errors import NotCheckedError, SolverError, ValidationError
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.physics.common.quantum import QubitElement
-from skcomplex.specs import ObservableSpec
+from skcomplex.specs import ObservableSpec, ProblemSpec, ValidationReportSpec
 
 
 def _growth():
@@ -24,10 +23,10 @@ def test_compiler_prepares_its_report_and_runs_to_the_problem():
     """Test that `prepare` sets the report of a system and `run` returns its problem."""
     compiler = PassCompiler().check().prepare(_growth())
     assert compiler.claims_
-    assert isinstance(compiler.report_, ValidationReport)
+    assert isinstance(compiler.report_, ValidationReportSpec)
     assert compiler.report_.ok
     problem = compiler.run({'rabbits.n': 20})
-    assert isinstance(problem, Problem)
+    assert isinstance(problem, ProblemSpec)
     assert problem.initial_state.tolist() == [20.0]
 
 

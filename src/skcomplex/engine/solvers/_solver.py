@@ -9,22 +9,22 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
+from ...specs import ProblemSpec
 from ...types import Array
-from ..problems import Problem
 from ._base import BaseSolver
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._renewals import RenewalClock
 
 
-class Solver(BaseSolver[Problem]):
+class Solver(BaseSolver[ProblemSpec]):
     """Base of the solvers of the compiler's problem, which run its events, renewals, delays, and boundary laws.
 
     Every call to `run` receives the current parameters, so parameter changes apply at the next call, and applies the
     boundary laws of the problem after every internal step.
     """
 
-    def _check_capabilities(self, problem: Problem) -> None:
+    def _check_capabilities(self, problem: ProblemSpec) -> None:
         """Raise an error for renewal laws or fractional noise of a problem that the stepper lacks."""
         name = type(self).__name__
         if problem.renewals and not self._is_renewing():
@@ -75,7 +75,7 @@ class Solver(BaseSolver[Problem]):
             time = bound
         return state
 
-    def _warm(self, problem: Problem) -> None:
+    def _warm(self, problem: ProblemSpec) -> None:
         """Call every numeric function of the problem once, so compiled backends finish compiling before a run."""
         x, p = self.initial_state_.copy(), problem.initial_parameters.copy()
         rng = np.random.default_rng(0)
@@ -100,7 +100,7 @@ class Solver(BaseSolver[Problem]):
         if accelerated.iterate is not None:
             accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
 
         Args:

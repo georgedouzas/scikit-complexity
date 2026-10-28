@@ -6,7 +6,7 @@
 from abc import abstractmethod
 
 from ...errors import BackendError
-from ..problems import Problem
+from ...specs import ProblemSpec
 from ._solver import Solver
 
 
@@ -30,7 +30,7 @@ class ExternalSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _unsupported(self, problem: Problem) -> list[str]:
+    def _unsupported(self, problem: ProblemSpec) -> list[str]:
         """Return a description of every element, interaction, or law of a problem the library cannot run.
 
         Args:
@@ -48,7 +48,7 @@ class ExternalSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _build(self, problem: Problem) -> None:
+    def _build(self, problem: ProblemSpec) -> None:
         """Build the library model of a supported problem, drawing its seeds from the generator `rng_`.
 
         Args:
@@ -61,7 +61,7 @@ class ExternalSolver(Solver):
         """
         raise NotImplementedError
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Check that the library supports a problem and build its model.
 
         Args:

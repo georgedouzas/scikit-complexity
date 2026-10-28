@@ -12,7 +12,6 @@ from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.engine._utils import symbol
-from skcomplex.engine.problems import LocalOperator, Operator, QuantumView
 from skcomplex.errors import ValidationError
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
@@ -23,31 +22,32 @@ from skcomplex.models.physics.common.quantum import (
     site_space,
     spin_space,
 )
+from skcomplex.specs import LocalOperatorSpec, OperatorSpec, QuantumViewSpec
 
 
 def _namespace(element, key):
     """Return the local operators of an element by name, each as an operator on the subsystem of a key."""
-    operators = QuantumView(element).local_operators()
-    return SimpleNamespace(**{name: Operator({((key, local),): 1}) for name, local in operators.items()})
+    operators = QuantumViewSpec(element).local_operators()
+    return SimpleNamespace(**{name: OperatorSpec({((key, local),): 1}) for name, local in operators.items()})
 
 
 def test_spin_local_operators_match_qutip():
     """Test that spin operators are QuTiP's angular momentum matrices."""
-    operators = QuantumView(SpinElement('s', hilbert=spin_space(1))).local_operators()
+    operators = QuantumViewSpec(SpinElement('s', hilbert=spin_space(1))).local_operators()
     for name, component in (('x', 'x'), ('y', 'y'), ('z', 'z'), ('plus', '+'), ('minus', '-')):
         assert np.allclose(operators[name].matrix.toarray(), qutip.jmat(1, component).full())
 
 
 def test_qubit_local_operators_are_pauli_matrices():
     """Test that qubit operators are the Pauli matrices and their ladder operators."""
-    operators = QuantumView(QubitElement('q')).local_operators()
+    operators = QuantumViewSpec(QubitElement('q')).local_operators()
     assert np.allclose(operators['x'].matrix.toarray(), qutip.sigmax().full())
     assert np.allclose(operators['minus'].matrix.toarray(), qutip.sigmam().full())
 
 
 def test_mode_local_operators_match_qutip():
     """Test that mode operators are QuTiP's truncated ladder and number operators."""
-    operators = QuantumView(ModeElement('a', hilbert=mode_space(4))).local_operators()
+    operators = QuantumViewSpec(ModeElement('a', hilbert=mode_space(4))).local_operators()
     assert np.allclose(operators['annihilate'].matrix.toarray(), qutip.destroy(5).full())
     assert np.allclose(operators['number'].matrix.toarray(), qutip.num(5).full())
 
@@ -55,22 +55,22 @@ def test_mode_local_operators_match_qutip():
 def test_dimension_rejects_an_element_without_a_hilbert_space():
     """Test that a subsystem without a Hilbert space raises an error."""
     with pytest.raises(ValidationError, match='takes no HilbertSpec'):
-        _ = QuantumView(SiteElement('p')).dimension
+        _ = QuantumViewSpec(SiteElement('p')).dimension
 
 
 def test_initial_vector_resolves_labels_and_vectors():
     """Test that initial states come from labels, indices, and normalised vectors."""
-    assert QuantumView(SpinElement('s', psi='down')).initial_vector().tolist() == [0, 1]
-    assert QuantumView(ModeElement('a', psi=2, hilbert=mode_space(2))).initial_vector().tolist() == [0, 0, 1]
+    assert QuantumViewSpec(SpinElement('s', psi='down')).initial_vector().tolist() == [0, 1]
+    assert QuantumViewSpec(ModeElement('a', psi=2, hilbert=mode_space(2))).initial_vector().tolist() == [0, 0, 1]
     vector = np.array([1, 1j]) / np.sqrt(2)
-    assert np.allclose(QuantumView(QubitElement('q', psi=vector)).initial_vector(), vector)
+    assert np.allclose(QuantumViewSpec(QubitElement('q', psi=vector)).initial_vector(), vector)
 
 
 @pytest.mark.parametrize('initial', ['left', 7, [1.0, 1.0]])
 def test_initial_vector_rejects_unknown_states(initial):
     """Test that unknown labels and unnormalised vectors raise an error."""
     with pytest.raises(ValidationError, match=r'basis state|Normalise'):
-        QuantumView(QubitElement('q', psi=initial)).initial_vector()
+        QuantumViewSpec(QubitElement('q', psi=initial)).initial_vector()
 
 
 def test_operator_exchange_term_has_three_terms():
@@ -105,7 +105,7 @@ def test_operator_adjoint_reverses_and_conjugates():
     a, m = _namespace(QubitElement('q'), 'q'), _namespace(ModeElement('m', hilbert=mode_space(4)), 'm')
     adjoint = (1j * a.plus * m.annihilate).adjoint()
     assert adjoint.text == '(-1j)*m.create*q.minus'
-    assert LocalOperator('hop', qutip.sigmap()).adjoint().adjoint().name == 'hop'
+    assert LocalOperatorSpec('hop', qutip.sigmap()).adjoint().adjoint().name == 'hop'
 
 
 def test_laws_reject_values_that_are_not_operators():
@@ -129,7 +129,7 @@ def test_neighbor_pairs_list_lattice_and_network_bonds():
 def test_site_operators_hold_projectors_and_the_adjacency():
     """Test that a particle on sites has projectors, the adjacency, and the Laplacian of its network."""
     site = SiteElement('p', hilbert=site_space(NetworkSpace(nx.cycle_graph(4)), projectors=True))
-    operators = QuantumView(site).local_operators()
+    operators = QuantumViewSpec(site).local_operators()
     assert operators['site_2'].matrix.toarray()[2, 2] == 1
     assert operators['adjacency'].matrix.sum() == 8
     assert operators['laplacian'].matrix.toarray()[0, 0] == -2

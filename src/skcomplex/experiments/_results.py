@@ -5,51 +5,11 @@
 
 from collections import defaultdict
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
-
-@dataclass(frozen=True)
-class _RunResult:
-    """Result of one run of an experiment.
-
-    Args:
-        index:
-            The position of the run in the experiment.
-
-        row:
-            The design values.
-
-        scenario:
-            The name of the scenario.
-
-        replicate:
-            The replicate number.
-
-        seed:
-            The index of the run's random stream among the streams of the experiment.
-
-        times:
-            The times of the kept series.
-
-        series:
-            The kept series by path.
-
-        scalars:
-            The scalar outputs by name: the last value of every kept scalar series, the values of output functions,
-            and the results of the analyses.
-    """
-
-    index: int
-    row: dict[str, object]
-    scenario: str
-    replicate: int
-    seed: int
-    times: npt.NDArray[np.float64]
-    series: dict[str, npt.NDArray[np.generic]]
-    scalars: dict[str, object]
+from ..specs._run_result_spec import _RunResultSpec
 
 
 class ExperimentResult:
@@ -67,7 +27,7 @@ class ExperimentResult:
         [0.1, 0.2]
     """
 
-    def __init__(self, runs: Sequence[_RunResult]) -> None:
+    def __init__(self, runs: Sequence[_RunResultSpec]) -> None:
         self.runs = list(runs)
 
     @property
@@ -159,7 +119,7 @@ class ExperimentResult:
                 One row per design row and scenario, with `<output>.mean`, `<output>.std`, and `<output>.q<quantile>`
                 columns and the number of replicates as `runs`.
         """
-        groups: dict[tuple[object, ...], list[_RunResult]] = defaultdict(list)
+        groups: dict[tuple[object, ...], list[_RunResultSpec]] = defaultdict(list)
         for run in self.runs:
             groups[(tuple(run.row.items()), run.scenario)].append(run)
         summary = []

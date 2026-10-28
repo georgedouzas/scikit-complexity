@@ -16,13 +16,22 @@ from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, Subs
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import RewritingCompiler, compile_system
-from skcomplex.engine.problems import Form, PatchStructure, WordStructure
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import StructureState
 from skcomplex.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.models.biology.ecology import PopulationElement
-from skcomplex.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
-from skcomplex.types import Letters
+from skcomplex.specs import (
+    AffineSpec,
+    GeometrySpec,
+    Letters,
+    ModuleSpec,
+    ParameterSpec,
+    PatchStructureSpec,
+    PrototileSpec,
+    StateSpec,
+    StructureStateSpec,
+    WordStructureSpec,
+)
+from skcomplex.types import FormKind
 
 X = symbol('x')
 
@@ -135,7 +144,7 @@ def _subdivision():
 def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
-    assert compile_system(system).form == Form.REWRITING
+    assert compile_system(system).form == FormKind.REWRITING
     trajectory = Simulation(system).check().run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
     assert trajectory.values('word.size').tolist() == [1, 2, 3, 5, 8, 13]
@@ -271,7 +280,7 @@ def test_benchmark_of_a_large_word():
         System(elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])]),
     )
     compiled = problem.rewriting[0]
-    word = WordStructure(tuple(compiled.names), np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
+    word = WordStructureSpec(tuple(compiled.names), np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
     rewritten = compiled._rewrite(word, problem.initial_parameters, np.random.default_rng(0))
     assert time.perf_counter() - start < 0.1
@@ -419,7 +428,7 @@ def test_structure_of_a_generation():
     """Test that a recorded structure is a copy that later generations do not change."""
     trajectory = _cantor(4)
     patch = trajectory.structure('cantor', 2)
-    assert isinstance(patch, PatchStructure)
+    assert isinstance(patch, PatchStructureSpec)
     assert patch.parts == 4
     assert not patch.matrices.flags.writeable
     assert patch.length() == pytest.approx(4 / 9)
@@ -590,13 +599,13 @@ def test_rewriting_compiler_prepares_its_claim_and_runs_the_problem():
     assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
     assert compiler.prepare(words).claims_
     problem = compiler.run()
-    assert problem.form == Form.REWRITING
+    assert problem.form == FormKind.REWRITING
 
 
 def test_snapshot_is_a_structure_state():
     """Test that the rewriter hands its structures and measures to the simulation as a structure state."""
     snapshot = Simulation(System(elements=[AlgaeElement('algae', axiom='A')])).check().run(until=2).stepper_.snapshot_
-    assert isinstance(snapshot, StructureState)
+    assert isinstance(snapshot, StructureStateSpec)
     assert snapshot.structures['algae'].parts == 3
 
 

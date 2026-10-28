@@ -12,9 +12,8 @@ import numpy.typing as npt
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = (
     'histogram',

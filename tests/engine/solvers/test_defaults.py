@@ -1,11 +1,11 @@
 """Test the `_defaults` module of `skcomplex.engine.solvers`."""
 
 from skcomplex.core.system import System
-from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.types import FormKind
 
 
 def test_default_solvers_solve_their_form():
@@ -21,7 +21,7 @@ def test_simulation_without_a_solver_runs_the_default_solver():
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     simulation = Simulation(system).check().run(until=0.1)
-    assert type(simulation.stepper_) is DEFAULT_SOLVERS[Form.ODE] is ScipyODESolver
+    assert type(simulation.stepper_) is DEFAULT_SOLVERS[FormKind.ODE] is ScipyODESolver
 
 
 def test_simulation_runs_the_solver_instance_passed():

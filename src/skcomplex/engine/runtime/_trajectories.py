@@ -9,8 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..problems import BaseProblem, BaseRecord, NetworkSnapshot
-from ..solvers import AgentSnapshot
+from ...specs import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, NetworkSnapshotSpec
 
 
 class Trajectory:
@@ -63,15 +62,15 @@ class Trajectory:
 
     def __init__(
         self,
-        problem: BaseProblem,
+        problem: BaseProblemSpec,
         times: npt.NDArray[np.float64],
         states: npt.NDArray[np.float64],
         parameters: npt.NDArray[np.float64],
         *,
-        agents: Sequence[Mapping[str, AgentSnapshot]] = (),
+        agents: Sequence[Mapping[str, AgentSnapshotSpec]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[BaseRecord] = (),
+        events: Sequence[BaseRecordSpec] = (),
         structures: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem
@@ -126,7 +125,7 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
-    def member(self, index: int, problem: BaseProblem) -> 'Trajectory':
+    def member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
         """Return the trajectory of one member of a replicated system, as a trajectory of the original system.
 
         Args:
@@ -220,7 +219,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return self.values(name).reshape(len(self.times), *shape)
 
-    def agents(self, group: str, frame: int) -> AgentSnapshot:
+    def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame, with their ids, states, and locations.
 
         Args:
@@ -244,7 +243,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return groups[group]
 
-    def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
+    def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
         """Return the nodes and edges of a network whose topology changes, as they are at a frame.
 
         Args:

@@ -9,11 +9,10 @@ from typing import Any
 import numpy as np
 import scipy.sparse
 
+from ...specs import ReferenceSpec, RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
-from ._reference import Reference
-from ._state import State
 
 TIME = symbol('t')
 _STENCIL = 2
@@ -67,7 +66,7 @@ class FiniteVolumeKernel(BaseKernel):
         boundaries: tuple[tuple[str, float], ...],
         fluxes: tuple[Callable[..., Any], ...],
         jacobians: tuple[Callable[..., Any], ...],
-        parameters: tuple[Reference, ...],
+        parameters: tuple[ReferenceSpec, ...],
         limiter: str | None,
         riemann: str,
         critical: tuple[Callable[..., Any], ...] = (),
@@ -140,7 +139,7 @@ class FiniteVolumeKernel(BaseKernel):
                 padded.append(np.pad(values, width, mode='constant', constant_values=value))
         return padded
 
-    def _run(self, inputs: State) -> Array:
+    def _run(self, inputs: RunStateSpec) -> Array:
         """Return the rates of the conserved states, minus the divergence of the numerical fluxes, as a full vector."""
         x, p = inputs.x, inputs.p
         states = self._states(x)

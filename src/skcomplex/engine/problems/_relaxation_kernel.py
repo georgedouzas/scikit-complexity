@@ -10,13 +10,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SolverError
+from ...specs import LatticeStateSpec, RelaxationRecordSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
 from ._drive_kernel import DriveKernel
-from ._lattice_state import LatticeState
-from ._relaxation_record import RelaxationRecord
 from ._rule_kernel import RuleKernel
-from ._state import State
 
 
 class RelaxationKernel(BaseKernel):
@@ -50,7 +48,7 @@ class RelaxationKernel(BaseKernel):
         label: str,
         drive: tuple[RuleKernel | DriveKernel, ...],
         relax: tuple[RuleKernel | DriveKernel, ...],
-        targets: tuple[LatticeState, ...],
+        targets: tuple[LatticeStateSpec, ...],
         stable: Callable[..., bool],
         max_iterations: int,
         activity: Callable[..., Any] | None = None,
@@ -71,7 +69,7 @@ class RelaxationKernel(BaseKernel):
         """Check the stability condition on the current state."""
         return bool(self.stable(*self._arrays(x)))
 
-    def _run(self, inputs: State) -> RelaxationRecord | None:
+    def _run(self, inputs: RunStateSpec) -> RelaxationRecordSpec | None:
         """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
 
         The state vector of the state is updated in place, and the record holds the time of the state.
@@ -109,4 +107,4 @@ class RelaxationKernel(BaseKernel):
         if not duration:
             return None
         area = int(changed.sum()) if changed is not None else 0
-        return RelaxationRecord(self.label, time, size, duration, area)
+        return RelaxationRecordSpec(self.label, time, size, duration, area)

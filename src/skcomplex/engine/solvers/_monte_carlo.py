@@ -6,7 +6,8 @@
 
 from ...core.laws import BoundaryLaw, SampleLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ..problems import Form, OrderKind, SupportSpec
+from ...specs import SupportSpec
+from ...types import FormKind, OrderKind
 from ._lattice import LatticeSolver
 
 
@@ -17,10 +18,11 @@ class MonteCarloSolver(LatticeSolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.statistical_mechanics import ising
-        >>> from skcomplex.engine.solvers import MonteCarloSolver, Step
+        >>> from skcomplex.engine.solvers import MonteCarloSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(ising(size=8, temperature=1.0))
         >>> stepper = MonteCarloSolver(random_state=0).check().prepare(problem)
-        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 50.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 50.0))
         >>> bool(abs(state.mean()) > 0.9)
         True
     """
@@ -36,6 +38,6 @@ class MonteCarloSolver(LatticeSolver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.MONTE_CARLO
+        return FormKind.MONTE_CARLO

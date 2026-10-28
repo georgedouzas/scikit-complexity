@@ -4,8 +4,9 @@ import numpy as np
 
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.solvers import IterationSolver, Step
+from skcomplex.engine.solvers import IterationSolver
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.specs import StepSpec
 
 
 def test_iteration_applies_one_step_per_unit_time():
@@ -18,4 +19,4 @@ def test_iteration_applies_one_step_per_unit_time():
     )
     stepper = IterationSolver()
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    assert stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0)).tolist() == [2.5]
+    assert stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).tolist() == [2.5]

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Self
 
@@ -45,3 +46,6 @@ class ModuleSpec(BaseSpec):
             error_msg = f'The name of a module must be a nonempty string, but it is {self.name!r}.'
             raise RewritingError(error_msg)
         return self
+
+
+type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]

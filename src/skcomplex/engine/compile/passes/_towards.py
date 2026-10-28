@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
+from ....specs._weight_spec import _WeightSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._block import Block
@@ -17,7 +18,6 @@ from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
-from ._weight import _Weight
 
 
 class TowardsPass(BasePass):
@@ -62,5 +62,5 @@ class TowardsPass(BasePass):
                 space, _ = TopologyFunctionsPass._request_network(spec, declarations)
                 nodes = TowardsPass._node_block(space, declarations)
                 node_spec = SpecsPass._member_spec(nodes, declarations.time)
-                towards.append((node_spec, [UpdateLaw(_Weight(request), SR(request.toward(node_spec.namespace)))]))
+                towards.append((node_spec, [UpdateLaw(_WeightSpec(request), SR(request.toward(node_spec.namespace)))]))
         return towards

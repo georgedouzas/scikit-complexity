@@ -1981,7 +1981,7 @@ print(bool(Simulation(ring, dt=1.0).check().run(until=50).trajectory_.values('ca
 ### Jacobians of reductions
 
 A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
-the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem is a kernel that, prepared with the problem and run at a `State`, returns the exact
+the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem is a kernel that, prepared with the problem and run at a `RunStateSpec`, returns the exact
 Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
 its structure, which the implicit methods of `ScipyODESolver` receive (see [Discretizations and stiff
 solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million entries, `pattern()` returns
@@ -2000,7 +2000,7 @@ from skcomplex.core.laws.utils import total
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import State
+from skcomplex.specs import RunStateSpec
 
 
 class UnitElement(Element):
@@ -2014,7 +2014,7 @@ class UnitElement(Element):
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = compile_system(units)
-jacobian = problem.jacobian.prepare(problem).run(State(0.0, problem.initial_state, problem.initial_parameters))
+jacobian = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
@@ -2104,7 +2104,7 @@ print(space.size_, space.shape_, space.periodic_, space.positions_[4].tolist())
 
 **Local rules.** `LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `LatticeNeighborhood(offsets)`
-give the offsets. A rule is a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule from
+give the offsets. A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule from
 `skcomplex.core.laws.utils`, a rule code whose `table()` returns a table, such as `Wolfram` of the automata models, or
 a function of NumPy arrays, one per neighbour, that also receives the parameters it names and, for stochastic rules,
 uniform random numbers. Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
@@ -2117,7 +2117,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.laws.utils import OuterTotalistic
+from skcomplex.specs import OuterTotalisticSpec
 from skcomplex.core.spaces import LatticeSpace, MooreNeighborhood
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
@@ -2130,7 +2130,7 @@ class LifeElement(Element):
         self.alive = alive
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 glider = np.zeros((20, 20))
@@ -2843,7 +2843,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.laws.utils import Totalistic
+from skcomplex.specs import TotalisticSpec
 from skcomplex.core.spaces import CayleySpace, GeneratorNeighborhood
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
@@ -2859,7 +2859,7 @@ class MajorityElement(Element):
         self.alive = alive
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))]
+        return [LocalRuleLaw(s.alive, memory, TotalisticSpec({3: 1, 4: 1, 5: 1}))]
 
 
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
@@ -2898,16 +2898,16 @@ not decide them on infinite groups. `Automaton(space, neighborhood, rule, states
   `'compose'` gives the automaton of its composition with a `second` one.
 
 ```python
-from skcomplex.core.laws.utils import OuterTotalistic, Table
+from skcomplex.specs import OuterTotalisticSpec, TableSpec
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
 
 from skcomplex.analysis import AutomatonAnalysis
 from skcomplex.models.computer_science.automata import Automaton
 
-life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
+life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
 print(AutomatonAnalysis('surjective').check().prepare(life).run().surjective_)
 print(AutomatonAnalysis('garden-of-eden', random_state=0).check().prepare(life).run().pattern_ is not None)
-shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
+shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
 back = AutomatonAnalysis('inverse').check().prepare(shift).run().inverse_
 composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_
 print(composition.step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
@@ -3118,7 +3118,7 @@ print(simulation.run(until=0.5).problem_.backend)
 Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`,
 so running the same system again skips compilation.
 
-A law value can be a function called once per member with `Call(function, arguments)` of
+A law value can be a function called once per member with `CallSpec(function, arguments)` of
 `skcomplex.core.laws.utils`. A Numba-compiled function
 runs inside the compiled kernels, and the NumPy backend calls it from Python.
 
@@ -3130,7 +3130,7 @@ import numba
 from skcomplex.core.elements import GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import Call
+from skcomplex.specs import CallSpec
 from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3149,7 +3149,7 @@ class SaturationInteraction(Interaction):
         self.r = r
 
     def _get_laws(self, s):
-        return [RateLaw(s.target.n, Call(saturating, (s.target.n, s.r)))]
+        return [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
 
 
 herds = System(

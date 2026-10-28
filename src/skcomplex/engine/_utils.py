@@ -10,10 +10,8 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ..specs import ParameterSpec, RoleSpec, StateSpec
-from .problems._entry import Entry
-from .problems._variable import Variable
-from .problems._variable_kind import VariableKind
+from ..specs import EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
+from ..types import VariableKind
 
 
 def symbol(name: str, domain: object = RR) -> Expression:
@@ -42,7 +40,7 @@ def symbol(name: str, domain: object = RR) -> Expression:
     item = SR.symbol(name)
     for previous in ('integer', 'real'):
         item.decl_forget(previous)
-    assumption = Entry._sage_assumption(domain)
+    assumption = EntrySpec._sage_assumption(domain)
     if assumption != 'complex':
         item.decl_assume('integer' if assumption == 'integer' else 'real')
     return item
@@ -112,12 +110,12 @@ def symbols_of(expressions: Iterable[object]) -> set[Expression]:
     return {item for expression in expressions for item in SR(expression).variables()}
 
 
-def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> Variable:
+def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):
-        return Variable(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise)
+        return VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise)
     if isinstance(spec, ParameterSpec):
-        return Variable(
+        return VariableSpec(
             VariableKind.STATE if spec.adaptive else VariableKind.PARAMETER,
             spec.domain,
             spec.vector,
@@ -126,7 +124,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> Variable:
             bounds=spec.bounds,
         )
     order = int(spec.order) if float(spec.order).is_integer() else float(spec.order)
-    return Variable(
+    return VariableSpec(
         VariableKind.STATE,
         spec.domain,
         spec.vector,
@@ -141,22 +139,22 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> Variable:
     )
 
 
-def _companions(name: str, variable: Variable, default: object) -> dict[str, tuple[Variable, object]]:
+def _companions(name: str, variable: VariableSpec, default: object) -> dict[str, tuple[VariableSpec, object]]:
     """Return the companion states of a state of higher order or with lags, with their defaults, by name."""
-    companions: dict[str, tuple[Variable, object]] = {}
+    companions: dict[str, tuple[VariableSpec, object]] = {}
     domain = CC if variable.domain is CC else RR
     for index in range(1, variable.derivatives + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else 0.0
-        companion = Variable(VariableKind.STATE, domain, variable.vector, derivative_of=name, index=index)
+        companion = VariableSpec(VariableKind.STATE, domain, variable.vector, derivative_of=name, index=index)
         companions[f'{name}_d{index}'] = (companion, value)
     for index in range(1, variable.lags + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else default
-        companion = Variable(VariableKind.STATE, variable.domain, variable.vector, lag_of=name, index=index)
+        companion = VariableSpec(VariableKind.STATE, variable.domain, variable.vector, lag_of=name, index=index)
         companions[f'{name}_lag{index}'] = (companion, value)
     return companions
 
 
-def declared_variables(part: object) -> dict[str, tuple[Variable, object]]:
+def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     """Return the declaration and the default of every state, parameter, and role of a part, with companion states.
 
     A companion state follows the state it belongs to.
@@ -183,7 +181,7 @@ def declared_variables(part: object) -> dict[str, tuple[Variable, object]]:
     """
     cls = part if isinstance(part, type) else type(part)
     parameters = inspect.signature(cls).parameters
-    variables: dict[str, tuple[Variable, object]] = {}
+    variables: dict[str, tuple[VariableSpec, object]] = {}
     for name, spec in cls._get_specs().items():  # type: ignore[attr-defined]
         variable = _variable_of(spec)
         default = parameters[name].default
@@ -194,7 +192,7 @@ def declared_variables(part: object) -> dict[str, tuple[Variable, object]]:
     return variables
 
 
-def declarations_of(part: object, kind: VariableKind) -> dict[str, Variable]:
+def declarations_of(part: object, kind: VariableKind) -> dict[str, VariableSpec]:
     """Return the declarations of one kind of a part, with companion states for states.
 
     Args:

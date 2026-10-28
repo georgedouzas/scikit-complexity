@@ -9,7 +9,6 @@ from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import BaseProblem
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import (
     AgentsVisual,
@@ -23,12 +22,12 @@ from skcomplex.errors import ValidationError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.heat import HeatElement
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import BaseProblemSpec, StateSpec, VisualSpec
 
 
 def _prepared(system, **settings):
     """Return a Rerun observer prepared on a system or a compiled problem."""
-    problem = system if isinstance(system, BaseProblem) else compile_system(system)
+    problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
     return RerunObserver(**settings).check().prepare(problem)
 
 

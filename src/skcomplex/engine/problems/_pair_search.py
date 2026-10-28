@@ -7,10 +7,9 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
+from ...specs import EntrySpec, RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseSearch
-from ._entry import Entry
-from ._state import State
 
 
 class PairSearch(BaseSearch):
@@ -30,13 +29,13 @@ class PairSearch(BaseSearch):
             The side of a periodic box, or `None` for an open space.
     """
 
-    def __init__(self, first: Entry, second: Entry, cutoff: Entry, period: float | None) -> None:
+    def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec, period: float | None) -> None:
         self.first = first
         self.second = second
         self.cutoff = cutoff
         self.period = period
 
-    def _run(self, inputs: State) -> tuple[Indices, Indices]:
+    def _run(self, inputs: RunStateSpec) -> tuple[Indices, Indices]:
         """Return the indices of the first and second members of every pair within the cutoff."""
         x, p = inputs.x, inputs.p
         cutoff = float(self.cutoff.view(p)[0, 0])

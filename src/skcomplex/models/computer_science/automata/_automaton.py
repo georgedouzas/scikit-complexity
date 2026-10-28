@@ -9,9 +9,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ....core.laws.utils import OuterTotalistic, Table, Totalistic
 from ....core.spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 from ....errors import ValidationError
+from ....specs import OuterTotalisticSpec, TableSpec, TotalisticSpec
 from ....types import Indices, IntArray
 
 MAX_PATTERNS = 2**20
@@ -72,17 +72,17 @@ class Automaton:
             The neighbourhood of offsets on a lattice, or the memory set on a group space.
 
         rule:
-            A `Table`, a `Totalistic` rule, an `OuterTotalistic` rule, an object whose `table()` returns a `Table`,
-            or a function of one array per neighbour that returns the next values.
+            A `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, an object whose `table()` returns a
+            `TableSpec`, or a function of one array per neighbour that returns the next values.
 
         states:
             The number of values of a cell.
 
     Examples:
-        >>> from skcomplex.core.laws.utils import Totalistic
+        >>> from skcomplex.specs import TotalisticSpec
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeSpace
         >>> from skcomplex.models.computer_science.automata import Automaton
-        >>> parity = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total % 2))
+        >>> parity = Automaton(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total % 2))
         >>> parity.step([0, 0, 1, 0, 0]).tolist()
         [0, 1, 1, 1, 0]
     """
@@ -109,14 +109,14 @@ class Automaton:
     def _evaluate(self, patterns: IntArray) -> npt.NDArray[np.generic]:
         """Return the next value of every pattern, one row per pattern in the order the rule reads its cells."""
         rule = self._rule_table()
-        if isinstance(rule, Table):
+        if isinstance(rule, TableSpec):
             return np.asarray([rule.mapping.get(tuple(int(item) for item in row), rule.default) for row in patterns])
-        if isinstance(rule, Totalistic):
+        if isinstance(rule, TotalisticSpec):
             sums = patterns.sum(axis=1)
             if callable(rule.rule):
                 return np.broadcast_to(np.asarray(rule.rule(sums)), sums.shape)
             return np.asarray([rule.rule.get(int(total), rule.default) for total in sums])
-        if isinstance(rule, OuterTotalistic):
+        if isinstance(rule, OuterTotalisticSpec):
             centers, sums = patterns[:, 0], patterns[:, 1:].sum(axis=1)
             if callable(rule.rule):
                 return np.broadcast_to(np.asarray(rule.rule(centers, sums)), sums.shape)
@@ -132,7 +132,7 @@ class Automaton:
     @property
     def reads(self) -> Reach:
         """Neighbourhood the rule reads, with the site itself first for an outer totalistic rule."""
-        outer = isinstance(self._rule_table(), OuterTotalistic)
+        outer = isinstance(self._rule_table(), OuterTotalisticSpec)
         return self._with_center(self.neighborhood) if outer else self.neighborhood
 
     @property

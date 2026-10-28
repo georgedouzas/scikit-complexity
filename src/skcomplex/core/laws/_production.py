@@ -7,8 +7,7 @@ import numbers
 from typing import Self
 
 from ...errors import RewritingError
-from ...specs import ModuleSpec, RequirementSpec
-from ...types import Letters
+from ...specs import Letters, ModuleSpec, RequirementSpec
 from ..spaces import DiscreteTime
 from ._base import BaseLaw
 from .utils import parse_word

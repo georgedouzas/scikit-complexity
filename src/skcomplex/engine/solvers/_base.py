@@ -10,22 +10,18 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import SolverError
-from ...types import Array, Bounded, Take
-from ..problems import Problem
-from ..problems._base import BaseProblem
-from ..problems._form import Form
-from ..problems._support import SupportSpec
+from ...specs import BaseProblemSpec, ProblemSpec, StepSpec, SupportSpec
+from ...types import Array, Bounded, FormKind, Take
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
-from ._step import Step
 
 
-class BaseSolver[P: BaseProblem](BaseConfig):
+class BaseSolver[P: BaseProblemSpec](BaseConfig):
     """Base of the solvers, which advance a problem of one form through time.
 
     A solver stores its settings in its constructor, among them the random state of stochastic solvers and the end
     time of the run it prepares for. `prepare(problem)` prepares it for a problem and `run(step)` advances the state
-    of a `Step` from its time to its end time and returns the state vector there. The last call `run(step,
+    of a `StepSpec` from its time to its end time and returns the state vector there. The last call `run(step,
     final=True)` releases what preparing acquired, such as an external process.
 
     Subclasses implement the hooks `_get_form`, the form they solve, `_get_support`, what they solve, and `_advance`,
@@ -80,7 +76,7 @@ class BaseSolver[P: BaseProblem](BaseConfig):
         self.until = until
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves.
 
         Raises:
@@ -90,7 +86,7 @@ class BaseSolver[P: BaseProblem](BaseConfig):
         raise NotImplementedError
 
     @classmethod
-    def _get_forms(cls) -> frozenset[Form]:
+    def _get_forms(cls) -> frozenset[FormKind]:
         """Return the other forms the solver also solves, none by default."""
         return frozenset()
 
@@ -176,7 +172,7 @@ class BaseSolver[P: BaseProblem](BaseConfig):
         """Set the events, the stop time, the snapshot, and the agents after a run; the base keeps none."""
         self.events_ = []
 
-    def _run(self, inputs: Step) -> Array:
+    def _run(self, inputs: StepSpec) -> Array:
         """Advance the state of the step to its end time and collect what the run produced.
 
         A step that does not go forward in time returns its state unchanged, so a final run of no length releases the
@@ -188,7 +184,7 @@ class BaseSolver[P: BaseProblem](BaseConfig):
         return state
 
     @staticmethod
-    def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
+    def _is_hybrid(problem: ProblemSpec, t: float, until: float) -> bool:
         """Check whether a problem needs the hybrid path between two times: delays, events, or breakpoints.
 
         Args:
@@ -208,7 +204,7 @@ class BaseSolver[P: BaseProblem](BaseConfig):
         return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
 
     @staticmethod
-    def _reject_hybrid(problem: Problem, solver: str) -> None:
+    def _reject_hybrid(problem: ProblemSpec, solver: str) -> None:
         """Raise an error when a solver without a hybrid path receives delays or events.
 
         Args:

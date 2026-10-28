@@ -7,8 +7,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement, Entry
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, EntrySpec, FrameSpec
 from ._base import _UPWARD, BaseVisual
 
 _PHASE_MARGIN = 0.1
@@ -58,7 +57,7 @@ class PhaseRingVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the wrapped phases of the members against their positions, and the other states as time series.
 
         Args:
@@ -71,7 +70,7 @@ class PhaseRingVisual(BaseVisual):
             frame:
                 The frame.
         """
-        phases = Entry._wrap_angle(np.ravel(frame.value(element.states[self.phase])))
+        phases = EntrySpec._wrap_angle(np.ravel(frame.value(element.states[self.phase])))
         if self.position is None:
             positions = np.arange(phases.size, dtype=float)
         else:
@@ -87,7 +86,7 @@ class PhaseRingVisual(BaseVisual):
             if state not in {self.phase, self.position}:
                 BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(name))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a 2D view of the phases against the positions, bounded by one turn of phase.
 
         Args:
@@ -101,7 +100,7 @@ class PhaseRingVisual(BaseVisual):
             views:
                 A 2D spatial view of `<path>/phases`.
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         count = max(element.members or 1, 1)
         if self.position is None:

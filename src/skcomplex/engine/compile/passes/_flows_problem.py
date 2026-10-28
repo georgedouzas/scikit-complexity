@@ -6,7 +6,7 @@
 from dataclasses import replace
 from typing import cast
 
-from ...problems import Problem, TransferNetwork
+from ....specs import ProblemSpec, TransferNetworkSpec
 from .._base import BasePass
 
 
@@ -25,6 +25,6 @@ class FlowsProblemPass(BasePass):
         """Add the transfer network to the problem."""
         compilation = self.compilation_
         compilation.problem = replace(
-            cast('Problem', compilation.problem),
-            transfer_network=cast('TransferNetwork', compilation.transfer_network),
+            cast('ProblemSpec', compilation.problem),
+            transfer_network=cast('TransferNetworkSpec', compilation.transfer_network),
         )

@@ -10,9 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 from ._markov import MarkovAnalysis
 
 MIN_RUNS = 2

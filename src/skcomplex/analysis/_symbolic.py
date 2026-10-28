@@ -7,7 +7,6 @@ import math
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
 from fractions import Fraction
 from functools import cache
 from typing import Any, Self
@@ -32,10 +31,11 @@ from sage.symbolic.function_factory import function as formal_function
 
 from ..engine._utils import components_of, domain_of
 from ..engine.compile import compile_system
-from ..engine.problems import BaseProblem, Form, Problem, TransferNetwork
 from ..errors import AnalysisError, ConservationError
+from ..specs import BaseProblemSpec, ProblemSpec, TransferNetworkSpec
+from ..specs._unknown_spec import _UnknownSpec
+from ..types import DataKind, FormKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 from ._quantum import QuantumAnalysis
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
@@ -80,16 +80,6 @@ def _evaluate_mittag_leffler(
 
 
 MITTAG_LEFFLER = formal_function('mittag_leffler', nargs=3, evalf_func=_evaluate_mittag_leffler)
-
-
-@dataclass(frozen=True)
-class _Unknown:
-    """State component whose equation the analysis writes in its own order, with its function of time."""
-
-    name: str
-    function: Expression
-    order: int
-    indices: tuple[int, ...]
 
 
 class SymbolicAnalysis(BaseAnalysis):
@@ -180,11 +170,11 @@ class SymbolicAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it has the form of the kind."""
         system = self._read_system(source)
-        problem = system if isinstance(system, BaseProblem) else compile_system(system)
+        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
         if self.kind == 'hamiltonian':
             self.problem_ = QuantumAnalysis._quantum_problem(problem)
             return self
-        if self.kind == 'equations' and problem.form == Form.QUANTUM:
+        if self.kind == 'equations' and problem.form == FormKind.QUANTUM:
             error_msg = (
                 'A quantum system has an operator Hamiltonian, not state equations. Use '
                 "`SymbolicAnalysis('hamiltonian')`."
@@ -373,7 +363,7 @@ class SymbolicAnalysis(BaseAnalysis):
         return SR(fraction.numerator) / fraction.denominator
 
     @staticmethod
-    def _components(problem: Problem) -> dict[str, tuple[str, int, int]]:
+    def _components(problem: ProblemSpec) -> dict[str, tuple[str, int, int]]:
         """Return every equation name with its entry name, column, and flat index."""
         found = {}
         for entry in problem.states.entries:
@@ -383,7 +373,7 @@ class SymbolicAnalysis(BaseAnalysis):
 
     @staticmethod
     def _delayed_functions(
-        problem: Problem,
+        problem: ProblemSpec,
         substitution: dict[Expression, Expression],
     ) -> dict[Expression, Expression]:
         """Return the substitution of every delayed state by its unknown function at the delayed time."""
@@ -394,9 +384,9 @@ class SymbolicAnalysis(BaseAnalysis):
         return delayed
 
     @staticmethod
-    def _left_side(problem: Problem, unknown: _Unknown) -> Expression:
+    def _left_side(problem: ProblemSpec, unknown: _UnknownSpec) -> Expression:
         """Return the left side of the equation of an unknown: its next value, highest derivative, or Caputo one."""
-        if problem.form == Form.DISCRETE:
+        if problem.form == FormKind.DISCRETE:
             return function(str(problem.equation_symbols[unknown.name]))(problem.time + 1)
         order = float(problem.orders[unknown.indices[0]]) if problem.orders.size else 1.0
         if order != 1:
@@ -404,7 +394,9 @@ class SymbolicAnalysis(BaseAnalysis):
         return diff(unknown.function, problem.time, unknown.order)
 
     @staticmethod
-    def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], dict[Expression, Expression]]:
+    def _written(
+        problem: ProblemSpec,
+    ) -> tuple[dict[str, Expression], list[_UnknownSpec], dict[Expression, Expression]]:
         """Return the equations in their written order, the unknown functions, and the substitution of symbols."""
         components = SymbolicAnalysis._components(problem)
         by_entry = {(entry, column): name for name, (entry, column, _) in components.items()}
@@ -412,7 +404,7 @@ class SymbolicAnalysis(BaseAnalysis):
         for kind, base, index in problem.companions.values():
             if kind == 'derivative':
                 orders[base] = max(orders.get(base, 1), index + 1)
-        unknowns: list[_Unknown] = []
+        unknowns: list[_UnknownSpec] = []
         substitution: dict[Expression, Expression] = {}
         for name, item in problem.equation_symbols.items():
             entry, column, index = components[name]
@@ -430,7 +422,7 @@ class SymbolicAnalysis(BaseAnalysis):
                 if kind == 'lag' and base == entry:
                     lagged = by_entry[(companion_name, column)]
                     substitution[problem.equation_symbols[lagged]] = function(str(item))(problem.time - steps)
-            unknowns.append(_Unknown(name, unknown_function, order, tuple(indices)))
+            unknowns.append(_UnknownSpec(name, unknown_function, order, tuple(indices)))
         substitution.update(SymbolicAnalysis._delayed_functions(problem, substitution))
         equations = {}
         for unknown in unknowns:
@@ -441,15 +433,15 @@ class SymbolicAnalysis(BaseAnalysis):
         return equations, unknowns, substitution
 
     @staticmethod
-    def _equations_of_problem(problem: Problem) -> dict[str, Expression]:
+    def _equations_of_problem(problem: ProblemSpec) -> dict[str, Expression]:
         """Return the equations of a compiled problem as relations between functions of time, in their written order."""
-        if problem.form == Form.JUMP:
+        if problem.form == FormKind.JUMP:
             error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
             raise AnalysisError(error_msg)
         return SymbolicAnalysis._written(problem)[0]
 
     @staticmethod
-    def _first_order(problem: Problem) -> tuple[list[Expression], list[Expression]]:
+    def _first_order(problem: ProblemSpec) -> tuple[list[Expression], list[Expression]]:
         """Return the first-order equations of every state component, companions included, and their functions."""
         functions = {item: function(str(item))(problem.time) for item in problem.equation_symbols.values()}
         equations = [
@@ -484,7 +476,7 @@ class SymbolicAnalysis(BaseAnalysis):
         return True
 
     @staticmethod
-    def _parameter_values(problem: Problem) -> dict[Expression, float]:
+    def _parameter_values(problem: ProblemSpec) -> dict[Expression, float]:
         """Return the current value of every parameter component of single elements and interactions by symbol."""
         values = {}
         for entry in problem.parameters.entries:
@@ -508,9 +500,9 @@ class SymbolicAnalysis(BaseAnalysis):
         return AnalysisError(error_msg)
 
     @staticmethod
-    def _check_solvable(problem: Problem) -> None:
+    def _check_solvable(problem: ProblemSpec) -> None:
         """Raise an error when a problem is not of the ODE or fractional form, or has callable laws or groups."""
-        if problem.form not in {Form.ODE, Form.FRACTIONAL}:
+        if problem.form not in {FormKind.ODE, FormKind.FRACTIONAL}:
             error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form.value}.'
             raise AnalysisError(error_msg)
         if problem.has_callables:
@@ -523,7 +515,7 @@ class SymbolicAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
 
     @staticmethod
-    def _fractional_solution(problem: Problem, *, use_initial_state: bool) -> dict[str, Expression]:
+    def _fractional_solution(problem: ProblemSpec, *, use_initial_state: bool) -> dict[str, Expression]:
         """Return the solution `x(t) = x(0) E_alpha(c t^alpha)` of a linear fractional relaxation `D^alpha x = c x`."""
         _, unknowns, _ = SymbolicAnalysis._written(problem)
         unknown = unknowns[0]
@@ -547,10 +539,10 @@ class SymbolicAnalysis(BaseAnalysis):
         return {unknown.name: unknown.function == start * MITTAG_LEFFLER(order, 1, rate * problem.time**order)}
 
     @staticmethod
-    def _solve(problem: Problem, *, use_initial_state: bool) -> dict[str, Expression]:
+    def _solve(problem: ProblemSpec, *, use_initial_state: bool) -> dict[str, Expression]:
         """Return the exact solution of the equations of a problem as functions of time, with Maxima through Sage."""
         SymbolicAnalysis._check_solvable(problem)
-        if problem.form == Form.FRACTIONAL:
+        if problem.form == FormKind.FRACTIONAL:
             return SymbolicAnalysis._fractional_solution(problem, use_initial_state=use_initial_state)
         equations, unknowns, _ = SymbolicAnalysis._written(problem)
         initial = problem.initial_state
@@ -610,17 +602,15 @@ class SymbolicAnalysis(BaseAnalysis):
         return solutions
 
     @staticmethod
-    def _transfer_network(problem: Problem) -> TransferNetwork:
+    def _transfer_network(problem: ProblemSpec) -> TransferNetworkSpec:
         """Return the transfer network of a problem, or raise an error for problems without one."""
         if problem.transfer_network is None:
-            error_msg = (
-                'The problem has no transfer network. Compile the system as one partition with compile_system.'
-            )
+            error_msg = 'The problem has no transfer network. Compile the system as one partition with compile_system.'
             raise AnalysisError(error_msg)
         return problem.transfer_network
 
     @staticmethod
-    def _conservation(problem: Problem) -> dict[str, Expression]:
+    def _conservation(problem: ProblemSpec) -> dict[str, Expression]:
         """Return the net inflow from the environment of every quantity, after checking that internal flows cancel."""
         transfer_network = SymbolicAnalysis._transfer_network(problem)
         amounts = {record.path: record.expression for record in transfer_network.recorded}

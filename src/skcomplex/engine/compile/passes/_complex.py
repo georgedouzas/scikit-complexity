@@ -13,8 +13,8 @@ from sage.all__sagemath_symbolics import SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import Call
 from ....errors import ValidationError
+from ....specs import CallSpec
 from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import BlockLaws
@@ -88,7 +88,7 @@ class LowerComplexPass(BasePass):
         targets = components_of(law._get_targets()[0])
         values = (
             None
-            if isinstance(law.value, Call)
+            if isinstance(law.value, CallSpec)
             else KernelsPass._symbolic_components(law.value, len(targets), description)
         )
         if values is None:

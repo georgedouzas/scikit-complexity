@@ -13,10 +13,10 @@ from sage.all__sagemath_symbolics import SR, Expression, solve
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
-from ...types import Array, Cost, GridFunction
-from ..problems import OrderKind, SupportSpec
-from ._control_solution import ControlSolution
-from ._optimal_control import OptimalControlSolver, _ControlProblem
+from ...specs import ControlSolutionSpec, SupportSpec
+from ...specs._control_problem_spec import _ControlProblemSpec
+from ...types import Array, Cost, GridFunction, OrderKind
+from ._optimal_control import OptimalControlSolver
 
 _MIN_RELAXATION = 1e-3
 MIN_NODES = 2
@@ -172,7 +172,7 @@ class PontryaginSolver(OptimalControlSolver):
             return np.where(values > 0, lower, upper)
         return np.clip(values, lower, upper)
 
-    def _set_up_control(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
         """Derive the costate equations, the terminal costates, and the control law symbolically.
 
         Args:
@@ -201,7 +201,7 @@ class PontryaginSolver(OptimalControlSolver):
         )
         self._law: GridFunction = control_problem.function(law, costates)
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
         """Return the optimal solution by a forward-backward sweep with relaxed control updates.
 
         Args:

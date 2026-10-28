@@ -15,9 +15,8 @@ from networkx.algorithms import isomorphism
 from ...core.elements import HostGraphElement
 from ...core.laws import GraphProductionLaw
 from ...errors import RewritingError
-from ._base import BaseKernel, BaseProblem
-from ._graph_structure import GraphStructure
-from ._state import State
+from ...specs import BaseProblemSpec, GraphStructureSpec, RunStateSpec
+from ._base import BaseKernel
 from ._word_kernel import IDENTIFIER
 
 
@@ -65,16 +64,16 @@ class GraphKernel(BaseKernel):
             sorted({label for label in labels if isinstance(label, str) and IDENTIFIER.match(label)}),
         )
 
-    def _prepare(self, context: BaseProblem) -> None:
+    def _prepare(self, context: BaseProblemSpec) -> None:
         """Start the structure at generation 0 for a run of the problem, as `structure_`."""
         self.structure_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: State) -> GraphStructure:
+    def _run(self, inputs: RunStateSpec) -> GraphStructureSpec:
         """Rewrite the current structure once, in parallel, with the parameters and the random stream of the state."""
         self.structure_ = self._rewrite(self.structure_, inputs.p, cast('np.random.Generator', inputs.rng))
         return self.structure_
 
-    def _initial(self, values: npt.NDArray[np.float64]) -> GraphStructure:
+    def _initial(self, values: npt.NDArray[np.float64]) -> GraphStructureSpec:
         """Return the host graph at generation 0.
 
         Args:
@@ -86,9 +85,9 @@ class GraphKernel(BaseKernel):
                 The initial graph.
         """
         del values
-        return GraphStructure(nx.freeze(self.graph.copy()), 0)
+        return GraphStructureSpec(nx.freeze(self.graph.copy()), 0)
 
-    def counts(self, graph: GraphStructure) -> list[float]:
+    def counts(self, graph: GraphStructureSpec) -> list[float]:
         """Return the count of nodes of every label and the number of nodes.
 
         Args:
@@ -160,10 +159,10 @@ class GraphKernel(BaseKernel):
 
     def _rewrite(
         self,
-        structure: GraphStructure,
+        structure: GraphStructureSpec,
         values: npt.NDArray[np.float64],
         rng: np.random.Generator,
-    ) -> GraphStructure:
+    ) -> GraphStructureSpec:
         """Return the host graph of the next generation.
 
         Args:
@@ -194,7 +193,7 @@ class GraphKernel(BaseKernel):
                     f'{structure.generation + 1}, above its maximum size {self.max_size}.'
                 )
                 raise RewritingError(error_msg)
-        return GraphStructure(nx.freeze(graph.copy()), structure.generation + 1)
+        return GraphStructureSpec(nx.freeze(graph.copy()), structure.generation + 1)
 
     @staticmethod
     def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:

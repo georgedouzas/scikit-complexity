@@ -13,20 +13,13 @@ from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
 from ....errors import ValidationError
-from ....types import Indices
-from ...problems._noise_process import NoiseProcess
-from ...problems._output import Output
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
+from ....specs import CensusRecordSpec, CensusSpec, IssueSpec, NodeSpec, NoiseProcessSpec, OutputSpec, ReferenceSpec
+from ....types import Indices, ReadKind
 from .._base import BasePass
-from .._census import Census
-from .._census_record import CensusRecord
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._field_lowering import FieldLowering
-from .._issue import Issue
 from .._kernel_spec import KernelSpec
-from .._tree import Node
 
 
 class ConservedNoisePass(BasePass):
@@ -47,7 +40,7 @@ class ConservedNoisePass(BasePass):
         compilation.outputs = self._conserved_outputs(cast('Laws', compilation.reduced), declarations)
 
     @staticmethod
-    def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:
+    def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[OutputSpec]]:
         """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
         places = FieldLowering._field_entries(declarations)
         outputs = {}
@@ -61,7 +54,7 @@ class ConservedNoisePass(BasePass):
         return outputs
 
     @staticmethod
-    def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, Reference]) -> Expression:
+    def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, ReferenceSpec]) -> Expression:
         """Return the amplitude of a conserved noise, or raise an error when it reads a state or is not symbolic."""
         if not isinstance(law.value, Expression | int | float):
             error_msg = (
@@ -79,7 +72,7 @@ class ConservedNoisePass(BasePass):
         return amplitude
 
     @staticmethod
-    def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpace:
+    def _check_place(owner: str, reference: ReferenceSpec, place: object) -> LatticeSpace:
         """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
         space = getattr(place, 'space', None)
         is_lattice = (
@@ -134,10 +127,10 @@ class ConservedNoisePass(BasePass):
     def _law_outputs(
         owner: str,
         law: NoiseLaw,
-        targets: list[Reference],
+        targets: list[ReferenceSpec],
         places: Mapping[str, FieldElement],
-        references: Mapping[Expression, Reference],
-    ) -> list[Output]:
+        references: Mapping[Expression, ReferenceSpec],
+    ) -> list[OutputSpec]:
         """Return the outputs of a conserved noise law, the divergence of a random flux on the links of a lattice.
 
         Every target component gets one process per link. Site `i` takes `a / h` times the increment of the link from
@@ -180,10 +173,10 @@ class ConservedNoisePass(BasePass):
             for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):
                 scaled = amplitude / spacing
                 outputs.append(
-                    Output(reference, -scaled, process=NoiseProcess(key, dimension=dimension, links=following)),
+                    OutputSpec(reference, -scaled, process=NoiseProcessSpec(key, dimension=dimension, links=following)),
                 )
                 outputs.append(
-                    Output(reference, scaled, process=NoiseProcess(key, dimension=dimension, links=preceding)),
+                    OutputSpec(reference, scaled, process=NoiseProcessSpec(key, dimension=dimension, links=preceding)),
                 )
         return outputs
 
@@ -198,7 +191,7 @@ class ConservedNoisePass(BasePass):
         )
 
     @staticmethod
-    def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> Issue | None:
+    def _conserved_issue(record: CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
         """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
         outside = [
             name
@@ -213,13 +206,13 @@ class ConservedNoisePass(BasePass):
             'link.'
         )
         fix = 'Declare the state on a `FieldElement` of a `LatticeSpace`, or remove `conserved=True`.'
-        return Issue('noise-unsupported', record.path, message, fix)
+        return IssueSpec('noise-unsupported', record.path, message, fix)
 
     @staticmethod
-    def _conserved_issues(compilation: Compilation) -> list[Issue]:
+    def _conserved_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
-        components = {node.path: node.component for node in cast('list[Node]', compilation.nodes)}
-        records = cast('Census', compilation.census).records
+        components = {node.path: node.component for node in cast('list[NodeSpec]', compilation.nodes)}
+        records = cast('CensusSpec', compilation.census).records
         found = [
             ConservedNoisePass._conserved_issue(record, components)
             for record in records

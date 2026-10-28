@@ -10,8 +10,8 @@ from SALib.analyze import morris as morris_analysis
 from SALib.analyze import sobol as sobol_analysis
 
 from ..analysis._base import BaseAnalysis
-from ..analysis._kinds import DataKind
 from ..errors import AnalysisError
+from ..types import DataKind
 from ._results import ExperimentResult
 
 METHODS = ('oat', 'morris', 'sobol')

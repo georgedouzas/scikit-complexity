@@ -5,18 +5,17 @@
 
 import itertools
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from typing import Any, Protocol, Self, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
 
-from ..core.laws.utils import Table
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ..errors import AnalysisError
-from ..types import Indices, IntArray
+from ..specs import TableSpec
+from ..specs._composed_rule_spec import _ComposedRuleSpec
+from ..types import AutomatonProtocol, DataKind, IntArray, LinearAutomatonProtocol, SubshiftProtocol
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -26,55 +25,6 @@ IDENTITY = '1'
 
 type Reach = LatticeNeighborhood | MemoryNeighborhood
 type Sites = BaseSpace
-
-
-class _Automaton(Protocol):
-    """Cellular automaton the analysis reads by its methods, such as `Automaton` of the automata models."""
-
-    space: Sites
-    neighborhood: Reach
-    rule: object
-    states: int
-
-    @property
-    def reads(self) -> Reach:
-        """Neighbourhood the rule reads."""
-
-    @property
-    def size(self) -> int:
-        """Number of sites."""
-
-    def table(self) -> Indices:
-        """Return the site of every cell the rule reads at every site."""
-
-    def local_map(self) -> IntArray:
-        """Return the next value of every pattern of the cells the rule reads."""
-
-    def step(self, configuration: npt.ArrayLike) -> IntArray:
-        """Return the image of a configuration."""
-
-    def run(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
-        """Return the configurations of a number of steps."""
-
-
-class _LinearAutomaton(Protocol):
-    """Linear cellular automaton the analysis reads by its matrix and its Laurent polynomial."""
-
-    def matrix(self) -> Any:  # noqa: ANN401
-        """Return the Sage matrix of the automaton on its space."""
-
-    def laurent_polynomial(self) -> Any:  # noqa: ANN401
-        """Return the Sage Laurent polynomial of the automaton on `Z^d`."""
-
-
-class _Subshift(Protocol):
-    """Subshift of finite type the analysis reads by its count of admissible configurations and its violations."""
-
-    def count(self, space: Sites) -> int:
-        """Return the number of admissible configurations of a space."""
-
-    def violations(self, configuration: npt.ArrayLike, space: Sites) -> npt.NDArray[np.bool_]:
-        """Return the sites at which a forbidden pattern appears."""
 
 
 class _Clauses:
@@ -104,24 +54,6 @@ class _Clauses:
         solvers = BaseAnalysis._import('pysat.solvers')
         with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
             return solver.get_model() if solver.solve() else None
-
-
-@dataclass(frozen=True)
-class _ComposedRule:
-    """Rule of the composition of two automata, on the composite neighbourhood."""
-
-    first: IntArray
-    second: IntArray
-    columns: tuple[tuple[int, ...], ...]
-    states: int
-
-    def evaluate(self, *values: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
-        """Return the value of the second rule on the values of the first rule around every cell."""
-        cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
-        inner = [
-            self.first[AutomatonAnalysis._codes(cells[..., list(columns)], self.states)] for columns in self.columns
-        ]
-        return self.second[AutomatonAnalysis._codes(np.stack(inner, axis=-1), self.states)]
 
 
 KINDS = ('injective', 'surjective', 'pre-injective', 'garden-of-eden', 'inverse', 'compose', 'difference', 'entropy')
@@ -254,13 +186,13 @@ class AutomatonAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import AutomatonAnalysis
-        >>> from skcomplex.core.laws.utils import Table, Totalistic
+        >>> from skcomplex.specs import TableSpec, TotalisticSpec
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.models.computer_science.automata import Automaton, Subshift
-        >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
+        >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
         >>> AutomatonAnalysis().check().prepare(shift).run().injective_
         True
-        >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
+        >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total >= 2))
         >>> AutomatonAnalysis('garden-of-eden').check().prepare(majority).run().pattern_.tolist()
         [0, 0, 1, 0, 1]
         >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
@@ -279,7 +211,7 @@ class AutomatonAnalysis(BaseAnalysis):
         tries: int = 200,
         random_state: int | np.random.Generator | None = None,
         max_radius: int = 2,
-        second: _Automaton | None = None,
+        second: AutomatonProtocol | None = None,
         configuration: npt.ArrayLike | None = None,
         site: int = 0,
         steps: int = 1,
@@ -434,7 +366,7 @@ class AutomatonAnalysis(BaseAnalysis):
     @staticmethod
     def _rule_clauses(
         clauses: _Clauses,
-        automaton: _Automaton,
+        automaton: AutomatonProtocol,
         cells: npt.NDArray[np.int64],
         sites: Sequence[int],
         output: Callable[[int, int], list[int] | None],
@@ -468,7 +400,7 @@ class AutomatonAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _collision(automaton: _Automaton, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
+    def _collision(automaton: AutomatonProtocol, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
         """Return two configurations that differ inside a window, agree outside it, and have the same image, by SAT."""
         clauses = _Clauses()
         first = clauses.one_hot(automaton.size, automaton.states)
@@ -502,7 +434,7 @@ class AutomatonAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _preimage(automaton: _Automaton, target: IntArray, window: Sequence[int]) -> IntArray | None:
+    def _preimage(automaton: AutomatonProtocol, target: IntArray, window: Sequence[int]) -> IntArray | None:
         """Return a configuration whose image equals a target on a window, or `None`, by SAT."""
         clauses = _Clauses()
         cells = clauses.one_hot(automaton.size, automaton.states)
@@ -516,13 +448,13 @@ class AutomatonAnalysis(BaseAnalysis):
         return None if model is None else AutomatonAnalysis._decode(model, cells)
 
     @staticmethod
-    def _images(automaton: _Automaton) -> tuple[IntArray, IntArray]:
+    def _images(automaton: AutomatonProtocol) -> tuple[IntArray, IntArray]:
         """Return every configuration and the code of its image."""
         configurations = AutomatonAnalysis._configurations(automaton.states, automaton.size)
         return configurations, AutomatonAnalysis._codes(automaton.step(configurations), automaton.states)
 
     @staticmethod
-    def _ball_neighborhood(automaton: _Automaton, radius: int) -> Reach:
+    def _ball_neighborhood(automaton: AutomatonProtocol, radius: int) -> Reach:
         """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
         if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, LatticeNeighborhood):
             error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
@@ -530,7 +462,7 @@ class AutomatonAnalysis(BaseAnalysis):
         return cast('Reach', AutomatonAnalysis._fitted(automaton.space)._ball(radius))
 
     @staticmethod
-    def _is_injective(automaton: _Automaton, *, method: str = 'auto') -> bool:
+    def _is_injective(automaton: AutomatonProtocol, *, method: str = 'auto') -> bool:
         """Check whether two different configurations never have the same image."""
         if AutomatonAnalysis._check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
             _, codes = AutomatonAnalysis._images(automaton)
@@ -538,7 +470,9 @@ class AutomatonAnalysis(BaseAnalysis):
         return AutomatonAnalysis._collision(automaton, range(automaton.size)) is None
 
     @staticmethod
-    def _is_pre_injective(automaton: _Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
+    def _is_pre_injective(
+        automaton: AutomatonProtocol, window: Sequence[int] | None = None, *, method: str = 'auto',
+    ) -> bool:
         """Check whether two configurations that differ only inside a window never have the same image."""
         sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
         if not AutomatonAnalysis._check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
@@ -553,7 +487,7 @@ class AutomatonAnalysis(BaseAnalysis):
 
     @staticmethod
     def _garden_of_eden(
-        automaton: _Automaton,
+        automaton: AutomatonProtocol,
         window: Sequence[int] | None = None,
         *,
         tries: int = 200,
@@ -573,7 +507,7 @@ class AutomatonAnalysis(BaseAnalysis):
         return None
 
     @staticmethod
-    def _inverse(automaton: _Automaton, max_radius: int = 2) -> _Automaton | None:
+    def _inverse(automaton: AutomatonProtocol, max_radius: int = 2) -> AutomatonProtocol | None:
         """Return the automaton whose composition with a reversible one is the identity, or `None`."""
         configurations, codes = AutomatonAnalysis._images(automaton)
         if np.unique(codes).size != codes.size:
@@ -583,7 +517,7 @@ class AutomatonAnalysis(BaseAnalysis):
             candidate = type(automaton)(
                 automaton.space,
                 AutomatonAnalysis._ball_neighborhood(automaton, radius),
-                Table({}),
+                TableSpec({}),
                 automaton.states,
             )
             padded = np.concatenate([images, np.zeros((images.shape[0], 1), dtype=np.int64)], axis=1)
@@ -594,12 +528,12 @@ class AutomatonAnalysis(BaseAnalysis):
                 continue
             rows = AutomatonAnalysis._patterns(automaton.states, candidate.table().shape[1])
             mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
-            rule = Table(mapping, states=automaton.states)
+            rule = TableSpec(mapping, states=automaton.states)
             return type(automaton)(automaton.space, candidate.reads, rule, automaton.states)
         return None
 
     @staticmethod
-    def _compose(first: _Automaton, second: _Automaton) -> _Automaton:
+    def _compose(first: AutomatonProtocol, second: AutomatonProtocol) -> AutomatonProtocol:
         """Return the automaton that applies one automaton and then another on the same space."""
         if first.space is not second.space or first.states != second.states:
             error_msg = 'Composed automata share their space and their number of states.'
@@ -622,12 +556,12 @@ class AutomatonAnalysis(BaseAnalysis):
             if isinstance(inner, MemoryNeighborhood)
             else LatticeNeighborhood(tuple(composite))
         )
-        rule = _ComposedRule(first.local_map(), second.local_map(), tuple(columns), first.states).evaluate
+        rule = _ComposedRuleSpec(first.local_map(), second.local_map(), tuple(columns), first.states).evaluate
         return type(first)(first.space, reach, rule, first.states)
 
     @staticmethod
     def _difference_pattern(
-        automaton: _Automaton,
+        automaton: AutomatonProtocol,
         configuration: npt.ArrayLike,
         site: int,
         steps: int,
@@ -640,7 +574,7 @@ class AutomatonAnalysis(BaseAnalysis):
 
     @staticmethod
     def _configuration_entropy(
-        subject: _Subshift | _Automaton,
+        subject: SubshiftProtocol | AutomatonProtocol,
         windows: Sequence[Sites],
         *,
         base: float = 2.0,
@@ -661,14 +595,14 @@ class AutomatonAnalysis(BaseAnalysis):
         return np.asarray(entropies) / np.log(base)
 
     @staticmethod
-    def _linear_injective(automaton: _LinearAutomaton, *, infinite: bool) -> bool:
+    def _linear_injective(automaton: LinearAutomatonProtocol, *, infinite: bool) -> bool:
         """Check whether a linear automaton is invertible: its matrix on its universe, or a monomial on `Z^d`."""
         if infinite:
             return len(automaton.laurent_polynomial().exponents()) == 1
         return bool(automaton.matrix().is_invertible())
 
     @staticmethod
-    def _linear_surjective(automaton: _LinearAutomaton, *, infinite: bool) -> bool:
+    def _linear_surjective(automaton: LinearAutomatonProtocol, *, infinite: bool) -> bool:
         """Check whether a linear automaton is surjective: invertible on its universe, or not zero on `Z^d`."""
         if infinite:
             return not automaton.laurent_polynomial().is_zero()

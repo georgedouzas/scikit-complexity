@@ -7,8 +7,7 @@ import time
 from typing import Self
 
 from ...base import BaseConfig
-from ..problems import BaseProblem
-from ._frames import Frame
+from ...specs import BaseProblemSpec, FrameSpec
 
 
 class BaseObserver(BaseConfig):
@@ -35,13 +34,13 @@ class BaseObserver(BaseConfig):
         4
     """
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Prepare for a run of the compiled problem; prepare nothing by default."""
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """React to a frame, or to the end of the run without one; do nothing by default."""
 
-    def prepare(self, problem: BaseProblem) -> Self:
+    def prepare(self, problem: BaseProblemSpec) -> Self:
         """Prepare the checked observer for a run of a compiled problem.
 
         Args:
@@ -54,7 +53,7 @@ class BaseObserver(BaseConfig):
         """
         return super().prepare(problem)
 
-    def run(self, frame: Frame | None = None, *, final: bool = False) -> Self:
+    def run(self, frame: FrameSpec | None = None, *, final: bool = False) -> Self:
         """React to a frame, and release what preparing acquired at the last call.
 
         Args:

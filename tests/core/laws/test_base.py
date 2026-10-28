@@ -8,10 +8,9 @@ from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core import laws
 from skcomplex.core.laws import BaseLaw, CrossingLaw, JumpLaw, LocalRuleLaw, RateLaw
-from skcomplex.core.laws.utils import Call, Totalistic
 from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.errors import NotCheckedError, ValidationError
-from skcomplex.specs import RequirementSpec
+from skcomplex.specs import CallSpec, RequirementSpec, TotalisticSpec
 
 
 def test_every_law_derives_from_the_law_base():
@@ -54,7 +53,7 @@ def test_targets_are_a_tuple_once_prepared():
     """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
     assert RateLaw(x, 1).check().prepare().targets_ == (x,)
-    assert LocalRuleLaw(y, BoxNeighborhood(), Totalistic({2: 1})).check().prepare().targets_ == (y,)
+    assert LocalRuleLaw(y, BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_ == (y,)
     assert CrossingLaw(x - 1).check().prepare().targets_ == ()
 
 
@@ -86,6 +85,6 @@ def _double(t, value):
 def test_values_flatten_calls_vectors_and_mappings():
     """Test that the values of a law give the arguments of calls, the components of vectors, and keys and values."""
     x, y, k = var('x y k')
-    assert RateLaw(x, Call(_double, (k * x,)))._get_values() == [x, k * x, None]
+    assert RateLaw(x, CallSpec(_double, (k * x,)))._get_values() == [x, k * x, None]
     assert RateLaw(vector([x, y]), vector([y, -x]))._get_values() == [x, y, y, -x, None]
     assert JumpLaw(k * x, {x: -1, y: 1})._get_values() == [k * x, x, -1, y, 1, None, None]

@@ -6,11 +6,10 @@ from typing import Any
 import numpy as np
 
 from skcomplex.core.system import System
-from skcomplex.engine.problems import BaseProblem
-from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
+from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Simulation, Trajectory
 from skcomplex.engine.solvers import BaseSolver
 from skcomplex.models import create, describe
-from skcomplex.specs import ObservableSpec
+from skcomplex.specs import BaseProblemSpec, FrameSpec, ObservableSpec
 
 
 def _run(system: System, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:
@@ -71,15 +70,15 @@ def _run_seeded(system: System, until: float, dt: float, model: str | None = Non
 class EventsObserver(BaseObserver):
     """Observer that keeps the events of every frame and checks a condition on the frames."""
 
-    def __init__(self, condition: Callable[[Frame], object] | None = None) -> None:
+    def __init__(self, condition: Callable[[FrameSpec], object] | None = None) -> None:
         self.condition = condition
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Start with no events."""
         self.events_: list[object] = []
         self.passed_ = True
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """Keep the frame's events and check the condition."""
         if frame is None:
             return

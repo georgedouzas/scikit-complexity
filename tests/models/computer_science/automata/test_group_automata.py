@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
@@ -16,6 +16,7 @@ from skcomplex.models.computer_science.automata import (
     linear_ring_automaton,
     subshifts,
 )
+from skcomplex.specs import FrameSpec
 
 from .conftest import GRIGORCHUK_BALLS
 
@@ -63,7 +64,7 @@ def test_grigorchuk_automaton_in_the_viewer():
     visual = CayleyVisual(low=0, high=1, path=problem.elements[0].path, recording=Recording()).check().prepare(problem)
     trajectory = simulation.trajectory_
     for index in (0, len(trajectory.times) - 1):
-        frame = Frame(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)
+        frame = FrameSpec(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)
         visual.run(frame)
     nodes = [archetype for static, archetype in logged if not static]
     positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())

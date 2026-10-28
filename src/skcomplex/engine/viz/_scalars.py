@@ -9,8 +9,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ._base import _SERIES_COLORS, PARTS, BaseVisual
 
 
@@ -52,7 +51,7 @@ class ScalarsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the element, forget the styled series of earlier runs, and set the views."""
         self.styled_: set[str] = set()
         super()._prepare(problem)
@@ -64,7 +63,7 @@ class ScalarsVisual(BaseVisual):
             return value
         return array[[index for index in self.components if index < array.size]]
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log every state of the element under `<path>/<state>`, a complex one under `real` and `imag` below it.
 
         Args:
@@ -86,7 +85,7 @@ class ScalarsVisual(BaseVisual):
                 self.styled_.add(path)
             BaseVisual._log_scalars(recording, path, value)
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:
@@ -114,7 +113,7 @@ class ScalarsVisual(BaseVisual):
         return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
 
     @staticmethod
-    def _series_index(problem: BaseProblem, path: str, state: str) -> int:
+    def _series_index(problem: BaseProblemSpec, path: str, state: str) -> int:
         """Return the position of a state among the states of every element of a problem, in declaration order."""
         names = [(element.path, name) for element in problem.elements for name in element.states]
         return names.index((path, state)) if (path, state) in names else 0

@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbo
 
 from ..core.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
-from ..engine.problems import Entry, Problem
+from ..specs import EntrySpec, ProblemSpec
 
 
 @dataclass
 class _Expansion:
     """Symbols of every group member and the explicit value of every reduction, built for one problem."""
 
-    problem: Problem
+    problem: ProblemSpec
     parameter_values: npt.NDArray[np.float64]
     symbols: dict[tuple[str, int, int], Expression] = field(default_factory=dict)
     values: dict[Expression, float] = field(default_factory=dict)
@@ -37,7 +37,7 @@ class _Expansion:
                         found[(is_state, entry.start + column)] = item
         return found
 
-    def member_symbol(self, entry: Entry, column: int, member: int) -> Expression:
+    def member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""
         key = (entry.name, column, member)
         if key not in self.symbols:

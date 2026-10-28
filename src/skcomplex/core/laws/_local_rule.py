@@ -53,9 +53,9 @@ class LocalRuleLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import LocalRuleLaw
-        >>> from skcomplex.core.laws.utils import Totalistic
+        >>> from skcomplex.specs import TotalisticSpec
         >>> from skcomplex.core.spaces import BoxNeighborhood
-        >>> LocalRuleLaw(var('cell'), BoxNeighborhood(), Totalistic({2: 1})).check().prepare().targets_
+        >>> LocalRuleLaw(var('cell'), BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_
         (cell,)
     """
 

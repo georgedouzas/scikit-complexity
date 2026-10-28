@@ -13,11 +13,10 @@ from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, Updat
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
+from ...specs import NeighborReadSpec, ReferenceSpec
+from ...types import ReadKind
 from .._utils import domain_of, symbol, vector
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
-from ..problems._neighbor_read import NeighborRead
-from ..problems._read_kind import ReadKind
-from ..problems._reference import Reference
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
 from ._kernel_spec import KernelSpec
@@ -116,7 +115,7 @@ class MemberLowering(BaseLowering):
         reference = self.spec.references[base]
         target = symbol(f'{base}__shift{len(self.shifted_)}', domain_of(base))
         read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
-        self.spec.references[target] = Reference(
+        self.spec.references[target] = ReferenceSpec(
             reference.entry,
             reference.is_state,
             reference.column,
@@ -192,13 +191,13 @@ class MemberLowering(BaseLowering):
         return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
-    def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
+    def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
         """Return the read of the member at an offset of every member of a group of `rows` members."""
         lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).check().prepare()
         table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
-        return NeighborRead(table, ghost, (rows,), (offset,), MODES[kind])
+        return NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])
 
     @staticmethod
     def _shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:

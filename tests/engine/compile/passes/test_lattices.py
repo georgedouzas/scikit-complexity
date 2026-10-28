@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
-from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic, neighbors
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import (
     AdjacencyNeighborhood,
     BoxNeighborhood,
@@ -23,15 +23,26 @@ from skcomplex.core.spaces import (
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import ExtremalRecord
 from skcomplex.engine.problems._extremal_kernel import ExtremalKernel
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
 from skcomplex.errors import ValidationError
 from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising
-from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from skcomplex.specs import (
+    EnergySpec,
+    ExtremalRecordSpec,
+    FrameSpec,
+    MoveSpec,
+    OuterTotalisticSpec,
+    ParameterSpec,
+    SamplerSpec,
+    StateSpec,
+    TableSpec,
+    TotalisticSpec,
+    VisualSpec,
+)
 
 
 class BurnElement(Element):
@@ -67,7 +78,7 @@ class LifeElement(Element):
 
     def _get_laws(self, s):
         """Return the Game of Life rule on the Moore neighbourhood."""
-        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 class GraphLifeElement(LifeElement):
@@ -75,7 +86,7 @@ class GraphLifeElement(LifeElement):
 
     def _get_laws(self, s):
         """Return the Game of Life rule on the adjacent nodes."""
-        return [LocalRuleLaw(s.alive, AdjacencyNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, AdjacencyNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 def _renew(value, random):
@@ -224,7 +235,7 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
 
         def _get_laws(self, s):
             """Return the laws of the count element."""
-            return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), Totalistic(lambda total: total))]
+            return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), TotalisticSpec(lambda total: total))]
 
     values = {0: 1.0, 1: 1.0, 2: 1.0, 3: 0.0, 4: 0.0, 5: 0.0}
     system = System(
@@ -282,7 +293,7 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
 
         def _get_laws(self, s):
             """Return the laws of the ordered element."""
-            return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), Table({(1, 1): 1}))]
+            return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), TableSpec({(1, 1): 1}))]
 
     with pytest.raises(ValidationError, match='totalistic'):
         compile_system(
@@ -465,7 +476,7 @@ def test_extremal_changes_only_the_neighbourhood():
     changed = np.flatnonzero(simulation.state_ != values)
     assert sorted(changed.tolist()) == sorted([(site - 1) % 100, site, (site + 1) % 100])
     (event,) = simulation.trajectory_.events
-    assert event == ExtremalRecord('ring', 1.0, site, float(values[site]))
+    assert event == ExtremalRecordSpec('ring', 1.0, site, float(values[site]))
 
 
 def test_extremal_maximum_and_ties():
@@ -532,7 +543,7 @@ def test_extremal_runs_are_reproducible_across_backends():
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     """Test that a triangular forest fire logs one colored cell per site at its position at every logged step."""
     simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).check().run(until=1)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
     (
         SiteVisual(path=simulation.problem_.elements[0].path, recording=recording)
@@ -555,7 +566,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
 def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
     simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).check().run(until=1)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
     visual = SiteVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
     visual.check().prepare(simulation.problem_)

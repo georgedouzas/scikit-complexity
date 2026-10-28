@@ -4,15 +4,8 @@ import enum
 import inspect
 
 from skcomplex.engine import problems as package
-from skcomplex.engine.problems import (
-    BaseKernel,
-    BasePrinter,
-    BaseProblem,
-    BaseRecord,
-    BaseSearch,
-    BaseStructure,
-)
-from skcomplex.specs import BaseSpec
+from skcomplex.engine.problems import BaseKernel, BasePrinter, BaseSearch
+from skcomplex.specs import BaseProblemSpec, BaseRecordSpec, BaseSpec, BaseStructureSpec
 
 BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter)
 
@@ -27,9 +20,9 @@ def test_public_names_are_classes_under_the_bases():
 
 def test_value_bases_derive_from_the_value_base():
     """The problem, record, and structure bases are values."""
-    assert issubclass(BaseProblem, BaseSpec)
-    assert issubclass(BaseRecord, BaseSpec)
-    assert issubclass(BaseStructure, BaseSpec)
+    assert issubclass(BaseProblemSpec, BaseSpec)
+    assert issubclass(BaseRecordSpec, BaseSpec)
+    assert issubclass(BaseStructureSpec, BaseSpec)
 
 
 def test_kernel_search_and_printer_bases_are_configurable():

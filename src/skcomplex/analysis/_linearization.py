@@ -11,11 +11,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
-from ..engine.problems import Form, Problem
 from ..errors import AnalysisError, ValidationError
-from ..types import Array
+from ..specs import ProblemSpec
+from ..types import Array, DataKind, FormKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 from ._stability import StabilityAnalysis
 
 
@@ -140,7 +139,7 @@ class LinearizationAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Compile the system of the source, checking that it runs in continuous time."""
         problem = self._compiled_problem(self._read_system(source), 'Linearization')
-        if problem.form != Form.ODE:
+        if problem.form != FormKind.ODE:
             error_msg = (
                 f'{type(self).__name__} takes systems under continuous time, but the system is a {problem.form.value}.'
             )
@@ -195,7 +194,7 @@ class LinearizationAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _initial_values(problem: Problem) -> dict[str, float]:
+    def _initial_values(problem: ProblemSpec) -> dict[str, float]:
         """Return the initial value of every state component by name."""
         return {
             name: float(problem.initial_state[entry.start + column])

@@ -13,7 +13,6 @@ from skcomplex.core.laws.utils import count, maximum, mean, total
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile._observables import ObservableEvaluator
-from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.errors import IncompatibleLawsError, SolverError, ValidationError
@@ -27,6 +26,7 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.types import FormKind
 
 
 class BreederElement(Element):
@@ -218,10 +218,10 @@ def _counting_system(agents=3):
 def test_agents_and_ode_split_into_two_partitions():
     """Test that agents and differential equations in sibling subsystems give an agent and an ODE partition."""
     problem = compile_system(harvesting())
-    assert problem.form == Form.COUPLED
+    assert problem.form == FormKind.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
-        ('land', Form.ODE),
-        ('village', Form.AGENT),
+        ('land', FormKind.ODE),
+        ('village', FormKind.AGENT),
     ]
 
 
@@ -235,7 +235,7 @@ def test_laws_join_the_partition_of_their_target():
         interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
     )
     land, village = compile_system(system).partitions
-    assert (land.problem.form, village.problem.form) == (Form.ODE, Form.AGENT)
+    assert (land.problem.form, village.problem.form) == (FormKind.ODE, FormKind.AGENT)
     assert [path for path, _ in village.problem.model_rules] == ['tend']
     assert Simulation(system, dt=1).check().run(until=2).trajectory_.values('land/soil.n')[-1] == pytest.approx(2 * 2)
 
@@ -274,7 +274,7 @@ def test_mix_across_subsystems_gives_partitions():
             ),
         ],
     )
-    assert [item.problem.form for item in compile_system(system).partitions] == [Form.DISCRETE, Form.ODE]
+    assert [item.problem.form for item in compile_system(system).partitions] == [FormKind.DISCRETE, FormKind.ODE]
 
 
 def test_held_input_keeps_start_of_interval_value():

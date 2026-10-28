@@ -11,14 +11,13 @@ from sage.all__sagemath_symbolics import CC
 from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
 from ....errors import BackendError, LabelError, ValidationError
-from ....specs import VisualSpec
+from ....specs import CompiledAgentsSpec, NodeSpec, ProblemSpec, VisualSpec
+from ....types import VariableKind
 from ..._utils import declarations_of
-from ...problems import CompiledAgents, Problem, VariableKind
 from .._base import BasePass
 from .._block import Block
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-from .._tree import Node
 from ._problem import ProblemPass
 
 _AGENT_VIEW_NAMES = frozenset(
@@ -65,14 +64,14 @@ class AgentsProblemPass(BasePass):
         rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.rules)
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
-            cast('Problem', compilation.problem),
+            cast('ProblemSpec', compilation.problem),
             agents=self._compiled_agents(blocks, rules),
             model_rules=tuple((spec.owner, law) for spec, items in rules for law in items if spec.owner not in agents),
             agent_space=self._agent_space(blocks),
         )
 
     @staticmethod
-    def _check_agent_names(node: Node) -> None:
+    def _check_agent_names(node: NodeSpec) -> None:
         """Raise an error for a state or parameter of an agent named like an attribute of the agent view or of Mesa."""
         declared = [
             *declarations_of(node.component_type, VariableKind.STATE),
@@ -87,7 +86,7 @@ class AgentsProblemPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _agent_visual(node: Node) -> VisualSpec:
+    def _agent_visual(node: NodeSpec) -> VisualSpec:
         """Return the visual of agents, their own or their element type's, and the agents' points without one."""
         visual = ProblemPass._visual_of(node)
         return VisualSpec('agents') if visual == VisualSpec() else visual
@@ -105,7 +104,7 @@ class AgentsProblemPass(BasePass):
     def _compiled_agents(
         blocks: list[Block],
         rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
-    ) -> tuple[CompiledAgents, ...]:
+    ) -> tuple[CompiledAgentsSpec, ...]:
         """Return the agent elements and groups with their states, initial values, parameters, and rules."""
         by_owner = {spec.owner: items for spec, items in rules}
         agents = []
@@ -124,7 +123,7 @@ class AgentsProblemPass(BasePass):
                 raise BackendError(error_msg)
             states = tuple(declared)
             agents.append(
-                CompiledAgents(
+                CompiledAgentsSpec(
                     path=node.path,
                     element=node.component,
                     size=node.members or 1,

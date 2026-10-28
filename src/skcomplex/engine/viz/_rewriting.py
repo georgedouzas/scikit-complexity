@@ -11,11 +11,16 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..problems import BaseProblem, BaseStructure, CompiledAgents, CompiledElement
-from ..problems._graph_structure import GraphStructure
-from ..problems._patch_structure import PatchStructure
-from ..problems._word_structure import WordStructure
-from ..runtime import Frame
+from ...specs import (
+    BaseProblemSpec,
+    BaseStructureSpec,
+    CompiledAgentsSpec,
+    CompiledElementSpec,
+    FrameSpec,
+    GraphStructureSpec,
+    PatchStructureSpec,
+    WordStructureSpec,
+)
 from ._base import BaseVisual
 
 MARGIN = 0.03
@@ -63,11 +68,11 @@ class GeometryVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _is_filled(self, element: CompiledElement) -> bool:
+    def _is_filled(self, element: CompiledElementSpec) -> bool:
         """Check whether an element is drawn as a filled image."""
         return bool(getattr(element.element, 'filled', False) if self.filled is None else self.filled)
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the structure of the element at one frame and its counts.
 
         Args:
@@ -85,7 +90,7 @@ class GeometryVisual(BaseVisual):
         structure = frame.structures.get(element.path)
         if structure is None:
             return
-        if isinstance(structure, GraphStructure):
+        if isinstance(structure, GraphStructureSpec):
             nodes = [str(node) for node in structure.graph.nodes]
             labels = [str(label) for _, label in structure.graph.nodes(data='label', default='')]
             recording.log(element.path, rr.GraphNodes(nodes, labels=labels))
@@ -93,7 +98,7 @@ class GeometryVisual(BaseVisual):
             kind: Literal['directed', 'undirected'] = 'directed' if structure.graph.is_directed() else 'undirected'
             recording.log(element.path, rr.GraphEdges(edges, graph_type=kind))
             return
-        if isinstance(structure, PatchStructure) and self._is_filled(element):
+        if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
             grid = structure.raster(self.resolution, self._bounds_of(element))
             pixels = np.where(grid[..., None], _FILL, _BACKGROUND).astype(np.uint8)
             recording.log(element.path, rr.Image(pixels))
@@ -104,7 +109,7 @@ class GeometryVisual(BaseVisual):
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the view of the geometry, with the bounds of the element, and a time series view of the counts.
 
         Args:
@@ -145,7 +150,7 @@ class GeometryVisual(BaseVisual):
         geometry = component.geometry if isinstance(component, WordElement) else None
         if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        bounds = self._bounds_of(element) if isinstance(element, CompiledElement) else None
+        bounds = self._bounds_of(element) if isinstance(element, CompiledElementSpec) else None
         if bounds is None or self._is_filled(element):  # type: ignore[arg-type]
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
@@ -153,7 +158,7 @@ class GeometryVisual(BaseVisual):
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=visual_bounds), series]
 
     @staticmethod
-    def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | None:
+    def _bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
         """Return the box an element's geometry is drawn in, its declared bounds or the box of a patch's first tiles."""
         component = element.element
         declared = getattr(component, 'bounds', None)
@@ -166,30 +171,30 @@ class GeometryVisual(BaseVisual):
         names = [prototile.name for prototile in component.prototiles]
         try:
             matrices = [
-                np.eye(3) if placement is None else PatchStructure._affine_matrix(placement, {})
+                np.eye(3) if placement is None else PatchStructureSpec._affine_matrix(placement, {})
                 for _, placement in tiles
             ]
             codes = [names.index(name) for name, _ in tiles]
         except (TypeError, ValueError):
             return None
-        xmin, ymin, xmax, ymax = PatchStructure(
+        xmin, ymin, xmax, ymax = PatchStructureSpec(
             tuple(component.prototiles),
-            BaseStructure._frozen(codes, np.int64),
-            BaseStructure._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            BaseStructureSpec._frozen(codes, np.int64),
+            BaseStructureSpec._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
         ).bounds()
         pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
         return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
 
     @staticmethod
-    def _strips(structure: BaseStructure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+    def _strips(structure: BaseStructureSpec) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the line strips of a structure, with y flipped for Rerun's downward axis, and a value per strip."""
         segments = structure.segments()
-        if isinstance(structure, WordStructure):
+        if isinstance(structure, WordStructureSpec):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
-        elif isinstance(structure, PatchStructure):
+        elif isinstance(structure, PatchStructureSpec):
             codes = [
-                code for code, prototile in enumerate(structure.prototiles) if PatchStructure._is_segment(prototile)
+                code for code, prototile in enumerate(structure.prototiles) if PatchStructureSpec._is_segment(prototile)
             ]
             values = np.concatenate(
                 [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],

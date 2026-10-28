@@ -7,9 +7,9 @@ from typing import Any, cast
 
 import numpy as np
 
+from ....specs import RunStateSpec
 from ....types import Array
 from ...problems._encounter_kernel import EncounterKernel
-from ...problems._state import State
 from .._base import BasePass
 from .._declarations import Declarations
 
@@ -44,7 +44,7 @@ class EncounterFunctionsPass(BasePass):
         def encountered(t: float, x: Array, p: Array) -> Array:
             rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
             for encounter in encounters:
-                rates += encounter.run(State(t, x, p))
+                rates += encounter.run(RunStateSpec(t, x, p))
             return rates
 
         functions['drift'] = encountered

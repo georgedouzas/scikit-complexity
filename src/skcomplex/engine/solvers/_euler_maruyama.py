@@ -11,8 +11,8 @@ import numpy as np
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array, VectorFunction
-from ..problems import NoiseKind, OrderKind, SupportSpec
+from ...specs import SupportSpec
+from ...types import Array, NoiseKind, OrderKind, VectorFunction
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -30,7 +30,8 @@ class EulerMaruyamaSolver(SDESolver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
-        >>> from skcomplex.engine.solvers import EulerMaruyamaSolver, Step
+        >>> from skcomplex.engine.solvers import EulerMaruyamaSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(
         ...     System(
         ...         elements=[AssetElement('stock', price=100)],
@@ -38,7 +39,7 @@ class EulerMaruyamaSolver(SDESolver):
         ...     ),
         ... )
         >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).check().prepare(problem)
-        >>> bool(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
+        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
         True
     """
 

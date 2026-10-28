@@ -6,8 +6,8 @@
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...types import Array
-from ..problems import Form, NoiseKind, OrderKind, SupportSpec
+from ...specs import SupportSpec
+from ...types import Array, FormKind, NoiseKind, OrderKind
 from ._solver import Solver
 
 
@@ -26,7 +26,8 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.laws import JumpLaw
         >>> from skcomplex.core.laws.utils import draw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.solvers import RenewalSolver, Step
+        >>> from skcomplex.engine.solvers import RenewalSolver
+        >>> from skcomplex.specs import StepSpec
         >>> class CounterElement(Element):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -36,7 +37,7 @@ class RenewalSolver(Solver):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
         >>> problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
         >>> stepper = RenewalSolver(random_state=0).check().prepare(problem)
-        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 100.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0))
         >>> bool(np.all(state[:3] > 50))
         True
     """
@@ -53,9 +54,9 @@ class RenewalSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.RENEWAL
+        return FormKind.RENEWAL
 
     @classmethod
     def _is_renewing(cls) -> bool:

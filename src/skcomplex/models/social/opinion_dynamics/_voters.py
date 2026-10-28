@@ -15,11 +15,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw
-from ....core.laws.utils import Totalistic
 from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 
@@ -119,7 +118,7 @@ class MajorityVoterElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.opinion, MooreNeighborhood(center=True), Totalistic(lambda total: total >= MAJORITY)),
+            LocalRuleLaw(s.opinion, MooreNeighborhood(center=True), TotalisticSpec(lambda total: total >= MAJORITY)),
         ]
 
 

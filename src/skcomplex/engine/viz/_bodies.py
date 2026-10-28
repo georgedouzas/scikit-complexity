@@ -13,9 +13,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...errors import ValidationError
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ...types import Colors, Marks, Outline, Positions
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
 from ._base import _UPWARD, BaseVisual
 from ._points import _TRAIL_LENGTH
 
@@ -114,7 +113,7 @@ class BodiesVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
         self.drawn_: set[str] = set()
@@ -197,7 +196,7 @@ class BodiesVisual(BaseVisual):
         segments, colors = self._fading_segments([history[:, column] for column in range(len(traced))])
         recording.log(f'{path}/trail', self._strips(segments, width, colors))
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the bodies, the rods, the trails, the outline, and the states of an element at one frame.
 
         Args:
@@ -230,7 +229,7 @@ class BodiesVisual(BaseVisual):
         for state, name in element.states.items():
             BaseVisual._log_scalars(recording, f'{path}/{state}', frame.value(name))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.
 
         Args:
@@ -245,7 +244,7 @@ class BodiesVisual(BaseVisual):
                 A 2D spatial view with the element path as origin, bounded by the rods at full length around the
                 pivot or by the outline, and prepared to the drawing otherwise, and a time series view of the states.
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
 
         def read(name: str) -> Any:  # noqa: ANN401
@@ -285,7 +284,7 @@ class BodiesVisual(BaseVisual):
         return rr.LineStrips2D([BodiesVisual._shown(strip) for strip in strips], radii=radius, colors=colors)
 
     @staticmethod
-    def _values_of(element: CompiledElement, read: Callable[[str], Any]) -> dict[str, Any]:
+    def _values_of(element: CompiledElementSpec, read: Callable[[str], Any]) -> dict[str, Any]:
         """Return the parameters and states of an element by their short names, read by dotted name."""
         names = {**element.parameters, **element.states}
         return {name: read(dotted) for name, dotted in names.items()}

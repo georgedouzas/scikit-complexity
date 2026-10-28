@@ -12,10 +12,8 @@ import numpy.typing as npt
 from ...core.elements import PatchElement
 from ...core.laws import SubstitutionLaw
 from ...errors import RewritingError
-from ._base import BaseKernel, BaseProblem, BaseStructure
-from ._parameters import Parameters
-from ._patch_structure import PatchStructure
-from ._state import State
+from ...specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, PatchStructureSpec, RunStateSpec
+from ._base import BaseKernel
 from ._word_kernel import IDENTIFIER
 
 
@@ -41,7 +39,7 @@ class PatchKernel(BaseKernel):
         path: str,
         patch: PatchElement,
         substitutions: Sequence[SubstitutionLaw],
-        parameters: Parameters,
+        parameters: ParametersSpec,
     ) -> None:
         self.path = path
         self.patch = patch
@@ -90,16 +88,16 @@ class PatchKernel(BaseKernel):
         """Return the parameter values by symbol."""
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
-    def _prepare(self, context: BaseProblem) -> None:
+    def _prepare(self, context: BaseProblemSpec) -> None:
         """Start the structure at generation 0 for a run of the problem, as `structure_`."""
         self.structure_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: State) -> PatchStructure:
+    def _run(self, inputs: RunStateSpec) -> PatchStructureSpec:
         """Rewrite the current structure once, in parallel, with the parameters and the random stream of the state."""
         self.structure_ = self._rewrite(self.structure_, inputs.p, cast('np.random.Generator', inputs.rng))
         return self.structure_
 
-    def _initial(self, values: npt.NDArray[np.float64]) -> PatchStructure:
+    def _initial(self, values: npt.NDArray[np.float64]) -> PatchStructureSpec:
         """Return the patch at generation 0.
 
         Args:
@@ -112,16 +110,17 @@ class PatchKernel(BaseKernel):
         """
         by_symbol = self._values(values)
         matrices = [
-            np.eye(3) if item is None else PatchStructure._affine_matrix(item, by_symbol) for item in self.placements
+            np.eye(3) if item is None else PatchStructureSpec._affine_matrix(item, by_symbol)
+            for item in self.placements
         ]
-        return PatchStructure(
+        return PatchStructureSpec(
             self.prototiles,
-            BaseStructure._frozen(self.codes, np.int64),
-            BaseStructure._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            BaseStructureSpec._frozen(self.codes, np.int64),
+            BaseStructureSpec._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
         )
 
-    def counts(self, patch: PatchStructure) -> list[float]:
+    def counts(self, patch: PatchStructureSpec) -> list[float]:
         """Return the count of every prototile and the number of tiles.
 
         Args:
@@ -136,10 +135,10 @@ class PatchKernel(BaseKernel):
 
     def _rewrite(
         self,
-        patch: PatchStructure,
+        patch: PatchStructureSpec,
         values: npt.NDArray[np.float64],
         rng: np.random.Generator,
-    ) -> PatchStructure:
+    ) -> PatchStructureSpec:
         """Return the patch of the next generation, every tile replaced by its pieces in parallel.
 
         Args:
@@ -184,13 +183,13 @@ class PatchKernel(BaseKernel):
             rows = np.flatnonzero(codes == code)
             if not len(rows):
                 continue
-            maps = np.stack([PatchStructure._affine_matrix(affine, by_symbol) for _, affine in pieces])
+            maps = np.stack([PatchStructureSpec._affine_matrix(affine, by_symbol) for _, affine in pieces])
             places = offsets[rows][:, None] + np.arange(len(pieces))
             new_matrices[places] = np.einsum('tij,pjk->tpik', matrices[rows], maps)
             new_codes[places] = [piece for piece, _ in pieces]
-        return PatchStructure(
+        return PatchStructureSpec(
             self.prototiles,
-            BaseStructure._frozen(new_codes, np.int64),
-            BaseStructure._frozen(new_matrices, np.float64),
+            BaseStructureSpec._frozen(new_codes, np.int64),
+            BaseStructureSpec._frozen(new_matrices, np.float64),
             patch.generation + 1,
         )

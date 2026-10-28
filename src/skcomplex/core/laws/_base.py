@@ -13,9 +13,8 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
+from ...specs import CallSpec, RequirementSpec
 from ..base import BasePart
-from .utils import Call
 
 
 class BaseLaw(BasePart):
@@ -93,7 +92,7 @@ class BaseLaw(BasePart):
                 stack += reversed([item for pair in value.items() for item in pair])
             elif isinstance(value, FreeModuleElement | list | tuple):
                 stack += reversed(list(value))
-            elif isinstance(value, Call):
+            elif isinstance(value, CallSpec):
                 stack += reversed(value.arguments)
             else:
                 found.append(value)

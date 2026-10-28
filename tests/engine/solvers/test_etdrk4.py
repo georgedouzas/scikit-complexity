@@ -12,7 +12,7 @@ from skcomplex.core.laws.utils import inverse_laplacian, laplacian
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CrankNicolsonSolver,
     ETDRK4Solver,
@@ -31,7 +31,7 @@ from skcomplex.models.physics.fluids import (
 )
 from skcomplex.models.physics.heat import heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import FrameSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):
@@ -195,7 +195,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
         .check()
         .prepare(problem)
     )
-    visual.run(Frame(0, 0.0, simulation.state_, simulation.parameters_, problem))
+    visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
     Simulation(heat_l_shape(1), dt=0.1, observers=[observer]).check().run(until=0.2)

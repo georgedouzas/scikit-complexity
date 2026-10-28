@@ -18,13 +18,11 @@ from ...core.elements import GroupElement
 from ...core.interactions import BaseInteraction
 from ...core.spaces import BaseSpace, NetworkSpace
 from ...errors import SpaceError, ValidationError
-from ...specs import WienerProcessSpec
-from ...types import Array
+from ...specs import EntrySpec, NodeSpec, ReferenceSpec, VariableSpec, WienerProcessSpec
+from ...specs._node_spec import _MAX_SHOWN_COMPONENTS
+from ...types import Array, VariableKind
 from .._utils import components_of, declarations_of, symbol, vector
-from ..problems import Entry, Variable, VariableKind
-from ..problems._reference import Reference
 from ._block import Block
-from ._tree import _MAX_SHOWN_COMPONENTS, Node
 
 _ACTIVE = '_active'
 ENDS = ('_source', '_target')
@@ -36,8 +34,8 @@ class Declarations:
     """Entries, initial values, and blocks collected from the components."""
 
     time: Expression
-    states: list[Entry] = field(default_factory=list)
-    parameters: list[Entry] = field(default_factory=list)
+    states: list[EntrySpec] = field(default_factory=list)
+    parameters: list[EntrySpec] = field(default_factory=list)
     initial_states: list[Array] = field(default_factory=list)
     initial_parameters: list[Array] = field(default_factory=list)
     blocks: dict[str, Block] = field(default_factory=dict)
@@ -46,12 +44,12 @@ class Declarations:
     handles: dict[Expression, tuple[str, int]] = field(default_factory=dict)
     agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)
 
-    def _declare_processes(self, node: Node) -> None:
+    def _declare_processes(self, node: NodeSpec) -> None:
         """Add a block with the handle `dW` of every Wiener process an interaction binds, one symbol per process."""
         for path, wiener in self._noise_processes([node]).items():
             if path in self.processes:
                 continue
-            block = Block(Node(path, node.scope, wiener, node.space))
+            block = Block(NodeSpec(path, node.scope, wiener, node.space))
             base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
             handle = (
                 symbol(base)
@@ -63,7 +61,7 @@ class Declarations:
             for index, item in enumerate(components_of(handle)):
                 self.handles[item] = (path, index)
 
-    def _declare(self, block: Block, variable: str, declaration: Variable, is_state: bool) -> None:
+    def _declare(self, block: Block, variable: str, declaration: VariableSpec, is_state: bool) -> None:
         """Add one variable of a component to its block."""
         node = block.node
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
@@ -86,7 +84,7 @@ class Declarations:
             ),
         )
         is_complex = declaration.domain is CC
-        entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex, declaration.period)
+        entry = EntrySpec(name, self.ends[is_state], shape, declaration.domain, members, is_complex, declaration.period)
         entries.append(entry)
         self.ends[is_state] += entry.size
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
@@ -100,7 +98,7 @@ class Declarations:
         block.symbols[variable] = vector(values_of) if member_shape else values_of[0]
         block.entries[variable] = entry
         for column, item in enumerate(components):
-            block.references[item] = Reference(entry, is_state, column)
+            block.references[item] = ReferenceSpec(entry, is_state, column)
 
     def _declare_agents(self, block: Block) -> None:
         """Add the symbols that reductions of an agent group read: its members, scalar states, and scalar parameters.
@@ -129,14 +127,14 @@ class Declarations:
         node = block.node
         rows = node.members or 1
         name = f'{node.path}.{variable}'
-        entry = Entry(name, self.ends[False], (rows,), RR, rows)
+        entry = EntrySpec(name, self.ends[False], (rows,), RR, rows)
         self.parameters.append(entry)
         self.initial_parameters.append(np.asarray(values, dtype=float))
         self.ends[False] += entry.size
         item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', RR)
         block.symbols[variable] = item
         block.entries[variable] = entry
-        block.references[item] = Reference(entry, False, 0)
+        block.references[item] = ReferenceSpec(entry, False, 0)
 
     def _declare_topology(self, block: Block) -> None:
         """Add the activity of every row of a capacity group, and the ends of every edge of a group on edges."""
@@ -158,7 +156,7 @@ class Declarations:
         domain: object,
         shape: tuple[int, ...] = (),
         members: int | None = None,
-    ) -> Entry:
+    ) -> EntrySpec:
         """Add a hidden state after every state declared so far and return its entry.
 
         Args:
@@ -181,7 +179,7 @@ class Declarations:
             entry:
                 The entry of the state.
         """
-        entry = Entry(name, self.ends[True], shape, domain, members)
+        entry = EntrySpec(name, self.ends[True], shape, domain, members)
         self.states.append(entry)
         self.ends[True] += entry.size
         self.initial_states.append(initial)
@@ -214,7 +212,7 @@ class Declarations:
             if getattr(block.node.component, 'on', None) == 'edges' and block.node.space is space
         }
 
-    def changing_entries(self, space: object) -> dict[str | None, tuple[Entry, Entry, Entry]]:
+    def changing_entries(self, space: object) -> dict[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]]:
         """Return the source, target, and activity entries of the variable edge group of every changing layer.
 
         Args:
@@ -235,7 +233,7 @@ class Declarations:
         """Paths of the declared groups, indexed once every component is declared."""
         return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
 
-    def declare_component(self, node: Node) -> Block:
+    def declare_component(self, node: NodeSpec) -> Block:
         """Add the states and parameters of a component and return its block.
 
         Args:
@@ -262,7 +260,7 @@ class Declarations:
         return block
 
     @staticmethod
-    def _per_entry_shape(node: Node, variable: str, declaration: Variable) -> tuple[int, ...]:
+    def _per_entry_shape(node: NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role, after checking its length."""
         roles = declarations_of(node.component_type, VariableKind.ROLE)
         role = declaration.per
@@ -284,7 +282,7 @@ class Declarations:
         return (entries,)
 
     @staticmethod
-    def _shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
+    def _shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
         Args:
@@ -313,7 +311,7 @@ class Declarations:
         if space is None:
             error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
             raise SpaceError(error_msg)
-        if not Entry._contains(RealSet.open(0, oo), space.n_dim_) or not Entry._contains(ZZ, space.n_dim_):
+        if not EntrySpec._contains(RealSet.open(0, oo), space.n_dim_) or not EntrySpec._contains(ZZ, space.n_dim_):
             error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
         return (int(space.n_dim_),)
@@ -422,20 +420,20 @@ class Declarations:
             ValidationError:
                 The value is not numeric, has the wrong shape, or is outside the domain.
         """
-        if not Entry._contains(domain, value):
+        if not EntrySpec._contains(domain, value):
             error_msg = f'{name} = {Declarations._describe(value)} is not in its domain {domain}.'
-            if Entry._contains(CC, value):
+            if EntrySpec._contains(CC, value):
                 error_msg = (
                     f'{name} = {Declarations._describe(value)} has a nonzero imaginary part, which its domain {domain} '
                     f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
                     'values.'
                 )
             raise ValidationError(error_msg)
-        flat = Declarations._flat_value(name, value, Entry._encode(domain, value, period), shape, members)
+        flat = Declarations._flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)
         return np.ascontiguousarray(flat).view(float) if domain is CC else flat
 
     @staticmethod
-    def _noise_processes(nodes: list[Node]) -> dict[str, WienerProcessSpec]:
+    def _noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:
         """Return the Wiener processes that the noise roles of the interactions of a system tree bind, by path.
 
         Interactions of one system that bind processes of one label share them, at the path of the label in that system.

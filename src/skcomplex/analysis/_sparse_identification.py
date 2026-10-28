@@ -22,9 +22,8 @@ from ..core.system import System
 from ..engine.runtime import Simulation
 from ..errors import AnalysisError
 from ..specs import StateSpec
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, SurrogateSource
-from ._kinds import DataKind
 
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})

@@ -11,8 +11,8 @@ import numpy as np
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ._solver import Solver
 
 GRID_TOLERANCE = 1e-9
@@ -40,16 +40,16 @@ class CaputoSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.FRACTIONAL
+        return FormKind.FRACTIONAL
 
     @classmethod
-    def _get_forms(cls) -> frozenset[Form]:
+    def _get_forms(cls) -> frozenset[FormKind]:
         """Return the other forms the solver also solves."""
-        return frozenset({Form.ODE})
+        return frozenset({FormKind.ODE})
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper for a problem.
 
         Args:

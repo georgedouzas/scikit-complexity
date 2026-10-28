@@ -7,12 +7,9 @@
 import numpy as np
 
 from ...base import BaseConfig
+from ...specs import LoweredFunctionsSpec, LoweredKernelsSpec, ReferenceSpec, RunStateSpec, SupportSpec
 from ...types import Array, VectorFunction
-from ..problems import State, SupportSpec
 from ..problems._law_kernel import LawKernel
-from ..problems._lowered_kernels import LoweredKernels
-from ..problems._reference import Reference
-from ._lowered_functions import LoweredFunctions
 
 _AUTO_MEMBERS = 1000
 
@@ -21,12 +18,12 @@ class BaseBackend(BaseConfig):
     """Base of the backends, which turn the kernels of a problem into the numeric functions of its form.
 
     A backend stores its settings in its constructor, `prepare()` takes nothing, and `run(kernels)` takes the
-    `LoweredKernels` of a problem, with its form, the size of its state vector, its reductions, and its draws, and
-    returns the `LoweredFunctions` of the form. Subclasses implement the hooks `_run`, `_get_name`, the name a problem
-    records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes functions of.
+    `LoweredKernelsSpec` of a problem, with its form, the size of its state vector, its reductions, and its draws, and
+    returns the `LoweredFunctionsSpec` of the form. Subclasses implement the hooks `_run`, `_get_name`, the name a
+    problem records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes functions of.
     """
 
-    def _run(self, inputs: LoweredKernels) -> LoweredFunctions:
+    def _run(self, inputs: LoweredKernelsSpec) -> LoweredFunctionsSpec:
         """Return the numeric functions of the form of the kernels.
 
         Raises:
@@ -75,9 +72,9 @@ class BaseBackend(BaseConfig):
             """Sum every kernel's outputs into their targets."""
             output = np.zeros(size)
             for kernel in kernels:
-                _, pairs, values = kernel.run(State(t, x, p))
+                _, pairs, values = kernel.run(RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    Reference._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
+                    ReferenceSpec._add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
             return output
 
         return evaluate
@@ -99,9 +96,9 @@ class BaseBackend(BaseConfig):
             """Set every kernel's outputs on a copy of the state."""
             output = x.copy()
             for kernel in kernels:
-                _, _, values = kernel.run(State(t, x, p))
+                _, _, values = kernel.run(RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    Reference._assign_into(output, item.target, value)  # type: ignore[arg-type]
+                    ReferenceSpec._assign_into(output, item.target, value)  # type: ignore[arg-type]
             return output
 
         return evaluate
@@ -121,7 +118,7 @@ class BaseBackend(BaseConfig):
 
         def evaluate(t: float, x: Array, p: Array) -> Array:
             """Concatenate every kernel's outputs."""
-            values = [value for kernel in kernels for value in kernel.run(State(t, x, p))[2]]
+            values = [value for kernel in kernels for value in kernel.run(RunStateSpec(t, x, p))[2]]
             return np.concatenate([np.zeros(0), *values])
 
         return evaluate

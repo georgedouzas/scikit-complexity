@@ -15,10 +15,9 @@ import ordpy
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import AnyArray, Array
+from ..types import AnyArray, Array, DataKind
 from ._base import BaseAnalysis, Source
 from ._entropy import EntropyAnalysis
-from ._kinds import DataKind
 
 KINDS = (
     'mutual',

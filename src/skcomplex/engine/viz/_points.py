@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ._base import _UPWARD, BaseVisual
 
 _MAX_POINT_DIMENSIONS = 3
@@ -95,14 +94,14 @@ class PointsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
         self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
         self.span_: tuple[float, float] | None = None
         super()._prepare(problem)
 
-    def _point_colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
+    def _point_colors(self, element: CompiledElementSpec, frame: FrameSpec, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points over the given range, or over a range widened to every value so far."""
         if self.color_by is None:
             return None
@@ -122,7 +121,7 @@ class PointsVisual(BaseVisual):
         extent = float((high - low).max()) or float(np.abs(points).max())
         return BaseVisual._radius_of(extent, len(points))
 
-    def _crowd(self, frame: Frame, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def _crowd(self, frame: FrameSpec, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the positions of every element drawn by a points visual of the same position state and dimension."""
         positions = [
             np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
@@ -159,7 +158,7 @@ class PointsVisual(BaseVisual):
         else:
             recording.log(f'{path}/trail', rr.LineStrips2D(strips, radii=radius, colors=colors))
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the position under `<path>`, the trail under `<path>/trail`, and the other states under `<path>/<state>`.
 
         Args:
@@ -190,7 +189,7 @@ class PointsVisual(BaseVisual):
         for state in others:
             BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a spatial view of the positions by their dimension, and a time series view of the other states.
 
         Args:
@@ -218,7 +217,7 @@ class PointsVisual(BaseVisual):
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         dimension = problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
         path = element.path

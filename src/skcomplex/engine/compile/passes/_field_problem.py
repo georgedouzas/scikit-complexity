@@ -6,7 +6,7 @@
 from dataclasses import replace
 from typing import cast
 
-from ...problems import Problem
+from ....specs import ProblemSpec
 from .._base import BasePass
 
 
@@ -24,7 +24,7 @@ class FieldProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the discretizations of the fields to the problem."""
         compilation = self.compilation_
-        problem = cast('Problem', compilation.problem)
+        problem = cast('ProblemSpec', compilation.problem)
         indices, values = compilation.constrained
         initial_state = problem.initial_state.copy()
         initial_state[indices] = values

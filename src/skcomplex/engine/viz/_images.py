@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ._base import _MODULUS, _PHASE, BaseVisual
 
 _MIN_HISTORY = 64
@@ -73,7 +72,7 @@ class ImageVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the element, forget the rows of earlier runs, and set the views."""
         self.rows_: dict[str, deque[npt.NDArray[np.float64]]] = {}
         super()._prepare(problem)
@@ -123,7 +122,7 @@ class ImageVisual(BaseVisual):
             rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
         )
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
 
         A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
@@ -155,7 +154,7 @@ class ImageVisual(BaseVisual):
             self._log_image(recording, f'{path}/{_MODULUS}', magnitudes, cyclic=False)
             self._log_image(recording, f'{path}/{_PHASE}', np.angle(values), cyclic=True)
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
 
         A one-dimensional lattice gets the 2D spatial views of its space-time images first, named `<state> history`.
@@ -186,7 +185,7 @@ class ImageVisual(BaseVisual):
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         histories: list[rrb.View] = []
         views: list[rrb.View] = []

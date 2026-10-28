@@ -11,8 +11,8 @@ import networkx as nx
 import numpy as np
 
 from ..errors import AnalysisError
+from ..types import DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('counts', 'z-scores')
 NULLS = ('switch', 'configuration')

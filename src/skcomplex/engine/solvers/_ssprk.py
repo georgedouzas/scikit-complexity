@@ -10,8 +10,8 @@ import numpy as np
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ._solver import Solver
 
 
@@ -37,10 +37,11 @@ class SSPRKSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.fluids import burgers
-        >>> from skcomplex.engine.solvers import SSPRKSolver, Step
+        >>> from skcomplex.engine.solvers import SSPRKSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(burgers(64))
         >>> stepper = SSPRKSolver(random_state=0).check().prepare(problem)
-        >>> state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
@@ -56,9 +57,9 @@ class SSPRKSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     def __init__(
         self,
@@ -75,7 +76,7 @@ class SSPRKSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper and check its order.
 
         Args:

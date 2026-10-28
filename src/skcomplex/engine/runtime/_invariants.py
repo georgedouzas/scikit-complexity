@@ -8,9 +8,8 @@ from collections.abc import Mapping
 import numpy as np
 
 from ...errors import ConservationError, ValidationError
-from ..problems import BaseProblem
+from ...specs import BaseProblemSpec, FrameSpec
 from ._base import BaseObserver
-from ._frames import Frame
 
 
 class InvariantObserver(BaseObserver):
@@ -58,7 +57,7 @@ class InvariantObserver(BaseObserver):
                 error_msg = f'The tolerance {tolerance!r} of the invariant {path} must be nonnegative.'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Forget the values of the invariants of an earlier run.
 
         Args:
@@ -68,7 +67,7 @@ class InvariantObserver(BaseObserver):
         del problem
         self.initial_: dict[str, float] = {}
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """Check the invariants of a frame against the first frame.
 
         Args:

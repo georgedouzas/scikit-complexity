@@ -11,8 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..solvers import AgentSnapshot
+from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec
 from ._base import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
 
 _PATH_COLOR = (86, 180, 233)
@@ -84,13 +83,13 @@ class AgentsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
         self.styled_: set[str] = set()
         self.span_: tuple[float, float] | None = None
         super()._prepare(problem)
 
-    def _agent_colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
+    def _agent_colors(self, snapshot: AgentSnapshotSpec) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""
         if self.color_by is None or not len(snapshot.ids):
             return None
@@ -115,7 +114,7 @@ class AgentsVisual(BaseVisual):
         self,
         recording: rr.RecordingStream,
         path: str,
-        snapshot: AgentSnapshot,
+        snapshot: AgentSnapshotSpec,
         space: BaseSpace | None,
     ) -> None:
         """Log the agents of a group at one frame.
@@ -174,7 +173,7 @@ class AgentsVisual(BaseVisual):
         radius = self._radius(space, positions)
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a graph view of the whole network, a 2D spatial view for agents in a space, and none without one.
 
         Args:
@@ -197,7 +196,7 @@ class AgentsVisual(BaseVisual):
             >>> type(AgentsVisual(path=problem.agents[0].path).check().prepare(problem).views_[0]).__name__
             'GraphView'
         """
-        if self.position is not None and isinstance(element, CompiledAgents):
+        if self.position is not None and isinstance(element, CompiledAgentsSpec):
             initial: Any = element.values[self.position]
             if np.ndim(initial) < 2:  # noqa: PLR2004
                 origin = f'{element.path}/{self.position}'

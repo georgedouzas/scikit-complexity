@@ -7,79 +7,25 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
-from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
 from sklearn.base import BaseEstimator, clone
 
-from ..engine.problems import BaseProblem
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
-from ..specs import ObservableSpec
-from ..types import Bounds, Row
+from ..specs import BaseProblemSpec, ObservableSpec
+from ..specs._run_result_spec import _RunResultSpec
+from ..specs._task_spec import _TaskSpec
+from ..types import Bounds
 from ._base import BaseDesign, BaseExperiment, Source
-from ._results import ExperimentResult, _RunResult
+from ._results import ExperimentResult
 from ._scenarios import Scenario
 
 type Output = str | Callable[[Trajectory], object]
 EXECUTORS = ('serial', 'thread', 'process')
 
 
-@dataclass(frozen=True)
-class _Task:
-    """One run of an experiment, sent as it is to a worker process.
-
-    Args:
-        index:
-            The position of the run in the experiment.
-
-        source:
-            The factory or system of the model.
-
-        row:
-            The design values.
-
-        scenario:
-            The scenario.
-
-        replicate:
-            The replicate number.
-
-        seed:
-            The random stream of the run.
-
-        until:
-            The simulated time to run to.
-
-        settings:
-            The `Simulation` arguments.
-
-        outputs:
-            The outputs to keep.
-
-        warmup:
-            The simulated time before which kept series are discarded.
-
-        observables:
-            The observables of the run, or `None` for none.
-
-        analyses:
-            The unprepared analyses of the run by their column prefix.
-    """
-
-    index: int
-    source: Source
-    row: Row
-    scenario: Scenario
-    replicate: int
-    seed: np.random.SeedSequence
-    until: float
-    settings: Mapping[str, object]
-    outputs: Sequence[Output] | None
-    warmup: float
-    observables: Sequence[ObservableSpec] | None
-    analyses: tuple[tuple[str, BaseEstimator], ...]
 
 
 class Experiment(BaseExperiment):
@@ -229,7 +175,7 @@ class Experiment(BaseExperiment):
             for scenario in scenarios:
                 for replicate in range(self.replicates):
                     seed = seeds[row_index * self.replicates + replicate]
-                    task = _Task(
+                    task = _TaskSpec(
                         len(self.tasks_),
                         source,
                         row,
@@ -250,7 +196,7 @@ class Experiment(BaseExperiment):
                 self._compile(task.source, arguments, task.scenario.system, task.observables)
 
     @staticmethod
-    def _split_overrides(task: _Task) -> tuple[dict[str, object], dict[str, object]]:
+    def _split_overrides(task: _TaskSpec) -> tuple[dict[str, object], dict[str, object]]:
         """Return the design values and scenario overrides of a task as factory arguments and dotted paths."""
         values = {**task.row, **(task.scenario.overrides or {})}
         arguments = {name: value for name, value in values.items() if '.' not in name}
@@ -258,7 +204,7 @@ class Experiment(BaseExperiment):
         return arguments, paths
 
     @staticmethod
-    def _schedule(problem: BaseProblem, scenario: Scenario) -> dict[str, Callable[[float], object]]:
+    def _schedule(problem: BaseProblemSpec, scenario: Scenario) -> dict[str, Callable[[float], object]]:
         """Return every scheduled parameter of a scenario as a step function of time, which a simulation reads.
 
         Before its first change a parameter keeps its initial value in the problem, and every change holds from the
@@ -292,7 +238,7 @@ class Experiment(BaseExperiment):
         return value_at
 
     @staticmethod
-    def _run_task(task: _Task) -> _RunResult:
+    def _run_task(task: _TaskSpec) -> _RunResultSpec:
         """Run one task, keep its series and scalar outputs, and run its analyses on its trajectory."""
         arguments, paths = Experiment._split_overrides(task)
         problem = Experiment._compile(task.source, arguments, task.scenario.system, task.observables)
@@ -332,7 +278,7 @@ class Experiment(BaseExperiment):
             for attribute, value in vars(fitted).items():
                 if attribute not in prepared and attribute.endswith('_') and not attribute.startswith('_'):
                     scalars[f'{prefix}.{attribute[:-1]}'] = value
-        return _RunResult(
+        return _RunResultSpec(
             index=task.index,
             row=dict(task.row),
             scenario=task.scenario.name,

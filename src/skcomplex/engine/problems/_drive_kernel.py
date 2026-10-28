@@ -8,12 +8,10 @@ from typing import Any
 
 import numpy as np
 
-from ._arguments import Arguments
+from ...specs import ArgumentsSpec, LatticeStateSpec, RunStateSpec
 from ._base import BaseKernel
-from ._lattice_state import LatticeState
-from ._state import State
 
-_NO_ARGUMENTS = Arguments()
+_NO_ARGUMENTS = ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
@@ -36,9 +34,9 @@ class DriveKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        target: LatticeState,
+        target: LatticeStateSpec,
         function: Callable[..., Any],
-        arguments: Arguments = _NO_ARGUMENTS,
+        arguments: ArgumentsSpec = _NO_ARGUMENTS,
     ) -> None:
         self.owner = owner
         self.target = target
@@ -46,11 +44,11 @@ class DriveKernel(BaseKernel):
         self.arguments = arguments
 
     @property
-    def targets(self) -> tuple[LatticeState, ...]:
+    def targets(self) -> tuple[LatticeStateSpec, ...]:
         """Lattice states the drive changes."""
         return (self.target,)
 
-    def _run(self, inputs: State) -> None:
+    def _run(self, inputs: RunStateSpec) -> None:
         """Update the state vector of the state in place by one application of the drive."""
         x, p, rng = inputs.x, inputs.p, inputs.rng
         shape = self.target.shape

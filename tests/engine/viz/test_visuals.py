@@ -6,11 +6,11 @@ import pytest
 from skcomplex.core.elements import GroupElement, LatticeElement, ParticleElement
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.engine.runtime import BaseObserver, Frame, Simulation
-from skcomplex.engine.solvers import AgentSnapshot
+from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpinElement
+from skcomplex.specs import AgentSnapshotSpec, FrameSpec
 
 
 class Logs:
@@ -52,7 +52,7 @@ def _first_frame(system):
     """Return the problem and the first frame of a system."""
     simulation = Simulation(system).check().run(until=0.0)
     problem = simulation.problem_
-    return problem, Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
+    return problem, FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
 
 
 def _format(archetype):
@@ -264,8 +264,8 @@ def test_agents_visual_widens_color_range_of_equal_start(log_agents):
     """Test that agents that all start with one value get different colors once their values spread."""
     visual, logs = AgentsVisual(color_by='rank'), Logs()
     space = ContinuousSpace(extent=(10.0, 10.0)).check().prepare()
-    first = AgentSnapshot(np.arange(3), {'rank': np.zeros(3)}, np.zeros((3, 2)))
-    later = AgentSnapshot(np.arange(3), {'rank': np.array([0.0, 1.0, 2.0])}, np.zeros((3, 2)))
+    first = AgentSnapshotSpec(np.arange(3), {'rank': np.zeros(3)}, np.zeros((3, 2)))
+    later = AgentSnapshotSpec(np.arange(3), {'rank': np.array([0.0, 1.0, 2.0])}, np.zeros((3, 2)))
     log_agents(visual, logs, 'animals', [first, later], space)
     colors = logs.of('animals')[-1].colors.as_arrow_array().to_pylist()
     assert len(set(colors)) == 3
@@ -324,7 +324,7 @@ def test_scalars_visual_logs_chosen_components():
 def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up(log_agents):
     """Test that agents in a continuous space are logged with y negated and the view covers the whole space."""
     space = ContinuousSpace(extent=(10.0, 20.0)).check().prepare()
-    snapshot = AgentSnapshot(np.arange(1), {'rank': np.zeros(1)}, np.array([[3.0, 4.0]]))
+    snapshot = AgentSnapshotSpec(np.arange(1), {'rank': np.zeros(1)}, np.array([[3.0, 4.0]]))
     logs = Logs()
     log_agents(AgentsVisual(), logs, 'birds', [snapshot], space)
     assert logs.of('birds')[0].positions.as_arrow_array().to_pylist() == [[3.0, -4.0]]

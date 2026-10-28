@@ -8,22 +8,18 @@ from typing import Any, cast
 
 import numpy as np
 
-from ...core.laws.utils import Draw
 from ...errors import SolverError
-from ...types import Array, Drawn, Indices
+from ...specs import DrawSpec, ReferenceSpec, RenewalRecordSpec, RunStateSpec
+from ...types import Array, Drawn, Indices, ReadKind
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
-from ._read_kind import ReadKind
-from ._reference import Reference
-from ._renewal_record import RenewalRecord
-from ._state import State
 
-type MemberFunction = tuple[Callable[..., list[Any]], tuple[Reference | str, ...]]
+type MemberFunction = tuple[Callable[..., list[Any]], tuple[ReferenceSpec | str, ...]]
 """Function of the states and parameters of renewing members and of the values drawn for them, with its readers."""
 
 
-type Sampler = tuple[Draw, MemberFunction]
-"""Draw of a renewal law with the function of its arguments."""
+type Sampler = tuple[DrawSpec, MemberFunction]
+"""DrawSpec of a renewal law with the function of its arguments."""
 
 
 _READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
@@ -123,7 +119,7 @@ class RenewalKernel(BaseKernel):
         drawn: Drawn,
         rng: np.random.Generator,
     ) -> None:
-        """Draw a value of every sampler for every renewing member into the drawn values, in order."""
+        """DrawSpec a value of every sampler for every renewing member into the drawn values, in order."""
         for draw, arguments in samplers:
             values = self._evaluate(arguments, times, x, p, fired, drawn) if draw.arguments else []
             drawn[draw.name] = DrawKernel._sample_draw(draw, values, fired.size, rng)
@@ -144,12 +140,12 @@ class RenewalKernel(BaseKernel):
         if not np.all(waiting >= 0):
             error_msg = (
                 f'The renewal law {self.label} drew the waiting time {waiting[~(waiting >= 0)][0]}, but waiting '
-                'times must be nonnegative. Draw them from a distribution with nonnegative support.'
+                'times must be nonnegative. DrawSpec them from a distribution with nonnegative support.'
             )
             raise SolverError(error_msg)
         return times + waiting
 
-    def _run(self, inputs: State) -> Array:
+    def _run(self, inputs: RunStateSpec) -> Array:
         """Return the next renewal time of every member, drawn from the state as if every member renewed at its time."""
         x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
         fired = np.arange(self.members, dtype=np.intp)
@@ -165,7 +161,7 @@ class RenewalKernel(BaseKernel):
         x: Array,
         p: Array,
         rng: np.random.Generator,
-    ) -> tuple[Array, Array, RenewalRecord]:
+    ) -> tuple[Array, Array, RenewalRecordSpec]:
         """Renew members at their times: draw, reset their states, count the renewal, and draw the next times.
 
         Args:
@@ -202,7 +198,7 @@ class RenewalKernel(BaseKernel):
                 state[place[fired]] = value
         state[self.counts[fired]] += 1
         following = self._wait(times, state, p, fired, drawn=drawn, rng=rng)
-        record = RenewalRecord(
+        record = RenewalRecordSpec(
             self.label,
             times.copy(),
             fired.copy(),

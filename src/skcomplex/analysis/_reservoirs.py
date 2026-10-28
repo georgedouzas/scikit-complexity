@@ -10,13 +10,12 @@ from typing import Any, Self
 import numpy as np
 
 from ..core.laws import BaseLaw, UpdateLaw
-from ..core.laws.utils import Call
 from ..core.spaces import DiscreteTime
 from ..engine._utils import vector
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import CallSpec
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, SurrogateSource
-from ._kinds import DataKind
 from ._sparse_identification import SparseIdentificationAnalysis
 
 RESERVOIR_KINDS = ('next_generation', 'echo_state')
@@ -379,6 +378,6 @@ class ReservoirAnalysis(BaseAnalysis):
         def laws(s: SimpleNamespace) -> list[BaseLaw]:
             """Return the update law."""
             symbols = SparseIdentificationAnalysis._symbols_of(s, names)
-            return [UpdateLaw(vector(symbols), Call(step.evaluate, tuple(symbols)))]
+            return [UpdateLaw(vector(symbols), CallSpec(step.evaluate, tuple(symbols)))]
 
         return laws

@@ -13,9 +13,8 @@ from scipy import ndimage
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import IntArray
+from ..types import DataKind, IntArray
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
 SETTINGS = {

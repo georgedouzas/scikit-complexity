@@ -19,15 +19,12 @@ from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
-from ...types import Indices, Offset
+from ...specs import DiffusiveLimitSpec, NeighborReadSpec, ReferenceSpec
+from ...types import Indices, Offset, ReadKind
 from .._utils import domain_of, symbol
 from ..problems import ExpressionPrinter
-from ..problems._diffusive_limit import DiffusiveLimit
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
-from ..problems._neighbor_read import NeighborRead
-from ..problems._read_kind import ReadKind
-from ..problems._reference import Reference
 from ._base import BaseLowering, BasePass
 from ._declarations import Declarations
 from ._kernel_spec import KernelSpec
@@ -77,7 +74,7 @@ class FieldLowering(BaseLowering):
     shifted_: dict[Expression, tuple[Expression, Offset | int]]
     derived_: dict[Expression, tuple[FieldElement, FieldOperatorKernel]]
     limits_: list[float]
-    volume_limits_: list[DiffusiveLimit]
+    volume_limits_: list[DiffusiveLimitSpec]
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
 
@@ -234,14 +231,14 @@ class FieldLowering(BaseLowering):
                 reference = self.spec.references[base]
                 table, ghost, mode = self._table(base, place, total)
                 lattice = isinstance(place.space, LatticeSpace)
-                read = NeighborRead(
+                read = NeighborReadSpec(
                     table,
                     ghost,
                     place.space.shape_ if lattice else None,  # type: ignore[union-attr]
                     total if lattice else None,  # type: ignore[arg-type]
                     mode,
                 )
-                self.spec.references[target] = Reference(
+                self.spec.references[target] = ReferenceSpec(
                     reference.entry,
                     reference.is_state,
                     reference.column,
@@ -366,7 +363,7 @@ class FieldLowering(BaseLowering):
             for item in read.symbols
             if self.spec.references[item].source in {ReadKind.MEMBER, ReadKind.NEIGHBOR, ReadKind.DERIVED}
         )
-        self.spec.references[target] = Reference(entry, True, 0, ReadKind.DERIVED, read)
+        self.spec.references[target] = ReferenceSpec(entry, True, 0, ReadKind.DERIVED, read)
         self.derived_[target] = (place, read)
         return target
 
@@ -414,7 +411,7 @@ class FieldLowering(BaseLowering):
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
         function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])
-        self.volume_limits_.append(DiffusiveLimit(function, tuple(references), stiffness))
+        self.volume_limits_.append(DiffusiveLimitSpec(function, tuple(references), stiffness))
 
     def _note_limit(self, value: object) -> None:
         """Record the diffusive step limit of the Laplacians in a law value.

@@ -19,10 +19,11 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...errors import SolverError
+from ...specs import ProblemSpec
 from ...types import Array, ComplexArray
 from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import ExpressionPrinter, Problem
+from ..problems import ExpressionPrinter
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 
 TIME = symbol('t')
@@ -75,7 +76,7 @@ class SplitOperator:
     _solvers: dict[float, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
-    def build(cls, problem: Problem, p: Array) -> 'SplitOperator':
+    def build(cls, problem: ProblemSpec, p: Array) -> 'SplitOperator':
         """Return the linear part of a problem's rates at parameter values.
 
         Args:
@@ -195,7 +196,7 @@ class SplitOperator:
         return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
 
     @staticmethod
-    def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: Problem) -> csr_matrix | None:
+    def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: ProblemSpec) -> csr_matrix | None:
         """Return the sparse matrix of linear terms over the whole state vector, without rows of fixed nodes."""
         if not triplets:
             return None

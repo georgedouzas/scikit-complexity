@@ -6,9 +6,8 @@
 import numpy as np
 
 from ...errors import SimulationError
-from ..problems import BaseProblem
+from ...specs import BaseProblemSpec, FrameSpec
 from ._base import BaseObserver
-from ._frames import Frame
 from ._trajectories import Trajectory
 
 
@@ -32,12 +31,12 @@ class RecorderObserver(BaseObserver):
         3
     """
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the problem and forget earlier frames."""
         self.problem_ = problem
-        self.frames_: list[Frame] = []
+        self.frames_: list[FrameSpec] = []
 
-    def _run(self, frame: Frame | None = None) -> None:
+    def _run(self, frame: FrameSpec | None = None) -> None:
         """Keep a frame."""
         if frame is not None:
             self.frames_.append(frame)

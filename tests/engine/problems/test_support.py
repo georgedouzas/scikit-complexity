@@ -8,7 +8,6 @@ from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.engine import solvers
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import (
     BaseSolver,
     FractionalABMSolver,
@@ -16,6 +15,8 @@ from skcomplex.engine.solvers import (
     L1Solver,
 )
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
+from skcomplex.specs import SupportSpec
+from skcomplex.types import FormKind, OrderKind
 
 SOLVERS = [
     item
@@ -40,7 +41,7 @@ def test_support_accepts_subclasses():
 
 def test_default_ode_solver_lacks_noise():
     """Test that the default ODE solver supports rates but not noise."""
-    assert DEFAULT_SOLVERS[Form.ODE]._get_support().missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
+    assert DEFAULT_SOLVERS[FormKind.ODE]._get_support().missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
 
 
 @pytest.mark.parametrize('solver', SOLVERS, ids=lambda solver: solver.__name__)
@@ -63,4 +64,4 @@ def test_fractional_solvers_support_every_order(solver):
 
 def test_ode_solver_supports_integer_orders():
     """Test that the default ODE solver integrates only integer orders."""
-    assert DEFAULT_SOLVERS[Form.ODE]._get_support().orders == {OrderKind.INTEGER}
+    assert DEFAULT_SOLVERS[FormKind.ODE]._get_support().orders == {OrderKind.INTEGER}

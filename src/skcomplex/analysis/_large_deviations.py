@@ -13,12 +13,11 @@ import numpy.typing as npt
 from scipy import linalg, special
 
 from ..core.system import System
-from ..engine.problems import Problem
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import ProblemSpec
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
@@ -235,14 +234,14 @@ class LargeDeviationAnalysis(BaseAnalysis):
         """Return the path kind for jump processes, the series kind for blocks, and the ensemble kind for samples."""
         return DATA_KINDS[self.kind]
 
-    def _prepare(self, source: Source | Problem | Mapping[int, npt.ArrayLike]) -> Self:
+    def _prepare(self, source: Source | ProblemSpec | Mapping[int, npt.ArrayLike]) -> Self:
         """Read the rate matrix, the increments, the system, or the samples the kind estimates from."""
         if self.kind == 'tilted':
             self.rates_ = np.asarray(source, dtype=float)
         elif self.kind == 'block':
             self.increments_ = self._read_series(source, self.variables).values[:, 0].astype(float)
         elif self.kind == 'cloning':
-            if not isinstance(source, System | Problem):
+            if not isinstance(source, System | ProblemSpec):
                 error_msg = (
                     f'{type(self).__name__} of kind cloning reads a system or its problem, not {type(source).__name__}.'
                 )

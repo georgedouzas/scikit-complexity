@@ -6,10 +6,9 @@
 
 import numpy as np
 
+from ...specs import EntrySpec, RunStateSpec
 from ...types import Indices
 from ._base import BaseSearch
-from ._entry import Entry
-from ._state import State
 
 
 class EdgeSearch(BaseSearch):
@@ -36,8 +35,8 @@ class EdgeSearch(BaseSearch):
         self,
         sources: Indices,
         targets: Indices,
-        source: Entry | None = None,
-        target: Entry | None = None,
+        source: EntrySpec | None = None,
+        target: EntrySpec | None = None,
     ) -> None:
         self.sources = sources
         self.targets = targets
@@ -49,7 +48,7 @@ class EdgeSearch(BaseSearch):
         """Number of edges, the capacity of a changing layer."""
         return int(self.sources.size if self.source is None else self.source.rows)
 
-    def _run(self, inputs: State) -> tuple[Indices, Indices]:
+    def _run(self, inputs: RunStateSpec) -> tuple[Indices, Indices]:
         """Return the source and target node of every edge."""
         p = inputs.p
         if self.source is None or self.target is None:

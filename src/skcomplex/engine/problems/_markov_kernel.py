@@ -8,9 +8,9 @@ from collections.abc import Callable
 import numpy as np
 import numpy.typing as npt
 
+from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
-from ._state import State
 
 _ROW_TOLERANCE = 1e-9
 
@@ -42,7 +42,7 @@ class MarkovKernel(BaseKernel):
         self.function = function
         self.reads = reads
 
-    def _run(self, inputs: State) -> str | None:
+    def _run(self, inputs: RunStateSpec) -> str | None:
         """Return the description of what is wrong with the matrix at the parameters, or `None`."""
         values = self.function(inputs.p)
         for member, matrix in enumerate(values):

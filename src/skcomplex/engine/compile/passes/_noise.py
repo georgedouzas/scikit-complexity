@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -18,24 +17,13 @@ from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
 from ....specs import WienerProcessSpec
+from ....specs._noise_term_spec import _NoiseTermSpec
 from ....types import ProcessKey
 from ..._utils import components_of
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
 from .._kernel_spec import KernelSpec
-
-
-@dataclass(frozen=True)
-class _NoiseTerm:
-    """Amplitude of a noise law on one state component, with the process it draws."""
-
-    spec: KernelSpec
-    law: NoiseLaw
-    target: Expression
-    state: tuple[str, int]
-    amplitude: object
-    process: object
 
 
 class NoisePass(BasePass):
@@ -58,7 +46,7 @@ class NoisePass(BasePass):
         )
 
     @staticmethod
-    def _reads_state(term: _NoiseTerm, state: tuple[str, int]) -> bool:
+    def _reads_state(term: _NoiseTermSpec, state: tuple[str, int]) -> bool:
         """Check whether the amplitude of a noise term depends on a state component."""
         amplitude = SR(term.amplitude)
         return any(
@@ -69,8 +57,8 @@ class NoisePass(BasePass):
 
     @staticmethod
     def _noise_correction(
-        term: _NoiseTerm,
-        terms: list[_NoiseTerm],
+        term: _NoiseTermSpec,
+        terms: list[_NoiseTermSpec],
         wieners: Mapping[str, WienerProcessSpec],
     ) -> BaseLaw | None:
         """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
@@ -115,7 +103,7 @@ class NoisePass(BasePass):
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return laws with the drift correction of every noise law of a convention after it, in the Itô form."""
         terms = NoisePass._noise_terms(specs, declarations)
-        by_law: dict[int, list[_NoiseTerm]] = defaultdict(list)
+        by_law: dict[int, list[_NoiseTermSpec]] = defaultdict(list)
         for term in terms:
             by_law[id(term.law)].append(term)
         result = []
@@ -131,7 +119,7 @@ class NoisePass(BasePass):
         return result
 
     @staticmethod
-    def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[_NoiseTerm]:
+    def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[_NoiseTermSpec]:
         """Return every component of every noise law, an independent process standing for itself alone."""
         terms = []
         for spec, laws in specs:
@@ -149,7 +137,7 @@ class NoisePass(BasePass):
                     reference = spec.references[target]
                     process = key if key is not None else ('independent', id(law), index)
                     terms.append(
-                        _NoiseTerm(spec, law, target, (reference.entry.name, reference.column), value, process),
+                        _NoiseTermSpec(spec, law, target, (reference.entry.name, reference.column), value, process),
                     )
         return terms
 

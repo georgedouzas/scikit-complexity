@@ -8,10 +8,10 @@ from collections.abc import Callable
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import Expression
 
+from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
-from ._state import State
 
 
 class QuantumKernel(BaseKernel):
@@ -43,6 +43,6 @@ class QuantumKernel(BaseKernel):
         """Whether the coefficient depends on time."""
         return bool(self.coefficient.has(symbol('t')))
 
-    def _run(self, inputs: State) -> complex:
+    def _run(self, inputs: RunStateSpec) -> complex:
         """Return the coefficient at the time and the parameters of the state."""
         return 1.0 if self.function is None else self.function(inputs.t, inputs.p)

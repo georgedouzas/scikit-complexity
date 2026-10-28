@@ -15,9 +15,7 @@ import rerun.blueprint as rrb
 from ...base import BaseConfig
 from ...core.spaces import BaseSpace, NetworkSpace
 from ...errors import ValidationError
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
-from ..solvers import AgentSnapshot
+from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 
 _UPWARD = np.array([1.0, -1.0])
 _LAYOUT_SEED = 0
@@ -125,7 +123,7 @@ class BaseVisual(BaseConfig):
             error_msg = f'path = {self.path!r} must be the entity path of the element or agent group to draw.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Find the element at the path, keep the recording and the space of the agents, and set the views."""
         elements = {item.path: item for item in (*problem.elements, *problem.agents)}
         if self.path not in elements:
@@ -140,16 +138,16 @@ class BaseVisual(BaseConfig):
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self.views_ = self._views(self.element_, problem)
 
-    def _run(self, frame: Frame) -> None:
+    def _run(self, frame: FrameSpec) -> None:
         """Log the element at a frame, or the agents of the frame when the element is an agent group."""
-        if isinstance(self.element_, CompiledAgents):
+        if isinstance(self.element_, CompiledAgentsSpec):
             snapshot = frame.agents.get(self.element_.path)
             if snapshot is not None:
                 self._log_agents(self.recording_, self.element_.path, snapshot, self.space_)
             return
         self._log(self.recording_, self.element_, frame)
 
-    def prepare(self, problem: BaseProblem) -> Self:
+    def prepare(self, problem: BaseProblemSpec) -> Self:
         """Prepare the checked visual for the element at its path in a compiled problem.
 
         Args:
@@ -166,7 +164,7 @@ class BaseVisual(BaseConfig):
         """
         return super().prepare(problem)
 
-    def run(self, frame: Frame) -> Self:
+    def run(self, frame: FrameSpec) -> Self:
         """Log the element or the agents of the visual at a frame.
 
         Args:
@@ -180,11 +178,11 @@ class BaseVisual(BaseConfig):
         super().run(frame)
         return self
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element, none by default."""
         return []
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the state of a compiled element at one frame; a subclass that logs elements implements it."""
         raise NotImplementedError
 
@@ -192,7 +190,7 @@ class BaseVisual(BaseConfig):
         self,
         recording: rr.RecordingStream,
         path: str,
-        snapshot: AgentSnapshot,
+        snapshot: AgentSnapshotSpec,
         space: BaseSpace | None,
     ) -> None:
         """Log the agents of a group at one frame; log nothing by default."""

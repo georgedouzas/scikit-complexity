@@ -12,7 +12,6 @@ from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CoSimulationSolver,
@@ -20,10 +19,10 @@ from skcomplex.engine.solvers import (
     GrunwaldLetnikovSolver,
     L1Solver,
     RK4Solver,
-    Step,
 )
 from skcomplex.errors import SolverError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.types import FormKind
 
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
 
@@ -108,7 +107,7 @@ def _advance(stepper, problem, until, frames=1):
     x, t = problem.initial_state, 0.0
     for index in range(frames):
         following = until * (index + 1) / frames
-        x = stepper.run(Step(t, x, problem.initial_parameters, following))
+        x = stepper.run(StepSpec(t, x, problem.initial_parameters, following))
         t = following
     return x
 
@@ -116,7 +115,7 @@ def _advance(stepper, problem, until, frames=1):
 def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
     """Test that a rate law on a state of order 0.6 compiles to the fractional form with the order of every state."""
     problem = compile_system(System(elements=[MixedElement('a')]))
-    assert problem.form == Form.FRACTIONAL
+    assert problem.form == FormKind.FRACTIONAL
     assert problem.orders.tolist() == [0.5, 1.0]
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [-1.0, -1.0]
 
@@ -124,7 +123,7 @@ def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
 def test_compile_system_order_one_gives_ode_form():
     """Test that a state of order 1 compiles to the ODE form without orders."""
     problem = compile_system(System(elements=[DecayingElement('a')]))
-    assert problem.form == Form.ODE
+    assert problem.form == FormKind.ODE
     assert problem.orders.size == 0
 
 
@@ -171,8 +170,8 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
     stepper = GrunwaldLetnikovSolver(dt=0.01)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     p = problem.initial_parameters
-    stepper.run(Step(0.0, problem.initial_state, p, 1.0))
-    restarted = stepper.run(Step(1.0, np.array([1.0]), p, 2.0))
+    stepper.run(StepSpec(0.0, problem.initial_state, p, 1.0))
+    restarted = stepper.run(StepSpec(1.0, np.array([1.0]), p, 2.0))
     fresh = _advance(GrunwaldLetnikovSolver(dt=0.01), problem, 1.0)
     assert restarted == pytest.approx(fresh, abs=1e-12)
 
@@ -183,7 +182,7 @@ def test_scheme_rejects_times_off_the_grid():
     stepper = L1Solver(dt=0.1)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match='multiple of dt'):
-        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 0.25))
+        stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 0.25))
 
 
 @pytest.mark.parametrize(('stepper', 'match'), [(L1Solver(dt=0.0), 'dt'), (L1Solver(memory=-1.0), 'memory')])
@@ -192,7 +191,7 @@ def test_scheme_rejects_invalid_settings(stepper, match):
     problem = compile_system(System(elements=[RelaxingElement('a')]))
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match=match):
-        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
 
 
 def test_ordinary_stepper_rejects_fractional_form():
@@ -217,7 +216,7 @@ def test_cosimulation_runs_fractional_partition():
     )
     simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).check().run(until=5.0)
     forms = {partition.name: partition.problem.form for partition in simulation.problem_.partitions}
-    assert forms == {'memory': Form.FRACTIONAL, 'steps': Form.DISCRETE}
+    assert forms == {'memory': FormKind.FRACTIONAL, 'steps': FormKind.DISCRETE}
     exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('memory/a.x')[-1] == pytest.approx(exact, abs=1e-4)
     assert simulation.trajectory_.values('steps/c.k')[-1] == 5

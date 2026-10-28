@@ -6,7 +6,7 @@
 from dataclasses import replace
 from typing import cast
 
-from ...problems import Problem
+from ....specs import ProblemSpec
 from .._base import BasePass
 
 
@@ -24,4 +24,4 @@ class TopologyProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the topology changes to the problem."""
         compilation = self.compilation_
-        compilation.problem = replace(cast('Problem', compilation.problem), topology=compilation.topology)
+        compilation.problem = replace(cast('ProblemSpec', compilation.problem), topology=compilation.topology)

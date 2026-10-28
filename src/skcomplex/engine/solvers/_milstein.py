@@ -8,8 +8,8 @@ import numpy as np
 
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...types import Array
-from ..problems import NoiseKind, OrderKind, SupportSpec
+from ...specs import SupportSpec
+from ...types import Array, NoiseKind, OrderKind
 from ._sde import SDESolver
 
 
@@ -27,10 +27,11 @@ class MilsteinSolver(SDESolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.engine.solvers import MilsteinSolver, Step
+        >>> from skcomplex.engine.solvers import MilsteinSolver
+        >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = MilsteinSolver(dt=0.01, random_state=0).check().prepare(problem)
-        >>> bool(stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
+        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
         True
     """
 

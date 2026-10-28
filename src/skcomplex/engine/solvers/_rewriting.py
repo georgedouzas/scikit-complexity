@@ -9,14 +9,12 @@ import numpy as np
 
 from ...core.laws import GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...types import Array
-from ..problems import Form, OrderKind, State, SupportSpec
-from ..problems._rewriting_problem import RewritingProblem
+from ...specs import RewritingProblemSpec, RunStateSpec, StructureStateSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ._base import BaseSolver
-from ._structure_state import StructureState
 
 
-class RewritingSolver(BaseSolver[RewritingProblem]):
+class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
 
     The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
@@ -49,11 +47,11 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.REWRITING
+        return FormKind.REWRITING
 
-    def _prepare(self, problem: RewritingProblem) -> None:
+    def _prepare(self, problem: RewritingProblemSpec) -> None:
         """Prepare the structures at generation 0.
 
         Args:
@@ -61,7 +59,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
                 The compiled problem.
         """
         super()._prepare(problem)
-        self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
+        self.systems_ = problem.rewriting if isinstance(problem, RewritingProblemSpec) else ()
         self.structures_: dict[str, Any] = {item.path: item.prepare(problem).structure_ for item in self.systems_}
         self._collect()
 
@@ -91,7 +89,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
                 The counts and sizes at generation `until`.
         """
         for generation in range(round(until - t)):
-            state = State(t + generation, x, p, self.rng_)
+            state = RunStateSpec(t + generation, x, p, self.rng_)
             self.structures_ = {item.path: item.run(state) for item in self.systems_}
         return self._state()
 
@@ -103,4 +101,4 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
                 reporters[f'{path}.length'] = structure.length()
                 reporters[f'{path}.area'] = structure.area()
         self.events_ = []
-        self.snapshot_ = StructureState(dict(self.structures_), reporters)
+        self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)

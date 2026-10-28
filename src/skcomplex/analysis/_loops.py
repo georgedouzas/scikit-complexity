@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import Self
 
 import networkx as nx
@@ -15,11 +14,13 @@ from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.laws.utils import delay_parts
 from ..engine._utils import symbols_of
-from ..engine.problems import ExpressionPrinter, LoopTerm, Problem
+from ..engine.problems import ExpressionPrinter
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
+from ..specs import LoopTermSpec, ProblemSpec
+from ..specs._loop_spec import _LoopSpec
+from ..types import DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 from ._stability import StabilityAnalysis
 from ._symbolic import SymbolicAnalysis
 
@@ -33,13 +34,6 @@ SETTINGS = {
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
 
 
-@dataclass(frozen=True)
-class _Loop:
-    """Feedback loop: its nodes from its first state, its polarity, and its gain at the point of evaluation."""
-
-    nodes: tuple[str, ...]
-    polarity: str
-    gain: float
 
 
 class _Graph:
@@ -49,7 +43,7 @@ class _Graph:
     give is linked through them, and every other state through its row of the Jacobian.
     """
 
-    def __init__(self, problem: Problem) -> None:
+    def __init__(self, problem: ProblemSpec) -> None:
         self.problem = problem
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
@@ -63,13 +57,13 @@ class _Graph:
         if any(name not in self.described | hidden for name in self.states):
             self._add_jacobian(hidden)
 
-    def _reads_group(self, term: LoopTerm) -> bool:
+    def _reads_group(self, term: LoopTermSpec) -> bool:
         """Check whether a term reads or changes a variable of a group, which its expression does not resolve."""
         entries = [term.references[item].entry for item in symbols_of([term.expression]) if item in term.references]
         entries += [self.problem.states.entry(name) for name in self._holders(term)]
         return any(entry.members is not None for entry in entries)
 
-    def _described(self, terms: tuple[LoopTerm, ...]) -> set[str]:
+    def _described(self, terms: tuple[LoopTermSpec, ...]) -> set[str]:
         """Return the states whose rate the terms give.
 
         The terms of a state of higher order give its highest derivative rather than its rate, and those that read or
@@ -91,7 +85,7 @@ class _Graph:
         }
         return set(transfer_network.boundary.values()) | delays
 
-    def _node_of(self, item: Expression, term: LoopTerm) -> str | None:
+    def _node_of(self, item: Expression, term: LoopTermSpec) -> str | None:
         """Return the state a symbol stands for, or `None` for parameters and time."""
         reference = term.references.get(item)
         if reference is None:
@@ -99,7 +93,7 @@ class _Graph:
         self.readers[item] = (reference.is_state, reference.entry.start + reference.column)
         return reference.entry.name if reference.is_state else None
 
-    def _add(self, term: LoopTerm) -> None:
+    def _add(self, term: LoopTermSpec) -> None:
         """Add the edges of one term, from every node its expression reads."""
         expression = self._without_delays(term.expression)
         for item in symbols_of([expression]) - {self.problem.time}:
@@ -171,7 +165,7 @@ class _Graph:
         return SR(expression).diff(item).subs(dirac_delta(SR.wild(0)) == 0)
 
     @staticmethod
-    def _holders(term: LoopTerm) -> set[str]:
+    def _holders(term: LoopTermSpec) -> set[str]:
         """Return the states whose rate a term changes."""
         return {term.path} if term.kind == 'rate' else {name for name in (term.source, term.sink) if name is not None}
 
@@ -312,7 +306,7 @@ class LoopAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _set_loops(self, found: list[_Loop]) -> None:
+    def _set_loops(self, found: list[_LoopSpec]) -> None:
         """Set the nodes and the polarities of loops."""
         self.loops_ = [loop.nodes for loop in found]
         self.polarities_ = [loop.polarity for loop in found]
@@ -378,7 +372,7 @@ class LoopAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_Loop]]:
+    def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_LoopSpec]]:
         """Return the signed graph with edge gains and its loops with polarity and gain."""
         directed = nx.DiGraph()
         for (start, end), derivative in graph.edges.items():
@@ -393,5 +387,5 @@ class LoopAnalysis(BaseAnalysis):
             cycle = [*found[start:], *found[:start]]
             pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
             gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
-            loops.append(_Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
+            loops.append(_LoopSpec(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
         return directed, sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes))

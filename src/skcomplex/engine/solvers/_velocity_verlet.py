@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from .._utils import components_of
-from ..problems import Form, OrderKind, Problem, SupportSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._solver import Solver
@@ -38,11 +38,12 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.core.elements import ParticleElement
-        >>> from skcomplex.engine.solvers import Step, VelocityVerletSolver
+        >>> from skcomplex.engine.solvers import VelocityVerletSolver
+        >>> from skcomplex.specs import StepSpec
         >>> system = System(elements=[ParticleElement('ball', v=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = compile_system(system)
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).check().prepare(problem)
-        >>> stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0)).round(10).tolist()
+        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).round(10).tolist()
         [2.0, 2.0]
     """
 
@@ -57,9 +58,9 @@ class VelocityVerletSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     def __init__(
         self,
@@ -72,7 +73,7 @@ class VelocityVerletSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper and find the position and velocity components of the problem.
 
         Args:
@@ -134,7 +135,7 @@ class VelocityVerletSolver(Solver):
         return state
 
     @staticmethod
-    def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    def _position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
         """Return the flat indices of the position components and of their velocities, in matching order."""
         indices: dict[Expression, npt.NDArray[np.int64]] = {}
         for entry in problem.states.entries:

@@ -10,8 +10,8 @@ import numpy as np
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...types import Array
-from ..problems import Form, OrderKind, Problem, SupportSpec
+from ...specs import ProblemSpec, SupportSpec
+from ...types import Array, FormKind, OrderKind
 from ..problems._steps import step_count
 from ._solver import Solver
 from ._split_operator import SplitOperator
@@ -31,9 +31,9 @@ class SplitSolver(Solver):
         )
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.ODE
+        return FormKind.ODE
 
     @classmethod
     def _is_implicit(cls) -> bool:
@@ -51,7 +51,7 @@ class SplitSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: Problem) -> None:
+    def _prepare(self, problem: ProblemSpec) -> None:
         """Prepare the stepper and check that the problem has linear terms to treat apart.
 
         Args:

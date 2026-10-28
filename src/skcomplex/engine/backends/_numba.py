@@ -59,34 +59,37 @@ from ...core.spaces import (
     StaticTime,
 )
 from ...errors import BackendWarning, ValidationError
-from ...types import Array
-from ..problems import Entry, ExpressionPrinter, Form, NoiseKind, OrderKind, SupportSpec
-from ..problems._accelerated import Accelerated
+from ...specs import (
+    AcceleratedSpec,
+    EntrySpec,
+    LoweredFunctionsSpec,
+    LoweredKernelsSpec,
+    ReductionScheduleSpec,
+    ReferenceSpec,
+    SupportSpec,
+)
+from ...types import Array, FormKind, NoiseKind, OrderKind, ReadKind
+from ..problems import ExpressionPrinter
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
 from ..problems._law_kernel import LawKernel
-from ..problems._lowered_kernels import LoweredKernels
 from ..problems._metric_search import MetricSearch
-from ..problems._read_kind import ReadKind
-from ..problems._reduction_schedule import ReductionSchedule
-from ..problems._reference import Reference
 from ..problems._steps import step_count
 from . import _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
-from ._lowered_functions import LoweredFunctions
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
 
 _DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
-_FORM_KINDS: dict[Form, list[type]] = {
-    Form.ODE: [RateLaw],
-    Form.FRACTIONAL: [RateLaw],
-    Form.SDE: [RateLaw, NoiseLaw],
-    Form.JUMP: [JumpLaw],
-    Form.DISCRETE: [UpdateLaw],
+_FORM_KINDS: dict[FormKind, list[type]] = {
+    FormKind.ODE: [RateLaw],
+    FormKind.FRACTIONAL: [RateLaw],
+    FormKind.SDE: [RateLaw, NoiseLaw],
+    FormKind.JUMP: [JumpLaw],
+    FormKind.DISCRETE: [UpdateLaw],
 }
-_EVENT_FORMS = (Form.JUMP, Form.DISCRETE)
+_EVENT_FORMS = (FormKind.JUMP, FormKind.DISCRETE)
 _HEADER = """import math
 
 import numpy as np
@@ -181,17 +184,17 @@ class NumbaBackend(BaseBackend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _run(self, inputs: LoweredKernels) -> LoweredFunctions:
+    def _run(self, inputs: LoweredKernelsSpec) -> LoweredFunctionsSpec:
         """Return the numeric functions of the form of the kernels, compiled with Numba where every law compiles."""
-        form, size, kernels, draws = cast('Form', inputs.form), inputs.size, inputs.kernels, inputs.draws
+        form, size, kernels, draws = cast('FormKind', inputs.form), inputs.size, inputs.kernels, inputs.draws
         used: dict[type, list[LawKernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
-            RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
-            NoiseLaw: kernels.get(NoiseLaw, []) if form == Form.SDE else [],
-            JumpLaw: kernels.get(JumpLaw, []) if form == Form.JUMP else [],
-            UpdateLaw: kernels.get(UpdateLaw, []) if form == Form.DISCRETE else [],
+            RateLaw: kernels.get(RateLaw, []) if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE) else [],
+            NoiseLaw: kernels.get(NoiseLaw, []) if form == FormKind.SDE else [],
+            JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
+            UpdateLaw: kernels.get(UpdateLaw, []) if form == FormKind.DISCRETE else [],
         }
-        reductions = inputs.reductions or ReductionSchedule()
+        reductions = inputs.reductions or ReductionScheduleSpec()
         reduced = bool(reductions.steps)
         fused = self._reductions_compile(reductions)
         compiled: dict[type, bool] = {
@@ -216,15 +219,17 @@ class NumbaBackend(BaseBackend):
         printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS).check()
         lines = printer.prepare(reductions if reduced and fused else None).run(parts)
         accelerated_loop = {
-            Form.ODE: 'rk4',
-            Form.SDE: 'euler_maruyama',
-            Form.JUMP: 'gillespie',
-            Form.DISCRETE: 'iterate' if draws is None else 'iterate_random',
+            FormKind.ODE: 'rk4',
+            FormKind.SDE: 'euler_maruyama',
+            FormKind.JUMP: 'gillespie',
+            FormKind.DISCRETE: 'iterate' if draws is None else 'iterate_random',
         }.get(form, '')
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
         bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
         loops = (
-            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == Form.ODE else ''] if has_loop else []
+            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == FormKind.ODE else '']
+            if has_loop
+            else []
         )
         text = '\n'.join([_HEADER, *lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else _DEFAULT_CACHE_DIR
@@ -248,17 +253,17 @@ class NumbaBackend(BaseBackend):
 
     def _lowering(
         self,
-        form: Form,
+        form: FormKind,
         needed: list[type],
         *,
         used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
-        changes: Mapping[int, list[tuple[Reference, float]]],
+        changes: Mapping[int, list[tuple[ReferenceSpec, float]]],
         size: int,
         module: ModuleType,
         layout: np.ndarray,
-        reductions: ReductionSchedule,
-    ) -> LoweredFunctions:
+        reductions: ReductionScheduleSpec,
+    ) -> LoweredFunctionsSpec:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
         def bind(name: str) -> Callable[[float, Array, Array], Array]:
@@ -283,39 +288,41 @@ class NumbaBackend(BaseBackend):
             kind: (
                 bind(names[kind])
                 if compiled[kind]
-                else reductions.wrap(numpy[kind]())
-                if any(kernel.reads_reductions for kernel in used[kind])
-                else numpy[kind]()
+                else (
+                    reductions.wrap(numpy[kind]())
+                    if any(kernel.reads_reductions for kernel in used[kind])
+                    else numpy[kind]()
+                )
             )
             for kind in needed
         }
         lowered: dict[str, object] = {'boundary': functions.get(BoundaryLaw)}
-        if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
+        if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE):
             lowered['drift'] = functions[RateLaw]
-        if form == Form.SDE:
+        if form == FormKind.SDE:
             lowered['diffusion'] = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
             noise = LawKernel._lower_noise(used[NoiseLaw])
             lowered.update(zip(('noise_rows', 'noise_columns', 'n_processes', 'noise_blocks'), noise, strict=True))
-        if form == Form.JUMP:
+        if form == FormKind.JUMP:
             lowered['propensities'] = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
             lowered['jumps'] = LawKernel._jump_channels(used[JumpLaw], changes)
-        if form == Form.DISCRETE:
+        if form == FormKind.DISCRETE:
             lowered['update'] = functions[UpdateLaw]
-        return LoweredFunctions(**lowered)
+        return LoweredFunctionsSpec(**lowered)
 
     def _accelerated(
         self,
         loop: str,
         module: ModuleType,
         layout: np.ndarray,
-        lowering: LoweredFunctions,
+        lowering: LoweredFunctionsSpec,
         draws: DrawKernel | None,
-    ) -> Accelerated:
+    ) -> AcceleratedSpec:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
             verlet = module.velocity_verlet
-            return Accelerated(
+            return AcceleratedSpec(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
                 velocity_verlet=lambda t, x, p, until, h, positions, velocities: verlet(
                     t,
@@ -330,21 +337,23 @@ class NumbaBackend(BaseBackend):
             )
         if loop == 'euler_maruyama':
             noise = self._noise_arrays(lowering)
-            return Accelerated(
+            return AcceleratedSpec(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = self._channel_arrays(lowering)
-            return Accelerated(
+            return AcceleratedSpec(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
         if loop == 'iterate_random' and draws is not None:
             offset, flags = draws.offset, draws.normal
-            return Accelerated(iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags))
-        return Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+            return AcceleratedSpec(
+                iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags),
+            )
+        return AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
     @staticmethod
-    def _search_entries(search: object) -> dict[str, Entry]:
+    def _search_entries(search: object) -> dict[str, EntrySpec]:
         """Return the entries a neighbourhood search reads, the edges of a changing layer or positions and headings."""
         if isinstance(search, EdgeRowSearch):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
@@ -356,7 +365,10 @@ class NumbaBackend(BaseBackend):
         return found
 
     @staticmethod
-    def _layout_entries(used: Mapping[type, list[LawKernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
+    def _layout_entries(
+        used: Mapping[type, list[LawKernel]],
+        reductions: ReductionScheduleSpec,
+    ) -> dict[str, EntrySpec]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
         entries = {
             reference.entry.name: reference.entry
@@ -397,7 +409,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _reductions_compile(reductions: ReductionSchedule) -> bool:
+    def _reductions_compile(reductions: ReductionScheduleSpec) -> bool:
         """Check whether every reduction prints in Numba's dialect."""
         try:
             for reduction in reductions.reductions:
@@ -410,7 +422,7 @@ class NumbaBackend(BaseBackend):
         return True
 
     @staticmethod
-    def _noise_arrays(lowering: LoweredFunctions) -> tuple[Any, ...]:
+    def _noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[Any, ...]:
         """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
         blocks = lowering.noise_blocks
         sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
@@ -427,7 +439,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _channel_arrays(lowering: LoweredFunctions) -> tuple[np.ndarray, np.ndarray]:
+    def _channel_arrays(lowering: LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
         """Return the state targets and increments of every jump channel, padded with -1 targets."""
         n_channels = sum(channels.size for channels in lowering.jumps)
         width = max((len(channels.increments) for channels in lowering.jumps), default=0)
@@ -441,7 +453,7 @@ class NumbaBackend(BaseBackend):
         return targets, increments
 
     @staticmethod
-    def _unprinted_reduction(reductions: ReductionSchedule) -> str | None:
+    def _unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
         """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
         for reduction in reductions.reductions:
             try:
@@ -461,7 +473,7 @@ class NumbaBackend(BaseBackend):
         name: str,
         used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
     ) -> dict[str, str]:
         """Warn once about the law kinds whose kernels the backend runs in Python, and return every kind's runner.
 

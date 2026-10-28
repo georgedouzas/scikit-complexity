@@ -6,8 +6,7 @@
 from dataclasses import fields
 from typing import cast
 
-from ...problems import Problem
-from ...problems._kinetic_problem import KineticProblem
+from ....specs import KineticProblemSpec, ProblemSpec
 from .._base import BasePass
 
 
@@ -28,6 +27,6 @@ class EncounterProblemPass(BasePass):
         encounters = compilation.encounters
         if not encounters:
             return
-        problem = cast('Problem', compilation.problem)
+        problem = cast('ProblemSpec', compilation.problem)
         values = {item.name: getattr(problem, item.name) for item in fields(problem)}
-        compilation.problem = KineticProblem(**values, encounters=encounters)
+        compilation.problem = KineticProblemSpec(**values, encounters=encounters)

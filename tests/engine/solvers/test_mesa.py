@@ -14,12 +14,12 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile.passes._agents import AgentsPass
 from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
-from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import AgentView, MesaSolver, Step
+from skcomplex.engine.solvers import AgentView, MesaSolver
 from skcomplex.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.types import FormKind
 
 
 class BreederElement(Element):
@@ -239,7 +239,7 @@ def test_rules_give_agent_form():
             space=LatticeSpace((5, 5), boundary='fixed'),
         ),
     )
-    assert problem.form == Form.AGENT
+    assert problem.form == FormKind.AGENT
     assert problem.agents[0].states == ('moves',)
 
 
@@ -457,7 +457,7 @@ def test_rule_reads_parameter_of_nested_owner():
 def test_rule_binds_two_agent_groups_through_roles():
     """Test that an interaction binds two agent groups of different sizes and reads each through its role."""
     simulation, records = _census()
-    assert simulation.problem_.form == Form.AGENT
+    assert simulation.problem_.form == FormKind.AGENT
     assert records[0]['counted'] == 42
     assert records[0]['others'] == 43
     assert records[0]['paths'] == {'farm/cows'}
@@ -616,7 +616,7 @@ def test_mesa_solver_run_sets_agents_and_snapshot():
     problem = compile_system(system)
     solver = MesaSolver().set_params(random_state=np.random.default_rng(0), until=3.0).check().prepare(problem)
     assert len(solver.agents_['breeders']) == 2
-    solver.run(Step(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+    solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
     assert len(solver.agents_['breeders']) == 8
     assert solver.snapshot_.reporters['breeders.count'] == 8.0
     for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):

@@ -6,7 +6,6 @@
 import difflib
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any, Self, cast
 
 import numpy as np
@@ -15,15 +14,14 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
 from ...core.laws import BaseLaw, UpdateLaw
-from ...core.laws.utils import Call, Draw, draws_in, where
+from ...core.laws.utils import draws_in, where
 from ...errors import ValidationError
-from ...types import Array
+from ...specs import CallSpec, DrawSpec, EntrySpec, ReferenceSpec, SampledDrawSpec
+from ...specs._request_spec import _RequestSpec
+from ...types import Array, ReadKind
 from .._utils import components_of, symbol, symbols_of, vector
-from ..problems import Entry, ExpressionPrinter
+from ..problems import ExpressionPrinter
 from ..problems._draw_kernel import DrawKernel
-from ..problems._read_kind import ReadKind
-from ..problems._reference import Reference
-from ..problems._sampled_draw import SampledDraw
 from ._base import BaseLowering
 from ._declarations import Declarations
 from ._kernel_spec import KernelSpec
@@ -38,20 +36,6 @@ DISTRIBUTIONS = tuple(
         if not name.startswith('_') and isinstance(getattr(stats, name), stats.rv_continuous | stats.rv_discrete)
     ),
 )
-
-
-@dataclass(frozen=True)
-class _Request:
-    """Draw of a component that needs a value per evaluation row at every step."""
-
-    owner: str
-    name: str
-    normal: bool
-    rows: int
-    slot: Expression
-    references: dict[Expression, Reference]
-    draw: Draw | None = None
-    slots: dict[str, Expression] = field(default_factory=dict)
 
 
 class DrawLowering(BaseLowering):
@@ -77,7 +61,7 @@ class DrawLowering(BaseLowering):
 
     offset_: int
     time_: Expression
-    requests_: list[_Request]
+    requests_: list[_RequestSpec]
     draws_: DrawKernel | None
 
     def _prepare(self, context: object) -> Self:
@@ -124,10 +108,10 @@ class DrawLowering(BaseLowering):
         owner: str,
         rows: int,
         laws: list[BaseLaw],
-        references: dict[Expression, Reference],
+        references: dict[Expression, ReferenceSpec],
     ) -> dict[str, Any]:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
-        declared: dict[str, Draw] = {}
+        declared: dict[str, DrawSpec] = {}
         for law in laws:
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 continue
@@ -150,7 +134,7 @@ class DrawLowering(BaseLowering):
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
-            request = _Request(owner, name, draw.kind in _NORMAL_KINDS, rows, slot, references, sampled, slots)
+            request = _RequestSpec(owner, name, draw.kind in _NORMAL_KINDS, rows, slot, references, sampled, slots)
             self.requests_.append(request)
         return slots
 
@@ -159,7 +143,7 @@ class DrawLowering(BaseLowering):
         owner: str,
         rows: int,
         laws: list[BaseLaw],
-        references: dict[Expression, Reference],
+        references: dict[Expression, ReferenceSpec],
     ) -> list[BaseLaw]:
         """Return the laws of a component with every draw of its update laws replaced by a drawn value.
 
@@ -210,22 +194,22 @@ class DrawLowering(BaseLowering):
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
-            entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
+            entry = EntrySpec(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
             source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
-            request.references[request.slot] = Reference(entry, False, 0, source)
+            request.references[request.slot] = ReferenceSpec(entry, False, 0, source)
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
-        sampled: list[SampledDraw] = []
+        sampled: list[SampledDrawSpec] = []
         position = self.offset_ + len(flags)
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDraw(position, request.rows, self._sampler(request, self.time_)))
+                sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request, self.time_)))
                 position += request.rows
         self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
 
     @staticmethod
-    def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
+    def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
         """Return the expression of a draw in terms of a uniform or standard normal value, or its sampled value."""
         if draw.kind == 'draw':
             return slot
@@ -257,9 +241,11 @@ class DrawLowering(BaseLowering):
         return expression
 
     @staticmethod
-    def _sampler(request: _Request, time: Expression) -> Callable[[float, Array, Array, np.random.Generator], Array]:
+    def _sampler(
+        request: _RequestSpec, time: Expression,
+    ) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
-        draw = cast('Draw', request.draw)
+        draw = cast('DrawSpec', request.draw)
         if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} takes another draw from a scipy.stats distribution as an '
@@ -281,7 +267,7 @@ class DrawLowering(BaseLowering):
 
         def sample(t: float, x: Array, q: Array, rng: np.random.Generator) -> Array:
             values = (
-                function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
+                function(t, *(cast('ReferenceSpec', reader).column_of(x, q) for reader in readers)) if arguments else []
             )
             return DrawKernel._sample_draw(draw, values, rows, rng)
 
@@ -290,10 +276,10 @@ class DrawLowering(BaseLowering):
     @staticmethod
     def _is_symbolic(value: object) -> bool:
         """Check whether a law value is symbolic, as opposed to a call or a Python function."""
-        return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, Call) or callable(value))
+        return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, CallSpec) or callable(value))
 
     @staticmethod
-    def _distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
+    def _distribution_of(owner: str, description: str, draw: DrawSpec) -> Any:  # noqa: ANN401
         """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
 
         Args:

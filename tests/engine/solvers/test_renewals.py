@@ -12,12 +12,12 @@ from skcomplex.core.laws import JumpLaw, RateLaw
 from skcomplex.core.laws.utils import bernoulli, draw, mean, normal
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form, RenewalRecord
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.errors import SolverError
-from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RenewalRecordSpec, StateSpec, VisualSpec
+from skcomplex.types import FormKind
 
 
 class CounterElement(Element):
@@ -293,7 +293,7 @@ def test_renewal_records_name_their_states():
         5,
         solver=RK4Solver(dt=0.5),
     ).events[0]
-    assert isinstance(record, RenewalRecord)
+    assert isinstance(record, RenewalRecordSpec)
     assert record.states == ('f.x', 'f.v')
     assert record.before.shape == record.after.shape == (record.members.size, 2)
 
@@ -308,5 +308,5 @@ def test_stepper_rejects_renewals_it_does_not_fire():
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
     simulation = Simulation(System(elements=[CounterElement('c')]), random_state=0).check().run(1)
-    assert simulation.problem_.form == Form.RENEWAL
+    assert simulation.problem_.form == FormKind.RENEWAL
     assert isinstance(simulation.stepper_, RenewalSolver)

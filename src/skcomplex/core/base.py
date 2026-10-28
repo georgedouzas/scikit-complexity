@@ -10,8 +10,7 @@ from typing import Self
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import ParameterSpec, RoleSpec, StateSpec
-from ..types import Spec
+from ..specs import ParameterSpec, RoleSpec, Spec, StateSpec
 
 
 class BasePart(BaseConfig):

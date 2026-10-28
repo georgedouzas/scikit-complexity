@@ -12,10 +12,10 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
+from ...specs import RunStateSpec
 from .._utils import symbol
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
-from ._state import State
 
 
 class FieldOperatorKernel(BaseKernel):
@@ -82,6 +82,6 @@ class FieldOperatorKernel(BaseKernel):
         """
         return np.broadcast_to(np.asarray(self._function(t, *values)[0], dtype=float), (size,))
 
-    def _run(self, inputs: State) -> npt.NDArray[np.float64]:
+    def _run(self, inputs: RunStateSpec) -> npt.NDArray[np.float64]:
         """Return the operator applied to the operand values at every site, the `x` of `inputs`."""
         return self.apply(inputs.x)

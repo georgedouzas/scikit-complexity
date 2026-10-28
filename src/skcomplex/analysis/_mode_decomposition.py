@@ -13,9 +13,9 @@ from sklearn.base import TransformerMixin, clone
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import ContinuousTime
 from ..engine._utils import vector
-from ..types import Array, ComplexArray
-from ._base import BaseAnalysis, Samples, SurrogateSource
-from ._kinds import DataKind
+from ..specs import SamplesSpec
+from ..types import Array, ComplexArray, DataKind
+from ._base import BaseAnalysis, SurrogateSource
 from ._sparse_identification import SparseIdentificationAnalysis
 
 
@@ -175,7 +175,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _lift(samples: Samples, dictionary: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
+    def _lift(samples: SamplesSpec, dictionary: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
         """Return the series, labels, and state names of the observables: the variables without a dictionary."""
         names = SparseIdentificationAnalysis._state_names(samples.labels)
         if dictionary is None:

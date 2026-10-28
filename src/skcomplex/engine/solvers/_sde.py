@@ -8,8 +8,7 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...types import Array, Interpolant
-from ..problems import Form
+from ...types import Array, FormKind, Interpolant
 from ._base import BaseSolver
 from ._history import History
 from ._solver import Solver
@@ -27,9 +26,9 @@ class SDESolver(Solver):
     """
 
     @classmethod
-    def _get_form(cls) -> Form:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return Form.SDE
+        return FormKind.SDE
 
     def __init__(
         self,

@@ -13,18 +13,14 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...types import Array, Indices, Partials, Sparse, Symmetry
+from ...specs import OutputSpec, ReductionScheduleSpec, ReferenceSpec, RunStateSpec
+from ...types import Array, Indices, Partials, ReadKind, Sparse, Symmetry
 from .._utils import symbols_of
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
-from ._output import Output
-from ._read_kind import ReadKind
 from ._reduction_kernel import ReductionKernel
-from ._reduction_schedule import ReductionSchedule
-from ._reference import Reference
-from ._state import State
 from ._too_dense import _TooDense
 
 """Index of the expression and symbol of every nonzero derivative, with the NumPy function of the derivatives."""
@@ -73,7 +69,7 @@ class JacobianKernel(BaseKernel):
     def __init__(  # noqa: PLR0917
         self,
         kernels: tuple[LawKernel, ...],
-        reductions: ReductionSchedule,
+        reductions: ReductionScheduleSpec,
         size: int,
         time: Expression,
         volumes: tuple[FiniteVolumeKernel, ...] = (),
@@ -217,7 +213,7 @@ class JacobianKernel(BaseKernel):
             factors = mask / selected if reduction.kind == 'mean' else mask
         return scipy.sparse.csr_array(factors[np.newaxis, :] @ members)
 
-    def _reduced_rows(self, kernel: LawKernel, reference: Reference, rows: Sparse) -> Sparse:
+    def _reduced_rows(self, kernel: LawKernel, reference: ReferenceSpec, rows: Sparse) -> Sparse:
         """Return the rows of a reduction's gradient or support read by every evaluation index of a kernel."""
         if reference.entry.members is None:
             rows = rows[[min(reference.column, rows.shape[0] - 1)]]
@@ -259,7 +255,7 @@ class JacobianKernel(BaseKernel):
             return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
         return self._selection(rows, reference._member_indices(kernel.rows), 1.0, self.size, height=kernel.rows)
 
-    def _run(self, inputs: State) -> Sparse:
+    def _run(self, inputs: RunStateSpec) -> Sparse:
         """Return the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
         t, x, p = inputs.t, inputs.x, inputs.p
         partials = self.kernel_partials_
@@ -380,7 +376,7 @@ class JacobianKernel(BaseKernel):
                 operand = operand + scipy.sparse.csr_array(block, dtype=float)
         return self._product(self._boolean(read.matrix), operand)
 
-    def _state_support(self, kernel: LawKernel, reference: Reference) -> Sparse:
+    def _state_support(self, kernel: LawKernel, reference: ReferenceSpec) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
         rows = kernel.rows
         if reference.source is ReadKind.NEIGHBOR:
@@ -397,7 +393,7 @@ class JacobianKernel(BaseKernel):
         blocks = []
         everything = np.arange(self.size, dtype=np.intp)
         for output in kernel.outputs:
-            target: Reference = output.target  # type: ignore[assignment]
+            target: ReferenceSpec = output.target  # type: ignore[assignment]
             used = self._output_symbols(output)
             if kernel.pairs is not None or target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 targets = np.unique(target.flat_indices if target.source is not ReadKind.SINGLE else [target.index])
@@ -464,7 +460,7 @@ class JacobianKernel(BaseKernel):
         )
 
     @staticmethod
-    def _output_symbols(output: Output) -> set[Expression] | None:
+    def _output_symbols(output: OutputSpec) -> set[Expression] | None:
         """Return the symbols an output reads, or `None` for a callable law, which reads every state."""
         if output.expression is not None:
             return set(SR(output.expression).variables())
@@ -473,7 +469,7 @@ class JacobianKernel(BaseKernel):
         return None
 
     @staticmethod
-    def _neighbor_columns(reference: Reference) -> tuple[Indices, Indices]:
+    def _neighbor_columns(reference: ReferenceSpec) -> tuple[Indices, Indices]:
         """Return the members that read a neighbour and the flat index of the neighbour each reads."""
         read = reference.neighbor
         table = np.asarray(read.table, dtype=np.intp)
@@ -501,7 +497,7 @@ class JacobianKernel(BaseKernel):
         return projections
 
     @staticmethod
-    def _is_variable(reference: Reference) -> bool:
+    def _is_variable(reference: ReferenceSpec) -> bool:
         """Check whether a reference is a state, a reduction, or a derived read, so derivatives reach the state."""
         return reference.source in {ReadKind.REDUCED, ReadKind.DERIVED} or reference.is_state
 

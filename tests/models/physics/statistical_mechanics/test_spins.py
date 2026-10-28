@@ -3,10 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import ImageVisual, RerunObserver
 from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.specs import FrameSpec
 
 from .conftest import magnetization
 
@@ -61,7 +62,7 @@ def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
     simulation = Simulation(ising(8, initial='up'), dt=1).check().run(until=1)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     (
         ImageVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
         .check()

@@ -7,8 +7,8 @@ from typing import Any
 
 import qutip
 
+from ...specs import QuantumProblemSpec
 from ...types import Array
-from ..problems._quantum_problem import QuantumProblem
 from ._quantum import QuantumSolver
 
 
@@ -54,7 +54,7 @@ class UnitarySolver(QuantumSolver):
         -1.0
     """
 
-    def _unsupported(self, problem: QuantumProblem) -> list[str]:
+    def _unsupported(self, problem: QuantumProblemSpec) -> list[str]:
         """Return the dissipators or the density matrix of a problem, which unitary evolution does not run."""
         if problem.dissipators:
             return ['dissipators, which need the lindblad or quantum_trajectories solver']

@@ -11,8 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import LatticeSpace, NetworkSpace
-from ..problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec, NetworkSnapshotSpec
 from ._base import _GRID_RADIUS, _NODE_SPACING, BaseVisual
 
 _HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
@@ -75,7 +74,7 @@ class SiteVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblemSpec) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
         self.changing_: dict[str, int] = {}
@@ -110,7 +109,7 @@ class SiteVisual(BaseVisual):
         self,
         recording: rr.RecordingStream,
         path: str,
-        snapshot: NetworkSnapshot,
+        snapshot: NetworkSnapshotSpec,
         values: npt.NDArray[np.float64],
     ) -> None:
         """Log the nodes present of a changing network colored by value, and its edges when they change."""
@@ -126,7 +125,7 @@ class SiteVisual(BaseVisual):
         radius = _GRID_RADIUS * _NODE_SPACING / 2
         recording.log(path, rr.GraphNodes(nodes, colors=colors, radii=radius, show_labels=False))
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log every chosen state of a triangular lattice or a network under `<path>/<state>`.
 
         Args:
@@ -159,7 +158,7 @@ class SiteVisual(BaseVisual):
             radius = _HEXAGON_RADIUS * min(lattice.spacings_)
             recording.log(path, rr.Points2D(positions, colors=self._colors(values, self.low, self.high), radii=radius))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one graph view per chosen state of a lattice group on a network, and a 2D spatial view otherwise.
 
         Args:
@@ -194,7 +193,7 @@ class SiteVisual(BaseVisual):
             >>> [type(view).__name__ for view in views]
             ['GraphView']
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         space = getattr(element.element, 'space', None)
         states = [state for state in element.states if self.states is None or state in self.states]
@@ -220,7 +219,7 @@ class SiteVisual(BaseVisual):
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
 
     @staticmethod
-    def _changes_topology(element: CompiledElement, problem: BaseProblem) -> bool:
+    def _changes_topology(element: CompiledElementSpec, problem: BaseProblemSpec) -> bool:
         """Check whether a group lies on the nodes of a network whose topology changes."""
         topology = problem.topology
         return topology is not None and element.path in {path for path, _ in topology.layers}

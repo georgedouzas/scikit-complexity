@@ -10,9 +10,8 @@ import numpy as np
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 
 KINDS = ('detect', 'counts', 'laminar-durations', 'excursions', 'branching')
 SETTINGS = {

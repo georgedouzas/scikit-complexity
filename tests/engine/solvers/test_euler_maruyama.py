@@ -12,14 +12,14 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, Step
+from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
 from skcomplex.errors import SolverError
 from skcomplex.models.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,
     geometric_brownian_motion,
 )
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, StepSpec, VisualSpec
 
 from ...conftest import _correlated
 
@@ -33,7 +33,7 @@ def test_euler_maruyama_without_noise_matches_ode():
     problem = compile_system(system)
     stepper = EulerMaruyamaSolver(dt=1e-4)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert state[0] == pytest.approx(np.e, rel=1e-3)
 
 
@@ -45,7 +45,7 @@ def test_euler_maruyama_nonpositive_dt_raises_error():
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.raises(SolverError, match='positive'):
-        stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
 
 
 def test_euler_maruyama_same_seed_on_both_backends():
@@ -56,7 +56,7 @@ def test_euler_maruyama_same_seed_on_both_backends():
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
         stepper.set_params(random_state=rng).check().prepare(problem)
-        states.append(stepper.run(Step(0.1, problem.initial_state, problem.initial_parameters, 0.4)))
+        states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 0.4)))
         three_steps = np.random.default_rng(0)
         for _ in range(3):
             three_steps.normal(0.0, 0.1, size=1)

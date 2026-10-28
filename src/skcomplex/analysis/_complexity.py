@@ -10,9 +10,9 @@ import numpy as np
 import ordpy
 
 from ..errors import AnalysisError
+from ..types import DataKind
 from ._base import BaseAnalysis, Source
 from ._entropy import TIES, EntropyAnalysis
-from ._kinds import DataKind
 
 
 class ComplexityAnalysis(BaseAnalysis):

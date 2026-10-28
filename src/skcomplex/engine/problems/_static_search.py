@@ -4,9 +4,9 @@
 # License: MIT
 
 
+from ...specs import RunStateSpec
 from ...types import EdgesFound, Indices
 from ._base import BaseSearch
-from ._state import State
 
 
 class StaticSearch(BaseSearch):
@@ -28,7 +28,7 @@ class StaticSearch(BaseSearch):
         self.indices = indices
         self.edges = edges
 
-    def _run(self, inputs: State) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec) -> EdgesFound:
         """Return the neighbours of every member."""
         del inputs
         return self.indptr, self.indices, self.edges

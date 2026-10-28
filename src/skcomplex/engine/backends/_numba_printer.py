@@ -12,20 +12,17 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
+from ...specs import EntrySpec, OutputSpec, ReadSpec, ReductionScheduleSpec, ReferenceSpec
+from ...types import ReadKind
 from .._utils import symbols_of
-from ..problems import BasePrinter, Entry, ExpressionPrinter
+from ..problems import BasePrinter, ExpressionPrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
 from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
-from ..problems._output import Output
 from ..problems._pair_search import PairSearch
-from ..problems._read_kind import ReadKind
-from ..problems._reads import Read
 from ..problems._reduction_kernel import ReductionKernel
-from ..problems._reduction_schedule import ReductionSchedule
-from ..problems._reference import Reference
 from ..problems._static_search import StaticSearch
 from ._base import _AUTO_MEMBERS
 
@@ -63,7 +60,7 @@ class NumbaPrinter(BasePrinter):
     def __init__(self, parallel: bool = False) -> None:
         self.parallel = parallel
 
-    def _prepare(self, context: ReductionSchedule | None) -> None:
+    def _prepare(self, context: ReductionScheduleSpec | None) -> None:
         """Start an empty source and print the function that fuses the reductions, unless there are none."""
         self.lines_: list[str] = []
         self.slots_: dict[str, int] = {}
@@ -100,7 +97,7 @@ class NumbaPrinter(BasePrinter):
         ]
         return max(rows, default=0) >= _AUTO_MEMBERS
 
-    def _slot(self, entry: Entry) -> int:
+    def _slot(self, entry: EntrySpec) -> int:
         """Return the layout slot of an entry, whose start is `L[2 * slot]` and rows `L[2 * slot + 1]`.
 
         Args:
@@ -130,7 +127,7 @@ class NumbaPrinter(BasePrinter):
         self.data_[name] = np.asarray(values, dtype=np.int64)
         return self.slots_.setdefault(name, len(self.slots_))
 
-    def layout(self, entries: Mapping[str, Entry]) -> np.ndarray:
+    def layout(self, entries: Mapping[str, EntrySpec]) -> np.ndarray:
         """Return the layout array of starts and rows of every slot, followed by the data of the data slots.
 
         Args:
@@ -170,12 +167,12 @@ class NumbaPrinter(BasePrinter):
         return name
 
     @staticmethod
-    def _vector(reference: Reference) -> str:
+    def _vector(reference: ReferenceSpec) -> str:
         """Return the name of the vector that holds a reference."""
         return 'x' if reference.is_state else 'p'
 
     @staticmethod
-    def _is_shared(reference: Reference) -> bool:
+    def _is_shared(reference: ReferenceSpec) -> bool:
         """Check whether a reference holds one value for every evaluation index, a single element or a reduction."""
         return reference.source is ReadKind.SINGLE or (
             reference.source is ReadKind.REDUCED and reference.entry.members is None
@@ -188,7 +185,7 @@ class NumbaPrinter(BasePrinter):
         reads = [f'{INDENT}_L{index}_ = L[{index}]' for index in used]
         return [*lines[:2], *reads, *lines[2:]]
 
-    def _index(self, reference: Reference, member: str | None) -> str:
+    def _index(self, reference: ReferenceSpec, member: str | None) -> str:
         """Return the flat index of a reference for a member variable, or for a single element."""
         start = f'_L{2 * self._slot(reference.entry)}_'
         if member is None:
@@ -197,7 +194,7 @@ class NumbaPrinter(BasePrinter):
 
     def _emit_values(
         self,
-        outputs: list[Output],
+        outputs: list[OutputSpec],
         read: Callable[[Expression], str],
         depth: int,
     ) -> tuple[list[str], list[str]]:
@@ -226,7 +223,7 @@ class NumbaPrinter(BasePrinter):
             values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
         return lines, values
 
-    def _single_reads(self, kernel: LawKernel, outputs: list[Output]) -> list[str]:
+    def _single_reads(self, kernel: LawKernel, outputs: list[OutputSpec]) -> list[str]:
         """Return the lines that read every single-element symbol of outputs once, before the member loops."""
         expressions = [output.expression for output in outputs if output.expression is not None]
         arguments = [argument for output in outputs for argument in output.arguments or ()]
@@ -264,7 +261,7 @@ class NumbaPrinter(BasePrinter):
     def _pair_block(
         self,
         kernel: LawKernel,
-        selected: list[tuple[int, Output]],
+        selected: list[tuple[int, OutputSpec]],
         *,
         first: str,
         second: str,
@@ -299,7 +296,7 @@ class NumbaPrinter(BasePrinter):
         ]
         return lines
 
-    def _pair_loop(self, kernel: LawKernel, outputs: list[tuple[int, Output]], loop: str, same: bool) -> list[str]:
+    def _pair_loop(self, kernel: LawKernel, outputs: list[tuple[int, OutputSpec]], loop: str, same: bool) -> list[str]:
         """Return the lines of one loop over members and their neighbours that accumulates pair outputs.
 
         The loop over `_a_` runs over the first members and computes the outputs of first members with `first=_a_` and
@@ -425,7 +422,7 @@ class NumbaPrinter(BasePrinter):
         assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
         same = pairs.first == pairs.second
         columns = pairs.first.columns
-        cutoff = Reference(pairs.cutoff, is_state=False, column=0)
+        cutoff = ReferenceSpec(pairs.cutoff, is_state=False, column=0)
         lines = [
             f'@njit(cache=CACHE, parallel={parallel})',
             f'def {name}(t, x, p, L, out, offset):',
@@ -519,7 +516,7 @@ class NumbaPrinter(BasePrinter):
         lines.append(f'{INDENT}return out')
         self.lines_ += ['', '', *lines]
 
-    def _reduction_read(self, name: str, read: Read, index: int) -> str:
+    def _reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
         """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
         vector = 'x' if read.is_state else 'p'
         if read.entry is None:
@@ -746,7 +743,7 @@ class NumbaPrinter(BasePrinter):
         ]
         return lines
 
-    def _reduce_function(self, reductions: ReductionSchedule, parallel: bool) -> None:
+    def _reduce_function(self, reductions: ReductionScheduleSpec, parallel: bool) -> None:
         """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
         extents = [
             f'_L{2 * self._slot(item.entry)}_ + _L{2 * self._slot(item.entry) + 1}_ * {item.entry.columns}'

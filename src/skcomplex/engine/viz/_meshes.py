@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..problems import BaseProblem, CompiledAgents, CompiledElement
-from ..runtime import Frame
+from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ._base import _MODULUS, _PHASE, BaseVisual
 
 
@@ -74,7 +73,7 @@ class MeshVisual(BaseVisual):
         positions = np.column_stack([nodes, values])
         recording.log(path, rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors))
 
-    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log every chosen state of a finite element field under `<path>/<state>`, a complex one as modulus and phase.
 
         Args:
@@ -100,7 +99,7 @@ class MeshVisual(BaseVisual):
             self._log_mesh(recording, f'{path}/{_MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
             self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, BaseVisual._phase_colors(phase))
 
-    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
 
         Args:
@@ -123,7 +122,7 @@ class MeshVisual(BaseVisual):
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """
-        if not isinstance(element, CompiledElement):
+        if not isinstance(element, CompiledElementSpec):
             return []
         views: list[rrb.View] = []
         for state, name in element.states.items():

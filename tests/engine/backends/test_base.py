@@ -15,21 +15,17 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import Call
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine._utils import vector
-from skcomplex.engine.backends import BaseBackend, LoweredFunctions, NumbaBackend, NumpyBackend, _numba
+from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import Form
-from skcomplex.engine.problems._lowered_kernels import LoweredKernels
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
     IterationSolver,
     RK4Solver,
-    Step,
     VelocityVerletSolver,
 )
 from skcomplex.errors import BackendWarning, SolverError
@@ -37,7 +33,17 @@ from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import (
+    CallSpec,
+    LoweredFunctionsSpec,
+    LoweredKernelsSpec,
+    ParameterSpec,
+    RoleSpec,
+    StateSpec,
+    StepSpec,
+    VisualSpec,
+)
+from skcomplex.types import FormKind
 
 CUTOFF = 2.5
 
@@ -88,7 +94,7 @@ class CompiledGrowthInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the compiled rate."""
-        return [RateLaw(s.target.n, Call(_logistic, (s.target.n, s.r)))]
+        return [RateLaw(s.target.n, CallSpec(_logistic, (s.target.n, s.r)))]
 
 
 class PythonGrowthInteraction(Interaction):
@@ -216,9 +222,9 @@ def _epidemic():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_backend_runs_the_kernels_of_a_form(backend):
     """Test that a checked and prepared backend returns the functions of the form of the kernels it runs."""
-    kernels = LoweredKernels(defaultdict(list), {}, {}, form=Form.ODE, size=2)
+    kernels = LoweredKernelsSpec(defaultdict(list), {}, {}, form=FormKind.ODE, size=2)
     lowering = backend().check().prepare().run(kernels)
-    assert isinstance(lowering, LoweredFunctions)
+    assert isinstance(lowering, LoweredFunctionsSpec)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
 
@@ -322,7 +328,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
 
         def _get_laws(self, s):
             """Return the laws of the pair element."""
-            return [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))]
+            return [UpdateLaw(vector([s.x, s.y]), CallSpec(rotate, (s.x, s.y)))]
 
     trajectory = (
         Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend())
@@ -444,7 +450,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
     )
     stepper = RK4Solver(dt=0.001)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    state = stepper.run(Step(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
     assert np.allclose(state, np.e, rtol=1e-10)
 
 

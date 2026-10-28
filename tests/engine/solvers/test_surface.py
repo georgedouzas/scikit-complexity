@@ -3,9 +3,9 @@
 import inspect
 
 from skcomplex.engine import solvers as package
-from skcomplex.engine.solvers import AgentView, BaseSolver, ModelView, Step
+from skcomplex.engine.solvers import AgentView, BaseSolver, ModelView
 from skcomplex.errors import SkcomplexError
-from skcomplex.specs import BaseSpec
+from skcomplex.specs import BaseSpec, StepSpec
 
 VIEWS = {AgentView, ModelView}
 
@@ -34,4 +34,4 @@ def test_concrete_solvers_answer_their_hooks():
 
 def test_a_solver_runs_on_a_step():
     """A step holds the state, the parameters, and the time to advance to."""
-    assert issubclass(Step, BaseSpec)
+    assert issubclass(StepSpec, BaseSpec)

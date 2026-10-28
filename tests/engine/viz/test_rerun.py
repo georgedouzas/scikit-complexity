@@ -16,7 +16,7 @@ from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, N
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Frame, RealTimeClock, Simulation
+from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.viz import (
     BaseVisual,
     ImageVisual,
@@ -32,7 +32,7 @@ from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling
-from skcomplex.specs import StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.specs import FrameSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
 
 class LoggedPaths:
@@ -88,7 +88,7 @@ def test_scalars_visual_logs_nested_paths():
     system = System(systems=[System('meadow', elements=[PopulationElement('rabbits')])])
     simulation = Simulation(system).check().run(until=0.0)
     element = simulation.problem_.elements[0]
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     ScalarsVisual(path=element.path, recording=recording).check().prepare(frame.problem).run(frame)
     assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
 
@@ -103,7 +103,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
     )
     simulation = Simulation(system).check().run(until=0.0)
     recording = LoggedPaths()
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     (
         PointsVisual(position='x', path=simulation.problem_.elements[0].path, recording=recording)
         .check()
@@ -173,7 +173,7 @@ def test_visual_base_log_is_abstract():
     """Test that the base visual must be subclassed."""
     simulation = Simulation(create('lotka_volterra')).check().run(until=0.0)
     problem = simulation.problem_
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
     with pytest.raises(NotImplementedError):
         BaseVisual(path=problem.elements[0].path, recording=None).check().prepare(problem).run(frame)
 
@@ -205,10 +205,15 @@ def test_points_colored_by_speed_follow_the_color_scale():
         space=ContinuousSpace(n_dim=2),
     )
     simulation = Simulation(system).check().run(until=0.0)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = LoggedPaths()
     visual = PointsVisual(
-        position='x', color_by='v', color_range=(0.0, 2.0), states=(), path='gas', recording=recording,
+        position='x',
+        color_by='v',
+        color_range=(0.0, 2.0),
+        states=(),
+        path='gas',
+        recording=recording,
     )
     visual.check().prepare(simulation.problem_)
     colors = []
@@ -231,7 +236,9 @@ def _agent_logs(monkeypatch, tmp_path, system, until=2):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     Simulation(
-        system, observers=[RerunObserver('agents', save_path=tmp_path / 'agents.rrd')], random_state=0,
+        system,
+        observers=[RerunObserver('agents', save_path=tmp_path / 'agents.rrd')],
+        random_state=0,
     ).check().run(
         until=until,
     )
@@ -436,7 +443,9 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     recording = _AllLogs()
     visual = SiteVisual(path=element.path, recording=recording).check().prepare(problem)
     for index in range(len(trajectory.times)):
-        frame = Frame(index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem)
+        frame = FrameSpec(
+            index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem,
+        )
         visual.run(frame)
     nodes = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphNodes']
     edges = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphEdges']

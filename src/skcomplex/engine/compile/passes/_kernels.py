@@ -15,18 +15,19 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import Call
 from ....errors import ValidationError
-from ....specs import WienerProcessSpec
-from ....types import ProcessKey
+from ....specs import (
+    CallSpec,
+    LayoutSpec,
+    LoweredKernelsSpec,
+    NoiseProcessSpec,
+    OutputSpec,
+    ReferenceSpec,
+    WienerProcessSpec,
+)
+from ....types import ProcessKey, ReadKind
 from ..._utils import components_of, symbols_of
-from ...problems import Layout
 from ...problems._law_kernel import LawKernel
-from ...problems._lowered_kernels import LoweredKernels
-from ...problems._noise_process import NoiseProcess
-from ...problems._output import Output
-from ...problems._read_kind import ReadKind
-from ...problems._reference import Reference
 from .._base import BasePass
 from .._compilation import Laws
 from .._declarations import Declarations
@@ -58,9 +59,9 @@ class KernelsPass(BasePass):
         )
 
     @staticmethod
-    def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> list[Output]:
+    def _outputs_of(value: object, targets: list[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
         """Return the outputs of one law value for its target components, with the law and component as owner."""
-        if isinstance(value, Call):
+        if isinstance(value, CallSpec):
             arguments = tuple(
                 item
                 for argument in value.arguments
@@ -70,22 +71,28 @@ class KernelsPass(BasePass):
                 error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
                 raise ValidationError(error_msg)
             return [
-                Output(target, function=value.function, arguments=arguments, component=index, components=len(targets))  # type: ignore[arg-type]
+                OutputSpec(  # type: ignore[arg-type]
+                    target,
+                    function=value.function,
+                    arguments=arguments,
+                    component=index,
+                    components=len(targets),
+                )
                 for index, target in enumerate(targets)
             ]
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             return [
-                Output(target, function=value, component=index, components=len(targets))  # type: ignore[arg-type]
+                OutputSpec(target, function=value, component=index, components=len(targets))  # type: ignore[arg-type]
                 for index, target in enumerate(targets)
             ]
-        return [Output(target, expression) for target, expression in zip(targets, expressions, strict=True)]
+        return [OutputSpec(target, expression) for target, expression in zip(targets, expressions, strict=True)]
 
     @staticmethod
     def _check_assignments(
         spec: KernelSpec,
         law: BaseLaw,
-        targets: list[Reference],
+        targets: list[ReferenceSpec],
         assigned: set[tuple[str, int]],
         *,
         once: bool,
@@ -127,7 +134,7 @@ class KernelsPass(BasePass):
         return ReadKind.REDUCED in sources and ReadKind.MEMBER not in sources
 
     @staticmethod
-    def _single_references(spec: KernelSpec) -> dict[Expression, Reference]:
+    def _single_references(spec: KernelSpec) -> dict[Expression, ReferenceSpec]:
         """Return the references of a spec without its group members, for laws that run once."""
         return {
             item: reference
@@ -139,10 +146,10 @@ class KernelsPass(BasePass):
     def _law_outputs(
         spec: KernelSpec,
         law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
-        targets: list[Reference],
+        targets: list[ReferenceSpec],
         declarations: Declarations,
-        lowered: dict[int, list[Output]],
-    ) -> list[Output]:
+        lowered: dict[int, list[OutputSpec]],
+    ) -> list[OutputSpec]:
         """Return the outputs of a law for its target components, with the named Wiener process of a noise law.
 
         A law that a pass of a formalism lowered takes the outputs of that pass.
@@ -166,16 +173,18 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _lower_laws(
-        specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]],
-    ) -> LoweredKernels:
+        specs: Laws,
+        declarations: Declarations,
+        lowered_outputs: dict[int, list[OutputSpec]],
+    ) -> LoweredKernelsSpec:
         """Return the kernels of every law kind, with the law of every output."""
-        states, parameters = Layout(tuple(declarations.states)), Layout(tuple(declarations.parameters))
+        states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
-        jump_changes: dict[int, list[tuple[Reference, float]]] = {}
+        jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
         assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
         for spec, laws in specs:
-            outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
+            outputs: dict[tuple[type, bool], list[OutputSpec]] = defaultdict(list)
             for law in laws:
                 if isinstance(law, _KERNEL_FREE_LAWS):
                     continue
@@ -211,7 +220,7 @@ class KernelsPass(BasePass):
                         kind_outputs,
                     ).check(),
                 )
-        return LoweredKernels(kernels, jump_changes, laws_of)
+        return LoweredKernelsSpec(kernels, jump_changes, laws_of)
 
     @staticmethod
     def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
@@ -224,16 +233,16 @@ class KernelsPass(BasePass):
             return vectors * np.sqrt(np.maximum(values, 0.0))
 
     @staticmethod
-    def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcess | None:
+    def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
         """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
         if key is None:
             return None
         kind, owner, item = key
         if kind == 'local':
-            return NoiseProcess(key)
+            return NoiseProcessSpec(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
-        return NoiseProcess(owner, item, wiener.dimension, factor)
+        return NoiseProcessSpec(owner, item, wiener.dimension, factor)
 
     @staticmethod
     def _kind_of(law: BaseLaw) -> type:

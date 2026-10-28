@@ -13,11 +13,9 @@ from ...core.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
+from ...specs import EntrySpec, HeadingSpec, RunStateSpec
 from ...types import Array, EdgesFound, Indices, Pairs
 from ._base import BaseSearch
-from ._entry import Entry
-from ._heading import Heading
-from ._state import State
 
 
 class MetricSearch(BaseSearch):
@@ -40,9 +38,9 @@ class MetricSearch(BaseSearch):
     def __init__(
         self,
         neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood,
-        positions: Entry,
+        positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
-        heading: Heading | None = None,
+        heading: HeadingSpec | None = None,
     ) -> None:
         self.neighbourhood = neighbourhood
         self.positions = positions
@@ -91,7 +89,7 @@ class MetricSearch(BaseSearch):
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def _run(self, inputs: State) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec) -> EdgesFound:
         """Return the neighbours of every member at the current positions."""
         x, q = inputs.x, inputs.p
         del q

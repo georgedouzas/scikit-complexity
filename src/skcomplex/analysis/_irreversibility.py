@@ -12,9 +12,8 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
-from ._kinds import DataKind
 from ._markov import MarkovAnalysis
 
 MIN_PAIRS = 3

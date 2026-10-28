@@ -7,10 +7,10 @@ from collections.abc import Iterable
 from typing import cast
 
 from ....errors import IncompatibleLawsError
-from ...problems import Form
+from ....specs._owners_spec import _OwnersSpec
+from ....types import FormKind
 from .._base import BasePass
 from .._forms import _FORMS
-from .._owners import _Owners
 
 
 class FormPass(BasePass):
@@ -30,7 +30,7 @@ class FormPass(BasePass):
         compilation.form = self._infer_form(cast('dict[str, set[type]]', compilation.kinds).values())
 
     @staticmethod
-    def _infer_form(owners: Iterable[set[type]]) -> Form:
+    def _infer_form(owners: Iterable[set[type]]) -> FormKind:
         """Return the form that the law classes of the components of a system determine.
 
         A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
@@ -48,7 +48,7 @@ class FormPass(BasePass):
             IncompatibleLawsError:
                 No form takes the law classes.
         """
-        kinds = _Owners._form_kinds(owners)
+        kinds = _OwnersSpec._form_kinds(owners)
         if kinds not in _FORMS:
             found = ', '.join(sorted(kind.__name__ for kind in kinds))
             supported = '; '.join(
