@@ -30,7 +30,7 @@ def alpha_at(time):
 
 system = create(MODEL, x=1.0, alpha=-0.1)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).run(until=290)
+simulation = Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).check().run(until=290)
 
 # %%
 # Amplitude along the sweep and the two attractors
@@ -44,7 +44,9 @@ amplitude = np.hypot(trajectory.values('form.x'), trajectory.values('form.y'))
 alphas = np.linspace(-0.4, 0.2, 25)
 finals = {
     start: [
-        np.hypot(*Simulation(create(MODEL, x=start, alpha=alpha), dt=1.0).run(until=150).state_) for alpha in alphas
+        np.hypot(*Simulation(
+            create(MODEL, x=start, alpha=alpha), dt=1.0,
+        ).check().run(until=150).state_) for alpha in alphas
     ]
     for start in (0.05, 1.2)
 }

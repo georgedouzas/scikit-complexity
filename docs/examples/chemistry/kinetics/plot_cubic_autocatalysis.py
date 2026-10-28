@@ -21,7 +21,7 @@ MODEL = 'cubic_autocatalysis'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=500)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=500)
 
 # %%
 # Two basins of attraction
@@ -35,7 +35,7 @@ roots = np.roots([F + k, -F, F * (F + k)])
 fig, ax = plt.subplots(figsize=(6, 5))
 for a0 in np.linspace(0.05, 1.0, 6):
     for b0 in np.linspace(0.05, 1.0, 6):
-        run = Simulation(create(MODEL, a=a0, b=b0, F=F, k=k), dt=2.0).run(until=800).trajectory_
+        run = Simulation(create(MODEL, a=a0, b=b0, F=F, k=k), dt=2.0).check().run(until=800).trajectory_
         reacting = run.values('reactor.b')[-1] > 0.1
         ax.plot(
             run.values('reactor.a'),

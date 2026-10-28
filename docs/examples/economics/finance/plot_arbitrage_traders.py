@@ -16,16 +16,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'arbitrage_traders'
 N_SITES, LENGTH, D, E, UNTIL = 200, 20.0, 0.5, 0.5, 3.5
 
 system = create(MODEL, n_sites=N_SITES, length=LENGTH, D=D, E=E)
-blueprint = default_blueprint(system, primary='rho history')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=UNTIL)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='rho history', interval=1)
+simulation = Simulation(system, dt=0.02, observers=[observer]).check().run(until=UNTIL)
 
 # %%
 # Drift, spreading, and growth

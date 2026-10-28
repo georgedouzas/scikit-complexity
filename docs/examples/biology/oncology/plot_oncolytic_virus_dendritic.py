@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 system = create(MODEL)
 solver = ScipyODESolver(method='LSODA')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).check().run(until=20)
 
 # %%
 # Each therapy alone and both together
@@ -52,7 +52,7 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).run
 arms = {'untreated': create(MODEL, uv=0.0, ud=0.0), 'virus alone': create(MODEL, ud=0.0), 'both': system}
 fig, (volume, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.1, solver=solver).run(until=20).trajectory_
+    trajectory = Simulation(arm, dt=0.1, solver=solver).check().run(until=20).trajectory_
     volume.semilogy(
         trajectory.times,
         (trajectory.values('site.AU') + trajectory.values('site.AV')).clip(1e-6),

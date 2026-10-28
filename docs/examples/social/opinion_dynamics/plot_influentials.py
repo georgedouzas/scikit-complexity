@@ -25,7 +25,7 @@ STEPS = 20
 LEVELS = ('not at all', 'less', 'a bit', 'passionately')
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, influence=3.0, random_state=0), observers=[observer], random_state=0)
+simulation = Simulation(create(MODEL, influence=3.0, random_state=0), observers=[observer], random_state=0).check()
 simulation.run(until=STEPS)
 
 # %%
@@ -48,7 +48,7 @@ def passionate(influence, news_report):
     finals = []
     for seed in range(3):
         system = create(MODEL, influence=influence, news_report=news_report, random_state=seed)
-        trajectory = Simulation(system, random_state=seed).run(until=STEPS).trajectory_
+        trajectory = Simulation(system, random_state=seed).check().run(until=STEPS).trajectory_
         finals.append(shares(trajectory, STEPS)[-1])
     return np.mean(finals)
 

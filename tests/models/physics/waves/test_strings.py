@@ -14,7 +14,7 @@ from ..conftest import _run, _series
 def test_plucked_spring_chain_keeps_its_fundamental_mode():
     """Test that the fundamental transverse mode of the chain oscillates at `2 sqrt(k / m) sin(pi / (2 (N + 1)))`."""
     n_masses = 15
-    trajectory = Simulation(spring_chain(n_masses), dt=0.1).run(until=4.0).trajectory_
+    trajectory = Simulation(spring_chain(n_masses), dt=0.1).check().run(until=4.0).trajectory_
     heights = np.stack([_series(trajectory, f'mass_{index}.x')[0][:, 1] for index in range(n_masses)], axis=1)
     mode = np.sin(np.pi * np.arange(1, n_masses + 1) / (n_masses + 1))
     amplitude = heights @ mode / (mode @ mode)

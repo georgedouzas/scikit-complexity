@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=60)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=60)
 
 # %%
 # Growth along the chain
@@ -47,7 +47,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=60)
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for delay, label in [(1.0, 'T = 1, unstable chain'), (0.2, 'T = 0.2, stable chain')]:
-    run = Simulation(create(MODEL, T=delay), dt=0.5).run(until=120).trajectory_
+    run = Simulation(create(MODEL, T=delay), dt=0.5).check().run(until=120).trajectory_
     late = run.times > 60
     amplitudes = [np.ptp(run.values(f'car_{car}.v')[late]) / 2 for car in range(8)]
     ax.semilogy(range(8), amplitudes, 'o-', label=label)

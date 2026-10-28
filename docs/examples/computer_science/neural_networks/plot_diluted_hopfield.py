@@ -36,7 +36,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(20)
+).check().run(20)
 
 # %%
 # The annealed map of the overlap

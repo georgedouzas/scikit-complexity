@@ -28,7 +28,7 @@ simulation = Simulation(
     dt=1,
     observers=[observer],
     observables=describe(MODEL).observables_of(model_system),
-).run(until=1)
+).check().run(until=1)
 trajectory = simulation.trajectory_
 
 # %%

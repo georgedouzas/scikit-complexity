@@ -19,7 +19,7 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
             solver=EulerMaruyamaSolver(dt=0.05),
             random_state=0,
             observables=describe('aligning_active_brownian_particles').observables_of(system),
-        ).run(until=200)
+        ).check().run(until=200)
         polarizations.append(_stationary_polarization(simulation.trajectory_, 100))
     low, high = polarizations
     assert low < 0.2

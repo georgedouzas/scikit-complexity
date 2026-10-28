@@ -101,7 +101,7 @@ class CoSimulationSolver(Solver):
         ...         ),
         ...     ],
         ... )
-        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5).run(until=1)
+        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5).check().run(until=1)
         >>> sorted(simulation.stepper_.steppers_)
         ['a', 'b']
     """

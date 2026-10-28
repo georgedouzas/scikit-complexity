@@ -15,7 +15,15 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
     loci, size = 4, 10.0
     system = origin_fixation_walk(loci, N=size, mu=1.0, field=0.1, coupling=0.3, random_state=1)
     trajectory = (
-        Simulation(system, dt=1.0, random_state=0, observables=describe('origin_fixation_walk').observables_of(system))
+        (
+            Simulation(
+                system,
+                dt=1.0,
+                random_state=0,
+                observables=describe('origin_fixation_walk').observables_of(system),
+            )
+            .check()
+        )
         .run(until=5000)
         .trajectory_
     )
@@ -32,7 +40,15 @@ def test_origin_fixation_walk_climbs_the_landscape():
     """Test that a large population ends near the single peak of a landscape of random fields."""
     system = origin_fixation_walk(16, N=1000.0, mu=0.01, random_state=0)
     trajectory = (
-        Simulation(system, dt=10.0, random_state=0, observables=describe('origin_fixation_walk').observables_of(system))
+        (
+            Simulation(
+                system,
+                dt=10.0,
+                random_state=0,
+                observables=describe('origin_fixation_walk').observables_of(system),
+            )
+            .check()
+        )
         .run(until=1000)
         .trajectory_
     )

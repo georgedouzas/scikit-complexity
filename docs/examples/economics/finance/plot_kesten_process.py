@@ -31,7 +31,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(model_system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 
 # %%
 # Tail exponent

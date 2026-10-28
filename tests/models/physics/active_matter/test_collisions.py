@@ -17,7 +17,7 @@ def test_binary_collision_flocking_orders_below_noise_threshold() -> None:
             dt=1,
             random_state=0,
             observables=describe('binary_collision_flocking').observables_of(system),
-        ).run(until=200)
+        ).check().run(until=200)
         polarizations.append(_stationary_polarization(simulation.trajectory_, 100))
     ordered, disordered = polarizations
     assert ordered > 0.6

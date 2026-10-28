@@ -21,7 +21,7 @@ MODEL = 'deffuant'
 
 system = create(MODEL, confidence=0.2, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=50)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=50)
 
 # %%
 # Number of clusters against the bound
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 def clusters(confidence, seed):
     """Return the number of clusters of at least five people at the end of a run."""
-    run = Simulation(create(MODEL, confidence=confidence, random_state=seed), random_state=seed).run(until=50)
+    run = Simulation(create(MODEL, confidence=confidence, random_state=seed), random_state=seed).check().run(until=50)
     opinions = np.sort(run.trajectory_.agents('people', len(run.trajectory_.times) - 1).values['opinion'])
     groups = np.split(opinions, np.flatnonzero(np.diff(opinions) > 0.01) + 1)
     return sum(len(group) >= 5 for group in groups)

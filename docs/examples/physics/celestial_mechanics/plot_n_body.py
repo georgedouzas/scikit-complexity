@@ -21,7 +21,7 @@ PERIOD = 6.3259
 
 system = create(MODEL, preset='figure_eight')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=PERIOD)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=PERIOD)
 
 # %%
 # Return after one period
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=PERIOD)
 # Over three periods, the distance of the configuration from its initial state should fall back to almost zero at
 # every multiple of the period, and the three stars should share a single figure-eight path.
 
-run = Simulation(create(MODEL, preset='figure_eight'), dt=0.005).run(until=3 * PERIOD)
+run = Simulation(create(MODEL, preset='figure_eight'), dt=0.005).check().run(until=3 * PERIOD)
 positions = np.stack([np.asarray(run.trajectory_.values(f'body_{index}.x')) for index in range(3)], axis=1)
 distance = np.linalg.norm(positions - positions[0], axis=(1, 2))
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))

@@ -30,7 +30,15 @@ def test_edwards_anderson_freezes_without_magnetization():
         values = system.elements[0].values
         right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
         trajectory = (
-            Simulation(system, dt=10, random_state=0, observables=describe('edwards_anderson').observables_of(system))
+            (
+                Simulation(
+                    system,
+                    dt=10,
+                    random_state=0,
+                    observables=describe('edwards_anderson').observables_of(system),
+                )
+                .check()
+            )
             .run(until=2000)
             .trajectory_
         )
@@ -51,7 +59,15 @@ def test_mattis_spin_glass_overlap_orders_like_ising():
     for temperature in (1.5, 3.5):
         system = mattis_spin_glass(32, temperature=temperature, random_state=0)
         trajectory = (
-            Simulation(system, dt=10, random_state=0, observables=describe('mattis_spin_glass').observables_of(system))
+            (
+                Simulation(
+                    system,
+                    dt=10,
+                    random_state=0,
+                    observables=describe('mattis_spin_glass').observables_of(system),
+                )
+                .check()
+            )
             .run(until=1000)
             .trajectory_
         )

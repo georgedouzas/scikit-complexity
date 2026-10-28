@@ -27,7 +27,7 @@ def test_brock_hommes_bifurcation():
     spreads = {}
     for intensity in (1.0, 6.0):
         system = brock_hommes(200, intensity=intensity)
-        deviations = Simulation(system, random_state=0).run(until=120).trajectory_.values('pricing.deviation')
+        deviations = Simulation(system, random_state=0).check().run(until=120).trajectory_.values('pricing.deviation')
         spreads[intensity] = (deviations[-50:].std(), _mean_field(intensity, 400)[-200:].std())
     assert max(spreads[1.0]) < 0.1
     assert min(spreads[6.0]) > 0.3

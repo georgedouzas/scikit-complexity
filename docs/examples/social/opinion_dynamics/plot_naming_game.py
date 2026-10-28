@@ -21,7 +21,7 @@ MODEL = 'naming_game'
 
 system = create(MODEL, n_agents=50)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=40)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=40)
 
 # %%
 # Time to consensus
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 def consensus_games(n_agents, seed):
     """Return the number of games, steps times agents, until every inventory holds the same single word."""
-    run = Simulation(create(MODEL, n_agents=n_agents), random_state=seed).run(until=200)
+    run = Simulation(create(MODEL, n_agents=n_agents), random_state=seed).check().run(until=200)
     trajectory = run.trajectory_
     for frame in range(1, len(trajectory.times)):
         words = trajectory.agents('namers', frame).values['words']

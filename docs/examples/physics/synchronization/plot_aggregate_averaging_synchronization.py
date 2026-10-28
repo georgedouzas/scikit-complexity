@@ -20,7 +20,7 @@ MODEL = 'aggregate_averaging_synchronization'
 
 system = create(MODEL, x1=0.3, x2=0.6, r=4.0, kappa=0.4)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=50)
 
 # %%
 # Window of synchronization
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
 couplings = np.linspace(0.0, 1.0, 41)
 differences = []
 for coupling in couplings:
-    run = Simulation(create(MODEL, x1=0.3, x2=0.6, kappa=coupling), dt=1).run(until=200)
+    run = Simulation(create(MODEL, x1=0.3, x2=0.6, kappa=coupling), dt=1).check().run(until=200)
     gap = np.abs(np.ravel(run.trajectory_.values('first.x')) - np.ravel(run.trajectory_.values('second.x')))
     differences.append(gap[-50:].mean())
 fig, ax = plt.subplots(figsize=(6, 4))

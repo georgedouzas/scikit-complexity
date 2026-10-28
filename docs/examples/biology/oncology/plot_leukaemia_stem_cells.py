@@ -20,7 +20,7 @@ MODEL = 'leukaemia_stem_cells'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=500)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=500)
 
 # %%
 # Competitive exclusion in the niche
@@ -40,7 +40,7 @@ series.legend()
 renewals = [0.45, 0.5, 0.55, 0.58, 0.6, 0.62, 0.65, 0.7, 0.8]
 shares = []
 for r4 in renewals:
-    run = Simulation(create(MODEL, r4=r4), dt=5.0).run(until=3000).trajectory_
+    run = Simulation(create(MODEL, r4=r4), dt=5.0).check().run(until=3000).trajectory_
     shares.append(run.values('niche.AS')[-1] / (run.values('niche.AS')[-1] + run.values('niche.NS')[-1]))
 switch.plot(renewals, shares, 'o-')
 switch.axvline(0.6, color='grey', linestyle=':', label='normal renewal r1')

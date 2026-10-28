@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=3)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=30)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=30)
 
 # %%
 # Space-time diagram of the waves

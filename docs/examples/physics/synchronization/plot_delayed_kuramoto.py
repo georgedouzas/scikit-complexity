@@ -20,7 +20,7 @@ MODEL = 'delayed_kuramoto'
 
 system = create(MODEL, n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=50)
 
 # %%
 # Collective frequency against the delay
@@ -35,7 +35,11 @@ effective = 2.0 * 4 / 5
 delays = np.linspace(0.1, 3.0, 30)
 measured = []
 for delay in delays:
-    run = Simulation(create(MODEL, n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), dt=0.1).run(until=150)
+    run = (
+        Simulation(create(MODEL, n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), dt=0.1)
+        .check()
+        .run(until=150)
+    )
     times, phase = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('oscillator_0.theta'))
     late = times > 100
     measured.append(np.polyfit(times[late], phase[late], 1)[0])

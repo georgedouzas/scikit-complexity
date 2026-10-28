@@ -109,7 +109,7 @@ simulation = Simulation(
     dt=0.05,
     clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('lotka-volterra', spawn=True)],
-)
+).check()
 trajectory = simulation.run(until=30).trajectory_
 print(round(float(trajectory.values('rabbits.n').max())))
 ```
@@ -119,7 +119,7 @@ A simulation started with `start` runs in the background, and its parameters can
 ```python continuation
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 
-simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).start(until=30)
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().start(until=30)
 simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
 ```

@@ -96,7 +96,7 @@ class PontryaginSolver(OptimalControlSolver):
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, s.u)]
         >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
-        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver).run(until=1.0)
+        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver).check().run(until=1.0)
         >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
     """

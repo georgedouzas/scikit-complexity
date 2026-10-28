@@ -16,15 +16,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'harvesting'
 EFFORT, R, K, UNTIL = 0.05, 1.0, 1000.0, 20
 
 system = create(MODEL, farmers=10, effort=EFFORT, r=R, K=K)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=default_blueprint(system), interval=1)
-simulation = Simulation(system, observers=[observer]).run(until=UNTIL)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer]).check().run(until=UNTIL)
 
 # %%
 # Equilibrium stock and sustainable yield
@@ -36,7 +36,7 @@ simulation = Simulation(system, observers=[observer]).run(until=UNTIL)
 villages = np.arange(1, 26, 2)
 stocks = np.array(
     [
-        Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K))
+        Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K)).check()
         .run(until=200)
         .trajectory_.values('land/stock.n')[-1]
         for farmers in villages

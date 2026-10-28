@@ -27,7 +27,7 @@ MODEL = 'brownian_near_wall'
 system = create(MODEL, z=20.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).run(until=250)
+simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).check().run(until=250)
 
 # %%
 # Barometric equilibrium
@@ -37,7 +37,11 @@ simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], ran
 # `p(z) = (v / D0) exp(-v z / D0)` with the sedimentation length `D0 / v = 5`. A long run started at the wall should
 # fill this exponential profile.
 
-run = Simulation(create(MODEL, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1).run(until=15000)
+run = (
+    Simulation(create(MODEL, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
+    .check()
+    .run(until=15000)
+)
 heights = run.trajectory_.values('particle.z')[200:]
 histogram = DistributionAnalysis('histogram', bins=30).check().prepare(heights).run()
 edges, density = histogram.edges_, histogram.density_

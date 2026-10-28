@@ -20,7 +20,7 @@ MODEL = 'watts_cascades'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=30)
+simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=30)
 
 # %%
 # The cascade window
@@ -34,7 +34,12 @@ probabilities, shares = [], []
 for threshold in thresholds:
     finals = []
     for seed in range(30):
-        run = Simulation(create(MODEL, threshold=float(threshold), random_state=seed), dt=1).run(until=30).trajectory_
+        run = (
+            Simulation(create(MODEL, threshold=float(threshold), random_state=seed), dt=1)
+            .check()
+            .run(until=30)
+            .trajectory_
+        )
         finals.append(run.agents('nodes', len(run.times) - 1).values['active'].mean())
     shares.extend(finals)
     probabilities.append(np.mean(np.array(finals) > 0.5))

@@ -23,7 +23,7 @@ MODEL = 'glucose_dual_hormone_control'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=24)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=24)
 
 # %%
 # Attenuation by two antagonistic loops
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=24)
 # should be corrected almost as well, while the dip of the exercise should be deeper and last longer. With both loops
 # the excursions to both sides should stay small, the attenuation of Konieczny et al.
 
-single = Simulation(create(MODEL, glucagon=False), dt=0.05).run(until=24).trajectory_
+single = Simulation(create(MODEL, glucagon=False), dt=0.05).check().run(until=24).trajectory_
 times = simulation.trajectory_.times
 fig, (glucose, hormones) = plt.subplots(1, 2, figsize=(10, 4))
 glucose.plot(times, simulation.trajectory_.values('organism.G'), label='insulin and glucagon')

@@ -42,7 +42,7 @@ def test_spring_oscillates_its_particles_about_their_centre_of_mass():
         interactions=[SpringInteraction('spring', a='a', b='b', k=0.5)],
         space=ContinuousSpace(n_dim=1),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1).run(until=np.pi)
+    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1).check().run(until=np.pi)
     a, b = trajectory.trajectory_.values('a.x')[:, 0], trajectory.trajectory_.values('b.x')[:, 0]
     np.testing.assert_allclose(a + b, 0.0, atol=1e-9)
     np.testing.assert_allclose(b - a, 2.0 * np.cos(trajectory.trajectory_.times), atol=1e-6)

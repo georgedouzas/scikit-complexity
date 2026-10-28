@@ -129,7 +129,9 @@ class QuantumAnalysis(BaseAnalysis):
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
-        >>> trajectory = Simulation(pair, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
+        >>> trajectory = Simulation(
+        ...     pair, dt=1.0, initial_state={'system.state': singlet},
+        ... ).check().run(until=1.0).trajectory_
         >>> analysis = QuantumAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
         >>> bool(np.allclose(analysis.entropy_, np.log(2)))
         True

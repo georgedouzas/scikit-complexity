@@ -26,7 +26,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(10)
+simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).check().run(10)
 
 # %%
 # The stock integrates its flows

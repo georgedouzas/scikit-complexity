@@ -15,16 +15,15 @@ import networkx as nx
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'coupled_map_lattices_on_networks'
 
 system = create(MODEL, n_nodes=100, degree=20, epsilon=0.9, seed=0)
 observables = describe(MODEL).observables_of(system)
-blueprint = default_blueprint(system, primary='maps/x', observables=observables)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).run(until=60)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='maps/x', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).check().run(until=60)
 
 # %%
 # Synchronization window
@@ -41,7 +40,11 @@ couplings = np.linspace(0.05, 1.0, 20)
 variances = []
 for coupling in couplings:
     model_system = create(MODEL, n_nodes=100, degree=20, epsilon=coupling, seed=0)
-    run = Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system)).run(until=200)
+    run = (
+        Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=200)
+    )
     variances.append(np.mean(np.asarray(run.trajectory_.values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(variances, 1e-32), 'o-', label='late variance of the states')

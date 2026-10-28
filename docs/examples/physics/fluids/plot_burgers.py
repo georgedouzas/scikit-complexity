@@ -26,7 +26,7 @@ MODEL = 'burgers'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).run(until=2.99)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).check().run(until=2.99)
 
 # %%
 # Shock formation and conservation

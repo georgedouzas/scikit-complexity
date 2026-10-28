@@ -48,7 +48,7 @@ def test_numerical_fluxes_conserve(riemann):
         values={'u': initial},
         discretization='finite-volume',
     )
-    values = Simulation(System(elements=[line]), dt=2.0, solver=SSPRKSolver()).run(until=2.0).state_
+    values = Simulation(System(elements=[line]), dt=2.0, solver=SSPRKSolver()).check().run(until=2.0).state_
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
@@ -94,7 +94,7 @@ def test_viscous_burgers_respects_diffusive_limit():
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (
-            Simulation(System(elements=[field]), solver=SSPRKSolver(), dt=0.05)
+            Simulation(System(elements=[field]), solver=SSPRKSolver(), dt=0.05).check()
             .run(until=0.5)
             .trajectory_.values('line.u')
         )

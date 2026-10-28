@@ -42,7 +42,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=50)
+).check().run(until=50)
 
 # %%
 # Prices converge while every good is conserved
@@ -55,7 +55,7 @@ simulation = Simulation(
 
 fig, (spread, utility, totals) = plt.subplots(1, 3, figsize=(14, 4))
 for goods in (2, 3):
-    run = Simulation(create(MODEL, goods=goods, random_state=0), random_state=0).run(until=50).trajectory_
+    run = Simulation(create(MODEL, goods=goods, random_state=0), random_state=0).check().run(until=50).trajectory_
     spread.semilogy(run.times[1:], run.values('exchange.dispersion')[1:], label=f'{goods} goods')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')

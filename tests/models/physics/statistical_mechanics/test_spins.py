@@ -38,7 +38,7 @@ def test_ising_transition():
         warmup=200,
         outputs=[magnetization],
         random_state=0,
-    ).prepare().run().result_
+    ).check().prepare().run().result_
     means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]
     assert means[1.5] > 0.95
@@ -49,7 +49,7 @@ def test_ising_transition():
 @pytest.mark.parametrize('factory', [potts, xy])
 def test_cold_spin_models_order(factory):
     """Test that the Potts and XY models order at low temperature."""
-    simulation = Simulation(factory(16, temperature=0.2), dt=100, random_state=0).run(until=300)
+    simulation = Simulation(factory(16, temperature=0.2), dt=100, random_state=0).check().run(until=300)
     values = simulation.state_
     if factory is potts:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size
@@ -60,9 +60,14 @@ def test_cold_spin_models_order(factory):
 def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
-    simulation = Simulation(ising(8, initial='up'), dt=1).run(until=1)
+    simulation = Simulation(ising(8, initial='up'), dt=1).check().run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    ImageVisual(low=-1, high=1).prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
+    (
+        ImageVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
+        .check()
+        .prepare(simulation.problem_)
+        .run(frame)
+    )
     ((path, image),) = recording.images
     assert path == 'spins/spin'
     assert type(image).__name__ == 'Image'
@@ -71,6 +76,6 @@ def test_lattices_log_images():
 def test_lattice_recording_is_saved(tmp_path):
     """Test that a lattice model streams to a recording with one image per frame."""
     observer = RerunObserver('ising', save_path=tmp_path / 'ising.rrd')
-    Simulation(ising(16), dt=1, observers=[observer]).run(until=5)
+    Simulation(ising(16), dt=1, observers=[observer]).check().run(until=5)
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0

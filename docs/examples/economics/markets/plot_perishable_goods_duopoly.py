@@ -31,7 +31,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=300)
+).check().run(until=300)
 
 # %%
 # Symmetry breaking against the temperature
@@ -58,7 +58,9 @@ temperatures = np.linspace(0.3, 1.6, 8) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
     model_system = create(MODEL, T=temperature, random_state=1)
-    run = Simulation(model_system, random_state=1, observables=describe(MODEL).observables_of(model_system)).run(
+    run = Simulation(
+        model_system, random_state=1, observables=describe(MODEL).observables_of(model_system),
+    ).check().run(
         until=400,
     )
     asymmetries.append(np.abs(run.trajectory_.values('m')[-100:]).mean())

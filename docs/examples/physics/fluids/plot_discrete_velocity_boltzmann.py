@@ -27,7 +27,7 @@ MODEL = 'discrete_velocity_boltzmann'
 
 system = create(MODEL, kappa=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[observer]).run(until=3)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[observer]).check().run(until=3)
 
 # %%
 # Conserved mass and relaxing current
@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[obser
 # initial value to round-off, while the total current `c sum(f_plus - f_minus)`, which collisions do not conserve,
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
-trajectory = Simulation(create(MODEL), solver=SSPRKSolver(), dt=0.05).run(until=10).trajectory_
+trajectory = Simulation(create(MODEL), solver=SSPRKSolver(), dt=0.05).check().run(until=10).trajectory_
 right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)

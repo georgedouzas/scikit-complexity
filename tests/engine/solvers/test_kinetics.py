@@ -122,7 +122,7 @@ def _system(*others):
 
 def _ode_solution(system):
     """Return the densities of the gain and loss equations at the horizon."""
-    return Simulation(system, dt=HORIZON).run(until=HORIZON).trajectory_.values('wealth.f')[-1]
+    return Simulation(system, dt=HORIZON).check().run(until=HORIZON).trajectory_.values('wealth.f')[-1]
 
 
 def _mean_error(system, particles, solution, replicates):
@@ -156,7 +156,12 @@ def test_particles_converge_to_the_ode_solution():
 
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
-    trajectory = Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1).run(until=2).trajectory_
+    trajectory = (
+        Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1)
+        .check()
+        .run(until=2)
+        .trajectory_
+    )
     totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
     assert np.all(np.asarray(trajectory.values('wealth.f')) >= 0)
@@ -173,7 +178,7 @@ def test_particles_sample_proliferation_and_destruction():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    simulation = Simulation(system, dt=1.0, solver=KineticSolver(n=50_000), random_state=2).run(until=1)
+    simulation = Simulation(system, dt=1.0, solver=KineticSolver(n=50_000), random_state=2).check().run(until=1)
     total = float(np.sum(simulation.trajectory_.values('wealth.f')[-1]))
     assert total == pytest.approx(np.exp(0.4), rel=0.02)
 

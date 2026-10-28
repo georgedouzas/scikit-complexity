@@ -25,7 +25,7 @@ MODEL = 'chemical_langevin_equation'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=20)
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer], random_state=0).check().run(until=200)
 
 # %%
 # Two states and the switches between them

@@ -31,7 +31,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=60)
+).check().run(until=60)
 
 # %%
 # Growth of the fluctuations
@@ -65,7 +65,7 @@ isolated = (
         backend=NumbaBackend(),
         random_state=0,
         observables=describe(MODEL).observables_of(still),
-    )
+    ).check()
     .run(until=60)
     .trajectory_.values('variance')
 )

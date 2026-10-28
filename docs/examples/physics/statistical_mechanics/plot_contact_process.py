@@ -23,7 +23,7 @@ MODEL = 'contact_process'
 
 system = create(MODEL, shape=(128, 128), rate=1.75, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=500)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=500)
 
 # %%
 # Absorbing-state transition
@@ -36,7 +36,11 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
-    run = Simulation(create(MODEL, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1).run(until=1500)
+    run = (
+        Simulation(create(MODEL, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1)
+        .check()
+        .run(until=1500)
+    )
     densities.append(run.trajectory_.values('lattice.infected')[1000:].mean())
 grid = np.linspace(1.0, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -119,7 +119,7 @@ def _wealth_system(table=None, time=None, space=None):
 
 def test_conservative_encounters_keep_the_density():
     """Test that conservative encounters keep the total density within 1e-10 over 100 time units."""
-    simulation = Simulation(_wealth_system(), dt=1.0).run(until=100)
+    simulation = Simulation(_wealth_system(), dt=1.0).check().run(until=100)
     totals = np.asarray(simulation.trajectory_.values('wealth.f')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
     assert not np.allclose(simulation.trajectory_.values('wealth.f')[-1], _profile())
@@ -259,9 +259,15 @@ def test_encounter_in_discrete_time_is_reported():
 
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
-    first = Simulation(_wealth_system(), dt=1.0).run(until=5).trajectory_.values('wealth.f')[-1]
+    first = Simulation(_wealth_system(), dt=1.0).check().run(until=5).trajectory_.values('wealth.f')[-1]
     second = (
-        Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01)).run(until=5).trajectory_.values('wealth.f')[-1]
+
+            Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01))
+            .check()
+            .run(until=5)
+            .trajectory_
+            .values('wealth.f')[-1]
+
     )
     np.testing.assert_allclose(first, second, atol=1e-5)
 

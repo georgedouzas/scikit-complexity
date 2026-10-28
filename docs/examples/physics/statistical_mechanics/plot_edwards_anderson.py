@@ -28,7 +28,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=1000)
+).check().run(until=1000)
 
 # %%
 # Energy, magnetization, and freezing against temperature
@@ -46,7 +46,7 @@ for temperature in temperatures:
     values = sample.elements[0].values
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
     trajectory = (
-        Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample))
+        Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample)).check()
         .run(until=2000)
         .trajectory_
     )

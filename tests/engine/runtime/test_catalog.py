@@ -100,8 +100,8 @@ def test_create_matches_components():
             MortalityInteraction('death', target='predators', d=0.4),
         ],
     )
-    first = Simulation(created, dt=0.1).run(until=5).trajectory_.states
-    second = Simulation(built, dt=0.1).run(until=5).trajectory_.states
+    first = Simulation(created, dt=0.1).check().run(until=5).trajectory_.states
+    second = Simulation(built, dt=0.1).check().run(until=5).trajectory_.states
     assert np.array_equal(first, second)
 
 
@@ -141,7 +141,7 @@ def test_model_conforms(entry, tmp_path):
     until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(entry.name, save_path=tmp_path / 'run.rrd')
     observables = describe(entry.name).observables_of(system)
-    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings)
+    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings).check()
     trajectory = simulation.run(until=until).trajectory_
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:

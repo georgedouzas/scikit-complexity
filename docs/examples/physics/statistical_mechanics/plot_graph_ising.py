@@ -25,7 +25,7 @@ MODEL = 'graph_ising'
 
 system = create(MODEL, graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=60)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=60)
 
 
 # %%
@@ -54,7 +54,7 @@ result = Experiment(
     warmup=100,
     outputs=[magnetization],
     random_state=0,
-).prepare().run().result_
+).check().prepare().run().result_
 rows = sorted(result.summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot([row['temperature'] for row in rows], [row['magnetization.mean'] for row in rows], 'o-', label='simulation')

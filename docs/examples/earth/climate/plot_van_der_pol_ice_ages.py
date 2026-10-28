@@ -21,7 +21,7 @@ MODEL = 'van_der_pol_ice_ages'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=400)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=400)
 
 # %%
 # Slow manifold and fast jumps

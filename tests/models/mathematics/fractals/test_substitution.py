@@ -7,7 +7,7 @@ import rerun.blueprint as rrb
 from skcomplex.analysis import ScalingAnalysis
 from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import GeometryVisual, RerunObserver, primary_view
+from skcomplex.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.models import create, describe, run
 
 
@@ -55,9 +55,9 @@ def test_filled_gasket():
 def test_koch_curve_in_rerun(tmp_path):
     """Test that the Koch curve logs one frame per generation and that its view is the primary view."""
     observer = RerunObserver('koch', save_path=tmp_path / 'koch.rrd', blueprint='default')
-    Simulation(create('koch_curve'), observers=[observer]).run(until=5)
+    Simulation(create('koch_curve'), observers=[observer]).check().run(until=5)
     assert observer.logged_frames_ == 6
-    view = primary_view(create('koch_curve'))
+    view = observer.views_[0]
     assert isinstance(view, rrb.Spatial2DView)
     assert str(view.origin) == 'koch'
 
@@ -66,6 +66,6 @@ def test_filled_and_graph_visuals(tmp_path):
     """Test that a filled patch, outlines, and a host graph are logged."""
     for name, options in [('sierpinski_substitution', {}), ('sierpinski_substitution', {'filled': False})]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(create(name, **options), observers=[observer]).run(until=3)
+        Simulation(create(name, **options), observers=[observer]).check().run(until=3)
         assert observer.logged_frames_ == 4
     assert repr(GeometryVisual()) == 'GeometryVisual()'

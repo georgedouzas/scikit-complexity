@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, n_agents=100, capacity=CAPACITY, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=WEEKS)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=WEEKS)
 
 # %%
 # Self-organization around the capacity

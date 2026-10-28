@@ -43,7 +43,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(until=STEPS)
+).check().run(until=STEPS)
 
 # %%
 # Chartists make the market volatile
@@ -56,7 +56,11 @@ simulation = Simulation(
 shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []
 for share in shares:
-    run = Simulation(create(MODEL, chartists=share, imitation=0.0, random_state=0), random_state=0).run(until=STEPS)
+    run = (
+        Simulation(create(MODEL, chartists=share, imitation=0.0, random_state=0), random_state=0)
+        .check()
+        .run(until=STEPS)
+    )
     prices = run.trajectory_.values('book.price')[1:]
     volatility.append(np.diff(np.log(prices)).std())
     deviation.append(np.abs(np.log(prices / 100)).mean())

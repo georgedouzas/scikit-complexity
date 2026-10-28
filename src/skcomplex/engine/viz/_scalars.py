@@ -11,7 +11,7 @@ import rerun.blueprint as rrb
 
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._visuals import _SERIES_COLORS, PARTS, BaseVisual
+from ._base import _SERIES_COLORS, PARTS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
@@ -25,6 +25,12 @@ class ScalarsVisual(BaseVisual):
         components:
             The indices of the components of vector states to log, or `None` for every component.
 
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
     Attributes:
         styled_:
             The entity paths whose series colors are logged.
@@ -35,13 +41,21 @@ class ScalarsVisual(BaseVisual):
         ScalarsVisual()
     """
 
-    def __init__(self, components: Sequence[int] | None = None) -> None:
+    def __init__(
+        self,
+        components: Sequence[int] | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
+    ) -> None:
         self.components = components
+        self.path = path
+        self.recording = recording
 
-    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the element, forget the styled series of earlier runs, and set the views."""
         self.styled_: set[str] = set()
-        super()._prepare(element, problem)
+        super()._prepare(problem)
 
     def _value(self, value: object) -> object:
         """Return the chosen components of a vector value, or the value itself."""
@@ -91,7 +105,7 @@ class ScalarsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ScalarsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('lotka_volterra'))
-            >>> view = ScalarsVisual().prepare(problem.elements[0], problem).views_[0]
+            >>> view = ScalarsVisual(path=problem.elements[0].path).check().prepare(problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')
         """

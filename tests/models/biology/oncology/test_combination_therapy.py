@@ -23,7 +23,12 @@ STIFF = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 def _run(system, until, dt, solver=None, observables=()):
     """Return the trajectory of a system."""
     return (
-        Simulation(system, dt=dt, random_state=0, solver=solver, observables=observables).run(until=until).trajectory_
+
+            Simulation(system, dt=dt, random_state=0, solver=solver, observables=observables)
+            .check()
+            .run(until=until)
+            .trajectory_
+
     )
 
 

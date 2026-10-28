@@ -45,8 +45,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, order=0.6), dt=0.1, observers=[observer]).run(until=20)
-runs = {order: Simulation(create(MODEL, order=order), dt=0.1).run(until=20).trajectory_ for order in ORDERS}
+simulation = Simulation(create(MODEL, order=0.6), dt=0.1, observers=[observer]).check().run(until=20)
+runs = {order: Simulation(create(MODEL, order=order), dt=0.1).check().run(until=20).trajectory_ for order in ORDERS}
 strips = [np.column_stack([10 * run.times, -100 * run.values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()

@@ -32,7 +32,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL)
-simulation = Simulation(system, observers=[observer], dt=1.0, observables=describe(MODEL).observables_of(system)).run(
+simulation = Simulation(
+    system, observers=[observer], dt=1.0, observables=describe(MODEL).observables_of(system),
+).check().run(
     until=100,
 )
 
@@ -46,7 +48,11 @@ simulation = Simulation(system, observers=[observer], dt=1.0, observables=descri
 def stationary(tax):
     """Return the stationary distribution and Gini coefficient of a run with a policy of a tax rate."""
     model_system = create(MODEL, tax=tax)
-    run = Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system)).run(until=200)
+    run = (
+        Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=200)
+    )
     return run.trajectory_.values('wealth.f')[-1], run.trajectory_.values('gini')[-1]
 
 

@@ -26,7 +26,11 @@ MODEL = 'dissipative_zero_range'
 
 system = create(MODEL, n_levels=5, branches=2, alpha=0.5, beta_ext=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).run(until=200)
+simulation = (
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend())
+    .check()
+    .run(until=200)
+)
 
 # %%
 # Temperature profile across scales
@@ -57,7 +61,7 @@ levels = np.arange(1, 6)
 starts = 2 ** np.arange(6) - 1
 fig, profile = plt.subplots(figsize=(6, 4))
 for alpha in (0.5, -2.0):
-    run = Simulation(create(MODEL, alpha=alpha), dt=1.0, random_state=0, backend=NumbaBackend()).run(until=4000)
+    run = Simulation(create(MODEL, alpha=alpha), dt=1.0, random_state=0, backend=NumbaBackend()).check().run(until=4000)
     quanta = run.trajectory_.values('nodes.n')[100:] > 0
     measured = [-np.log(quanta[:, start:stop].mean()) for start, stop in itertools.pairwise(starts)]
     profile.plot(levels, measured, 'o', label=f'simulation, alpha = {alpha}')

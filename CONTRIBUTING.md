@@ -95,7 +95,7 @@ only the stale screenshots.
    `interval`, and a seed so that the run stays within the budget. When the catalog entry registers a solver in its
    defaults, pass it to `Simulation`, for example `solver=ScipyODE(method='LSODA')` or `solver=RK4(dt=0.01)`, since
    `create` builds only the system.
-5. Choose the primary view. Use `blueprint='default'`, or `default_blueprint(system, primary='<origin>')` to put the
+5. Choose the primary view. Use `blueprint='default'`, with `primary='<origin>'` to put the
    most telling view first. A custom `rrb.Blueprint` is fine when no default view shows the behaviour, with a comment on why.
    A custom time series view must show the whole run, or the view follows the latest frames and cuts the curve off:
 

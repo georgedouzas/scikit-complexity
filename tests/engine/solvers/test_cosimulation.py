@@ -237,7 +237,7 @@ def test_laws_join_the_partition_of_their_target():
     land, village = compile_system(system).partitions
     assert (land.problem.form, village.problem.form) == (Form.ODE, Form.AGENT)
     assert [path for path, _ in village.problem.model_rules] == ['tend']
-    assert Simulation(system, dt=1).run(until=2).trajectory_.values('land/soil.n')[-1] == pytest.approx(2 * 2)
+    assert Simulation(system, dt=1).check().run(until=2).trajectory_.values('land/soil.n')[-1] == pytest.approx(2 * 2)
 
 
 def test_mixed_leaf_subsystem_names_itself():
@@ -279,14 +279,19 @@ def test_mix_across_subsystems_gives_partitions():
 
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading a count of agents uses its value from the start of the synchronisation interval."""
-    trajectory = Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2).run(until=2).trajectory_
+    trajectory = (
+        Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2)
+        .check()
+        .run(until=2)
+        .trajectory_
+    )
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(3 * 2)
     assert trajectory.values('village/farmers_count.value').tolist() == [3.0, 12.0]
 
 
 def test_held_reduction_counts_agents():
     """Test that an ODE law reading the count of 12 agents sees the value 12 until the next synchronisation point."""
-    trajectory = Simulation(_counting_system(12), solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(_counting_system(12), solver=CoSimulationSolver(), dt=1).check().run(until=1).trajectory_
     assert trajectory.values('village/farmers_count.value')[0] == 12
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(12)
 
@@ -303,7 +308,7 @@ def test_held_reductions_of_agent_states(reduction, expected):
             WealthInteraction('accumulate', target='land/soil', source='village/farmers', reduction=reduction),
         ],
     )
-    trajectory = Simulation(system, dt=1).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1).check().run(until=1).trajectory_
     assert trajectory.values(f'village/farmers_{reduction}.value')[0] == expected
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(1.0 + expected)
 
@@ -338,7 +343,7 @@ def test_reduction_of_element_group_reads_other_partition():
         ],
         interactions=[TallyInteraction('tally', target='ledger/tally', source='herds/herd')],
     )
-    trajectory = Simulation(system, dt=1).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1).check().run(until=1).trajectory_
     assert ObservableEvaluator._held_reductions_of(compile_system(system)) == []
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(6.0)
 
@@ -357,7 +362,7 @@ def test_held_observable_reduces_element_group():
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
     largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='n')
-    trajectory = Simulation(system, dt=1, observables=[largest]).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1, observables=[largest]).check().run(until=1).trajectory_
     assert trajectory.values('herds/largest.value')[0] == 3.0
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
 
@@ -380,20 +385,24 @@ def test_agent_rules_read_other_partitions():
             System('village', elements=[GroupElement('farmers', element=IdleElement, size=2)]),
         ],
     )
-    trajectory = Simulation(system, dt=1).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1).check().run(until=1).trajectory_
     assert trajectory.agents('village/farmers', 1).values['seen'].tolist() == pytest.approx([5.0 * np.e] * 2, rel=1e-5)
 
 
 def test_sync_interval_must_divide_frame():
     """Test that a synchronisation interval that does not divide the frame names both values."""
     with pytest.raises(ValidationError, match=r'0\.03.*0\.1'):
-        Simulation(_lotka_volterra(), solver=CoSimulationSolver(split=True, sync_dt=0.03), dt=0.1).run(until=0.1)
+        (
+            Simulation(_lotka_volterra(), solver=CoSimulationSolver(split=True, sync_dt=0.03), dt=0.1)
+            .check()
+            .run(until=0.1)
+        )
 
 
 def test_sync_interval_must_be_whole_steps_for_agents():
     """Test that agent partitions need a whole number of steps between synchronisation points."""
     with pytest.raises(ValidationError, match='whole number of steps'):
-        Simulation(harvesting(), solver=CoSimulationSolver(sync_dt=0.5), dt=1).run(until=1)
+        Simulation(harvesting(), solver=CoSimulationSolver(sync_dt=0.5), dt=1).check().run(until=1)
 
 
 def test_gauss_seidel_reads_already_advanced_values():
@@ -405,8 +414,13 @@ def test_gauss_seidel_reads_already_advanced_values():
         ],
         interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )
-    gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
-    jacobi = Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1).run(until=1).trajectory_
+    gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).check().run(until=1).trajectory_
+    jacobi = (
+        Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1)
+        .check()
+        .run(until=1)
+        .trajectory_
+    )
     assert gauss_seidel.values('land/soil.n')[-1] == pytest.approx(6)
     assert jacobi.values('land/soil.n')[-1] == pytest.approx(3)
 
@@ -414,23 +428,23 @@ def test_gauss_seidel_reads_already_advanced_values():
 def test_unknown_scheme_raises_error():
     """Test that an unknown scheme is rejected."""
     with pytest.raises(SolverError, match='gauss-seidel, jacobi'):
-        Simulation(harvesting(), solver=CoSimulationSolver(scheme='newton')).run(until=1)
+        Simulation(harvesting(), solver=CoSimulationSolver(scheme='newton')).check().run(until=1)
 
 
 def test_single_form_needs_split():
     """Test that a problem of one form needs `split=True` to run as a co-simulation."""
     with pytest.raises(SolverError, match='split=True'):
-        Simulation(_lotka_volterra(), solver=CoSimulationSolver()).run(until=0.1)
+        Simulation(_lotka_volterra(), solver=CoSimulationSolver()).check().run(until=0.1)
 
 
 def test_split_lotka_volterra_converges():
     """Test that the splitting error shrinks by a factor of at least 1.8 with each halving of `sync_dt`."""
     precise = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    joint = Simulation(_lotka_volterra(), solver=precise, dt=0.1).run(until=10).trajectory_.states[-1]
+    joint = Simulation(_lotka_volterra(), solver=precise, dt=0.1).check().run(until=10).trajectory_.states[-1]
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(split=True, sync_dt=interval, solvers={'prey': precise, 'predators': precise})
-        split = Simulation(_lotka_volterra(), solver=solver, dt=0.1).run(until=10).trajectory_.states[-1]
+        split = Simulation(_lotka_volterra(), solver=solver, dt=0.1).check().run(until=10).trajectory_.states[-1]
         errors.append(np.abs(split - joint).max())
     assert errors[0] >= 1.8 * errors[1]
     assert errors[1] >= 1.8 * errors[2]
@@ -438,7 +452,7 @@ def test_split_lotka_volterra_converges():
 
 def test_mixed_trajectory_holds_states_and_agents():
     """Test that a co-simulation trajectory returns ODE states per frame and agent states per agent."""
-    trajectory = Simulation(harvesting(5), random_state=0).run(until=10).trajectory_
+    trajectory = Simulation(harvesting(5), random_state=0).check().run(until=10).trajectory_
     assert trajectory.values('land/stock.n').shape == (11,)
     snapshot = trajectory.agents('village/farmers', 10)
     assert len(snapshot.values['wealth']) == 5
@@ -447,13 +461,13 @@ def test_mixed_trajectory_holds_states_and_agents():
 
 def test_cosimulation_is_reproducible():
     """Test that equal random states give equal co-simulations with agents."""
-    runs = [Simulation(_counting_system(3), random_state=0, dt=1).run(until=3).trajectory_ for _ in range(2)]
+    runs = [Simulation(_counting_system(3), random_state=0, dt=1).check().run(until=3).trajectory_ for _ in range(2)]
     assert np.array_equal(runs[0].states, runs[1].states)
 
 
 def test_live_parameter_reaches_partitions():
     """Test that a live parameter change applies inside the partitions."""
-    simulation = Simulation(harvesting(10, effort=0.05), clock=RealTimeClock(speed=20.0)).start(until=30)
+    simulation = Simulation(harvesting(10, effort=0.05), clock=RealTimeClock(speed=20.0)).check().start(until=30)
     time.sleep(0.6)
     simulation.update_parameters({'harvest.effort': 0.0})
     simulation.wait()

@@ -43,14 +43,14 @@ def _frames(system, steps, dt=0.1):
             if frame is not None:
                 frames.append(frame)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0)
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0).check()
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 
 
 def _first_frame(system):
     """Return the problem and the first frame of a system."""
-    simulation = Simulation(system).run(until=0.0)
+    simulation = Simulation(system).check().run(until=0.0)
     problem = simulation.problem_
     return problem, Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
 
@@ -69,9 +69,10 @@ def _radius(archetype):
 def test_image_visual_logs_space_time_of_one_dimensional_lattice():
     """Test that a one-dimensional lattice logs a space-time image that grows by one row per frame."""
     problem, frames = _frames(create('elementary_automaton', size=21), steps=5, dt=1.0)
-    visual, logs = ImageVisual().prepare(problem.elements[0], problem), Logs()
+    logs = Logs()
+    visual = ImageVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem)
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     images = logs.of('cells/space_time/alive')
     assert [type(image).__name__ for image in images] == ['DepthImage'] * len(frames)
     assert [_format(image) for image in images] == [(21, rows) for rows in range(1, len(frames) + 1)]
@@ -80,9 +81,10 @@ def test_image_visual_logs_space_time_of_one_dimensional_lattice():
 def test_image_visual_bounds_space_time_rows():
     """Test that the space-time image keeps only the most recent rows."""
     problem, frames = _frames(create('elementary_automaton', size=21), steps=5, dt=1.0)
-    visual, logs = ImageVisual(history=3).prepare(problem.elements[0], problem), Logs()
+    logs = Logs()
+    visual = ImageVisual(history=3, path=problem.elements[0].path, recording=logs).check().prepare(problem)
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     assert _format(logs.of('cells/space_time/alive')[-1]) == (21, 3)
 
 
@@ -90,7 +92,7 @@ def test_image_visual_logs_one_row_as_rgb_image():
     """Test that the current row of a one-dimensional lattice is an image one pixel high, not a column of grey."""
     problem, frame = _first_frame(create('elementary_automaton', size=21))
     logs = Logs()
-    ImageVisual(history=0).prepare(problem.elements[0], problem).run(frame, logs)
+    ImageVisual(history=0, path=problem.elements[0].path, recording=logs).check().prepare(problem).run(frame)
     assert [path for path, _ in logs.logs] == ['cells/alive']
     image = logs.of('cells/alive')[0].format.as_arrow_array()[0].as_py()
     assert (image['width'], image['height'], image['color_model']) == (21, 1, 2)
@@ -104,10 +106,20 @@ def test_points_visual_radius_scales_with_extent():
     )
     problem, frame = _first_frame(system)
     logs = Logs()
-    PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     assert _radius(logs.of('bodies')[0]) == pytest.approx(2.0)
     logs = Logs()
-    PointsVisual(position='x', radius=0.5, states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', radius=0.5, states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     assert _radius(logs.of('bodies')[0]) == pytest.approx(0.5)
 
 
@@ -118,9 +130,14 @@ def test_points_visual_logs_trail_of_small_groups():
         space=ContinuousSpace(n_dim=2),
     )
     problem, frames = _frames(system, steps=4)
-    visual, logs = PointsVisual(position='x', states=(), trail=3).prepare(problem.elements[0], problem), Logs()
+    logs = Logs()
+    visual = (
+        PointsVisual(position='x', states=(), trail=3, path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+    )
     for frame in frames:
-        visual.run(frame, logs)
+        visual.run(frame)
     trails = logs.of('bodies/trail')
     assert type(trails[-1]).__name__ == 'LineStrips2D'
     strips = trails[-1].strips.as_arrow_array().to_pylist()
@@ -137,7 +154,12 @@ def test_points_visual_leaves_out_trail(count, trail):
     )
     problem, frame = _first_frame(system)
     logs = Logs()
-    PointsVisual(position='x', states=(), trail=trail).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', states=(), trail=trail, path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     assert [path for path, _ in logs.logs] == ['bodies']
 
 
@@ -162,7 +184,12 @@ def test_points_visual_trail_width_follows_extent():
     )
     problem, frame = _first_frame(system)
     logs = Logs()
-    PointsVisual(position='x', radius=0.05, states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', radius=0.05, states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     assert _radius(logs.of('bodies/trail')[0]) == pytest.approx(0.5)
 
 
@@ -176,7 +203,7 @@ def test_image_visual_colors_angles_cyclically():
     )
     problem, frame = _first_frame(system)
     logs = Logs()
-    ImageVisual().prepare(problem.elements[0], problem).run(frame, logs)
+    ImageVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem).run(frame)
     image = logs.of('spins/theta')[0]
     pixels = np.asarray(image.buffer.as_arrow_array()[0].as_py(), dtype=int).reshape(4, 3)
     assert np.abs(pixels[0] - pixels[1]).max() < 20
@@ -192,9 +219,9 @@ def test_scalars_visual_gives_states_distinct_colors():
     """Test that the white and black daisies of Daisyworld get distinct static series colors."""
     problem, frame = _first_frame(create('daisyworld'))
     logs = Logs()
-    visual = ScalarsVisual().prepare(problem.elements[0], problem)
-    visual.run(frame, logs)
-    visual.run(frame, logs)
+    visual = ScalarsVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem)
+    visual.run(frame)
+    visual.run(frame)
     white = [item for item in logs.of('planet/white') if type(item).__name__ == 'SeriesLines']
     black = [item for item in logs.of('planet/black') if type(item).__name__ == 'SeriesLines']
     assert len(white) == len(black) == 1
@@ -207,7 +234,7 @@ def test_scalars_visual_colors_elements_apart():
     problem, frame = _first_frame(create('coupled_pendulums'))
     logs = Logs()
     for element in problem.elements:
-        ScalarsVisual().prepare(element, frame.problem).run(frame, logs)
+        ScalarsVisual(path=element.path, recording=logs).check().prepare(frame.problem).run(frame)
     left = next(item for item in logs.of('left/theta') if type(item).__name__ == 'SeriesLines')
     right = next(item for item in logs.of('right/theta') if type(item).__name__ == 'SeriesLines')
     assert _series_color(left) != _series_color(right)
@@ -221,7 +248,12 @@ def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     )
     problem, frame = _first_frame(system)
     logs = Logs()
-    PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     points = logs.of('bodies')[0].positions.as_arrow_array().to_pylist()
     assert points == [[1.0, -2.0]]
     trail = logs.of('bodies/trail')[0].strips.as_arrow_array().to_pylist()
@@ -247,8 +279,8 @@ def test_points_visual_keeps_given_color_range():
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
-    visual = PointsVisual(position='x', color_by='v', states=()).prepare(problem.elements[0], problem)
-    visual.run(frame, Logs())
+    visual = PointsVisual(position='x', color_by='v', states=(), path=problem.elements[0].path, recording=Logs())
+    visual.check().prepare(problem).run(frame)
     assert visual.color_range is None
 
 
@@ -256,7 +288,12 @@ def test_points_visual_sizes_single_particles_by_the_whole_drawing():
     """Test that the masses of a spring chain, one particle per element, take a radius from the extent of the chain."""
     problem, frame = _first_frame(create('spring_chain'))
     logs = Logs()
-    PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     assert _radius(logs.of('mass_0')[0]) > 0.01
 
 
@@ -264,7 +301,7 @@ def test_scalars_visual_leaves_out_lag_companions():
     """Test that the past values a delayed model keeps as lag states are not logged as series."""
     problem, frame = _first_frame(create('delayed_sirs'))
     logs = Logs()
-    ScalarsVisual().prepare(problem.elements[0], problem).run(frame, logs)
+    ScalarsVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem).run(frame)
     paths = {path for path, _ in logs.logs}
     assert 'first/x' in paths
     assert not any('_lag' in path for path in paths)
@@ -274,7 +311,12 @@ def test_scalars_visual_logs_chosen_components():
     """Test that a scalars visual with chosen components logs only those components of a vector state."""
     problem, frame = _first_frame(create('lorenz_96'))
     logs = Logs()
-    ScalarsVisual(components=[0, 1, 2]).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        ScalarsVisual(components=[0, 1, 2], path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
     assert len(scalars[0].scalars.as_arrow_array().to_pylist()) == 3
 
@@ -287,7 +329,7 @@ def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up(log_agents)
     log_agents(AgentsVisual(), logs, 'birds', [snapshot], space)
     assert logs.of('birds')[0].positions.as_arrow_array().to_pylist() == [[3.0, -4.0]]
     problem, _ = _frames(create('obesity', n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
-    view = AgentsVisual().prepare(problem.agents[0], problem).views_[0]
+    view = AgentsVisual(path=problem.agents[0].path).check().prepare(problem).views_[0]
     bounds = view.properties['VisualBounds2D']
     assert bounds is not None
 
@@ -303,7 +345,12 @@ def test_colors_start_bright_enough_to_see_on_black():
         ),
     )
     logs = Logs()
-    PointsVisual(position='x', color_by='v', states=()).prepare(problem.elements[0], problem).run(frame, logs)
+    (
+        PointsVisual(position='x', color_by='v', states=(), path=problem.elements[0].path, recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
     darkest = logs.of('bodies')[0].colors.as_arrow_array().to_pylist()[0]
     red, green, blue = (darkest >> 24) & 0xFF, (darkest >> 16) & 0xFF, (darkest >> 8) & 0xFF
     assert max(red, green, blue) >= 120
