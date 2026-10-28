@@ -742,77 +742,96 @@ are symbolic values that update laws use like any other expression. A draw takes
 every member of a group draws its own value. The arguments of a draw can be expressions of states and parameters, and
 they take the values from before the step.
 
-Every draw carries a name. Every use of the same name in one component reads the same value within a step, and draws
+Every draw carries a name. Every use of the same name in one element reads the same value within a step, and draws
 with different names are independent. Two uses of one name with different distributions or arguments fail to
-compile. Within a step, the draws are taken by component path, then draw name, then member index, so the trajectory
+compile. Within a step, the draws are taken by element path, then draw name, then member index, so the trajectory
 does not depend on the order of the laws. The NumPy and Numba backends give equal trajectories for uniform, Bernoulli,
 and categorical draws.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.laws import UpdateLaw, bernoulli, normal, where
-from skcomplex.core.declarations import parameter, state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.laws.utils import bernoulli, normal, where
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class PersistentElement(Element):
-    """Persistent element."""
+    def __init__(
+        self,
+        label,
+        *,
+        d: Annotated[float, StateSpec()] = 1.0,
+        x: Annotated[float, StateSpec()] = 0.0,
+        q: Annotated[float, ParameterSpec()] = 0.8,
+    ):
+        super().__init__(label)
+        self.d = d
+        self.x = x
+        self.q = q
 
-    d = state(1.0)
-    x = state(0.0)
-    q = parameter(0.8)
+    def _get_laws(self, s):
+        turn = where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d)
+        return [UpdateLaw(s.d, turn), UpdateLaw(s.x, s.x + turn + normal('jitter', 0, 0.1))]
 
-    def laws(self, s):
-        """Return the laws of the persistent element."""
-        return [
-        UpdateLaw(s.d, where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d)),
-        UpdateLaw(s.x, s.x + where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d) + normal('jitter', 0, 0.1)),
-    ]
+
 walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
 final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
 
-Only update laws and renewal laws take draws. A draw in a rate, noise, jump, boundary, equation, or event law raises
+Only update laws and renewal laws take draws. A draw in a rate, noise, jump, boundary, equation, or crossing law raises
 `IncompatibleLawsError`, since noise laws and jump laws give randomness in continuous time. Draws are not states, so
 the trajectory does not record them, and a model that wants to keep a draw assigns it to a state.
 
 ### Markov chains and hidden Markov sources
 
-`TransitionLaw(targets, matrix)` is the step of a discrete-time Markov chain. The target is a state over a finite alphabet,
-a categorical domain or the integers from 0 to `n - 1`, and its current value selects the row of the transition matrix
-that the next value is drawn from. `EmissionLaw(targets, source, matrix)` draws an observed state from the row of an
-emission matrix that the hidden state `source` selects, reading the hidden state after the same step, so the two
-sequences align frame by frame. Both are update laws, so they combine with other update laws.
+`TransitionLaw(targets, matrix)` is the step of a discrete-time Markov chain. The target is a state over a finite
+alphabet, a `FiniteEnumeratedSet` of labels or the integers from 0 to `n - 1`, and its current value selects the row of
+the transition matrix that the next value is drawn from. `EmissionLaw(targets, source, matrix)` draws an observed state
+from the row of an emission matrix that the hidden state `source` selects, reading the hidden state after the same step,
+so the two sequences align frame by frame. Both are update laws, so they combine with other update laws.
 
 Matrix entries are numbers or expressions of parameters. Compiling checks that the entries are nonnegative and that
 every row sums to 1, and `update_parameters` checks again every matrix a changed parameter enters, rejecting the change
 with a `ParameterError` before it applies.
 
 ```python
-from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import EmissionLaw, TransitionLaw
-from skcomplex.core.declarations import parameter
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class SourceElement(Element):
-    """Source element."""
+    def __init__(
+        self,
+        label,
+        *,
+        hidden: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(['calm', 'storm']))] = 'calm',
+        symbol: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(['a', 'b']))] = 'a',
+        stay: Annotated[float, ParameterSpec()] = 0.9,
+    ):
+        super().__init__(label)
+        self.hidden = hidden
+        self.symbol = symbol
+        self.stay = stay
 
-    hidden = state(default='calm', domain=NumericDomain.categorical('calm', 'storm'))
-    symbol = state(default='a', domain=NumericDomain.categorical('a', 'b'))
-    stay = parameter(0.9)
-
-    def laws(self, s):
-        """Return the laws of the source element."""
+    def _get_laws(self, s):
         return [
-        TransitionLaw(s.hidden, [[s.stay, 1 - s.stay], [0.4, 0.6]]),
-        EmissionLaw(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
-    ]
+            TransitionLaw(s.hidden, [[s.stay, 1 - s.stay], [0.4, 0.6]]),
+            EmissionLaw(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
+        ]
+
+
 simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).run(until=10000)
 print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
@@ -824,8 +843,8 @@ The library has these models ready: `persistent_random_walk`, `markov_source`, `
 
 ## Anomalous processes
 
-Jumps on clocks of waiting times and fractional noise laws write processes with memory: events that fire after waiting times from any
-distribution, and noise whose increments are correlated over the whole run.
+Jumps on clocks of waiting times and fractional noise laws write processes with memory: events that fire after waiting
+times from any distribution, and noise whose increments are correlated over the whole run.
 
 ### Draws from SciPy distributions
 
@@ -837,62 +856,75 @@ listing the closest names, and keywords the distribution does not take. In updat
 every member before each step, and the map then steps in Python with the backend's compiled update.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import UpdateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.laws import draw
-from skcomplex.core.declarations import state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.laws.utils import draw
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class FlierElement(Element):
-    """Flier element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.0)
-
-    def laws(self, s):
-        """Return the laws of the flier element."""
+    def _get_laws(self, s):
         return [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))]
-flight = Simulation(System(elements=[GroupElement('fliers', element=FlierElement, size=100)]), dt=1.0, random_state=0).run(until=20)
+
+
+fliers = System(elements=[GroupElement('fliers', element=FlierElement, size=100)])
+flight = Simulation(fliers, dt=1.0, random_state=0).run(until=20)
 print(flight.trajectory_.values('fliers.x').shape)
 ```
 
 ### Jumps on clocks of waiting times
 
-`JumpLaw(waiting=..., reset=..., label=...)` fires after a waiting time, applies its reset to the states all at once, and draws the
-next waiting time from the states after the reset. Every member of a group renews on its own clock. Draws in the
-waiting time and the reset take a fresh value at every renewal of every member, and every use of one name in a
+`JumpLaw(waiting=..., reset=..., label=...)` fires after a waiting time, applies its reset to the states all at once,
+and draws the next waiting time from the states after the reset. Every member of a group renews on its own clock. Draws
+in the waiting time and the reset take a fresh value at every renewal of every member, and every use of one name in a
 renewal reads the same value. A waiting time that is a single draw must come from a distribution with nonnegative
 support, and compiling rejects one that can be negative, such as `normal`.
 
-A system or partition whose only laws are such jumps compiles to the renewal form, which `RenewalSolver` runs
-exactly, from renewal to renewal with no time grid. A frame holds the states the last renewal at or before its time
-set. These jumps also combine with the rate and noise laws of the same component, which evolve the states between
-renewals. `RK4Solver` and `EulerMaruyamaSolver` stop every member at its own renewals when the members do not interact, and split
+A system or partition whose only laws are such jumps compiles to the renewal form, which `RenewalSolver` runs exactly,
+from renewal to renewal with no time grid. A frame holds the states the last renewal at or before its time set. These
+jumps also combine with the rate and noise laws of the same element, which evolve the states between renewals.
+`RK4Solver` and `EulerMaruyamaSolver` stop every member at its own renewals when the members do not interact, and split
 the step at every renewal time for all members when a law sums over the group. Other steppers reject these jumps.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import draw, normal
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import JumpLaw
-from skcomplex.core.declarations import parameter, state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws.utils import draw, normal
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class WalkerElement(Element):
-    """Walker element."""
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.alpha = alpha
 
-    x = state(0.0)
-    alpha = parameter(0.5)
+    def _get_laws(self, s):
+        waiting = draw('wait', 'pareto', b=s.alpha)
+        return [JumpLaw(waiting=waiting, reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')]
 
-    def laws(self, s):
-        """Return the laws of the walker element."""
-        return [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')]
-walk = Simulation(System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)]), dt=100.0, random_state=0).run(until=1000)
-print(walk.problem_.form.value, walk.trajectory_.values('jumps.renewals')[-1] > 1000)
+
+walkers = System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
+walk = Simulation(walkers, dt=100.0, random_state=0).run(until=1000)
+print(walk.problem_.form.value, bool(walk.trajectory_.values('jumps.renewals')[-1] > 1000))
 ```
 
 The trajectory records every renewal pass as a `RenewalRecord` among its events, with the time and the member of every
@@ -902,33 +934,35 @@ The compiler keeps the count of every member in a hidden state, `<group>.<label>
 
 ### Fractional noise
 
-`FractionalNoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
-whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to an ordinary
-noise law. For other indices the amplitude must not depend on any state. `FractionalEulerMaruyamaSolver(dt, horizon)` is the
-stepper of systems with fractional noise. It draws the increments of the whole run on its grid when it first advances,
-with the circulant embedding of Davies and Harte over `scipy.fft`, so frames must fall on multiples of `dt`. A
-simulation passes the end of its run as the horizon, advancing beyond it raises `HorizonError`, and other SDE steppers
-reject fractional noise with an error that names `FractionalEulerMaruyamaSolver`. `fractional_gaussian_noise` returns the
-noise paths themselves.
+`FractionalNoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index
+`0 < H < 1`, whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to
+an ordinary noise law. For other indices the amplitude must not depend on any state.
+`FractionalEulerMaruyamaSolver(dt, horizon)` is the stepper of systems with fractional noise. It draws the increments
+of the whole run on its grid when it first advances, with the circulant embedding of Davies and Harte over
+`scipy.fft`, so frames must fall on multiples of `dt`. A simulation passes the end of its run as the horizon,
+advancing beyond it raises `HorizonError`, and other SDE steppers reject fractional noise with an error that names
+`FractionalEulerMaruyamaSolver`. `fractional_gaussian_noise` returns the noise paths themselves.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import FractionalNoiseLaw
-from skcomplex.core.declarations import state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
+
 
 class RoughElement(Element):
-    """Rough element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(0.0)
-
-    def laws(self, s):
-        """Return the laws of the rough element."""
+    def _get_laws(self, s):
         return [FractionalNoiseLaw(s.x, 1, hurst=0.3)]
+
+
 rough = Simulation(
     System(elements=[GroupElement('walkers', element=RoughElement, size=500)]),
     solver=FractionalEulerMaruyamaSolver(dt=0.01),
@@ -943,7 +977,7 @@ The library has these models ready: `continuous_time_random_walk`, `levy_walk`, 
 
 ### Fractional derivatives
 
-A state declared with a fractional order, `state(1.0, order=0.6)`, has a Caputo derivative of that order. The rate
+A state declared with a fractional order, `StateSpec(order=0.6)`, has a Caputo derivative of that order. The rate
 laws on it give that derivative, `D^alpha x = f(t, x)`, and superpose as for any state, so no other law kind is needed.
 Order 1 is the ordinary rate law. The derivative of order `alpha` at a time depends on the whole past of the state, so
 the solution relaxes like a Mittag-Leffler function, slower than any exponential.
@@ -952,7 +986,8 @@ A system with a state of a fractional order compiles to the fractional form, wit
 in `problem.orders`. The states of order 1 of the same system keep their ordinary equations. Three steppers integrate
 the fractional form on a fixed grid from the start of the run, so frames must fall on multiples of their `dt`:
 
-- `GrunwaldLetnikovSolver(dt, memory=None)` weighs the past states with the binomial weights `(-1)^j binomial(alpha, j)`.
+- `GrunwaldLetnikovSolver(dt, memory=None)` weighs the past states with the binomial weights
+  `(-1)^j binomial(alpha, j)`.
 - `L1Solver(dt, memory=None)` interpolates the state linearly between grid points inside the Caputo integral.
 - `FractionalABMSolver(dt)` is the predictor-corrector of Diethelm, Ford, and Freed, of order `1 + alpha` for smooth
   solutions, and the default.
@@ -965,23 +1000,26 @@ fractional state between frames, such as one the simulation's interventions make
 changed state.
 
 ```python
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.core.base import state
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import L1Solver
 
+
 class RelaxingElement(Element):
-    """Relaxing element."""
+    def __init__(self, label, *, x: Annotated[float, StateSpec(order=0.6)] = 1.0):
+        super().__init__(label)
+        self.x = x
 
-    x = state(1.0, order=0.6)
-
-    def laws(self, s):
-        """Return the laws of the relaxing element."""
+    def _get_laws(self, s):
         return [RateLaw(s.x, -s.x)]
+
+
 system = System(elements=[RelaxingElement('a')])
 relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
 solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.x'].rhs()
@@ -998,8 +1036,8 @@ time is not continuous (`fractional-time`), a chosen solver or backend that does
 
 `SymbolicAnalysis('solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`,
 written with the symbolic function `mittag_leffler`, which evaluates numerically: it sums the power series in arbitrary
-precision with Sage for moderate arguments and takes the asymptotic expansion for large ones, and `SymbolicAnalysis('equations')` writes a Caputo derivative as
-`caputo(x(t), t, alpha)`.
+precision with Sage for moderate arguments and takes the asymptotic expansion for large ones, and
+`SymbolicAnalysis('equations')` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
 
 The order belongs to the element type, so a sweep over orders builds one system per order. The library has these
 models ready in fractional dynamics, each with the order as an argument: `fractional_relaxation`,
@@ -1007,34 +1045,38 @@ models ready in fractional dynamics, each with the order as an argument: `fracti
 
 ## Observables
 
-An `Observable` is a frozen record of a label and an expression or a group reduction, which a run computes at every
-frame, records in trajectories under the system's path, and logs to Rerun. An observable is either an expression of the system namespace, where earlier observables
-appear by label, or a reduction over a group's members of a variable or an expression of one member: `count`, `sum`,
-`mean`, `min`, `max`, `var`, or a function. Expressions and reductions given as functions must be module-level
-functions, so that systems pickle, and a lambda raises an error.
+An `ObservableSpec` is a frozen record of a label and an expression or a group reduction, which a run computes at every
+frame, records in trajectories under the system's path, and logs to Rerun. An observable is either an expression of the
+system namespace, where earlier observables appear by label, or a reduction over a group's members of a variable or an
+expression of one member: `count`, `sum`, `mean`, `min`, `max`, `var`, or a function. Expressions and reductions given
+as functions must be module-level functions, so that systems pickle, and a lambda raises an error.
 
 ```python
-from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import I, exp
+from sage.all__sagemath_symbolics import I, exp, pi
 
-from skcomplex.core.specs import ObservableSpec
-from skcomplex.core.declarations import parameter
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
 
 class OscillatorElement(Element):
-    """Oscillator element."""
+    def __init__(
+        self,
+        label,
+        *,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
 
-    theta = state(0.0, domain=NumericDomain.ANGLE)
-    omega = parameter(1.0)
-
-    def laws(self, s):
-        """Return the laws of the oscillator element."""
+    def _get_laws(self, s):
         return [RateLaw(s.theta, s.omega)]
 
 
@@ -1046,9 +1088,8 @@ def order_parameter(s):
     return abs(s.z)
 
 
-oscillators = System(
-    elements=[GroupElement('phases', element=OscillatorElement, size=100, values={'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)})],
-)
+values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
+oscillators = System(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
 order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
@@ -1062,22 +1103,29 @@ agents and equations exchange macroscopic quantities in a co-simulation. An obse
 `reduce`, or one over agents, is read only from another partition, and reading it in its own partition raises an error.
 
 ```python continuation
-import numpy as np
-from skcomplex.core.base import BaseInteraction
-from skcomplex.core.laws import RateLaw
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.specs import ObservableSpec
-from skcomplex.core.system import System
-
 from sage.all__sagemath_symbolics import cos, sin
 
-class MeanFieldInteraction(BaseInteraction):
-    target = role()
-    X = role()
-    Y = role()
-    K = parameter(1.0)
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.specs import RoleSpec
 
-    def laws(self, s):
+
+class MeanFieldInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        X: Annotated[str, RoleSpec()],
+        Y: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.X = X
+        self.Y = Y
+        self.K = K
+
+    def _get_laws(self, s):
         return [RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))]
 
 
@@ -1089,61 +1137,64 @@ def sine(member):
     return sin(member.theta)
 
 
+values = {'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 coupled = System(
-    elements=[GroupElement(
-            'phases',
-            element=OscillatorElement,
-            size=100,
-            values={'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)},
-        )],
+    elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)],
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
-print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1].round(2))
+print(round(float(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1]), 2))
 ```
 
 ## Stocks and flows
 
-A state tagged with a quantity, `state(..., quantity='water')`, is a stock that changes only through flows. A
-`TransferLaw(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges it with
-the environment through `Source()` and `Sink()`. In a system of rate laws the amount is a rate, in a system of update
-laws it is moved once per step, and with `rate=...` it is the size of a jump with that propensity. Trajectories record
-every flow under `<component path>.<label>`. An intermediate expression, such as a birth rate, is a function of the
-namespace that the laws call, and `observe_element(element, label, function)` records the same function as the
+A state tagged with a quantity, `StateSpec(quantity='water')`, is a stock that changes only through flows. A
+`TransferLaw(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges
+it with the environment through `Source()` and `Sink()`. In a system of rate laws the amount is a rate, in a system of
+update laws it is moved once per step, and with `rate=...` it is the size of a jump with that propensity. Trajectories
+record every flow under `<element path>.<label>`. An intermediate expression, such as a birth rate, is a function of the
+namespace that the laws call, and `ObservableSpec(label, function, element=element)` records the same function as the
 observable `<element>.<label>`, which Rerun logs under the element. `lookup(x, points)` is a table function, piecewise
 linear between its points and flat outside them.
 
 ```python
-from skcomplex.core.base import state
-from skcomplex.core.components import Element
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.laws import Sink, Source, TransferLaw, lookup
-from skcomplex.core.specs import ObservableSpec
-from skcomplex.core.declarations import parameter
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import Sink, Source, TransferLaw
+from skcomplex.core.laws.utils import lookup
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 
 def birth_rate(s):
     return s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)])
 
 
-def population_laws(s):
-    return [TransferLaw(Source(), s.n, birth_rate(s), label='births'), TransferLaw(s.n, Sink(), s.d * s.n, label='deaths')]
-
-
 class PeopleElement(Element):
-    """People element."""
+    def __init__(
+        self,
+        label,
+        *,
+        n: Annotated[float, StateSpec(quantity='people')] = 10.0,
+        b: Annotated[float, ParameterSpec()] = 0.03,
+        d: Annotated[float, ParameterSpec()] = 0.01,
+    ):
+        super().__init__(label)
+        self.n = n
+        self.b = b
+        self.d = d
 
-    n = state(10.0, quantity='people')
-    b = parameter(0.03)
-    d = parameter(0.01)
+    def _get_laws(self, s):
+        return [
+            TransferLaw(Source(), s.n, birth_rate(s), label='births'),
+            TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
+        ]
 
-    def laws(self, s):
-        """Return the laws of the people element."""
-        return population_laws(s)
+
 crowd = System(elements=[PeopleElement('crowd')])
-observed = [observe_element('crowd', 'birth_rate', birth_rate)]
+observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
 trajectory = Simulation(crowd, dt=1.0, observables=observed).run(until=10).trajectory_
 print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
 print(round(float(trajectory.values('crowd.birth_rate')[-1]), 3))
@@ -1157,19 +1208,17 @@ observer `ConservationObserver` checks at every frame that each total changed on
 flow and one column per holder, whose rows sum to zero.
 
 ```python continuation
-from skcomplex.engine.runtime import Simulation
-
 from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.engine.runtime import ConservationObserver
 
 print(SymbolicAnalysis('conservation').check().prepare(crowd).run().inflows_)
 monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).run(until=10).trajectory_
-print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(axis=1))
+print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(axis=1).tolist())
 ```
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order, hidden stocks in series whose
 outflow it returns, and with `conserved=False` an information smoothing. It adds hidden stocks
-`<component path>.<kind>_delay<order>_<index>` to rate laws of single elements and interactions, starting in
+`<element path>.<kind>_delay<order>_<index>` to rate laws of single elements and interactions, starting in
 equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
 realizations in `skcomplex.models.engineering.processes`.
 
@@ -1195,40 +1244,49 @@ observable of the run. At every frame the run compares the observable with its v
 tagged state raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
-from skcomplex.core.base import state
-from skcomplex.engine.runtime import Simulation
-from skcomplex.core.specs import ObservableSpec
-from skcomplex.core.system import System
+from typing import Annotated
 
-from skcomplex.core.components import Element
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.laws import transfer
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.laws.utils import transfer
+from skcomplex.core.specs import ObservableSpec, StateSpec
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 
 def net_worth(agent):
     return agent.cash + agent.claims - agent.equity
 
 
+def lend(agent, model):
+    borrower = model.agents('traders')[0]
+    if borrower != agent:
+        transfer(agent, borrower, 1.0, 'cash')
+        transfer(borrower, agent, 1.0, 'claims')
+
+
 class TraderElement(Element):
-    cash: float = state(10.0, quantity='money')
-    claims: float = state(0.0, quantity='claims')
-    equity: float = state(10.0)
+    def __init__(
+        self,
+        label,
+        *,
+        cash: Annotated[float, StateSpec(quantity='money')] = 10.0,
+        claims: Annotated[float, StateSpec(quantity='claims')] = 0.0,
+        equity: Annotated[float, StateSpec()] = 10.0,
+    ):
+        super().__init__(label)
+        self.cash = cash
+        self.claims = claims
+        self.equity = equity
 
-    def laws(self, s):
-        return [RuleLaw(self.lend)]
-
-    def lend(self, agent, model):
-        borrower = model.agents('traders')[0]
-        if borrower != agent:
-            transfer(agent, borrower, 1.0, 'cash')
-            transfer(borrower, agent, 1.0, 'claims')
+    def _get_laws(self, s):
+        return [RuleLaw(lend)]
 
 
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
 market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
 traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).run(until=3).trajectory_
-print(traders.agents('traders', 3).values['cash'].sum())
+print(float(traders.agents('traders', 3).values['cash'].sum()))
 ```
 
 The library models built on flows are `bathtub`, `rice_milling`, `solid_waste`, `food_relief`, and `irrigation` in
