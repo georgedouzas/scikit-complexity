@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Sequence
 from typing import Self
 
@@ -223,36 +222,12 @@ class MarkovAnalysis(BaseAnalysis):
         self.reversible = reversible
         self.dt = dt
 
-    def _check_choice(self, name: str, value: str | None, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and value is not defaults[name] and (defaults[name] is None or value != defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the matrix, the lags, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         if self.matrix is not None:
             self._check_choice('matrix', self.matrix, MATRICES)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.lag < 1 or any(lag < 1 for lag in self.lags) or self.n_timescales < 1:
             error_msg = (
                 f'{type(self).__name__} has lag={self.lag!r}, lags={self.lags!r}, and '

@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import FitAnalysis, as_graph
+from skcomplex.analysis import FitAnalysis
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import CapacityError
 from skcomplex.core.interactions import Interaction, NeighborInteraction
@@ -170,7 +170,7 @@ def test_snapshot_by_frame_holds_the_network_of_that_frame():
     snapshot = trajectory.network(10)
     assert snapshot.nodes.tolist() == list(range(13))
     assert snapshot.sources.size == 3 + 2 * 10
-    graph = as_graph(snapshot)
+    graph = snapshot.graph()
     assert nx.is_connected(graph)
     assert graph.number_of_nodes() == 13
 

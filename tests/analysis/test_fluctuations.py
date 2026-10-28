@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.spatial import cKDTree
 
-from skcomplex.analysis import FluctuationAnalysis, coarse_grain, snapshots_of
+from skcomplex.analysis import CoarseGrainAnalysis, FluctuationAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
@@ -14,6 +14,11 @@ from skcomplex.models import run
 def _fluctuations(kind: str, source: object, **settings: object) -> FluctuationAnalysis:
     """Return the fluctuation analysis of a source for one kind, run."""
     return FluctuationAnalysis(kind, **settings).check().prepare(source).run()
+
+
+def _density(positions: np.ndarray, side: float) -> np.ndarray:
+    """Return the agents of a square of a side coarse-grained on a 64 by 64 grid."""
+    return CoarseGrainAnalysis([64, 64], box=[side, side]).check().prepare(positions).run().field_
 
 
 def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
@@ -50,7 +55,7 @@ def _vicsek_densities(rng: np.random.Generator, agents: int, side: float, noise:
         headings = np.arctan2(total_sines, total_cosines) + noise * rng.uniform(-np.pi, np.pi, agents)
         positions = np.mod(positions + 0.5 * np.column_stack([np.cos(headings), np.sin(headings)]), side)
         if step >= steps // 3 and step % 50 == 0:
-            densities.append(coarse_grain(positions, [side, side], [64, 64]))
+            densities.append(_density(positions, side))
     return np.asarray(densities)
 
 
@@ -88,7 +93,7 @@ def test_relative_fluctuations_of_an_ideal_lattice_gas():
 def test_number_fluctuations_giant_in_ordered_flocks():
     """Test that an ideal gas has normal number fluctuations and ordered Vicsek agents giant ones."""
     rng = np.random.default_rng(2)
-    gas = np.asarray([coarse_grain(rng.random((4000, 2)) * 32, [32, 32], [64, 64]) for _ in range(40)])
+    gas = np.asarray([_density(rng.random((4000, 2)) * 32, 32) for _ in range(40)])
     assert _fluctuations('number', gas).exponent_ == pytest.approx(0.5, abs=0.05)
     assert _fluctuations('number', _vicsek_densities(rng, 2000, 22.6, 0.3, 2000)).exponent_ > 0.6
 
@@ -99,7 +104,7 @@ def test_maxwell_boltzmann_test_in_two_and_three_dimensions():
         trajectory = run('ideal_gas', n_dim=dimension, random_state=0, settings={'until': 1.0}).trajectory_
         temperatures = _fluctuations('kinetic-temperature', trajectory).temperature_
         assert np.ptp(temperatures) < 1e-10
-        velocities = snapshots_of(trajectory).velocities
+        velocities = np.asarray(trajectory.values('gas.v'), dtype=float)
         assert _fluctuations('maxwell-boltzmann', velocities[-1]).p_value_[0] > 0.05
         assert _fluctuations('maxwell-boltzmann', trajectory).p_value_.shape == temperatures.shape
 

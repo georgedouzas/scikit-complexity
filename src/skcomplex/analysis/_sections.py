@@ -18,7 +18,7 @@ from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import check_kind, system_of
+from ._utils import system_of
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('poincare', 'stroboscopic')
@@ -136,7 +136,8 @@ class SectionAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind, that the kind reads every changed setting, and that its needed settings are given."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         needed = {
             'poincare': {'state': self.state},
             'stroboscopic': {'period': self.period},

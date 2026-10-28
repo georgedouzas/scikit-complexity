@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import itertools
 from collections.abc import Mapping, Sequence
 from typing import Self
@@ -15,7 +14,6 @@ from scipy import optimize
 from ..core.errors import AnalysisError
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import is_changed
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('scaling', 'aging', 'distribution')
@@ -217,34 +215,12 @@ class CollapseAnalysis(BaseAnalysis):
         self.lags = lags
         self.ratios = ratios
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind'}
-        ignored = [
-            name for name, value in self.get_params().items() if name not in read and is_changed(value, defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the fitted names, the settings the kind needs, and that it reads every changed one."""
         self._check_choice('kind', self.kind, KINDS)
         for name in self.fit:
             self._check_choice('fit', name, FITTED)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind])
         if self.kind == 'scaling' and (self.parameters is None or self.critical is None or self.nu is None):
             error_msg = f'{type(self).__name__} of kind scaling needs parameters, critical, and nu. Give all three.'
             raise AnalysisError(error_msg)

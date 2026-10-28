@@ -17,11 +17,11 @@ from ..engine.compile import compile_system, compiled_problem
 from ..engine.problems import BaseProblem, Form, Problem, components_of
 from ._assumptions import declare_domains
 from ._base import BaseAnalysis, Source
-from ._fractional import mittag_leffler
+from ._fractional import _mittag_leffler
 from ._kinds import DataKind
 from ._loops import _stock_flow
 from ._quantum import _quantum_problem
-from ._utils import check_kind, system_of
+from ._utils import system_of
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
 SETTINGS: dict[str, set[str]] = {
@@ -54,7 +54,7 @@ def _evaluate_mittag_leffler(
     if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
         error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
         raise TypeError(error_msg)
-    value = complex(mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
+    value = complex(_mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
     result = value.real if value.imag == 0 else value
     return result if parent is None else parent(result)
 
@@ -399,7 +399,8 @@ class SymbolicAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind and that the kind reads every changed setting."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         return self
 
     def _get_data_kind(self) -> DataKind:

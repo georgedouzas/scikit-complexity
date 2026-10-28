@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -34,7 +33,7 @@ simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05), observers=[ob
 # the rotation period of the spiral, and the last snapshot should show the spiral arm.
 
 trajectory = simulation.trajectory_
-potential = fields_of(trajectory, 'tissue.u')
+potential = trajectory.lattice('tissue.u')
 probe = potential[:, 75, 75]
 peaks, _ = find_peaks(probe, height=0.5)
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy.stats import skew
 
-from skcomplex.analysis import DomainAnalysis, fields_of
+from skcomplex.analysis import DomainAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.models.physics.fluids import benard_marangoni
@@ -15,10 +15,7 @@ def test_benard_marangoni_forms_hexagons_with_a_free_surface():
     patterns = {}
     for g in (1.0, 0.0):
         system = benard_marangoni((32, 32), length=8 * np.pi, g=g)
-        field = fields_of(
-            Simulation(system, dt=10.0, solver=ETDRK4Solver(dt=0.5)).run(until=200).trajectory_,
-            'layer.u',
-        )
+        field = Simulation(system, dt=10.0, solver=ETDRK4Solver(dt=0.5)).run(until=200).trajectory_.lattice('layer.u')
         pattern = DomainAnalysis('wavelength', spacing=np.pi / 4).check().prepare(field[-1]).run()
         patterns[g] = (pattern, skew(field[-1].ravel()))
     (hexagons, hexagons_skew), (rolls, rolls_skew) = patterns[1.0], patterns[0.0]

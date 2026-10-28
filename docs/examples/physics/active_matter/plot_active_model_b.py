@@ -17,7 +17,7 @@ of about the same size, roughened by the conserved noise.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
@@ -45,7 +45,7 @@ simulation = Simulation(
 # form and then level off well below the `t^(1/3)` curve through its early values. The noise is the divergence of a
 # random flux, so the mean density should stay at its initial value to rounding.
 
-phi = fields_of(simulation.trajectory_, 'fluid.phi')
+phi = simulation.trajectory_.lattice('fluid.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:

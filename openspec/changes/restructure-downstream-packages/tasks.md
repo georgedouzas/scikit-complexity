@@ -28,12 +28,12 @@
 - [x] 2.4 Convert the field, agent, and network families: `DomainAnalysis`, `OrderAnalysis`, `DisplacementAnalysis`, `NeighborAnalysis`, `FluctuationAnalysis`, `NetworkAnalysis`, and `MotifAnalysis`. Verify with their test modules.
 - [x] 2.5 Convert the stochastic families: `MarkovAnalysis`, `PassageAnalysis`, `IrreversibilityAnalysis`, `LargeDeviationAnalysis`, `ErgodicityAnalysis`, and `KramersMoyalAnalysis`. Verify with their test modules.
 - [x] 2.6 Convert the families that take a system as their source: `StabilityAnalysis`, `LinearizationAnalysis`, `LyapunovAnalysis`, `SectionAnalysis`, `LoopAnalysis`, `SymbolicAnalysis`, `AutomatonAnalysis`, and `QuantumAnalysis`. Verify with their test modules, including the Lotka-Volterra stability scenario.
-- [ ] 2.7 Convert the surrogates and the remaining analyses:
+- [x] 2.7 Convert the surrogates and the remaining analyses:
   - `SparseIdentificationAnalysis`, `ModeDecompositionAnalysis`, `ReservoirAnalysis`, `SurrogateTestAnalysis`, and `SignatureAnalysis`;
   - discovery over analysis classes.
   - Delete `BaseSurrogate`, the public adapters, and `DataKind`'s registry.
   - Verify that `skcomplex.analysis.__all__` holds only `BaseAnalysis` and classes ending in `Analysis`.
-- [ ] 2.8 Remove every import of `skcomplex.experiments` from `src/skcomplex/analysis`. Update the gallery tools and the gallery examples that plot analysis results. Verify that `pytest tests/analysis tests/models docs` and the analysis and model doctests pass.
+- [x] 2.8 Remove every import of `skcomplex.experiments` from `src/skcomplex/analysis`. Update the gallery tools and the gallery examples that plot analysis results. Verify that `pytest tests/analysis tests/models docs` and the analysis and model doctests pass.
 
 ## 3. Experiments
 

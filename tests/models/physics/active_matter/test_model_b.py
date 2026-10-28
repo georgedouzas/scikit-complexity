@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.core.elements import FieldElement
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
@@ -20,7 +19,7 @@ def _bubble_areas(zeta):
         elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
     )
     trajectory = Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02)).run(until=300).trajectory_
-    phi = fields_of(trajectory, 'fluid.phi')[[1, -1]] < 0
+    phi = trajectory.lattice('fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
 
 
@@ -30,7 +29,7 @@ def test_active_model_b_keeps_the_mean_and_phase_separates():
     trajectory = (
         Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0).run(until=300).trajectory_
     )
-    phi = fields_of(trajectory, 'fluid.phi')
+    phi = trajectory.lattice('fluid.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
     assert phi[-1].max() > 0.9
     assert phi[-1].min() < -0.9

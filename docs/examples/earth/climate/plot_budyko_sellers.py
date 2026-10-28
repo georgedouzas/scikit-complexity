@@ -14,7 +14,6 @@ Earth.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -33,8 +32,8 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=16)
 # to keep it frozen.
 
 x = (np.arange(30) + 0.5) / 30
-warm = fields_of(simulation.trajectory_, 'bands.T')[-1]
-cold = fields_of(Simulation(create(MODEL, T=-40.0), dt=2.0).run(until=100).trajectory_, 'bands.T')[-1]
+warm = simulation.trajectory_.lattice('bands.T')[-1]
+cold = Simulation(create(MODEL, T=-40.0), dt=2.0).run(until=100).trajectory_.lattice('bands.T')[-1]
 latitude = np.degrees(np.arcsin(x))
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(latitude, warm, 'o-', markersize=3, color='C3', label='started at 15 °C')

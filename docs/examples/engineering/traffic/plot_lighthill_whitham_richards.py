@@ -13,7 +13,6 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import SSPRKSolver
 from skcomplex.engine.viz import RerunObserver
@@ -33,7 +32,7 @@ simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observ
 # the road.
 
 trajectory = simulation.trajectory_
-rho = fields_of(trajectory, 'road.rho')
+rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 fronts = [x[np.argmax(row > 0.55)] for row in rho]
 fig, (profiles, front) = plt.subplots(1, 2, figsize=(10, 4))

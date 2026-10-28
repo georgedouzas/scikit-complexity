@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Callable, Sequence
 from typing import Self
 
@@ -13,7 +12,6 @@ from scipy import stats
 
 from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
-from ._adapters import Ensemble
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import _stationary_distribution, _transition_counts
@@ -269,30 +267,6 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.field = field
         self.correlation = correlation
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and value is not defaults[name] and (defaults[name] is None or value != defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check_needed(self, names: Sequence[str]) -> None:
         """Raise an error for a setting the kind needs that is not given."""
         missing = [name for name in names if getattr(self, name) is None]
@@ -303,7 +277,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
     def _check(self) -> Self:
         """Validate the kind, the settings each kind needs, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.kind == 'jump-entropy-production':
             self._check_needed(['rates'])
         if self.kind in ('response', 'fluctuation-dissipation'):
@@ -324,13 +298,10 @@ class IrreversibilityAnalysis(BaseAnalysis):
         """Return the path kind for rates and discrete paths, and the ensemble kind for samples and ensembles."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.PATH
 
-    def _prepare(self, source: Source | Ensemble) -> Self:
+    def _prepare(self, source: Source) -> Self:
         """Read the rate matrix, the paths as rows, the samples, or the ensemble the kind measures."""
         name = self.variables[0] if self.variables else None
         self.duration_ = self.duration
-        if isinstance(source, Ensemble):
-            self.values_ = np.asarray(source.values, dtype=float)
-            return self
         if isinstance(source, Trajectory) and self.kind in PATH_KINDS:
             path = self._read_path(source, name)
             self.values_ = np.asarray(path.states, dtype=np.int64).reshape(1, -1)

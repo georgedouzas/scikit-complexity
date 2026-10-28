@@ -13,7 +13,6 @@ that chase each other, and each keeps about a third of the lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -31,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 # the last snapshot show the cyclic fronts.
 
 trajectory = simulation.trajectory_
-strategies = fields_of(trajectory, 'lattice.strategy')
+strategies = trajectory.lattice('lattice.strategy')
 values = np.unique(strategies[0])
 shares = np.array([[np.mean(frame == value) for value in values] for frame in strategies])
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

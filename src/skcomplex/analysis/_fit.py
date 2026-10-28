@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import warnings
 from collections.abc import Mapping, Sequence
 from typing import Self
@@ -256,24 +255,6 @@ class FitAnalysis(BaseAnalysis):
         self.simulations = simulations
         self.random_state = random_state
 
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the law does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.law] | {'law', 'variables'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and not np.array_equal(value, defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of law {self.law!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.law])) or "no setting"}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the law, the alternatives, that the law reads every changed setting, and its needed settings."""
         if self.law not in LAWS:
@@ -285,7 +266,7 @@ class FitAnalysis(BaseAnalysis):
                 f'{type(self).__name__} has compare_with={self.compare_with!r}. Use some of {", ".join(ALTERNATIVES)}.'
             )
             raise AnalysisError(error_msg)
-        self._check_ignored()
+        self._check_settings('law', SETTINGS[self.law] | {'variables'})
         if self.law == 'extreme-value' and self.block is None:
             error_msg = f'{type(self).__name__} of law {self.law!r} needs the number of samples per block. Set `block`.'
             raise AnalysisError(error_msg)

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import Ensemble, ErgodicityAnalysis
+from skcomplex.analysis import ErgodicityAnalysis
 from skcomplex.core.errors import AnalysisError
 
 RUNS = 200
@@ -53,14 +53,10 @@ def test_ergodicity_breaking_frozen_disorder():
     assert (float(frozen.metric_[-1]), round(frozen.exponent_, 6)) == (1.0, 0.0)
 
 
-def test_ergodicity_breaking_reads_an_ensemble():
-    """Test that an ensemble of an experiment gives the same diagnostics as its values and uses its times."""
+def test_ergodicity_metric_times_the_columns_by_the_step():
+    """Test that the runs of an ensemble, one row per run, are timed by the step between columns."""
     paths = _frozen(np.random.default_rng(2))[:, :50]
-    times = np.arange(50) * 0.5
-    ensemble = Ensemble(times, paths, [{}] * RUNS, np.arange(RUNS))
-    breaking = _ergodicity('breaking', ensemble).ergodicity_breaking_
-    assert breaking == pytest.approx(_ergodicity('breaking', paths).ergodicity_breaking_)
-    np.testing.assert_allclose(_ergodicity('metric', ensemble).times_, times)
+    np.testing.assert_allclose(_ergodicity('metric', paths, dt=0.5).times_, np.arange(1, 51) * 0.5)
 
 
 def test_ergodicity_breaking_rejects_a_single_run():

@@ -12,7 +12,7 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, default_blueprint
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[o
 
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
-u = fields_of(simulation.trajectory_, 'cells.u')[-1]
+u = simulation.trajectory_.lattice('cells.u')[-1]
 factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(

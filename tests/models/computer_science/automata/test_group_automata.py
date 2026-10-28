@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import Subshift
 from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
+    Subshift,
     baumslag_solitar_automaton,
     free_group_automaton,
     heisenberg_automaton,

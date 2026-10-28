@@ -6,19 +6,17 @@
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Self, cast
+from typing import Any, Protocol, Self, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
 from ..core.errors import AnalysisError
-from ..core.laws.utils import OuterTotalistic, Table, Totalistic
+from ..core.laws.utils import Table
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._lazy import module
-from ._utils import check_kind
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
@@ -32,6 +30,55 @@ type Reach = LatticeNeighborhood | MemoryNeighborhood
 type Sites = BaseSpace
 
 
+class _Automaton(Protocol):
+    """Cellular automaton the analysis reads by its methods, such as `Automaton` of the automata models."""
+
+    space: Sites
+    neighborhood: Reach
+    rule: object
+    states: int
+
+    @property
+    def reads(self) -> Reach:
+        """Neighbourhood the rule reads."""
+
+    @property
+    def size(self) -> int:
+        """Number of sites."""
+
+    def table(self) -> Indices:
+        """Return the site of every cell the rule reads at every site."""
+
+    def local_map(self) -> Codes:
+        """Return the next value of every pattern of the cells the rule reads."""
+
+    def step(self, configuration: npt.ArrayLike) -> Codes:
+        """Return the image of a configuration."""
+
+    def run(self, configuration: npt.ArrayLike, steps: int) -> Codes:
+        """Return the configurations of a number of steps."""
+
+
+class _LinearAutomaton(Protocol):
+    """Linear cellular automaton the analysis reads by its matrix and its Laurent polynomial."""
+
+    def matrix(self) -> Any:  # noqa: ANN401
+        """Return the Sage matrix of the automaton on its space."""
+
+    def laurent_polynomial(self) -> Any:  # noqa: ANN401
+        """Return the Sage Laurent polynomial of the automaton on `Z^d`."""
+
+
+class _Subshift(Protocol):
+    """Subshift of finite type the analysis reads by its count of admissible configurations and its violations."""
+
+    def count(self, space: Sites) -> int:
+        """Return the number of admissible configurations of a space."""
+
+    def violations(self, configuration: npt.ArrayLike, space: Sites) -> npt.NDArray[np.bool_]:
+        """Return the sites at which a forbidden pattern appears."""
+
+
 def _fitted(space: Sites) -> Sites:
     """Return a space of sites, preparing it on its first use."""
     if not hasattr(space, 'size_'):
@@ -39,57 +86,9 @@ def _fitted(space: Sites) -> Sites:
     return space
 
 
-def _table(space: Sites, reach: Reach) -> Indices:
-    """Return the site of every neighbour of every site of a space, with the number of sites outside the space."""
-    return _fitted(space)._index_table(reach)
-
-
-def _count(reach: Reach) -> int:
-    """Return the number of cells a neighbourhood of offsets or a memory set reads."""
-    return len(reach.check().prepare().offsets_ if isinstance(reach, LatticeNeighborhood) else reach.elements)
-
-
 def _size(space: Sites) -> int:
     """Return the number of sites of a space."""
     return int(_fitted(space).size_ or 0)
-
-
-def _rule_table(rule: object) -> object:
-    """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
-    convert = getattr(rule, 'table', None)
-    return convert() if not callable(rule) and callable(convert) else rule
-
-
-def _with_center(neighborhood: Reach) -> Reach:
-    """Return a neighbourhood with the site itself first, as outer totalistic rules read it."""
-    if isinstance(neighborhood, MemoryNeighborhood):
-        return MemoryNeighborhood((IDENTITY, *neighborhood.elements))
-    offsets = neighborhood.check().prepare().offsets_
-    zero = (0,) * len(offsets[0])
-    return LatticeNeighborhood((zero, *offsets))
-
-
-def _evaluate(rule: object, patterns: Codes) -> npt.NDArray[Any]:
-    """Return the next value of every pattern, one row per pattern in the order the rule reads its cells."""
-    if isinstance(rule, Table):
-        return np.asarray([rule.mapping.get(tuple(int(item) for item in row), rule.default) for row in patterns])
-    if isinstance(rule, Totalistic):
-        sums = patterns.sum(axis=1)
-        if callable(rule.rule):
-            return np.broadcast_to(np.asarray(rule.rule(sums)), sums.shape)
-        return np.asarray([rule.rule.get(int(total), rule.default) for total in sums])
-    if isinstance(rule, OuterTotalistic):
-        centers, sums = patterns[:, 0], patterns[:, 1:].sum(axis=1)
-        if callable(rule.rule):
-            return np.broadcast_to(np.asarray(rule.rule(centers, sums)), sums.shape)
-        pairs = zip(centers.tolist(), sums.tolist(), strict=True)
-        return np.asarray([rule.rule.get((center, total), rule.default) for center, total in pairs])
-    if callable(rule):
-        return np.broadcast_to(np.asarray(rule(*patterns.T)), (patterns.shape[0],))
-    error_msg = (
-        f'The rule {rule!r} is not a Table, a totalistic rule, a rule code with a table() method, or a function.'
-    )
-    raise AnalysisError(error_msg)
 
 
 def _patterns(states: int, width: int) -> Codes:
@@ -162,119 +161,9 @@ class _Clauses:
             return solver.get_model() if solver.solve() else None
 
 
-@dataclass(frozen=True)
-class Automaton:
-    """Cellular automaton on a finite universe: a periodic lattice, a finite quotient of a group, or a ball.
-
-    The automaton maps a configuration, one integer value from `0` to `states - 1` per site, to the configuration whose
-    value at every site is the rule applied to the values of the neighbourhood of the site, as `LocalRuleLaw`s do.
-    Sites outside a lattice with fixed edges or outside a ball read the fill value of the space.
-
-    Args:
-        space:
-            The lattice or the group space.
-
-        neighborhood:
-            The neighbourhood of offsets on a lattice, or the memory set on a group space.
-
-        rule:
-            A `Table`, a `Totalistic` rule, an `OuterTotalistic` rule, an object whose `table()` returns a `Table`,
-            or a function of one array per neighbour that returns the next values.
-
-        states:
-            The number of values of a cell.
-
-    Examples:
-        >>> from skcomplex.analysis import Automaton
-        >>> from skcomplex.core.laws.utils import Totalistic
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> parity = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total % 2))
-        >>> parity.step([0, 0, 1, 0, 0]).tolist()
-        [0, 1, 1, 1, 0]
-    """
-
-    space: Sites
-    neighborhood: Reach
-    rule: Any
-    states: int = 2
-
-    @property
-    def reads(self) -> Reach:
-        """Neighbourhood the rule reads, with the site itself first for an outer totalistic rule."""
-        rule = _rule_table(self.rule)
-        return _with_center(self.neighborhood) if isinstance(rule, OuterTotalistic) else self.neighborhood
-
-    @property
-    def size(self) -> int:
-        """Number of sites."""
-        return _size(self.space)
-
-    def table(self) -> Indices:
-        """Return the site of every cell the rule reads at every site, with the number of sites outside the space.
-
-        Returns:
-            table:
-                One row per site and one column per cell of `reads`.
-        """
-        return _table(self.space, self.reads)
-
-    def local_map(self) -> Codes:
-        """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern.
-
-        Returns:
-            values:
-                One integer value per pattern.
-
-        Raises:
-            AnalysisError:
-                The rule returns a value outside `0` to `states - 1`.
-        """
-        patterns = _patterns(self.states, _count(self.reads))
-        values = np.asarray(_evaluate(_rule_table(self.rule), patterns), dtype=float)
-        if values.size and (values.min() < 0 or values.max() >= self.states or not np.all(values == np.rint(values))):
-            error_msg = f'The rule returns values outside the integers 0 to {self.states - 1}.'
-            raise AnalysisError(error_msg)
-        return values.astype(np.int64)
-
-    def step(self, configuration: npt.ArrayLike) -> Codes:
-        """Return the image of a configuration, or of one configuration per row.
-
-        Args:
-            configuration:
-                The values of the sites, or one row of values per configuration.
-
-        Returns:
-            image:
-                The next values, of the same shape.
-        """
-        values = np.asarray(configuration, dtype=np.int64)
-        fill = np.full((*values.shape[:-1], 1), int(getattr(self.space, 'fill', 0)), dtype=np.int64)
-        padded = np.concatenate([values, fill], axis=-1)
-        return self.local_map()[_codes(padded[..., self.table()], self.states)]
-
-    def run(self, configuration: npt.ArrayLike, steps: int) -> Codes:
-        """Return the configurations of a number of steps, the initial one first.
-
-        Args:
-            configuration:
-                The initial values of the sites.
-
-            steps:
-                The number of steps.
-
-        Returns:
-            configurations:
-                One row per step.
-        """
-        rows = [np.asarray(configuration, dtype=np.int64)]
-        for _ in range(steps):
-            rows.append(self.step(rows[-1]))
-        return np.stack(rows)
-
-
 def _rule_clauses(
     clauses: _Clauses,
-    automaton: Automaton,
+    automaton: _Automaton,
     cells: npt.NDArray[np.int64],
     sites: Sequence[int],
     output: Callable[[int, int], list[int] | None],
@@ -307,7 +196,7 @@ def _decode(model: list[int], variables: npt.NDArray[np.int64]) -> Codes:
     )
 
 
-def _collision(automaton: Automaton, window: Sequence[int]) -> tuple[Codes, Codes] | None:
+def _collision(automaton: _Automaton, window: Sequence[int]) -> tuple[Codes, Codes] | None:
     """Return two configurations that differ inside a window, agree outside it, and have the same image, by SAT."""
     clauses = _Clauses()
     first = clauses.one_hot(automaton.size, automaton.states)
@@ -331,7 +220,7 @@ def _collision(automaton: Automaton, window: Sequence[int]) -> tuple[Codes, Code
     return None if model is None else (_decode(model, first), _decode(model, second))
 
 
-def _preimage(automaton: Automaton, target: Codes, window: Sequence[int]) -> Codes | None:
+def _preimage(automaton: _Automaton, target: Codes, window: Sequence[int]) -> Codes | None:
     """Return a configuration whose image equals a target on a window, or `None`, by SAT."""
     clauses = _Clauses()
     cells = clauses.one_hot(automaton.size, automaton.states)
@@ -345,13 +234,13 @@ def _preimage(automaton: Automaton, target: Codes, window: Sequence[int]) -> Cod
     return None if model is None else _decode(model, cells)
 
 
-def _images(automaton: Automaton) -> tuple[Codes, Codes]:
+def _images(automaton: _Automaton) -> tuple[Codes, Codes]:
     """Return every configuration and the code of its image."""
     configurations = _configurations(automaton.states, automaton.size)
     return configurations, _codes(automaton.step(configurations), automaton.states)
 
 
-def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
+def _ball_neighborhood(automaton: _Automaton, radius: int) -> Reach:
     """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
     if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
@@ -359,18 +248,7 @@ def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
     return cast('Reach', _fitted(automaton.space)._ball(radius))
 
 
-def _field_of(field: str) -> Any:  # noqa: ANN401
-    """Return the Sage field of `'GF(p)'` or `'QQ'`."""
-    if field == 'QQ':
-        return QQ
-    text = field.replace(' ', '')
-    if text.startswith('GF(') and text.endswith(')') and text[3:-1].isdigit():
-        return GF(int(text[3:-1]))
-    error_msg = f"Unknown field {field!r}. Use 'QQ' or 'GF(p)' for a prime p."
-    raise AnalysisError(error_msg)
-
-
-def _is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
+def _is_injective(automaton: _Automaton, *, method: str = 'auto') -> bool:
     """Check whether two different configurations never have the same image."""
     if _check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
         _, codes = _images(automaton)
@@ -378,12 +256,12 @@ def _is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
     return _collision(automaton, range(automaton.size)) is None
 
 
-def _is_surjective(automaton: Automaton, *, method: str = 'auto') -> bool:
+def _is_surjective(automaton: _Automaton, *, method: str = 'auto') -> bool:
     """Check whether every configuration has a preimage, as when it is injective."""
     return _is_injective(automaton, method=method)
 
 
-def _is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
+def _is_pre_injective(automaton: _Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
     """Check whether two configurations that differ only inside a window never have the same image."""
     sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
     if not _check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
@@ -395,7 +273,7 @@ def _is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None,
 
 
 def _garden_of_eden(
-    automaton: Automaton,
+    automaton: _Automaton,
     window: Sequence[int] | None = None,
     *,
     tries: int = 200,
@@ -415,27 +293,28 @@ def _garden_of_eden(
     return None
 
 
-def _inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
+def _inverse(automaton: _Automaton, max_radius: int = 2) -> _Automaton | None:
     """Return the automaton whose composition with a reversible one is the identity, or `None`."""
     configurations, codes = _images(automaton)
     if np.unique(codes).size != codes.size:
         return None
     images = automaton.step(configurations)
     for radius in range(max_radius + 1):
-        candidate = Automaton(automaton.space, _ball_neighborhood(automaton, radius), Table({}), automaton.states)
+        candidate = type(automaton)(automaton.space, _ball_neighborhood(automaton, radius), Table({}), automaton.states)
         padded = np.concatenate([images, np.zeros((images.shape[0], 1), dtype=np.int64)], axis=1)
         patterns = _codes(padded[:, candidate.table()], automaton.states).ravel()
         values = configurations.ravel()
         pairs = np.unique(np.column_stack([patterns, values]), axis=0)
         if np.unique(pairs[:, 0]).size != pairs.shape[0]:
             continue
-        rows = _patterns(automaton.states, _count(candidate.reads))
+        rows = _patterns(automaton.states, candidate.table().shape[1])
         mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
-        return Automaton(automaton.space, candidate.reads, Table(mapping, states=automaton.states), automaton.states)
+        rule = Table(mapping, states=automaton.states)
+        return type(automaton)(automaton.space, candidate.reads, rule, automaton.states)
     return None
 
 
-def _compose(first: Automaton, second: Automaton) -> Automaton:
+def _compose(first: _Automaton, second: _Automaton) -> _Automaton:
     """Return the automaton that applies one automaton and then another on the same space."""
     if first.space is not second.space or first.states != second.states:
         error_msg = 'Composed automata share their space and their number of states.'
@@ -459,11 +338,11 @@ def _compose(first: Automaton, second: Automaton) -> Automaton:
         else LatticeNeighborhood(tuple(composite))
     )
     rule = _ComposedRule(first.local_map(), second.local_map(), tuple(columns), first.states).evaluate
-    return Automaton(first.space, reach, rule, first.states)
+    return type(first)(first.space, reach, rule, first.states)
 
 
 def _difference_pattern(
-    automaton: Automaton,
+    automaton: _Automaton,
     configuration: npt.ArrayLike,
     site: int,
     steps: int,
@@ -475,185 +354,8 @@ def _difference_pattern(
     return automaton.run(initial, steps) != automaton.run(changed, steps)
 
 
-@dataclass(frozen=True)
-class Subshift:
-    """Subshift of finite type: the configurations in which no forbidden pattern appears around any site.
-
-    A pattern is a tuple of values in the order of a neighbourhood. It appears at a site when the cells of the
-    neighbourhood of the site hold its values, and patterns that reach outside a space are not checked, so a lattice
-    with fixed edges holds the words of a window.
-
-    Args:
-        neighborhood:
-            The neighbourhood of offsets on a lattice, or the memory set on a group space, that patterns cover.
-
-        forbidden:
-            The forbidden patterns.
-
-        states:
-            The number of values of a cell.
-
-    Examples:
-        >>> from skcomplex.analysis import Subshift
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-        >>> golden.count(LatticeSpace(6, boundary='fixed'))
-        21
-    """
-
-    neighborhood: Reach
-    forbidden: Sequence[tuple[int, ...]]
-    states: int = 2
-
-    def _forbidden_codes(self) -> Codes:
-        """Return the codes of the forbidden patterns."""
-        patterns = np.asarray([tuple(pattern) for pattern in self.forbidden], dtype=np.int64).reshape(
-            -1,
-            _count(self.neighborhood),
-        )
-        return _codes(patterns, self.states)
-
-    def _complete(self, space: Sites) -> tuple[Indices, npt.NDArray[np.bool_]]:
-        """Return the neighbour table of a space and the sites whose patterns lie inside it."""
-        table = _table(space, self.neighborhood)
-        return table, (table < _size(space)).all(axis=1)
-
-    def violations(self, configuration: npt.ArrayLike, space: Sites) -> npt.NDArray[np.bool_]:
-        """Return the sites at which a forbidden pattern appears.
-
-        Args:
-            configuration:
-                The values of the sites.
-
-            space:
-                The lattice or the group space.
-
-        Returns:
-            violations:
-                One flag per site.
-        """
-        table, complete = self._complete(space)
-        values = np.append(np.asarray(configuration, dtype=np.int64), 0)
-        codes = _codes(values[table], self.states)
-        return complete & np.isin(codes, self._forbidden_codes())
-
-    def is_admissible(self, configuration: npt.ArrayLike, space: Sites) -> bool:
-        """Check whether no forbidden pattern appears in a configuration.
-
-        Args:
-            configuration:
-                The values of the sites.
-
-            space:
-                The lattice or the group space.
-
-        Returns:
-            admissible:
-                Whether the configuration belongs to the subshift.
-        """
-        return not self.violations(configuration, space).any()
-
-    def count(self, space: Sites) -> int:
-        """Return the number of admissible configurations of a space, by dynamic programming over its sites.
-
-        The sites are assigned in order, and the counts of completions are shared between assignments that agree on
-        the earlier sites that later patterns read, so a window of a one-dimensional subshift costs linear time.
-
-        Args:
-            space:
-                The lattice or the group space, a window of the subshift.
-
-        Returns:
-            count:
-                The number of configurations without a forbidden pattern.
-        """
-        table, complete = self._complete(space)
-        forbidden = {tuple(int(item) for item in pattern) for pattern in self.forbidden}
-        checks: list[list[int]] = [[] for _ in range(_size(space))]
-        for site in np.flatnonzero(complete):
-            checks[int(table[site].max())].append(int(site))
-        needed = [
-            tuple(
-                sorted(
-                    {int(cell) for later in checks[site:] for anchor in later for cell in table[anchor] if cell < site},
-                ),
-            )
-            for site in range(_size(space) + 1)
-        ]
-        values = [0] * _size(space)
-        memo: dict[tuple[int, tuple[int, ...]], int] = {}
-
-        def extend(site: int) -> int:
-            """Return the number of admissible completions of the values before a site."""
-            if site == _size(space):
-                return 1
-            key = (site, tuple(values[cell] for cell in needed[site]))
-            if key not in memo:
-                total = 0
-                for value in range(self.states):
-                    values[site] = value
-                    if all(tuple(values[cell] for cell in table[anchor]) not in forbidden for anchor in checks[site]):
-                        total += extend(site + 1)
-                memo[key] = total
-            return memo[key]
-
-        return extend(0)
-
-    def sample(
-        self,
-        space: Sites,
-        sweeps: int = 100,
-        *,
-        initial: npt.ArrayLike | None = None,
-        random_state: int | np.random.Generator | None = None,
-    ) -> Codes:
-        """Return an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible.
-
-        Args:
-            space:
-                The lattice or the group space.
-
-            sweeps:
-                The number of sweeps, each proposing a random value at every site in a random order.
-
-            initial:
-                The admissible initial configuration, or `None` for every cell at 0.
-
-            random_state:
-                The seed or generator of the moves.
-
-        Returns:
-            configuration:
-                The admissible configuration.
-
-        Raises:
-            AnalysisError:
-                The initial configuration is not admissible.
-        """
-        rng = np.random.default_rng(random_state)
-        values = (
-            np.zeros(_size(space), dtype=np.int64) if initial is None else np.asarray(initial, dtype=np.int64).copy()
-        )
-        if not self.is_admissible(values, space):
-            error_msg = 'The initial configuration holds a forbidden pattern. Give an admissible one.'
-            raise AnalysisError(error_msg)
-        table, complete = self._complete(space)
-        touching: list[list[int]] = [[] for _ in range(_size(space))]
-        for anchor in np.flatnonzero(complete):
-            for cell in set(table[anchor].tolist()):
-                touching[cell].append(int(anchor))
-        forbidden = {tuple(int(item) for item in pattern) for pattern in self.forbidden}
-        for _ in range(sweeps):
-            for site in rng.permutation(_size(space)):
-                previous = values[site]
-                values[site] = rng.integers(self.states)
-                if any(tuple(values[table[anchor]].tolist()) in forbidden for anchor in touching[site]):
-                    values[site] = previous
-        return values
-
-
 def _configuration_entropy(
-    subject: Subshift | Automaton,
+    subject: _Subshift | _Automaton,
     windows: Sequence[Sites],
     *,
     base: float = 2.0,
@@ -661,10 +363,10 @@ def _configuration_entropy(
     """Return the entropy `log |X_F| / |F|` of a subshift or of the image of an automaton on every window."""
     entropies = []
     for window in windows:
-        if isinstance(subject, Subshift):
+        if hasattr(subject, 'violations'):
             entropies.append(np.log(subject.count(window)) / _size(window))
             continue
-        automaton = Automaton(window, subject.neighborhood, subject.rule, subject.states)
+        automaton = type(subject)(window, subject.neighborhood, subject.rule, subject.states)
         interior = np.flatnonzero((automaton.table() < _size(window)).all(axis=1))
         images = automaton.step(_configurations(automaton.states, _size(window)))[:, interior]
         count = np.unique(_codes(images, automaton.states)).size
@@ -688,114 +390,14 @@ class _ComposedRule:
         return self.second[_codes(np.stack(inner, axis=-1), self.states)]
 
 
-@dataclass(frozen=True)
-class LinearAutomaton:
-    """Linear cellular automaton, the element `sum_s a_s s` of the group ring `K[G]` acting on configurations.
-
-    The value at the site `g` becomes `sum_s a_s x(g s)` over the field, for every element `s` of the neighbourhood
-    with its coefficient `a_s`. On a finite universe it is a square matrix, and injectivity, surjectivity, and
-    pre-injectivity all hold exactly when the matrix is invertible. On `Z^d` it is a Laurent polynomial, invertible
-    when it is a monomial and surjective when it is not zero.
-
-    Args:
-        space:
-            The periodic lattice or the group space of a finite group or quotient.
-
-        neighborhood:
-            The neighbourhood of offsets on a lattice, or the memory set on a group space.
-
-        coefficients:
-            The coefficient of every element of the neighbourhood, integers or rationals.
-
-        field:
-            `'GF(p)'` for the field of a prime number `p` of elements, or `'QQ'` for the rationals.
-
-    Examples:
-        >>> from skcomplex.analysis import LinearAutomaton
-        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> rule90 = LinearAutomaton(LatticeSpace(6), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
-        >>> rule90.step([0, 0, 1, 0, 0, 0]).tolist()
-        [0, 1, 0, 1, 0, 0]
-    """
-
-    space: Sites
-    neighborhood: Reach
-    coefficients: Sequence[float]
-    field: str = 'GF(2)'
-
-    def step(self, configuration: npt.ArrayLike) -> npt.NDArray[Any]:
-        """Return the image of a configuration.
-
-        Args:
-            configuration:
-                The values of the sites.
-
-        Returns:
-            image:
-                The next values, reduced modulo the field size over a prime field.
-        """
-        table = _table(self.space, self.neighborhood)
-        values = np.append(np.asarray(configuration), getattr(self.space, 'fill', 0))
-        image = values[table] @ np.asarray(self.coefficients)
-        characteristic = int(_field_of(self.field).characteristic())
-        return np.rint(image).astype(np.int64) % characteristic if characteristic else image
-
-    def matrix(self) -> Any:  # noqa: ANN401
-        """Return the matrix of the automaton over the field, whose row `g` gives the image at `g`.
-
-        Returns:
-            matrix:
-                The Sage matrix.
-
-        Raises:
-            AnalysisError:
-                A site reads a cell outside the space.
-        """
-        table = _table(self.space, self.neighborhood)
-        if (table >= _size(self.space)).any():
-            error_msg = 'A linear automaton has a matrix on a periodic lattice or a finite group, not on a ball.'
-            raise AnalysisError(error_msg)
-        field = _field_of(self.field)
-        entries = matrix(field, _size(self.space), _size(self.space))
-        for site, row in enumerate(table.tolist()):
-            for neighbour, coefficient in zip(row, self.coefficients, strict=True):
-                entries[site, neighbour] += field(QQ(coefficient))
-        return entries
-
-    def laurent_polynomial(self) -> Any:  # noqa: ANN401
-        """Return the Laurent polynomial `sum a_s x^s` of an automaton on a lattice, its symbol on `Z^d`.
-
-        Returns:
-            polynomial:
-                The Sage Laurent polynomial in the variables `x0` to `x(d-1)`.
-
-        Raises:
-            AnalysisError:
-                The neighbourhood is not one of offsets.
-        """
-        if not isinstance(self.neighborhood, LatticeNeighborhood):
-            error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
-            raise AnalysisError(error_msg)
-        field = _field_of(self.field)
-        offsets = self.neighborhood.check().prepare().offsets_
-        n_dim = len(offsets[0])
-        ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(n_dim)])
-        variables = ring.gens()
-        terms = (
-            field(QQ(coefficient)) * np.prod([variable**step for variable, step in zip(variables, offset, strict=True)])
-            for offset, coefficient in zip(offsets, self.coefficients, strict=True)
-        )
-        return sum(terms, ring.zero())
-
-
-def _linear_injective(automaton: LinearAutomaton, *, infinite: bool) -> bool:
+def _linear_injective(automaton: _LinearAutomaton, *, infinite: bool) -> bool:
     """Check whether a linear automaton is invertible: its matrix on its universe, or a monomial on `Z^d`."""
     if infinite:
         return len(automaton.laurent_polynomial().exponents()) == 1
     return bool(automaton.matrix().is_invertible())
 
 
-def _linear_surjective(automaton: LinearAutomaton, *, infinite: bool) -> bool:
+def _linear_surjective(automaton: _LinearAutomaton, *, infinite: bool) -> bool:
     """Check whether a linear automaton is surjective: invertible on its universe, or not zero on `Z^d`."""
     if infinite:
         return not automaton.laurent_polynomial().is_zero()
@@ -815,22 +417,24 @@ SETTINGS = {
 }
 """Settings every kind reads, besides `kind`."""
 SOURCES = {
-    'injective': (Automaton, LinearAutomaton),
-    'surjective': (Automaton, LinearAutomaton),
-    'pre-injective': (Automaton, LinearAutomaton),
-    'garden-of-eden': (Automaton,),
-    'inverse': (Automaton,),
-    'compose': (Automaton,),
-    'difference': (Automaton,),
-    'entropy': (Automaton, Subshift),
+    'injective': ('automaton', 'linear automaton'),
+    'surjective': ('automaton', 'linear automaton'),
+    'pre-injective': ('automaton', 'linear automaton'),
+    'garden-of-eden': ('automaton',),
+    'inverse': ('automaton',),
+    'compose': ('automaton',),
+    'difference': ('automaton',),
+    'entropy': ('automaton', 'subshift'),
 }
-"""Models of a cellular automaton every kind reads."""
+"""Models of a cellular automaton every kind reads: rule automata, linear automata, and subshifts."""
 
 
 class AutomatonAnalysis(BaseAnalysis):
     """Decisions and measures of a cellular automaton on a finite universe, of a linear automaton, or of a subshift.
 
-    The kinds read the automaton, the linear automaton, or the subshift a user builds:
+    The kinds read the automaton, the linear automaton, or the subshift a user builds, such as `Automaton`,
+    `LinearAutomaton`, and `Subshift` of the automata models. The analysis tells them apart by their methods: a linear
+    automaton has `laurent_polynomial`, a subshift has `violations`, and an automaton with a rule has `local_map`.
 
     - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
       image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
@@ -929,9 +533,10 @@ class AutomatonAnalysis(BaseAnalysis):
             configurations, or composed automata differ in space or number of states.
 
     Examples:
-        >>> from skcomplex.analysis import Automaton, AutomatonAnalysis, Subshift
+        >>> from skcomplex.analysis import AutomatonAnalysis
         >>> from skcomplex.core.laws.utils import Table, Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.models.computer_science.automata import Automaton, Subshift
         >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
         >>> AutomatonAnalysis().check().prepare(shift).run().injective_
         True
@@ -954,7 +559,7 @@ class AutomatonAnalysis(BaseAnalysis):
         tries: int = 200,
         random_state: int | np.random.Generator | None = None,
         max_radius: int = 2,
-        second: Automaton | None = None,
+        second: _Automaton | None = None,
         configuration: npt.ArrayLike | None = None,
         site: int = 0,
         steps: int = 1,
@@ -977,7 +582,8 @@ class AutomatonAnalysis(BaseAnalysis):
 
     def _check(self) -> Self:
         """Validate the kind, the method, that the kind reads every changed setting, and that it has what it needs."""
-        check_kind(self, KINDS, SETTINGS)
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
         if self.method not in METHODS:
             error_msg = f'{type(self).__name__} has method={self.method!r}. Use one of {", ".join(METHODS)}.'
             raise AnalysisError(error_msg)
@@ -991,14 +597,24 @@ class AutomatonAnalysis(BaseAnalysis):
         """Return the system kind."""
         return DataKind.SYSTEM
 
+    @staticmethod
+    def _model_of(source: object) -> str | None:
+        """Return the model a source is by its methods: a linear automaton, a subshift, an automaton, or `None`."""
+        if hasattr(source, 'laurent_polynomial'):
+            return 'linear automaton'
+        if hasattr(source, 'violations'):
+            return 'subshift'
+        if hasattr(source, 'local_map'):
+            return 'automaton'
+        return None
+
     def _prepare(self, source: Source) -> Self:
         """Keep the automaton, the linear automaton, or the subshift, after checking that the kind reads it."""
         models = SOURCES[self.kind]
-        if not isinstance(source, models):
+        if self._model_of(source) not in models:
             error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} reads a '
-                f'{" or a ".join(model.__name__ for model in models)}'
-                f', not {type(source).__name__}. Build one of them.'
+                f'{type(self).__name__} of kind {self.kind!r} reads an {" or a ".join(models)}, not '
+                f'{type(source).__name__}. Build one of them.'
             )
             raise AnalysisError(error_msg)
         self.automaton_ = source
@@ -1007,7 +623,7 @@ class AutomatonAnalysis(BaseAnalysis):
     def _decide(self) -> None:
         """Set whether the automaton is injective, surjective, or pre-injective."""
         automaton = self.automaton_
-        if isinstance(automaton, LinearAutomaton):
+        if self._model_of(automaton) == 'linear automaton':
             injective = self.kind == 'injective'
             decision = (
                 _linear_injective(automaton, infinite=self.infinite)

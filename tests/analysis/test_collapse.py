@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, fields_of
+from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
@@ -88,7 +88,8 @@ def test_two_time_correlation_aging_on_two_domains():
     """Test that an Ising quench and the trap model age: correlations grow with the age and collapse on tau / t_w."""
     system = create('ising', size=256, temperature=1.0, sampler='glauber')
     # One quench gives a ratio spread between 0.01 and 0.13 by seed, so the curves average four seeded quenches.
-    runs = [fields_of(Simulation(system, dt=1, random_state=seed).run(until=400).trajectory_) for seed in range(4, 8)]
+    quenches = [Simulation(system, dt=1, random_state=seed).run(until=400) for seed in range(4, 8)]
+    runs = [quench.trajectory_.lattice('spins.spin') for quench in quenches]
     waiting, lags = [50, 100, 200], np.arange(0, 200)
     ising = CorrelationAnalysis('two-time', waiting=waiting, lags=lags).check().prepare(np.stack(runs)).run()
     horizon = 1000.0

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import math
 from collections import Counter
 from collections.abc import Hashable, Sequence
@@ -385,32 +384,11 @@ class InformationAnalysis(BaseAnalysis):
         self.k = k
         self.base = base
 
-    def _check_choice(self, name: str, value: str | None, choices: tuple[str | None, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind or the symbolization does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        settings = SETTINGS[self.kind] | SYMBOL_SETTINGS[self.symbols]
-        read = settings | {'kind', 'variables'}
-        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} with symbols={self.symbols!r} does not read '
-                f'{", ".join(ignored)}. It reads {", ".join(sorted(settings))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('symbols', self.symbols, (None, *SYMBOLS))
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | SYMBOL_SETTINGS[self.symbols] | {'variables'})
         estimators = TRANSFER_ESTIMATORS if self.kind == 'transfer' else JOINT_ESTIMATORS
         self._check_choice('estimator', self.estimator, estimators)
         counts = {

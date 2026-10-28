@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Callable, Sequence
 from typing import Self
 
@@ -11,7 +10,6 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core.errors import AnalysisError
-from ._adapters import Ensemble
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
 from ._markov import _stationary_distribution
@@ -36,7 +34,7 @@ BINS = {'distance': 20, 'invariant-density': 100}
 class ErgodicityAnalysis(BaseAnalysis):
     """Ergodicity of an ensemble of runs, or invariant density of a map or a flow, of one kind.
 
-    The ensemble kinds read one row per run and one column per time, or an ensemble of an experiment:
+    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.ensemble` returns:
 
     - `'breaking'`: the variance across runs of the time averages over the variance of all the values, near 0 for
       ergodic runs longer than their relaxation time and near 1 when every run is frozen in its own state.
@@ -63,7 +61,7 @@ class ErgodicityAnalysis(BaseAnalysis):
             The fraction of the run after which the exponent of the metric is fitted, at 50 log-spaced times.
 
         dt:
-            The time between the columns of an array, while an ensemble gives its own times.
+            The time between the columns of the runs.
 
         bins:
             The number of bins or their edges, or `None` for 20 for `'distance'` and 100 for `'invariant-density'`.
@@ -143,34 +141,10 @@ class ErgodicityAnalysis(BaseAnalysis):
         self.edges = edges
         self.samples = samples
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and value is not defaults[name] and (defaults[name] is None or value != defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the edges of the Ulam chain, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.kind == 'ulam' and self.edges is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs the edges of the cells. Give edges.'
             raise AnalysisError(error_msg)
@@ -183,8 +157,8 @@ class ErgodicityAnalysis(BaseAnalysis):
         """Return the ensemble kind for runs, and the series kind for densities."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.SERIES
 
-    def _prepare(self, source: Source | Ensemble | Callable[[Array], Array]) -> Self:
-        """Read the runs of an ensemble or an array, the values of a run, or the map."""
+    def _prepare(self, source: Source | Callable[[Array], Array]) -> Self:
+        """Read the runs of an ensemble, one row per run, the values of a run, or the map."""
         if self.kind == 'ulam':
             if not callable(source):
                 error_msg = (
@@ -197,12 +171,8 @@ class ErgodicityAnalysis(BaseAnalysis):
         if self.kind == 'invariant-density':
             self.values_ = self._read_series(source, self.variables).values[:, 0].astype(float)
             return self
-        if isinstance(source, Ensemble):
-            self.values_ = np.asarray(source.values, dtype=float)
-            self.times_ = np.asarray(source.times, dtype=float)
-        else:
-            self.values_ = np.asarray(source, dtype=float)
-            self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
+        self.values_ = np.asarray(source, dtype=float)
+        self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
         if self.values_.ndim != 2 or self.values_.shape[0] < MIN_RUNS:  # noqa: PLR2004
             error_msg = (
                 f'The diagnostics need at least two runs, one row per run, not an array of shape {self.values_.shape}.'

@@ -12,7 +12,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis, fields_of
+from skcomplex.analysis import CorrelationAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=300)
 # should rise to a plateau as the spirals take over. The waves also correlate the levels over growing distances, so
 # the spatial correlation function should decay more slowly at later steps.
 
-levels = fields_of(simulation.trajectory_, 'cells.level')
+levels = simulation.trajectory_.lattice('cells.level')
 advancing = np.mean(levels[1:] != levels[:-1], axis=(1, 2))
 fig, (activity, correlation) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(simulation.trajectory_.times[1:], advancing)

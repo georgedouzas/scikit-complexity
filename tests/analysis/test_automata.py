@@ -1,4 +1,4 @@
-"""Test the automata theory checks, linear automata, subshifts, and the information measures of automata."""
+"""Test the automaton analysis: decisions, inverses, compositions, difference patterns, and entropies."""
 
 import numpy as np
 import pytest
@@ -6,7 +6,7 @@ from sage.all__sagemath_gap import PermutationGroup
 from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
-from skcomplex.analysis import Automaton, AutomatonAnalysis, EntropyAnalysis, LinearAutomaton, Subshift
+from skcomplex.analysis import AutomatonAnalysis, EntropyAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
@@ -17,6 +17,7 @@ from skcomplex.core.spaces import (
     MemoryNeighborhood,
     MooreNeighborhood,
 )
+from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2
@@ -110,26 +111,13 @@ def test_linear_automaton_on_the_integers():
     assert _automaton('injective', shift).injective_
 
 
-def test_golden_mean_shift_counts_follow_fibonacci():
-    """Test that the words of length n of the golden mean shift number F(n + 2) and its entropy nears log2 of phi."""
+def test_golden_mean_shift_entropy_nears_log_phi():
+    """Test that the entropy of the golden mean shift on growing windows decreases towards log2 of phi."""
     golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-    counts = [golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 11)]
-    assert counts == [2, 3, 5, 8, 13, 21, 34, 55, 89, 144]
     windows = [LatticeSpace(length, boundary='fixed') for length in (10, 16, 22)]
     entropies = _automaton('entropy', golden, windows=windows).entropy_
     assert np.all(np.diff(entropies) < 0)
     assert entropies[-1] == pytest.approx(np.log2(GOLDEN_RATIO), abs=0.02)
-
-
-def test_golden_mean_shift_samples_admissible_configurations():
-    """Test that the Markov chain keeps configurations without two adjacent ones, and rejects a bad start."""
-    golden = Subshift(MemoryNeighborhood(('1', 'a')), [(1, 1)])
-    space = _cycle(60)
-    sample = golden.sample(space, 20, random_state=0)
-    assert golden.is_admissible(sample, space)
-    assert 0 < sample.mean() < 0.5
-    with pytest.raises(AnalysisError, match='forbidden pattern'):
-        golden.sample(space, initial=np.ones(60))
 
 
 def test_configuration_entropy_of_an_automaton_image():
@@ -166,7 +154,7 @@ def test_difference_pattern_spreads_at_the_speed_of_light():
 def test_kind_reads_its_model():
     """Test that a subshift is rejected by a decision, and a setting another kind reads by the check."""
     golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-    with pytest.raises(AnalysisError, match='reads a Automaton or a LinearAutomaton'):
+    with pytest.raises(AnalysisError, match='reads an automaton or a linear automaton'):
         AutomatonAnalysis().check().prepare(golden)
     with pytest.raises(AnalysisError, match='does not read tries'):
         AutomatonAnalysis(tries=3).check()

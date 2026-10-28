@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import SpectrumAnalysis, fields_of
+from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import FieldElement
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import LatticeSpace
@@ -44,7 +44,7 @@ def test_structure_factor_same_on_a_trajectory_and_its_last_frame():
     spins = run('ising', size=32, settings={'until': 5}).trajectory_
     np.testing.assert_array_equal(
         _spectrum('structure-factor', spins).power_,
-        _spectrum('structure-factor', fields_of(spins)[-1]).power_,
+        _spectrum('structure-factor', spins.lattice('spins.spin')[-1]).power_,
     )
 
 

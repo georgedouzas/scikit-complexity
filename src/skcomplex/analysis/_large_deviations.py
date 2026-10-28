@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -219,30 +218,6 @@ class LargeDeviationAnalysis(BaseAnalysis):
         self.value_range = value_range
         self.log_weights = log_weights
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name
-            for name, value in self.get_params().items()
-            if name not in read and value is not defaults[name] and (defaults[name] is None or value != defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check_needed(self, name: str) -> None:
         """Raise an error for a setting the kind needs that is not given."""
         if getattr(self, name) is None:
@@ -252,7 +227,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
     def _check(self) -> Self:
         """Validate the kind, the settings each kind needs, and the cloning schedule."""
         self._check_choice('kind', self.kind, KINDS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         needed = {'tilted': 'weights', 'cloning': 'observable', 'reweight': 'log_weights'}
         if self.kind in needed:
             self._check_needed(needed[self.kind])

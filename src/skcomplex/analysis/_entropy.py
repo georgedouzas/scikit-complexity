@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import math
 from collections import Counter
 from collections.abc import Hashable, Sequence
@@ -33,6 +32,7 @@ KINDS = (
     'approximate',
     'multiscale',
     'spectral',
+    'ensemble',
 )
 MEASURES = ('shannon', 'renyi', 'tsallis')
 TIES = ('order', 'random')
@@ -49,6 +49,7 @@ SETTINGS = {
     'approximate': {'dimension', 'tolerance'},
     'multiscale': {'dimension', 'tolerance', 'scales'},
     'spectral': {'dt', 'normalize'},
+    'ensemble': {'reference'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 
@@ -169,6 +170,9 @@ class EntropyAnalysis(BaseAnalysis):
       standard deviations.
     - `'multiscale'`: the sample entropy of the means of non-overlapping windows of every scale of `scales`.
     - `'spectral'`: the Shannon entropy of the normalized periodogram.
+    - `'ensemble'`: the Shannon entropy in bits of the outcomes of an ensemble at every frame, and their
+      Kullback-Leibler divergence from the `reference` law, as in the H-theorem. The ensemble has one row per run and
+      one column per frame of integer outcomes, such as `ExperimentResult.ensemble` returns.
 
     Args:
         kind:
@@ -213,6 +217,9 @@ class EntropyAnalysis(BaseAnalysis):
         random_state:
             The seed of the random ranks of equal values.
 
+        reference:
+            The probability of every outcome under the reference law of an ensemble, such as the stationary law.
+
     Attributes:
         values_:
             The series, one per column, or the frames of the field.
@@ -223,6 +230,13 @@ class EntropyAnalysis(BaseAnalysis):
         entropy_:
             One entropy per series or frame, with one column per block length for `'block'` and per scale for
             `'multiscale'`.
+
+        divergence_:
+            The divergence in bits of the outcomes of every frame of an ensemble from the reference law.
+
+        error_:
+            The expected divergence of a sample of the reference law of the ensemble's size, `(k - 1) / (2 n ln 2)`
+            for `k` outcomes and `n` runs, below which a divergence is sampling noise.
 
     Examples:
         >>> import numpy as np
@@ -250,6 +264,7 @@ class EntropyAnalysis(BaseAnalysis):
         measure: str = 'shannon',
         ties: str = 'order',
         random_state: int | None = None,
+        reference: npt.ArrayLike | None = None,
     ) -> None:
         self.kind = kind
         self.variables = variables
@@ -265,33 +280,14 @@ class EntropyAnalysis(BaseAnalysis):
         self.measure = measure
         self.ties = ties
         self.random_state = random_state
-
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [name for name, value in self.get_params().items() if name not in read and value != defaults[name]]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
+        self.reference = reference
 
     def _check(self) -> Self:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('measure', self.measure, MEASURES)
         self._check_choice('ties', self.ties, TIES)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if isinstance(self.dimension, tuple) and self.kind != 'permutation':
             error_msg = (
                 f'{type(self).__name__} has the window dimension={self.dimension!r}, which only the permutation kind '
@@ -304,6 +300,9 @@ class EntropyAnalysis(BaseAnalysis):
                 f'{type(self).__name__} has dimension={self.dimension!r} and delay={self.delay!r}. Use 1 or more.'
             )
             raise AnalysisError(error_msg)
+        if self.kind == 'ensemble' and self.reference is None:
+            error_msg = f'{type(self).__name__} of kind ensemble needs the reference law. Set `reference`.'
+            raise AnalysisError(error_msg)
         if self.tolerance <= 0 or self.base <= 0 or self.dt <= 0:
             error_msg = (
                 f'{type(self).__name__} has tolerance={self.tolerance!r}, base={self.base!r}, and dt={self.dt!r}. '
@@ -313,11 +312,21 @@ class EntropyAnalysis(BaseAnalysis):
         return self
 
     def _get_data_kind(self) -> DataKind:
-        """Return the field kind for windows of a field, and the series kind otherwise."""
+        """Return the ensemble kind for ensembles, the field kind for windows of a field, and the series kind else."""
+        if self.kind == 'ensemble':
+            return DataKind.ENSEMBLE
         return DataKind.FIELD if isinstance(self.dimension, tuple) else DataKind.SERIES
 
     def _prepare(self, source: Source) -> Self:
-        """Read the series of the source as columns, or the frames of a field for windows."""
+        """Read the series of the source as columns, the frames of a field for windows, or the runs of an ensemble."""
+        if self.kind == 'ensemble':
+            self.values_ = np.asarray(source, dtype=np.int64)
+            self.labels_ = ['ensemble']
+            law = np.asarray(self.reference, dtype=float)
+            if self.values_.min() < 0 or self.values_.max() >= law.size:
+                error_msg = f'Outcomes must lie between 0 and {law.size - 1}, the outcomes of the reference law.'
+                raise AnalysisError(error_msg)
+            return self
         if self._get_data_kind() == DataKind.FIELD:
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
@@ -388,8 +397,19 @@ class EntropyAnalysis(BaseAnalysis):
             return np.asarray(entropies, dtype=float)
         return float(antropy.spectral_entropy(array, sf=1 / self.dt, method='fft', normalize=self.normalize))
 
+    def _run_ensemble(self) -> Self:
+        """Compute the entropy of every frame of an ensemble and its divergence from the reference law."""
+        law = np.asarray(self.reference, dtype=float)
+        histograms = [np.bincount(frame, minlength=law.size) / frame.size for frame in self.values_.T]
+        self.entropy_ = np.asarray([_shannon(histogram, probabilities=True) for histogram in histograms])
+        self.divergence_ = np.asarray([stats.entropy(histogram, law, base=2) for histogram in histograms])
+        self.error_ = float((np.count_nonzero(law) - 1) / (2 * self.values_.shape[0] * np.log(2)))
+        return self
+
     def _run(self) -> Self:
-        """Compute the entropy of every series or frame."""
+        """Compute the entropy of every series or frame, or of every frame of an ensemble."""
+        if self.kind == 'ensemble':
+            return self._run_ensemble()
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
         self.entropy_ = np.asarray([self._compute(item) for item in items], dtype=float)
         return self

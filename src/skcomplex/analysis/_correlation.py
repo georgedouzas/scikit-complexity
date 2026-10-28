@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Sequence
 from typing import Self
 
@@ -15,7 +14,7 @@ from ..core.errors import AnalysisError
 from ..engine.runtime import Trajectory
 from ._base import BaseAnalysis, Source
 from ._kinds import DataKind
-from ._utils import is_changed, real_array
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 KINDS = ('auto', 'two-time', 'function', 'length')
@@ -266,33 +265,11 @@ class CorrelationAnalysis(BaseAnalysis):
         self.spacing = spacing
         self.frames = frames
 
-    def _check_choice(self, name: str, value: str, choices: tuple[str, ...]) -> None:
-        """Raise an error for a setting that is not one of its choices."""
-        if value not in choices:
-            error_msg = f'{type(self).__name__} has {name}={value!r}. Use one of {", ".join(choices)}.'
-            raise AnalysisError(error_msg)
-
-    def _check_ignored(self) -> None:
-        """Raise an error for a setting changed from its default that the kind does not read."""
-        defaults = {
-            name: parameter.default for name, parameter in inspect.signature(type(self).__init__).parameters.items()
-        }
-        read = SETTINGS[self.kind] | {'kind', 'variables'}
-        ignored = [
-            name for name, value in self.get_params().items() if name not in read and is_changed(value, defaults[name])
-        ]
-        if ignored:
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} does not read {", ".join(ignored)}. It reads '
-                f'{", ".join(sorted(SETTINGS[self.kind]))}.'
-            )
-            raise AnalysisError(error_msg)
-
     def _check(self) -> Self:
         """Validate the kind, the method, the settings the kind needs, and that the kind reads every changed one."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('method', self.method, METHODS)
-        self._check_ignored()
+        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.kind == 'two-time' and (self.waiting is None or self.lags is None):
             error_msg = f'{type(self).__name__} of kind two-time needs waiting times and lags. Give both in frames.'
             raise AnalysisError(error_msg)
