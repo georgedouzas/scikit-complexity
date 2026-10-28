@@ -75,10 +75,7 @@ class EarlyWarningAnalysis(RollingAnalysis):
         window: int | None = None,
         detrend: bool = True,
     ) -> None:
-        self.kind = 'autocorrelation'
-        self.variables = variables
-        self.window = window
-        self.detrend = detrend
+        super().__init__('autocorrelation', variables, window=window, detrend=detrend)
 
     def _run(self) -> Self:
         """Compute the rolling indicators of every series and their trends."""

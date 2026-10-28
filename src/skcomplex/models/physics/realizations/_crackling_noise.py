@@ -80,9 +80,7 @@ class CracklingNoiseAnalysis(EventAnalysis):
         size_exponent: float | None = None,
         duration_exponent: float | None = None,
     ) -> None:
-        self.kind = 'excursions'
-        self.variables = variables
-        self.threshold = threshold
+        super().__init__('excursions', variables, threshold=threshold)
         self.durations = durations
         self.min_count = min_count
         self.min_duration = min_duration

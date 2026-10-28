@@ -27,7 +27,4 @@ class MillingOrderAnalysis(AlignmentAnalysis):
     """
 
     def __init__(self, group: str | None = None) -> None:
-        self.kind = 'mean-rotation'
-        self.variables = None
-        self.group = group
-        self.vectors = False
+        super().__init__('mean-rotation', group=group)

@@ -30,6 +30,4 @@ class AvalancheAnalysis(EventAnalysis):
     """
 
     def __init__(self, variables: Sequence[str] | None = None, *, threshold: float = 0.0) -> None:
-        self.kind = 'excursions'
-        self.variables = variables
-        self.threshold = threshold
+        super().__init__('excursions', variables, threshold=threshold)

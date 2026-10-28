@@ -15,7 +15,6 @@ from ._alignment import AlignmentAnalysis
 from ._base import BaseAnalysis, Signature, Source
 from ._correlation import CorrelationAnalysis
 from ._distribution import DistributionAnalysis
-from ._fluctuations import FluctuationAnalysis
 from ._kinds import DataKind
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
@@ -30,7 +29,7 @@ class SignatureAnalysis(BaseAnalysis):
     """Default analysis of every kind of data of a trajectory, with its curves, axis labels, title, and values.
 
     A series gives its power spectrum with the autocorrelation time, or its return map for a map. A jump path gives
-    the survival function of its waiting times with the Fano factor of jumps per frame. A field gives the structure
+    the survival function of its waiting times with the dispersion index of jumps per frame. A field gives the structure
     factor of its last frame with the peak wavelength or the correlation length. Agents give their polar and milling
     orders over time, or their nearest-neighbour distances against the Poisson law. A network gives its degree
     distribution.
@@ -124,10 +123,10 @@ class SignatureAnalysis(BaseAnalysis):
         )
 
     def _get_path_signature(self) -> Signature:
-        """Return the survival function of the waiting times between jumps and the Fano factor of jump counts."""
+        """Return the survival function of the waiting times between jumps and the dispersion index of jump counts."""
         waiting = np.diff(self.path_.times)
         values = (
-            {'Fano factor of jumps per frame': FluctuationAnalysis._fano_factor(self.jumps_)}
+            {'dispersion index of jumps per frame': DistributionAnalysis._dispersion_index(self.jumps_)}
             if self.jumps_.mean() > 0
             else {}
         )

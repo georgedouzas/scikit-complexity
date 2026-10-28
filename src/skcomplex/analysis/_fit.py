@@ -1,4 +1,4 @@
-"""Fit laws to samples: power-law tails, stable laws, extreme-value laws, order exponents, and named laws."""
+"""Fit laws to samples: power-law tails, stable laws, extreme-value laws, and named laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,23 +26,24 @@ NAMED_LAWS = {
     'rayleigh': stats.rayleigh,
     'uniform': stats.uniform,
 }
-LAWS = ('power', 'stable', 'extreme-value', 'order-exponent', *NAMED_LAWS)
+LAWS = ('power', 'stable', 'extreme-value', *NAMED_LAWS)
 ALTERNATIVES = ('exponential', 'lognormal', 'stretched_exponential', 'truncated_power_law')
 SETTINGS = {
     'power': {'minimum', 'maximum', 'discrete', 'bootstrap', 'candidates', 'compare_with', 'random_state'},
     'stable': set(),
     'extreme-value': {'block'},
-    'order-exponent': {'parameters', 'critical', 'above'},
     **{law: {'fixed', 'simulations', 'random_state'} for law in NAMED_LAWS},
 }
-"""Settings every law reads, besides `law` and `variables`."""
+"""Settings every law reads, besides `law`, `variables`, and `group`."""
 MIN_TAIL = 10
 MIN_BLOCKS = 10
-MIN_POINTS = 2
 
 
 class FitAnalysis(BaseAnalysis):
     """Law fitted to the values of a source, pooled into one sample.
+
+    The source gives the series of a trajectory or an array, or the speeds of the agents of a trajectory at every
+    frame.
 
     The laws are:
 
@@ -55,8 +56,6 @@ class FitAnalysis(BaseAnalysis):
     - `'stable'`: the Lévy stable law fitted by McCulloch's quantile method, in SciPy's `S1` parameterization.
     - `'extreme-value'`: the generalized extreme-value law fitted by maximum likelihood to the maxima of blocks of
       `block` samples.
-    - `'order-exponent'`: the exponent `beta` of an order parameter `m ~ |p - p_c|^beta` on the ordered side of a
-      transition, from the order parameter at every value of `parameters`.
     - `'exponential'`, `'normal'`, `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'`: the named law
       with its free parameters fitted, tested with a Monte Carlo Kolmogorov-Smirnov test that accounts for the fit.
 
@@ -66,6 +65,10 @@ class FitAnalysis(BaseAnalysis):
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
+
+        group:
+            The path of the agent or particle group whose speeds are read, or `None` for the series of a trajectory, or
+            the first group of a trajectory without series.
 
         minimum:
             A fixed lower cutoff of the power law, or `None` to choose it.
@@ -89,16 +92,6 @@ class FitAnalysis(BaseAnalysis):
         block:
             The number of samples per block of the extreme-value law.
 
-        parameters:
-            The control parameter value of every order parameter value.
-
-        critical:
-            The critical value of the control parameter.
-
-        above:
-            Whether the ordered side lies above the critical value, as for couplings, rather than below it, as for
-            temperatures.
-
         fixed:
             The parameters of a named law held fixed by SciPy name, such as `{'loc': 0}`, or `None` to fit all.
 
@@ -116,7 +109,7 @@ class FitAnalysis(BaseAnalysis):
             The label of every series.
 
         exponent_:
-            The exponent `alpha` of the density of the power law, or the exponent `beta` of the order parameter.
+            The exponent `alpha` of the density of the power law.
 
         minimum_:
             The lower cutoff of the power law.
@@ -178,6 +171,7 @@ class FitAnalysis(BaseAnalysis):
         law: str = 'power',
         variables: Sequence[str] | None = None,
         *,
+        group: str | None = None,
         minimum: float | None = None,
         maximum: float | None = None,
         discrete: bool = False,
@@ -185,15 +179,13 @@ class FitAnalysis(BaseAnalysis):
         candidates: int = 50,
         compare_with: Sequence[str] = ALTERNATIVES,
         block: int | None = None,
-        parameters: npt.ArrayLike | None = None,
-        critical: float | None = None,
-        above: bool = False,
         fixed: Mapping[str, float] | None = None,
         simulations: int = 199,
         random_state: int | None = 0,
     ) -> None:
         self.law = law
         self.variables = variables
+        self.group = group
         self.minimum = minimum
         self.maximum = maximum
         self.discrete = discrete
@@ -201,9 +193,6 @@ class FitAnalysis(BaseAnalysis):
         self.candidates = candidates
         self.compare_with = compare_with
         self.block = block
-        self.parameters = parameters
-        self.critical = critical
-        self.above = above
         self.fixed = fixed
         self.simulations = simulations
         self.random_state = random_state
@@ -219,25 +208,19 @@ class FitAnalysis(BaseAnalysis):
                 f'{type(self).__name__} has compare_with={self.compare_with!r}. Use some of {", ".join(ALTERNATIVES)}.'
             )
             raise AnalysisError(error_msg)
-        self._check_settings('law', SETTINGS[self.law] | {'variables'})
+        self._check_settings('law', SETTINGS[self.law] | {'variables', 'group'})
         if self.law == 'extreme-value' and self.block is None:
             error_msg = f'{type(self).__name__} of law {self.law!r} needs the number of samples per block. Set `block`.'
-            raise AnalysisError(error_msg)
-        if self.law == 'order-exponent' and (self.parameters is None or self.critical is None):
-            error_msg = (
-                f'{type(self).__name__} of law {self.law!r} needs the control parameter values and the critical value. '
-                'Set `parameters` and `critical`.'
-            )
             raise AnalysisError(error_msg)
         return self
 
     def _get_data_kind(self) -> DataKind:
-        """Return the ensemble kind for an order exponent over a sweep, and the series kind otherwise."""
-        return DataKind.ENSEMBLE if self.law == 'order-exponent' else DataKind.SERIES
+        """Return the series kind."""
+        return DataKind.SERIES
 
     def _prepare(self, source: Source) -> Self:
-        """Read the series of the source pooled into one sample."""
-        series = self._read_series(source, self.variables)
+        """Read the samples of the source pooled into one sample."""
+        series = self._read_samples_of(source, self.variables, self.group)
         self.values_ = self._read_real(series.values, 'values').ravel()
         self.labels_ = series.labels
         return self
@@ -302,19 +285,6 @@ class FitAnalysis(BaseAnalysis):
         shape, location, scale = stats.genextreme.fit(self.maxima_)
         self.shape_, self.location_, self.scale_ = float(-shape), float(location), float(scale)
 
-    def _run_order_exponent(self) -> None:
-        """Fit the exponent of the order parameter against the distance to the critical value on the ordered side."""
-        grid = np.asarray(self.parameters, dtype=float)
-        distance = grid - self.critical if self.above else self.critical - grid
-        ordered = (distance > 0) & (self.values_ > 0)
-        if ordered.sum() < MIN_POINTS:
-            error_msg = (
-                f'Fewer than {MIN_POINTS} values with a positive order lie on the ordered side of {self.critical}. '
-                'Give values on the ordered side, or set `above`.'
-            )
-            raise AnalysisError(error_msg)
-        self.exponent_ = float(np.polyfit(np.log(distance[ordered]), np.log(self.values_[ordered]), 1)[0])
-
     def _run_named_law(self) -> None:
         """Fit the free parameters of a named law and test the sample against it."""
         result = stats.goodness_of_fit(
@@ -341,8 +311,6 @@ class FitAnalysis(BaseAnalysis):
             self.location_, self.scale_ = float(location), float(scale)
         elif self.law == 'extreme-value':
             self._run_extreme_value()
-        elif self.law == 'order-exponent':
-            self._run_order_exponent()
         else:
             self._run_named_law()
         return self

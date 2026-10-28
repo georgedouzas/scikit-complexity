@@ -1,16 +1,16 @@
-"""Test the collapse analysis of finite-size scaling, aging correlations, and distributions scaled by age."""
+"""Test the collapse analysis of finite-size scaling, aging, distributions scaled by age, and crossings."""
 
 import math
 
 import numpy as np
 import pytest
 
-from skcomplex.analysis import BinderAnalysis, ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis
+from skcomplex.analysis import ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, DistributionAnalysis
 from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
-from .conftest import ISING_TEMPERATURES
+from .conftest import ISING_SIZES, ISING_TEMPERATURES
 
 CRITICAL = 2 / math.log(1 + math.sqrt(2))
 PERCOLATION = 0.5927
@@ -22,13 +22,10 @@ def _collapse(kind: str, source: object, **settings: object) -> CollapseAnalysis
 
 
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
-    """Return the susceptibility of every size at every temperature."""
+    """Return the susceptibility `N var(|m|) / T` of every size at every temperature."""
+    moments = DistributionAnalysis('moments', absolute=True).check()
     return {
-        side: BinderAnalysis('sweep', parameters=ISING_TEMPERATURES, size=side**2, temperatures=ISING_TEMPERATURES)
-        .check()
-        .prepare(np.column_stack(samples))
-        .run()
-        .susceptibility_
+        side: side**2 * moments.prepare(np.column_stack(samples)).run().variance_ / np.asarray(ISING_TEMPERATURES)
         for side, samples in magnetizations.items()
     }
 
@@ -125,6 +122,22 @@ def test_collapse_distributions_trap_model():
     assert collapse.densities_.shape == (3, 4)
 
 
+def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizations):
+    """Test that the moment-ratio cumulants of Ising lattices of sides 16, 32, and 64 cross within 1 percent of T_c."""
+    ratio = DistributionAnalysis('moment-ratio').check()
+    cumulants = {
+        side: ratio.prepare(np.column_stack(ising_magnetizations[side])).run().cumulant_ for side in ISING_SIZES
+    }
+    crossings = _collapse('crossings', cumulants, parameters=ISING_TEMPERATURES).crossings_
+    np.testing.assert_allclose(crossings, CRITICAL, rtol=0.01)
+    np.testing.assert_array_equal(
+        _collapse('crossings', [cumulants[side] for side in ISING_SIZES], parameters=ISING_TEMPERATURES).crossings_,
+        crossings,
+    )
+    with pytest.raises(AnalysisError, match='at least 2 sizes'):
+        _collapse('crossings', {16: cumulants[16]}, parameters=ISING_TEMPERATURES)
+
+
 def test_unknown_kind_ignored_setting_and_missing_settings():
     """Test that an unknown kind, an ignored setting, and missing settings raise errors."""
     with pytest.raises(AnalysisError, match='scaling, aging, distribution'):
@@ -133,5 +146,7 @@ def test_unknown_kind_ignored_setting_and_missing_settings():
         CollapseAnalysis('aging', waiting=[1], lags=[1], ratios=[0.1, 1.0]).check()
     with pytest.raises(AnalysisError, match='needs parameters, critical, and nu'):
         CollapseAnalysis('scaling').check()
+    with pytest.raises(AnalysisError, match='crossings needs the control parameter values'):
+        CollapseAnalysis('crossings').check()
     with pytest.raises(AnalysisError, match="fit='gamma'"):
         CollapseAnalysis(parameters=[0.0], critical=0.0, nu=1.0, fit=('gamma',)).check()
