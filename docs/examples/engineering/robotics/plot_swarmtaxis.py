@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=15, observers=[observer]).run(until=3000)
+simulation = Simulation(system, dt=15, observers=[observer]).check().run(until=3000)
 
 # %%
 # Drift towards the beacon

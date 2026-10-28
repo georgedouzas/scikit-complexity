@@ -683,7 +683,7 @@ class MesaSolver(Solver):
         ...     def tick(self, agent, model):
         ...         agent.count += 1
         >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> trajectory = Simulation(system, solver=MesaSolver()).run(until=4).trajectory_
+        >>> trajectory = Simulation(system, solver=MesaSolver()).check().run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """

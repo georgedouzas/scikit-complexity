@@ -67,7 +67,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).run(until=100)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=100)
 rotations = np.linspace(0.0, 1.0, 201)
 critical = winding_numbers(rotations, K=1.0)
 points = np.column_stack([100 * rotations, -100 * critical])

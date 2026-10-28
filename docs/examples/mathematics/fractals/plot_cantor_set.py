@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), observers=[observer]).run(8)
+simulation = Simulation(create(MODEL), observers=[observer]).check().run(8)
 trajectory = simulation.trajectory_
 stack = np.zeros((490, 729, 3), dtype=np.uint8)
 for generation in range(7):

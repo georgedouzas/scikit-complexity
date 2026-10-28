@@ -31,7 +31,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, random_state=0), dt=1, observers=[observer], random_state=0).run(until=200)
+simulation = (
+    Simulation(create(MODEL, random_state=0), dt=1, observers=[observer], random_state=0)
+    .check()
+    .run(until=200)
+)
 landscape = np.random.default_rng(0)
 zero_values, one_values = landscape.random(8), landscape.random(8)
 trajectory = simulation.trajectory_

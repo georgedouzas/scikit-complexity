@@ -25,7 +25,10 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
     critical = control / (1 + control) ** 2
     system = perishable_goods_duopoly(200, stock=0.5, tau_a=1.0, T=ratio * critical, random_state=0)
     asymmetry = np.abs(
-        Simulation(system, random_state=0, observables=describe('perishable_goods_duopoly').observables_of(system))
+        (
+            Simulation(system, random_state=0, observables=describe('perishable_goods_duopoly').observables_of(system))
+            .check()
+        )
         .run(until=300)
         .trajectory_.values('m')[-50:],
     ).mean()

@@ -23,7 +23,7 @@ def _clusters(opinions, gap):
 def test_hegselmann_krause_freezes_into_clusters_of_the_confidence(confidence, clusters):
     """Test that the opinions settle into about `1 / (2 ε)` clusters that stop moving."""
     system = hegselmann_krause(300, confidence=confidence)
-    opinions = Simulation(system, random_state=0).run(until=40).trajectory_.values('people.opinion')
+    opinions = Simulation(system, random_state=0).check().run(until=40).trajectory_.values('people.opinion')
     found = np.unique(np.round(opinions[-1], 6))
     assert abs(found.size - clusters) <= 1
     assert np.allclose(opinions[-1], opinions[-2], atol=1e-12)

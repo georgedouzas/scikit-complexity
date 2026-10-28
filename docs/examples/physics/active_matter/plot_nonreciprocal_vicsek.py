@@ -45,7 +45,7 @@ simulation = Simulation(
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
-).run(
+).check().run(
     until=250,
 )
 
@@ -66,7 +66,7 @@ def headings(coupling):
         backend=NumbaBackend(),
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
-    ).run(until=300)
+    ).check().run(until=300)
     return run.trajectory_.times, run.trajectory_.values('heading_a'), run.trajectory_.values('heading_b')
 
 

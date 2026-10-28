@@ -44,7 +44,7 @@ simulation = Simulation(
     solver=RK4Solver(dt=0.005),
     observers=[observer],
     observables=describe(MODEL).observables_of(system),
-).run(until=20)
+).check().run(until=20)
 
 # %%
 # From one Kepler orbit to another

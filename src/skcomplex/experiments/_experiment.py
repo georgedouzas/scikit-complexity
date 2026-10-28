@@ -304,7 +304,7 @@ class Experiment(BaseExperiment):
             random_state=np.random.default_rng(task.seed),
             schedule=Experiment._schedule(problem, task.scenario),
             **task.settings,
-        )
+        ).check()
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
         if task.outputs is not None:

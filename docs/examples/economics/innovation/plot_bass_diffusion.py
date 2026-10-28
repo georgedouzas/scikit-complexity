@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).run(20)
+simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).check().run(20)
 
 # %%
 # The closed-form Bass curve

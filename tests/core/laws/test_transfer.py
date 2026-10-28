@@ -153,7 +153,7 @@ class LedgerElement(Element):
 @pytest.mark.parametrize('time', [None, DiscreteTime()])
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
-    trajectory = Simulation(System(elements=[TanksElement('t')], time=time), dt=1.0).run(until=5).trajectory_
+    trajectory = Simulation(System(elements=[TanksElement('t')], time=time), dt=1.0).check().run(until=5).trajectory_
     np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
     assert trajectory.values('t.a')[-1] < 3.0
 
@@ -178,7 +178,7 @@ def test_transfer_from_the_environment_takes_a_source():
             """Return the laws of the filled element."""
             return [TransferLaw(Source(), s.n, 1.0, label='inflow')]
 
-    trajectory = Simulation(System(elements=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
+    trajectory = Simulation(System(elements=[FilledElement('f')]), dt=1.0).check().run(until=3).trajectory_
     assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
     with pytest.raises(ValidationError, match='or `Source\\(\\)`, but got None'):
         TransferLaw(None, var('n'), 1.0).check()
@@ -186,7 +186,7 @@ def test_transfer_from_the_environment_takes_a_source():
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
-    trajectory = Simulation(System(elements=[TubElement('tub')]), dt=1).run(30).trajectory_
+    trajectory = Simulation(System(elements=[TubElement('tub')]), dt=1).check().run(30).trajectory_
     assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
     assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
     assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
@@ -272,7 +272,7 @@ def test_flow_holders_and_labels_are_checked():
 
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
-    trajectory = Simulation(System(elements=[LedgerElement('ledger')]), dt=1).run(5).trajectory_
+    trajectory = Simulation(System(elements=[LedgerElement('ledger')]), dt=1).check().run(5).trajectory_
     assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
     assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
@@ -302,7 +302,7 @@ def test_jump_flows_move_their_size_at_random_times():
             return [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')]
 
     jumping = JumpingElement
-    trajectory = Simulation(System(elements=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
+    trajectory = Simulation(System(elements=[jumping('j')]), dt=1, random_state=0).check().run(10).trajectory_
     assert np.all(trajectory.values('j.a') + trajectory.values('j.b') == 50.0)
     assert trajectory.values('j.b')[-1] > 0
 
@@ -313,7 +313,7 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
     analysis = LoopAnalysis().check().prepare(system).run()
     found = dict(zip(analysis.loops_, analysis.polarities_, strict=True))
     assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.births'): 'reinforcing'}
-    trajectory = Simulation(system, dt=1).run(5).trajectory_
+    trajectory = Simulation(system, dt=1).check().run(5).trajectory_
     dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
     assert dominance.gains_[-1] == pytest.approx([0.03, -0.01])
     assert dominance.polarities_[int(dominance.dominant_[-1])] == 'reinforcing'
@@ -330,4 +330,4 @@ def test_conservation_returns_the_boundary_flows():
 def test_monitor_detects_drift_beyond_the_flows():
     """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
     with pytest.raises(ConservationError, match="'water' drifted"):
-        Simulation(System(elements=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
+        Simulation(System(elements=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).check().run(5)

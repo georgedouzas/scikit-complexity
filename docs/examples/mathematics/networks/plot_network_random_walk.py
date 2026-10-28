@@ -31,7 +31,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, graph=graph, n_walkers=200), dt=1, observers=[observer], random_state=0)
+simulation = Simulation(create(MODEL, graph=graph, n_walkers=200), dt=1, observers=[observer], random_state=0).check()
 simulation.run(until=200)
 trajectory = simulation.trajectory_
 layout = nx.spring_layout(graph, seed=1)

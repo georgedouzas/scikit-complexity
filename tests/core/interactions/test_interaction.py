@@ -191,7 +191,7 @@ def test_group_of_members_grows_like_one_member():
         elements=[GroupElement('herd', element=StockElement, size=100, values={'n': np.linspace(1, 2, 100)})],
         interactions=[GrowthInteraction('g', target='herd')],
     )
-    trajectory = Simulation(system, dt=1).run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1).check().run(until=1).trajectory_
     assert trajectory.values('herd.n').shape == (2, 100)
     assert np.allclose(trajectory.values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
 
@@ -242,7 +242,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
 def test_correlated_noise():
     """Test that two noise laws drawing the processes of a set bound to a role have the increments `h C`."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
-    simulation = Simulation(_correlated(covariance), solver=EulerMaruyamaSolver(dt=0.5), random_state=0, dt=0.5)
+    simulation = Simulation(_correlated(covariance), solver=EulerMaruyamaSolver(dt=0.5), random_state=0, dt=0.5).check()
     trajectory = simulation.run(until=5_000).trajectory_
     increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), 0.5 * np.asarray(covariance), atol=0.05)
@@ -252,7 +252,12 @@ def test_correlated_noise():
 def test_interactions_share_processes_of_one_label():
     """Test that two interactions that bind processes of one label draw the same increments."""
     market = WienerProcessSpec('market')
-    trajectory = Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0).run(until=1).trajectory_
+    trajectory = (
+        Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0)
+        .check()
+        .run(until=1)
+        .trajectory_
+    )
     np.testing.assert_array_equal(trajectory.values('a.n'), trajectory.values('b.n'))
     assert compile_system(_shocked(market, market)).n_processes == 1
 

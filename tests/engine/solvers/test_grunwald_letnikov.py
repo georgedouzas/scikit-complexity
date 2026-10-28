@@ -203,7 +203,7 @@ def test_ordinary_stepper_rejects_fractional_form():
 
 def test_simulation_runs_fractional_system_with_default_solver():
     """Test that a simulation runs a fractional system with the fractional predictor-corrector by default."""
-    simulation = Simulation(System(elements=[RelaxingElement('a')]), dt=0.5).run(until=5.0)
+    simulation = Simulation(System(elements=[RelaxingElement('a')]), dt=0.5).check().run(until=5.0)
     assert isinstance(simulation.stepper_, FractionalABMSolver)
     exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
@@ -214,7 +214,7 @@ def test_cosimulation_runs_fractional_partition():
     system = System(
         systems=[System('memory', elements=[RelaxingElement('a')]), System('steps', elements=[CounterElement('c')])],
     )
-    simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).run(until=5.0)
+    simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).check().run(until=5.0)
     forms = {partition.name: partition.problem.form for partition in simulation.problem_.partitions}
     assert forms == {'memory': Form.FRACTIONAL, 'steps': Form.DISCRETE}
     exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))

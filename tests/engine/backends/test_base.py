@@ -229,7 +229,11 @@ def test_compile_auto_backend_depends_on_group_size():
 
 def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
-    simulation = Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).run(until=2)
+    simulation = (
+        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend)
+        .check()
+        .run(until=2)
+    )
     assert simulation.problem_.backend == 'numba'
     assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
 
@@ -317,7 +321,12 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             """Return the laws of the pair element."""
             return [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))]
 
-    trajectory = Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend()).run(until=4).trajectory_
+    trajectory = (
+        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend())
+        .check()
+        .run(until=4)
+        .trajectory_
+    )
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
@@ -387,7 +396,7 @@ def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_p
         from skcomplex.engine.runtime import Simulation
         from skcomplex.models.physics.active_matter import nonreciprocal_vicsek
         backend = NumbaBackend(cache_dir={str(tmp_path)!r})
-        run = Simulation(nonreciprocal_vicsek(40), dt=1.0, backend=backend, random_state=0).run(until=5)
+        run = Simulation(nonreciprocal_vicsek(40), dt=1.0, backend=backend, random_state=0).check().run(until=5)
         print(run.trajectory_.states[-1].sum())
         """,
     )
@@ -439,7 +448,11 @@ def test_rk4_matches_exponential(backend, numba_backend):
 def test_compiled_gillespie_is_reproducible(numba_backend):
     """Test that the compiled Gillespie loop gives equal trajectories for equal random states."""
     runs = [
-        Simulation(_epidemic(), solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0).run(until=30)
+        (
+            Simulation(_epidemic(), solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0)
+            .check()
+            .run(until=30)
+        )
         for _ in range(2)
     ]
     assert runs[0].problem_.accelerated is not None
@@ -450,7 +463,11 @@ def test_compiled_gillespie_is_reproducible(numba_backend):
 def test_compiled_gillespie_negative_propensity_raises_error(numba_backend):
     """Test that a negative propensity in the compiled loop raises a solver error."""
     with pytest.raises(SolverError, match='non-negative'):
-        Simulation(_herds(DecayInteraction('decay', target='herds')), backend=numba_backend, dt=1.0).run(until=1)
+        (
+            Simulation(_herds(DecayInteraction('decay', target='herds')), backend=numba_backend, dt=1.0)
+            .check()
+            .run(until=1)
+        )
 
 
 def test_compiled_euler_maruyama_is_reproducible(numba_backend):
@@ -462,7 +479,7 @@ def test_compiled_euler_maruyama_is_reproducible(numba_backend):
             backend=numba_backend,
             dt=0.1,
             random_state=5,
-        ).run(until=2)
+        ).check().run(until=2)
         for _ in range(2)
     ]
     assert np.array_equal(runs[0].trajectory_.states, runs[1].trajectory_.states)
@@ -472,7 +489,15 @@ def test_compiled_euler_maruyama_is_reproducible(numba_backend):
 def test_compiled_iteration_matches_numpy(numba_backend):
     """Test that the compiled discrete loop matches the NumPy loop."""
     results = [
-        Simulation(_herds(HalvingInteraction('half', target='herds')), solver=IterationSolver(), backend=backend, dt=3)
+        (
+            Simulation(
+                _herds(HalvingInteraction('half', target='herds')),
+                solver=IterationSolver(),
+                backend=backend,
+                dt=3,
+            )
+            .check()
+        )
         .run(until=9)
         .trajectory_.states
         for backend in (NumpyBackend(), numba_backend)
@@ -493,7 +518,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         solver=VelocityVerletSolver(dt=0.01),
         backend=numba_backend if backend == 'numba' else NumpyBackend(),
         dt=10.0,
-    )
+    ).check()
     trajectory = simulation.run(until=1000).trajectory_
     energy = 0.5 * trajectory.values('p.v')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
@@ -502,7 +527,9 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
 def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
     with pytest.raises(SolverError, match=r'herds\.n are neither'):
-        Simulation(_herds(CompiledGrowthInteraction('growth', target='herds')), solver=VelocityVerletSolver()).run(
+        Simulation(
+            _herds(CompiledGrowthInteraction('growth', target='herds')), solver=VelocityVerletSolver(),
+        ).check().run(
             until=1,
         )
 

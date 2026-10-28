@@ -179,7 +179,7 @@ class BaseExperiment(BaseConfig, ABC):
             dt=step,
             random_state=random_state,
             **options,
-        )
+        ).check()
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod

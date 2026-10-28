@@ -39,5 +39,5 @@ def test_word_is_drawn_as_its_geometry():
 
 def test_word_is_rewritten_in_parallel():
     """Test that a word is rewritten by its productions at every step, its size growing as the Fibonacci numbers."""
-    trajectory = Simulation(System(elements=[AlgaeElement('algae', axiom='A')])).run(until=4).trajectory_
+    trajectory = Simulation(System(elements=[AlgaeElement('algae', axiom='A')])).check().run(until=4).trajectory_
     assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]

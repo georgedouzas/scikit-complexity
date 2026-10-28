@@ -149,14 +149,14 @@ def test_invariant_of_agents_names_the_observable_and_the_change():
         System(elements=[GroupElement('banks', element=BankElement, size=1)]),
         observables=[balance],
         invariants={'balance': 1e-9},
-    )
+    ).check()
     with pytest.raises(ConservationError, match='invariant balance changed from 0 to -1 at frame 1'):
         simulation.run(2)
 
 
 def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
     """Test that removed firms settle their debt with transfers and total loans stay zero."""
-    trajectory = Simulation(_credit_system(settles=True)).run(1).trajectory_
+    trajectory = Simulation(_credit_system(settles=True)).check().run(1).trajectory_
     assert trajectory.agents('lenders', 1).values['loans'].tolist() == [0.0]
     assert len(trajectory.agents('firms', 1).values['loans']) == 0
 
@@ -164,7 +164,7 @@ def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
 def test_removing_an_unsettled_agent_destroys_its_holdings():
     """Test that removing a firm that still owes raises a conservation error."""
     with pytest.raises(ConservationError, match='Settle its holdings'):
-        Simulation(_credit_system(settles=False)).run(1)
+        Simulation(_credit_system(settles=False)).check().run(1)
 
 
 def test_transfer_moves_between_states_and_checks_names():
@@ -186,7 +186,7 @@ def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated)
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )
     total = ObservableSpec('total_money', group='holders', variable='money', reduce='sum')
-    simulation = Simulation(system, observables=[total], invariants={'total_money': 1e-9})
+    simulation = Simulation(system, observables=[total], invariants={'total_money': 1e-9}).check()
     if violated:
         with pytest.raises(ConservationError, match='invariant total_money'):
             simulation.run(3)

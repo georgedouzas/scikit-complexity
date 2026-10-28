@@ -107,7 +107,7 @@ class LammpsSolver(ExternalSolver):
         ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> solver = LammpsSolver(dt=0.005)
-        >>> trajectory = Simulation(system, solver=solver, dt=0.1).run(until=0.5).trajectory_
+        >>> trajectory = Simulation(system, solver=solver, dt=0.1).check().run(until=0.5).trajectory_
         >>> positions = trajectory.values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True

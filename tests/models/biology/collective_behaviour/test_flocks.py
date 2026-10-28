@@ -14,7 +14,7 @@ from skcomplex.models.biology.collective_behaviour import (
 
 def test_boids_align():
     """Test that boids starting with random headings become a polarized flock."""
-    simulation = Simulation(boids(), dt=1, random_state=0).run(until=100)
+    simulation = Simulation(boids(), dt=1, random_state=0).check().run(until=100)
 
     def polarization(frame):
         snapshot = simulation.trajectory_.agents('flock', frame)
@@ -27,7 +27,7 @@ def test_boids_align():
 
 def test_bird_swarm_flies_together():
     """Test that the swarm reaches the speed `sqrt(alpha / beta)` and stays together."""
-    trajectory = Simulation(bird_swarm(), dt=0.5).run(until=50).trajectory_
+    trajectory = Simulation(bird_swarm(), dt=0.5).check().run(until=50).trajectory_
     positions, velocities = trajectory.values('birds.x')[-1], trajectory.values('birds.v')[-1]
     speeds = np.hypot(velocities[:, 0], velocities[:, 1])
     assert np.median(speeds) == pytest.approx(math.sqrt(2.0), rel=0.1)

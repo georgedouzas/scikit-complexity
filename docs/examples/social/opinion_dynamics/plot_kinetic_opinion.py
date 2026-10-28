@@ -35,7 +35,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL)
-simulation = Simulation(system, observers=[observer], dt=0.5, observables=describe(MODEL).observables_of(system)).run(
+simulation = Simulation(
+    system, observers=[observer], dt=0.5, observables=describe(MODEL).observables_of(system),
+).check().run(
     until=60,
 )
 
@@ -50,7 +52,11 @@ simulation = Simulation(system, observers=[observer], dt=0.5, observables=descri
 def final_distribution(confidence, repulsion):
     """Return the final distribution and variance of the opinions for a confidence and a repulsion."""
     model_system = create(MODEL, confidence=confidence, repulsion=repulsion)
-    run = Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system)).run(until=60)
+    run = (
+        Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system))
+        .check()
+        .run(until=60)
+    )
     return run.trajectory_.values('opinions.f')[-1], run.trajectory_.values('opinion_variance')[-1]
 
 

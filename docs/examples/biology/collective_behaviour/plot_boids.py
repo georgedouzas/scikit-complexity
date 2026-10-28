@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_boids=150, size=40.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=200)
 
 # %%
 # Polarization

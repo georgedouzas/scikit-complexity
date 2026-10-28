@@ -28,7 +28,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, theta1=0.2, theta2=0.0, k=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=50)
 
 # %%
 # Normal modes and beats

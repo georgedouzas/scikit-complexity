@@ -24,7 +24,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
             built := oscillator_death(100, K=3.0, width=1.5),
             dt=0.5,
             observables=describe('oscillator_death').observables_of(built),
-        )
+        ).check()
         .run(until=20)
         .trajectory_
     )
@@ -37,7 +37,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
             built := oscillator_death(100, K=3.0, width=0.5),
             dt=0.5,
             observables=describe('oscillator_death').observables_of(built),
-        )
+        ).check()
         .run(until=20)
         .trajectory_
     )
@@ -50,13 +50,13 @@ def test_oscillator_death_follows_quartic_threshold():
     above = oscillator_death(100, K=2.0, width=1.2 * critical, distribution='quartic')
     below = oscillator_death(100, K=2.0, width=0.8 * critical, distribution='quartic')
     assert (
-        Simulation(above, dt=0.5, observables=describe('oscillator_death').observables_of(above))
+        Simulation(above, dt=0.5, observables=describe('oscillator_death').observables_of(above)).check()
         .run(until=40)
         .trajectory_.values('amplitude')[-1]
         < 1e-3
     )
     assert (
-        Simulation(below, dt=0.5, observables=describe('oscillator_death').observables_of(below))
+        Simulation(below, dt=0.5, observables=describe('oscillator_death').observables_of(below)).check()
         .run(until=40)
         .trajectory_.values('amplitude')[-1]
         > 0.3
@@ -77,7 +77,7 @@ def test_heterogeneous_global_coupling_restabilizes_fixed_point():
             built := heterogeneous_global_coupling(100, k=k),
             dt=0.5,
             observables=describe('heterogeneous_global_coupling').observables_of(built),
-        )
+        ).check()
         .run(until=60)
         .trajectory_.values('amplitude')[-1]
         for k in (0.0, 2.0, 15.0)
@@ -95,7 +95,7 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
     roots = [nu - 2.0 + sign * np.sqrt(4.0 + variance * nu**2) for sign in (1, -1)]
     predicted = max(root.real for root in roots)
     trajectory = (
-        Simulation(system, dt=0.5, observables=describe('heterogeneous_global_coupling').observables_of(system))
+        Simulation(system, dt=0.5, observables=describe('heterogeneous_global_coupling').observables_of(system)).check()
         .run(until=60)
         .trajectory_
     )

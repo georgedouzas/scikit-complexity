@@ -56,7 +56,7 @@ def test_simultaneous_imitation():
         space=LatticeSpace((width, 1), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('imitation', activation='simultaneous')])),
     )
-    trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
+    trajectory = Simulation(system, random_state=0).check().run(until=3).trajectory_
     for frame in range(4):
         players = trajectory.agents('players', frame)
         order = np.argsort(np.asarray(players.locations)[:, 0])
