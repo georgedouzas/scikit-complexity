@@ -28,28 +28,10 @@ from ._frames import Frame
 from ._observers import BaseObserver, RecorderObserver
 from ._trajectories import Trajectory
 
-DEFAULT_DT = 0.01
-MAX_FRAMES = 1000
-FRAME_MANTISSAS = (1, 2, 5)
+_DEFAULT_DT = 0.01
+_MAX_FRAMES = 1000
+_FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
-
-
-def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
-    """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
-    return tuple(partition.problem for partition in problem.partitions)
-
-
-def _default_dt(until: float) -> float:
-    """Return the smallest of 0.01, 0.02, 0.05, 0.1, and so on, that keeps a run until a time at most 1000 frames."""
-    if not math.isfinite(until):
-        return DEFAULT_DT
-    exponent = round(math.log10(DEFAULT_DT))
-    while True:
-        for mantissa in FRAME_MANTISSAS:
-            dt = float(f'{mantissa}e{exponent}')
-            if until / dt <= MAX_FRAMES * (1 + TIME_TOLERANCE):
-                return dt
-        exponent += 1
 
 
 class Simulation(BaseEstimator):
@@ -182,9 +164,9 @@ class Simulation(BaseEstimator):
 
     def _check_dt(self, problem: BaseProblem, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
-        forms = {problem.form, *(item.form for item in _partition_problems(problem))}
+        forms = {problem.form, *(item.form for item in self._partition_problems(problem))}
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
-        default = 1.0 if stepwise else _default_dt(until)
+        default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt
         if not contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
@@ -372,7 +354,7 @@ class Simulation(BaseEstimator):
 
     def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
         """Raise an error when parameter changes would break a transition or emission matrix."""
-        problems = (self.problem_, *_partition_problems(self.problem_))
+        problems = (self.problem_, *self._partition_problems(self.problem_))
         matrices = [matrix for problem in problems for matrix in problem.matrices]
         if not matrices:
             return
@@ -558,3 +540,21 @@ class Simulation(BaseEstimator):
             error_msg = 'The simulation does not record frames. Create it with `record=True`.'
             raise SimulationError(error_msg)
         return self.recorder_.trajectory_
+
+    @staticmethod
+    def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
+        """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
+        return tuple(partition.problem for partition in problem.partitions)
+
+    @staticmethod
+    def _default_dt(until: float) -> float:
+        """Return the smallest of 0.01, 0.02, 0.05, 0.1, and so on, that keeps a run until a time within 1000 frames."""
+        if not math.isfinite(until):
+            return _DEFAULT_DT
+        exponent = round(math.log10(_DEFAULT_DT))
+        while True:
+            for mantissa in _FRAME_MANTISSAS:
+                dt = float(f'{mantissa}e{exponent}')
+                if until / dt <= _MAX_FRAMES * (1 + TIME_TOLERANCE):
+                    return dt
+            exponent += 1
