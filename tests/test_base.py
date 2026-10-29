@@ -22,14 +22,12 @@ class ScalingConfig(BaseConfig):
         if self.factor == 0:
             msg = 'factor'
             raise ValueError(msg)
-        return self
 
     def _prepare(self, context):
         self.offset_ = 0 if context is None else context
-        return self
 
     def _run(self, inputs):
-        return self.factor * inputs + self.offset_
+        self.scaled_ = self.factor * inputs + self.offset_
 
     def _release(self):
         self.released_ = True
@@ -39,7 +37,8 @@ def test_verbs_check_prepare_and_run():
     """Test that checking, preparing against a context, and running act through the hooks."""
     config = ScalingConfig(3).check().prepare(1)
     assert config.offset_ == 1
-    assert config.run(2) == 7
+    assert config.run(2) is config
+    assert config.scaled_ == 7
 
 
 def test_check_runs_the_check_hook():
@@ -65,13 +64,12 @@ def test_final_run_releases():
     assert config.released_
 
 
-def test_hooks_of_the_root_do_nothing():
-    """Test that a child overriding no hook checks, prepares, and runs to nothing."""
-
-    class EmptyConfig(BaseConfig):
-        pass
-
-    assert EmptyConfig().check().prepare().run() is None
+def test_verbs_return_the_object():
+    """Test that checking, preparing, and running return the object, as in scikit-learn."""
+    config = ScalingConfig()
+    assert config.check() is config
+    assert config.prepare() is config
+    assert config.run(1) is config
 
 
 def test_settings_follow_scikit_learn():

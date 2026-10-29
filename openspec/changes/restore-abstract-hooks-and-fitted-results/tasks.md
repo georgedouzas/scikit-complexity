@@ -2,9 +2,9 @@
 
 ## 1. Base and specs
 
-- [ ] 1.1 Create the branch `restore-abstract-hooks` from `development`, and verify `git status` is clean on it.
-- [ ] 1.2 In `skcomplex/base.py`, make `check()`, `prepare()`, and `run()` return `Self` and the hooks return `None`, keeping the hooks concrete for now; update the class docstring and doctest; verify `pytest tests/test_base.py --doctest-modules src/skcomplex/base.py` passes.
-- [ ] 1.3 In `BaseSpec`, implement `_check`, `_prepare`, and `_run` with no effect, and drop the `check()` override that returned the hook's result; verify `pytest tests/test_specs.py --doctest-modules src/skcomplex/specs` passes.
+- [x] 1.1 Create the branch `restore-abstract-hooks` from `development`, and verify `git status` is clean on it.
+- [x] 1.2 In `skcomplex/base.py`, make `check()`, `prepare()`, and `run()` return `Self` and the hooks return `None`, keeping the hooks concrete for now; update the class docstring and doctest; verify `pytest tests/test_base.py --doctest-modules src/skcomplex/base.py` passes.
+- [ ] 1.3 In `BaseSpec`, implement `_check`, `_prepare`, and `_run` with no effect, keeping the `check()` override that a frozen spec needs since it cannot be marked as checked; verify `pytest tests/test_specs.py --doctest-modules src/skcomplex/specs` passes.
 
 ## 2. Source loader
 

@@ -15,7 +15,8 @@ class BaseSpec(BaseConfig):
 
     A spec declares what a class reads, records what a run produced, or holds what a compiler built. It never changes,
     holds only its fields, `check()`, and readers of its own fields, and is prepared and run like any configurable
-    object, both doing nothing. A child validates its fields in `_check()`.
+    object, both doing nothing. It is the only base whose hooks have defaults: a child that validates its fields
+    overrides `_check()`.
 
     Examples:
         >>> from dataclasses import dataclass
@@ -27,6 +28,15 @@ class BaseSpec(BaseConfig):
         >>> SpanSpec(0.0, 1.0).check().end
         1.0
     """
+
+    def _check(self) -> None:
+        """Validate the fields of the spec, raising a named error for an invalid one; accept every field here."""
+
+    def _prepare(self, context: object | None) -> None:
+        """Prepare nothing, since a spec is a value."""
+
+    def _run(self, inputs: object | None) -> None:
+        """Run nothing, since a spec is a value."""
 
     def _is_checked(self) -> None:
         """Accept a spec that was not checked, since a frozen spec cannot be marked."""
