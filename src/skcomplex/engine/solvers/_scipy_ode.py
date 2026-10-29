@@ -157,7 +157,7 @@ class ScipyODESolver(Solver):
         ...     ),
         ... )
         >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).check().prepare(problem)
-        >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(x[0]), 4)
         2.7183
     """
@@ -294,10 +294,8 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Array) -> Array | scipy.sparse.csr_array:
-            matrix = jacobian.run(RunStateSpec(time, state, History._with_delays(problem, history, time, state, p)))
-            if not isinstance(matrix, scipy.sparse.csr_array):
-                error_msg = f'The Jacobian kernel returned a {type(matrix).__name__}, not a sparse matrix.'
-                raise TypeError(error_msg)
+            run_state = RunStateSpec(time, state, History._with_delays(problem, history, time, state, p))
+            matrix = jacobian.run(run_state).values_
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}

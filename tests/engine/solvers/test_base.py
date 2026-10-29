@@ -73,23 +73,23 @@ def test_solver_fit_sets_the_fitted_attributes():
 
 
 def test_solver_run_advances_and_releases_on_the_final_run():
-    """Test that `run` returns the advanced state and releases only on the final run."""
+    """Test that `run` keeps the advanced state in `state_` and releases only on the final run."""
     problem = _discrete_problem()
     solver = _DoublingSolver(random_state=0).check().prepare(problem)
-    state = solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+    state = solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).state_
     assert state.tolist() == [4.0]
     assert solver.releases_ == 0
-    state = solver.run(StepSpec(2.0, state, problem.initial_parameters, 3.0), final=True)
+    state = solver.run(StepSpec(2.0, state, problem.initial_parameters, 3.0), final=True).state_
     assert state.tolist() == [8.0]
     assert solver.releases_ == 1
 
 
 def test_solver_run_of_no_length_returns_the_state():
-    """Test that a run that does not go forward in time returns the state without advancing it."""
+    """Test that a run that does not go forward in time keeps the state without advancing it."""
     problem = _discrete_problem()
     solver = _DoublingSolver(random_state=0).check().prepare(problem)
     state = np.array([5.0])
-    assert solver.run(StepSpec(1.0, state, problem.initial_parameters, 1.0), final=True) is state
+    assert solver.run(StepSpec(1.0, state, problem.initial_parameters, 1.0), final=True).state_ is state
     assert solver.releases_ == 1
 
 

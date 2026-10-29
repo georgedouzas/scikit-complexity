@@ -643,7 +643,7 @@ class LammpsSolver(ExternalSolver):
             error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
             raise BackendError(error_msg)
         lepton = expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand()
-        printed = ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton])
+        printed = ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton]).code_
         if not isinstance(printed, tuple):
             error_msg = f'The Lepton printer returned a {type(printed).__name__}, not printed code.'
             raise TypeError(error_msg)

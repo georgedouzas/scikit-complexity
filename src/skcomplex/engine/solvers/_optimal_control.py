@@ -205,7 +205,7 @@ class OptimalControlSolver(Solver):
         """Return a function `f(t, x, u, p, *extra)` of expressions, whose last axes run over symbols and values."""
         arguments = [*control_problem.states, *control_problem.control_symbols, *control_problem.parameters, *extra]
         printer = ExpressionPrinter(time=control_problem.time, compiled=True).check().prepare(arguments)
-        compiled = printer.run([SR(item) for item in expressions])
+        compiled = printer.run([SR(item) for item in expressions]).code_
         if not callable(compiled):
             error_msg = f'The printer returned a {type(compiled).__name__}, not a compiled function.'
             raise TypeError(error_msg)

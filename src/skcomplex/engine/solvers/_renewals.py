@@ -60,11 +60,7 @@ class RenewalClock:
         if self.following:
             return
         for law in self.problem.renewals:
-            times = law.run(RunStateSpec(t, x, p, self.rng))
-            if not isinstance(times, np.ndarray):
-                error_msg = f'A renewal kernel returned a {type(times).__name__}, not the renewal times of its members.'
-                raise TypeError(error_msg)
-            self.following.append(times)
+            self.following.append(law.run(RunStateSpec(t, x, p, self.rng)).values_)
 
     def earliest(self) -> float:
         """Return the earliest pending renewal time of any member.

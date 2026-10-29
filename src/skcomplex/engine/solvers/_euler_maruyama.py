@@ -38,7 +38,7 @@ class EulerMaruyamaSolver(SDESolver):
         ...     ),
         ... )
         >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).check().prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
+        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
     """
 

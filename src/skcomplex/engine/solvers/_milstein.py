@@ -31,7 +31,7 @@ class MilsteinSolver(SDESolver):
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = MilsteinSolver(dt=0.01, random_state=0).check().prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0] > 0)
+        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
     """
 

@@ -120,7 +120,7 @@ def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
         problem = compile_system(_system(kind), backend=backend)
         rng = np.random.default_rng(0)
         stepper.set_params(random_state=rng).check().prepare(problem)
-        states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 3.4)))
+        states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 3.4)).state_)
         generators.append(rng.bit_generator.state)
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)
     assert generators[0] == generators[1]

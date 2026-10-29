@@ -107,7 +107,7 @@ def _advance(stepper, problem, until, frames=1):
     x, t = problem.initial_state, 0.0
     for index in range(frames):
         following = until * (index + 1) / frames
-        x = stepper.run(StepSpec(t, x, problem.initial_parameters, following))
+        x = stepper.run(StepSpec(t, x, problem.initial_parameters, following)).state_
         t = following
     return x
 
@@ -171,7 +171,7 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     p = problem.initial_parameters
     stepper.run(StepSpec(0.0, problem.initial_state, p, 1.0))
-    restarted = stepper.run(StepSpec(1.0, np.array([1.0]), p, 2.0))
+    restarted = stepper.run(StepSpec(1.0, np.array([1.0]), p, 2.0)).state_
     fresh = _advance(GrunwaldLetnikovSolver(dt=0.01), problem, 1.0)
     assert restarted == pytest.approx(fresh, abs=1e-12)
 
