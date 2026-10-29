@@ -16,13 +16,13 @@ from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....types import AnyArray, Array
 from ..._catalog import register_model
 
 EXCITED = 1
 
 
-def _excited_fraction(phases: Array) -> float:
+def _excited_fraction(phases: AnyArray) -> float:
     """Return the fraction of elements that are excited."""
     return float(np.mean(np.asarray(phases) == EXCITED))
 

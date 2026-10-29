@@ -429,8 +429,11 @@ class Simulation(BaseConfig[None, float]):
         compiler = PassCompiler() if self.compiler is None else clone(self.compiler)
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
-    def _default_solver(self, form: FormKind) -> BaseSolver:
+    def _default_solver(self, form: FormKind | str) -> BaseSolver:
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
+        if not isinstance(form, FormKind):
+            error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
+            raise ValidationError(error_msg)
         return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:

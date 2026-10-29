@@ -90,9 +90,9 @@ class PatchKernel(BaseKernel):
         """Return the parameter values by symbol."""
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
-    def _prepare(self, context: BaseProblemSpec | None) -> None:
+    def _prepare(self, context: object) -> None:
         """Start the structure at generation 0 for a run of the problem, as `structure_`."""
-        if context is None:
+        if not isinstance(context, BaseProblemSpec):
             error_msg = f'Patch {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
         self.structure_ = self._initial(context.initial_parameters)

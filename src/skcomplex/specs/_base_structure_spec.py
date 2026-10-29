@@ -166,8 +166,8 @@ class BaseStructureSpec(BaseSpec):
         grid[rows, columns] = True
 
     @staticmethod
-    def _frozen(array: npt.ArrayLike, dtype: type) -> AnyArray:
+    def _frozen[S: np.generic](array: npt.ArrayLike, dtype: type[S]) -> npt.NDArray[S]:
         """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
-        result: AnyArray = np.array(array, dtype=dtype)
+        result: npt.NDArray[S] = np.array(array, dtype=dtype)
         result.setflags(write=False)
         return result

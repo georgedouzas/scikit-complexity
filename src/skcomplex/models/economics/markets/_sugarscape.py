@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -23,6 +23,7 @@ from ....types import Array
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ._forager_view import ForagerView
+from ._patch_map_spec import _PatchMapSpec
 from ._sugar_patch_view import SugarPatchView
 
 PEAKS = ((0.3, 0.3), (0.7, 0.7))
@@ -201,13 +202,14 @@ class ForagerElement(Element):
         x, y = location
         return int(x), int(y)
 
-    def _patch_map(self, model: ModelView) -> dict[tuple[int, int], SugarPatchView]:
+    def _patch_map(self, model: ModelView) -> Mapping[tuple[int, int], SugarPatchView]:
         """Return the patches by cell, built once per run in the storage of the foragers."""
-        if 'patches' not in model.storage:
-            model.storage['patches'] = {
-                self._cell_of(patch): patch for patch in model.agents(self.patches, SugarPatchView)
-            }
-        return model.storage['patches']
+        cached = model.storage.get('patches')
+        if not isinstance(cached, _PatchMapSpec):
+            patches = {self._cell_of(patch): patch for patch in model.agents(self.patches, SugarPatchView)}
+            cached = _PatchMapSpec(patches)
+            model.storage['patches'] = cached
+        return cached.patches
 
     def forage(self, agent: ForagerView, model: ModelView) -> None:
         """Move to the best free cell in sight, harvest it, and starve when the wealth falls below zero.

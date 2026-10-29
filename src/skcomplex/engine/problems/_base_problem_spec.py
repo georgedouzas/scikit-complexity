@@ -103,7 +103,7 @@ class BaseProblemSpec(BaseSpec):
         (False, {}, None)
     """
 
-    form: FormKind
+    form: FormKind | str
     states: LayoutSpec
     parameters: LayoutSpec
     initial_state: Array

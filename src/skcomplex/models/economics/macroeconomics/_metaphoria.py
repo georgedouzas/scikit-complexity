@@ -25,6 +25,7 @@ from ....types import Array
 from ..._catalog import register_model
 from ._business_view import BusinessView
 from ._central_bank_view import CentralBankView
+from ._people_spec import _PeopleSpec
 from ._plot_view import PlotView
 from ._settler_view import SettlerView
 
@@ -64,10 +65,11 @@ def _metaphoria_observables(system: System) -> list[ObservableSpec]:
 def _people_by_id(model: ModelView) -> dict[int, SettlerView]:
     """Return the living people by id, built once per step in the storage of the caller."""
     cached = model.storage.get('people')
-    if cached is None or cached[0] != model.time:
-        cached = (model.time, {person.id: person for person in model.agents('people', SettlerView) if person.alive})
+    if not isinstance(cached, _PeopleSpec) or cached.time != model.time:
+        people = {person.id: person for person in model.agents('people', SettlerView) if person.alive}
+        cached = _PeopleSpec(model.time, people)
         model.storage['people'] = cached
-    return cached[1]
+    return dict(cached.people)
 
 
 def _patch_here(agent: AgentView) -> PlotView:

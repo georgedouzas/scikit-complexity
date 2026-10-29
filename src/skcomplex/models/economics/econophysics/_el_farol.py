@@ -24,6 +24,7 @@ from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics
 from ._patron_view import PatronView
+from ._pool_spec import _PoolSpec
 
 N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
@@ -149,22 +150,24 @@ class PatronElement(Element):
         """
         return [RuleLaw(self.decide, phase='decide')]
 
-    def _pool(self, model: ModelView) -> dict[str, Array]:
+    def _pool(self, model: ModelView) -> _PoolSpec:
         """Return this week's forecasts and errors of the pool, shared by the patrons and updated once a week."""
-        storage = model.storage
-        if storage.get('time') == model.time:
-            return storage
-        if 'seeded' not in storage:
-            storage['seeded'] = model.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
-        history = np.concatenate([storage['seeded'], model.history(f'{self.bar}.attendance')])
-        if 'forecasts' in storage:
-            discount = model.parameter('discount')
-            errors = np.abs(storage['forecasts'] - history[-1])
-            storage['errors'] = discount * storage['errors'] + (1 - discount) * errors
+        pool = model.storage.get('pool')
+        if isinstance(pool, _PoolSpec) and pool.time == model.time:
+            return pool
+        if isinstance(pool, _PoolSpec):
+            seeded = pool.seeded
         else:
-            storage['errors'] = np.zeros(len(PREDICTORS))
-        storage['forecasts'], storage['time'] = forecasts(history), model.time
-        return storage
+            seeded = model.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
+        history = np.concatenate([seeded, model.history(f'{self.bar}.attendance')])
+        if isinstance(pool, _PoolSpec):
+            discount = model.parameter('discount')
+            errors = discount * pool.errors + (1 - discount) * np.abs(pool.forecasts - history[-1])
+        else:
+            errors = np.zeros(len(PREDICTORS))
+        pool = _PoolSpec(model.time, seeded, forecasts(history), errors)
+        model.storage['pool'] = pool
+        return pool
 
     def decide(self, agent: PatronView, model: ModelView) -> None:
         """Forecast the attendance with the most accurate predictor held and go when it is below the capacity.
@@ -179,8 +182,8 @@ class PatronElement(Element):
         pool = self._pool(model)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
-        best = held[int(np.argmin(pool['errors'][held]))]
-        agent.forecast = float(pool['forecasts'][best])
+        best = held[int(np.argmin(pool.errors[held]))]
+        agent.forecast = float(pool.forecasts[best])
         agent.attends = float(agent.forecast < model.parameters[f'{self.bar}.capacity'])
 
 

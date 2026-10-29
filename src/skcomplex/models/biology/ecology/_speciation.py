@@ -17,12 +17,12 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....types import AnyArray
 from ..._catalog import register_model
 from ._organism_view import OrganismView
 
 
-def _richness(species: Array) -> float:
+def _richness(species: AnyArray) -> float:
     """Return the number of distinct species among the individuals."""
     return float(len(np.unique(species)))
 

@@ -143,5 +143,6 @@ class OrbitDiagramExperiment(BaseExperiment):
         dt = self.dt if self.dt is not None else 1.0
         values = {self.parameter: list(self.values)}
         trajectory, _ = self._run_replicated(self.source, values, self.until_, dt, self.random_state)
-        series = np.asarray(trajectory.values(self.observable))[np.asarray(trajectory.times) >= self.transient - 1e-9]
+        observed = np.asarray(trajectory.values(self.observable), dtype=np.float64)
+        series = observed[np.asarray(trajectory.times) >= self.transient - 1e-9]
         return [series[:, index] for index in range(len(self.values))]

@@ -195,7 +195,7 @@ class CoSimulationSolver(Solver):
         if problem.form != FormKind.COUPLED:
             if not self.split or problem.system is None:
                 error_msg = (
-                    f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form.value} form. Pass '
+                    f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form} form. Pass '
                     '`split=True` to split it into one partition per subsystem.'
                 )
                 raise SolverError(error_msg)
@@ -212,7 +212,11 @@ class CoSimulationSolver(Solver):
         self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
             solver = given.get(partition.name)
-            stepper = clone(solver) if solver is not None else DEFAULT_SOLVERS[partition.problem.form]()
+            form = partition.problem.form
+            if solver is None and not isinstance(form, FormKind):
+                error_msg = f'Partition {partition.name} has the {form} form, which has no default solver. Give one.'
+                raise ValidationError(error_msg)
+            stepper = clone(solver) if solver is not None else DEFAULT_SOLVERS[FormKind(form)]()
             stepper.set_params(random_state=generator, until=self.until).check().prepare(partition.problem)
             self.steppers_[partition.name] = stepper
         self._held = [

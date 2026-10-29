@@ -16,6 +16,7 @@ from ..core.system import System
 from ..engine.compile import QuantumCompiler, compile_system
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
 from ..engine.problems import BaseProblemSpec, QuantumProblemSpec
+from ..engine.problems._quantum_kernel import QuantumKernel
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import RunStateSpec
@@ -235,11 +236,18 @@ class QuantumAnalysis(BaseAnalysis):
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         expression, value = sector
-        terms = problem.lowering.run((expression(problem.namespaces['']), 'the sector'))
-        matrix = sum(
-            (term.run(RunStateSpec(0.0, np.zeros(0), p)) * term.matrix for term in terms),
-            start=0 * terms[0].matrix,
-        )
+        if problem.lowering is None:
+            error_msg = 'The quantum problem has no lowering of operators, so its sectors cannot be read.'
+            raise AnalysisError(error_msg)
+        lowered = problem.lowering.run((expression(problem.namespaces['']), 'the sector'))
+        terms = [term for term in lowered if isinstance(term, QuantumKernel)] if isinstance(lowered, tuple) else []
+        if not terms:
+            error_msg = 'The operator of a sector lowers to no term.'
+            raise AnalysisError(error_msg)
+        state = RunStateSpec(0.0, np.zeros(0), p)
+        matrix = terms[0].matrix * QuantumKernel._coefficient_of(terms[0].run(state))
+        for term in terms[1:]:
+            matrix = matrix + term.matrix * QuantumKernel._coefficient_of(term.run(state))
         diagonal = matrix.diagonal()
         if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
             error_msg = (

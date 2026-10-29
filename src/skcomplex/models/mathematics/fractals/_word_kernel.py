@@ -190,7 +190,17 @@ class WordKernel(BaseKernel):
                 'graph.'
             )
             raise RewritingError(error_msg)
-        return ExpressionPrinter(time=time, compiled=True).check().prepare([*variables, *symbols]).run(values)
+        printer = ExpressionPrinter(time=time, compiled=True).check().prepare([*variables, *symbols])
+        compiled = ExpressionPrinter._function_of(printer.run(values))
+
+        def evaluate(*arguments: object) -> Arrays:
+            result = compiled(*arguments)
+            if not isinstance(result, list):
+                error_msg = f'{owner} evaluates to {type(result).__name__}, not a list of arrays.'
+                raise RewritingError(error_msg)
+            return [np.asarray(item) for item in result]
+
+        return evaluate
 
     def _groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
         """Return the groups of productions in the order they are tried."""
@@ -256,9 +266,9 @@ class WordKernel(BaseKernel):
         for group in self.groups:
             self._weights(group, values, 0)
 
-    def _prepare(self, context: BaseProblemSpec | None) -> None:
+    def _prepare(self, context: object) -> None:
         """Start the word at generation 0 for a run of the problem, as `structure_`."""
-        if context is None:
+        if not isinstance(context, BaseProblemSpec):
             error_msg = f'Word {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
         self.structure_ = self._initial(context.initial_parameters)

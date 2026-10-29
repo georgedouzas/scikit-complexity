@@ -7,6 +7,7 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
@@ -16,6 +17,7 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import count
 from ....core.system import System
 from ....engine.solvers import ModelView
+from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._farmer_view import FarmerView
@@ -110,7 +112,11 @@ class FarmerElement(Element):
             model:
                 The model.
         """
-        agent.wealth += model.parameters[self.effort] * float(model.inputs.get(self.resource, 0.0))
+        stock = model.inputs.get(self.resource, 0.0)
+        if not isinstance(stock, int | float | np.number):
+            error_msg = f'The input {self.resource!r} of the farmers is {stock!r}, not a number.'
+            raise ValidationError(error_msg)
+        agent.wealth += model.parameters[self.effort] * float(stock)
 
 
 class HarvestInteraction(Interaction):

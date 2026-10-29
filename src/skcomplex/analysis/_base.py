@@ -206,7 +206,9 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
     def _get_scalar_series(trajectory: Trajectory) -> list[str]:
         """Return the scalar observables and reporters, or the scalar states of single elements without them."""
         first = trajectory.observables[0] if trajectory.observables else {}
-        observed = [name for name, value in first.items() if np.ndim(value) == 0 and not isinstance(value, nx.Graph)]
+        observed = [
+            name for name, value in first.items() if not isinstance(value, nx.Graph) and np.ndim(np.asarray(value)) == 0
+        ]
         reported = list(trajectory.reporters[0]) if trajectory.reporters else []
         if observed or reported:
             return observed + reported

@@ -82,7 +82,7 @@ class GeometryVisual(BaseVisual):
         for state, name in element.states.items():
             BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
         structure = frame.structures.get(element.path)
-        if structure is None:
+        if not isinstance(structure, BaseStructureSpec):
             return
         if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
             grid = structure.raster(self.resolution, self._bounds_of(element))

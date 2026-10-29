@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -18,6 +19,7 @@ from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import IntArray
 from ..._catalog import register_model
+from ._game_state_spec import _GameStateSpec
 from ._speculator_view import SpeculatorView
 
 MAX_SEED = 2**31
@@ -171,11 +173,20 @@ class MinorityGameInteraction(Interaction):
         return [RuleLaw(self.play)]
 
     def _table(self, code: float, model: ModelView) -> IntArray:
-        """Return the table of a strategy, cached for the run."""
-        tables = model.storage.setdefault('tables', {})
-        if code not in tables:
-            tables[code] = strategy_table(code, self.memory)
-        return tables[code]
+        """Return the table of a strategy, cached for the run in the state of the game."""
+        state = self._state(model)
+        if code not in state.tables:
+            state = replace(state, tables={**state.tables, code: strategy_table(code, self.memory)})
+            model.storage['game'] = state
+        return state.tables[code]
+
+    def _state(self, model: ModelView) -> _GameStateSpec:
+        """Return the state of the game in the storage of the model, starting a random history at the first round."""
+        state = model.storage.get('game')
+        if not isinstance(state, _GameStateSpec):
+            state = _GameStateSpec(int(model.rng.integers(2**self.memory)))
+            model.storage['game'] = state
+        return state
 
     def _choose(self, agent: SpeculatorView, history: int, model: ModelView) -> tuple[int, int]:
         """Set the action of an agent and return the actions of its two strategies."""
@@ -196,9 +207,12 @@ class MinorityGameInteraction(Interaction):
                 The model.
         """
         agents = model.agents('players', SpeculatorView)
-        storage = model.storage
         n_histories = 2**self.memory
-        history = storage.setdefault('history', int(model.rng.integers(n_histories)))
+        drawn = int(model.rng.integers(n_histories))
+        state = model.storage.get('game')
+        if not isinstance(state, _GameStateSpec):
+            model.storage['game'] = _GameStateSpec(drawn)
+        history = self._state(model).history
         strategies = [self._choose(agent, history, model) for agent in agents]
         attendance = sum(agent.action for agent in agents)
         winner = -1 if attendance > 0 else 1
@@ -206,10 +220,11 @@ class MinorityGameInteraction(Interaction):
             agent.first_score += first * winner
             agent.second_score += second * winner
             agent.wealth += agent.action * winner
-        storage['history'] = (2 * history + (winner > 0)) % n_histories
-        storage['round'] = storage.get('round', 0) + 1
+        state = self._state(model)
+        state = replace(state, history=(2 * history + (winner > 0)) % n_histories, round=state.round + 1)
+        model.storage['game'] = state
         model.report('attendance', attendance)
-        if self.period and storage['round'] % self.period == 0:
+        if self.period and state.round % self.period == 0:
             self._evolve(agents, model)
 
     def _evolve(self, agents: list[SpeculatorView], model: ModelView) -> None:

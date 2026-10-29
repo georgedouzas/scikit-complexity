@@ -114,7 +114,7 @@ class FunctionsPass(BasePass):
         name, asked = chosen._get_name(), requested._get_name()
         if compilation.backend is not None and asked != name:
             message = (
-                f'The {form.value} form runs on the {name} backend, because its solvers evaluate the kernels '
+                f'The {form} form runs on the {name} backend, because its solvers evaluate the kernels '
                 f'step by step on {name} arrays, not on the {asked} backend asked for.'
             )
             warnings.warn(message, BackendWarning, stacklevel=2)

@@ -84,7 +84,7 @@ class ExternalSolver(Solver):
             raise ValidationError(error_msg)
         problem = context
         forms = {self._get_form(), *self._get_forms()}
-        unsupported = [] if problem.form in forms else [f'the {problem.form.value} form']
+        unsupported = [] if problem.form in forms else [f'the {problem.form} form']
         unsupported += [f'the complex state {entry.name}' for entry in problem.states.entries if entry.is_complex]
         unsupported += self._unsupported(problem)
         if unsupported:

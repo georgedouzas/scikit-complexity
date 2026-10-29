@@ -78,7 +78,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         self.until = until
 
     @classmethod
-    def _get_form(cls) -> FormKind:
+    def _get_form(cls) -> FormKind | str:
         """Return the form the solver solves.
 
         Returns:
@@ -92,7 +92,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         raise NotImplementedError
 
     @classmethod
-    def _get_forms(cls) -> frozenset[FormKind]:
+    def _get_forms(cls) -> frozenset[FormKind | str]:
         """Return the other forms the solver also solves, none by default."""
         return frozenset()
 

@@ -18,14 +18,14 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....types import AnyArray, Array
 from ..._catalog import register_model
 from ._complex_agent_view import ComplexAgentView
 
 MARKED = 2
 
 
-def _standardization(spins: Array) -> float:
+def _standardization(spins: AnyArray) -> float:
     """Return the share `q` of agents that show the characteristic, the mean of `|S_i|`."""
     return float(np.mean(np.abs(spins)))
 

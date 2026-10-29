@@ -20,6 +20,8 @@ from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, St
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics, logit_choice
+from ._fitness_spec import _FitnessSpec
+from ._market_state_spec import _MarketStateSpec
 from ._speculator_view import SpeculatorView
 
 PREDICTORS = ('fundamentalist', 'trend')
@@ -96,12 +98,12 @@ class SpeculatorElement(Element):
 
     def _fitness(self, model: ModelView) -> list[float]:
         """Return the last fitness of every heuristic, read once per step into the storage of the traders."""
-        time, fitness = model.storage.get('fitness', (None, []))
-        if time != model.time:
+        cached = model.storage.get('fitness')
+        if not isinstance(cached, _FitnessSpec) or cached.time != model.time:
             values = [model.history(f'{self.pricing}.fitness_{name}', 1) for name in PREDICTORS]
-            fitness = [float(value[-1]) if len(value) else 0.0 for value in values]
-            model.storage['fitness'] = (model.time, fitness)
-        return fitness
+            cached = _FitnessSpec(model.time, tuple(float(value[-1]) if len(value) else 0.0 for value in values))
+            model.storage['fitness'] = cached
+        return list(cached.fitness)
 
 
 class HeuristicPricingInteraction(InstitutionInteraction):
@@ -183,22 +185,24 @@ class HeuristicPricingInteraction(InstitutionInteraction):
                 The model view of the institution.
         """
         rate, strength = model.parameter('rate'), model.parameter('strength')
-        history = model.storage.setdefault('history', [model.parameter('initial')])
+        state = model.storage.get('market')
+        if not isinstance(state, _MarketStateSpec):
+            state = _MarketStateSpec((model.parameter('initial'),))
+        history = list(state.history)
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
         traders = model.agents('traders', SpeculatorView)
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = float(forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
-        previous = model.storage.get('forecasts')
+        previous = state.forecasts
         excess = price - rate * history[-1]
         if previous is None:
             fitness = np.zeros(len(PREDICTORS))
         else:
             fitness = excess * (previous - rate * history[-1]) / model.parameter('risk')
         fitness -= [model.parameter('cost'), 0.0]
-        model.storage['forecasts'] = forecasts
-        history[:] = [history[-1], price]
+        model.storage['market'] = _MarketStateSpec((history[-1], price), forecasts)
         model.report('deviation', price)
         model.report('trend_share', share)
         for name, value in zip(PREDICTORS, fitness, strict=True):

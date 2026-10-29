@@ -199,7 +199,7 @@ class LammpsSolver(ExternalSolver):
         sub_problem = self._compile_external(problem.system, external, NumpyBackend())
         reasons = []
         if sub_problem.form != FormKind.ODE:
-            reasons.append(f'the {sub_problem.form.value} form')
+            reasons.append(f'the {sub_problem.form} form')
         if sub_problem.boundary is not None:
             reasons.append('boundary laws')
         velocities = {element.states['v'] for element in sub_problem.elements}

@@ -6,7 +6,6 @@
 from typing import Self
 
 import numpy as np
-import numpy.typing as npt
 
 from ....analysis import DistributionAnalysis
 from ....engine.runtime import Trajectory
@@ -53,8 +52,11 @@ class KineticTemperatureAnalysis(DistributionAnalysis):
             raise AnalysisError(error_msg)
         return self
 
-    def _prepare(self, source: Trajectory | npt.ArrayLike) -> Self:
-        """Read the velocities of the agents of every frame."""
+    def _prepare(self, source: object) -> Self:
+        """Read the velocities of the agents of every frame from a trajectory or an array."""
+        if not isinstance(source, Trajectory | np.ndarray | list | tuple):
+            error_msg = f'{type(self).__name__} reads a trajectory or an array of velocities, not {source!r}.'
+            raise AnalysisError(error_msg)
         self.values_ = self._read_velocities(source, self.group)
         return self
 

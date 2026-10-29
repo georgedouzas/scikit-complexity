@@ -9,7 +9,7 @@ from multiprocessing.reduction import ForkingPickler
 from typing import Self
 
 from ..errors import ValidationError
-from ..types import Array
+from ..types import AnyArray
 from ._base_spec import BaseSpec
 
 
@@ -52,7 +52,7 @@ class ObservableSpec(BaseSpec):
     expression: object = None
     element: str | None = None
     group: str | None = None
-    reduce: str | Callable[[Array], object] = 'mean'
+    reduce: str | Callable[[AnyArray], object] = 'mean'
     variable: str | None = None
 
     def _check(self) -> Self:
