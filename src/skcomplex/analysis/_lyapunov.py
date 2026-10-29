@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Self
 
@@ -317,18 +316,18 @@ class LyapunovAnalysis(BaseAnalysis):
             error_msg = f'The printer returned no code for the Jacobian of {name}.'
             raise AnalysisError(error_msg)
         assignments, codes = printed
-        lines = [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
+        lines = ['import math', 'import numpy as np', '', '']
+        lines += [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
         lines += [f'    {bound} = {code}' for bound, code in assignments]
         lines += [
             f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
             for index, code in enumerate(codes)
         ]
         lines.append('    return out')
-        source = '\n'.join(lines)
+        source = '\n'.join(lines) + '\n'
         if source not in FUNCTIONS:
-            namespace: dict[str, Any] = {'np': np, 'math': math}
-            exec(source, namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
-            FUNCTIONS[source] = numba.njit(namespace[name])
+            module = LyapunovAnalysis._load_source('skcomplex_lyapunov', source, {}, None)
+            FUNCTIONS[source] = numba.njit(getattr(module, name))
         return FUNCTIONS[source]
 
     @staticmethod

@@ -8,9 +8,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Sequence
 
-import numpy as np
 import numpy.typing as npt
-import scipy.special
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
@@ -37,7 +35,7 @@ _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignor
 
 type _Number = RingElement | int | float | complex
 
-_NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
+_IMPORTS = 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n'
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
@@ -218,10 +216,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
-        namespace = dict(_NAMESPACE)
-        source = '\n'.join(lines)
-        exec(source, namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
-        return namespace['_function']
+        module = self._load_source('skcomplex_functions', _IMPORTS + '\n'.join(lines) + '\n', {}, None)
+        function: Callable[..., list[object]] = module._function
+        return function
 
     def _wrap(self, printed: Printed, precedence: int) -> str:
         """Return printed code, in parentheses when it binds less tightly than a precedence."""

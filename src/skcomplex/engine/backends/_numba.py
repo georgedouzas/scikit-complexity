@@ -4,9 +4,7 @@
 # License: MIT
 
 import hashlib
-import importlib.util
 import inspect
-import os
 import sys
 import warnings
 from collections.abc import Callable, Mapping
@@ -69,7 +67,6 @@ from ._base import BaseBackend
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
 
-_DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 _FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.ODE: [RateLaw],
     FormKind.FRACTIONAL: [RateLaw],
@@ -239,8 +236,7 @@ class NumbaBackend(BaseBackend):
             else []
         )
         text = '\n'.join([_HEADER, *lines, *loops]) + '\n'
-        cache_dir = Path(self.cache_dir) if self.cache_dir is not None else _DEFAULT_CACHE_DIR
-        module = self._load(text, printer.functions_, cache_dir)
+        module = self._load(text, printer.functions_, self.cache_dir)
         layout = printer.layout(self._layout_entries(used, reductions))
         lowering = self._lowering(
             form,
@@ -537,12 +533,12 @@ class NumbaBackend(BaseBackend):
         return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
 
     @staticmethod
-    def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
-        """Return the module of generated source, imported from a file in the cache directory.
+    def _load(text: str, functions: Mapping[str, object], cache_dir: str | Path | None) -> ModuleType:
+        """Return the module of generated kernel source, imported from a file in the cache directory.
 
-        Source without injected functions is cached by Numba and kept in `sys.modules`, so a second identical problem
-        reuses it. Source with injected functions, which Numba cannot cache, is written uncached and imported afresh,
-        with the functions set on the module before its code runs.
+        Source without injected functions is cached by Numba. Source with injected functions, which Numba cannot
+        cache, is compiled uncached. The file starts with the fingerprint of the compiled helpers, so kernels compiled
+        against other helpers are cached apart.
 
         Args:
             text:
@@ -552,38 +548,15 @@ class NumbaBackend(BaseBackend):
                 The functions the source reads by name, injected into its module.
 
             cache_dir:
-                The directory of the generated files.
+                The directory of the generated files, or `None` for `~/.cache/skcomplex/kernels`.
 
         Returns:
             module:
                 The module of the source.
-
-        Raises:
-            ImportError:
-                The generated file cannot be imported.
         """
-        digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
-        name = f'skcomplex_kernels_{digest}'
-        if not functions and name in sys.modules:
-            return sys.modules[name]
-        cached = not functions
-        file_name = name if cached else f'{name}_uncached'
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        path = cache_dir / f'{file_name}.py'
-        if not path.exists():
-            temporary = path.with_suffix(f'.{os.getpid()}.tmp')
-            temporary.write_text(text.replace('cache=CACHE', f'cache={cached}'))
-            temporary.replace(path)
-        specification = importlib.util.spec_from_file_location(file_name, path)
-        if specification is None or specification.loader is None:
-            error_msg = f'The generated kernels at {path} cannot be imported.'
-            raise ImportError(error_msg)
-        module = importlib.util.module_from_spec(specification)
-        module.__dict__.update(functions)
-        if cached:
-            sys.modules[name] = module
-        specification.loader.exec_module(module)
-        return module
+        cached = text.replace('cache=CACHE', f'cache={not functions}')
+        source = f'# Compiled helpers: {HELPERS_FINGERPRINT}\n{cached}'
+        return NumbaBackend._load_source('skcomplex_kernels', source, functions, cache_dir)
 
 
 HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()

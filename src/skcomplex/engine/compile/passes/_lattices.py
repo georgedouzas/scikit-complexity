@@ -330,14 +330,10 @@ class LatticeProblemPass(BasePass):
         """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile it."""
         if not LatticeProblemPass._compiles_in_numba(rule):
             return None
-        namespace: dict[str, object] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
-        source = LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
-        exec(source, namespace)  # noqa: S102  # nosec B102: runs the loop source generated above
-        function = namespace['loop']
-        if not callable(function):
-            error_msg = 'The generated source of the extremal loop defines no function `loop`.'
-            raise TypeError(error_msg)
-        loop = numba.njit(function)
+        source = 'import numpy as np\n\n\n' + LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
+        functions = {'rule': numba.njit(error_model='numpy')(rule)}
+        module = LatticeProblemPass._load_source('skcomplex_loops', source, functions, None)
+        loop = numba.njit(module.loop)
         end = max(state.start + state.size for state in (*targets, key))
         width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
         try:
