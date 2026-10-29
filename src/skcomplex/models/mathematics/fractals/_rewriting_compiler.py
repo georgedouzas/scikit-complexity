@@ -5,13 +5,12 @@
 
 from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN
+from sage.all__sagemath_symbolics import NN, Expression
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.specs import CompiledElementSpec, NodeSpec
 from ....core.system import System
 from ....engine._utils import declarations_of, symbol
@@ -129,7 +128,8 @@ class RewritingCompiler(BaseCompiler):
     @staticmethod
     def _productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions or substitutions of a word or a patch."""
-        laws = node.component.run(namespace)
+        laws = node.component._get_laws(namespace)
+        productions = [law for law in laws if isinstance(law, _PRODUCTION_LAWS)]
         wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
         if wrong:
             error_msg = (
@@ -137,31 +137,30 @@ class RewritingCompiler(BaseCompiler):
                 'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law.check() for law in laws]
+        return [law.check() for law in productions]
 
     @staticmethod
     def _parameters(
         nodes: list[NodeSpec],
-    ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Any]]:
+    ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
         """Return the parameter entries and values of the rewritten elements, with their namespaces and symbols."""
         entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
-        symbols: dict[str, Any] = {}
+        symbols: dict[str, Expression] = {}
         for node in nodes:
             names = {}
             for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
                 value = LayoutPass._value_of(node, name)
-                if np.ndim(value) or not EntrySpec._contains(declaration.domain, value):
-                    error_msg = (
-                        f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
-                    )
+                number = np.asarray(value)
+                if number.ndim or not EntrySpec._contains(declaration.domain, value):
+                    error_msg = f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain} domain.'
                     raise ValidationError(error_msg)
                 dotted = f'{node.path}.{name}'
                 names[name] = symbol(f'{name}_{node.path}'.replace('/', '_').replace('-', '_'))
                 symbols[dotted] = names[name]
                 entries.append(EntrySpec(dotted, len(entries), (), declaration.domain))
-                values.append(float(value))
+                values.append(float(number))
             namespaces[node.path] = SimpleNamespace(**names, t=symbol('t'))
         return entries, values, namespaces, symbols
 
@@ -274,7 +273,7 @@ class RewritingCompiler(BaseCompiler):
         compiled_elements = []
         for item in compiled:
             names = [*item.counted, 'size']
-            component = cast('Element', elements[item.path].component)
+            component = item.word if isinstance(item, WordKernel) else item.patch
             compiled_elements.append(
                 CompiledElementSpec(
                     path=item.path,
@@ -286,7 +285,7 @@ class RewritingCompiler(BaseCompiler):
             )
             for name in names:
                 states.append(EntrySpec(f'{item.path}.{name}', len(states), (), NN))
-            initial += item.counts(item._initial(initial_parameters))  # type: ignore[arg-type]
+            initial += item.counts(item._initial(initial_parameters))
         return RewritingProblemSpec(
             form=REWRITING,
             states=LayoutSpec(tuple(states)),

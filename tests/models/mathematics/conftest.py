@@ -1,7 +1,6 @@
 """Share the run helpers of the mathematics model tests."""
 
 from collections.abc import Sequence
-from typing import Any
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
@@ -21,6 +20,6 @@ def _run(
     return simulation.run(until=until).trajectory_
 
 
-def _final(name: str, until: float, **arguments: Any) -> Simulation:  # noqa: ANN401
+def _final(name: str, until: float, **arguments: object) -> Simulation:
     """Return the simulation of a model run to `until` with frames at the start and the end only."""
     return Simulation(create(name, **arguments), dt=until, random_state=0).check().run(until)

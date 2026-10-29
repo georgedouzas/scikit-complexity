@@ -7,6 +7,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Self
 
+from sage.all__sagemath_symbolics import Expression
+
 from ....specs import BaseSpec
 from ._rewriting_error import RewritingError
 
@@ -29,7 +31,7 @@ class ModuleSpec(BaseSpec):
     """
 
     name: str
-    parameters: tuple[object, ...] = ()
+    parameters: tuple[float | Expression, ...] = ()
 
     def _check(self) -> Self:
         """Raise an error for a name that is not a nonempty string.

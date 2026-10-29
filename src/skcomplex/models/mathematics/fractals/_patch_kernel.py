@@ -4,13 +4,14 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression
 
 from ....engine.problems import BaseKernel, BaseProblemSpec
 from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
+from ._affine_spec import AffineSpec
 from ._patch_element import PatchElement
 from ._patch_structure_spec import PatchStructureSpec
 from ._rewriting_error import RewritingError
@@ -67,7 +68,7 @@ class PatchKernel(BaseKernel):
         tiles = patch.tiles if patch.tiles is not None else [(self.names[0], None)]
         self.codes = np.array([self._code(name, 'the tiles') for name, _ in tiles], dtype=np.int64)
         self.placements = [placement for _, placement in tiles]
-        self.pieces: dict[int, list[tuple[int, Any]]] = {}
+        self.pieces: dict[int, list[tuple[int, AffineSpec]]] = {}
         for substitution in substitutions:
             where = f'The substitution of {substitution.prototile!r}'
             code = self._code(substitution.prototile, where)
@@ -85,17 +86,23 @@ class PatchKernel(BaseKernel):
             raise RewritingError(error_msg)
         return self.names.index(name)
 
-    def _values(self, values: npt.NDArray[np.float64]) -> dict[Any, float]:
+    def _values(self, values: npt.NDArray[np.float64]) -> dict[Expression, float]:
         """Return the parameter values by symbol."""
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
-    def _prepare(self, context: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Start the structure at generation 0 for a run of the problem, as `structure_`."""
+        if context is None:
+            error_msg = f'Patch {self.path!r} starts from the initial parameters of a problem, but got none.'
+            raise RewritingError(error_msg)
         self.structure_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: RunStateSpec) -> PatchStructureSpec:
-        """Rewrite the current structure once, in parallel, with the parameters and the random stream of the state."""
-        self.structure_ = self._rewrite(self.structure_, inputs.p, cast('np.random.Generator', inputs.rng))
+    def _run(self, inputs: RunStateSpec | None) -> PatchStructureSpec:
+        """Rewrite the current structure once, in parallel, with the parameters of the state."""
+        if inputs is None:
+            error_msg = f'Patch {self.path!r} rewrites at a state, but got none.'
+            raise RewritingError(error_msg)
+        self.structure_ = self._rewrite(self.structure_, inputs.p)
         return self.structure_
 
     def _initial(self, values: npt.NDArray[np.float64]) -> PatchStructureSpec:
@@ -135,7 +142,6 @@ class PatchKernel(BaseKernel):
         self,
         patch: PatchStructureSpec,
         values: npt.NDArray[np.float64],
-        rng: np.random.Generator,
     ) -> PatchStructureSpec:
         """Return the patch of the next generation, every tile replaced by its pieces in parallel.
 
@@ -146,9 +152,6 @@ class PatchKernel(BaseKernel):
             values:
                 The parameter values.
 
-            rng:
-                The random stream, unused since substitutions are deterministic.
-
         Returns:
             patch:
                 The next patch.
@@ -157,7 +160,6 @@ class PatchKernel(BaseKernel):
             RewritingError:
                 The next patch would exceed the maximum size.
         """
-        del rng
         by_symbol = self._values(values)
         codes, matrices = patch.codes, patch.matrices
         children = np.ones(len(self.prototiles), dtype=np.int64)
