@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -20,7 +20,7 @@ from ....types import Array
 from ..._catalog import register_model
 
 
-def _advance_cyclically(level: Array, *around: Array, n: Any, threshold: Any) -> Array:  # noqa: ANN401
+def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
     """Return the next levels, one step around the cycle where enough neighbours hold the following level."""
     following = np.mod(level + 1, n)
     successors = sum((item == following).astype(float) for item in around)
@@ -36,6 +36,9 @@ class CyclicCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial level, from 0 to `n - 1`.

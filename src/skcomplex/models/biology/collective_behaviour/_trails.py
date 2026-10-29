@@ -15,9 +15,10 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._walker_view import WalkerView
 
 GROUND = 'land/ground.G'
 TRAIL = 'land/ground.V'
@@ -38,6 +39,9 @@ class GroundElement(Element):
     Args:
         label:
             The label of the ground or the lattice field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         G:
             The initial ground structure.
@@ -104,6 +108,9 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         goal_x:
             The column of the goal.
 
@@ -158,13 +165,18 @@ class WalkerElement(Element):
         self.width = width
         self.height = height
 
-    def _choose_goal(self, agent: AgentView, model: ModelView) -> None:
+    @classmethod
+    def _get_view(cls) -> type[WalkerView]:
+        """Return the view of a walker, `WalkerView`."""
+        return WalkerView
+
+    def _choose_goal(self, agent: WalkerView, model: ModelView) -> None:
         """Pick another entry point as the new goal."""
         here = cast('tuple[int, int]', agent.location)
         goals = [corner for corner in _corners(round(agent.width), round(agent.height)) if corner != here]
         agent.goal_x, agent.goal_y = (float(value) for value in goals[int(model.rng.integers(len(goals)))])
 
-    def _step_weights(self, agent: AgentView, model: ModelView, cells: list[tuple[int, int]]) -> np.ndarray:
+    def _step_weights(self, agent: WalkerView, model: ModelView, cells: list[tuple[int, int]]) -> np.ndarray:
         """Return the unnormalised probabilities of stepping to each neighbouring cell."""
         x, y = cast('tuple[int, int]', agent.location)
         goal = np.array([agent.goal_x - x, agent.goal_y - y])
@@ -189,7 +201,7 @@ class WalkerElement(Element):
         """
         return [RuleLaw(self.walk)]
 
-    def walk(self, agent: AgentView, model: ModelView) -> None:
+    def walk(self, agent: WalkerView, model: ModelView) -> None:
         """Step toward the goal along trails, leave a footprint, and pick a new goal on arrival.
 
         Args:

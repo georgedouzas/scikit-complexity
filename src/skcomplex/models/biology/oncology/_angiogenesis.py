@@ -16,9 +16,12 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._sprout_view import SproutView
+from ._tumour_cell_view import TumourCellView
+from ._vessel_view import VesselView
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
@@ -35,6 +38,9 @@ class TissueElement(Element):
     Args:
         label:
             The label of the tissue or the lattice field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         oxygen:
             The initial oxygen.
@@ -108,6 +114,12 @@ class TumourCellElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        hypoxic:
+            Whether the cell is hypoxic, `1`, or not, `0`.
+
         consumption:
             The oxygen a cell takes up per step.
 
@@ -154,7 +166,12 @@ class TumourCellElement(Element):
         self.secretion = secretion
         self.necrosis = necrosis
 
-    def _divide(self, agent: AgentView, model: ModelView) -> None:
+    @classmethod
+    def _get_view(cls) -> type[TumourCellView]:
+        """Return the view of a tumour cell, `TumourCellView`."""
+        return TumourCellView
+
+    def _divide(self, agent: TumourCellView, model: ModelView) -> None:
         """Place a daughter cell in a random neighbouring cell without a tumour cell, if there is one."""
         taken = {other.location for other in agent.neighbors() if other.group == agent.group}
         free = [cell for cell in agent.neighbor_cells() if cell not in taken]
@@ -174,7 +191,7 @@ class TumourCellElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: TumourCellView, model: ModelView) -> None:
         """Consume oxygen, then die, signal for vessels, or divide, by the oxygen at the cell.
 
         Args:
@@ -203,6 +220,9 @@ class VesselElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         supply:
             The oxygen supplied per step.
 
@@ -222,6 +242,11 @@ class VesselElement(Element):
         super().__init__(label, visual=visual)
         self.supply = supply
 
+    @classmethod
+    def _get_view(cls) -> type[VesselView]:
+        """Return the view of a vessel, `VesselView`."""
+        return VesselView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the supply rule.
 
@@ -235,7 +260,7 @@ class VesselElement(Element):
         """
         return [RuleLaw(self.supply_oxygen)]
 
-    def supply_oxygen(self, agent: AgentView, model: ModelView) -> None:
+    def supply_oxygen(self, agent: VesselView, model: ModelView) -> None:
         """Add oxygen at the segment's site.
 
         Args:
@@ -258,6 +283,9 @@ class SproutElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         chemotaxis:
             How strongly VEGF draws the tip.
@@ -288,6 +316,11 @@ class SproutElement(Element):
         self.branching = branching
         self.activation = activation
 
+    @classmethod
+    def _get_view(cls) -> type[SproutView]:
+        """Return the view of a sprout tip, `SproutView`."""
+        return SproutView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sprouting rule.
 
@@ -301,7 +334,7 @@ class SproutElement(Element):
         """
         return [RuleLaw(self.sprout)]
 
-    def sprout(self, agent: AgentView, model: ModelView) -> None:
+    def sprout(self, agent: SproutView, model: ModelView) -> None:
         """Move up the VEGF gradient, leave a vessel segment, and branch now and then.
 
         Args:

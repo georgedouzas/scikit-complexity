@@ -44,6 +44,9 @@ class VaccinatedPopulationElement(Element):
         label:
             The label of the population.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         S:
             The initial susceptible fraction.
 

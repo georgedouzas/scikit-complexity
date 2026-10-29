@@ -32,17 +32,17 @@ class BranchElement(Element):
         label:
             The label of the branch.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        n:
+            The initial number of marks.
+
+        evaporation:
+            The rate at which each mark evaporates.
+
         stochastic:
             Whether marks evaporate one at a time at random.
-
-        **values:
-            The values of the declared variables, by name:
-
-            n:
-                The initial number of marks.
-
-            evaporation:
-                The rate at which each mark evaporates.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import BranchElement
@@ -90,26 +90,23 @@ class TrailChoiceInteraction(Interaction):
         label:
             The label of the interaction.
 
+        chosen:
+            The path of the branch this choice marks.
+
+        other:
+            The path of the competing branch.
+
+        flux:
+            The rate at which ants arrive at the fork.
+
+        k:
+            The attractiveness of an unmarked branch.
+
+        h:
+            The nonlinearity of the choice.
+
         stochastic:
             Whether ants are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            chosen:
-                The path of the branch this choice marks.
-
-            other:
-                The path of the competing branch.
-
-            flux:
-                The rate at which ants arrive at the fork.
-
-            k:
-                The attractiveness of an unmarked branch.
-
-            h:
-                The nonlinearity of the choice.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import TrailChoiceInteraction
@@ -161,6 +158,9 @@ class RatsElement(Element):
         label:
             The label of the state.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of rats.
 
@@ -191,26 +191,23 @@ class NervousnessInteraction(Interaction):
         label:
             The label of the interaction.
 
+        calm:
+            The path of the calm rats.
+
+        nervous:
+            The path of the nervous rats.
+
+        spontaneous:
+            The rate at which a calm rat turns nervous on its own.
+
+        contagion:
+            The rate at which a calm rat turns nervous when all others are nervous.
+
+        calming:
+            The rate at which a nervous rat calms down.
+
         stochastic:
             Whether changes are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            calm:
-                The path of the calm rats.
-
-            nervous:
-                The path of the nervous rats.
-
-            spontaneous:
-                The rate at which a calm rat turns nervous on its own.
-
-            contagion:
-                The rate at which a calm rat turns nervous when all others are nervous.
-
-            calming:
-                The rate at which a nervous rat calms down.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import NervousnessInteraction

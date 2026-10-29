@@ -26,6 +26,9 @@ class QuotaPhytoplanktonElement(Element):
         label:
             The label of the population.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         Q:
             The initial cell quota.
 

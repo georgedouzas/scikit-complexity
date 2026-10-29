@@ -43,17 +43,17 @@ class SpeciesElement(Element):
         label:
             The label of the species or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        fitness:
+            The initial fitness.
+
         updates:
             The number of updates per step.
 
         neighbors:
             `'ring'` for the two neighbours on a ring or `'graph'` for the neighbours of a node.
-
-        **values:
-            The values of the declared variables, by name:
-
-            fitness:
-                The initial fitness.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import SpeciesElement

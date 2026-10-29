@@ -59,6 +59,9 @@ class SpikingNeuronElement(Element):
         label:
             The label of the neuron.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         v:
             The initial potential.
 
@@ -195,6 +198,9 @@ class TermanWangElement(Element):
         label:
             The label of the oscillator or the lattice field.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial fast variable.
 
@@ -284,6 +290,9 @@ class InhibitorElement(Element):
     Args:
         label:
             The label of the inhibitor.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         z:
             The initial activity.

@@ -63,14 +63,11 @@ class ReplicationInteraction(Interaction):
         label:
             The label of the interaction.
 
+        population:
+            The path of the group of strategies.
+
         payoff:
             The payoff matrix, one row per strategy.
-
-        **values:
-            The values of the declared variables, by name:
-
-            population:
-                The path of the group of strategies.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import ReplicationInteraction
@@ -112,6 +109,9 @@ class CyclicSpeciesElement(Element):
     Args:
         label:
             The label of the site or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 0, 1, or 2.

@@ -53,35 +53,35 @@ class PulsedElectrodeElement(Element):
         label:
             The label of the electrode.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        eta:
+            The initial overpotential.
+
+        c:
+            The initial reactant concentration, relative to the feed.
+
+        C:
+            The capacitance of the double layer.
+
+        alpha:
+            The transfer coefficient.
+
+        tau:
+            The residence time of the reactor.
+
+        kappa:
+            The consumption of reactant per unit of Faradaic current.
+
+        current:
+            The current of a pulse.
+
         period:
             The time between the starts of pulses.
 
         width:
             The duration of a pulse.
-
-        **values:
-            The values of the declared variables, by name:
-
-            eta:
-                The initial overpotential.
-
-            c:
-                The initial reactant concentration, relative to the feed.
-
-            C:
-                The capacitance of the double layer.
-
-            alpha:
-                The transfer coefficient.
-
-            tau:
-                The residence time of the reactor.
-
-            kappa:
-                The consumption of reactant per unit of Faradaic current.
-
-            current:
-                The current of a pulse.
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import PulsedElectrodeElement

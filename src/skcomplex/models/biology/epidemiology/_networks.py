@@ -32,6 +32,9 @@ class DegreeClassElement(Element):
         label:
             The label of the class or the group of classes.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         rho:
             The initial infected density.
 
@@ -92,6 +95,9 @@ class SubpopulationElement(Element):
     Args:
         label:
             The label of the subpopulation or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial number of susceptible individuals.

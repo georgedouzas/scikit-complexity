@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, log, oo, sin
 from sage.sets.real_set import RealSet
@@ -32,7 +32,7 @@ def _toxicity(concentration: Expression, scale: Expression) -> Expression:
     return exp(concentration / scale) - 1
 
 
-def _total_toxicity(s: Any) -> Expression:  # noqa: ANN401
+def _total_toxicity(s: SimpleNamespace) -> Expression:
     """Return the mean toxicity of the antiangiogenic and the immunotherapeutic drug."""
     tumour = s.tumour
     return (_toxicity(tumour.c_an, tumour.tox_an) + _toxicity(tumour.c_im, tumour.tox_im)) / 2
@@ -51,6 +51,120 @@ class ChemoimmunotherapyTumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial number of tumour cells.
+
+        N:
+            The initial number of NK cells.
+
+        E:
+            The initial number of CD8 T cells.
+
+        C:
+            The initial number of circulating lymphocytes.
+
+        I:
+            The initial amount of IL-2.
+
+        M:
+            The initial amount of chemotherapeutic drug.
+
+        r1:
+            The growth rate of the tumour.
+
+        b1:
+            The reciprocal carrying capacity of the tumour.
+
+        c1:
+            The rate at which NK cells kill tumour cells.
+
+        a1:
+            The highest rate at which CD8 T cells kill tumour cells.
+
+        g1:
+            The half-saturation of the CD8 T cell kill.
+
+        l:
+            The exponent of the CD8 T cell kill.
+
+        a2:
+            The chemotherapy kill rate of tumour cells.
+
+        m1:
+            The rate at which circulating lymphocytes become NK cells.
+
+        d1:
+            The death rate of NK cells.
+
+        r2:
+            The highest recruitment rate of NK cells by the tumour.
+
+        g2:
+            The half-saturation of the NK cell recruitment, in cells².
+
+        psi1:
+            The rate at which the tumour inactivates NK cells.
+
+        a3:
+            The chemotherapy kill rate of NK cells.
+
+        r3:
+            The highest recruitment rate of CD8 T cells by the tumour kill.
+
+        g3:
+            The half-saturation of the CD8 T cell recruitment, in cells².
+
+        d2:
+            The death rate of CD8 T cells.
+
+        psi2:
+            The rate at which the tumour inactivates CD8 T cells.
+
+        psi3:
+            The rate at which NK cells regulate CD8 T cells.
+
+        r4:
+            The rate at which the NK cell kill of tumour cells activates CD8 T cells.
+
+        r5:
+            The rate at which circulating lymphocytes meeting tumour cells activate CD8 T cells.
+
+        a4:
+            The chemotherapy kill rate of CD8 T cells.
+
+        r6:
+            The highest rate at which IL-2 stimulates CD8 T cells.
+
+        g4:
+            The half-saturation of the IL-2 stimulation.
+
+        s1:
+            The influx of circulating lymphocytes.
+
+        d3:
+            The death rate of circulating lymphocytes.
+
+        a5:
+            The chemotherapy kill rate of circulating lymphocytes.
+
+        d_u1:
+            The decay rate of IL-2.
+
+        d_u2:
+            The decay rate of the chemotherapeutic drug.
+
+        u_til:
+            The rate of TIL injection during a dose, in cells per day.
+
+        u_il2:
+            The rate of IL-2 injection during a dose.
+
+        u_chemo:
+            The rate of chemotherapy infusion during a dose.
+
         start:
             The time of the first dose.
 
@@ -62,120 +176,6 @@ class ChemoimmunotherapyTumourElement(Element):
 
         doses:
             The number of doses.
-
-        **values:
-            The values of the declared variables, by name:
-
-            A:
-                The initial number of tumour cells.
-
-            N:
-                The initial number of NK cells.
-
-            E:
-                The initial number of CD8 T cells.
-
-            C:
-                The initial number of circulating lymphocytes.
-
-            I:
-                The initial amount of IL-2.
-
-            M:
-                The initial amount of chemotherapeutic drug.
-
-            r1:
-                The growth rate of the tumour.
-
-            b1:
-                The reciprocal carrying capacity of the tumour.
-
-            c1:
-                The rate at which NK cells kill tumour cells.
-
-            a1:
-                The highest rate at which CD8 T cells kill tumour cells.
-
-            g1:
-                The half-saturation of the CD8 T cell kill.
-
-            l:
-                The exponent of the CD8 T cell kill.
-
-            a2:
-                The chemotherapy kill rate of tumour cells.
-
-            m1:
-                The rate at which circulating lymphocytes become NK cells.
-
-            d1:
-                The death rate of NK cells.
-
-            r2:
-                The highest recruitment rate of NK cells by the tumour.
-
-            g2:
-                The half-saturation of the NK cell recruitment, in cells².
-
-            psi1:
-                The rate at which the tumour inactivates NK cells.
-
-            a3:
-                The chemotherapy kill rate of NK cells.
-
-            r3:
-                The highest recruitment rate of CD8 T cells by the tumour kill.
-
-            g3:
-                The half-saturation of the CD8 T cell recruitment, in cells².
-
-            d2:
-                The death rate of CD8 T cells.
-
-            psi2:
-                The rate at which the tumour inactivates CD8 T cells.
-
-            psi3:
-                The rate at which NK cells regulate CD8 T cells.
-
-            r4:
-                The rate at which the NK cell kill of tumour cells activates CD8 T cells.
-
-            r5:
-                The rate at which circulating lymphocytes meeting tumour cells activate CD8 T cells.
-
-            a4:
-                The chemotherapy kill rate of CD8 T cells.
-
-            r6:
-                The highest rate at which IL-2 stimulates CD8 T cells.
-
-            g4:
-                The half-saturation of the IL-2 stimulation.
-
-            s1:
-                The influx of circulating lymphocytes.
-
-            d3:
-                The death rate of circulating lymphocytes.
-
-            a5:
-                The chemotherapy kill rate of circulating lymphocytes.
-
-            d_u1:
-                The decay rate of IL-2.
-
-            d_u2:
-                The decay rate of the chemotherapeutic drug.
-
-            u_til:
-                The rate of TIL injection during a dose, in cells per day.
-
-            u_il2:
-                The rate of IL-2 injection during a dose.
-
-            u_chemo:
-                The rate of chemotherapy infusion during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import ChemoimmunotherapyTumourElement
@@ -315,6 +315,9 @@ class ClonalTumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         A1:
             The initial number of cells of the first clone.
 
@@ -452,53 +455,53 @@ class ChemovirotherapyTumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AU:
+            The initial number of uninfected cells.
+
+        AV:
+            The initial number of infected cells.
+
+        V:
+            The initial number of virions.
+
+        U:
+            The initial amount of drug.
+
+        r1:
+            The growth rate of uninfected cells.
+
+        b:
+            The reciprocal carrying capacity.
+
+        alpha:
+            The infection rate.
+
+        a1:
+            The drug kill rate of uninfected cells.
+
+        a2:
+            The rate at which the virus kills infected cells.
+
+        a3:
+            The drug kill rate of infected cells.
+
+        beta_v:
+            The burst size.
+
+        d1:
+            The decay rate of the virus.
+
+        d_u:
+            The decay rate of the drug.
+
+        u1:
+            The infusion rate of the drug.
+
         infusion:
             The form of the infusion, `'constant'`, `'exponential'`, or `'periodic'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            AU:
-                The initial number of uninfected cells.
-
-            AV:
-                The initial number of infected cells.
-
-            V:
-                The initial number of virions.
-
-            U:
-                The initial amount of drug.
-
-            r1:
-                The growth rate of uninfected cells.
-
-            b:
-                The reciprocal carrying capacity.
-
-            alpha:
-                The infection rate.
-
-            a1:
-                The drug kill rate of uninfected cells.
-
-            a2:
-                The rate at which the virus kills infected cells.
-
-            a3:
-                The drug kill rate of infected cells.
-
-            beta_v:
-                The burst size.
-
-            d1:
-                The decay rate of the virus.
-
-            d_u:
-                The decay rate of the drug.
-
-            u1:
-                The infusion rate of the drug.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumourElement
@@ -584,6 +587,9 @@ class GliomaBrainElement(Element):
     Args:
         label:
             The label of the brain.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         G:
             The initial number of glial cells.
@@ -759,6 +765,51 @@ class Her2TumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial number of cells.
+
+        Ab:
+            The initial bound antibody.
+
+        Pin:
+            The initial internalized paclitaxel.
+
+        r:
+            The growth rate.
+
+        kc:
+            The carrying capacity.
+
+        a1:
+            The inhibition of proliferation per unit of bound antibody.
+
+        a2:
+            The reduction of the carrying capacity per unit of internalized paclitaxel.
+
+        gamma_p:
+            The decay rate of the cytotoxicity of paclitaxel.
+
+        sigma:
+            The synergy of the two drugs, 1 for none.
+
+        theta_ab:
+            The binding rate of the antibody.
+
+        theta_r:
+            The number of receptors per cell.
+
+        alpha_p:
+            The uptake rate of paclitaxel.
+
+        antibody:
+            The level of free antibody from its dose on.
+
+        paclitaxel:
+            The level of free paclitaxel from its dose on, in pmol.
+
         t_antibody:
             The time of the antibody dose.
 
@@ -767,51 +818,6 @@ class Her2TumourElement(Element):
 
         t_p:
             The time of the paclitaxel dose.
-
-        **values:
-            The values of the declared variables, by name:
-
-            A:
-                The initial number of cells.
-
-            Ab:
-                The initial bound antibody.
-
-            Pin:
-                The initial internalized paclitaxel.
-
-            r:
-                The growth rate.
-
-            kc:
-                The carrying capacity.
-
-            a1:
-                The inhibition of proliferation per unit of bound antibody.
-
-            a2:
-                The reduction of the carrying capacity per unit of internalized paclitaxel.
-
-            gamma_p:
-                The decay rate of the cytotoxicity of paclitaxel.
-
-            sigma:
-                The synergy of the two drugs, 1 for none.
-
-            theta_ab:
-                The binding rate of the antibody.
-
-            theta_r:
-                The number of receptors per cell.
-
-            alpha_p:
-                The uptake rate of paclitaxel.
-
-            antibody:
-                The level of free antibody from its dose on.
-
-            paclitaxel:
-                The level of free paclitaxel from its dose on, in pmol.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import Her2TumourElement
@@ -899,6 +905,120 @@ class AngiogenesisImmunotherapyTumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial tumour volume.
+
+        Vb:
+            The initial vascular capacity.
+
+        E:
+            The initial effector cells, dimensionless.
+
+        c_an:
+            The initial central amount of the antiangiogenic drug.
+
+        q_an:
+            The initial peripheral amount of the antiangiogenic drug.
+
+        R_an:
+            The initial resistance integral of the antiangiogenic drug.
+
+        c_im:
+            The initial central amount of the immunotherapeutic drug.
+
+        q_im:
+            The initial peripheral amount of the immunotherapeutic drug.
+
+        R_im:
+            The initial resistance integral of the immunotherapeutic drug.
+
+        v1:
+            The growth constant of the tumour.
+
+        v2:
+            The spontaneous loss of vasculature.
+
+        a1:
+            The kill rate of the tumour by effector cells.
+
+        xi_s:
+            The stimulation of the vasculature by the tumour.
+
+        xi_i:
+            The inhibition of the vasculature by the tumour.
+
+        a2:
+            The highest destruction rate of the vasculature by the antiangiogenic drug.
+
+        r1:
+            The proliferation rate of effector cells.
+
+        c1:
+            The inverse of the tumour volume above which the tumour suppresses the effector cells.
+
+        d1:
+            The death rate of effector cells.
+
+        s_e:
+            The influx of effector cells.
+
+        a3:
+            The highest boost of effector cells by the immunotherapeutic drug.
+
+        alpha_an:
+            The distribution rate of the antiangiogenic drug.
+
+        beta_an:
+            The elimination rate of the antiangiogenic drug.
+
+        k12_an:
+            The rate from the central to the peripheral compartment of the antiangiogenic drug.
+
+        k21_an:
+            The rate from the peripheral to the central compartment of the antiangiogenic drug.
+
+        u50_an:
+            The amount of antiangiogenic drug of half effect before resistance.
+
+        alpha_im:
+            The distribution rate of the immunotherapeutic drug.
+
+        beta_im:
+            The elimination rate of the immunotherapeutic drug.
+
+        k12_im:
+            The rate from the central to the peripheral compartment of the immunotherapeutic drug.
+
+        k21_im:
+            The rate from the peripheral to the central compartment of the immunotherapeutic drug.
+
+        u50_im:
+            The amount of immunotherapeutic drug of half effect before resistance.
+
+        g:
+            The steepness of the drug effects.
+
+        delta_r:
+            The capacity of the tumour to resist the drugs.
+
+        u_theta:
+            The amount below which resistance develops.
+
+        tox_an:
+            The amount of antiangiogenic drug at which its toxicity turns exponential.
+
+        tox_im:
+            The amount of immunotherapeutic drug at which its toxicity turns exponential.
+
+        dose_an:
+            The dose of the antiangiogenic drug, in mg per kg.
+
+        dose_im:
+            The dose of the immunotherapeutic drug, in mg per kg.
+
         period:
             The time between the starts of doses.
 
@@ -907,120 +1027,6 @@ class AngiogenesisImmunotherapyTumourElement(Element):
 
         doses:
             The number of doses.
-
-        **values:
-            The values of the declared variables, by name:
-
-            A:
-                The initial tumour volume.
-
-            Vb:
-                The initial vascular capacity.
-
-            E:
-                The initial effector cells, dimensionless.
-
-            c_an:
-                The initial central amount of the antiangiogenic drug.
-
-            q_an:
-                The initial peripheral amount of the antiangiogenic drug.
-
-            R_an:
-                The initial resistance integral of the antiangiogenic drug.
-
-            c_im:
-                The initial central amount of the immunotherapeutic drug.
-
-            q_im:
-                The initial peripheral amount of the immunotherapeutic drug.
-
-            R_im:
-                The initial resistance integral of the immunotherapeutic drug.
-
-            v1:
-                The growth constant of the tumour.
-
-            v2:
-                The spontaneous loss of vasculature.
-
-            a1:
-                The kill rate of the tumour by effector cells.
-
-            xi_s:
-                The stimulation of the vasculature by the tumour.
-
-            xi_i:
-                The inhibition of the vasculature by the tumour.
-
-            a2:
-                The highest destruction rate of the vasculature by the antiangiogenic drug.
-
-            r1:
-                The proliferation rate of effector cells.
-
-            c1:
-                The inverse of the tumour volume above which the tumour suppresses the effector cells.
-
-            d1:
-                The death rate of effector cells.
-
-            s_e:
-                The influx of effector cells.
-
-            a3:
-                The highest boost of effector cells by the immunotherapeutic drug.
-
-            alpha_an:
-                The distribution rate of the antiangiogenic drug.
-
-            beta_an:
-                The elimination rate of the antiangiogenic drug.
-
-            k12_an:
-                The rate from the central to the peripheral compartment of the antiangiogenic drug.
-
-            k21_an:
-                The rate from the peripheral to the central compartment of the antiangiogenic drug.
-
-            u50_an:
-                The amount of antiangiogenic drug of half effect before resistance.
-
-            alpha_im:
-                The distribution rate of the immunotherapeutic drug.
-
-            beta_im:
-                The elimination rate of the immunotherapeutic drug.
-
-            k12_im:
-                The rate from the central to the peripheral compartment of the immunotherapeutic drug.
-
-            k21_im:
-                The rate from the peripheral to the central compartment of the immunotherapeutic drug.
-
-            u50_im:
-                The amount of immunotherapeutic drug of half effect before resistance.
-
-            g:
-                The steepness of the drug effects.
-
-            delta_r:
-                The capacity of the tumour to resist the drugs.
-
-            u_theta:
-                The amount below which resistance develops.
-
-            tox_an:
-                The amount of antiangiogenic drug at which its toxicity turns exponential.
-
-            tox_im:
-                The amount of immunotherapeutic drug at which its toxicity turns exponential.
-
-            dose_an:
-                The dose of the antiangiogenic drug, in mg per kg.
-
-            dose_im:
-                The dose of the immunotherapeutic drug, in mg per kg.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import AngiogenesisImmunotherapyTumourElement

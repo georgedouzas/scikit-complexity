@@ -41,6 +41,9 @@ class ImmunizingDegreeClassElement(Element):
         label:
             The label of the class or the group of classes.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         s:
             The initial susceptible density.
 

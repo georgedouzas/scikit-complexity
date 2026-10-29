@@ -29,6 +29,9 @@ class TcrGeneTherapyElement(Element):
         label:
             The label of the tumour site.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         E:
             The initial number of effector cells.
 
@@ -126,6 +129,9 @@ class SirnaTgfBetaElement(Element):
     Args:
         label:
             The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial number of effector cells.
@@ -319,6 +325,9 @@ class OncolyticVirusElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         AU:
             The initial uninfected tumour cells.
 
@@ -386,6 +395,9 @@ class OncolyticVirusDendriticElement(Element):
     Args:
         label:
             The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         AU:
             The initial uninfected tumour volume.

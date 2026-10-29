@@ -19,6 +19,8 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._forager_view import ForagerView
+from ._plant_view import PlantView
 
 MARKS = 'ground/marks'
 PLANTS = 'plants'
@@ -75,7 +77,7 @@ def _empty_cells(agent: AgentView) -> list[object]:
     return [cell for cell in agent.neighbor_cells() if cell not in occupied]
 
 
-def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
+def _spawn(agent: PlantView | ForagerView, model: ModelView, **values: float) -> None:
     """Place an offspring of an agent in a random empty neighbouring cell, if there is one, with given states."""
     cells = _empty_cells(agent)
     if cells:
@@ -89,6 +91,9 @@ class PlantElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The steps since the plant last spread.
@@ -114,6 +119,11 @@ class PlantElement(Element):
         self.age = age
         self.maturity = maturity
 
+    @classmethod
+    def _get_view(cls) -> type[PlantView]:
+        """Return the view of a plant, `PlantView`."""
+        return PlantView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the spreading rule.
 
@@ -127,7 +137,7 @@ class PlantElement(Element):
         """
         return [RuleLaw(self.spread)]
 
-    def spread(self, agent: AgentView, model: ModelView) -> None:
+    def spread(self, agent: PlantView, model: ModelView) -> None:
         """Age, and spread into an empty neighbouring cell at maturity.
 
         Args:
@@ -157,6 +167,9 @@ class ForagerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The steps since the animal last bred.
@@ -226,7 +239,12 @@ class ForagerElement(Element):
     happiness_mark: ClassVar[str] = 'prey_happiness'
     distress_mark: ClassVar[str] = 'prey_fear'
 
-    def _preference(self, agent: AgentView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
+    @classmethod
+    def _get_view(cls) -> type[ForagerView]:
+        """Return the view of a forager or a predator, `ForagerView`."""
+        return ForagerView
+
+    def _preference(self, agent: ForagerView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
         """Return the preference of an animal for a neighbouring cell."""
         food = 1.0 if occupant is not None and _kind(occupant) == self.food else 0.0
         if not agent.emotions:
@@ -235,7 +253,7 @@ class ForagerElement(Element):
         distress = model.field(f'{MARKS}.{self.distress_mark}', cell) - agent.distress
         return food + happiness - distress
 
-    def _move(self, agent: AgentView, model: ModelView, occupants: dict[object, AgentView]) -> float:
+    def _move(self, agent: ForagerView, model: ModelView, occupants: dict[object, AgentView]) -> float:
         """Move an animal to its preferred cell, eat the food there, and return 1 if it ate."""
         options = [
             (cell, occupants.get(cell))
@@ -255,7 +273,7 @@ class ForagerElement(Element):
         agent.move_to(cell)
         return 1.0
 
-    def _feel(self, agent: AgentView, model: ModelView, happiness: float, distress: float) -> None:
+    def _feel(self, agent: ForagerView, model: ModelView, happiness: float, distress: float) -> None:
         """Update the emotions of an animal from its experiences and the marks around it, and mark its cell."""
         cells = agent.neighbor_cells()
         marked_happiness = np.mean([model.field(f'{MARKS}.{self.happiness_mark}', cell) for cell in cells])
@@ -279,7 +297,7 @@ class ForagerElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def sense(self, agent: AgentView, occupants: dict[object, AgentView]) -> float:
+    def sense(self, agent: ForagerView, occupants: dict[object, AgentView]) -> float:
         """Return the distress the animal experiences from its neighbours.
 
         Args:
@@ -296,7 +314,7 @@ class ForagerElement(Element):
         del occupants
         return float(agent.hunger / agent.starvation)
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: ForagerView, model: ModelView) -> None:
         """Age, starve, sense, move and eat, feel, and breed.
 
         Args:
@@ -365,7 +383,7 @@ class StigmergicPreyElement(ForagerElement):
         'plants'
     """
 
-    def sense(self, agent: AgentView, occupants: dict[object, AgentView]) -> float:
+    def sense(self, agent: ForagerView, occupants: dict[object, AgentView]) -> float:
         """Return the number of predators around the prey, its experience of fear.
 
         Args:
@@ -389,6 +407,9 @@ class StigmergicPredatorElement(ForagerElement):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The steps since the animal last bred.

@@ -29,26 +29,26 @@ class GeneElement(Element):
         label:
             The label of the gene.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        m:
+            The initial number of mRNA molecules.
+
+        p:
+            The initial number of protein molecules.
+
+        delta:
+            The decay rate of mRNA.
+
+        b:
+            The translation rate per mRNA molecule.
+
+        beta:
+            The decay rate of the protein.
+
         stochastic:
             Whether expression is a sequence of random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            m:
-                The initial number of mRNA molecules.
-
-            p:
-                The initial number of protein molecules.
-
-            delta:
-                The decay rate of mRNA.
-
-            b:
-                The translation rate per mRNA molecule.
-
-            beta:
-                The decay rate of the protein.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import GeneElement
@@ -103,29 +103,26 @@ class RepressionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        repressor:
+            The path of the repressing gene.
+
+        target:
+            The path of the repressed gene.
+
+        alpha:
+            The transcription rate without repressor.
+
+        alpha0:
+            The leaky transcription rate at saturating repressor.
+
+        K:
+            The repressor count at half repression.
+
+        n:
+            The Hill coefficient of repression.
+
         stochastic:
             Whether transcriptions are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            repressor:
-                The path of the repressing gene.
-
-            target:
-                The path of the repressed gene.
-
-            alpha:
-                The transcription rate without repressor.
-
-            alpha0:
-                The leaky transcription rate at saturating repressor.
-
-            K:
-                The repressor count at half repression.
-
-            n:
-                The Hill coefficient of repression.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import RepressionInteraction

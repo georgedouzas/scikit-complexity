@@ -23,6 +23,9 @@ class PopulationElement(Element):
         label:
             The label of the population.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial size.
 

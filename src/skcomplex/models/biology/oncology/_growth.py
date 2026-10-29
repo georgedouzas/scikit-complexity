@@ -28,6 +28,9 @@ class TumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial size.
 
@@ -54,6 +57,9 @@ class VasculatureElement(Element):
     Args:
         label:
             The label of the vasculature.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         K:
             The initial carrying capacity.
@@ -435,6 +441,15 @@ class LogKillInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the tumour.
+
+        a:
+            The kill rate per unit of exposure.
+
+        dose:
+            The exposure during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -443,18 +458,6 @@ class LogKillInteraction(Interaction):
 
         start:
             The time of the first dose.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the tumour.
-
-            a:
-                The kill rate per unit of exposure.
-
-            dose:
-                The exposure during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import LogKillInteraction

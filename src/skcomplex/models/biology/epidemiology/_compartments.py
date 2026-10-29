@@ -30,6 +30,9 @@ class CompartmentElement(Element):
         label:
             The label of the compartment.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of individuals.
 
@@ -59,20 +62,17 @@ class InfectionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        susceptible:
+            The path of the susceptible compartment.
+
+        infected:
+            The path of the infected compartment.
+
+        beta:
+            The transmission rate.
+
         stochastic:
             Whether infections are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            susceptible:
-                The path of the susceptible compartment.
-
-            infected:
-                The path of the infected compartment.
-
-            beta:
-                The transmission rate.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import InfectionInteraction
@@ -119,20 +119,17 @@ class RecoveryInteraction(Interaction):
         label:
             The label of the interaction.
 
+        infected:
+            The path of the infected compartment.
+
+        recovered:
+            The path of the recovered compartment.
+
+        gamma:
+            The recovery rate.
+
         stochastic:
             Whether recoveries are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            infected:
-                The path of the infected compartment.
-
-            recovered:
-                The path of the recovered compartment.
-
-            gamma:
-                The recovery rate.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import RecoveryInteraction
@@ -178,20 +175,17 @@ class ImmunityLossInteraction(Interaction):
         label:
             The label of the interaction.
 
+        recovered:
+            The path of the recovered compartment.
+
+        susceptible:
+            The path of the susceptible compartment.
+
+        xi:
+            The rate at which immunity wanes.
+
         stochastic:
             Whether losses of immunity are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            recovered:
-                The path of the recovered compartment.
-
-            susceptible:
-                The path of the susceptible compartment.
-
-            xi:
-                The rate at which immunity wanes.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ImmunityLossInteraction

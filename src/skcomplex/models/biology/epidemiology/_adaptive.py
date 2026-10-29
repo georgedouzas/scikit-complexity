@@ -34,6 +34,9 @@ class CarrierElement(Element):
         label:
             The label of the node or of the group of nodes.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         p:
             The initial probability of being infected.
 
@@ -81,6 +84,9 @@ class HostElement(Element):
     Args:
         label:
             The label of the node or of the group of nodes.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         i:
             Whether the node is infected.
@@ -216,23 +222,23 @@ class ActiveHostElement(Element):
         label:
             The label of the node or of the group of nodes.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        i:
+            Whether the node is infected.
+
+        a:
+            The activity, the probability of firing at a step.
+
+        lam:
+            The probability of infection along one edge.
+
+        mu:
+            The probability of recovery at a step.
+
         m:
             The number of edges an active node creates.
-
-        **values:
-            The values of the declared variables, by name:
-
-            i:
-                Whether the node is infected.
-
-            a:
-                The activity, the probability of firing at a step.
-
-            lam:
-                The probability of infection along one edge.
-
-            mu:
-                The probability of recovery at a step.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ActiveHostElement

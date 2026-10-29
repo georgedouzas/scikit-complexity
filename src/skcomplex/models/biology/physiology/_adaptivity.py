@@ -37,6 +37,60 @@ class AdaptiveResponderElement(Element):
         label:
             The label of the system.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        e:
+            The initial excursion of the critical parameter.
+
+        c:
+            The initial capacity of the response.
+
+        S:
+            The initial reserves, 1 when full.
+
+        response_cost:
+            The initial response cost.
+
+        restore_cost:
+            The initial restore cost.
+
+        repair_cost:
+            The initial repair cost.
+
+        prepare_cost:
+            The initial preparedness cost.
+
+        eta:
+            The rate at which demand builds capacity, 0 for a fixed stimulus-response.
+
+        anticipation:
+            The share `a` of every episode that anticipation avoids.
+
+        c0:
+            The baseline capacity.
+
+        tau:
+            The time over which unused capacity decays.
+
+        k0:
+            The homeostatic relaxation rate of the excursion.
+
+        kappa:
+            The rate of restoring the reserves.
+
+        price:
+            The cost of restoring a unit of reserves.
+
+        theta:
+            The excursion above which damage accrues.
+
+        repair:
+            The repair cost per unit of excursion above the threshold and per unit time.
+
+        upkeep:
+            The cost per unit time of a unit of extra capacity or of anticipation.
+
         height:
             The height of the episodes.
 
@@ -48,60 +102,6 @@ class AdaptiveResponderElement(Element):
 
         start:
             The start of the first episode.
-
-        **values:
-            The values of the declared variables, by name:
-
-            e:
-                The initial excursion of the critical parameter.
-
-            c:
-                The initial capacity of the response.
-
-            S:
-                The initial reserves, 1 when full.
-
-            response_cost:
-                The initial response cost.
-
-            restore_cost:
-                The initial restore cost.
-
-            repair_cost:
-                The initial repair cost.
-
-            prepare_cost:
-                The initial preparedness cost.
-
-            eta:
-                The rate at which demand builds capacity, 0 for a fixed stimulus-response.
-
-            anticipation:
-                The share `a` of every episode that anticipation avoids.
-
-            c0:
-                The baseline capacity.
-
-            tau:
-                The time over which unused capacity decays.
-
-            k0:
-                The homeostatic relaxation rate of the excursion.
-
-            kappa:
-                The rate of restoring the reserves.
-
-            price:
-                The cost of restoring a unit of reserves.
-
-            theta:
-                The excursion above which damage accrues.
-
-            repair:
-                The repair cost per unit of excursion above the threshold and per unit time.
-
-            upkeep:
-                The cost per unit time of a unit of extra capacity or of anticipation.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import AdaptiveResponderElement

@@ -34,6 +34,9 @@ class GenotypeClassElement(Element):
         label:
             The label of the class.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial share.
 
@@ -63,6 +66,9 @@ class MasterSequenceElement(GenotypeClassElement):
     Args:
         label:
             The label of the class.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial share.
@@ -117,20 +123,17 @@ class MutationInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the class.
+
+        source:
+            The path of the class one mutation closer to the master sequence.
+
+        master:
+            The path of the master sequence.
+
         last:
             Whether the class is the last of the chain.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the class.
-
-            source:
-                The path of the class one mutation closer to the master sequence.
-
-            master:
-                The path of the master sequence.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import MutationInteraction
@@ -198,17 +201,14 @@ class CatalysisInteraction(Interaction):
         label:
             The label of the interaction.
 
+        molecules:
+            The path of the group of molecules.
+
+        omega:
+            The catalytic rate of a link.
+
         topology:
             The catalytic links, 1 where molecule `j` catalyses molecule `i`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            molecules:
-                The path of the group of molecules.
-
-            omega:
-                The catalytic rate of a link.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import CatalysisInteraction

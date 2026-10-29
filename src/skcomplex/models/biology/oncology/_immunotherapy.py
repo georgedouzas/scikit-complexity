@@ -43,6 +43,9 @@ class KirschnerPanettaTumourElement(Element):
         label:
             The label of the tumour site.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         E:
             The initial effector cells.
 
@@ -178,6 +181,78 @@ class VaccinatedTumourElement(Element):
         label:
             The label of the tumour site.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        EH:
+            The initial helper T cells.
+
+        E:
+            The initial cytotoxic T cells.
+
+        A:
+            The initial tumour cells.
+
+        ED:
+            The initial dendritic cells.
+
+        C:
+            The initial IL-2 concentration.
+
+        s1:
+            The influx of helper T cells.
+
+        s2:
+            The influx of cytotoxic T cells.
+
+        rho1:
+            The proliferation constant of helper T cells.
+
+        rho2:
+            The proliferation constant of cytotoxic T cells.
+
+        r1:
+            The growth rate of helper T cells.
+
+        r2:
+            The growth rate of cytotoxic T cells.
+
+        r3:
+            The growth rate of the tumour.
+
+        r4:
+            The IL-2 secretion rate.
+
+        b1:
+            The inverse capacity of helper T cells.
+
+        b2:
+            The inverse capacity of cytotoxic T cells.
+
+        b3:
+            The inverse capacity of the tumour.
+
+        d1:
+            The death rate of helper T cells.
+
+        d2:
+            The death rate of cytotoxic T cells.
+
+        d3:
+            The degradation rate of IL-2.
+
+        c1:
+            The kill rate of tumour cells by cytotoxic T cells.
+
+        c2:
+            The kill rate of dendritic cells by cytotoxic T cells.
+
+        c3:
+            The consumption rate of IL-2 by cytotoxic T cells.
+
+        dose:
+            The injection rate of dendritic cells during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -189,78 +264,6 @@ class VaccinatedTumourElement(Element):
 
         doses:
             The number of doses.
-
-        **values:
-            The values of the declared variables, by name:
-
-            EH:
-                The initial helper T cells.
-
-            E:
-                The initial cytotoxic T cells.
-
-            A:
-                The initial tumour cells.
-
-            ED:
-                The initial dendritic cells.
-
-            C:
-                The initial IL-2 concentration.
-
-            s1:
-                The influx of helper T cells.
-
-            s2:
-                The influx of cytotoxic T cells.
-
-            rho1:
-                The proliferation constant of helper T cells.
-
-            rho2:
-                The proliferation constant of cytotoxic T cells.
-
-            r1:
-                The growth rate of helper T cells.
-
-            r2:
-                The growth rate of cytotoxic T cells.
-
-            r3:
-                The growth rate of the tumour.
-
-            r4:
-                The IL-2 secretion rate.
-
-            b1:
-                The inverse capacity of helper T cells.
-
-            b2:
-                The inverse capacity of cytotoxic T cells.
-
-            b3:
-                The inverse capacity of the tumour.
-
-            d1:
-                The death rate of helper T cells.
-
-            d2:
-                The death rate of cytotoxic T cells.
-
-            d3:
-                The degradation rate of IL-2.
-
-            c1:
-                The kill rate of tumour cells by cytotoxic T cells.
-
-            c2:
-                The kill rate of dendritic cells by cytotoxic T cells.
-
-            c3:
-                The consumption rate of IL-2 by cytotoxic T cells.
-
-            dose:
-                The injection rate of dendritic cells during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import VaccinatedTumourElement
@@ -364,6 +367,9 @@ class CheckpointTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial activated T cells.
@@ -531,6 +537,174 @@ class DelayedVaccinatedTumourElement(Element):
         label:
             The label of the tumour site.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial tumour cells.
+
+        ENK:
+            The initial natural killer cells.
+
+        ENC:
+            The initial naive CD8+ cells.
+
+        E:
+            The initial mature CD8+ cells.
+
+        ED:
+            The initial dendritic cells.
+
+        C:
+            The initial IL-2 concentration.
+
+        ER:
+            The initial regulatory T cells.
+
+        ENH:
+            The initial naive helper T cells.
+
+        E1H:
+            The initial type 1 helper T cells.
+
+        r1:
+            The growth rate of the tumour.
+
+        b:
+            The carrying capacity of the tumour.
+
+        a1:
+            The maximal kill rate by mature CD8+ cells.
+
+        g1:
+            The steepness of the kill by mature CD8+ cells.
+
+        a2:
+            The kill rate by natural killer cells.
+
+        s1:
+            The influx of natural killer cells.
+
+        d1:
+            The death rate of natural killer cells.
+
+        rho1:
+            The production rate of natural killer cells by IL-2.
+
+        g2:
+            The IL-2 at half production of natural killer cells.
+
+        psi1:
+            The inactivation rate of natural killer cells by regulatory cells.
+
+        s2:
+            The influx of naive CD8+ cells.
+
+        d2:
+            The death rate of naive CD8+ cells.
+
+        rho2:
+            The activation rate of naive CD8+ cells by dendritic cells.
+
+        g3:
+            The dendritic cells at half activation.
+
+        d3:
+            The death rate of mature CD8+ cells.
+
+        rho3:
+            The production rate of mature CD8+ cells by dendritic cells.
+
+        m1:
+            The proliferation rate of mature CD8+ cells with dendritic cells.
+
+        rho4:
+            The proliferation rate of mature CD8+ cells by IL-2.
+
+        g4:
+            The squared IL-2 at half proliferation.
+
+        psi2:
+            The inactivation rate of mature CD8+ cells by regulatory cells.
+
+        d4:
+            The death rate of dendritic cells.
+
+        kappa1:
+            The production of dendritic cells from tumour antigen.
+
+        g5:
+            The tumour at half production of dendritic cells.
+
+        s3:
+            The influx of IL-2.
+
+        d5:
+            The decay rate of IL-2.
+
+        rho5:
+            The secretion rate of IL-2 by mature CD8+ cells.
+
+        g6:
+            The squared mature CD8+ cells at half secretion.
+
+        rho6:
+            The secretion rate of IL-2 by type 1 helper cells.
+
+        g7:
+            The type 1 helper cells at half secretion.
+
+        s4:
+            The influx of regulatory cells.
+
+        d6:
+            The death rate of regulatory cells.
+
+        rho7:
+            The production rate of regulatory cells by the tumour.
+
+        g8:
+            The squared tumour at half production of regulatory cells.
+
+        rho8:
+            The production rate of regulatory cells by IL-2.
+
+        g9:
+            The IL-2 at half production of regulatory cells.
+
+        s5:
+            The influx of naive helper cells.
+
+        d7:
+            The death rate of naive helper cells.
+
+        rho9:
+            The activation rate of naive helper cells by dendritic cells.
+
+        d8:
+            The death rate of type 1 helper cells.
+
+        m2:
+            The maturation rate of naive helper cells.
+
+        psi3:
+            The inactivation rate of type 1 helper cells by regulatory cells.
+
+        rho10:
+            The proliferation rate of type 1 helper cells with dendritic cells.
+
+        tau1:
+            The division time of natural killer cells.
+
+        tau2:
+            The division time of CD8+ cells.
+
+        tau3:
+            The division time of helper cells.
+
+        dose:
+            The injection rate of dendritic cells during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -542,174 +716,6 @@ class DelayedVaccinatedTumourElement(Element):
 
         doses:
             The number of doses.
-
-        **values:
-            The values of the declared variables, by name:
-
-            A:
-                The initial tumour cells.
-
-            ENK:
-                The initial natural killer cells.
-
-            ENC:
-                The initial naive CD8+ cells.
-
-            E:
-                The initial mature CD8+ cells.
-
-            ED:
-                The initial dendritic cells.
-
-            C:
-                The initial IL-2 concentration.
-
-            ER:
-                The initial regulatory T cells.
-
-            ENH:
-                The initial naive helper T cells.
-
-            E1H:
-                The initial type 1 helper T cells.
-
-            r1:
-                The growth rate of the tumour.
-
-            b:
-                The carrying capacity of the tumour.
-
-            a1:
-                The maximal kill rate by mature CD8+ cells.
-
-            g1:
-                The steepness of the kill by mature CD8+ cells.
-
-            a2:
-                The kill rate by natural killer cells.
-
-            s1:
-                The influx of natural killer cells.
-
-            d1:
-                The death rate of natural killer cells.
-
-            rho1:
-                The production rate of natural killer cells by IL-2.
-
-            g2:
-                The IL-2 at half production of natural killer cells.
-
-            psi1:
-                The inactivation rate of natural killer cells by regulatory cells.
-
-            s2:
-                The influx of naive CD8+ cells.
-
-            d2:
-                The death rate of naive CD8+ cells.
-
-            rho2:
-                The activation rate of naive CD8+ cells by dendritic cells.
-
-            g3:
-                The dendritic cells at half activation.
-
-            d3:
-                The death rate of mature CD8+ cells.
-
-            rho3:
-                The production rate of mature CD8+ cells by dendritic cells.
-
-            m1:
-                The proliferation rate of mature CD8+ cells with dendritic cells.
-
-            rho4:
-                The proliferation rate of mature CD8+ cells by IL-2.
-
-            g4:
-                The squared IL-2 at half proliferation.
-
-            psi2:
-                The inactivation rate of mature CD8+ cells by regulatory cells.
-
-            d4:
-                The death rate of dendritic cells.
-
-            kappa1:
-                The production of dendritic cells from tumour antigen.
-
-            g5:
-                The tumour at half production of dendritic cells.
-
-            s3:
-                The influx of IL-2.
-
-            d5:
-                The decay rate of IL-2.
-
-            rho5:
-                The secretion rate of IL-2 by mature CD8+ cells.
-
-            g6:
-                The squared mature CD8+ cells at half secretion.
-
-            rho6:
-                The secretion rate of IL-2 by type 1 helper cells.
-
-            g7:
-                The type 1 helper cells at half secretion.
-
-            s4:
-                The influx of regulatory cells.
-
-            d6:
-                The death rate of regulatory cells.
-
-            rho7:
-                The production rate of regulatory cells by the tumour.
-
-            g8:
-                The squared tumour at half production of regulatory cells.
-
-            rho8:
-                The production rate of regulatory cells by IL-2.
-
-            g9:
-                The IL-2 at half production of regulatory cells.
-
-            s5:
-                The influx of naive helper cells.
-
-            d7:
-                The death rate of naive helper cells.
-
-            rho9:
-                The activation rate of naive helper cells by dendritic cells.
-
-            d8:
-                The death rate of type 1 helper cells.
-
-            m2:
-                The maturation rate of naive helper cells.
-
-            psi3:
-                The inactivation rate of type 1 helper cells by regulatory cells.
-
-            rho10:
-                The proliferation rate of type 1 helper cells with dendritic cells.
-
-            tau1:
-                The division time of natural killer cells.
-
-            tau2:
-                The division time of CD8+ cells.
-
-            tau3:
-                The division time of helper cells.
-
-            dose:
-                The injection rate of dendritic cells during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import DelayedVaccinatedTumourElement
@@ -898,6 +904,9 @@ class SuppressedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour cells.

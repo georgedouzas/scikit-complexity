@@ -1,7 +1,5 @@
 """Share the run helpers and solvers of the biology model tests."""
 
-from typing import Any
-
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.engine.solvers import BaseSolver, ScipyODESolver
@@ -12,14 +10,22 @@ PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-12)
 SYSTEMS_PRECISE = ScipyODESolver(rtol=1e-9, atol=1e-11)
 
 
-def _run(name: str, until: float, dt: float, **arguments: Any) -> Trajectory:  # noqa: ANN401
+def _run(name: str, until: float, dt: float, **arguments: object) -> Trajectory:
     """Return the trajectory of a model created by name and run with a fixed seed."""
     return Simulation(create(name, **arguments), dt=dt, random_state=1).check().run(until=until).trajectory_
 
 
-def _run_until(system: System, until: float, **settings: Any) -> Trajectory:  # noqa: ANN401
+def _run_until(
+    system: System,
+    until: float,
+    *,
+    dt: float | None = None,
+    solver: BaseSolver | None = None,
+    random_state: int | None = None,
+) -> Trajectory:
     """Return the trajectory of a system run until a time."""
-    return Simulation(system, **settings).check().run(until=until).trajectory_
+    simulation = Simulation(system, dt=dt, solver=solver, random_state=random_state)
+    return simulation.check().run(until=until).trajectory_
 
 
 def _run_precise(system: System, until: float, dt: float) -> Trajectory:

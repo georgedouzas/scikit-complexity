@@ -33,6 +33,9 @@ class MinSkeletonElement(Element):
         label:
             The label of the site or the field.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         md:
             The initial membrane MinD.
 

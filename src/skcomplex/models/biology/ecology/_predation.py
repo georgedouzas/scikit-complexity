@@ -178,35 +178,32 @@ class PredatorPreyEventsInteraction(Interaction):
         label:
             The label of the interaction.
 
+        prey:
+            The path of the prey population `x`.
+
+        predators:
+            The path of the predator population `y`.
+
+        r:
+            The birth rate of the prey.
+
+        K:
+            The carrying capacity of the prey.
+
+        a:
+            The attack rate.
+
+        h:
+            The handling time.
+
+        e:
+            The number of predators born per prey eaten.
+
+        m:
+            The death rate of the predators.
+
         stochastic:
             Whether births, deaths, and kills are random events.
-
-        **values:
-            The values of the declared variables, by name:
-
-            prey:
-                The path of the prey population `x`.
-
-            predators:
-                The path of the predator population `y`.
-
-            r:
-                The birth rate of the prey.
-
-            K:
-                The carrying capacity of the prey.
-
-            a:
-                The attack rate.
-
-            h:
-                The handling time.
-
-            e:
-                The number of predators born per prey eaten.
-
-            m:
-                The death rate of the predators.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PredatorPreyEventsInteraction

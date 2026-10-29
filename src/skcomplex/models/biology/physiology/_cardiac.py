@@ -32,6 +32,9 @@ class AlievPanfilovElement(Element):
         label:
             The label of the tissue.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         u:
             The initial potential.
 

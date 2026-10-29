@@ -49,6 +49,39 @@ class AngiogenicTumourElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial tumour volume.
+
+        Vb:
+            The initial vascular volume.
+
+        U:
+            The initial concentration of the inhibitor.
+
+        lambda1:
+            The rate at which the tumour approaches its capacity.
+
+        lambda2:
+            The spontaneous loss rate of the vasculature.
+
+        xi_s:
+            The angiogenic stimulation by the tumour.
+
+        xi_i:
+            The angiogenic inhibition by the tumour.
+
+        a:
+            The vascular loss per unit of inhibitor.
+
+        du:
+            The clearance rate of the inhibitor.
+
+        dose:
+            The infusion rate during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -57,39 +90,6 @@ class AngiogenicTumourElement(Element):
 
         start:
             The time of the first dose.
-
-        **values:
-            The values of the declared variables, by name:
-
-            A:
-                The initial tumour volume.
-
-            Vb:
-                The initial vascular volume.
-
-            U:
-                The initial concentration of the inhibitor.
-
-            lambda1:
-                The rate at which the tumour approaches its capacity.
-
-            lambda2:
-                The spontaneous loss rate of the vasculature.
-
-            xi_s:
-                The angiogenic stimulation by the tumour.
-
-            xi_i:
-                The angiogenic inhibition by the tumour.
-
-            a:
-                The vascular loss per unit of inhibitor.
-
-            du:
-                The clearance rate of the inhibitor.
-
-            dose:
-                The infusion rate during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import AngiogenicTumourElement
@@ -166,6 +166,99 @@ class VascularizedSpheroidElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        Ar:
+            The initial radius.
+
+        Ac:
+            The initial number of live core cells.
+
+        Ap:
+            The initial number of live peripheral cells.
+
+        An:
+            The initial number of necrotic cells.
+
+        Vbc:
+            The initial vascular volume of the core.
+
+        Vbp:
+            The initial vascular volume of the periphery.
+
+        U:
+            The initial concentration of the inhibitor.
+
+        r1:
+            The growth rate of the radius.
+
+        r2:
+            The proliferation rate of the peripheral cells.
+
+        r3:
+            The rate at which peripheral vessels pass to the core.
+
+        m:
+            The necrosis rate of the core cells.
+
+        a1:
+            The angiogenesis rate.
+
+        p1:
+            The peripheral nutrient at half proliferation.
+
+        p2:
+            The peripheral density at half proliferation.
+
+        p3:
+            The core nutrient at half necrosis.
+
+        p4:
+            The core nutrient at half angiogenic factor production.
+
+        p_g:
+            The peripheral density at half the radial growth.
+
+        kappa1:
+            The width of the nutrient switch of proliferation.
+
+        kappa2:
+            The width of the density switch of proliferation, negative so that crowding stops it.
+
+        kappa3:
+            The width of the necrosis switch, negative so that starvation causes it.
+
+        kappa4:
+            The width of the angiogenic factor switch, negative so that starvation causes it.
+
+        kappa_g:
+            The width of the density switch of the radial growth.
+
+        theta1:
+            The exponent of the necrosis switch.
+
+        theta2:
+            The exponent of the angiogenic factor switch.
+
+        beta:
+            The exponent of the radius in the passage of vessels to the core.
+
+        xi_e:
+            The efficiency of the inhibitor.
+
+        rv_ref:
+            The reference vascular fraction that supports tumour cells.
+
+        Vx:
+            The vascular density of the surrounding tissue.
+
+        du:
+            The clearance rate of the inhibitor.
+
+        dose:
+            The infusion rate during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -174,99 +267,6 @@ class VascularizedSpheroidElement(Element):
 
         start:
             The time of the first dose.
-
-        **values:
-            The values of the declared variables, by name:
-
-            Ar:
-                The initial radius.
-
-            Ac:
-                The initial number of live core cells.
-
-            Ap:
-                The initial number of live peripheral cells.
-
-            An:
-                The initial number of necrotic cells.
-
-            Vbc:
-                The initial vascular volume of the core.
-
-            Vbp:
-                The initial vascular volume of the periphery.
-
-            U:
-                The initial concentration of the inhibitor.
-
-            r1:
-                The growth rate of the radius.
-
-            r2:
-                The proliferation rate of the peripheral cells.
-
-            r3:
-                The rate at which peripheral vessels pass to the core.
-
-            m:
-                The necrosis rate of the core cells.
-
-            a1:
-                The angiogenesis rate.
-
-            p1:
-                The peripheral nutrient at half proliferation.
-
-            p2:
-                The peripheral density at half proliferation.
-
-            p3:
-                The core nutrient at half necrosis.
-
-            p4:
-                The core nutrient at half angiogenic factor production.
-
-            p_g:
-                The peripheral density at half the radial growth.
-
-            kappa1:
-                The width of the nutrient switch of proliferation.
-
-            kappa2:
-                The width of the density switch of proliferation, negative so that crowding stops it.
-
-            kappa3:
-                The width of the necrosis switch, negative so that starvation causes it.
-
-            kappa4:
-                The width of the angiogenic factor switch, negative so that starvation causes it.
-
-            kappa_g:
-                The width of the density switch of the radial growth.
-
-            theta1:
-                The exponent of the necrosis switch.
-
-            theta2:
-                The exponent of the angiogenic factor switch.
-
-            beta:
-                The exponent of the radius in the passage of vessels to the core.
-
-            xi_e:
-                The efficiency of the inhibitor.
-
-            rv_ref:
-                The reference vascular fraction that supports tumour cells.
-
-            Vx:
-                The vascular density of the surrounding tissue.
-
-            du:
-                The clearance rate of the inhibitor.
-
-            dose:
-                The infusion rate during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import VascularizedSpheroidElement

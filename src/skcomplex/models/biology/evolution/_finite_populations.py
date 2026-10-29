@@ -19,8 +19,11 @@ from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._climber_view import ClimberView
+from ._individual_view import IndividualView
 
 ORGANISMS = 'organisms'
+UPWARD_MUTATION = 0.5
 
 
 @lru_cache(maxsize=16)
@@ -67,6 +70,9 @@ class IndividualElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         trait:
             The trait, a type index or the bits of a genome.
 
@@ -90,6 +96,11 @@ class IndividualElement(Element):
         super().__init__(label, visual=visual)
         self.trait = trait
         self.fitness = fitness
+
+    @classmethod
+    def _get_view(cls) -> type[IndividualView]:
+        """Return the view of an individual, `IndividualView`."""
+        return IndividualView
 
 
 class MoranStepInteraction(Interaction):
@@ -151,17 +162,17 @@ class MoranStepInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.population, AgentView)
+        individuals = model.agents(self.population, IndividualView)
         selection = model.parameter('selection')
         mutation = model.parameter('mutation')
-        traits = np.asarray([individual.trait for individual in individuals], dtype=float)
+        traits = np.asarray([individual.trait for individual in individuals], dtype=np.float64)
         rng = model.rng
         for _ in range(len(traits)):
             weights = (1 + selection) ** traits
             parent = rng.choice(len(traits), p=weights / weights.sum())
             child = traits[parent]
             if rng.random() < mutation:
-                child += 1 if rng.random() < 0.5 else -1  # noqa: PLR2004
+                child += 1 if rng.random() < UPWARD_MUTATION else -1
             traits[rng.integers(len(traits))] = child
         for individual, trait in zip(individuals, traits, strict=True):
             individual.trait = trait
@@ -180,29 +191,26 @@ class TangledNatureStepInteraction(Interaction):
         label:
             The label of the interaction.
 
+        organisms:
+            The path of the group of organisms.
+
+        k:
+            The strength of the couplings.
+
+        mu:
+            The limit of resources, which lowers reproduction in large populations.
+
+        p_mut:
+            The probability that a bit of an offspring's genome flips.
+
+        p_kill:
+            The probability that a chosen organism dies.
+
         length:
             The number of bits of a genome.
 
         seed:
             The seed of the couplings.
-
-        **values:
-            The values of the declared variables, by name:
-
-            organisms:
-                The path of the group of organisms.
-
-            k:
-                The strength of the couplings.
-
-            mu:
-                The limit of resources, which lowers reproduction in large populations.
-
-            p_mut:
-                The probability that a bit of an offspring's genome flips.
-
-            p_kill:
-                The probability that a chosen organism dies.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import TangledNatureStepInteraction
@@ -231,21 +239,29 @@ class TangledNatureStepInteraction(Interaction):
         self.length = length
         self.seed = seed
 
-    def _reproduce(self, model: ModelView, alive: list[AgentView], counts: Array, chosen: int) -> None:
+    def _reproduce(
+        self,
+        model: ModelView,
+        *,
+        alive: list[AgentView],
+        genomes: list[int],
+        counts: Array,
+        chosen: int,
+    ) -> None:
         """Replace an organism by two offspring with probability `1 / (1 + exp(-H))`."""
-        parent = alive[chosen]
-        genome = int(parent.trait)
+        genome = genomes[chosen]
         size = len(alive)
         weight = model.parameter('k') / size * _couplings(self.seed, self.length)[genome] @ counts
         weight -= model.parameter('mu') * size
         if model.rng.random() >= 1 / (1 + np.exp(-weight)):
             return
-        parent.remove()
-        alive.pop(chosen)
+        alive.pop(chosen).remove()
+        genomes.pop(chosen)
         counts[genome] -= 1
         for _ in range(2):
             child = _mutate(genome, self.length, model.parameter('p_mut'), model.rng)
             alive.append(model.create(self.organisms, trait=float(child)))
+            genomes.append(child)
             counts[child] += 1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -268,16 +284,19 @@ class TangledNatureStepInteraction(Interaction):
             model:
                 The model.
         """
-        alive = model.agents(self.organisms, AgentView)
-        counts = np.bincount([int(organism.trait) for organism in alive], minlength=2**self.length).astype(float)
+        organisms = model.agents(self.organisms, IndividualView)
+        alive: list[AgentView] = list(organisms)
+        genomes = [int(organism.trait) for organism in organisms]
+        counts = np.bincount(genomes, minlength=2**self.length).astype(float)
         p_kill = model.parameter('p_kill')
         for _ in range(int(len(alive) / p_kill)):
             if not alive:
                 return
-            self._reproduce(model, alive, counts, int(model.rng.integers(len(alive))))
+            chosen = int(model.rng.integers(len(alive)))
+            self._reproduce(model, alive=alive, genomes=genomes, counts=counts, chosen=chosen)
             if alive and model.rng.random() < p_kill:
                 victim = int(model.rng.integers(len(alive)))
-                counts[int(alive[victim].trait)] -= 1
+                counts[genomes.pop(victim)] -= 1
                 alive.pop(victim).remove()
 
 
@@ -292,20 +311,17 @@ class AdaptiveClimbingInteraction(Interaction):
         label:
             The label of the interaction.
 
+        population:
+            The path of the group of individuals.
+
+        u:
+            The probability that an individual mutates in a generation.
+
         length:
             The number of loci of a genome.
 
         seed:
             The seed of the fitness landscape.
-
-        **values:
-            The values of the declared variables, by name:
-
-            population:
-                The path of the group of individuals.
-
-            u:
-                The probability that an individual mutates in a generation.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import AdaptiveClimbingInteraction
@@ -348,7 +364,7 @@ class AdaptiveClimbingInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.population, AgentView)
+        individuals = model.agents(self.population, IndividualView)
         genome = int(individuals[0].trait)
         current = _random_fitness(genome, self.seed)
         rng = model.rng
@@ -373,6 +389,9 @@ class ClimberElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         genome:
             The bits of the genome.
@@ -413,6 +432,11 @@ class ClimberElement(Element):
         self.k = k
         self.seed = seed
 
+    @classmethod
+    def _get_view(cls) -> type[ClimberView]:
+        """Return the view of a climber, `ClimberView`."""
+        return ClimberView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the climbing rule.
 
@@ -426,7 +450,7 @@ class ClimberElement(Element):
         """
         return [RuleLaw(self.climb)]
 
-    def climb(self, agent: AgentView, model: ModelView) -> None:
+    def climb(self, agent: ClimberView, model: ModelView) -> None:
         """Flip a random bit, and keep the flip when it raises the fitness.
 
         Args:

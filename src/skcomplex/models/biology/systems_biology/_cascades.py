@@ -32,6 +32,9 @@ class GProteinElement(Element):
         label:
             The label of the G protein.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         g:
             The initial active fraction.
 
@@ -98,6 +101,9 @@ class CascadeStageElement(Element):
         label:
             The label of the stage.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial amount of the active form.
 
@@ -143,20 +149,17 @@ class ActivationInteraction(Interaction):
         label:
             The label of the interaction.
 
+        upstream:
+            The path of the activating stage.
+
+        downstream:
+            The path of the activated stage.
+
+        alpha:
+            The activation rate per unit of the activating stage.
+
         state_name:
             The state of the activating stage, `'x'` for a stage and `'g'` for the G protein.
-
-        **values:
-            The values of the declared variables, by name:
-
-            upstream:
-                The path of the activating stage.
-
-            downstream:
-                The path of the activated stage.
-
-            alpha:
-                The activation rate per unit of the activating stage.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ActivationInteraction

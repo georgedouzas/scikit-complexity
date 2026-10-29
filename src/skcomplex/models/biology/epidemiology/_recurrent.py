@@ -35,6 +35,9 @@ class EpidemicCenterElement(Element):
         label:
             The label of the center.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial fraction of infected individuals.
 

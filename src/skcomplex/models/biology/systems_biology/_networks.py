@@ -28,6 +28,7 @@ PATHWAY_H = ((0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
 PATHWAY_STOICHIOMETRY = ((1.0, -1.0, 0.0, 0.0), (0.0, 1.0, -1.0, 0.0), (0.0, 0.0, 1.0, -1.0))
 PATHWAY_GAMMA = (2.0, 1.0, 1.0, 1.0)
 PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
+MIN_GOODWIN_STAGES = 2
 
 
 def _power_product(values: Sequence[Expression], orders: Sequence[float]) -> Expression:
@@ -55,6 +56,9 @@ class PhosphorylationLoopElement(Element):
     Args:
         label:
             The label of the loop.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial amount of unphosphorylated A.
@@ -171,6 +175,9 @@ class MetaboliteElement(Element):
         label:
             The label of the metabolite.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial concentration.
 
@@ -201,6 +208,9 @@ class GeneralizedMassActionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        species:
+            The paths of the species, in the order of the rows of the stoichiometry.
+
         stoichiometry:
             The stoichiometric coefficient `s_ij` of every species in every flux, one row per species.
 
@@ -209,12 +219,6 @@ class GeneralizedMassActionInteraction(Interaction):
 
         orders:
             The kinetic order `f_jk` of every species in every flux, one row per flux.
-
-        **values:
-            The values of the declared variables, by name:
-
-            species:
-                The paths of the species, in the order of the rows of the stoichiometry.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import GeneralizedMassActionInteraction
@@ -275,23 +279,20 @@ class SSystemInteraction(Interaction):
         label:
             The label of the interaction.
 
+        species:
+            The paths of the species.
+
+        alpha:
+            The rate constant of the production of every species.
+
+        beta:
+            The rate constant of the degradation of every species.
+
         g:
             The kinetic orders of the productions, one row per species.
 
         h:
             The kinetic orders of the degradations, one row per species.
-
-        **values:
-            The values of the declared variables, by name:
-
-            species:
-                The paths of the species.
-
-            alpha:
-                The rate constant of the production of every species.
-
-            beta:
-                The rate constant of the degradation of every species.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import SSystemInteraction
@@ -304,8 +305,8 @@ class SSystemInteraction(Interaction):
         label: str,
         *,
         species: Annotated[list[str], RoleSpec(variadic=True)],
-        alpha: Annotated[list[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
-        beta: Annotated[list[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
+        alpha: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
+        beta: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
         g: Sequence[Sequence[float]] = ((0.0,),),
         h: Sequence[Sequence[float]] = ((0.0,),),
     ) -> None:
@@ -346,6 +347,9 @@ class GoodwinStageElement(Element):
     Args:
         label:
             The label of the stage.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration.
@@ -734,7 +738,7 @@ def goodwin_oscillator(
         ['x1', 'x2', 'x3', 'x4']
     """
     initial = [0.1 * index for index in range(1, variables + 1)] if x is None else list(x)
-    if variables < 2 or len(initial) != variables:  # noqa: PLR2004
+    if variables < MIN_GOODWIN_STAGES or len(initial) != variables:
         error_msg = f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {variables} stages.'
         raise ValidationError(error_msg)
     labels = [f'x{index}' for index in range(1, variables + 1)]

@@ -73,6 +73,9 @@ class SpeciesElement(Element):
         label:
             The label of the species.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial amount.
 
@@ -104,26 +107,23 @@ class BindingInteraction(Interaction):
         label:
             The label of the reaction.
 
+        first:
+            The path of the first reactant.
+
+        second:
+            The path of the second reactant.
+
+        product:
+            The path of the product.
+
+        k:
+            The rate constant.
+
         stochastic:
             Whether reactions are random events.
 
         langevin:
             Whether the reaction is a chemical Langevin equation.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the first reactant.
-
-            second:
-                The path of the second reactant.
-
-            product:
-                The path of the product.
-
-            k:
-                The rate constant.
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import BindingInteraction
@@ -171,7 +171,7 @@ class BindingInteraction(Interaction):
 
 
 class DissociationInteraction(Interaction):
-    """First-order reaction `complex -> first + second` with the mass-action rate `k * complex`.
+    """First-order reaction `reactant -> first + second` with the mass-action rate `k * reactant`.
 
     In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
     the reaction is a chemical Langevin equation: one Wiener process with the amplitude the square root of the rate
@@ -181,30 +181,27 @@ class DissociationInteraction(Interaction):
         label:
             The label of the reaction.
 
+        reactant:
+            The path of the dissociating complex.
+
+        first:
+            The path of the first product.
+
+        second:
+            The path of the second product.
+
+        k:
+            The rate constant.
+
         stochastic:
             Whether reactions are random events.
 
         langevin:
             Whether the reaction is a chemical Langevin equation.
 
-        **values:
-            The values of the declared variables, by name:
-
-            complex:
-                The path of the dissociating complex.
-
-            first:
-                The path of the first product.
-
-            second:
-                The path of the second product.
-
-            k:
-                The rate constant.
-
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import DissociationInteraction
-        >>> DissociationInteraction('catalysis', complex='C', first='E', second='P', k=0.1).second
+        >>> DissociationInteraction('catalysis', reactant='C', first='E', second='P', k=0.1).second
         'P'
     """
 
@@ -212,7 +209,7 @@ class DissociationInteraction(Interaction):
         self,
         label: str,
         *,
-        complex: Annotated[str, RoleSpec()],  # noqa: A002
+        reactant: Annotated[str, RoleSpec()],
         first: Annotated[str, RoleSpec()],
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
@@ -220,7 +217,7 @@ class DissociationInteraction(Interaction):
         langevin: bool = False,
     ) -> None:
         super().__init__(label)
-        self.complex = complex
+        self.reactant = reactant
         self.first = first
         self.second = second
         self.k = k
@@ -228,7 +225,7 @@ class DissociationInteraction(Interaction):
         self.langevin = langevin
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reaction at the rate `k * complex`.
+        """Return the reaction at the rate `k * reactant`.
 
         Args:
             s:
@@ -242,8 +239,8 @@ class DissociationInteraction(Interaction):
             ValidationError:
                 The reaction is both stochastic and in Langevin mode.
         """
-        changes = {s.complex.n: -1, s.first.n: 1, s.second.n: 1}
-        propensity = s.k * s.complex.n
+        changes = {s.reactant.n: -1, s.first.n: 1, s.second.n: 1}
+        propensity = s.k * s.reactant.n
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
@@ -336,7 +333,7 @@ def michaelis_menten(
             BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
             DissociationInteraction(
                 'unbinding',
-                complex='C',
+                reactant='C',
                 first='E',
                 second='S',
                 k=k_unbinding,
@@ -344,7 +341,7 @@ def michaelis_menten(
             ),
             DissociationInteraction(
                 'catalysis',
-                complex='C',
+                reactant='C',
                 first='E',
                 second='P',
                 k=k_catalysis,
@@ -466,7 +463,7 @@ def chemical_langevin_network(
         ],
         interactions=[
             BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, langevin=True),
-            DissociationInteraction('unbinding', complex='C', first='E', second='S', k=k_unbinding, langevin=True),
-            DissociationInteraction('catalysis', complex='C', first='E', second='P', k=k_catalysis, langevin=True),
+            DissociationInteraction('unbinding', reactant='C', first='E', second='S', k=k_unbinding, langevin=True),
+            DissociationInteraction('catalysis', reactant='C', first='E', second='P', k=k_catalysis, langevin=True),
         ],
     )

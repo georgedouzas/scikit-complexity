@@ -49,6 +49,9 @@ class LocusElement(Element):
         label:
             The label of the locus or the group of loci.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         s:
             The allele, `-1` or `1`.
 
@@ -88,24 +91,21 @@ class SubstitutionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        genome:
+            The path of the group of loci.
+
+        N:
+            The size of the population.
+
+        mu:
+            The rate at which one locus of an individual mutates.
+
+        F0:
+            The fitness of a genome without fields and couplings, above the sum of the `|h_i|` and `|J_ij|` so that
+            every fitness is positive.
+
         couplings:
             The symmetric matrix `J` of couplings between loci, with a zero diagonal, or `None` for no couplings.
-
-        **values:
-            The values of the declared variables, by name:
-
-            genome:
-                The path of the group of loci.
-
-            N:
-                The size of the population.
-
-            mu:
-                The rate at which one locus of an individual mutates.
-
-            F0:
-                The fitness of a genome without fields and couplings, above the sum of the `|h_i|` and `|J_ij|` so that
-                every fitness is positive.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import SubstitutionInteraction
