@@ -8,7 +8,7 @@ import dataclasses
 import functools
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self, cast
+from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -30,7 +30,7 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 }
 
 
-class BaseCompiler(BaseConfig):
+class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
     """Compiler of a system into a problem of one mathematical form.
 
     `check()` validates the settings, `prepare(system)` validates the system and sets `report_`, the issues it finds,
@@ -96,7 +96,7 @@ class BaseCompiler(BaseConfig):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: System | None) -> Self:
         """Attach the observables to a system and set the issues it finds.
 
         Args:
@@ -168,7 +168,7 @@ class BaseCompiler(BaseConfig):
         del problem
         return None
 
-    def _run(self, inputs: object) -> BaseProblemSpec:
+    def _run(self, inputs: Mapping[str, object] | None) -> BaseProblemSpec:
         """Raise the errors of the report and compile the prepared system into a problem.
 
         Args:
@@ -339,7 +339,7 @@ class BaseCompiler(BaseConfig):
         return IssueSpec(code, path, str(error), fix, error=type(error))
 
 
-class BasePass(BaseConfig):
+class BasePass(BaseConfig[Compilation, None]):
     """Step of a compilation that reads fields of the compilation and writes others.
 
     A pass declares the fields it reads and writes through the hooks `_get_reads` and `_get_writes`, which order the
@@ -352,7 +352,7 @@ class BasePass(BaseConfig):
             The compilation the pass reads and writes.
     """
 
-    compilation_: 'Compilation'
+    compilation_: Compilation
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads; none by default."""
@@ -362,7 +362,7 @@ class BasePass(BaseConfig):
         """Return the fields of the compilation the pass writes; none by default."""
         return ()
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Take the compilation the pass reads and writes.
 
         Args:
@@ -372,11 +372,18 @@ class BasePass(BaseConfig):
         Returns:
             self:
                 The prepared pass.
+
+        Raises:
+            ValidationError:
+                The context is not a compilation.
         """
-        self.compilation_ = cast('Compilation', context)
+        if not isinstance(context, Compilation):
+            error_msg = f'A pass prepares on a compilation, not on a {type(context).__name__}.'
+            raise ValidationError(error_msg)
+        self.compilation_ = context
         return self
 
-    def _run(self, inputs: object = None) -> None:
+    def _run(self, inputs: None = None) -> None:
         """Read the fields of the compilation the pass reads and write the fields it writes.
 
         Args:
@@ -440,7 +447,7 @@ class BasePass(BaseConfig):
         return found
 
 
-class BaseLowering(BaseConfig):
+class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
     """Lowering of one family of laws, which one pass creates, later passes finish, and the compilation keeps.
 
     The constructor stores what the lowering reads, `prepare(compilation)` sets the prepared attributes the lowering
@@ -458,10 +465,10 @@ class BaseLowering(BaseConfig):
             The spec and the references the lowering added to it, by the identity of the spec.
     """
 
-    compilation_: 'Compilation'
+    compilation_: Compilation
     added_: dict[int, tuple[KernelSpec, dict[Expression, ReferenceSpec]]]
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Take the compilation the lowering serves, with no reference added yet.
 
         Args:
@@ -471,8 +478,15 @@ class BaseLowering(BaseConfig):
         Returns:
             self:
                 The prepared lowering.
+
+        Raises:
+            ValidationError:
+                The context is not a compilation.
         """
-        self.compilation_ = cast('Compilation', context)
+        if not isinstance(context, Compilation):
+            error_msg = f'A lowering prepares on a compilation, not on a {type(context).__name__}.'
+            raise ValidationError(error_msg)
+        self.compilation_ = context
         self.added_ = {}
         return self
 
@@ -504,12 +518,12 @@ class BaseLowering(BaseConfig):
         """
         del specs
 
-    def _run(self, inputs: object) -> list[BaseLaw]:
+    def _run(self, inputs: InputT | None) -> object:
         """Return laws lowered.
 
         Args:
             inputs:
-                The laws.
+                The laws, alone or by the kernel spec that holds them.
 
         Raises:
             NotImplementedError:

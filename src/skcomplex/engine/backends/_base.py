@@ -15,7 +15,7 @@ from ..problems._law_kernel import LawKernel
 _AUTO_MEMBERS = 1000
 
 
-class BaseBackend(BaseConfig):
+class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
     """Base of the backends, which turn the kernels of a problem into the numeric functions of its form.
 
     A backend stores its settings in its constructor, `prepare()` takes nothing, and `run(kernels)` takes the
@@ -24,8 +24,12 @@ class BaseBackend(BaseConfig):
     problem records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes functions of.
     """
 
-    def _run(self, inputs: LoweredKernelsSpec) -> LoweredFunctionsSpec:
+    def _run(self, inputs: LoweredKernelsSpec | None) -> LoweredFunctionsSpec:
         """Return the numeric functions of the form of the kernels.
+
+        Args:
+            inputs:
+                The kernels of a problem.
 
         Raises:
             NotImplementedError:

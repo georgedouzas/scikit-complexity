@@ -34,14 +34,21 @@ class RealTimeClock(BaseClock):
             error_msg = f'speed = {self.speed!r} must be a positive number.'
             raise ValidationError(error_msg)
 
-    def _run(self, elapsed: float) -> None:
+    def _run(self, inputs: float | None) -> None:
         """Sleep until the frame is due, or record the lag when the run is behind.
 
         Args:
-            elapsed:
+            inputs:
                 The simulated time since the start of the run.
+
+        Raises:
+            ValidationError:
+                No simulated time is passed.
         """
-        delay = self.started_ + elapsed / self.speed - time.perf_counter()
+        if inputs is None:
+            error_msg = 'A clock runs on the simulated time since the start of the run. Pass it to `run`.'
+            raise ValidationError(error_msg)
+        delay = self.started_ + inputs / self.speed - time.perf_counter()
         if delay > 0:
             time.sleep(delay)
             return

@@ -72,7 +72,7 @@ _PHASE_PALETTE = (
 )
 
 
-class BaseVisual(BaseConfig):
+class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     """Base class of visuals, which log the state of one element or agent group to a Rerun recording.
 
     A visual follows the common API of the engine. `prepare(problem)` finds the element or agent group of the problem
@@ -125,8 +125,21 @@ class BaseVisual(BaseConfig):
             error_msg = f'path = {self.path!r} must be the entity path of the element or agent group to draw.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
-        """Find the element at the path, keep the recording and the space of the agents, and set the views."""
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Find the element at the path, keep the recording and the space of the agents, and set the views.
+
+        Args:
+            context:
+                The compiled problem.
+
+        Raises:
+            ValidationError:
+                No problem is passed, or no element or agent group of the problem has the path of the visual.
+        """
+        if context is None:
+            error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        problem = context
         elements = {item.path: item for item in (*problem.elements, *problem.agents)}
         if self.path not in elements:
             error_msg = (
@@ -140,8 +153,21 @@ class BaseVisual(BaseConfig):
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self.views_ = self._views(self.element_, problem)
 
-    def _run(self, frame: FrameSpec) -> None:
-        """Log the element at a frame, or the agents of the frame when the element is an agent group."""
+    def _run(self, inputs: FrameSpec | None) -> None:
+        """Log the element at a frame, or the agents of the frame when the element is an agent group.
+
+        Args:
+            inputs:
+                The frame.
+
+        Raises:
+            ValidationError:
+                No frame is passed.
+        """
+        if inputs is None:
+            error_msg = 'A visual runs on a frame. Pass the frame to `run`.'
+            raise ValidationError(error_msg)
+        frame = inputs
         if isinstance(self.element_, CompiledAgentsSpec):
             snapshot = frame.agents.get(self.element_.path)
             if snapshot is not None:
@@ -149,7 +175,7 @@ class BaseVisual(BaseConfig):
             return
         self._log(self.recording_, self.element_, frame)
 
-    def prepare(self, problem: BaseProblemSpec) -> Self:
+    def prepare(self, problem: BaseProblemSpec | None = None) -> Self:
         """Prepare the checked visual for the element at its path in a compiled problem.
 
         Args:
@@ -166,18 +192,21 @@ class BaseVisual(BaseConfig):
         """
         return super().prepare(problem)
 
-    def run(self, frame: FrameSpec) -> Self:
+    def run(self, frame: FrameSpec | None = None, final: bool = False) -> Self:
         """Log the element or the agents of the visual at a frame.
 
         Args:
             frame:
                 The frame.
 
+            final:
+                Whether this is the last call of the run.
+
         Returns:
             self:
                 The visual.
         """
-        super().run(frame)
+        super().run(frame, final)
         return self
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:

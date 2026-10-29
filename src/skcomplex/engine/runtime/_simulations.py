@@ -38,7 +38,7 @@ TIME_TOLERANCE = 1e-9
 _STEPWISE_FORMS = frozenset({FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO})
 
 
-class Simulation(BaseConfig):
+class Simulation(BaseConfig[None, float]):
     """Simulation of a system with the solver of its form.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
@@ -211,7 +211,7 @@ class Simulation(BaseConfig):
         if not isinstance(self.system, BaseProblemSpec):
             self._compiler().check().prepare(self.system).report_.check()
 
-    def _prepare(self, context: None = None) -> None:
+    def _prepare(self, context: None) -> None:
         """Compile the system, choose the solver, and gather the clock and the observers of a run."""
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
@@ -413,45 +413,64 @@ class Simulation(BaseConfig):
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
         return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
 
-    def prepare(self) -> Self:
+    def prepare(self, context: None = None) -> Self:
         """Compile the system of the checked simulation and choose the solver.
+
+        Args:
+            context:
+                Nothing: a simulation prepares on its own system.
 
         Returns:
             self:
                 The prepared simulation, with the compiled problem `problem_` and the solver `stepper_`.
         """
-        return super().prepare()
+        return super().prepare(context)
 
-    def run(self, until: float) -> Self:
+    def run(self, until: float | None = None, final: bool = False) -> Self:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         Args:
             until:
                 The simulated time to stop at.
 
+            final:
+                Whether this is the last call, after which the simulation releases what preparing acquired.
+
         Returns:
             simulation:
                 The simulation itself.
-        """
-        return super().run(until)
 
-    def _run(self, until: float) -> Self:
+        Raises:
+            ValidationError:
+                No end time is passed.
+        """
+        super().run(until, final)
+        return self
+
+    def _run(self, inputs: float | None) -> Self:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
         such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
 
         Args:
-            until:
+            inputs:
                 The simulated time to stop at.
 
         Returns:
             simulation:
                 The simulation itself.
+
+        Raises:
+            ValidationError:
+                No end time is passed.
         """
+        if inputs is None:
+            error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
+            raise ValidationError(error_msg)
         self.prepare()
-        self._start(until)
-        self._loop(until)
+        self._start(inputs)
+        self._loop(inputs)
         return self
 
     def extend(self, until: float) -> Self:
