@@ -230,9 +230,8 @@ def run(name: str, *, settings: Mapping[str, object] | None = None, **parameters
     system = entry.factory(**parameters)
     initial = {**entry.initial_state_of(**parameters), **initial_state}
     simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial)
-    for setting, value in chosen.items():
-        if setting not in vars(simulation):
-            error_msg = f'No run setting named {setting!r}. Give `until` or an argument of `Simulation`.'
-            raise ArgumentError(error_msg)
-        setattr(simulation, setting, value)
-    return simulation.check().run(until=float(until))
+    unknown = sorted(set(chosen) - set(simulation.get_params(deep=False)))
+    if unknown:
+        error_msg = f'No run setting named {unknown[0]!r}. Give `until` or an argument of `Simulation`.'
+        raise ArgumentError(error_msg)
+    return simulation.set_params(**chosen).check().run(until=float(until))
