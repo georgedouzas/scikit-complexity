@@ -35,10 +35,6 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `check` validates every declared spec. A part
     must be checked before it is prepared or run.
 
-    Args:
-        label:
-            The label of the part, unique among the parts of its system.
-
     Examples:
         >>> from skcomplex.core.base import BasePart
         >>> class DoublingPart(BasePart):
@@ -62,7 +58,12 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """
 
     def __init__(self, label: str) -> None:
-        """Store the label of the part."""
+        """Store the label of the part.
+
+        Args:
+            label:
+                The label of the part, unique among the parts of its system.
+        """
         self.label = label
 
     def _check_label(self) -> None:

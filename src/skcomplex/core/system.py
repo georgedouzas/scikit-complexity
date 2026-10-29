@@ -22,26 +22,6 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
     relative to the system that holds the interaction, so `forest/foxes` names the element `foxes` of the nested system
     `forest`. Groups and nested systems without a space of their own live on the space of the system.
 
-    Args:
-        label:
-            The label of the system, which names it when it is nested in another one.
-
-        elements:
-            The elements and groups.
-
-        interactions:
-            The interactions between the elements.
-
-        systems:
-            The nested systems.
-
-        space:
-            The space the elements live on, which gives vector states their dimension, or `None` for none.
-
-        time:
-            The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
-            `None` to infer it from the laws.
-
     Examples:
         >>> from typing import Annotated
         >>> from types import SimpleNamespace
@@ -73,7 +53,28 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
     ) -> None:
-        """Store the label and the parts of the system."""
+        """Store the label and the parts of the system.
+
+        Args:
+            label:
+                The label of the system, which names it when it is nested in another one.
+
+            elements:
+                The elements and groups.
+
+            interactions:
+                The interactions between the elements.
+
+            systems:
+                The nested systems.
+
+            space:
+                The space the elements live on, which gives vector states their dimension, or `None` for none.
+
+            time:
+                The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
+                `None` to infer it from the laws.
+        """
         super().__init__(label)
         self.elements = elements
         self.interactions = interactions

@@ -9,7 +9,7 @@
 
 ## 3. Findings
 
-- [ ] 3.1 Fix every mypy error, pydoclint finding, and suppression comment in `skcomplex.models`, split by field across agents, with a typed view class for every agent group.
-- [ ] 3.2 Do the same for `skcomplex.engine`.
-- [ ] 3.3 Do the same for `skcomplex.core`, `analysis`, `experiments`, the root modules, the tests, and the docs.
-- [ ] 3.4 Add the tests that no source holds `TYPE_CHECKING`, `noqa`, `type: ignore`, or `nosec`. Verify that the checks session, the full test session, and the user guide pass.
+- [x] 3.1 Fix every mypy error, pydoclint finding, and suppression comment in `skcomplex.models`, split by field across agents, with a typed view class for every agent group.
+- [x] 3.2 Do the same for `skcomplex.engine`.
+- [x] 3.3 Do the same for `skcomplex.core`, `analysis`, `experiments`, the root modules, the tests, and the docs.
+- [x] 3.4 Add the tests that no source holds `TYPE_CHECKING`, `noqa`, `type: ignore`, or `nosec`. Verify that the checks session, the full test session, and the user guide pass.
