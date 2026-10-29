@@ -14,10 +14,12 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._shopper_view import ShopperView
+from ._stall_view import StallView
 
 WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
 MAX_LIST_LENGTH = 8
@@ -36,9 +38,9 @@ def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Arr
     return np.array(masks, dtype=float)
 
 
-def _items_left(agent: AgentView) -> float:
-    """Return the number of items left on a shopper's list."""
-    return float(len(_items_of(int(agent.wanted))))
+def _items_left(wanted: object) -> float:
+    """Return the mean number of items left on the shoppers' lists, given as bit masks."""
+    return float(np.mean([len(_items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
 
 
 class StallElement(Element):
@@ -79,6 +81,11 @@ class StallElement(Element):
         self.stall = stall
         self.stock = stock
         self.markup = markup
+
+    @classmethod
+    def _get_view(cls) -> type[StallView]:
+        """Return the view of a stall, with its index, stock, and markup."""
+        return StallView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since stalls only wait for shoppers.
@@ -142,6 +149,11 @@ class ShopperElement(Element):
         self.missed = missed
         self.spent = spent
 
+    @classmethod
+    def _get_view(cls) -> type[ShopperView]:
+        """Return the view of a shopper, with its list, visits, misses, and spending."""
+        return ShopperView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the shopping rule.
 
@@ -155,7 +167,7 @@ class ShopperElement(Element):
         """
         return [RuleLaw(self.shop)]
 
-    def shop(self, agent: AgentView, model: ModelView) -> None:
+    def shop(self, agent: ShopperView, model: ModelView) -> None:
         """Visit a random stall not visited yet and buy every wanted item that it sells.
 
         Args:
@@ -168,7 +180,7 @@ class ShopperElement(Element):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in model.agents(self.stalls, AgentView) if not visited >> int(stall.stall) & 1]
+        unvisited = [stall for stall in model.agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return
@@ -185,7 +197,7 @@ class ShopperElement(Element):
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 10},
     observables=lambda system: [
-        ObservableSpec('items_left', _items_left, group='shoppers'),
+        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_items_left),
         ObservableSpec('spent', group='shoppers', variable='spent'),
     ],
 )

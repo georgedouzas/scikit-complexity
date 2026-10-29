@@ -11,9 +11,10 @@ from sage.all__sagemath_symbolics import NN
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._trader_view import TraderView
 
 
 class TraderElement(Element):
@@ -46,6 +47,11 @@ class TraderElement(Element):
         super().__init__(label, visual=visual)
         self.wealth = wealth
 
+    @classmethod
+    def _get_view(cls) -> type[TraderView]:
+        """Return the view of the agents of the element."""
+        return TraderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange rule.
 
@@ -59,7 +65,7 @@ class TraderElement(Element):
         """
         return [RuleLaw(self.give)]
 
-    def give(self, agent: AgentView, model: ModelView) -> None:
+    def give(self, agent: TraderView, model: ModelView) -> None:
         """Give one unit of wealth to a random agent of the same group.
 
         Args:
@@ -71,7 +77,7 @@ class TraderElement(Element):
         """
         if agent.wealth <= 0:
             return
-        others = model.agents(agent.group, AgentView)
+        others = model.agents(agent.group, TraderView)
         receiver = others[int(model.rng.integers(len(others)))]
         receiver.wealth += 1
         agent.wealth -= 1

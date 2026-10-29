@@ -15,10 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._bank_view import BankView
 
 UNDISTRESSED = 0
 DISTRESSED = 1
@@ -45,7 +46,7 @@ def _economic_values(liabilities: Array) -> Array:
     return lent / lent.sum()
 
 
-def _value_at_risk(agent: AgentView) -> float:
+def _value_at_risk(agent: BankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
 
@@ -88,6 +89,11 @@ class BankElement(Element):
         self.h = h
         self.status = status
         self.value = value
+
+    @classmethod
+    def _get_view(cls) -> type[BankView]:
+        """Return the view of the agents of the element."""
+        return BankView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the cascade updates every bank at once.
@@ -156,7 +162,7 @@ class DebtRankCascadeInteraction(Interaction):
             model:
                 The model.
         """
-        banks = sorted(model.agents('banks', AgentView), key=lambda bank: bank.id)
+        banks = sorted(model.agents('banks', BankView), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED

@@ -17,12 +17,13 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics
+from ._patron_view import PatronView
 
 N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
@@ -130,6 +131,11 @@ class PatronElement(Element):
         self.attends = attends
         self.discount = discount
 
+    @classmethod
+    def _get_view(cls) -> type[PatronView]:
+        """Return the view of the agents of the element."""
+        return PatronView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decision rule.
 
@@ -160,7 +166,7 @@ class PatronElement(Element):
         storage['forecasts'], storage['time'] = forecasts(history), model.time
         return storage
 
-    def decide(self, agent: AgentView, model: ModelView) -> None:
+    def decide(self, agent: PatronView, model: ModelView) -> None:
         """Forecast the attendance with the most accurate predictor held and go when it is below the capacity.
 
         Args:
@@ -225,7 +231,7 @@ class BarInteraction(InstitutionInteraction):
             model:
                 The model view of the bar.
         """
-        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, AgentView)))
+        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, PatronView)))
 
 
 @register_model(

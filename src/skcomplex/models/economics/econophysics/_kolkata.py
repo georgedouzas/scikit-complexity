@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._diner_view import DinerView
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
@@ -66,6 +67,11 @@ class DinerElement(Element):
         self.served = served
         self.restaurants = restaurants
 
+    @classmethod
+    def _get_view(cls) -> type[DinerView]:
+        """Return the view of the agents of the element."""
+        return DinerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the choice rule.
 
@@ -79,7 +85,7 @@ class DinerElement(Element):
         """
         return [RuleLaw(self.choose)]
 
-    def choose(self, agent: AgentView, model: ModelView) -> None:
+    def choose(self, agent: DinerView, model: ModelView) -> None:
         """Choose a restaurant uniformly at random.
 
         Args:
@@ -120,7 +126,7 @@ class CrowdAvoidingDinerElement(DinerElement):
         10
     """
 
-    def choose(self, agent: AgentView, model: ModelView) -> None:
+    def choose(self, agent: DinerView, model: ModelView) -> None:
         """Stay with probability one over the crowd, otherwise move to another random restaurant.
 
         Args:
@@ -189,7 +195,7 @@ class RestaurantsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('diners', AgentView)
+        agents = model.agents('diners', DinerView)
         choices = np.array([agent.restaurant for agent in agents], dtype=np.int64)
         crowds = np.bincount(choices, minlength=self.n_restaurants)
         order = model.rng.permutation(len(agents))

@@ -4,9 +4,8 @@
 # License: MIT
 
 import math
-from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -20,16 +19,15 @@ from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array, Pairing
 from ..._catalog import register_model
 from ._exchange import cobb_douglas, neighbor_pairing, trade_goods
-
-type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
 GOODS = ('sugar', 'spice', 'salt')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 
 
-def _utility(agent: Any) -> float:  # noqa: ANN401
+def _utility(agent: object) -> float:
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
@@ -180,7 +178,7 @@ class ExchangeInteraction(Interaction):
         self.pairing = pairing
         self.quantity = quantity
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of neighbours and the barter rule.
 
         Args:
@@ -196,7 +194,7 @@ class ExchangeInteraction(Interaction):
             RuleLaw(self.trade, phase='trade'),
         ]
 
-    def trade(self, model: Any) -> None:  # noqa: ANN401
+    def trade(self, model: ModelView) -> None:
         """Barter between every pair of partners and report the prices of the second good in the first.
 
         Args:
@@ -291,7 +289,7 @@ def goods_traders(
     locations = [cells[index] for index in rng.integers(len(cells), size=n_traders)]
     weights = rng.dirichlet(np.ones(goods), size=n_traders)
     holdings = rng.uniform(low, high, (n_traders, goods))
-    values: dict[str, Any] = {GOODS[index]: holdings[:, index] for index in range(goods)}
+    values: dict[str, Array] = {GOODS[index]: holdings[:, index] for index in range(goods)}
     values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
     traders = GroupElement(
         'traders',

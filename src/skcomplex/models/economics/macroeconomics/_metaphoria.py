@@ -6,10 +6,9 @@
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
@@ -22,7 +21,12 @@ from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Array
 from ..._catalog import register_model
+from ._business_view import BusinessView
+from ._central_bank_view import CentralBankView
+from ._plot_view import PlotView
+from ._settler_view import SettlerView
 
 MODES = ('hunter_gatherer', 'monetary')
 PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
@@ -31,19 +35,19 @@ ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
 OLD_AGE_DEATH = 1 / 7
 
 
-def _bank_balance(bank: Any) -> float:  # noqa: ANN401
+def _bank_balance(bank: SimpleNamespace) -> float:
     """Return the money the bank has issued plus the loans it holds, zero when every unit of money is a loan."""
     return float(bank.money + bank.loans)
 
 
-def _living(fates: npt.ArrayLike) -> float:
+def _living(fates: object) -> float:
     """Return the number of living people from their fates."""
     return float(np.sum(np.asarray(fates) == ALIVE))
 
 
-def _money_gini(money: npt.ArrayLike) -> float:
+def _money_gini(money: object) -> float:
     """Return the Gini coefficient of the money of people."""
-    return DistributionAnalysis('gini').check().prepare(money).run().gini_
+    return DistributionAnalysis('gini').check().prepare(np.asarray(money, dtype=float)).run().gini_
 
 
 def _metaphoria_observables(system: System) -> list[ObservableSpec]:
@@ -57,27 +61,36 @@ def _metaphoria_observables(system: System) -> list[ObservableSpec]:
     return observables
 
 
-def _people_by_id(model: ModelView) -> dict[int, AgentView]:
+def _people_by_id(model: ModelView) -> dict[int, SettlerView]:
     """Return the living people by id, built once per step in the storage of the caller."""
     cached = model.storage.get('people')
     if cached is None or cached[0] != model.time:
-        cached = (model.time, {person.id: person for person in model.agents('people', AgentView) if person.alive})
+        cached = (model.time, {person.id: person for person in model.agents('people', SettlerView) if person.alive})
         model.storage['people'] = cached
     return cached[1]
 
 
-def _patch_here(agent: AgentView) -> AgentView:
+def _patch_here(agent: AgentView) -> PlotView:
     """Return the patch of the cell of an agent."""
-    return agent.agents_here('patches')[0]
+    return next(patch for patch in agent.agents_here('patches') if isinstance(patch, PlotView))
 
 
-def _wander(agent: AgentView, model: ModelView, sight: float) -> None:
+def _cell(agent: AgentView) -> tuple[int, ...]:
+    """Return the cell of an agent of the lattice."""
+    location = agent.location
+    if not isinstance(location, tuple):
+        error_msg = f'The agent {agent.id} is not on a lattice cell.'
+        raise TypeError(error_msg)
+    return tuple(int(item) for item in location)
+
+
+def _wander(agent: SettlerView, model: ModelView, sight: float) -> None:
     """Move to a random cell within sight with the propensity to explore, and otherwise to a neighbouring cell."""
     if model.rng.random() < agent.exploration:
         width, height = model.dimensions or (1, 1)
         reach = int(sight)
         dx, dy = model.rng.integers(-reach, reach + 1, size=2)
-        x, y = (int(item) for item in agent.location)  # type: ignore[attr-defined]
+        x, y = _cell(agent)
         agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
         return
     cells = agent.neighbor_cells()
@@ -85,16 +98,18 @@ def _wander(agent: AgentView, model: ModelView, sight: float) -> None:
 
 
 def _offers(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[tuple[Any, Any]]:
+) -> list[tuple[object, object]]:
     """Return unemployed adults, in random order, paired with the best-paying firm with a vacancy within their sight."""
-    open_firms = {firm: int(firm.vacancies) for firm in left if firm.vacancies > 0}
-    pairs = []
-    for index in rng.permutation(len(right)):
-        person = right[int(index)]
+    firms = [firm for firm in left if isinstance(firm, BusinessView)]
+    people = [person for person in right if isinstance(person, SettlerView)]
+    open_firms = {firm: int(firm.vacancies) for firm in firms if firm.vacancies > 0}
+    pairs: list[tuple[object, object]] = []
+    for index in rng.permutation(len(people)):
+        person = people[int(index)]
         if person.employer >= 0 or person.age < person.maturity or not open_firms:
             continue
         near = [firm for firm in open_firms if person.distance_to(firm) <= person.sight]
@@ -107,12 +122,18 @@ def _offers(
     return pairs
 
 
-def _shops(left: Sequence[Any], right: Sequence[Any], rng: np.random.Generator, capacity: int) -> list[tuple[Any, Any]]:
+def _shops(
+    left: Sequence[object],
+    right: Sequence[object],
+    rng: np.random.Generator,
+    capacity: int,
+) -> list[tuple[object, object]]:
     """Return people short of food, in random order, paired with the cheapest stocked firm within their sight."""
-    stocked = [firm for firm in right if firm.stock > 0]
-    pairs = []
-    for index in rng.permutation(len(left)):
-        person = left[int(index)]
+    people = [person for person in left if isinstance(person, SettlerView)]
+    stocked = [firm for firm in right if isinstance(firm, BusinessView) and firm.stock > 0]
+    pairs: list[tuple[object, object]] = []
+    for index in rng.permutation(len(people)):
+        person = people[int(index)]
         if person.money <= 0 or person.food >= person.reserve * person.need:
             continue
         near = [firm for firm in stocked if person.distance_to(firm) <= person.sight]
@@ -165,6 +186,11 @@ class PlotElement(Element):
         self.resistance = resistance
         self.regrowth = regrowth
 
+    @classmethod
+    def _get_view(cls) -> type[PlotView]:
+        """Return the view of a patch, with its food, capacity, resistance, and regrowth."""
+        return PlotView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule in the phase of growth.
 
@@ -178,7 +204,7 @@ class PlotElement(Element):
         """
         return [RuleLaw(self.grow, phase='growth')]
 
-    def grow(self, agent: AgentView, model: ModelView) -> None:
+    def grow(self, agent: PlotView, model: ModelView) -> None:
         """Grow food back up to the capacity.
 
         Args:
@@ -338,6 +364,11 @@ class SettlerElement(Element):
         self.reserve = reserve
         self.monetary = monetary
 
+    @classmethod
+    def _get_view(cls) -> type[SettlerView]:
+        """Return the view of a person, with its states and parameters."""
+        return SettlerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of living in the phase of living.
 
@@ -351,7 +382,7 @@ class SettlerElement(Element):
         """
         return [RuleLaw(self.live, phase='living')]
 
-    def _feed_child(self, agent: AgentView, model: ModelView) -> None:
+    def _feed_child(self, agent: SettlerView, model: ModelView) -> None:
         """Take food from the living parent and follow it."""
         parent = _people_by_id(model).get(int(agent.parent))
         if parent is None:
@@ -361,7 +392,7 @@ class SettlerElement(Element):
         agent.food += given
         agent.move_to(parent.location)
 
-    def _breed(self, agent: AgentView, model: ModelView) -> None:
+    def _breed(self, agent: SettlerView, model: ModelView) -> None:
         """Have a child with mutated propensities at the probability of fertility."""
         fed = agent.food >= agent.endowment + agent.need
         spaced = model.time - agent.born >= agent.spacing
@@ -375,7 +406,7 @@ class SettlerElement(Element):
         agent.born = model.time
         agent.create(None, None, food=agent.endowment, age=0.0, parent=float(agent.id), born=model.time, **traits)
 
-    def _work_or_found(self, agent: AgentView, model: ModelView) -> bool:
+    def _work_or_found(self, agent: SettlerView, model: ModelView) -> bool:
         """Quit a job at the restlessness, or found a firm on a free patch with food, and return whether employed."""
         if agent.employer >= 0:
             if model.rng.random() < agent.restlessness:
@@ -389,7 +420,7 @@ class SettlerElement(Element):
         agent.employer = float(firm.id)
         return True
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: SettlerView, model: ModelView) -> None:
         """Age, eat, die, have children, and move or work.
 
         Args:
@@ -515,6 +546,11 @@ class BusinessElement(Element):
         self.adjustment = adjustment
         self.stock_limit = stock_limit
 
+    @classmethod
+    def _get_view(cls) -> type[BusinessView]:
+        """Return the view of a firm, with its states and parameters."""
+        return BusinessView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of production in the phase of work.
 
@@ -528,13 +564,13 @@ class BusinessElement(Element):
         """
         return [RuleLaw(self.produce, phase='work')]
 
-    def _borrow(self, agent: AgentView, bank: AgentView, amount: float) -> None:
+    def _borrow(self, agent: BusinessView, bank: CentralBankView, amount: float) -> None:
         """Borrow an amount the bank creates as money and records as a loan."""
         if amount > 0:
             transfer(bank, agent, amount, 'money')
             transfer(agent, bank, amount, 'loans')
 
-    def _service(self, agent: AgentView, bank: AgentView) -> None:
+    def _service(self, agent: BusinessView, bank: CentralBankView) -> None:
         """Pay the interest and the repayment of the debt, borrowing anew what the firm lacks."""
         debt = -agent.loans
         interest, principal = agent.interest * debt, agent.repayment * debt
@@ -542,7 +578,7 @@ class BusinessElement(Element):
         transfer(agent, bank, interest + principal, 'money')
         transfer(bank, agent, principal, 'loans')
 
-    def _adjust(self, agent: AgentView, workers: list[AgentView], patch: AgentView, sold_out: bool) -> None:
+    def _adjust(self, agent: BusinessView, workers: list[SettlerView], patch: PlotView, sold_out: bool) -> None:
         """Adjust the price, the wage, and the workforce to the stock, the labour, and the sales."""
         step = agent.adjustment
         if sold_out:
@@ -560,7 +596,7 @@ class BusinessElement(Element):
         wanted = math.ceil((patch.capacity + patch.resistance) / workers[0].labour) if workers else 1
         agent.vacancies = float(max(wanted - len(workers), 0))
 
-    def produce(self, agent: AgentView, model: ModelView) -> None:
+    def produce(self, agent: BusinessView, model: ModelView) -> None:
         """Harvest with the workers, pay wages and the bank, adjust, and pay a dividend to the owner.
 
         Args:
@@ -572,7 +608,7 @@ class BusinessElement(Element):
         """
         people = _people_by_id(model)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = model.agents('bank', AgentView)[0]
+        bank = model.agents('bank', CentralBankView)[0]
         patch = _patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
@@ -634,6 +670,11 @@ class CentralBankElement(Element):
         self.money = money
         self.loans = loans
 
+    @classmethod
+    def _get_view(cls) -> type[CentralBankView]:
+        """Return the view of the bank, with its money and loans."""
+        return CentralBankView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the dividend rule in the phase of banking.
 
@@ -647,7 +688,7 @@ class CentralBankElement(Element):
         """
         return [RuleLaw(self.distribute, phase='banking')]
 
-    def distribute(self, agent: AgentView, model: ModelView) -> None:
+    def distribute(self, agent: CentralBankView, model: ModelView) -> None:
         """Pay the income of the step to a random person, or to a random firm when nobody lives.
 
         Args:
@@ -658,7 +699,7 @@ class CentralBankElement(Element):
                 The model.
         """
         income = agent.money + agent.loans
-        holders = list(_people_by_id(model).values()) or model.agents('businesses', AgentView)
+        holders: list[AgentView] = [*_people_by_id(model).values()] or [*model.agents('businesses', BusinessView)]
         if income > 0 and holders:
             transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
 
@@ -704,16 +745,16 @@ class CommonsInteraction(Interaction):
         """
         return [RuleLaw(self.harvest, phase='work')]
 
-    def harvest(self, model: Any) -> None:  # noqa: ANN401
+    def harvest(self, model: ModelView) -> None:
         """Harvest every occupied patch and share the food among the people on it.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        cells: dict[tuple[int, ...], list[AgentView]] = {}
-        for person in model.agents('people', AgentView):
-            cells.setdefault(tuple(int(item) for item in person.location), []).append(person)
+        cells: dict[tuple[int, ...], list[SettlerView]] = {}
+        for person in model.agents('people', SettlerView):
+            cells.setdefault(_cell(person), []).append(person)
         for group in cells.values():
             patch = _patch_here(group[0])
             labour = sum(person.labour for person in group if person.age >= person.maturity)
@@ -748,20 +789,24 @@ class LabourMarketInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [
+        return [
             MatchLaw('businesses', 'people', pairing=_offers, label='hires', phase='hiring'),
             RuleLaw(self.hire, 'hiring'),
         ]
-        return laws
 
-    def hire(self, model: Any) -> None:  # noqa: ANN401
+    def hire(self, model: ModelView) -> None:
         """Employ every matched worker at its firm.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        for firm, person in matches(model, 'hires'):
+        hires = [
+            (firm, person)
+            for firm, person in matches(model, 'hires')
+            if isinstance(firm, BusinessView) and isinstance(person, SettlerView)
+        ]
+        for firm, person in hires:
             person.employer = float(firm.id)
             person.move_to(firm.location)
             firm.vacancies = max(firm.vacancies - 1, 0.0)
@@ -796,13 +841,12 @@ class FoodMarketInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [
+        return [
             MatchLaw('people', 'businesses', pairing=_shops, label='purchases', phase='market'),
             RuleLaw(self.sell, 'market'),
         ]
-        return laws
 
-    def sell(self, model: Any) -> None:  # noqa: ANN401
+    def sell(self, model: ModelView) -> None:
         """Sell food along every pair of the step and report the value of the sales.
 
         Args:
@@ -810,7 +854,12 @@ class FoodMarketInteraction(Interaction):
                 The model view of the interaction.
         """
         value = 0.0
-        for person, firm in matches(model, 'purchases'):
+        purchases = [
+            (person, firm)
+            for person, firm in matches(model, 'purchases')
+            if isinstance(person, SettlerView) and isinstance(firm, BusinessView)
+        ]
+        for person, firm in purchases:
             wanted = person.reserve * person.need - person.food
             quantity = max(min(wanted, firm.stock, person.money / firm.price), 0.0)
             transfer(person, firm, quantity * firm.price, 'money')
@@ -852,7 +901,7 @@ class CensusInteraction(Interaction):
         super().__init__(label)
         self.people = people
 
-    def _settle(self, dead: AgentView, living: list[AgentView], model: Any) -> None:  # noqa: ANN401
+    def _settle(self, dead: SettlerView, living: list[SettlerView], model: ModelView) -> None:
         """Leave the money and the loans of a dead person to an heir, and remove the person."""
         near = [person for person in living if person.location == dead.location] or living
         if near:
@@ -862,14 +911,14 @@ class CensusInteraction(Interaction):
         if dead.money == 0 and dead.loans == 0:
             dead.remove()
 
-    def count(self, model: Any) -> None:  # noqa: ANN401
+    def count(self, model: ModelView) -> None:
         """Count the births and deaths of the step and remove the dead.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        people = model.agents('people', AgentView)
+        people = model.agents('people', SettlerView)
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         model.report('births', float(sum(person.age == 0 for person in living)))
@@ -1000,7 +1049,7 @@ def metaphoria(
         location=sites,
     )
     cells = rng.integers(0, shape, size=(n_people, len(shape)))
-    traits: dict[str, Any] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
+    traits: dict[str, Array] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
     people = GroupElement(
         'people',
         element=SettlerElement,

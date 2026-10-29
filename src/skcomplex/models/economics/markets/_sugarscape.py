@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -17,10 +17,13 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
+from ....errors import SpaceError
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
+from ._forager_view import ForagerView
+from ._sugar_patch_view import SugarPatchView
 
 PEAKS = ((0.3, 0.3), (0.7, 0.7))
 BOUNDS = (21, 16, 11, 6)
@@ -94,6 +97,11 @@ class SugarPatchElement(Element):
         self.capacity = capacity
         self.growback = growback
 
+    @classmethod
+    def _get_view(cls) -> type[SugarPatchView]:
+        """Return the view of a patch, with its sugar, capacity, and growback."""
+        return SugarPatchView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growback rule in the phase of growth.
 
@@ -107,7 +115,7 @@ class SugarPatchElement(Element):
         """
         return [RuleLaw(self.grow, phase='growth')]
 
-    def grow(self, agent: AgentView, model: ModelView) -> None:
+    def grow(self, agent: SugarPatchView, model: ModelView) -> None:
         """Grow sugar back up to the capacity.
 
         Args:
@@ -165,6 +173,11 @@ class ForagerElement(Element):
 
     patches: ClassVar[str] = 'patches'
 
+    @classmethod
+    def _get_view(cls) -> type[ForagerView]:
+        """Return the view of a forager, with its sugar, vision, and metabolism."""
+        return ForagerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the foraging rule in the phase of foraging.
 
@@ -178,16 +191,25 @@ class ForagerElement(Element):
         """
         return [RuleLaw(self.forage, phase='foraging')]
 
-    def _patch_map(self, model: ModelView) -> dict[tuple[int, int], AgentView]:
+    @staticmethod
+    def _cell_of(agent: AgentView) -> tuple[int, int]:
+        """Return the cell of an agent on the lattice."""
+        location = agent.location
+        if not isinstance(location, tuple):
+            error_msg = f'Agent {agent.id} of {agent.group} lives on no lattice cell.'
+            raise SpaceError(error_msg)
+        x, y = location
+        return int(x), int(y)
+
+    def _patch_map(self, model: ModelView) -> dict[tuple[int, int], SugarPatchView]:
         """Return the patches by cell, built once per run in the storage of the foragers."""
         if 'patches' not in model.storage:
             model.storage['patches'] = {
-                tuple(int(item) for item in patch.location): patch  # type: ignore[attr-defined]
-                for patch in model.agents(self.patches, AgentView)
+                self._cell_of(patch): patch for patch in model.agents(self.patches, SugarPatchView)
             }
         return model.storage['patches']
 
-    def forage(self, agent: AgentView, model: ModelView) -> None:
+    def forage(self, agent: ForagerView, model: ModelView) -> None:
         """Move to the best free cell in sight, harvest it, and starve when the wealth falls below zero.
 
         Args:
@@ -198,7 +220,7 @@ class ForagerElement(Element):
                 The model.
         """
         patches = self._patch_map(model)
-        x, y = (int(item) for item in agent.location)  # type: ignore[attr-defined]
+        x, y = self._cell_of(agent)
         best, best_sugar, best_distance = (x, y), patches[x, y].sugar, 0
         for dx, dy in DIRECTIONS:
             for distance in range(1, int(agent.vision) + 1):
@@ -276,14 +298,14 @@ class CensusInteraction(InstitutionInteraction):
         super().__init__(label, rule=rule, phase=phase)
         self.foragers = foragers
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Report the population and the Gini coefficient of wealth.
 
         Args:
             model:
                 The model view of the census.
         """
-        wealth = [forager.sugar for forager in model.agents('foragers', AgentView)]
+        wealth = [forager.sugar for forager in model.agents('foragers', ForagerView)]
         model.report('population', len(wealth))
         model.report('gini', gini(wealth))
 

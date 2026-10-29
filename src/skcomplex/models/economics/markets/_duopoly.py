@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._duopolist_view import DuopolistView
 
 N_FIRMS = 2
 
@@ -60,6 +61,11 @@ class DuopolistElement(Element):
         super().__init__(label, visual=visual)
         self.output = output
         self.cost = cost
+
+    @classmethod
+    def _get_view(cls) -> type[DuopolistView]:
+        """Return the view of a duopolist, with its output and cost."""
+        return DuopolistView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the market sets the outputs of both firms at once.
@@ -139,7 +145,7 @@ class CournotAdjustmentInteraction(Interaction):
                 The model.
         """
         a, b, error = (model.parameter(name) for name in ('a', 'b', 'error'))
-        first, second = model.agents('firms', AgentView)
+        first, second = model.agents('firms', DuopolistView)
         beliefs = np.array([second.output, first.output]) * (1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS))
         for firm, belief in zip((first, second), beliefs, strict=True):
             firm.output = max((a - firm.cost) / (2 * b) - float(belief) / 2, 0.0)

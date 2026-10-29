@@ -13,9 +13,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._investing_firm_view import InvestingFirmView
 
 
 class InvestingFirmElement(Element):
@@ -96,6 +97,11 @@ class InvestingFirmElement(Element):
         self.r = r
         self.pbar = pbar
 
+    @classmethod
+    def _get_view(cls) -> type[InvestingFirmView]:
+        """Return the view of a firm, with its states and parameters."""
+        return InvestingFirmView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one period.
 
@@ -109,7 +115,7 @@ class InvestingFirmElement(Element):
         """
         return [RuleLaw(self.trade)]
 
-    def trade(self, agent: AgentView, model: ModelView) -> None:
+    def trade(self, agent: InvestingFirmView, model: ModelView) -> None:
         """Invest, produce, borrow, sell, and update the net worth, with replacement of a bankrupt firm.
 
         Args:

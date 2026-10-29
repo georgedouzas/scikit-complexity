@@ -111,10 +111,11 @@ class Protocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
     Subclasses implement `match(buyers, sellers, rng, storage)`, which receives the orders of the participants with
-    something to trade, the random generator, and a storage that persists across clearings, and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which raises
-    an error for an invalid option. A protocol's `evaluate` is also a pairing of the core's matching law: given the
-    buyers and sellers, it reads their orders from the states `bid`, `demand`, and `money` of buyers and `ask` and
-    `supply` of sellers, and returns the trades, whose `buyer` and `seller` are the paired agents.
+    something to trade, the random generator, and a storage that persists across clearings, and returns trades whose
+    quantities respect the orders' quantities and budgets, and `_check`, which raises an error for an invalid option.
+    A protocol's `evaluate` clears the orders of agents: given the buyers and sellers, it reads their orders from the
+    states `bid`, `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, whose
+    `buyer` and `seller` are the paired agents.
     """
 
     def _check(self) -> Self:
@@ -860,7 +861,11 @@ class MarketInteraction(Interaction):
         model.report('unmatched', unmatched)
 
 
-def total_surplus(trades: Sequence[Trade], value: Callable[[AgentView], float], cost: Callable[[AgentView], float]) -> float:
+def total_surplus(
+    trades: Sequence[Trade],
+    value: Callable[[AgentView], float],
+    cost: Callable[[AgentView], float],
+) -> float:
     """Return the surplus of trades, the buyers' values minus the sellers' costs of the traded units.
 
     Args:

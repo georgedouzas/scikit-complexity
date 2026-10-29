@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar, cast
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,13 +17,14 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.markets import Trade
+from ._resident_view import ResidentView
+from ._store_view import StoreView
 
 
-def _largest_share(sales: Any) -> float:  # noqa: ANN401
+def _largest_share(sales: object) -> float:
     """Return the share of the sales of the shop that sells the most."""
     values = np.asarray(sales, dtype=float)
     return float(values.max() / values.sum()) if values.size and values.sum() > 0 else 0.0
@@ -40,15 +41,15 @@ def _shops_observables(system: System) -> list[ObservableSpec]:
 
 
 def delivered_price_choice(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[Any]:
+) -> list[tuple[object, object]]:
     """Pairing of shoppers, in random order, with the shop of the lowest delivered price that has units left.
 
     The delivered price is the shop's ask plus the shopper's travel cost per cell times the distance to the shop. A
-    shopper buys one unit when the ask is at most its bid, so every pair is a trade of one unit at the ask. The
+    shopper buys one unit when the ask is at most its bid, so every pair is a purchase of one unit. The
     shoppers choose in turn, so the matching is stable when shops do not choose among shoppers.
 
     Args:
@@ -65,8 +66,8 @@ def delivered_price_choice(
             The largest number of purchases of every shopper, which the demand limits instead.
 
     Returns:
-        trades:
-            The purchases.
+        purchases:
+            The pairs of a shopper with the shop it buys from.
 
     Examples:
         >>> import numpy as np
@@ -74,8 +75,8 @@ def delivered_price_choice(
         >>> delivered_price_choice([], [], np.random.default_rng(0), 1)
         []
     """
-    shoppers = [agent for agent in left if agent.demand > 0]
-    stores = [agent for agent in right if agent.supply > 0]
+    shoppers = [agent for agent in left if isinstance(agent, ResidentView) and agent.demand > 0]
+    stores = [agent for agent in right if isinstance(agent, StoreView) and agent.supply > 0]
     if not shoppers or not stores:
         return []
     here = np.array([agent.location for agent in shoppers], dtype=float)
@@ -85,7 +86,7 @@ def delivered_price_choice(
     travel = np.array([agent.travel for agent in shoppers], dtype=float)
     delivered = asks[None, :] + travel[:, None] * distances
     supply = np.array([agent.supply for agent in stores], dtype=float)
-    trades = []
+    purchases: list[tuple[object, object]] = []
     for index in rng.permutation(len(shoppers)):
         shopper = shoppers[int(index)]
         costs = np.where((supply >= 1) & (asks <= shopper.bid), delivered[index], np.inf)
@@ -93,8 +94,8 @@ def delivered_price_choice(
         if not np.isfinite(costs[best]):
             continue
         supply[best] -= 1
-        trades.append(Trade(shopper, stores[best], 1.0, float(asks[best])))
-    return trades
+        purchases.append((shopper, stores[best]))
+    return purchases
 
 
 class ResidentElement(Element):
@@ -151,6 +152,11 @@ class ResidentElement(Element):
         self.distance_cost = distance_cost
         self.online = online
 
+    @classmethod
+    def _get_view(cls) -> type[ResidentView]:
+        """Return the view of a shopper, with its states and shopping parameters."""
+        return ResidentView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that decides how the shopper shops in the step.
 
@@ -164,7 +170,7 @@ class ResidentElement(Element):
         """
         return [RuleLaw(self.plan, phase='market')]
 
-    def plan(self, agent: AgentView, model: ModelView) -> None:
+    def plan(self, agent: ResidentView, model: ModelView) -> None:
         """Want one unit, and shop online with the probability of shopping online.
 
         Args:
@@ -262,6 +268,11 @@ class StoreElement(Element):
         self.fixed_cost = fixed_cost
         self.adjustment = adjustment
 
+    @classmethod
+    def _get_view(cls) -> type[StoreView]:
+        """Return the view of a shop, with its states and cost parameters."""
+        return StoreView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that opens the shop for the market and the rule that settles its accounts.
 
@@ -275,7 +286,7 @@ class StoreElement(Element):
         """
         return [RuleLaw(self.open, phase='market'), RuleLaw(self.settle, phase='accounts')]
 
-    def open(self, agent: AgentView, model: ModelView) -> None:
+    def open(self, agent: StoreView, model: ModelView) -> None:
         """Offer the capacity at the price.
 
         Args:
@@ -289,7 +300,7 @@ class StoreElement(Element):
         agent.ask = agent.price
         agent.sales = 0.0
 
-    def settle(self, agent: AgentView, model: ModelView) -> None:
+    def settle(self, agent: StoreView, model: ModelView) -> None:
         """Pay the costs, close when the money runs out, and move the price toward a larger profit.
 
         Args:
@@ -346,7 +357,7 @@ class ShoppingInteraction(Interaction):
         self.shoppers = shoppers
         self.shops = shops
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of shoppers with shops and the rule that settles the trades.
 
         Args:
@@ -362,7 +373,7 @@ class ShoppingInteraction(Interaction):
             RuleLaw(self.buy, phase='market'),
         ]
 
-    def buy(self, model: Any) -> None:  # noqa: ANN401
+    def buy(self, model: ModelView) -> None:
         """Pay for every purchase and count the units sold.
 
         Args:
@@ -370,12 +381,14 @@ class ShoppingInteraction(Interaction):
                 The model view of the market.
         """
         volume = 0.0
-        for trade in cast('list[Trade]', matches(model, 'purchases')):
-            transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
-            trade.buyer.demand -= trade.quantity
-            trade.seller.supply -= trade.quantity
-            trade.seller.sales += trade.quantity
-            volume += trade.quantity
+        for shopper, store in matches(model, 'purchases'):
+            if not isinstance(shopper, ResidentView) or not isinstance(store, StoreView):
+                continue
+            transfer(shopper, store, store.ask, 'money')
+            shopper.demand -= 1.0
+            store.supply -= 1.0
+            store.sales += 1.0
+            volume += 1.0
         model.report('volume', volume)
 
 
