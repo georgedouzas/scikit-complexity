@@ -157,7 +157,9 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _recorded_states(
-        group: str, references: dict[Expression, ReferenceSpec], rows: int,
+        group: str,
+        references: dict[Expression, ReferenceSpec],
+        rows: int,
     ) -> tuple[Indices, tuple[str, ...]]:
         """Return the flat indices and the names of the states of every member of the group a renewal law renews."""
         columns: dict[int, tuple[Indices, str]] = {}
@@ -288,7 +290,11 @@ class RenewalProblemPass(BasePass):
                 (
                     item,
                     RenewalProblemPass._member_function(
-                        owner, [SR(arg).subs(calls) for arg in item.arguments], references, names, time,
+                        owner,
+                        [SR(arg).subs(calls) for arg in item.arguments],
+                        references,
+                        names,
+                        time,
                     ),
                 )
                 for item in RenewalProblemPass._ordered(list(found.values()))

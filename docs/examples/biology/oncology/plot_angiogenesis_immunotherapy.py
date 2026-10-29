@@ -21,10 +21,17 @@ MODEL = 'angiogenesis_immunotherapy'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system, dt=0.5, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=150,
+simulation = (
+    Simulation(
+        system,
+        dt=0.5,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=150,
+    )
 )
 
 # %%
@@ -42,10 +49,7 @@ arms = {
 fig, (tumour, toxicity) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = (
-        Simulation(arm, dt=0.5, observables=describe(MODEL).observables_of(arm))
-        .check()
-        .run(until=150)
-        .trajectory_
+        Simulation(arm, dt=0.5, observables=describe(MODEL).observables_of(arm)).check().run(until=150).trajectory_
     )
     tumour.plot(trajectory.times, trajectory.values('tumour.A'), label=name)
 combined = simulation.trajectory_

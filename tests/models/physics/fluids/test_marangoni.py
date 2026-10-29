@@ -19,8 +19,7 @@ def test_benard_marangoni_forms_hexagons_with_a_free_surface():
             Simulation(system, dt=10.0, solver=ETDRK4Solver(dt=0.5))
             .check()
             .run(until=200)
-            .trajectory_
-            .lattice('layer.u')
+            .trajectory_.lattice('layer.u')
         )
         pattern = DomainAnalysis('wavelength', spacing=np.pi / 4).check().prepare(field[-1]).run()
         patterns[g] = (pattern, skew(field[-1].ravel()))

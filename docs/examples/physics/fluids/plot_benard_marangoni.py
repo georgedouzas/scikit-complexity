@@ -28,8 +28,12 @@ LENGTH = 16 * np.pi
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0).check().run(
-    until=300,
+simulation = (
+    Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
+    .check()
+    .run(
+        until=300,
+    )
 )
 
 # %%

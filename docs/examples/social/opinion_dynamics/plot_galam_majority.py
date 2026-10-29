@@ -34,9 +34,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 def after_one_round(share, seed):
     """Return the share of opinion 1 after one round of discussions in a large population."""
     run = (
-        Simulation(create(MODEL, n_agents=3000, share=share, random_state=seed), random_state=seed)
-        .check()
-        .run(until=1)
+        Simulation(create(MODEL, n_agents=3000, share=share, random_state=seed), random_state=seed).check().run(until=1)
     )
     return run.trajectory_.agents('citizens', 1).values['opinion'].mean()
 

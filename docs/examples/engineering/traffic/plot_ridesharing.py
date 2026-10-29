@@ -43,12 +43,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, demand=1.2, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=STEPS)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # Waiting near saturation
@@ -64,9 +68,7 @@ waits, utilisations = [], []
 for demand in demands:
     system = create(MODEL, demand=demand, random_state=0)
     run = (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
-        .check()
-        .run(until=STEPS)
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).check().run(until=STEPS)
     )
     waits.append(np.nanmean(run.trajectory_.values('mean_wait')[STEPS // 2 :]))
     utilisations.append(run.trajectory_.values('utilisation')[STEPS // 2 :].mean())

@@ -36,16 +36,6 @@ STEP_TOLERANCE = 1e-6
 KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
 
 
-
-
-
-
-
-
-
-
-
-
 class BaseAnalysis(BaseConfig, ABC):
     """Base of every analysis: it stores its settings, checks them, prepares on a source, and runs.
 

@@ -198,8 +198,6 @@ class _HeldElement(Element):
         self.reduction = reduction
 
 
-
-
 class ObservableEvaluator:
     """Evaluator of every observable of a problem from a state vector, a parameter vector, and the agents.
 

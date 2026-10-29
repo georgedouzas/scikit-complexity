@@ -25,12 +25,16 @@ THRESHOLD, YEARS = 1.2, 50
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 model_system = create(MODEL, random_state=0)
-simulation = Simulation(
-    model_system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(model_system),
-).check().run(until=18)
+simulation = (
+    Simulation(
+        model_system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(model_system),
+    )
+    .check()
+    .run(until=18)
+)
 
 # %%
 # Adoption against affordability
@@ -41,7 +45,8 @@ simulation = Simulation(
 
 model_system = create(MODEL, random_state=0)
 trajectory = (
-    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system)).check()
+    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+    .check()
     .run(until=YEARS)
     .trajectory_
 )

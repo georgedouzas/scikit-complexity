@@ -69,7 +69,8 @@ final = [
                     create(MODEL, n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
                     dt=1,
                     random_state=seed,
-                ).check()
+                )
+                .check()
                 .run(until=4)
                 .trajectory_,
                 -1,

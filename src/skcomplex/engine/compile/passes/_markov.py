@@ -212,13 +212,16 @@ class MarkovPass(BasePass):
             )
             raise ValidationError(error_msg)
         value = categorical(
-            MarkovPass._draw_name('emission', law._get_targets()[0]), MarkovPass._selected_row(SR(hidden), law.matrix),
+            MarkovPass._draw_name('emission', law._get_targets()[0]),
+            MarkovPass._selected_row(SR(hidden), law.matrix),
         )
         return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
     def _transition(
-        owner: str, law: TransitionLaw, references: dict[Expression, ReferenceSpec],
+        owner: str,
+        law: TransitionLaw,
+        references: dict[Expression, ReferenceSpec],
     ) -> tuple[UpdateLaw, MatrixLawSpec]:
         """Return the update law a transition law becomes and its matrix."""
         description = f'transition law of {owner}.{law._get_targets()[0]}'

@@ -40,12 +40,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_people=100, mode='hunter_gatherer', random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=250)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=250)
+)
 
 # %%
 # Hunter-gatherers against a monetary economy

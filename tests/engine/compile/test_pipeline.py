@@ -1,6 +1,5 @@
 """Test the ordering of the passes of the general compiler by the fields they read and write, and their run."""
 
-
 import pytest
 
 from skcomplex.core.system import System

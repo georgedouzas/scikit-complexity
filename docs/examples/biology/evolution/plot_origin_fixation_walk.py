@@ -24,13 +24,17 @@ MODEL = 'origin_fixation_walk'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=10.0,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=640)
+simulation = (
+    Simulation(
+        system,
+        dt=10.0,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=640)
+)
 
 # %%
 # Climbing and the stationary law
@@ -49,7 +53,8 @@ for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
 small = create(MODEL, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
 alleles = (
-    Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small)).check()
+    Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small))
+    .check()
     .run(until=5000)
     .trajectory_.values('genome.s')[100:]
 )

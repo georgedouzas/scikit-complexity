@@ -435,7 +435,10 @@ class QuantumCompiler(BaseCompiler):
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         QuantumCompiler._collect_laws(
-            hamiltonians, dissipators, node.path, interaction.run(SimpleNamespace(**roles, **parameters)),
+            hamiltonians,
+            dissipators,
+            node.path,
+            interaction.run(SimpleNamespace(**roles, **parameters)),
         )
 
     @staticmethod
@@ -462,7 +465,9 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _dissipator_terms(
-        dissipators: Dissipators, lowering: QuantumLowering, p: Array,
+        dissipators: Dissipators,
+        lowering: QuantumLowering,
+        p: Array,
     ) -> tuple[tuple[QuantumKernel, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
@@ -735,7 +740,11 @@ class QuantumCompiler(BaseCompiler):
                 shape = () if members is None else (members,)
                 values.append(
                     LayoutPass._coerce_value(
-                        name, LayoutPass._value_of(node, variable), (), declaration.domain, members,
+                        name,
+                        LayoutPass._value_of(node, variable),
+                        (),
+                        declaration.domain,
+                        members,
                     ),
                 )
                 entries.append(EntrySpec(name, sum(item.size for item in entries), shape, declaration.domain, members))

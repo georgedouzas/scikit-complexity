@@ -25,12 +25,16 @@ MODEL = 'fair_food'
 
 system = create(MODEL, width=20, height=20, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=30)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=30)
+)
 
 # %%
 # Price premium and social influence
@@ -52,7 +56,8 @@ for social_weight in (0.0, 2.0):
             create(MODEL, premium=premium, social_weight=social_weight, random_state=0),
             random_state=0,
             observables=describe(MODEL).observables_of(system),
-        ).check()
+        )
+        .check()
         .run(until=15)
         .trajectory_.values('fair_share')[-5:]
         .mean()

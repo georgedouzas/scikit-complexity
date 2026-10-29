@@ -61,10 +61,9 @@ shares = np.logspace(-3, 0, 8)
 ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
-    run = (
-        Simulation(create(MODEL, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20))
-        .check()
-    )
+    run = Simulation(
+        create(MODEL, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20),
+    ).check()
     graph = run.run(until=20).trajectory_.network(-1).graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))

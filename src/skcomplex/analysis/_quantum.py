@@ -207,9 +207,7 @@ class QuantumAnalysis(BaseAnalysis):
         """Return the quantum problem of a system, compiling it when needed."""
         problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=QuantumCompiler())
         if not isinstance(problem, QuantumProblemSpec):
-            error_msg = (
-                f'The system compiles to the {problem.form} form, but the analysis needs quantum elements.'
-            )
+            error_msg = f'The system compiles to the {problem.form} form, but the analysis needs quantum elements.'
             raise AnalysisError(error_msg)
         return problem
 
@@ -236,7 +234,8 @@ class QuantumAnalysis(BaseAnalysis):
         expression, value = sector
         terms = problem.lowering.run((expression(problem.namespaces['']), 'the sector'))
         matrix = sum(
-            (term.run(RunStateSpec(0.0, np.zeros(0), p)) * term.matrix for term in terms), start=0 * terms[0].matrix,
+            (term.run(RunStateSpec(0.0, np.zeros(0), p)) * term.matrix for term in terms),
+            start=0 * terms[0].matrix,
         )
         diagonal = matrix.diagonal()
         if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
@@ -281,7 +280,9 @@ class QuantumAnalysis(BaseAnalysis):
 
     @staticmethod
     def _entanglement(
-        problem: QuantumProblemSpec, states: npt.NDArray[np.complex128], subsystems: Sequence[str],
+        problem: QuantumProblemSpec,
+        states: npt.NDArray[np.complex128],
+        subsystems: Sequence[str],
     ) -> Array:
         """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
         keep = []

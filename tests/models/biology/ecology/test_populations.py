@@ -19,8 +19,13 @@ def test_logistic_growth_saturates():
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )
     assert Simulation(
-        system, dt=1.0,
-    ).check().run(until=30).trajectory_.values('p.n')[-1] == pytest.approx(200, rel=1e-3)
+        system,
+        dt=1.0,
+    ).check().run(
+        until=30,
+    ).trajectory_.values('p.n')[
+        -1
+    ] == pytest.approx(200, rel=1e-3)
 
 
 def test_lotka_volterra_oscillates():

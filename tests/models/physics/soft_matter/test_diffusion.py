@@ -19,23 +19,19 @@ def test_brownian_motion_is_ballistic_then_diffusive():
     """Test that inertial Brownian motion is ballistic below `m / gamma` and diffusive above, and overdamped is not."""
     model = brownian_motion(4000)
     trajectory = (
-
-            Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
-            .check()
-            .run(until=1)
-            .trajectory_
-
+        Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
+        .check()
+        .run(until=1)
+        .trajectory_
     )
     positions = trajectory.values('beads.x')[..., 0]
     assert (positions[2] ** 2).mean() == pytest.approx(2 * (0.1 - 1 + np.exp(-0.1)), rel=0.1)
     overdamped = brownian_motion(4000, inertial=False)
     trajectory = (
-
-            Simulation(overdamped, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-            .check()
-            .run(until=10)
-            .trajectory_
-
+        Simulation(overdamped, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+        .check()
+        .run(until=10)
+        .trajectory_
     )
     assert (trajectory.values('beads.x')[-1] ** 2).mean() == pytest.approx(2 * 10, rel=0.1)
 
@@ -43,9 +39,7 @@ def test_brownian_motion_is_ballistic_then_diffusive():
 def test_optical_trap_holds_particles_with_the_thermal_variance():
     """Test that trapped particles have the variance `kT / k` along each axis, and that moving traps run."""
     trajectory = (
-        Simulation(optical_trap(1000), dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
-        .run(until=30)
+        Simulation(optical_trap(1000), dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).check().run(until=30)
     )
     positions = trajectory.trajectory_.values('beads.x')[10:]
     assert positions[..., 0].var() == pytest.approx(1.0, rel=0.1)
@@ -65,12 +59,10 @@ def test_kramers_escape_rate():
     D, size, until = 0.1, 200, 400
     solver = EulerMaruyamaSolver(dt=0.01)
     trajectory = (
-
-            Simulation(kramers_escape(size, D=D), dt=0.1, solver=solver, random_state=0)
-            .check()
-            .run(until=until)
-            .trajectory_
-
+        Simulation(kramers_escape(size, D=D), dt=0.1, solver=solver, random_state=0)
+        .check()
+        .run(until=until)
+        .trajectory_
     )
     positions = trajectory.values('particles.x')
     wells = np.sign(positions[0])
@@ -88,12 +80,10 @@ def test_multiplicative_noise_conventions_give_their_stationary_densities(noise,
     """Test that the fraction in the low-noise half follows the stationary density of each convention."""
     model = multiplicative_noise(500, s0=1.0, ds=1.0, L=10.0, convention=noise)
     trajectory = (
-
-            Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-            .check()
-            .run(until=400)
-            .trajectory_
-
+        Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+        .check()
+        .run(until=400)
+        .trajectory_
     )
     positions = trajectory.values('particles.x')[2000:]
     assert (positions < 5).mean() == pytest.approx(left, abs=0.03)
@@ -103,12 +93,10 @@ def test_scaled_brownian_motion_has_the_anomalous_exponent():
     """Test that the mean squared displacement of scaled Brownian motion grows as `t^alpha`."""
     model = scaled_brownian_motion(4000, alpha=0.5)
     trajectory = (
-
-            Simulation(model, dt=0.1, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
-            .check()
-            .run(until=10)
-            .trajectory_
-
+        Simulation(model, dt=0.1, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
+        .check()
+        .run(until=10)
+        .trajectory_
     )
     squared = (trajectory.values('walkers.x') ** 2).mean(axis=1)
     exponent = np.polyfit(np.log(trajectory.times[10:]), np.log(squared[10:]), 1)[0]

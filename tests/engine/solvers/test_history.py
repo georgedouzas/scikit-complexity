@@ -173,10 +173,7 @@ def test_hutchinson_settles_below_threshold():
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
     trajectory = (
-        Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver())
-        .check()
-        .run(until=2)
-        .trajectory_
+        Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver()).check().run(until=2).trajectory_
     )
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
@@ -309,12 +306,10 @@ def test_chattering_event_raises(solver):
 def test_step_response(solver):
     """Test that a first-order system is unforced before a step at 5 and follows the step response after it."""
     trajectory = (
-
-            Simulation(System(elements=[FirstOrderElement('f')]), dt=0.25, solver=solver())
-            .check()
-            .run(until=10)
-            .trajectory_
-
+        Simulation(System(elements=[FirstOrderElement('f')]), dt=0.25, solver=solver())
+        .check()
+        .run(until=10)
+        .trajectory_
     )
     times, values = trajectory.times, trajectory.values('f.y')
     assert np.all(values[times < 5] == 0.0)
@@ -351,11 +346,15 @@ def test_pulse_train_and_series_breakpoints():
 
 def test_schedule_ramps_a_parameter():
     """Test that a scheduled parameter takes the value of its function of time before every frame."""
-    simulation = Simulation(
-        System(elements=[FirstOrderElement('f')]),
-        dt=1.0,
-        schedule={'f.k': lambda t: 1.0 + t},
-    ).check().run(until=3)
+    simulation = (
+        Simulation(
+            System(elements=[FirstOrderElement('f')]),
+            dt=1.0,
+            schedule={'f.k': lambda t: 1.0 + t},
+        )
+        .check()
+        .run(until=3)
+    )
     assert simulation.trajectory_.parameters[:, 0].tolist() == [1.0, 2.0, 3.0, 4.0]
 
 
@@ -414,10 +413,17 @@ def test_milstein_and_heun_converge_on_additive_noise():
             return [RateLaw(s.x, -s.x), NoiseLaw(s.x, 1.0)]
 
     for stepper in (MilsteinSolver(dt=0.01), HeunSolver(dt=0.01)):
-        values = Simulation(
-            System(elements=[OrnsteinElement('o')]), solver=stepper, dt=1.0, random_state=0,
-        ).check().run(
-            1000,
+        values = (
+            Simulation(
+                System(elements=[OrnsteinElement('o')]),
+                solver=stepper,
+                dt=1.0,
+                random_state=0,
+            )
+            .check()
+            .run(
+                1000,
+            )
         )
         assert np.var(values.trajectory_.values('o.x')[100:]) == pytest.approx(0.5, rel=0.2)
 

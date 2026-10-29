@@ -24,10 +24,13 @@ MODEL = 'shaken_spring_block'
 
 system = create(MODEL, n_blocks=60, amplitude=2.0, shake_time=2.0, relax_time=20.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
-    .check()
-)
+simulation = Simulation(
+    system,
+    dt=1.0,
+    solver=EulerMaruyamaSolver(dt=0.01),
+    observers=[observer],
+    random_state=0,
+).check()
 simulation.run(until=286)
 
 # %%

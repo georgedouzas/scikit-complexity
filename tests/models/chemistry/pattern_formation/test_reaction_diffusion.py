@@ -59,13 +59,7 @@ def test_gray_scott_streams_images(tmp_path):
     simulation = Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0)).check().run(until=40)
     problem, recording = simulation.problem_, Images()
     visual = (
-        RerunObserver()
-        .check()
-        .prepare(problem)
-        .visuals_[0]
-        .set_params(recording=recording)
-        .check()
-        .prepare(problem)
+        RerunObserver().check().prepare(problem).visuals_[0].set_params(recording=recording).check().prepare(problem)
     )
     for step in range(len(simulation.trajectory_.times)):
         visual.run(FrameSpec(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, problem))

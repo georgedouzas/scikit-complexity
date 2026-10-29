@@ -32,14 +32,13 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=20
 # `B3/S23` should settle into a few still lifes within about 25 generations.
 
 life = (
-    Simulation(create(MODEL, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1)
-    .check()
-    .run(until=200)
+    Simulation(create(MODEL, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1).check().run(until=200)
 )
 replicator = np.zeros((64, 64))
 replicator[30:35, 30:35] = [[0, 0, 1, 1, 1], [0, 1, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 1, 0], [1, 1, 1, 0, 0]]
 grown = {
-    rule: Simulation(create(MODEL, shape=(64, 64), rule=rule, initial=replicator), dt=1).check()
+    rule: Simulation(create(MODEL, shape=(64, 64), rule=rule, initial=replicator), dt=1)
+    .check()
     .run(until=90)
     .trajectory_.lattice('cells.alive')
     .sum(axis=(1, 2))

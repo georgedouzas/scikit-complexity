@@ -281,10 +281,7 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
     trajectory = (
-        Simulation(System(elements=[ReadoutElement('a')]), backend=backend(), dt=1)
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[ReadoutElement('a')]), backend=backend(), dt=1).check().run(until=5).trajectory_
     )
     assert trajectory.values('a.r').dtype == np.float64
     assert np.allclose(trajectory.values('a.r')[1:], 2.0)
@@ -432,10 +429,7 @@ def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
     joined = Simulation(System(elements=[StuartElement('o')]), solver=solver, dt=0.5).check().run(until=5).trajectory_
     split = (
-        Simulation(System(elements=[SplitStuartElement('o')]), solver=solver, dt=0.5)
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[SplitStuartElement('o')]), solver=solver, dt=0.5).check().run(until=5).trajectory_
     )
     assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
 
@@ -558,10 +552,7 @@ def test_complex_equation_and_event_split_into_parts():
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
     trajectory = (
-        Simulation(System(elements=[OscillatorElement('o')]), solver=solver, dt=0.5)
-        .check()
-        .run(until=3)
-        .trajectory_
+        Simulation(System(elements=[OscillatorElement('o')]), solver=solver, dt=0.5).check().run(until=3).trajectory_
     )
     assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 

@@ -95,7 +95,8 @@ def test_shared_process_keeps_difference(backend, stepper):
             solver=stepper(dt=0.01),
             random_state=0,
             dt=0.1,
-        ).check()
+        )
+        .check()
         .run(until=5)
         .trajectory_
     )
@@ -109,8 +110,13 @@ def test_correlated_increments_reproduce_covariance(backend):
     covariance = [[1.0, 0.6], [0.6, 2.0]]
     trajectory = (
         Simulation(
-            _correlated(covariance), backend=backend(), solver=EulerMaruyamaSolver(dt=1.0), random_state=0, dt=1.0,
-        ).check()
+            _correlated(covariance),
+            backend=backend(),
+            solver=EulerMaruyamaSolver(dt=1.0),
+            random_state=0,
+            dt=1.0,
+        )
+        .check()
         .run(until=10_000)
         .trajectory_
     )

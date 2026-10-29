@@ -18,8 +18,7 @@ def test_glucose_dual_hormone_control_attenuates_the_drop():
         Simulation(glucose_dual_hormone_control(glucagon=False), dt=0.05)
         .check()
         .run(24)
-        .trajectory_
-        .values('organism.G')
+        .trajectory_.values('organism.G')
     )
     assert 1 - dual.min() < 0.8 * (1 - single.min())
     assert dual[-1] == pytest.approx(1.0, abs=1e-3)

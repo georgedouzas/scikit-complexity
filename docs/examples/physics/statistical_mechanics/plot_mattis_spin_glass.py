@@ -22,13 +22,17 @@ MODEL = 'mattis_spin_glass'
 
 system = create(MODEL, size=48, temperature=1.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=2,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=400)
+simulation = (
+    Simulation(
+        system,
+        dt=2,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=400)
+)
 
 # %%
 # Hidden order and the gauge transformation
@@ -44,12 +48,16 @@ temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
     model_system = create(MODEL, size=32, temperature=temperature)
-    trajectory = Simulation(
-        model_system,
-        dt=10,
-        random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
-    ).check().run(until=1000)
+    trajectory = (
+        Simulation(
+            model_system,
+            dt=10,
+            random_state=0,
+            observables=describe(MODEL).observables_of(model_system),
+        )
+        .check()
+        .run(until=1000)
+    )
     overlaps.append(np.abs(trajectory.trajectory_.values('overlap')[-30:]).mean())
     magnetizations.append(np.abs(trajectory.trajectory_.values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))

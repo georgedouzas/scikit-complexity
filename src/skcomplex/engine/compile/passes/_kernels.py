@@ -115,10 +115,7 @@ class KernelsPass(BasePass):
             or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw)
         ):
             return False
-        if not all(
-            reference.source is ReadKind.SINGLE
-            for reference in spec._target_references(law._get_targets()[0])
-        ):
+        if not all(reference.source is ReadKind.SINGLE for reference in spec._target_references(law._get_targets()[0])):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
         sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}

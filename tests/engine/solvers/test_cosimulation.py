@@ -280,10 +280,7 @@ def test_mix_across_subsystems_gives_partitions():
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading a count of agents uses its value from the start of the synchronisation interval."""
     trajectory = (
-        Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2)
-        .check()
-        .run(until=2)
-        .trajectory_
+        Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2).check().run(until=2).trajectory_
     )
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(3 * 2)
     assert trajectory.values('village/farmers_count.value').tolist() == [3.0, 12.0]
@@ -416,10 +413,7 @@ def test_gauss_seidel_reads_already_advanced_values():
     )
     gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).check().run(until=1).trajectory_
     jacobi = (
-        Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1)
-        .check()
-        .run(until=1)
-        .trajectory_
+        Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1).check().run(until=1).trajectory_
     )
     assert gauss_seidel.values('land/soil.n')[-1] == pytest.approx(6)
     assert jacobi.values('land/soil.n')[-1] == pytest.approx(3)

@@ -34,13 +34,17 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, graph=graph, sigma=1.0, stimulus=0.002, excited=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(280)
+simulation = (
+    Simulation(
+        system,
+        dt=1,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(280)
+)
 
 # %%
 # Response curves and the dynamic range

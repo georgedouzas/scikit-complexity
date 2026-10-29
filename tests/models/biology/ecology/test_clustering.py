@@ -35,7 +35,8 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
             random_state=seed,
             backend=NumbaBackend(),
             observables=describe('neutral_clustering').observables_of(system),
-        ).check()
+        )
+        .check()
         .run(until=10)
         .trajectory_
         for seed in range(6)
@@ -56,7 +57,8 @@ def test_neutral_clustering_hops_slow_but_keep_the_clustering():
             random_state=seed,
             backend=NumbaBackend(),
             observables=describe('neutral_clustering').observables_of(system),
-        ).check()
+        )
+        .check()
         .run(until=until)
         .trajectory_.values('variance')
         for seed in range(32)

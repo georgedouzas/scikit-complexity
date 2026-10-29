@@ -37,12 +37,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=50)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=50)
+)
 
 # %%
 # Prices converge while every good is conserved

@@ -39,9 +39,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 def cooperators(synergy):
     """Return the share of cooperators after every round."""
     run = (
-        Simulation(create(MODEL, synergy=synergy, noise=0.5, random_state=0), random_state=0)
-        .check()
-        .run(until=ROUNDS)
+        Simulation(create(MODEL, synergy=synergy, noise=0.5, random_state=0), random_state=0).check().run(until=ROUNDS)
     )
     return run.trajectory_.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
 

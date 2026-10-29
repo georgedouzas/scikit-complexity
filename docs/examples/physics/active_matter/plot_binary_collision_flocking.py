@@ -39,13 +39,17 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, sigma=0.3, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(
-    system,
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=200)
+simulation = (
+    Simulation(
+        system,
+        dt=1,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=200)
+)
 
 # %%
 # The order-disorder transition in noise
@@ -67,10 +71,17 @@ noises = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0])
 polarizations = []
 for sigma in noises:
     model_system = create(MODEL, sigma=float(sigma), random_state=1)
-    run = Simulation(
-        model_system, dt=1, random_state=1, observables=describe(MODEL).observables_of(model_system),
-    ).check().run(
-        until=150,
+    run = (
+        Simulation(
+            model_system,
+            dt=1,
+            random_state=1,
+            observables=describe(MODEL).observables_of(model_system),
+        )
+        .check()
+        .run(
+            until=150,
+        )
     )
     polarizations.append(np.mean(run.trajectory_.values('polarization')[75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))

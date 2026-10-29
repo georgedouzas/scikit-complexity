@@ -26,12 +26,16 @@ N_FIRMS, LOW, HIGH, STEPS = 3000, 0.48, 1.48, 250
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 model_system = create(MODEL, n_firms=N_FIRMS)
-simulation = Simulation(
-    model_system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(model_system),
-).check().run(until=STEPS)
+simulation = (
+    Simulation(
+        model_system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(model_system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # Tail exponent

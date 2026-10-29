@@ -22,13 +22,17 @@ MODEL = 'edwards_anderson'
 
 system = create(MODEL, size=48, temperature=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system,
-    dt=5,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=1000)
+simulation = (
+    Simulation(
+        system,
+        dt=5,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=1000)
+)
 
 # %%
 # Energy, magnetization, and freezing against temperature
@@ -46,7 +50,8 @@ for temperature in temperatures:
     values = sample.elements[0].values
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
     trajectory = (
-        Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample)).check()
+        Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample))
+        .check()
         .run(until=2000)
         .trajectory_
     )

@@ -31,10 +31,10 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 # shifted centre.
 
 harvested = simulation.trajectory_
-unharvested = (
-    Simulation(create(MODEL, prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0), dt=0.1)
-    .check()
-)
+unharvested = Simulation(
+    create(MODEL, prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0),
+    dt=0.1,
+).check()
 unharvested = unharvested.run(until=50).trajectory_
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(unharvested.values('prey.n'), unharvested.values('predators.n'), color='tab:grey', label='without harvesting')

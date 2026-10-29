@@ -39,9 +39,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_traders=200, intensity=6.0), observers=[observer], random_state=0)
-    .check()
-    .run(100)
+    Simulation(create(MODEL, n_traders=200, intensity=6.0), observers=[observer], random_state=0).check().run(100)
 )
 
 # %%
@@ -74,7 +72,8 @@ critical = np.log(RATE / (STRENGTH - RATE)) / COST
 intensities = np.linspace(0.0, 8.0, 81)
 samples = {intensity: mean_field(intensity)[-300:] for intensity in intensities}
 simulated = {
-    intensity: Simulation(create(MODEL, n_traders=200, intensity=intensity), random_state=0).check()
+    intensity: Simulation(create(MODEL, n_traders=200, intensity=intensity), random_state=0)
+    .check()
     .run(100)
     .trajectory_.values('pricing.deviation')[-50:]
     for intensity in (1.0, 2.0, 4.0, 6.0)

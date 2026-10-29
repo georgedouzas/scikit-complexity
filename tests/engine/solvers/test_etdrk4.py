@@ -68,10 +68,7 @@ def _diffused(discretization):
         discretization=discretization,
     )
     values = (
-        Simulation(System(elements=[rod]), dt=0.1, solver=CrankNicolsonSolver(dt=1e-4))
-        .check()
-        .run(until=0.1)
-        .state_
+        Simulation(System(elements=[rod]), dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).check().run(until=0.1).state_
     )
     return np.abs(values - exact).max()
 
@@ -188,13 +185,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
     simulation = Simulation(heat_l_shape(1), dt=0.1).check().run(until=0.1)
     problem, recording = simulation.problem_, Meshes()
     visual = (
-        RerunObserver()
-        .check()
-        .prepare(problem)
-        .visuals_[0]
-        .set_params(recording=recording)
-        .check()
-        .prepare(problem)
+        RerunObserver().check().prepare(problem).visuals_[0].set_params(recording=recording).check().prepare(problem)
     )
     visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
     assert recording.logged == [('plate/u', 'Mesh3D')]

@@ -26,10 +26,13 @@ MODEL = 'directed_percolation_langevin'
 
 system = create(MODEL, energy=1.05, e=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='neurons/rho', interval=1)
-simulation = (
-    Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
-    .check()
-)
+simulation = Simulation(
+    system,
+    dt=1.0,
+    solver=EulerMaruyamaSolver(dt=0.01),
+    observers=[observer],
+    random_state=0,
+).check()
 simulation.run(until=100)
 
 # %%

@@ -36,8 +36,7 @@ def test_edwards_anderson_freezes_without_magnetization():
                     dt=10,
                     random_state=0,
                     observables=describe('edwards_anderson').observables_of(system),
-                )
-                .check()
+                ).check()
             )
             .run(until=2000)
             .trajectory_
@@ -65,8 +64,7 @@ def test_mattis_spin_glass_overlap_orders_like_ising():
                     dt=10,
                     random_state=0,
                     observables=describe('mattis_spin_glass').observables_of(system),
-                )
-                .check()
+                ).check()
             )
             .run(until=1000)
             .trajectory_

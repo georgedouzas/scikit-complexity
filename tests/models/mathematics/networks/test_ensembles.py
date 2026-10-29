@@ -24,10 +24,7 @@ def _giant(graph):
 def test_targeted_attacks_break_the_giant_component_faster_than_failures():
     """Test that removing hubs destroys the giant component while as many random failures leave it mostly whole."""
     trajectory = (
-        Simulation(network_attack(500, strategy='targeted'), dt=1, random_state=0)
-        .check()
-        .run(until=24)
-        .trajectory_
+        Simulation(network_attack(500, strategy='targeted'), dt=1, random_state=0).check().run(until=24).trajectory_
     )
     frame = next(frame for frame in range(25) if len(trajectory.network(frame).nodes) <= 425)
     attacked = trajectory.network(frame).graph()

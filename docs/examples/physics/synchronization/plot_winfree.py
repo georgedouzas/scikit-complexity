@@ -21,10 +21,17 @@ MODEL = 'winfree'
 
 system = create(MODEL, n_oscillators=50, K=0.5, spread=0.1, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(
-    system, dt=0.25, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=50,
+simulation = (
+    Simulation(
+        system,
+        dt=0.25,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=50,
+    )
 )
 
 # %%

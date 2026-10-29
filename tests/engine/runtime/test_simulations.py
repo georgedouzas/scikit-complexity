@@ -159,7 +159,8 @@ def test_simulation_updates_one_per_entry_weight_live():
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
     """Test that total money changes by lending minus repayment, and every transaction-flow row sums to zero."""
     trajectory = (
-        Simulation(create('stock_flow_consistent_economy'), dt=1, observers=[ConservationObserver()]).check()
+        Simulation(create('stock_flow_consistent_economy'), dt=1, observers=[ConservationObserver()])
+        .check()
         .run(100)
         .trajectory_
     )
@@ -220,10 +221,12 @@ def test_reflecting_box_keeps_members_inside_ode_run():
 @pytest.mark.benchmark
 def test_ideal_gas_runs_in_real_time():
     """Test that an ideal gas of 10000 molecules keeps a real-time clock within 0.1 seconds."""
-    simulation = (
-        Simulation(ideal_gas(10_000, random_state=0), dt=0.01, clock=RealTimeClock(speed=1.0), record=False)
-        .check()
-    )
+    simulation = Simulation(
+        ideal_gas(10_000, random_state=0),
+        dt=0.01,
+        clock=RealTimeClock(speed=1.0),
+        record=False,
+    ).check()
     simulation.run(until=5)
     assert simulation.clock_.max_lag_ <= 0.1
 
@@ -367,9 +370,7 @@ def test_simulation_parameters_carry_over_runs():
 def test_simulation_agent_parameters_carry_over_runs():
     """Test that an agent group parameter set between runs is read by the rules of the next run."""
     simulation = (
-        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=3)]))
-        .check()
-        .run(until=0)
+        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=3)])).check().run(until=0)
     )
     simulation.update_parameters({'savers.rate': 5.0})
     trajectory = simulation.run(until=2).trajectory_
@@ -443,12 +444,10 @@ def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
     trajectory = (
-
-            Simulation(System(elements=[HeaterElement('heater')]), dt=0.5, schedule=schedule)
-            .check()
-            .run(until=3.0)
-            .trajectory_
-
+        Simulation(System(elements=[HeaterElement('heater')]), dt=0.5, schedule=schedule)
+        .check()
+        .run(until=3.0)
+        .trajectory_
     )
     np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
     assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
@@ -468,10 +467,7 @@ def test_correlated_noise_repeats_with_same_seed():
 def test_perfect_correlation_keeps_states_equal():
     """Test that processes of correlation 1 keep two states with unit noise equal at every frame."""
     trajectory = (
-        Simulation(_correlated([[1.0, 1.0], [1.0, 1.0]]), random_state=0, dt=0.1)
-        .check()
-        .run(until=2)
-        .trajectory_
+        Simulation(_correlated([[1.0, 1.0], [1.0, 1.0]]), random_state=0, dt=0.1).check().run(until=2).trajectory_
     )
     np.testing.assert_allclose(trajectory.values('a.n'), trajectory.values('b.n'), atol=1e-12)
 
@@ -506,10 +502,12 @@ def test_simulation_releases_the_solver_at_the_last_frame():
 
 def test_simulation_releases_the_solver_after_a_stop():
     """Test that a stopped background run releases its solver once."""
-    simulation = (
-        Simulation(_growth(r=0.0), solver=_ReleaseCountingSolver(), dt=0.01, clock=RealTimeClock(speed=1.0))
-        .check()
-    )
+    simulation = Simulation(
+        _growth(r=0.0),
+        solver=_ReleaseCountingSolver(),
+        dt=0.01,
+        clock=RealTimeClock(speed=1.0),
+    ).check()
     simulation.start()
     time.sleep(0.05)
     simulation.stop()

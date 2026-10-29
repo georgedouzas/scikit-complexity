@@ -319,7 +319,10 @@ def _event_run(jacobian):
     level = 1.5 * line.values['u'].sum()
     system = System(elements=[line], interactions=[StiffThresholdInteraction('threshold', line='line', level=level)])
     simulation = Simulation(
-        system, solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0, backend=NumpyBackend(),
+        system,
+        solver=ScipyODESolver(method='BDF', jacobian=jacobian),
+        dt=1.0,
+        backend=NumpyBackend(),
     ).check()
     start = time.perf_counter()
     times = simulation.run(until=10.0).trajectory_.times
@@ -441,7 +444,11 @@ def _event_time(size, jacobian):
     initial = (np.arange(size) < 0.05 * size).astype(float)
     space = LatticeSpace(size, spacing=0.05)
     field = FieldElement(
-        'line', element=FisherKPPElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial},
+        'line',
+        element=FisherKPPElement,
+        space=space,
+        boundary={'u': 'zero-flux'},
+        values={'u': initial},
     )
     simulation = Simulation(
         System(
@@ -464,10 +471,11 @@ def _hutchinson(size, jacobian):
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
     )
-    simulation = (
-        Simulation(System(elements=[field]), solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0)
-        .check()
-    )
+    simulation = Simulation(
+        System(elements=[field]),
+        solver=ScipyODESolver(method='BDF', jacobian=jacobian),
+        dt=1.0,
+    ).check()
     return simulation.run(until=4).trajectory_.states[-1]
 
 

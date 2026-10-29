@@ -94,7 +94,9 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _planned(
-        system: System, owners: _OwnersSpec, scope: str = '',
+        system: System,
+        owners: _OwnersSpec,
+        scope: str = '',
     ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:
         """Return the partitions of a system tree and the issues of the subsystems whose own laws fit no form."""
         name = scope.rstrip('/') or system.label

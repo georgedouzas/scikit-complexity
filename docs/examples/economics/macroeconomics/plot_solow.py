@@ -58,13 +58,7 @@ paths.set_title('Simulated (dots) and exact (lines) paths')
 paths.legend()
 savings = np.linspace(0.05, 0.9, 18)
 final = [
-    (
-        Simulation(create(MODEL, k=1.0, s=s), dt=1.0)
-        .check()
-        .run(until=400)
-        .trajectory_
-        .values('economy.k')[-1]
-    )
+    (Simulation(create(MODEL, k=1.0, s=s), dt=1.0).check().run(until=400).trajectory_.values('economy.k')[-1])
     for s in savings
 ]
 grid = np.linspace(0.02, 0.95, 200)

@@ -29,13 +29,17 @@ def coupling_at(time):
     return 0.0 if time < 5.0 else 3.0
 
 
-simulation = Simulation(
-    system,
-    dt=0.05,
-    observers=[observer],
-    schedule={'coupling.K': coupling_at},
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=14)
+simulation = (
+    Simulation(
+        system,
+        dt=0.05,
+        observers=[observer],
+        schedule={'coupling.K': coupling_at},
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=14)
+)
 
 # %%
 # Decay rate against the width of the frequencies
@@ -49,9 +53,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
     model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
     run = (
-        Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system))
-        .check()
-        .run(until=20)
+        Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system)).check().run(until=20)
     )
     times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('amplitude'))
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]

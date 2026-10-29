@@ -12,7 +12,8 @@ def _fair_share(**kwargs):
             built := fair_food(12, 12, **kwargs),
             random_state=0,
             observables=describe('fair_food').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=25)
         .trajectory_
     )

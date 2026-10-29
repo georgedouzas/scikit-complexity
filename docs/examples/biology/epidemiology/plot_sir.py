@@ -40,9 +40,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 simulation = (
-    Simulation(create(MODEL, stochastic=True), dt=1.0, observers=[observer], random_state=0)
-    .check()
-    .run(until=160)
+    Simulation(create(MODEL, stochastic=True), dt=1.0, observers=[observer], random_state=0).check().run(until=160)
 )
 
 # %%

@@ -34,9 +34,7 @@ def order_parameters(positions, phases):
 system = create(MODEL, J=1.0, K=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0)
-    .check()
-    .run(until=100)
+    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0).check().run(until=100)
 )
 
 # %%

@@ -23,13 +23,17 @@ MODEL = 'optimal_consumption'
 system = create(MODEL)
 entry = describe(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=0.5,
-    solver=entry.defaults['solver'],
-    observers=[observer],
-    observables=entry.observables_of(system),
-).check().run(until=40)
+simulation = (
+    Simulation(
+        system,
+        dt=0.5,
+        solver=entry.defaults['solver'],
+        observers=[observer],
+        observables=entry.observables_of(system),
+    )
+    .check()
+    .run(until=40)
+)
 
 # %%
 # The Euler equation

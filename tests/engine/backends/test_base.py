@@ -231,9 +231,7 @@ def test_compile_auto_backend_depends_on_group_size():
 def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
     simulation = (
-        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend)
-        .check()
-        .run(until=2)
+        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).check().run(until=2)
     )
     assert simulation.problem_.backend == 'numba'
     assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
@@ -323,10 +321,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             return [UpdateLaw(vector([s.x, s.y]), CallSpec(rotate, (s.x, s.y)))]
 
     trajectory = (
-        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend())
-        .check()
-        .run(until=4)
-        .trajectory_
+        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend()).check().run(until=4).trajectory_
     )
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
@@ -480,7 +475,9 @@ def test_compiled_euler_maruyama_is_reproducible(numba_backend):
             backend=numba_backend,
             dt=0.1,
             random_state=5,
-        ).check().run(until=2)
+        )
+        .check()
+        .run(until=2)
         for _ in range(2)
     ]
     assert np.array_equal(runs[0].trajectory_.states, runs[1].trajectory_.states)
@@ -496,8 +493,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
                 solver=IterationSolver(),
                 backend=backend,
                 dt=3,
-            )
-            .check()
+            ).check()
         )
         .run(until=9)
         .trajectory_.states
@@ -529,7 +525,8 @@ def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
     with pytest.raises(SolverError, match=r'herds\.n are neither'):
         Simulation(
-            _herds(CompiledGrowthInteraction('growth', target='herds')), solver=VelocityVerletSolver(),
+            _herds(CompiledGrowthInteraction('growth', target='herds')),
+            solver=VelocityVerletSolver(),
         ).check().run(
             until=1,
         )

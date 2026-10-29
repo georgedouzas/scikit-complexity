@@ -22,9 +22,7 @@ MODEL = 'prostate_androgen_receptor'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer])
-    .check()
-    .run(until=26280)
+    Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).check().run(until=26280)
 )
 
 # %%
@@ -35,9 +33,7 @@ simulation = (
 
 trajectory = simulation.trajectory_
 ablated = (
-    Simulation(create(MODEL, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA'))
-    .check()
-    .run(until=26280)
+    Simulation(create(MODEL, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA')).check().run(until=26280)
 )
 ablation = ablated.trajectory_
 years = trajectory.times / 8760

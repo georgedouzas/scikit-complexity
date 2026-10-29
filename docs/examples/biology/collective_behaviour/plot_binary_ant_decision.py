@@ -33,10 +33,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).ch
 shares = []
 for seed in range(40):
     trajectory = (
-        Simulation(create(MODEL, stochastic=True), dt=1.0, random_state=seed)
-        .check()
-        .run(until=200)
-        .trajectory_
+        Simulation(create(MODEL, stochastic=True), dt=1.0, random_state=seed).check().run(until=200).trajectory_
     )
     left, right = trajectory.values('left.n')[-1], trajectory.values('right.n')[-1]
     shares.append(left / (left + right))

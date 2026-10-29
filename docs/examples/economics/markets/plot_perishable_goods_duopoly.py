@@ -26,12 +26,16 @@ CRITICAL = CONTROL / (1 + CONTROL) ** 2
 
 system = create(MODEL, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=300)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=300)
+)
 
 # %%
 # Symmetry breaking against the temperature
@@ -58,10 +62,16 @@ temperatures = np.linspace(0.3, 1.6, 8) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
     model_system = create(MODEL, T=temperature, random_state=1)
-    run = Simulation(
-        model_system, random_state=1, observables=describe(MODEL).observables_of(model_system),
-    ).check().run(
-        until=400,
+    run = (
+        Simulation(
+            model_system,
+            random_state=1,
+            observables=describe(MODEL).observables_of(model_system),
+        )
+        .check()
+        .run(
+            until=400,
+        )
     )
     asymmetries.append(np.abs(run.trajectory_.values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL

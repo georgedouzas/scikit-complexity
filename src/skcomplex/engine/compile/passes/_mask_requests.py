@@ -45,9 +45,11 @@ class MaskRequestsPass(BasePass):
         if mask is None:
             return laws
         return [
-            UpdateLaw(law._get_targets()[0], MaskRequestsPass._masked_value(law.value, mask))
-            if isinstance(law, UpdateLaw)
-            else law
+            (
+                UpdateLaw(law._get_targets()[0], MaskRequestsPass._masked_value(law.value, mask))
+                if isinstance(law, UpdateLaw)
+                else law
+            )
             for law in laws
         ]
 

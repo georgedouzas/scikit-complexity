@@ -65,7 +65,8 @@ def test_kuramoto_transition(factor, synchronized):
             dt=0.5,
             solver=ScipyODESolver(method='RK45'),
             observables=describe('kuramoto').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=100)
         .trajectory_
     )

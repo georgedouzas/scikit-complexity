@@ -14,8 +14,7 @@ def test_maki_thompson_leaves_a_fifth_ignorant():
             Simulation(maki_thompson(1000), dt=0.5, random_state=seed)
             .check()
             .run(until=40)
-            .trajectory_
-            .values('ignorants.n')[-1]
+            .trajectory_.values('ignorants.n')[-1]
         )
         for seed in range(5)
     ]

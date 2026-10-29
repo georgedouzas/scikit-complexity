@@ -25,12 +25,16 @@ N_COMPONENTS, STEPS, SEEDS = 20, 3000, 8
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, n_components=N_COMPONENTS, d=2, random_state=0)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=250)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=250)
+)
 
 # %%
 # Wright's law
@@ -49,7 +53,8 @@ for index, d in enumerate((1, 2, 3)):
                 create(MODEL, n_components=N_COMPONENTS, d=d, random_state=seed),
                 random_state=seed,
                 observables=describe(MODEL).observables_of(system),
-            ).check()
+            )
+            .check()
             .run(until=STEPS)
             .trajectory_.values('total_cost')
             for seed in range(SEEDS)

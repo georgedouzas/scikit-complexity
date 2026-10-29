@@ -104,12 +104,10 @@ def _heat_kernel(backend):
     initial[n // 2] = 1 / spacing
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(n, spacing=spacing), values={'u': initial})
     values = (
-
-            Simulation(System(elements=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend)
-            .check()
-            .run(until=0.5)
-            .state_
-
+        Simulation(System(elements=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend)
+        .check()
+        .run(until=0.5)
+        .state_
     )
     kernel = np.exp(-((positions - positions[n // 2]) ** 2) / 2) / np.sqrt(2 * np.pi)
     return values, kernel
@@ -122,8 +120,7 @@ def test_uniform_decay():
             Simulation(
                 System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
                 dt=0.5,
-            )
-            .check()
+            ).check()
         )
         .run(2)
         .trajectory_
@@ -175,14 +172,11 @@ def test_zero_flux_conserves_mass(backend):
         values={'u': initial},
     )
     totals = (
-
-            Simulation(System(elements=[plate]), dt=1, backend=backend())
-            .check()
-            .run(until=30)
-            .trajectory_
-            .values('plate.u')
-            .sum(1)
-
+        Simulation(System(elements=[plate]), dt=1, backend=backend())
+        .check()
+        .run(until=30)
+        .trajectory_.values('plate.u')
+        .sum(1)
     )
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
@@ -205,8 +199,7 @@ def test_advection_and_divergence():
             Simulation(
                 System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
                 dt=1,
-            )
-            .check()
+            ).check()
         )
         .run(2)
         .state_
@@ -217,7 +210,8 @@ def test_advection_and_divergence():
         Simulation(
             System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
             dt=1,
-        ).check()
+        )
+        .check()
         .run(1)
         .state_
     )
@@ -347,9 +341,15 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         values={'u': checkerboard},
         discretization=discretization,
     )
-    final = np.asarray(Simulation(
-        System(elements=[field]), dt=0.01,
-    ).check().run(until=0.5).trajectory_.values('m.u'))[-1]
+    final = np.asarray(
+        Simulation(
+            System(elements=[field]),
+            dt=0.01,
+        )
+        .check()
+        .run(until=0.5)
+        .trajectory_.values('m.u'),
+    )[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)
         if discretization == 'finite-difference'

@@ -114,7 +114,8 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
         boundary={'rho': boundary},
     )
     trajectory = (
-        Simulation(System(elements=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0).check()
+        Simulation(System(elements=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
+        .check()
         .run(until=10)
         .trajectory_
     )
@@ -126,10 +127,12 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
 def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldElement('f', element=ConservedElement, space=LatticeSpace((16, 16), spacing=0.5))
-    trajectory = (
-        Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.05), random_state=0, dt=4.0)
-        .check()
-    )
+    trajectory = Simulation(
+        System(elements=[field]),
+        solver=EulerMaruyamaSolver(dt=0.05),
+        random_state=0,
+        dt=4.0,
+    ).check()
     sites = trajectory.run(until=4).trajectory_.values('f.rho')[-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
@@ -139,7 +142,8 @@ def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
     field = FieldElement('f', element=DiffusingElement, space=LatticeSpace((16, 16)))
     trajectory = (
-        Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).check()
+        Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
+        .check()
         .run(until=1000)
         .trajectory_
     )

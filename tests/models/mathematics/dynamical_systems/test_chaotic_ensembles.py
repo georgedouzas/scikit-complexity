@@ -62,7 +62,8 @@ def test_cubic_chaotic_map_walk_diffuses():
             built := cubic_chaotic_map(1000),
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=1000)
         .trajectory_
     )
@@ -83,7 +84,8 @@ def test_cubic_chaotic_map_settles_below_chaos():
             built := cubic_chaotic_map(3, lam=5.0),
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=400)
         .trajectory_.values('walkers.x')
     )
@@ -92,7 +94,8 @@ def test_cubic_chaotic_map_settles_below_chaos():
             built := cubic_chaotic_map(3, lam=10.0),
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=400)
         .trajectory_.values('walkers.x')
     )

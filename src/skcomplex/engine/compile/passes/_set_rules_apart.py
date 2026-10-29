@@ -25,7 +25,5 @@ class SetRulesApartPass(BasePass):
         """Take the rules out of the reduced laws."""
         compilation = self.compilation_
         reduced = cast('Laws', compilation.reduced)
-        compilation.rules = [
-            (spec, tuple(law for law in laws if isinstance(law, RuleLaw))) for spec, laws in reduced
-        ]
+        compilation.rules = [(spec, tuple(law for law in laws if isinstance(law, RuleLaw))) for spec, laws in reduced]
         compilation.reduced = [(spec, [law for law in laws if not isinstance(law, RuleLaw)]) for spec, laws in reduced]

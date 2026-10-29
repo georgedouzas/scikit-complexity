@@ -26,7 +26,8 @@ system = create(MODEL)
 observer = RerunObserver(
     MODEL,
     save_path=f'{MODEL}.rrd',
-    blueprint='default', primary='fault/space_time/v',
+    blueprint='default',
+    primary='fault/space_time/v',
 )
 simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).check().run(until=2000)
 

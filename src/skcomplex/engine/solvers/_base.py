@@ -139,10 +139,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
         """
         form = self._get_form()
         if problem.form != form and problem.form not in self._get_forms():
-            error_msg = (
-                f'{type(self).__name__} solves the {form} form, but the problem has the '
-                f'{problem.form} form.'
-            )
+            error_msg = f'{type(self).__name__} solves the {form} form, but the problem has the {problem.form} form.'
             raise SolverError(error_msg)
         self.problem_ = problem
         self.rng_ = np.random.default_rng(self.random_state)

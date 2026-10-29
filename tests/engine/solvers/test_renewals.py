@@ -189,13 +189,7 @@ def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
     problem = compile_system(System(elements=[CounterElement('c')]))
     counts = [
-        (
-            Simulation(problem, dt=1000, random_state=seed)
-            .check()
-            .run(1000)
-            .trajectory_
-            .values('c.n')[-1]
-        )
+        (Simulation(problem, dt=1000, random_state=seed).check().run(1000).trajectory_.values('c.n')[-1])
         for seed in range(100)
     ]
     assert abs(np.mean(counts) - 1000) < 2 * np.std(counts) / np.sqrt(len(counts))

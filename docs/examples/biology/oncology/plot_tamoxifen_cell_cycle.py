@@ -22,9 +22,7 @@ MODEL = 'tamoxifen_cell_cycle'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 simulation = (
-    Simulation(system, dt=8.0, solver=ScipyODESolver(method='LSODA'), observers=[observer])
-    .check()
-    .run(until=2400)
+    Simulation(system, dt=8.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).check().run(until=2400)
 )
 
 # %%
@@ -35,10 +33,7 @@ simulation = (
 
 trajectory = simulation.trajectory_
 untreated = (
-    Simulation(create(MODEL, u=0.0), dt=8.0, solver=ScipyODESolver(method='LSODA'))
-    .check()
-    .run(until=2400)
-    .trajectory_
+    Simulation(create(MODEL, u=0.0), dt=8.0, solver=ScipyODESolver(method='LSODA')).check().run(until=2400).trajectory_
 )
 days = trajectory.times / 24
 

@@ -24,13 +24,17 @@ MODEL = 'optimal_harvesting'
 system = create(MODEL)
 entry = describe(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=0.2,
-    solver=entry.defaults['solver'],
-    observers=[observer],
-    observables=entry.observables_of(system),
-).check().run(until=20)
+simulation = (
+    Simulation(
+        system,
+        dt=0.2,
+        solver=entry.defaults['solver'],
+        observers=[observer],
+        observables=entry.observables_of(system),
+    )
+    .check()
+    .run(until=20)
+)
 
 # %%
 # The singular level

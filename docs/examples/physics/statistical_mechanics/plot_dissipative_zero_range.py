@@ -27,9 +27,7 @@ MODEL = 'dissipative_zero_range'
 system = create(MODEL, n_levels=5, branches=2, alpha=0.5, beta_ext=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend())
-    .check()
-    .run(until=200)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).check().run(until=200)
 )
 
 # %%

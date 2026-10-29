@@ -25,12 +25,16 @@ SIZE, NU = 200, 0.01
 
 system = create(MODEL, individuals=SIZE, nu=NU, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=1000)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=1000)
+)
 
 # %%
 # Number and abundances of species

@@ -51,9 +51,7 @@ class SpecsPass(BasePass):
         live = ObservableEvaluator._lowerable_observables(compilation.system, nodes)
         observer = Observer(declarations, live).check().prepare()
         compilation.specs = [
-            (spec, block)
-            for block in blocks
-            for spec in self._specs_of(block, elements, declarations.time, observer)
+            (spec, block) for block in blocks for spec in self._specs_of(block, elements, declarations.time, observer)
         ]
 
     @staticmethod
@@ -216,7 +214,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_member(
-        node: NodeSpec, role: str, reference: str, elements: dict[str, BlockSpec],
+        node: NodeSpec,
+        role: str,
+        reference: str,
+        elements: dict[str, BlockSpec],
     ) -> tuple[BlockSpec, int] | None:
         """Return the group block and member index of a member reference such as `sites[3]`, or `None` for a path."""
         match = _MEMBER_REFERENCE.match(reference)
@@ -234,7 +235,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_entry(
-        node: NodeSpec, role: str, entry: object, elements: dict[str, BlockSpec],
+        node: NodeSpec,
+        role: str,
+        entry: object,
+        elements: dict[str, BlockSpec],
     ) -> tuple[BlockSpec, int | None]:
         """Return the block of one entry of a variadic role, with the member index of a member reference."""
         member = SpecsPass._resolve_member(node, role, entry, elements) if isinstance(entry, str) else None
@@ -568,7 +572,8 @@ class SpecsPass(BasePass):
                 namespaces[role], role_references = SpecsPass._member_namespace(member_block, position)
                 references.update(role_references)
             for role, item in bound.items():
-                role_namespace, role_references = SpecsPass._namespace(item,
+                role_namespace, role_references = SpecsPass._namespace(
+                    item,
                     ReadKind.MEMBER if item.node.members is not None else ReadKind.SINGLE,
                 )
                 namespaces[role] = SpecsPass._with_other(item, role_namespace, role_references)

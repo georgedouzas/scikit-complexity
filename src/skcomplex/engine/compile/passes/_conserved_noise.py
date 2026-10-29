@@ -49,7 +49,11 @@ class ConservedNoisePass(BasePass):
                 if isinstance(law, NoiseLaw) and law.conserved:
                     targets = spec._target_references(law._get_targets()[0])
                     outputs[id(law)] = ConservedNoisePass._law_outputs(
-                        spec.owner, law, targets, places, spec.references,
+                        spec.owner,
+                        law,
+                        targets,
+                        places,
+                        spec.references,
                     )
         return outputs
 

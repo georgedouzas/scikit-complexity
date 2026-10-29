@@ -223,9 +223,16 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     for system in systems:
         problem = compile_system(system, backend=backend())
         finals = [
-            np.asarray(Simulation(
-                problem, dt=2.0, random_state=seed,
-            ).check().run(until=2).trajectory_.values('sites.n'))[-1]
+            np.asarray(
+                Simulation(
+                    problem,
+                    dt=2.0,
+                    random_state=seed,
+                )
+                .check()
+                .run(until=2)
+                .trajectory_.values('sites.n'),
+            )[-1]
             for seed in range(200)
         ]
         profiles.append((np.mean(finals, axis=0), np.std(finals, axis=0) / np.sqrt(200)))

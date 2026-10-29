@@ -35,10 +35,7 @@ def test_zero_range_process_condensation():
     for density in (3.0, 0.25):
         system = zero_range_process(50, density=density, b=4.0)
         trajectory = (
-            Simulation(system, dt=100.0, random_state=0, backend=NumbaBackend())
-            .check()
-            .run(until=20000)
-            .trajectory_
+            Simulation(system, dt=100.0, random_state=0, backend=NumbaBackend()).check().run(until=20000).trajectory_
         )
         occupations = trajectory.values('sites.n')[50:]
         assert (occupations.sum(axis=1) == round(density * 50)).all()

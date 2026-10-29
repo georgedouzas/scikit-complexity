@@ -361,17 +361,23 @@ def test_ising_on_grid_graph_has_transition():
     """Test that the ensemble magnetisation on the periodic 64 x 64 grid graph falls below one half from 2.2 to 2.4."""
     graph = nx.grid_2d_graph(64, 64, periodic=True)
     temperatures = [1.5, 2.2, 2.4, 3.5]
-    result = Experiment(
-        lambda temperature: graph_ising(graph, temperature=temperature, initial='up'),
-        GridDesign(),
-        {'temperature': temperatures},
-        replicates=4,
-        until=1000,
-        dt=50,
-        warmup=200,
-        outputs=[_ising_magnetization],
-        random_state=0,
-    ).check().prepare().run().result_
+    result = (
+        Experiment(
+            lambda temperature: graph_ising(graph, temperature=temperature, initial='up'),
+            GridDesign(),
+            {'temperature': temperatures},
+            replicates=4,
+            until=1000,
+            dt=50,
+            warmup=200,
+            outputs=[_ising_magnetization],
+            random_state=0,
+        )
+        .check()
+        .prepare()
+        .run()
+        .result_
+    )
     means = {row['temperature']: row['_ising_magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]
     assert means[1.5] > 0.95

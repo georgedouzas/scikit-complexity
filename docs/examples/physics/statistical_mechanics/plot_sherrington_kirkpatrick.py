@@ -22,13 +22,17 @@ MODEL = 'sherrington_kirkpatrick'
 
 system = create(MODEL, n_spins=200, temperature=0.3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=0.5,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=100)
+simulation = (
+    Simulation(
+        system,
+        dt=0.5,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=100)
+)
 
 # %%
 # Energy and freezing against temperature
@@ -45,7 +49,8 @@ energies, frozen = [], []
 for temperature in temperatures:
     sample = create(MODEL, n_spins=200, temperature=temperature)
     spins = (
-        Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample)).check()
+        Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample))
+        .check()
         .run(until=100)
         .trajectory_.values('spins.spin')[50:]
     )

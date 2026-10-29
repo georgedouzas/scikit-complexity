@@ -38,13 +38,17 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(
-    system,
-    dt=0.05,
-    solver=RK4Solver(dt=0.005),
-    observers=[observer],
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=20)
+simulation = (
+    Simulation(
+        system,
+        dt=0.05,
+        solver=RK4Solver(dt=0.005),
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=20)
+)
 
 # %%
 # From one Kepler orbit to another

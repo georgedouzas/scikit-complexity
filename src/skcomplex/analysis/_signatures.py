@@ -187,7 +187,12 @@ class SignatureAnalysis(BaseAnalysis):
             curves['Poisson'] = (observed[0], np.exp(-density * np.pi * observed[0] ** 2))
         values = {'mean nearest-neighbour distance': float(distances.mean())}
         return SignatureSpec(
-            DataKind.AGENTS, 'Nearest-neighbour distances', 'distance', 'P(distance >= r)', curves, values,
+            DataKind.AGENTS,
+            'Nearest-neighbour distances',
+            'distance',
+            'P(distance >= r)',
+            curves,
+            values,
         )
 
     def _get_agents_signature(self) -> SignatureSpec:
@@ -198,7 +203,11 @@ class SignatureAnalysis(BaseAnalysis):
         if snapshots.positions is None:
             counts = np.full(snapshots.times.size, float(snapshots.ids.size))
             return SignatureSpec(
-                DataKind.AGENTS, 'Agents present', 'time', 'agents', {'agents': (snapshots.times, counts)},
+                DataKind.AGENTS,
+                'Agents present',
+                'time',
+                'agents',
+                {'agents': (snapshots.times, counts)},
             )
         last = snapshots.positions[-1]
         if snapshots.box is not None and snapshots.periodic:

@@ -23,12 +23,16 @@ N_FIRMS, SIZE, MU, SIGMA, STEPS = 1000, 100.0, 1.02, 0.05, 150
 
 system = create(MODEL, n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=STEPS)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # Lognormal sizes

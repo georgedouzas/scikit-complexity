@@ -11,10 +11,7 @@ def test_traffic_jams_lower_flow_and_move_backward():
     flows, velocities = {}, {}
     for density in (0.15, 0.5):
         trajectory = (
-            Simulation(nagel_schreckenberg(1000, density=density), dt=1, random_state=0)
-            .check()
-            .run(600)
-            .trajectory_
+            Simulation(nagel_schreckenberg(1000, density=density), dt=1, random_state=0).check().run(600).trajectory_
         )
         velocities[density] = trajectory.values('road.velocity')[100:]
         flows[density] = np.where(velocities[density] >= 0, velocities[density], 0).sum(axis=1).mean() / 1000

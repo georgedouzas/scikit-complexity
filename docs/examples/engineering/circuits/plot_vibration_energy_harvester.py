@@ -22,10 +22,17 @@ MODEL = 'vibration_energy_harvester'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(
-    system, dt=0.01, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=10,
+simulation = (
+    Simulation(
+        system,
+        dt=0.01,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=10,
+    )
 )
 
 # %%
@@ -42,7 +49,8 @@ amplitudes = []
 for omega in frequencies:
     model_system = create(MODEL, omega=omega)
     run = (
-        Simulation(model_system, dt=0.01, observables=describe(MODEL).observables_of(model_system)).check()
+        Simulation(model_system, dt=0.01, observables=describe(MODEL).observables_of(model_system))
+        .check()
         .run(until=10)
         .trajectory_
     )

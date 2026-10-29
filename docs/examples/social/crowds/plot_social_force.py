@@ -25,8 +25,12 @@ LENGTH, SPEED, UNTIL = 10.0, 1.34, 60.0
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 system = create(MODEL, n_walkers=40, length=LENGTH, speed=SPEED, random_state=0)
-simulation = Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), observers=[observer], random_state=0).check().run(
-    until=UNTIL,
+simulation = (
+    Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), observers=[observer], random_state=0)
+    .check()
+    .run(
+        until=UNTIL,
+    )
 )
 
 # %%
@@ -53,10 +57,7 @@ fig, (order, speed) = plt.subplots(1, 2, figsize=(10, 4))
 for index, walkers in enumerate((20, 40, 60)):
     system = create(MODEL, n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
     trajectory = (
-        Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), random_state=0)
-        .check()
-        .run(until=UNTIL)
-        .trajectory_
+        Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), random_state=0).check().run(until=UNTIL).trajectory_
     )
     rightward, leftward = trajectory.values('rightward.x'), trajectory.values('leftward.x')
     order.plot(

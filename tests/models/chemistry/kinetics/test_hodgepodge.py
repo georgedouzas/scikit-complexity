@@ -9,11 +9,7 @@ from skcomplex.models.chemistry.kinetics import hodgepodge
 def test_hodgepodge_stays_in_range():
     """Test that the hodgepodge machine keeps every level between healthy and ill, with waves of infection."""
     levels = (
-        Simulation(hodgepodge((50, 50)), dt=1, random_state=0)
-        .check()
-        .run(until=100)
-        .trajectory_
-        .values('cells.level')
+        Simulation(hodgepodge((50, 50)), dt=1, random_state=0).check().run(until=100).trajectory_.values('cells.level')
     )
     assert levels.min() >= 0
     assert levels.max() <= 100

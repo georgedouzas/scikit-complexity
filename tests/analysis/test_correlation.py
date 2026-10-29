@@ -124,10 +124,7 @@ def test_correlation_length_reaction_diffusion_field():
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     """Test that a field trajectory gives the length of its last frame, or of every frame."""
     trajectory = (
-        Simulation(create('ising', size=32, temperature=3.0), dt=1, random_state=0)
-        .check()
-        .run(until=20)
-        .trajectory_
+        Simulation(create('ising', size=32, temperature=3.0), dt=1, random_state=0).check().run(until=20).trajectory_
     )
     frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)
     assert _correlation('length', trajectory).length_ == _correlation('length', frames[-1]).length_
@@ -141,7 +138,8 @@ def test_overlap_of_ising_replicas():
     overlaps = {}
     for temperature in (1.5, 5.0):
         replicas = [
-            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed).check()
+            Simulation(create('ising', size=32, temperature=temperature, initial='up'), dt=1, random_state=seed)
+            .check()
             .run(until=500)
             .trajectory_
             for seed in (0, 1)

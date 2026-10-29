@@ -101,10 +101,7 @@ def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
     problem = Simulation(create('double_pendulum')).check().run(until=0.0).problem_
     views = (
-        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path)
-        .check()
-        .prepare(problem)
-        .views_
+        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path).check().prepare(problem).views_
     )
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 

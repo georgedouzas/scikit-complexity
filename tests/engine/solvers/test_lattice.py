@@ -342,10 +342,14 @@ def test_rule_reads_parameters_by_keyword():
             """Return the laws of the growth element."""
             return [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value, *, rate: value + rate)]
 
-    simulation = Simulation(
-        System(elements=[LatticeElement('cells', element=GrowthElement, space=LatticeSpace(2))]),
-        dt=1,
-    ).check().run(until=2)
+    simulation = (
+        Simulation(
+            System(elements=[LatticeElement('cells', element=GrowthElement, space=LatticeSpace(2))]),
+            dt=1,
+        )
+        .check()
+        .run(until=2)
+    )
     assert simulation.state_.tolist() == [2.0, 2.0]
     simulation.update_parameters({'cells.rate': 5.0})
     assert simulation.parameters_.tolist() == [5.0, 5.0]
@@ -385,12 +389,16 @@ def test_relaxation_records_avalanches():
             ]
 
     space = LatticeSpace(5, boundary='fixed')
-    trajectory = Simulation(
-        System(
-            elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]})],
-        ),
-        dt=1,
-    ).check().run(1)
+    trajectory = (
+        Simulation(
+            System(
+                elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]})],
+            ),
+            dt=1,
+        )
+        .check()
+        .run(1)
+    )
     (record,) = trajectory.trajectory_.events
     assert (record.label, record.time) == ('pile', 1.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
@@ -488,12 +496,16 @@ def test_samplers_order_cold_ising(sampler):
 
 def test_temperature_changes_live():
     """Test that raising the temperature of an ordered lattice during a run disorders it."""
-    simulation = Simulation(
-        ising(16, temperature=0.5, initial='up'),
-        dt=50,
-        random_state=0,
-        schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
-    ).check().run(until=200)
+    simulation = (
+        Simulation(
+            ising(16, temperature=0.5, initial='up'),
+            dt=50,
+            random_state=0,
+            schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
+        )
+        .check()
+        .run(until=200)
+    )
     magnetization = np.abs(simulation.trajectory_.values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3

@@ -525,13 +525,21 @@ class FieldLowering(BaseLowering):
         cell_shape: tuple[int, int],
     ) -> Any:  # noqa: ANN401
         """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
-        from skfem import Basis, ElementTetP1, ElementTriP1, asm  # noqa: PLC0415  # only finite elements need scikit-fem
+        from skfem import (
+            Basis,
+            ElementTetP1,
+            ElementTriP1,
+            asm,
+        )  # noqa: PLC0415  # only finite elements need scikit-fem
         from skfem.models.poisson import laplace, mass  # noqa: PLC0415
 
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
         space = MeshSpace(nodes, elements)
-        basis = Basis(space.check().prepare().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
+        basis = Basis(
+            space.check().prepare().mesh_,
+            ElementTriP1() if shape[0] == 2 else ElementTetP1(),
+        )  # noqa: PLR2004
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped

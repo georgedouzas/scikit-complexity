@@ -32,10 +32,7 @@ simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).ch
 # instead of 0.83. The treated tumour should follow the logistic curve of that rate, and lag behind the untreated one.
 
 untreated = (
-    Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER)
-    .check()
-    .run(until=10)
-    .trajectory_
+    Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER).check().run(until=10).trajectory_
 )
 treated = simulation.trajectory_
 times, cells = treated.times, treated.values('tumour.A')

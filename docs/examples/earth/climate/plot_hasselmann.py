@@ -22,10 +22,18 @@ MODEL = 'hasselmann'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(
-    system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0,
-).check().run(
-    until=100,
+simulation = (
+    Simulation(
+        system,
+        dt=0.1,
+        solver=EulerMaruyamaSolver(dt=0.01),
+        observers=[observer],
+        random_state=0,
+    )
+    .check()
+    .run(
+        until=100,
+    )
 )
 
 # %%

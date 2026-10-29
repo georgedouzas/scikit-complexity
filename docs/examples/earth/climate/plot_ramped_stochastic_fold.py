@@ -44,11 +44,7 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 
 times = simulation.trajectory_.times
 quiet = (
-    Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver)
-    .check()
-    .run(until=500)
-    .trajectory_
-    .values('system.x')
+    Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver).check().run(until=500).trajectory_.values('system.x')
 )
 residual = simulation.trajectory_.values('system.x') - quiet
 windows = [(start, start + 40.0) for start in np.arange(0.0, 320.0, 20.0)]

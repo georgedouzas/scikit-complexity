@@ -161,7 +161,9 @@ def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
         Simulation(
-            System(elements=[DecayingElement('q')]), solver=UnitarySolver(), compiler=QuantumCompiler(),
+            System(elements=[DecayingElement('q')]),
+            solver=UnitarySolver(),
+            compiler=QuantumCompiler(),
         ).check().run(until=1.0)
 
 
@@ -219,7 +221,11 @@ def test_quantum_trajectories_average_to_the_master_equation():
     values = np.array(
         [
             Simulation(
-                problem, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=rng, compiler=QuantumCompiler(),
+                problem,
+                solver=QuantumTrajectoriesSolver(),
+                dt=0.5,
+                random_state=rng,
+                compiler=QuantumCompiler(),
             )
             .check()
             .run(until=4.0)

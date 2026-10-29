@@ -29,12 +29,10 @@ def _trajectory(
     system = create(name, **options)
     observables = describe(name).observables_of(system)
     return (
-
-            Simulation(system, dt=dt, observables=observables, solver=solver, random_state=0)
-            .check()
-            .run(until=until)
-            .trajectory_
-
+        Simulation(system, dt=dt, observables=observables, solver=solver, random_state=0)
+        .check()
+        .run(until=until)
+        .trajectory_
     )
 
 

@@ -45,9 +45,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 # crowd avoiding strategy, reached within a few evenings.
 
 random = (
-    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0)
-    .check()
-    .run(EVENINGS)
+    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0).check().run(EVENINGS)
 )
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times

@@ -58,7 +58,8 @@ scales = np.arange(-2, 3)
 coefficients = []
 for scale in scales:
     runs = [
-        Simulation(create(MODEL, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run).check()
+        Simulation(create(MODEL, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
+        .check()
         .run(until=300)
         .trajectory_.values('agents.reward')
         .mean(axis=1)[150:]

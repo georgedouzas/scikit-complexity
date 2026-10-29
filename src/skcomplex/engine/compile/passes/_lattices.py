@@ -288,7 +288,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _extremal_source(
-        targets: tuple[LatticeStateSpec, ...], key: LatticeStateSpec, maximum: bool, arguments: ArgumentsSpec,
+        targets: tuple[LatticeStateSpec, ...],
+        key: LatticeStateSpec,
+        maximum: bool,
+        arguments: ArgumentsSpec,
     ) -> str:
         """Return the source of the compiled loop of the applications of an extremal law."""
         values = ', '.join(f'x[{state.start} + sites]' for state in targets)
@@ -397,7 +400,8 @@ class LatticeProblemPass(BasePass):
             centers = np.arange(rule.states)[:, None]
             if callable(rule.rule):
                 grid = np.broadcast_to(
-                    np.asarray(rule.rule(centers, sums[None, :]), dtype=float), (rule.states, sums.size),
+                    np.asarray(rule.rule(centers, sums[None, :]), dtype=float),
+                    (rule.states, sums.size),
                 )
             else:
                 grid = np.asarray(
@@ -437,7 +441,8 @@ class LatticeProblemPass(BasePass):
                     raise ValidationError(error_msg)
             columns = [inner.subs(dict.fromkeys(reads, neighbor)) for neighbor in neighbors]
             replacements[reduction.call] = sum(
-                (mask * column for mask, column in zip(masks, columns, strict=True)), SR(0),
+                (mask * column for mask, column in zip(masks, columns, strict=True)),
+                SR(0),
             )
         return SR(expression).subs(replacements) if replacements else SR(expression)
 
@@ -479,9 +484,7 @@ class LatticeProblemPass(BasePass):
                 The compiled rule.
         """
         owner = f'The local rule of {context.owner}'
-        targets = tuple(
-            LatticeProblemPass._lattice_state(context, item, 'A local rule') for item in law._get_targets()
-        )
+        targets = tuple(LatticeProblemPass._lattice_state(context, item, 'A local rule') for item in law._get_targets())
         reads = tuple(
             LatticeProblemPass._lattice_state(context, item, 'A local rule')
             for item in (law.reads or law._get_targets())
@@ -649,7 +652,12 @@ class LatticeProblemPass(BasePass):
         neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
         expression = LatticeProblemPass._lower_neighbor_sums(
-            SR(energy.expression), move.target, energy, context, neighbours, masks,
+            SR(energy.expression),
+            move.target,
+            energy,
+            context,
+            neighbours,
+            masks,
         )
         masked = any(item in masks for item in expression.variables())
         replacements = {}

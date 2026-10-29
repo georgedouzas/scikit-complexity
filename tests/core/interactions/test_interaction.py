@@ -253,10 +253,7 @@ def test_interactions_share_processes_of_one_label():
     """Test that two interactions that bind processes of one label draw the same increments."""
     market = WienerProcessSpec('market')
     trajectory = (
-        Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0)
-        .check()
-        .run(until=1)
-        .trajectory_
+        Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0).check().run(until=1).trajectory_
     )
     np.testing.assert_array_equal(trajectory.values('a.n'), trajectory.values('b.n'))
     assert compile_system(_shocked(market, market)).n_processes == 1

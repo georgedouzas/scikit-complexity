@@ -31,10 +31,17 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, floating=False)
-simulation = Simulation(
-    system, dt=1, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=4,
+simulation = (
+    Simulation(
+        system,
+        dt=1,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=4,
+    )
 )
 
 # %%

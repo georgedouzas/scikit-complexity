@@ -28,14 +28,18 @@ MODEL = 'active_model_b'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=30.0,
-    solver=EulerMaruyamaSolver(dt=0.02),
-    backend=NumbaBackend(),
-    observers=[observer],
-    random_state=0,
-).check().run(until=1500)
+simulation = (
+    Simulation(
+        system,
+        dt=30.0,
+        solver=EulerMaruyamaSolver(dt=0.02),
+        backend=NumbaBackend(),
+        observers=[observer],
+        random_state=0,
+    )
+    .check()
+    .run(until=1500)
+)
 
 # %%
 # Arrested coarsening

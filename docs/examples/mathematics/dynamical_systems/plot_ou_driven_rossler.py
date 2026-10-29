@@ -43,14 +43,18 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=25)
-simulation = Simulation(
-    create(MODEL, rho=1.5),
-    dt=0.1,
-    solver=solver,
-    observers=[observer],
-    random_state=0,
-    backend=NumbaBackend(),
-).check().run(until=600)
+simulation = (
+    Simulation(
+        create(MODEL, rho=1.5),
+        dt=0.1,
+        solver=solver,
+        observers=[observer],
+        random_state=0,
+        backend=NumbaBackend(),
+    )
+    .check()
+    .run(until=600)
+)
 points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyz'])[500:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.05, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
@@ -75,7 +79,8 @@ diagram.plot(eta[peaks], x[peaks], '.', markersize=3, alpha=0.5, label='noisy co
 for control in np.linspace(-0.3, 0.3, 13):
     fixed = create(MODEL, eta=control, tau=1e9, rho=0.0)
     held = (
-        Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend()).check()
+        Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend())
+        .check()
         .run(until=800)
         .trajectory_.values('rossler.x')[3000:]
     )

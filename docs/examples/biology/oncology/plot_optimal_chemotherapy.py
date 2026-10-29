@@ -24,13 +24,17 @@ MODEL = 'optimal_chemotherapy'
 system = create(MODEL)
 entry = describe(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=0.25,
-    solver=entry.defaults['solver'],
-    observers=[observer],
-    observables=entry.observables_of(system),
-).check().run(until=30)
+simulation = (
+    Simulation(
+        system,
+        dt=0.25,
+        solver=entry.defaults['solver'],
+        observers=[observer],
+        observables=entry.observables_of(system),
+    )
+    .check()
+    .run(until=30)
+)
 
 # %%
 # Treated against untreated
@@ -40,12 +44,7 @@ simulation = Simulation(
 # infusion tapers off.
 
 untreated = (
-
-        Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
-        .check()
-        .run(until=30)
-        .trajectory_
-
+    Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25).check().run(until=30).trajectory_
 )
 trajectory = simulation.trajectory_
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))

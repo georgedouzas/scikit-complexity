@@ -41,10 +41,7 @@ def test_evolutionary_sk_game_rules():
 def test_evolutionary_sk_game_replaces_the_least_fit():
     """Test that the least fit agent at a replacement step gets a new temperature and no other agent does."""
     trajectory = (
-        Simulation(create('evolutionary_sk_game', n_agents=32), dt=1, random_state=0)
-        .check()
-        .run(until=10)
-        .trajectory_
+        Simulation(create('evolutionary_sk_game', n_agents=32), dt=1, random_state=0).check().run(until=10).trajectory_
     )
     temperatures, fitness = np.asarray(trajectory.values('agents.temperature')), np.asarray(
         trajectory.values('agents.fitness'),

@@ -42,9 +42,7 @@ size, selection, runs = 20, 0.5, 60
 fixed = 0
 for _ in range(runs):
     trajectory = (
-        Simulation(create(MODEL, size=size, selection=selection), dt=1, random_state=rng)
-        .check()
-        .run(until=150)
+        Simulation(create(MODEL, size=size, selection=selection), dt=1, random_state=rng).check().run(until=150)
     )
     fixed += mutants_of(trajectory.trajectory_)[-1] == size
 r = 1 + selection

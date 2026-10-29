@@ -26,13 +26,17 @@ MODEL = 'lqr_oscillator'
 system = create(MODEL)
 entry = describe(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system,
-    dt=0.05,
-    solver=entry.defaults['solver'],
-    observers=[observer],
-    observables=entry.observables_of(system),
-).check().run(until=10)
+simulation = (
+    Simulation(
+        system,
+        dt=0.05,
+        solver=entry.defaults['solver'],
+        observers=[observer],
+        observables=entry.observables_of(system),
+    )
+    .check()
+    .run(until=10)
+)
 
 # %%
 # The decay rate of the closed loop

@@ -35,12 +35,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=STEPS)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # A regulator saves the meadow
@@ -52,11 +56,15 @@ simulation = Simulation(
 # grass above a quarter of its capacity and a steady herd.
 
 regulated_system = create(MODEL, quota=2.0, random_state=0)
-regulated = Simulation(
-    regulated_system,
-    random_state=0,
-    observables=describe(MODEL).observables_of(regulated_system),
-).check().run(until=STEPS)
+regulated = (
+    Simulation(
+        regulated_system,
+        random_state=0,
+        observables=describe(MODEL).observables_of(regulated_system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))
 for label, run in (('open access', simulation), ('regulated quota', regulated)):
     trajectory = run.trajectory_

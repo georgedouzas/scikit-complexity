@@ -50,9 +50,13 @@ def _simulation():
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).check().prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
-    return Simulation(
-        System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
-    ).check().run(until=2)
+    return (
+        Simulation(
+            System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
+        )
+        .check()
+        .run(until=2)
+    )
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():

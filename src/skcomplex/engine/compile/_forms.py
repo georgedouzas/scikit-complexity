@@ -46,5 +46,3 @@ _FORMS: dict[frozenset[type], FormKind] = {
 
 _COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
 """Law classes that combine with laws of other classes of the same components into their form, with those classes."""
-
-

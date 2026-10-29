@@ -22,9 +22,7 @@ MODEL = 'mixed_mode_chua'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 simulation = (
-    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer])
-    .check()
-    .run(until=200)
+    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer]).check().run(until=200)
 )
 
 # %%

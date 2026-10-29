@@ -10,10 +10,11 @@ def _accuracy(informed):
     """Return the mean cosine between the shoal's late heading and the preferred direction, over four shoals."""
     cosines = []
     for seed in range(4):
-        trajectory = (
-            Simulation(couzin_leadership(30, informed=informed, random_state=seed), dt=1, random_state=seed)
-            .check()
-        )
+        trajectory = Simulation(
+            couzin_leadership(30, informed=informed, random_state=seed),
+            dt=1,
+            random_state=seed,
+        ).check()
         trajectory = trajectory.run(150).trajectory_
         for frame in range(100, 151):
             snapshot = trajectory.agents('shoal', frame)

@@ -24,14 +24,18 @@ SITES, N, ALPHA, BETA = 128, 10.0, 1.0, 0.5
 
 system = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=BETA)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system,
-    dt=0.25,
-    backend=NumbaBackend(),
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=60)
+simulation = (
+    Simulation(
+        system,
+        dt=0.25,
+        backend=NumbaBackend(),
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=60)
+)
 
 # %%
 # Growth of the fluctuations
@@ -65,7 +69,8 @@ isolated = (
         backend=NumbaBackend(),
         random_state=0,
         observables=describe(MODEL).observables_of(still),
-    ).check()
+    )
+    .check()
     .run(until=60)
     .trajectory_.values('variance')
 )

@@ -23,9 +23,7 @@ A, B, C = 10.0, 2.0, 1.0
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, observers=[observer])
-    .check()
-    .run(until=30)
+    Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, observers=[observer]).check().run(until=30)
 )
 
 # %%
@@ -39,7 +37,8 @@ simulation = (
 def prices(d, until=30):
     """Return the prices of a cobweb market with supply slope `d`."""
     return (
-        Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=d), dt=1).check()
+        Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=d), dt=1)
+        .check()
         .run(until=until)
         .trajectory_.values('market.price')
     )

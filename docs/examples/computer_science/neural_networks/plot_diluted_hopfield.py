@@ -30,13 +30,17 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
-simulation = Simulation(
-    system,
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(20)
+simulation = (
+    Simulation(
+        system,
+        dt=1,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(20)
+)
 
 # %%
 # The annealed map of the overlap

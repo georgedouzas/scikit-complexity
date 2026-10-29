@@ -335,7 +335,10 @@ class WordKernel(BaseKernel):
         return chosen
 
     def _rewrite(
-        self, word: WordStructureSpec, values: npt.NDArray[np.float64], rng: np.random.Generator,
+        self,
+        word: WordStructureSpec,
+        values: npt.NDArray[np.float64],
+        rng: np.random.Generator,
     ) -> WordStructureSpec:
         """Return the word of the next generation, every module rewritten in parallel.
 
@@ -396,7 +399,8 @@ class WordKernel(BaseKernel):
     ) -> WordStructureSpec:
         """Return a word with the segments its geometry draws."""
         frozen_codes, frozen_table = BaseStructureSpec._frozen(codes, np.int64), BaseStructureSpec._frozen(
-            table, np.float64,
+            table,
+            np.float64,
         )
         if self.geometry is None:
             return WordStructureSpec(self.names, frozen_codes, frozen_table, generation)

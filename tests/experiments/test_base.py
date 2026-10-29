@@ -50,9 +50,7 @@ def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     ensemble = (
-        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1)
-        .check()
-        .run(until=50)
+        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1).check().run(until=50)
     )
     values = np.asarray(ensemble.trajectory_.values('map.x'))
     for index in (0, 37, 99):

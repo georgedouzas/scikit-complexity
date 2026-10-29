@@ -36,10 +36,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
 def test_coevolving_voter_keeps_the_number_of_edges():
     """Test that rewiring moves edges without creating or destroying them."""
     trajectory = (
-        Simulation(coevolving_voter(100, rewiring=0.5), dt=10, random_state=1)
-        .check()
-        .run(until=50)
-        .trajectory_
+        Simulation(coevolving_voter(100, rewiring=0.5), dt=10, random_state=1).check().run(until=50).trajectory_
     )
     sizes = {trajectory.network(frame).sources.size for frame in range(len(trajectory.times))}
     assert len(sizes) == 1

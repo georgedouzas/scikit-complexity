@@ -25,8 +25,7 @@ def test_allen_cahn_does_not_conserve_the_order_parameter():
         Simulation(system, dt=20.0, solver=ETDRK4Solver(dt=0.2))
         .check()
         .run(until=100)
-        .trajectory_
-        .lattice('mixture.phi')
+        .trajectory_.lattice('mixture.phi')
     )
     np.testing.assert_allclose(phi[-1], 1.0, atol=1e-3)
 
@@ -47,12 +46,10 @@ def test_cahn_hilliard_with_temperature_keeps_the_mean_under_conserved_noise():
     """Test that thermal Model B keeps the mean of the order parameter while its noise roughens the field."""
     system = cahn_hilliard((16, 16), length=16.0, mean=0.2, temperature=0.05)
     trajectory = (
-
-            Simulation(system, dt=5.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
-            .check()
-            .run(until=20)
-            .trajectory_
-
+        Simulation(system, dt=5.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
+        .check()
+        .run(until=20)
+        .trajectory_
     )
     phi = trajectory.lattice('mixture.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)

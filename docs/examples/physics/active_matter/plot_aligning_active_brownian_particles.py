@@ -39,15 +39,19 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, gamma=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(
-    system,
-    dt=1.0,
-    solver=EulerMaruyamaSolver(dt=0.05),
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=100,
+simulation = (
+    Simulation(
+        system,
+        dt=1.0,
+        solver=EulerMaruyamaSolver(dt=0.05),
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=100,
+    )
 )
 
 # %%

@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.specs import ProblemSpec
 
 from ._cache import ScreenshotCache
 from ._errors import GalleryError

@@ -45,9 +45,7 @@ def test_flashing_ratchet_current():
     for asymmetry in (0.1, 0.5):
         system = flashing_ratchet(300, asymmetry=asymmetry, rate=1.0, duration=40.0, random_state=1)
         simulation = (
-            Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=0)
-            .check()
-            .run(until=40)
+            Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=0).check().run(until=40)
         )
         velocities = simulation.trajectory_.values('particles.x')[-1, :, 0] / 40
         currents.append((velocities.mean(), velocities.std() / math.sqrt(velocities.size)))

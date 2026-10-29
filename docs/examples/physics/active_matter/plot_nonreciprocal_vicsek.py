@@ -38,15 +38,19 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(
-    system,
-    dt=1.0,
-    backend=NumbaBackend(),
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=250,
+simulation = (
+    Simulation(
+        system,
+        dt=1.0,
+        backend=NumbaBackend(),
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=250,
+    )
 )
 
 # %%
@@ -60,13 +64,17 @@ simulation = Simulation(
 def headings(coupling):
     """Return the times and the mean headings of both species for a coupling `(J_ab, J_ba)`."""
     model_system = create(MODEL, J_ab=coupling[0], J_ba=coupling[1])
-    run = Simulation(
-        model_system,
-        dt=1.0,
-        backend=NumbaBackend(),
-        random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
-    ).check().run(until=300)
+    run = (
+        Simulation(
+            model_system,
+            dt=1.0,
+            backend=NumbaBackend(),
+            random_state=0,
+            observables=describe(MODEL).observables_of(model_system),
+        )
+        .check()
+        .run(until=300)
+    )
     return run.trajectory_.times, run.trajectory_.values('heading_a'), run.trajectory_.values('heading_b')
 
 

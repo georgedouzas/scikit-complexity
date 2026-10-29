@@ -44,9 +44,16 @@ amplitude = np.hypot(trajectory.values('form.x'), trajectory.values('form.y'))
 alphas = np.linspace(-0.4, 0.2, 25)
 finals = {
     start: [
-        np.hypot(*Simulation(
-            create(MODEL, x=start, alpha=alpha), dt=1.0,
-        ).check().run(until=150).state_) for alpha in alphas
+        np.hypot(
+            *Simulation(
+                create(MODEL, x=start, alpha=alpha),
+                dt=1.0,
+            )
+            .check()
+            .run(until=150)
+            .state_,
+        )
+        for alpha in alphas
     ]
     for start in (0.05, 1.2)
 }

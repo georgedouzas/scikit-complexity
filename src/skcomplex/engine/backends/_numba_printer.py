@@ -354,7 +354,8 @@ class NumbaPrinter(BasePrinter):
             if same:
                 lines.append(f'{INDENT * base}if _n_ {condition} _a_:')
                 depth = base + 1
-            lines += self._pair_block(kernel,
+            lines += self._pair_block(
+                kernel,
                 selected,
                 first=first,
                 second=second,

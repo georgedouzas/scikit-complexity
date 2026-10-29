@@ -375,8 +375,10 @@ def test_every_dataclass_is_a_frozen_spec():
                 continue
             for value in vars(module).values():
                 own = inspect.isclass(value) and value.__module__ == module.__name__
-                if own and dataclasses.is_dataclass(value) and not (
-                    issubclass(value, BaseSpec) and value.__dataclass_params__.frozen
+                if (
+                    own
+                    and dataclasses.is_dataclass(value)
+                    and not (issubclass(value, BaseSpec) and value.__dataclass_params__.frozen)
                 ):
                     defined.append(f'{module.__name__}.{value.__qualname__}')
     assert defined == []

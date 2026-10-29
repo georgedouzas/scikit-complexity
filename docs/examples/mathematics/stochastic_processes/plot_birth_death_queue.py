@@ -36,10 +36,12 @@ simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).ch
 loads = np.array([0.2, 0.4, 0.5, 0.6, 0.8])
 occupations, means = {}, []
 for rho in loads:
-    run = (
-        Simulation(create(MODEL, n_queues=200, arrival_rate=rho), dt=0.5, random_state=1, backend=NumbaBackend())
-        .check()
-    )
+    run = Simulation(
+        create(MODEL, n_queues=200, arrival_rate=rho),
+        dt=0.5,
+        random_state=1,
+        backend=NumbaBackend(),
+    ).check()
     lengths = run.run(until=2000).trajectory_.values('queues.n')[200:]
     counts = np.bincount(lengths.astype(int).ravel(), minlength=12)[:12]
     occupations[rho] = np.where(counts >= 100, counts / lengths.size, np.nan)

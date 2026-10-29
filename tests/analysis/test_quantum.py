@@ -65,7 +65,11 @@ def test_ground_state_is_stationary():
     initial = entry.initial_state_of(n_sites=6, initial='ground')
     assert initial == {'quantum_heisenberg.state': 'ground'}
     simulation = Simulation(
-        system, dt=0.5, observables=entry.observables_of(system), initial_state=initial, compiler=QuantumCompiler(),
+        system,
+        dt=0.5,
+        observables=entry.observables_of(system),
+        initial_state=initial,
+        compiler=QuantumCompiler(),
     ).check()
     trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory.values('energy')) < 1e-8
@@ -106,12 +110,7 @@ def test_purity_of_pure_and_dephased_runs():
     )
     assert np.all(np.diff(_quantum('purity', opened).purity_) <= 1e-10)
     assert _quantum('purity', opened).purity_[-1] < 1
-    rabbits = (
-        Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0)
-        .check()
-        .run(until=1.0)
-        .trajectory_
-    )
+    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().run(until=1.0).trajectory_
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _quantum('purity', rabbits)
 

@@ -445,7 +445,11 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     visual = SiteVisual(path=element.path, recording=recording).check().prepare(problem)
     for index in range(len(trajectory.times)):
         frame = FrameSpec(
-            index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem,
+            index,
+            trajectory.times[index],
+            trajectory.states[index],
+            trajectory.parameters[index],
+            problem,
         )
         visual.run(frame)
     nodes = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphNodes']

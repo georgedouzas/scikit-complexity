@@ -24,6 +24,7 @@ from .._probe import probe_laws
 
 _LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 
+
 class FlattenPass(BasePass):
     """Pass that flattens the system tree into its nodes."""
 
@@ -271,7 +272,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _flatten(
-        system: System, scope: str, space: BaseSpace | None, seen: list[BaseSpace] | None = None,
+        system: System,
+        scope: str,
+        space: BaseSpace | None,
+        seen: list[BaseSpace] | None = None,
     ) -> list[NodeSpec]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, System):

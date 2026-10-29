@@ -21,9 +21,7 @@ MODEL = 'poisson_process'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observer], random_state=0)
-    .check()
-    .run(until=50)
+    Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observer], random_state=0).check().run(until=50)
 )
 
 # %%

@@ -56,10 +56,12 @@ def test_fractional_gaussian_noise_has_the_covariance_of_fractional_noise(hurst)
 
 def test_fractional_euler_maruyama_correlates_consecutive_increments():
     """Test that consecutive increments of 1000 members over 1000 steps correlate as 2^(2H - 1) - 1."""
-    trajectory = (
-        Simulation(_walkers(0.75), solver=FractionalEulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0)
-        .check()
-    )
+    trajectory = Simulation(
+        _walkers(0.75),
+        solver=FractionalEulerMaruyamaSolver(dt=1.0),
+        dt=1.0,
+        random_state=0,
+    ).check()
     increments = np.diff(trajectory.run(1000).trajectory_.values('w.x'), axis=0)
     correlation = np.mean(increments[1:] * increments[:-1]) / np.mean(increments**2)
     assert correlation == pytest.approx(2 ** (2 * 0.75 - 1) - 1, abs=0.02)
@@ -67,10 +69,12 @@ def test_fractional_euler_maruyama_correlates_consecutive_increments():
 
 def test_fractional_euler_maruyama_gives_superdiffusion():
     """Test that the ensemble mean squared displacement of 1000 members with H = 0.75 scales with exponent 1.5."""
-    simulation = (
-        Simulation(_walkers(0.75), solver=FractionalEulerMaruyamaSolver(dt=0.01), dt=0.1, random_state=0)
-        .check()
-    )
+    simulation = Simulation(
+        _walkers(0.75),
+        solver=FractionalEulerMaruyamaSolver(dt=0.01),
+        dt=0.1,
+        random_state=0,
+    ).check()
     trajectory = simulation.run(10).trajectory_
     squared = np.mean(trajectory.values('w.x')[1:] ** 2, axis=1)
     assert np.polyfit(np.log(trajectory.times[1:]), np.log(squared), 1)[0] == pytest.approx(1.5, abs=0.05)
@@ -92,8 +96,12 @@ def test_fractional_euler_maruyama_takes_the_horizon_from_the_run():
     """Test that a run without an explicit horizon completes, and two runs with random state 0 are equal."""
     runs = [
         (
-            Simulation(_walkers(0.3, members=20), solver=FractionalEulerMaruyamaSolver(dt=0.01), dt=0.1, random_state=0)
-            .check()
+            Simulation(
+                _walkers(0.3, members=20),
+                solver=FractionalEulerMaruyamaSolver(dt=0.01),
+                dt=0.1,
+                random_state=0,
+            ).check()
         )
         .run(2)
         .trajectory_.values('w.x')

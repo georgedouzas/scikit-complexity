@@ -119,7 +119,8 @@ class ExpressionPrinter(BasePrinter):
             self.names_ = self.names or str
 
     def _run(
-        self, inputs: Sequence[Expression],
+        self,
+        inputs: Sequence[Expression],
     ) -> tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]]:
         """Return the assignments and the code of the expressions, or the NumPy function of a compiled printer."""
         expressions = [SR(expression) for expression in inputs]
@@ -156,7 +157,10 @@ class ExpressionPrinter(BasePrinter):
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         namespace = dict(_NAMESPACE)
-        exec('\n'.join(lines), namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
+        exec(
+            '\n'.join(lines),
+            namespace,
+        )  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
         return namespace['_function']
 
     def _wrap(self, printed: Printed, precedence: int) -> str:

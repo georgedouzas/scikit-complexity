@@ -3849,7 +3849,7 @@ keeps the results in `result_`.
 from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.economics.resources import harvesting
-from skcomplex.specs import ScenarioSpec
+from skcomplex.core.specs import ScenarioSpec
 
 bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
 ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()

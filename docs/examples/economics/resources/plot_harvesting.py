@@ -36,7 +36,8 @@ simulation = Simulation(system, observers=[observer]).check().run(until=UNTIL)
 villages = np.arange(1, 26, 2)
 stocks = np.array(
     [
-        Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K)).check()
+        Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K))
+        .check()
         .run(until=200)
         .trajectory_.values('land/stock.n')[-1]
         for farmers in villages

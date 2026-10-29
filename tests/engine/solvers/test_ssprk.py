@@ -94,7 +94,8 @@ def test_viscous_burgers_respects_diffusive_limit():
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (
-            Simulation(System(elements=[field]), solver=SSPRKSolver(), dt=0.05).check()
+            Simulation(System(elements=[field]), solver=SSPRKSolver(), dt=0.05)
+            .check()
             .run(until=0.5)
             .trajectory_.values('line.u')
         )

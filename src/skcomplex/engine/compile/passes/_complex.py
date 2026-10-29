@@ -39,11 +39,7 @@ class LowerComplexPass(BasePass):
         compilation.lowered = [
             (
                 spec,
-                [
-                    item
-                    for law in laws
-                    for item in self._split_law(law, spec.owner, spec._state_name)
-                ],
+                [item for law in laws for item in self._split_law(law, spec.owner, spec._state_name)],
                 block,
             )
             for spec, laws, block in cast('BlockLaws', compilation.collected)
@@ -184,9 +180,7 @@ class LowerComplexPass(BasePass):
                 A real state takes a complex value, a law orders complex values, a callable or a jump targets a complex
                 state, or a law of a kind that takes only real values holds a complex value.
         """
-        if isinstance(law, _AGENT_LAWS) or not any(
-            LowerComplexPass._has_complex(item) for item in law._get_values()
-        ):
+        if isinstance(law, _AGENT_LAWS) or not any(LowerComplexPass._has_complex(item) for item in law._get_values()):
             return [law]
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
             return LowerComplexPass._split_assignment(law, owner, state_of)

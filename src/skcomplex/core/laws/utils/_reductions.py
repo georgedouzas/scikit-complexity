@@ -463,10 +463,6 @@ def shift_member(expression: Expression, offset: int, *, boundary: str = 'period
     return SHIFT_MEMBER(expression, int(offset), BOUNDARIES.index(boundary), float(fill))
 
 
-
-
-
-
 def _calls_in(expression: object, names: set[str]) -> list[Expression]:
     """Return the outermost calls of the named functions in an expression or a vector, each listed once."""
     if not isinstance(expression, Expression | FreeModuleElement | int | float):

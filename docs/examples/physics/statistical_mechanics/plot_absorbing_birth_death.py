@@ -24,9 +24,7 @@ MODEL = 'absorbing_birth_death'
 system = create(MODEL, kappa=2.0, volume=100.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend())
-    .check()
-    .run(until=100)
+    Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend()).check().run(until=100)
 )
 
 # %%
@@ -46,8 +44,12 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
     return -(rho - rho_0) * (1 + np.log(kappa)) + (rate * np.log(rate) - kappa * np.log(kappa)) / lam
 
 
-long = Simulation(create(MODEL, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend()).check().run(
-    until=4000,
+long = (
+    Simulation(create(MODEL, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend())
+    .check()
+    .run(
+        until=4000,
+    )
 )
 density = long.trajectory_.values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)

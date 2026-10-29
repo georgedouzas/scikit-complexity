@@ -47,9 +47,3 @@ class BasePrinter(BaseConfig):
     A printer stores its target in its constructor, `prepare(symbols)` takes the symbols the code reads, in order, and
     `run(expressions)` returns the code of the expressions, or a function that evaluates them.
     """
-
-
-
-
-
-

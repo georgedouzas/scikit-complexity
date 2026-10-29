@@ -19,7 +19,6 @@ _MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 _EDGE_NAMES = ('source', 'target', 'edge')
 
 
-
 @dataclass(frozen=True)
 class SetSymbolSpec(BaseSpec):
     """Symbol of one element of an element set, with the same symbol of every element of the set."""

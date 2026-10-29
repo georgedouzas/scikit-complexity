@@ -39,9 +39,7 @@ simulation = Simulation(system, solver=solver, dt=1.5, observers=[observer], ran
 fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1)
-        .check()
-        .run(400)
+        Simulation(create(MODEL, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1).check().run(400)
     )
     times = run.trajectory_.times
     escaped = np.maximum.accumulate(run.trajectory_.values('particles.x') >= 1.0, axis=0)

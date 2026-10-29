@@ -586,9 +586,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
         .run(10.0)
     )
     above = (
-        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-        .check()
-        .run(10.0)
+        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).check().run(10.0)
     )
     weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
         above.trajectory_.values('oscillators.theta'),
@@ -675,9 +673,18 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek model gives the same headings and positions on NumPy and Numba for one seed."""
-    runs = [Simulation(
-        _vicsek(), dt=1.0, random_state=0, backend=backend,
-    ).check().run(50).trajectory_ for backend in BACKENDS]
+    runs = [
+        Simulation(
+            _vicsek(),
+            dt=1.0,
+            random_state=0,
+            backend=backend,
+        )
+        .check()
+        .run(50)
+        .trajectory_
+        for backend in BACKENDS
+    ]
     turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
     assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)

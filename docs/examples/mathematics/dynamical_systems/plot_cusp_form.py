@@ -32,13 +32,12 @@ system = create(MODEL, x=-1.0, beta1=-0.6, beta2=1.0)
 observer = RerunObserver(
     MODEL,
     save_path=f'{MODEL}.rrd',
-    blueprint='default', parameters=True,
+    blueprint='default',
+    parameters=True,
     interval=3,
 )
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at})
-    .check()
-    .run(until=PERIOD)
+    Simulation(system, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at}).check().run(until=PERIOD)
 )
 
 # %%

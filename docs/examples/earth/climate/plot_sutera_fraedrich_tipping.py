@@ -55,10 +55,7 @@ ramped.set_title('B-tipping past the fold')
 ramped.legend()
 for rho in (0.16, 0.2):
     trajectory = (
-        Simulation(create(MODEL, tipping='rate', rho=rho), dt=0.5, solver=solver)
-        .check()
-        .run(until=150)
-        .trajectory_
+        Simulation(create(MODEL, tipping='rate', rho=rho), dt=0.5, solver=solver).check().run(until=150).trajectory_
     )
     rates.plot(trajectory.times, trajectory.values('earth.T'), label=f'rho = {rho}')
 rates.set_ylim(240, 310)

@@ -23,12 +23,16 @@ MODEL = 'network_structure_analysis'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 model_system = create(MODEL, null_samples=0, random_state=0)
-simulation = Simulation(
-    model_system,
-    dt=1,
-    observers=[observer],
-    observables=describe(MODEL).observables_of(model_system),
-).check().run(until=1)
+simulation = (
+    Simulation(
+        model_system,
+        dt=1,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(model_system),
+    )
+    .check()
+    .run(until=1)
+)
 trajectory = simulation.trajectory_
 
 # %%

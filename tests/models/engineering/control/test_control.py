@@ -38,7 +38,8 @@ def test_satellite_transfer_time():
             dt=0.05,
             solver=RK4Solver(dt=0.005),
             observables=describe('satellite_transfer').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=15)
         .trajectory_
     )

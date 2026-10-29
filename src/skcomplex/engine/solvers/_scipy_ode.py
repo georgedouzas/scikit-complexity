@@ -90,8 +90,6 @@ _TINY_NORM = 1e-15
 _FALLBACK_STEP = 1e-6
 
 
-
-
 class ScipyODESolver(Solver):
     """Integrator of ordinary differential equations based on the step solvers of `scipy.integrate`.
 

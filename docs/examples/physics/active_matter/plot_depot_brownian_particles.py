@@ -39,9 +39,7 @@ intakes = np.linspace(0.5, 12, 12)
 speeds = []
 for intake in intakes:
     run = (
-        Simulation(create(MODEL, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1)
-        .check()
-        .run(until=40)
+        Simulation(create(MODEL, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1).check().run(until=40)
     )
     speeds.append(np.linalg.norm(run.trajectory_.values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)

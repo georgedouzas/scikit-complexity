@@ -80,10 +80,7 @@ values = -np.linspace(0.005, 0.21, 21)
 amplitudes, periods = [], []
 for beta1 in values:
     run = (
-        Simulation(create(MODEL, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05)
-        .check()
-        .run(until=600)
-        .trajectory_
+        Simulation(create(MODEL, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05).check().run(until=600).trajectory_
     )
     x = run.values('form.x')[len(run.times) // 2 :]
     peaks = find_peaks(x)[0]

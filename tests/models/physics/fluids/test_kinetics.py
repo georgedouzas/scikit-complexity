@@ -24,10 +24,7 @@ def test_wave_breaking_steepens_after_the_breaking_time():
 def test_discrete_velocity_boltzmann_conserves_mass_and_relaxes():
     """Test that the Carleman gas conserves its mass and relaxes to equal densities of both velocities."""
     trajectory = (
-        Simulation(discrete_velocity_boltzmann(), dt=0.1, solver=SSPRKSolver())
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(discrete_velocity_boltzmann(), dt=0.1, solver=SSPRKSolver()).check().run(until=5).trajectory_
     )
     right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
     assert (right + left).sum(axis=1) == pytest.approx(np.full(len(right), (right + left)[0].sum()))

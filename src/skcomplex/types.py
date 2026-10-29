@@ -204,5 +204,3 @@ class ElementKind(StrEnum):
     EDGE_GROUP = 'edge-group'
     HYPEREDGE_GROUP = 'hyperedge-group'
     SYSTEM = 'system'
-
-

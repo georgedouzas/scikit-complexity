@@ -35,13 +35,17 @@ def temperature_at(time):
 system = create(MODEL, agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
 schedule = {'standardization.T': temperature_at}
-simulation = Simulation(
-    system,
-    observers=[observer],
-    schedule=schedule,
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=END)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        schedule=schedule,
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=END)
+)
 
 # %%
 # Order parameters against the temperature

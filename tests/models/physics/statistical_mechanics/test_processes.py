@@ -65,10 +65,7 @@ def test_tasep_open_line_stays_an_exclusion_process():
 def test_diffusion_limited_aggregate_is_connected():
     """Test that the aggregate grows and every stuck walker touches another stuck walker."""
     trajectory = (
-        Simulation(diffusion_limited_aggregation(200, size=31), random_state=0)
-        .check()
-        .run(until=100)
-        .trajectory_
+        Simulation(diffusion_limited_aggregation(200, size=31), random_state=0).check().run(until=100).trajectory_
     )
     agents = trajectory.agents('walkers', 100)
     cells = {tuple(location) for location, stuck in zip(agents.locations, agents.values['stuck'], strict=True) if stuck}

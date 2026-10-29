@@ -31,13 +31,7 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).check().run(until
 
 leaks = np.linspace(0.02, 0.5, 13)
 steady = [
-    (
-        Simulation(create(MODEL, leak=leak), dt=0.25)
-        .check()
-        .run(until=72)
-        .trajectory_
-        .values('room.T')[-1]
-    )
+    (Simulation(create(MODEL, leak=leak), dt=0.25).check().run(until=72).trajectory_.values('room.T')[-1])
     for leak in leaks
 ]
 grid = np.linspace(0.0, 0.5, 100)

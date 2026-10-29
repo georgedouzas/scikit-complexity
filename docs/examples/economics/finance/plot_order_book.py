@@ -38,12 +38,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, chartists=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=STEPS)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=STEPS)
+)
 
 # %%
 # Chartists make the market volatile

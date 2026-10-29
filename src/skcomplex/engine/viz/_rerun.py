@@ -214,7 +214,9 @@ class RerunObserver(BaseObserver):
                 self.blueprint_.save(self.application_id, Path(self.save_path).with_suffix('.rbl'))
         if self.spawn:
             rr.spawn(
-                executable_path=self._viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_,
+                executable_path=self._viewer_executable(),
+                recording=self.recording_,
+                default_blueprint=self.blueprint_,
             )
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
@@ -238,7 +240,10 @@ class RerunObserver(BaseObserver):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
         if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
             return HistogramVisual(
-                color_by=visual.color_by, color_range=visual.color_range, path=agents.path, recording=self.recording_,
+                color_by=visual.color_by,
+                color_range=visual.color_range,
+                path=agents.path,
+                recording=self.recording_,
             )
         return visual
 

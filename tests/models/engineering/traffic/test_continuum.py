@@ -15,10 +15,7 @@ from skcomplex.models.engineering.traffic import (
 def test_lighthill_whitham_richards_shock_speed():
     """Test that the shock between free and queued traffic moves at the Rankine-Hugoniot speed."""
     trajectory = (
-        Simulation(lighthill_whitham_richards(), dt=0.05, solver=SSPRKSolver())
-        .check()
-        .run(until=1.0)
-        .trajectory_
+        Simulation(lighthill_whitham_richards(), dt=0.05, solver=SSPRKSolver()).check().run(until=1.0).trajectory_
     )
     density = trajectory.values('road.rho')[-1]
     centers = (np.arange(200) + 0.5) / 200

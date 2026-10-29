@@ -51,10 +51,7 @@ def test_spring_conserves_energy():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = (
-        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1)
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1).check().run(until=5).trajectory_
     )
     kinetic = 0.5 * (trajectory.values('a.v') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.v') ** 2).sum(
         axis=1,
@@ -75,10 +72,7 @@ def test_gravity_keeps_circular_orbit():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = (
-        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5)
-        .check()
-        .run(until=6)
-        .trajectory_
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5).check().run(until=6).trajectory_
     )
     radius = np.linalg.norm(trajectory.values('planet.x') - trajectory.values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)

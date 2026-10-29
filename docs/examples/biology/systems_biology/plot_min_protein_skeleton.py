@@ -27,13 +27,17 @@ MODEL = 'min_protein_skeleton'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=4.0,
-    solver=ScipyODESolver(method='BDF', jacobian='exact'),
-    observers=[observer],
-    random_state=0,
-).check().run(until=400)
+simulation = (
+    Simulation(
+        system,
+        dt=4.0,
+        solver=ScipyODESolver(method='BDF', jacobian='exact'),
+        observers=[observer],
+        random_state=0,
+    )
+    .check()
+    .run(until=400)
+)
 
 # %%
 # Oscillatory instability and conservation

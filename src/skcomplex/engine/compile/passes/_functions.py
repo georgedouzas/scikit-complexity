@@ -120,7 +120,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _backends_of(
-        form: FormKind, kernels: Mapping[type, list[LawKernel]], name: str, lowering: LoweredFunctionsSpec,
+        form: FormKind,
+        kernels: Mapping[type, list[LawKernel]],
+        name: str,
+        lowering: LoweredFunctionsSpec,
     ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
         backends = {form.name: name}
@@ -137,7 +140,9 @@ class FunctionsPass(BasePass):
         reductions = cast('ReductionScheduleSpec', compilation.reductions)
         draws = compilation.draws
         backend = FunctionsPass._chosen_backend(
-            compilation, form, declarations.members,
+            compilation,
+            form,
+            declarations.members,
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
@@ -145,7 +150,8 @@ class FunctionsPass(BasePass):
         functions: dict[str, object] = vars(lowering).copy()
         if draws is not None and functions.get('update') is not None:
             functions['update'] = FunctionsPass._stochastic_update(
-                cast('Callable[..., Array]', functions['update']), draws,
+                cast('Callable[..., Array]', functions['update']),
+                draws,
             )
         accelerated = cast('AcceleratedSpec | None', functions.get('accelerated'))
         if draws is not None and draws.sampled and accelerated is not None:

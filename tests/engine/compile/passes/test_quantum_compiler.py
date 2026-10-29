@@ -211,7 +211,9 @@ def test_compile_system_stores_density_matrices_of_open_systems():
     assert not problem.pure
     assert problem._state_of(problem.initial_state).shape == (2, 2)
     mixed = compile_system(
-        System(elements=[QubitElement('q')]), initial_state={'system.state': np.eye(2) / 2}, compiler=QuantumCompiler(),
+        System(elements=[QubitElement('q')]),
+        initial_state={'system.state': np.eye(2) / 2},
+        compiler=QuantumCompiler(),
     )
     assert not mixed.pure
 

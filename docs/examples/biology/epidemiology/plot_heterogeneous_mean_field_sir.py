@@ -25,10 +25,17 @@ probabilities = degrees**-2.5 / np.sum(degrees**-2.5)
 first, second = np.sum(degrees * probabilities), np.sum(degrees**2 * probabilities)
 system = create(MODEL, k_max=30, beta=2.5 * first / second)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system, dt=0.5, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=40,
+simulation = (
+    Simulation(
+        system,
+        dt=0.5,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=40,
+    )
 )
 
 # %%
@@ -45,7 +52,8 @@ final_sizes = [
         create(MODEL, k_max=30, beta=rate, infected=1e-6),
         dt=1.0,
         observables=describe(MODEL).observables_of(system),
-    ).check()
+    )
+    .check()
     .run(until=300)
     .trajectory_.values('recovered')[-1]
     for rate in rates

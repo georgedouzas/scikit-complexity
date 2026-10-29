@@ -44,17 +44,23 @@ def magnetization(trajectory):
 
 graph = nx.random_regular_graph(4, 1000, seed=0)
 temperatures = [1.0, 1.5, 2.0, 2.4, 2.7, 2.9, 3.1, 3.5, 4.5, 6.0]
-result = Experiment(
-    lambda temperature: create(MODEL, graph=graph, temperature=temperature, initial='up'),
-    GridDesign(),
-    {'temperature': temperatures},
-    replicates=4,
-    until=300,
-    dt=10,
-    warmup=100,
-    outputs=[magnetization],
-    random_state=0,
-).check().prepare().run().result_
+result = (
+    Experiment(
+        lambda temperature: create(MODEL, graph=graph, temperature=temperature, initial='up'),
+        GridDesign(),
+        {'temperature': temperatures},
+        replicates=4,
+        until=300,
+        dt=10,
+        warmup=100,
+        outputs=[magnetization],
+        random_state=0,
+    )
+    .check()
+    .prepare()
+    .run()
+    .result_
+)
 rows = sorted(result.summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot([row['temperature'] for row in rows], [row['magnetization.mean'] for row in rows], 'o-', label='simulation')

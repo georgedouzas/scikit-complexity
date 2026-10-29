@@ -17,7 +17,8 @@ def test_vibration_energy_harvester_steady_response():
             built := vibration_energy_harvester(),
             dt=0.01,
             observables=describe('vibration_energy_harvester').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=30)
         .trajectory_
     )

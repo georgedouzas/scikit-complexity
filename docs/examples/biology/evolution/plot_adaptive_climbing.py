@@ -31,9 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 best = []
 for seed in range(8):
     run = (
-        Simulation(create(MODEL, size=10, u=0.1, length=20, seed=seed), dt=1, random_state=seed)
-        .check()
-        .run(until=200)
+        Simulation(create(MODEL, size=10, u=0.1, length=20, seed=seed), dt=1, random_state=seed).check().run(until=200)
     )
     trajectory = run.trajectory_
     best.append(

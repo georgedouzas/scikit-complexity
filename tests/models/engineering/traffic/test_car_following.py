@@ -203,9 +203,7 @@ def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
     system = factory(n_cars=20)
     group = Simulation(system, dt=1.0, solver=ScipyODESolver(method='RK45')).check().run(until=until).trajectory_
     per_car = (
-        Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODESolver(method='RK45'))
-        .check()
-        .run(until=until)
+        Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODESolver(method='RK45')).check().run(until=until)
     )
     per_car = per_car.trajectory_
     for variable in ('x', 'v'):

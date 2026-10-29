@@ -34,8 +34,6 @@ SETTINGS = {
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
 
 
-
-
 class _Graph:
     """Edges of the signed dependency graph of a problem with the expressions of their partial derivatives.
 
@@ -80,9 +78,7 @@ class _Graph:
         if transfer_network is None:
             return set()
         outputs = symbols_of([delay.output for delay in transfer_network.delays])
-        delays = {
-            name.partition('[')[0] for name, item in self.problem.equation_symbols.items() if item in outputs
-        }
+        delays = {name.partition('[')[0] for name, item in self.problem.equation_symbols.items() if item in outputs}
         return set(transfer_network.boundary.values()) | delays
 
     def _node_of(self, item: Expression, term: LoopTermSpec) -> str | None:

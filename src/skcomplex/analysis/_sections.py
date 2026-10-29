@@ -180,7 +180,8 @@ class SectionAnalysis(BaseAnalysis):
         event = EventKernel(SECTION, guard, None, int(self.direction), False).check()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
-            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state).check()
+            Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)
+            .check()
             .run(self.until)
             .trajectory_
         )

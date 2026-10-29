@@ -23,13 +23,17 @@ MODEL = 'curie_weiss'
 
 system = create(MODEL, n_spins=200, temperature=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    dt=0.2,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=30)
+simulation = (
+    Simulation(
+        system,
+        dt=0.2,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=30)
+)
 
 # %%
 # Magnetization against temperature

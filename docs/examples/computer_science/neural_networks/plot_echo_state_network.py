@@ -70,11 +70,7 @@ for radius in (0.5, 0.9, 2.0):
     copies = create(MODEL, n_units=200, spectral_radius=radius, leak=0.3)
     one = Simulation(copies, dt=1).check().run(until=300).trajectory_.values('units.r')
     two = (
-        Simulation(copies, dt=1, initial_state={'units.r': start})
-        .check()
-        .run(until=300)
-        .trajectory_
-        .values('units.r')
+        Simulation(copies, dt=1, initial_state={'units.r': start}).check().run(until=300).trajectory_.values('units.r')
     )
     distance.semilogy(np.arange(301), np.linalg.norm(one - two, axis=1) + 1e-16, label=f'spectral radius {radius}')
 distance.set_xlabel('step t')

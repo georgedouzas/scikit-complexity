@@ -25,9 +25,7 @@ BLOCKS, CELLS, STEPS = 16, 25, 150
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, beta=4.0, random_state=0), observers=[observer], random_state=0)
-    .check()
-    .run(until=STEPS)
+    Simulation(create(MODEL, beta=4.0, random_state=0), observers=[observer], random_state=0).check().run(until=STEPS)
 )
 
 # %%
@@ -48,10 +46,7 @@ def densities(trajectory, frame):
 def final_densities(beta, seed):
     """Return the block densities after a run."""
     trajectory = (
-        Simulation(create(MODEL, beta=beta, random_state=seed), random_state=seed)
-        .check()
-        .run(until=STEPS)
-        .trajectory_
+        Simulation(create(MODEL, beta=beta, random_state=seed), random_state=seed).check().run(until=STEPS).trajectory_
     )
     return densities(trajectory, STEPS)
 

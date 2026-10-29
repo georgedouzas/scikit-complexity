@@ -206,16 +206,10 @@ def test_equation_takes_two_sides_or_a_relation():
 def test_pendulum_as_written_matches_solved_form():
     """Test that `m l theta'' = -m g sin theta` runs exactly like the rate law `theta'' = -(g / l) sin theta`."""
     written = (
-        Simulation(System(elements=[WrittenElement('bob')]), solver=PRECISE, dt=0.1)
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[WrittenElement('bob')]), solver=PRECISE, dt=0.1).check().run(until=5).trajectory_
     )
     solved = (
-        Simulation(System(elements=[SolvedElement('bob')]), solver=PRECISE, dt=0.1)
-        .check()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[SolvedElement('bob')]), solver=PRECISE, dt=0.1).check().run(until=5).trajectory_
     )
     assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
 
@@ -236,10 +230,7 @@ def test_nonlinear_highest_derivative_is_rejected():
 def test_many_equations_are_solved_numerically():
     """Test that seven equations, above the symbolic size, are solved per evaluation with the same result."""
     trajectory = (
-        Simulation(System(elements=[OscillatorsElement('o')]), solver=PRECISE, dt=0.1)
-        .check()
-        .run(until=3)
-        .trajectory_
+        Simulation(System(elements=[OscillatorsElement('o')]), solver=PRECISE, dt=0.1).check().run(until=3).trajectory_
     )
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):

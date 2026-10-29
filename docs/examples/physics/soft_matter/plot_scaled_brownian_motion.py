@@ -36,9 +36,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
-        .check()
-        .run(10)
+        Simulation(create(MODEL, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1).check().run(10)
     )
     times = run.trajectory_.times[1:]
     squared = np.mean(run.trajectory_.values('walkers.x')[1:] ** 2, axis=1)

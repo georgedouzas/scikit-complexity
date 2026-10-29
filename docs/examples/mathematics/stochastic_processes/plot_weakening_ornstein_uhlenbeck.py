@@ -22,9 +22,7 @@ MODEL = 'weakening_ornstein_uhlenbeck'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=16)
 simulation = (
-    Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observer], random_state=0)
-    .check()
-    .run(until=200)
+    Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observer], random_state=0).check().run(until=200)
 )
 
 # %%

@@ -42,5 +42,3 @@ LATTICE_LAWS = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, SampleLaw)
 
 _AGENT_LAWS = (RuleLaw,)
 """Laws that make an element an agent, run on the agent stepper."""
-
-

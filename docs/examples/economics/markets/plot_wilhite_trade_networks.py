@@ -39,12 +39,16 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_agents=200, topology='small_world', n_groups=10, shortcuts=5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=60)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=60)
+)
 
 # %%
 # Prices against searches

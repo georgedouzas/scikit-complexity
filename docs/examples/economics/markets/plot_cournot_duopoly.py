@@ -32,12 +32,16 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
-simulation = Simulation(
-    system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(system),
-).check().run(until=60)
+simulation = (
+    Simulation(
+        system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(until=60)
+)
 
 # %%
 # Reaction curves and convergence
@@ -54,7 +58,8 @@ def outputs(trajectory):
 
 exact_system = create(MODEL, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
 exact = outputs(
-    Simulation(exact_system, random_state=0, observables=describe(MODEL).observables_of(exact_system)).check()
+    Simulation(exact_system, random_state=0, observables=describe(MODEL).observables_of(exact_system))
+    .check()
     .run(until=20)
     .trajectory_,
 )

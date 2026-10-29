@@ -82,7 +82,8 @@ class PhaseRingVisual(BaseVisual):
         points = np.column_stack([positions, phases * self._phase_scale(extent)]) * _UPWARD
         radius = BaseVisual._radius_of(max(extent, 1.0), phases.size)
         recording.log(
-            f'{element.path}/phases', rr.Points2D(points, radii=radius, colors=BaseVisual._phase_colors(phases)),
+            f'{element.path}/phases',
+            rr.Points2D(points, radii=radius, colors=BaseVisual._phase_colors(phases)),
         )
         for state, name in element.states.items():
             if state not in {self.phase, self.position}:

@@ -38,10 +38,7 @@ cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
     trajectory = (
-        Simulation(create(MODEL, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1)
-        .check()
-        .run(until=25)
-        .trajectory_
+        Simulation(create(MODEL, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1).check().run(until=25).trajectory_
     )
     deviation = trajectory.values('economy.Y') - G / (1 - c)
     root = np.roots([1, -c * (1 + v), c * v])[0]

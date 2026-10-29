@@ -157,10 +157,7 @@ def test_particles_converge_to_the_ode_solution():
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
     trajectory = (
-        Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1)
-        .check()
-        .run(until=2)
-        .trajectory_
+        Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1).check().run(until=2).trajectory_
     )
     totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)

@@ -261,13 +261,10 @@ def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
     first = Simulation(_wealth_system(), dt=1.0).check().run(until=5).trajectory_.values('wealth.f')[-1]
     second = (
-
-            Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01))
-            .check()
-            .run(until=5)
-            .trajectory_
-            .values('wealth.f')[-1]
-
+        Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01))
+        .check()
+        .run(until=5)
+        .trajectory_.values('wealth.f')[-1]
     )
     np.testing.assert_allclose(first, second, atol=1e-5)
 

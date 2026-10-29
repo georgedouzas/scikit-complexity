@@ -22,12 +22,10 @@ def test_ideal_gas_obeys_ideal_gas_law(kT, size):
     """Test that pressure times area equals N times kT within 2 percent."""
     n = 500
     trajectory = (
-
-            Simulation(ideal_gas(n, kT=kT, size=size, random_state=0), dt=0.002 * size)
-            .check()
-            .run(until=4 * size)
-            .trajectory_
-
+        Simulation(ideal_gas(n, kT=kT, size=size, random_state=0), dt=0.002 * size)
+        .check()
+        .run(until=4 * size)
+        .trajectory_
     )
     velocities = trajectory.values('gas.v')[0]
     measured_kT = float((velocities**2).sum(axis=1).mean()) / N_DIM

@@ -21,10 +21,17 @@ MODEL = 'kuramoto'
 
 system = create(MODEL, n_oscillators=50, K=4.0, sigma=1.0, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(
-    system, dt=0.2, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=30,
+simulation = (
+    Simulation(
+        system,
+        dt=0.2,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=30,
+    )
 )
 
 # %%
@@ -39,9 +46,7 @@ order = []
 for coupling in couplings:
     model_system = create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
     run = (
-        Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system))
-        .check()
-        .run(until=60)
+        Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system)).check().run(until=60)
     )
     order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))

@@ -36,12 +36,16 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 model_system = create(MODEL, random_state=0)
-simulation = Simulation(
-    model_system,
-    observers=[observer],
-    random_state=0,
-    observables=describe(MODEL).observables_of(model_system),
-).check().run(until=100)
+simulation = (
+    Simulation(
+        model_system,
+        observers=[observer],
+        random_state=0,
+        observables=describe(MODEL).observables_of(model_system),
+    )
+    .check()
+    .run(until=100)
+)
 
 # %%
 # Switching intensity and concentration
@@ -56,7 +60,8 @@ herfindahl, spread = [], []
 for intensity in intensities:
     model_system = create(MODEL, intensity=intensity, random_state=0)
     trajectory = (
-        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system)).check()
+        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        .check()
         .run(100)
         .trajectory_
     )

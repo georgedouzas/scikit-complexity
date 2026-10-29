@@ -31,10 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
 trajectory = (
-    Simulation(create(MODEL, residents=20, random_state=0), dt=1, random_state=0)
-    .check()
-    .run(until=150)
-    .trajectory_
+    Simulation(create(MODEL, residents=20, random_state=0), dt=1, random_state=0).check().run(until=150).trajectory_
 )
 health = np.array([trajectory.agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))])
 fig, ax = plt.subplots(figsize=(8, 4))

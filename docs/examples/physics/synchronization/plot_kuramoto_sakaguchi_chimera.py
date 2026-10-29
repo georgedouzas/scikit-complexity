@@ -23,10 +23,17 @@ MODEL = 'kuramoto_sakaguchi_chimera'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(
-    system, dt=1.0, observers=[observer], observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=300,
+simulation = (
+    Simulation(
+        system,
+        dt=1.0,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=300,
+    )
 )
 
 # %%

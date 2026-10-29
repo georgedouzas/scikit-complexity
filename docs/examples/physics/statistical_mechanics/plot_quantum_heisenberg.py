@@ -26,14 +26,18 @@ MODEL = 'quantum_heisenberg'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    system,
-    compiler=QuantumCompiler(),
-    dt=0.05,
-    observers=[observer],
-    observables=describe(MODEL).observables_of(system),
-).check().run(
-    until=8.0,
+simulation = (
+    Simulation(
+        system,
+        compiler=QuantumCompiler(),
+        dt=0.05,
+        observers=[observer],
+        observables=describe(MODEL).observables_of(system),
+    )
+    .check()
+    .run(
+        until=8.0,
+    )
 )
 
 # %%

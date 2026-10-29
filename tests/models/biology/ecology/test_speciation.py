@@ -17,7 +17,8 @@ def test_neutral_biodiversity_species_number_matches_ewens_sum():
             built := neutral_biodiversity(size, nu=nu, random_state=0),
             random_state=0,
             observables=describe('neutral_biodiversity').observables_of(built),
-        ).check()
+        )
+        .check()
         .run(until=3000)
         .trajectory_
     )

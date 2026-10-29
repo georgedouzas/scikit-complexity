@@ -22,7 +22,8 @@ def _singular_level(cost, discount):
 def test_collocation_matches_riccati_solution(linear_quadratic, quadratic_cost, riccati_control):
     """Test that the collocation control of the scalar linear-quadratic problem matches the Riccati solution."""
     trajectory = (
-        Simulation(linear_quadratic, solver=CollocationSolver(quadratic_cost, nodes=51), dt=0.05).check()
+        Simulation(linear_quadratic, solver=CollocationSolver(quadratic_cost, nodes=51), dt=0.05)
+        .check()
         .run(until=1.0)
         .trajectory_
     )

@@ -152,11 +152,7 @@ def test_fibonacci_recurrence():
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's model with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
     income = (
-        Simulation(System(elements=[IncomeElement('economy')]))
-        .check()
-        .run(until=40)
-        .trajectory_
-        .values('economy.Y')
+        Simulation(System(elements=[IncomeElement('economy')])).check().run(until=40).trajectory_.values('economy.Y')
     )
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)

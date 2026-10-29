@@ -69,10 +69,7 @@ def test_domain_growth_two_coarsening_laws():
 def test_domain_growth_of_an_ising_trajectory():
     """Test that a quenched Ising trajectory gives one domain size per frame that grows."""
     trajectory = (
-        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0)
-        .check()
-        .run(until=100)
-        .trajectory_
+        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0).check().run(until=100).trajectory_
     )
     growth = _domains('growth', trajectory, fit_range=(10, 100))
     assert growth.size_.shape == (len(trajectory.times),)

@@ -29,17 +29,23 @@ class Images:
 def test_ising_transition():
     """Test that the ensemble magnetisation of a 64 x 64 Ising lattice drops below one half between 2.2 and 2.4."""
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
-    result = Experiment(
-        lambda temperature: ising(64, temperature=temperature, initial='up'),
-        GridDesign(),
-        {'temperature': temperatures},
-        replicates=4,
-        until=1000,
-        dt=50,
-        warmup=200,
-        outputs=[magnetization],
-        random_state=0,
-    ).check().prepare().run().result_
+    result = (
+        Experiment(
+            lambda temperature: ising(64, temperature=temperature, initial='up'),
+            GridDesign(),
+            {'temperature': temperatures},
+            replicates=4,
+            until=1000,
+            dt=50,
+            warmup=200,
+            outputs=[magnetization],
+            random_state=0,
+        )
+        .check()
+        .prepare()
+        .run()
+        .result_
+    )
     means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]
     assert means[1.5] > 0.95

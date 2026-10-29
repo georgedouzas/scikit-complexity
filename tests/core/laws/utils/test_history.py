@@ -100,12 +100,10 @@ class JerkElement(Element):
 def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
     trajectory = (
-
-            Simulation(System(elements=[DoublePendulumElement('dp')]), solver=PRECISE, dt=0.05)
-            .check()
-            .run(until=10)
-            .trajectory_
-
+        Simulation(System(elements=[DoublePendulumElement('dp')]), solver=PRECISE, dt=0.05)
+        .check()
+        .run(until=10)
+        .trajectory_
     )
     a, b = trajectory.values('dp.a'), trajectory.values('dp.b')
     a_d1, b_d1 = trajectory.values('dp.a_d1'), trajectory.values('dp.b_d1')

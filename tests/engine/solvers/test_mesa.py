@@ -257,7 +257,8 @@ def test_rules_mixed_with_rates_raise_error():
 def test_agents_are_born_every_step():
     """Test that one offspring per agent per step gives 10, 20, 40, and 80 agents."""
     trajectory = (
-        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)])).check()
+        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)]))
+        .check()
         .run(until=3)
         .trajectory_
     )
@@ -326,7 +327,9 @@ def test_agent_runs_are_reproducible():
                 space=LatticeSpace((10, 10), boundary='fixed'),
             ),
             random_state=0,
-        ).check().run(
+        )
+        .check()
+        .run(
             until=5,
         )
         for _ in range(2)
@@ -585,12 +588,10 @@ class ClockedElement(Element):
 def test_rules_read_model_time():
     """Test that rules read the model time k during the step that produces frame k."""
     trajectory = (
-
-            Simulation(System(elements=[GroupElement('clocks', element=ClockedElement, size=2)]))
-            .check()
-            .run(until=3)
-            .trajectory_
-
+        Simulation(System(elements=[GroupElement('clocks', element=ClockedElement, size=2)]))
+        .check()
+        .run(until=3)
+        .trajectory_
     )
     assert [trajectory.agents('clocks', step).values['seen'].tolist() for step in (1, 2, 3)] == [
         [1.0, 1.0],
@@ -690,7 +691,8 @@ class SaverElement(Element):
 def test_memory_window():
     """Agents remember the last values of the states their type lists."""
     trajectory = (
-        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=2)]), random_state=0).check()
+        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=2)]), random_state=0)
+        .check()
         .run(until=5)
         .trajectory_
     )

@@ -46,9 +46,7 @@ sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolv
 particles = sampled.run(until=20).trajectory_.values('evacuated')
 crowded_system = create(MODEL, crowding=8.0)
 crowded = (
-    Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system))
-    .check()
-    .run(until=20)
+    Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system)).check().run(until=20)
 )
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(times, simulation.trajectory_.values('evacuated'), label='gain and loss equations')

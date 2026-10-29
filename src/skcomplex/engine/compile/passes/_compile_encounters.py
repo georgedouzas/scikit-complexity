@@ -196,12 +196,22 @@ class CompileEncountersPass(BasePass):
         if table is None:
             empty = np.zeros(0, dtype=np.intp)
             return EncounterKernel(
-                owner, CompileEncountersPass._effect(law), candidate, field_indices, test, rate, (empty,) * 3, None,
+                owner,
+                CompileEncountersPass._effect(law),
+                candidate,
+                field_indices,
+                test,
+                rate,
+                (empty,) * 3,
+                None,
             ).check()
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
         probabilities = TableValuesSpec(
-            table, positions, CompileEncountersPass._parameter_indices(table, references, owner), time,
+            table,
+            positions,
+            CompileEncountersPass._parameter_indices(table, references, owner),
+            time,
         )
         return EncounterKernel(
             owner,

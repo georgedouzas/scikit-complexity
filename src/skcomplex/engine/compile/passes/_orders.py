@@ -308,7 +308,8 @@ class OrdersPass(BasePass):
             entries = [entry for row in coefficients for entry in row] + right
             laws = [
                 RateLaw(
-                    highest[item], CallSpec(OrdersPass._numeric_solution(rows, len(unknowns), index), tuple(entries)),
+                    highest[item],
+                    CallSpec(OrdersPass._numeric_solution(rows, len(unknowns), index), tuple(entries)),
                 )
                 for index, item in enumerate(unknowns)
             ]

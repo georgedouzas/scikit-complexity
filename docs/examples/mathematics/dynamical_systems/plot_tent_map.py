@@ -60,11 +60,7 @@ diagram = (
     .run()
 )
 points = np.array(
-    [
-        (100 * mu, -100 * x)
-        for mu, values in zip(diagram.values, diagram.points_, strict=True)
-        for x in values
-    ],
+    [(100 * mu, -100 * x) for mu, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
