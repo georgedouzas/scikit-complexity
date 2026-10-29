@@ -75,7 +75,7 @@ class QuantumProblemSpec(BaseProblemSpec):
     def _matrix_at(terms: Iterable[QuantumKernel], t: float, p: Array, size: int) -> sp.csr_array:
         """Return the sum of the terms at a time and a parameter vector."""
         return QuantumKernel._sum_matrices(
-            (QuantumKernel._coefficient_of(term.run(RunStateSpec(t, np.zeros(0), p))) * term.matrix for term in terms),
+            (term.run(RunStateSpec(t, np.zeros(0), p)).values_ * term.matrix for term in terms),
             size,
         )
 
@@ -116,7 +116,7 @@ class QuantumProblemSpec(BaseProblemSpec):
         total = 0j
         for term in terms:
             value = np.vdot(state, term.matrix @ state) if self.pure else term.matrix.multiply(state.T).sum()
-            total += QuantumKernel._coefficient_of(term.run(RunStateSpec(t, np.zeros(0), p))) * complex(value)
+            total += term.run(RunStateSpec(t, np.zeros(0), p)).values_ * complex(value)
         if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
             return float(total.real)
         return total

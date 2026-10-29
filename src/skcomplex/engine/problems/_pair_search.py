@@ -27,7 +27,13 @@ class PairSearch(BaseSearch):
 
         period:
             The side of a periodic box, or `None` for an open space.
+
+    Attributes:
+        pairs_:
+            The indices of the first and second members of every pair of the last run.
     """
+
+    pairs_: tuple[Indices, Indices]
 
     def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec, period: float | None) -> None:
         self.first = first
@@ -35,9 +41,12 @@ class PairSearch(BaseSearch):
         self.cutoff = cutoff
         self.period = period
 
-    def _run(self, inputs: RunStateSpec | None) -> tuple[Indices, Indices]:
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the indices of the first and second members of every pair within the cutoff."""
+        self.pairs_ = self._pairs(self._state_of(inputs))
+
+    def _pairs(self, state: RunStateSpec) -> tuple[Indices, Indices]:
         """Return the indices of the first and second members of every pair within the cutoff."""
-        state = self._state_of(inputs)
         x, p = state.x, state.p
         cutoff = float(self.cutoff.view(p)[0, 0])
         first, second = self._positions(self.first.view(x)), self._positions(self.second.view(x))

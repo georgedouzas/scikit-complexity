@@ -26,7 +26,7 @@ from ...core.spaces import (
 from ...errors import ValidationError
 from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
 from ...types import Array, Indices
-from ..types import EdgesFound, Pairs
+from ..types import Pairs
 from ._base import BaseKernel
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
@@ -110,7 +110,7 @@ class NeighborhoodKernel(BaseKernel):
     def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the weight, compiled once."""
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
-        return ExpressionPrinter._function_of(printer.run([self.argument, self.weight]))
+        return ExpressionPrinter._function_of(printer.run([self.argument, self.weight]).code_)
 
     @property
     def symbols(self) -> list[Expression]:
@@ -151,7 +151,7 @@ class NeighborhoodKernel(BaseKernel):
         """Write the reduction of every member into the extended parameter vector of the state, the `p` of `inputs`."""
         state = self._state_of(inputs)
         t, x, q = state.t, state.x, state.p
-        indptr, others, edges = self._edges_of(self.search.run(state))
+        indptr, others, edges = self.search.run(state).pairs_
         size = self.size
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
@@ -160,29 +160,6 @@ class NeighborhoodKernel(BaseKernel):
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
-
-    @staticmethod
-    def _edges_of(found: object) -> EdgesFound:
-        """Return the row starts, the neighbours, and the edges a neighbour search found.
-
-        Args:
-            found:
-                What `run` of the search returned.
-
-        Returns:
-            edges:
-                The row starts, the neighbours, and the edges, or `None` for the edges of a search without
-                them.
-
-        Raises:
-            TypeError:
-                The search did not return the row starts, the neighbours, and the edges.
-        """
-        if not isinstance(found, tuple):
-            error_msg = f'A neighbour search returns the row starts, the neighbours, and the edges, not a {found!r}.'
-            raise TypeError(error_msg)
-        indptr, others, edges = found
-        return indptr, others, edges
 
     @staticmethod
     def _reduce_pairs(kind: str, readers: Indices, weight: Array, argument: Array, counts: Indices) -> Array:

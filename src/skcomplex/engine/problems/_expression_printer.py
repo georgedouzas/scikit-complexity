@@ -42,10 +42,10 @@ _IMPORTS = 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
     """Printer of Sage expressions as code of NumPy, scalar Python for Numba, or LAMMPS Lepton.
 
-    `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` returns the assignments of the
-    repeated compound subexpressions, bound to numbered names, and the code of every expression. A compiled printer
-    returns instead the NumPy function `f(t, *symbols)` of the expressions, which runs in a NumPy error state that
-    ignores division, invalid, and overflow warnings when the expressions hold conditions.
+    `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps in `code_` the
+    assignments of the repeated compound subexpressions, bound to numbered names, and the code of every expression. A
+    compiled printer keeps instead the NumPy function `f(t, *symbols)` of the expressions, which runs in a NumPy error
+    state that ignores division, invalid, and overflow warnings when the expressions hold conditions.
 
     Lepton has neither comparisons nor a remainder, so conditions become `step` and `select` and remainders `floor`.
 
@@ -66,18 +66,26 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             Whether repeated subexpressions are bound to names, false for languages without assignments.
 
         compiled:
-            Whether `run` returns a NumPy function of time and the symbols instead of code.
+            Whether `run` keeps a NumPy function of time and the symbols instead of code.
+
+    Attributes:
+        code_:
+            The assignments of the repeated subexpressions and the code of every expression of the last run, or the
+            NumPy function `f(t, *symbols)` of the expressions for a compiled printer.
 
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.problems import ExpressionPrinter
         >>> from skcomplex.engine._utils import symbol
         >>> t, x = symbol('t'), symbol('x')
-        >>> ExpressionPrinter().check().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2])
+        >>> ExpressionPrinter().check().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2]).code_
         ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
-        >>> ExpressionPrinter(time=t, compiled=True).check().prepare([x]).run([t * x, x**2])(2.0, np.array([1.0, 3.0]))
+        >>> printer = ExpressionPrinter(time=t, compiled=True).check().prepare([x])
+        >>> printer.run([t * x, x**2]).code_(2.0, np.array([1.0, 3.0]))
         [array([2., 6.]), array([1., 9.])]
     """
+
+    code_: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]]
 
     def __init__(
         self,
@@ -120,20 +128,12 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         else:
             self.names_ = self.names or str
 
-    def _run(
-        self,
-        inputs: Sequence[Expression] | None,
-    ) -> tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]]:
-        """Return the assignments and the code of the expressions, or the NumPy function of a compiled printer.
+    def _run(self, inputs: Sequence[Expression] | None) -> None:
+        """Set the assignments and the code of the expressions, or the NumPy function of a compiled printer.
 
         Args:
             inputs:
                 The expressions.
-
-        Returns:
-            printed:
-                The assignments of the repeated subexpressions and the code of every expression, or the NumPy function
-                `f(t, *symbols)` of the expressions for a compiled printer.
 
         Raises:
             ValidationError:
@@ -164,17 +164,17 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         for expression in expressions if self.shared else ():
             bind(expression)
         codes = [self._print(expression).code for expression in expressions]
-        if not self.compiled:
-            return assignments, codes
-        return self._function(assignments, codes)
+        self.code_ = self._function(assignments, codes) if self.compiled else (assignments, codes)
 
     @staticmethod
-    def _function_of(printed: object) -> Callable[..., object]:
-        """Return the NumPy function a compiled printer returned from `run`.
+    def _function_of(
+        printed: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]],
+    ) -> Callable[..., list[object]]:
+        """Return the NumPy function a compiled printer kept in `code_`.
 
         Args:
             printed:
-                What `run` of a compiled printer returned.
+                The `code_` of a compiled printer.
 
         Returns:
             function:
@@ -182,9 +182,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
         Raises:
             TypeError:
-                The printer was not compiled, so it returned code instead of a function.
+                The printer was not compiled, so it kept code instead of a function.
         """
-        if not callable(printed):
+        if isinstance(printed, tuple):
             error_msg = f'A compiled printer returns a function, not a {type(printed).__name__}.'
             raise TypeError(error_msg)
         return printed

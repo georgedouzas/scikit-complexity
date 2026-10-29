@@ -18,8 +18,8 @@ _ROW_TOLERANCE = 1e-9
 class MarkovKernel(BaseKernel):
     """Transition or emission matrix of a Markov law, evaluated from the parameters to check its rows.
 
-    `run(state)` returns the description of the first negative entry or row that does not sum to one at the parameters
-    of the state, or `None` when every matrix is stochastic.
+    `run(state)` keeps in `values_` the description of the first negative entry or row that does not sum to one at the
+    parameters of the state, or `None` when every matrix is stochastic.
 
     Args:
         law:
@@ -30,7 +30,13 @@ class MarkovKernel(BaseKernel):
 
         reads:
             The indices of the parameter vector the matrix reads.
+
+    Attributes:
+        values_:
+            The description of what is wrong with the matrix at the last run, or `None`.
     """
+
+    values_: str | None
 
     def __init__(
         self,
@@ -42,9 +48,12 @@ class MarkovKernel(BaseKernel):
         self.function = function
         self.reads = reads
 
-    def _run(self, inputs: RunStateSpec | None) -> str | None:
-        """Return the description of what is wrong with the matrix at the parameters, or `None`."""
-        state = self._state_of(inputs)
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the description of what is wrong with the matrix at the parameters, or `None`."""
+        self.values_ = self._problem(self._state_of(inputs))
+
+    def _problem(self, state: RunStateSpec) -> str | None:
+        """Return the description of what is wrong with the matrix at the parameters of a state, or `None`."""
         values = self.function(state.p)
         for member, matrix in enumerate(values):
             where = f' of member {member}' if values.shape[0] > 1 else ''

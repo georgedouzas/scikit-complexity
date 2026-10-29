@@ -34,8 +34,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     """Printer of the kernels and reductions of a problem as the source of fused Numba functions.
 
     `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
-    `None`, and `run(parts)` prints the kernels of every law kind and returns the source lines. A part is the label of
-    the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
+    `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label
+    of the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
     reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
     returns the array of the starts and rows of the entries it reads.
 
@@ -45,7 +45,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             parallel threads.
 
     Attributes:
-        lines_:
+        code_:
             The printed source lines.
 
         slots_:
@@ -58,28 +58,26 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             The integer data appended to the layout, by name.
     """
 
+    code_: list[str]
+
     def __init__(self, parallel: bool = False) -> None:
         self.parallel = parallel
 
     def _prepare(self, context: ReductionScheduleSpec | None) -> None:
         """Start an empty source and print the function that fuses the reductions, unless there are none."""
-        self.lines_: list[str] = []
+        self.code_ = []
         self.slots_: dict[str, int] = {}
         self.functions_: dict[str, object] = {}
         self.data_: dict[str, np.ndarray] = {}
         if context is not None and context.steps:
             self._reduce_function(context, self.parallel)
 
-    def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> list[str]:
-        """Print the kernels of every part, each part with its entry function, and return the source lines.
+    def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> None:
+        """Print the kernels of every part, each part with its entry function, into the source lines.
 
         Args:
             inputs:
                 The parts: the label of the entry function, its mode, the kernels, and whether they read reductions.
-
-        Returns:
-            lines:
-                The source lines.
 
         Raises:
             ValidationError:
@@ -101,7 +99,6 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
                 names.append(name)
             size = ' + '.join(self._output_count(kernel) for kernel in kernels) or '0'
             self._entry_function(label, names, mode, size, reduced=reduced)
-        return self.lines_
 
     def _is_parallel(self, kernel: LawKernel) -> bool:
         """Check whether a kernel runs in parallel threads: over groups of at least 1000 members."""
@@ -226,13 +223,13 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
         Raises:
             TypeError:
-                The printer returns a compiled function instead of code.
+                The printer keeps a compiled function instead of code.
         """
-        result = printer.run(expressions)
-        if not isinstance(result, tuple):
-            error_msg = f'The printer returns assignments and codes, not a {type(result).__name__}.'
+        printed = printer.run(expressions).code_
+        if not isinstance(printed, tuple):
+            error_msg = f'The printer keeps assignments and codes, not a {type(printed).__name__}.'
             raise TypeError(error_msg)
-        assignments, codes = result
+        assignments, codes = printed
         return assignments, codes
 
     @staticmethod
@@ -522,7 +519,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             target = self._target_of(kernel.outputs[index])
             lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
-        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
+        self.code_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _pair_kernel(self, kernel: LawKernel, name: str, parallel: bool) -> None:
         """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
@@ -559,7 +556,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         period = pairs.period if pairs.period is not None else 1.0
         text = '\n'.join(NumbaPrinter._hoist_layout(lines)).replace('PERIODIC', str(pairs.period is not None))
         text = text.replace('PERIOD', repr(float(period)))
-        self.lines_ += ['', '', text]
+        self.code_ += ['', '', text]
 
     def _edge_kernel(self, kernel: LawKernel, name: str, mode: str) -> None:
         """Add the source of a kernel evaluated once per edge, whose laws read the ends and the edge member."""
@@ -599,7 +596,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             target = self._target_of(kernel.outputs[index])
             lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
-        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
+        self.code_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _entry_function(
         self,
@@ -621,7 +618,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
         lines += [f'{INDENT}offset = {kernel}(t, x, p, L, out, offset)' for kernel in kernels]
         lines.append(f'{INDENT}return out')
-        self.lines_ += ['', '', *lines]
+        self.code_ += ['', '', *lines]
 
     def _reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
         """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
@@ -869,4 +866,4 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             else:
                 lines += self._reduction_lines(reduction, index)
         lines.append(f'{INDENT}return p')
-        self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
+        self.code_ += ['', '', *NumbaPrinter._hoist_layout(lines)]

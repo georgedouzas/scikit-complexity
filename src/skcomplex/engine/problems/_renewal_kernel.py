@@ -30,8 +30,8 @@ _READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 class RenewalKernel(BaseKernel):
     """Renewal law compiled into the draws, resets, and waiting times of every member of its component.
 
-    `run(state)` returns the next renewal time of every member, drawn from the state at its time, and the solver that
-    keeps the renewal times renews the members that are due, at their own times.
+    `run(state)` keeps in `values_` the next renewal time of every member, drawn from the state at its time, and the
+    solver that keeps the renewal times renews the members that are due, at their own times.
 
     Args:
         label:
@@ -63,7 +63,13 @@ class RenewalKernel(BaseKernel):
 
         after:
             The draws of the waiting time alone, taken after the reset.
+
+    Attributes:
+        values_:
+            The next renewal time of every member of the last run.
     """
+
+    values_: Array
 
     def __init__(
         self,
@@ -149,15 +155,15 @@ class RenewalKernel(BaseKernel):
             raise SolverError(error_msg)
         return times + waiting
 
-    def _run(self, inputs: RunStateSpec | None) -> Array:
-        """Return the next renewal time of every member, drawn from the state as if every member renewed at its time."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the next renewal time of every member, drawn from the state as if every member renewed at its time."""
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
         fired = np.arange(self.members, dtype=np.intp)
         times = np.full(self.members, state.t)
         drawn: Drawn = {}
         self._sample(self.before, times, x, p, fired, drawn=drawn, rng=rng)
-        return self._wait(times, x, p, fired, drawn=drawn, rng=rng)
+        self.values_ = self._wait(times, x, p, fired, drawn=drawn, rng=rng)
 
     def _fire(
         self,

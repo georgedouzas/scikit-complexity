@@ -16,10 +16,14 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
     A kernel stores in its constructor what the compiler lowered, such as compiled functions and the indices they read.
     `check()` validates them, `prepare(problem)` sets what a run needs, such as the first renewal times, and
     `run(state)` acts at a `RunStateSpec`, the time, the state vector, the parameters, and the random number generator,
-    and returns what the kernel computes, such as the next state or a matrix.
+    and keeps what the kernel computes, such as the next state or a matrix, in `values_`.
 
     A developer adds a law kind by subclassing it, together with the pass that builds the kernel and a solver that runs
     it. A kernel takes any context to prepare on, since the problem that holds it is built from its kernels.
+
+    Attributes:
+        values_:
+            What the last run computed. Each kernel narrows its type.
 
     Examples:
         >>> import numpy as np
@@ -30,10 +34,12 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         ...         self.rate = rate
         ...
         ...     def _run(self, inputs):
-        ...         return -self.rate * inputs.x
-        >>> DecayKernel(0.5).check().prepare().run(RunStateSpec(0.0, np.array([2.0]), np.zeros(0))).tolist()
+        ...         self.values_ = -self.rate * inputs.x
+        >>> DecayKernel(0.5).check().prepare().run(RunStateSpec(0.0, np.array([2.0]), np.zeros(0))).values_.tolist()
         [-1.0]
     """
+
+    values_: object
 
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
@@ -81,9 +87,16 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 class BaseSearch(BaseConfig[None, RunStateSpec]):
     """Base of the neighbour searches: the neighbours a kernel reads at a state.
 
-    A search stores the entries and the neighbourhood it reads in its constructor, and `run(state)` returns the
-    neighbours at a `RunStateSpec`: the row starts and the neighbours of every member, or the members of every pair.
+    A search stores the entries and the neighbourhood it reads in its constructor, and `run(state)` keeps the
+    neighbours at a `RunStateSpec` in `pairs_`: the row starts and the neighbours of every member, or the members of
+    every pair.
+
+    Attributes:
+        pairs_:
+            The neighbours of the last run. Each search narrows its type.
     """
+
+    pairs_: object
 
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
@@ -111,6 +124,12 @@ class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of the printers: they print Sage expressions as code of one target.
 
     A printer stores its target in its constructor, `prepare(symbols)` takes the symbols the code reads, in order, and
-    `run(expressions)` returns the code of the expressions, or a function that evaluates them. A printer names the
-    types of the symbols it prepares on and of the expressions it prints, which differ between targets.
+    `run(expressions)` keeps the code of the expressions, or a function that evaluates them, in `code_`. A printer
+    names the types of the symbols it prepares on and of the expressions it prints, which differ between targets.
+
+    Attributes:
+        code_:
+            The code of the last run. Each printer narrows its type.
     """
+
+    code_: object

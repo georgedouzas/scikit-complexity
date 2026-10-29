@@ -21,7 +21,6 @@ from ...specs import (
 from ...types import Array, Pair
 from ._base import BaseKernel
 from ._compiled_request_spec import CompiledRequestSpec
-from ._law_kernel import LawKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 
 _NO_REDUCTIONS = ReductionScheduleSpec()
@@ -30,8 +29,8 @@ _NO_REDUCTIONS = ReductionScheduleSpec()
 class TopologyKernel(BaseKernel):
     """Topology requests of a problem, applied between steps to the rows of the variable groups of its networks.
 
-    `run(state)` fires the requests of update laws at the state and returns the state after them; the solver of jump
-    laws applies the request of every jump channel that fires.
+    `run(state)` fires the requests of update laws at the state and keeps the state after them in `values_`; the solver
+    of jump laws applies the request of every jump channel that fires.
 
     Args:
         networks:
@@ -45,7 +44,13 @@ class TopologyKernel(BaseKernel):
 
         reductions:
             The reductions the kernels of the requests read.
+
+    Attributes:
+        values_:
+            The state vector after the requests of the last run.
     """
+
+    values_: Array
 
     def __init__(
         self,
@@ -93,21 +98,21 @@ class TopologyKernel(BaseKernel):
         q = self.reductions.extend(t, x, p) if any(item.reads_reductions for item in conditions) else p
         fired = []
         for index, condition in enumerate(conditions):
-            _, _, values = LawKernel._result_of(condition.run(RunStateSpec(t, x, q)))
+            _, _, values = condition.run(RunStateSpec(t, x, q)).values_
             chances = np.clip(np.asarray(values[0], dtype=float), 0.0, 1.0)
             rows = np.flatnonzero(rng.random(chances.size) < chances)
             fired += [(index, int(row)) for row in rows]
         return fired
 
-    def _run(self, inputs: RunStateSpec | None) -> Array:
-        """Fire the requests of update laws at the state, apply them, and return the state after them.
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Fire the requests of update laws at the state, apply them, and set the state after them.
 
         The requests decide at the state which rows fire, and the fired requests change a copy of the state vector and
         the parameter vector of the state in place.
         """
         state = self._state_of(inputs)
         t, x, p, rng = state.t, state.x, state.p, self._generator_of(state)
-        return self._apply(self._decide(t, x, p, rng), t, x, p, rng)
+        self.values_ = self._apply(self._decide(t, x, p, rng), t, x, p, rng)
 
     def _apply(self, fired: list[tuple[int, int]], t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
         """Apply fired requests of update laws to a copy of a state and to the parameters in place."""
@@ -194,7 +199,7 @@ class TopologyKernel(BaseKernel):
         size = item.network.nodes[0].active.rows
         if item.toward is None:
             return np.ones(size)
-        _, _, values = LawKernel._result_of(item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p))))
+        _, _, values = item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p))).values_
         weights = np.broadcast_to(np.asarray(values[0], dtype=float), (size,))
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
