@@ -55,7 +55,7 @@ from ...core.spaces import (
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
-from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec, SourceLoader
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -557,7 +557,7 @@ class NumbaBackend(BaseBackend):
         """
         cached = text.replace('cache=CACHE', f'cache={not functions}')
         source = f'# Compiled helpers: {HELPERS_FINGERPRINT}\n{cached}'
-        return NumbaBackend._load_source('skcomplex_kernels', source, functions, cache_dir)
+        return SourceLoader('skcomplex_kernels', functions).check().prepare(cache_dir).run(source).module_
 
 
 HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()

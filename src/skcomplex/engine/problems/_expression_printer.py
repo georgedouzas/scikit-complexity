@@ -19,6 +19,7 @@ from ...specs._dialect_spec import DIALECTS
 from ..types import Number, PrintedKey
 from ._base import BasePrinter
 from ._printed_spec import PrintedSpec
+from ._source_loader import SourceLoader
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
 _CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
@@ -216,8 +217,8 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
-        module = self._load_source('skcomplex_functions', _IMPORTS + '\n'.join(lines) + '\n', {}, None)
-        function: Callable[..., list[object]] = module._function
+        loader = SourceLoader('skcomplex_functions').check().prepare()
+        function: Callable[..., list[object]] = loader.run(_IMPORTS + '\n'.join(lines) + '\n').module_._function
         return function
 
     def _wrap(self, printed: PrintedSpec, precedence: int) -> str:

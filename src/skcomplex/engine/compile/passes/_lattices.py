@@ -39,7 +39,7 @@ from ....specs import (
 )
 from ....types import Array, Indices
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec
+from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, SourceLoader
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._monte_carlo_kernel import MonteCarloKernel
@@ -333,7 +333,7 @@ class LatticeProblemPass(BasePass):
             return None
         source = 'import numpy as np\n\n\n' + LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
         functions = {'rule': numba.njit(error_model='numpy')(rule)}
-        module = LatticeProblemPass._load_source('skcomplex_loops', source, functions, None)
+        module = SourceLoader('skcomplex_loops', functions).check().prepare().run(source).module_
         loop = numba.njit(module.loop)
         end = max(state.start + state.size for state in (*targets, key))
         width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)

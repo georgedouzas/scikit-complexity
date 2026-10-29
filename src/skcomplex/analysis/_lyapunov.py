@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
 from ..core.system import System
-from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec
+from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec, SourceLoader
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -327,7 +327,7 @@ class LyapunovAnalysis(BaseAnalysis):
         lines.append('    return out')
         source = '\n'.join(lines) + '\n'
         if source not in FUNCTIONS:
-            module = LyapunovAnalysis._load_source('skcomplex_lyapunov', source, {}, None)
+            module = SourceLoader('skcomplex_lyapunov').check().prepare().run(source).module_
             FUNCTIONS[source] = numba.njit(getattr(module, name))
         return FUNCTIONS[source]
 
