@@ -14,9 +14,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._saver_view import SaverView
 
 
 class SaverElement(Element):
@@ -25,6 +26,9 @@ class SaverElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         wealth:
             The initial wealth, negative down to the debt limit.
@@ -45,6 +49,11 @@ class SaverElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.wealth = wealth
+
+    @classmethod
+    def _get_view(cls) -> type[SaverView]:
+        """Return the view of a saver, with its wealth."""
+        return SaverView
 
 
 class SavingExchangeInteraction(Interaction):
@@ -102,7 +111,7 @@ class SavingExchangeInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('traders', AgentView)
+        agents = model.agents('traders', SaverView)
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         saving = model.parameter('saving')
         pairs = model.rng.integers(len(agents), size=(len(agents), 2))
@@ -176,7 +185,7 @@ class DebtExchangeInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('traders', AgentView)
+        agents = model.agents('traders', SaverView)
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         floor, amount = -model.parameter('debt'), model.parameter('amount')
         for payer, payee in model.rng.integers(len(agents), size=(len(agents), 2)):

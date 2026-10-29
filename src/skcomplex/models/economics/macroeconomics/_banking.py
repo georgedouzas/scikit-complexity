@@ -38,26 +38,26 @@ class DepositorElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        bank:
+            The index of the customer's bank.
+
+        deposit:
+            The deposit at the bank.
+
+        loan:
+            The loan owed to the bank.
+
+        spending:
+            The share of the deposit paid to a random customer every step.
+
+        repayment:
+            The share of the loan repaid every step.
+
         lenders:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            bank:
-                The index of the customer's bank.
-
-            deposit:
-                The deposit at the bank.
-
-            loan:
-                The loan owed to the bank.
-
-            spending:
-                The share of the deposit paid to a random customer every step.
-
-            repayment:
-                The share of the loan repaid every step.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import DepositorElement
@@ -150,26 +150,26 @@ class ReserveBankElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        index:
+            The index of the bank.
+
+        reserves:
+            The reserves of the bank.
+
+        deposits:
+            The deposits of its customers.
+
+        loans:
+            The loans to its customers.
+
+        reserve_ratio:
+            The required ratio of reserves to deposits.
+
         customers:
             The path of the group of customers.
-
-        **values:
-            The values of the declared variables, by name:
-
-            index:
-                The index of the bank.
-
-            reserves:
-                The reserves of the bank.
-
-            deposits:
-                The deposits of its customers.
-
-            loans:
-                The loans to its customers.
-
-            reserve_ratio:
-                The required ratio of reserves to deposits.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import ReserveBankElement
@@ -243,26 +243,23 @@ class RegulatorInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
+        rule:
+            Unused, the regulator overrides `act`.
+
+        phase:
+            The phase the regulator acts in, or `None` for the default phase.
+
+        ratio:
+            The reserve ratio before the change.
+
+        new_ratio:
+            The reserve ratio after the change.
+
+        change_at:
+            The time of the change.
+
         banks:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            rule:
-                Unused, the regulator overrides `act`.
-
-            phase:
-                The phase the regulator acts in, or `None` for the default phase.
-
-            ratio:
-                The reserve ratio before the change.
-
-            new_ratio:
-                The reserve ratio after the change.
-
-            change_at:
-                The time of the change.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import RegulatorInteraction
@@ -274,7 +271,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         new_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,

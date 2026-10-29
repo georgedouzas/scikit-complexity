@@ -120,6 +120,87 @@ class HilsaElement(Element):
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
+
+        eggs:
+            The eggs in the nests, in millions of fish.
+
+        larvae:
+            The larvae in the rivers, in millions of fish.
+
+        juveniles:
+            The juveniles in the rivers, in millions of fish.
+
+        yearlings:
+            The fish in their first year in the ocean, in millions of fish.
+
+        adults:
+            The fish in their second year in the ocean, in millions of fish.
+
+        migrants:
+            The adults migrating back to the rivers, in millions of fish.
+
+        spawners:
+            The adults about to spawn, in millions of fish.
+
+        female_fraction:
+            The fraction of the spawners that are female and build a nest.
+
+        eggs_per_nest:
+            The number of eggs per nest.
+
+        max_nests:
+            The most nests the spawning grounds hold.
+
+        spawning_time:
+            The duration of the spawning, in months.
+
+        hatching_time:
+            The time the eggs take to hatch, in months.
+
+        larval_time:
+            The time the larvae take to become juveniles, in months.
+
+        river_time:
+            The time the juveniles stay in the rivers, in months.
+
+        ocean_time:
+            The time the fish spend in their first year in the ocean, in months.
+
+        adult_ocean_time:
+            The time the fish spend in their second year in the ocean, in months.
+
+        migration_time:
+            The time the migration back to the rivers takes, in months.
+
+        egg_loss:
+            The fraction of the eggs lost to natural mortality.
+
+        larval_loss:
+            The fraction of the larvae lost to natural mortality.
+
+        juvenile_loss:
+            The fraction of the juveniles lost to natural mortality.
+
+        first_year_loss:
+            The fraction of the fish lost to natural mortality in their first year in the ocean.
+
+        second_year_loss:
+            The fraction of the fish lost to natural mortality in their second year in the ocean.
+
+        migration_loss:
+            The fraction of the adults lost during their migration to the rivers.
+
+        juvenile_harvest:
+            The fraction of the juveniles leaving the rivers that the fishery catches.
+
+        adult_harvest:
+            The fraction of the adults about to spawn that the fishery catches.
+
+        weight_per_adult:
+            The weight of an adult, in kilograms.
+
+        weight_per_juvenile:
+            The weight of a juvenile, in kilograms.
     """
 
     def __init__(

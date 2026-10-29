@@ -54,6 +54,9 @@ class SpeculatorElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         first:
             The code of the first strategy.
 
@@ -113,20 +116,17 @@ class MinorityGameInteraction(Interaction):
         label:
             The label of the interaction.
 
+        players:
+            The path of the group of agents.
+
+        fraction:
+            The fraction of poorest agents that take new strategies at an evolution.
+
         memory:
             The memory `m`, the number of past winning sides the strategies read.
 
         period:
             The number of rounds between two evolutions, or 0 for no evolution.
-
-        **values:
-            The values of the declared variables, by name:
-
-            players:
-                The path of the group of agents.
-
-            fraction:
-                The fraction of poorest agents that take new strategies at an evolution.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import MinorityGameInteraction

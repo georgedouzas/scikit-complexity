@@ -47,6 +47,9 @@ class HarvestedResourceElement(Element):
         label:
             The label of the resource.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial stock.
 

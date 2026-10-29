@@ -57,6 +57,9 @@ class BankElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         h:
             The level of distress, between 0 and 1, where 1 is default.
 
@@ -110,14 +113,11 @@ class DebtRankCascadeInteraction(Interaction):
         label:
             The label of the interaction.
 
+        banks:
+            The path of the group of banks.
+
         impact:
             The impact matrix, `impact[i][j]` the relative loss of `j` when `i` defaults.
-
-        **values:
-            The values of the declared variables, by name:
-
-            banks:
-                The path of the group of banks.
 
     Examples:
         >>> from skcomplex.models.economics.finance import DebtRankCascadeInteraction

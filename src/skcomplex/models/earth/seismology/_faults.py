@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -32,17 +32,17 @@ class FaultElement(Element):
         label:
             The label of the block or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        force:
+            The initial force.
+
+        alpha:
+            The fraction of force passed to each neighbour.
+
         threshold:
             The force at which a block slips.
-
-        **values:
-            The values of the declared variables, by name:
-
-            force:
-                The initial force.
-
-            alpha:
-                The fraction of force passed to each neighbour.
 
     Examples:
         >>> from skcomplex.models.earth.seismology import FaultElement
@@ -82,7 +82,7 @@ class FaultElement(Element):
             following[np.unravel_index(np.argmax(force), force.shape)] = threshold
             return following
 
-        def slip(force: Array, *around: Array, alpha: Any) -> Array:  # noqa: ANN401
+        def slip(force: Array, *around: Array, alpha: float | Array) -> Array:
             passed = sum(np.where(item >= threshold, item, 0.0) for item in around)
             return np.where(force >= threshold, 0.0, force) + alpha * passed
 

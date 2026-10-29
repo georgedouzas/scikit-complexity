@@ -89,6 +89,9 @@ class PastureElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         grass:
             The grass on the cell.
 
@@ -158,6 +161,9 @@ class CowElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         owner:
             The number of the herder that owns the cow.
 
@@ -202,6 +208,9 @@ class HerderElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         number:
             The number of the herder, which its cows record as their owner.
@@ -407,7 +416,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         regulated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,

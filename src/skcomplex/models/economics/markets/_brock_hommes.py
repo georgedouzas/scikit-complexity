@@ -28,20 +28,20 @@ class SpeculatorElement(Element):
     """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
 
     The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
-    pricing institution, zero before its first report.
+    pricing institution, zero before its first report. The class attribute `pricing` names that institution.
 
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         predictor:
             The index of the heuristic in use.
 
         intensity:
             The intensity of choice `beta`.
-
-        pricing:
-            The label of the pricing institution whose fitness reporters the trader reads.
 
     Examples:
         >>> from skcomplex.models.economics.markets import SpeculatorElement
@@ -111,14 +111,14 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
-        traders:
-            The path of the group of traders.
-
         rule:
             Unused, since the institution overrides `act`.
 
         phase:
             The phase the institution clears in.
+
+        traders:
+            The path of the group of traders.
 
         rate:
             The gross return `R` of the riskless asset.
@@ -150,7 +150,7 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         traders: Annotated[str, RoleSpec()],
         rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,

@@ -29,6 +29,9 @@ class DinerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         restaurant:
             The restaurant chosen last, from 0 to the number of restaurants minus one.
 
@@ -141,14 +144,11 @@ class RestaurantsInteraction(Interaction):
         label:
             The label of the interaction.
 
+        diners:
+            The path of the group of diners.
+
         n_restaurants:
             The number of restaurants.
-
-        **values:
-            The values of the declared variables, by name:
-
-            diners:
-                The path of the group of diners.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import RestaurantsInteraction

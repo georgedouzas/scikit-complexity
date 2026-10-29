@@ -10,17 +10,17 @@ import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, ClassVar, Self
 
 import numpy as np
 from matching.games import HospitalResident
 
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
-from .....engine.solvers import AgentView
+from .....engine.solvers import AgentView, ModelView
 from .....specs import RoleSpec
 
-type Preference = Callable[[Any, Any], float]
+type Preference = Callable[[AgentView, AgentView], float]
 
 PRICINGS = ('midpoint', 'bid', 'ask')
 ORDERS = ('random', 'bid', 'sequential')
@@ -44,7 +44,7 @@ class Order:
             The money a buyer can still spend, infinite without a money state.
     """
 
-    agent: Any
+    agent: AgentView
     limit: float
     quantity: float
     budget: float = math.inf
@@ -74,8 +74,8 @@ class Trade:
             The price per unit.
     """
 
-    buyer: Any
-    seller: Any
+    buyer: AgentView
+    seller: AgentView
     quantity: float
     price: float
 
@@ -110,8 +110,8 @@ def _check_option(value: str, allowed: tuple[str, ...], name: str) -> None:
 class Protocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
-    Subclasses implement `match(buyers, sellers, model)`, which receives the orders of the participants with something
-    to trade and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which raises
+    Subclasses implement `match(buyers, sellers, rng, storage)`, which receives the orders of the participants with
+    something to trade, the random generator, and a storage that persists across clearings, and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which raises
     an error for an invalid option. A protocol's `evaluate` is also a pairing of the core's matching law: given the
     buyers and sellers, it reads their orders from the states `bid`, `demand`, and `money` of buyers and `ask` and
     `supply` of sellers, and returns the trades, whose `buyer` and `seller` are the paired agents.
@@ -136,11 +136,11 @@ class Protocol:
 
     def evaluate(
         self,
-        left: Sequence[Any],
-        right: Sequence[Any],
+        left: Sequence[object],
+        right: Sequence[object],
         rng: np.random.Generator,
         capacity: int,
-    ) -> list[Any]:
+    ) -> list[Trade]:
         """Return the trades between buyers and sellers, as a pairing of the matching law.
 
         Args:
@@ -163,14 +163,24 @@ class Protocol:
         buyers = [
             Order(agent, _read(agent, 'bid', math.inf), _read(agent, 'demand', 1.0), _read(agent, 'money', math.inf))
             for agent in left
+            if isinstance(agent, AgentView)
         ]
-        sellers = [Order(agent, _read(agent, 'ask', 0.0), _read(agent, 'supply', 1.0)) for agent in right]
+        sellers = [
+            Order(agent, _read(agent, 'ask', 0.0), _read(agent, 'supply', 1.0))
+            for agent in right
+            if isinstance(agent, AgentView)
+        ]
         buyers = [order for order in buyers if order.quantity > 0]
         sellers = [order for order in sellers if order.quantity > 0]
-        model = SimpleNamespace(rng=rng, storage={})
-        return self.match(buyers, sellers, model) if buyers and sellers else []
+        return self.match(buyers, sellers, rng, {}) if buyers and sellers else []
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades between buyers and sellers.
 
         Args:
@@ -180,8 +190,11 @@ class Protocol:
             sellers:
                 The orders of the sellers.
 
-            model:
-                The model view of the market.
+            rng:
+                The random generator, such as `model.rng`.
+
+            storage:
+                The storage of the market that persists across clearings, such as `model.storage`.
 
         Returns:
             trades:
@@ -218,16 +231,22 @@ class BilateralSearch(Protocol):
         _check_option(self.pricing, PRICINGS, 'pricing')
         return self
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades of random meetings."""
         trades: list[Trade] = []
-        for index in model.rng.permutation(len(buyers)):
+        for index in rng.permutation(len(buyers)):
             buyer = buyers[index]
             for _ in range(self.tries):
                 available = [seller for seller in sellers if seller.quantity > 0]
                 if buyer.quantity <= 0 or not available:
                     break
-                seller = available[int(model.rng.integers(len(available)))]
+                seller = available[int(rng.integers(len(available)))]
                 if seller.limit <= buyer.limit:
                     _book(trades, buyer, seller, _price(buyer, seller, self.pricing))
         return trades
@@ -265,16 +284,22 @@ class SampleAndSwitch(Protocol):
     intensity: float = 1.0
     partner: str = 'partner'
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades of every buyer with its kept or new partner."""
         trades: list[Trade] = []
         by_id = {seller.agent.id: seller for seller in sellers}
-        for index in model.rng.permutation(len(buyers)):
+        for index in rng.permutation(len(buyers)):
             buyer = buyers[index]
             available = [seller for seller in sellers if seller.quantity > 0]
             if not available:
                 break
-            picks = model.rng.choice(len(available), size=min(self.sample, len(available)), replace=False)
+            picks = rng.choice(len(available), size=min(self.sample, len(available)), replace=False)
             best = min((available[int(pick)] for pick in picks), key=lambda seller: seller.limit)
             current = by_id.get(int(_read(buyer.agent, self.partner, -1)))
             chosen = best
@@ -282,7 +307,7 @@ class SampleAndSwitch(Protocol):
                 chosen = current
             elif current is not None and current.quantity > 0 and best.limit > 0:
                 switching = 1 - math.exp(self.intensity * (best.limit - current.limit) / best.limit)
-                chosen = best if model.rng.random() < switching else current
+                chosen = best if rng.random() < switching else current
             _write(buyer.agent, self.partner, chosen.agent.id)
             if chosen.limit <= buyer.limit:
                 _book(trades, buyer, chosen, chosen.limit)
@@ -313,9 +338,15 @@ class RationedQueue(Protocol):
         _check_option(self.order, ORDERS, 'order')
         return self
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades of the queue."""
-        queue = _ordered(buyers, self.order, model)
+        queue = _ordered(buyers, self.order, rng)
         stock = sorted(sellers, key=lambda seller: seller.limit)
         trades: list[Trade] = []
         for buyer in queue:
@@ -327,20 +358,20 @@ class RationedQueue(Protocol):
         return trades
 
 
-def _ordered(orders: list[Order], order: str, model: Any) -> list[Order]:  # noqa: ANN401
+def _ordered(orders: list[Order], order: str, rng: np.random.Generator) -> list[Order]:
     """Return orders in random order, by decreasing limit, or in order of creation."""
     if order == 'bid':
         return sorted(orders, key=lambda item: (-item.limit, item.agent.id))
     if order == 'sequential':
         return sorted(orders, key=lambda item: item.agent.id)
-    return [orders[index] for index in model.rng.permutation(len(orders))]
+    return [orders[index] for index in rng.permutation(len(orders))]
 
 
-def _clear_at(buyers: list[Order], sellers: list[Order], price: float, model: Any) -> list[Trade]:  # noqa: ANN401
+def _clear_at(buyers: list[Order], sellers: list[Order], price: float, rng: np.random.Generator) -> list[Trade]:
     """Return the trades at one price between the willing buyers and sellers in random order."""
     trades: list[Trade] = []
-    willing_buyers = _ordered([buyer for buyer in buyers if buyer.limit >= price], 'random', model)
-    willing_sellers = _ordered([seller for seller in sellers if seller.limit <= price], 'random', model)
+    willing_buyers = _ordered([buyer for buyer in buyers if buyer.limit >= price], 'random', rng)
+    willing_sellers = _ordered([seller for seller in sellers if seller.limit <= price], 'random', rng)
     pairs = iter(willing_sellers)
     seller = next(pairs, None)
     for buyer in willing_buyers:
@@ -407,16 +438,22 @@ class Walrasian(Protocol):
             price *= 1 + self.adjustment * (demand - supply) / total
         return price
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades at the price of the tâtonnement."""
         limits = [order.limit for order in buyers + sellers if order.limit > 0]
         if not limits:
             return []
-        last = model.storage.get('price', math.nan)
-        start = last if math.isfinite(last) and last > 0 else float(np.median(limits))
+        last = storage.get('price')
+        start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(limits))
         price = self.price(buyers, sellers, start)
-        model.storage['price'] = price
-        return _clear_at(buyers, sellers, price, model)
+        storage['price'] = price
+        return _clear_at(buyers, sellers, price, rng)
 
 
 @dataclass(frozen=True)
@@ -445,13 +482,19 @@ class OrderBook(Protocol):
         _check_option(self.arrival, ('random', 'sequential'), 'arrival')
         return self
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades of the continuous double auction."""
         orders = [(order, True) for order in buyers] + [(order, False) for order in sellers]
         if self.arrival == 'sequential':
             orders.sort(key=lambda item: item[0].agent.id)
         else:
-            orders = [orders[index] for index in model.rng.permutation(len(orders))]
+            orders = [orders[index] for index in rng.permutation(len(orders))]
         bids: list[tuple[float, int, Order]] = []
         asks: list[tuple[float, int, Order]] = []
         trades: list[Trade] = []
@@ -488,7 +531,13 @@ class CallAuction(Protocol):
         CallAuction()
     """
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades at the uniform clearing price."""
         bids = sorted(buyers, key=lambda order: (-order.limit, order.agent.id))
         asks = sorted(sellers, key=lambda order: (order.limit, order.agent.id))
@@ -518,13 +567,13 @@ class CallAuction(Protocol):
         return trades
 
 
-def _cheaper(buyer: Any, seller: Any) -> float:  # noqa: ANN401
+def _cheaper(buyer: AgentView, seller: AgentView) -> float:
     """Return the preference of a buyer for a seller, higher for a lower ask."""
     del buyer
     return -_read(seller, 'ask', 0.0)
 
 
-def _richer(seller: Any, buyer: Any) -> float:  # noqa: ANN401
+def _richer(seller: AgentView, buyer: AgentView) -> float:
     """Return the preference of a seller for a buyer, higher for a higher bid."""
     del seller
     return _read(buyer, 'bid', 0.0)
@@ -564,9 +613,15 @@ class DeferredAcceptance(Protocol):
         _check_option(self.pricing, PRICINGS, 'pricing')
         return self
 
-    def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
+    def match(
+        self,
+        buyers: list[Order],
+        sellers: list[Order],
+        rng: np.random.Generator,
+        storage: dict[str, object],
+    ) -> list[Trade]:
         """Return the trades of the stable matching."""
-        del model
+        del rng, storage
         rank_seller = self.buyer_preference or _cheaper
         rank_buyer = self.seller_preference or _richer
         capacities = {seller.agent.id: int(seller.quantity) for seller in sellers if int(seller.quantity) > 0}
@@ -609,7 +664,7 @@ class DeferredAcceptance(Protocol):
         return trades
 
 
-def _has(agent: Any, name: str | None) -> bool:  # noqa: ANN401
+def _has(agent: AgentView, name: str | None) -> bool:
     """Check whether an agent has a state or parameter."""
     if name is None:
         return False
@@ -620,12 +675,12 @@ def _has(agent: Any, name: str | None) -> bool:  # noqa: ANN401
     return True
 
 
-def _read(agent: Any, name: str | None, default: float) -> float:  # noqa: ANN401
+def _read(agent: AgentView, name: str | None, default: float) -> float:
     """Return a state or parameter of an agent, or a default when it has none."""
     return float(getattr(agent, name)) if name is not None and _has(agent, name) else default
 
 
-def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
+def _write(agent: AgentView, name: str | None, value: float) -> None:
     """Set a state of an agent when it has one."""
     if name is not None and _has(agent, name):
         setattr(agent, name, value)
@@ -646,6 +701,12 @@ class MarketInteraction(Interaction):
     Args:
         label:
             The label of the market.
+
+        buyers:
+            The path of the group of buyers.
+
+        sellers:
+            The path of the group of sellers.
 
         protocol:
             The protocol that matches the participants, such as `OrderBook()`.
@@ -674,15 +735,6 @@ class MarketInteraction(Interaction):
         on_trade:
             A function of every trade and the model view, run after the transfers, or `None`.
 
-        **values:
-            The values of the declared variables, by name:
-
-            buyers:
-                The path of the group of buyers.
-
-            sellers:
-                The path of the group of sellers.
-
     Examples:
         >>> from skcomplex.models.economics.common.markets import MarketInteraction, OrderBook
         >>> MarketInteraction('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
@@ -705,7 +757,7 @@ class MarketInteraction(Interaction):
         supply: str = 'supply',
         money: str | None = 'money',
         goods: str | None = 'goods',
-        on_trade: Callable[[Trade, Any], None] | None = None,
+        on_trade: Callable[[Trade, ModelView], None] | None = None,
     ) -> None:
         super().__init__(label)
         self.buyers = buyers
@@ -739,7 +791,7 @@ class MarketInteraction(Interaction):
         """
         return [RuleLaw(self.clear, phase=self.phase)]
 
-    def orders(self, model: Any) -> tuple[list[Order], list[Order]]:  # noqa: ANN401
+    def orders(self, model: ModelView) -> tuple[list[Order], list[Order]]:
         """Return the orders of the buyers and the sellers with something to trade.
 
         Args:
@@ -765,7 +817,7 @@ class MarketInteraction(Interaction):
         ]
         return [order for order in buyers if order.quantity > 0], [order for order in sellers if order.quantity > 0]
 
-    def settle(self, trade: Trade, model: Any) -> None:  # noqa: ANN401
+    def settle(self, trade: Trade, model: ModelView) -> None:
         """Transfer money and goods of a trade and lower the demand and supply.
 
         Args:
@@ -789,7 +841,7 @@ class MarketInteraction(Interaction):
         if self.on_trade is not None:
             self.on_trade(trade, model)
 
-    def clear(self, model: Any) -> None:  # noqa: ANN401
+    def clear(self, model: ModelView) -> None:
         """Match the participants, settle the trades, and report the price, the volume, and the unmatched quantity.
 
         Args:
@@ -797,7 +849,7 @@ class MarketInteraction(Interaction):
                 The model view of the market.
         """
         buyers, sellers = self.orders(model)
-        trades = self.protocol.match(buyers, sellers, model) if buyers and sellers else []
+        trades = self.protocol.match(buyers, sellers, model.rng, model.storage) if buyers and sellers else []
         for trade in trades:
             self.settle(trade, model)
         volume = sum(trade.quantity for trade in trades)
@@ -808,7 +860,7 @@ class MarketInteraction(Interaction):
         model.report('unmatched', unmatched)
 
 
-def total_surplus(trades: Sequence[Trade], value: Callable[[Any], float], cost: Callable[[Any], float]) -> float:
+def total_surplus(trades: Sequence[Trade], value: Callable[[AgentView], float], cost: Callable[[AgentView], float]) -> float:
     """Return the surplus of trades, the buyers' values minus the sellers' costs of the traded units.
 
     Args:

@@ -53,50 +53,50 @@ class FirmElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        net_worth:
+            The initial net worth.
+
+        demand:
+            The loan still wanted in the current step.
+
+        bid:
+            The highest interest rate the firm pays.
+
+        loan:
+            The loan of the current step.
+
+        rate:
+            The interest rate of the loan, zero without a loan.
+
+        partner:
+            The id of the bank of the firm, `-1` before its first loan.
+
+        gross_return:
+            The return on the capital of the last step.
+
+        injected:
+            The net worth of an entrant that replaced the firm in the last step, zero otherwise.
+
+        defaulted:
+            Whether the firm defaulted in the last step.
+
+        leverage:
+            The ratio of the loan wanted to the net worth.
+
+        mean_return:
+            The mean return on capital.
+
+        volatility:
+            The standard deviation of the return on capital.
+
+        entry:
+            The net worth of an entrant.
+
         lenders:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            net_worth:
-                The initial net worth.
-
-            demand:
-                The loan still wanted in the current step.
-
-            bid:
-                The highest interest rate the firm pays.
-
-            loan:
-                The loan of the current step.
-
-            rate:
-                The interest rate of the loan, zero without a loan.
-
-            partner:
-                The id of the bank of the firm, `-1` before its first loan.
-
-            gross_return:
-                The return on the capital of the last step.
-
-            injected:
-                The net worth of an entrant that replaced the firm in the last step, zero otherwise.
-
-            defaulted:
-                Whether the firm defaulted in the last step.
-
-            leverage:
-                The ratio of the loan wanted to the net worth.
-
-            mean_return:
-                The mean return on capital.
-
-            volatility:
-                The standard deviation of the return on capital.
-
-            entry:
-                The net worth of an entrant.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import FirmElement
@@ -201,6 +201,9 @@ class BankElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         equity:
             The initial equity.

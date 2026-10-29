@@ -204,6 +204,9 @@ class WealthClassElement(Element):
         label:
             The label of the distribution.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         f:
             The initial density.
 

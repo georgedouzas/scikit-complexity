@@ -3,9 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -13,9 +12,9 @@ from scipy.special import softmax
 
 from .....types import Array
 
-type Score = str | Callable[[Any], float]
-
 SELECTIONS = ('tournament', 'roulette', 'truncation')
+# The values a trend or an anchor reads, the last two.
+TREND_LENGTH = 2
 
 
 def _adaptive(history: Sequence[float], previous: float, weight: float = 0.65) -> float:
@@ -25,14 +24,14 @@ def _adaptive(history: Sequence[float], previous: float, weight: float = 0.65) -
 
 def _trend(history: Sequence[float], strength: float = 1.3) -> float:
     """Return the trend-following forecast `x(t) + g (x(t) - x(t - 1))`."""
-    if len(history) < 2:  # noqa: PLR2004
+    if len(history) < TREND_LENGTH:
         return float(history[-1])
     return float(history[-1] + strength * (history[-1] - history[-2]))
 
 
 def _anchoring(history: Sequence[float]) -> float:
     """Return the anchoring-and-adjustment forecast `(mean + x(t)) / 2 + (x(t) - x(t - 1))`."""
-    if len(history) < 2:  # noqa: PLR2004
+    if len(history) < TREND_LENGTH:
         return float(history[-1])
     return float((np.mean(history) + history[-1]) / 2 + history[-1] - history[-2])
 

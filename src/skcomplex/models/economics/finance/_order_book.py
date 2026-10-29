@@ -49,6 +49,9 @@ class StockTraderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         strategy:
             0 for a fundamentalist, 1 for a chartist.
 
@@ -224,14 +227,11 @@ class BookInteraction(Interaction):
         label:
             The label of the book.
 
+        traders:
+            The path of the group of traders.
+
         opening:
             The price before the first trade.
-
-        **values:
-            The values of the declared variables, by name:
-
-            traders:
-                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.finance import BookInteraction

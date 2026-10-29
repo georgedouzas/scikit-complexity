@@ -54,6 +54,9 @@ class RamseyEconomyElement(Element):
         label:
             The label of the economy.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         k:
             The initial capital per worker.
 

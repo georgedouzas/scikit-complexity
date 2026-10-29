@@ -48,6 +48,9 @@ class StallElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         stall:
             The index of the stall.
 
@@ -99,6 +102,9 @@ class ShopperElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         wanted:
             The bit mask of the items on the shopping list.

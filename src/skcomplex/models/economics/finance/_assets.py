@@ -24,6 +24,9 @@ class AssetElement(Element):
         label:
             The label of the asset.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         price:
             The initial price.
 

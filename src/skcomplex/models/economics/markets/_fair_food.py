@@ -33,6 +33,9 @@ class ConsumerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         fair:
             One when the consumer bought fair food in the last step, zero otherwise.
 

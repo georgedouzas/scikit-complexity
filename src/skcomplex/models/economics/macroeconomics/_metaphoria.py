@@ -128,6 +128,9 @@ class PlotElement(Element):
         label:
             The label of the patch or the site group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         food:
             The food on the patch.
 
@@ -202,6 +205,9 @@ class SettlerElement(Element):
     Args:
         label:
             The label of the person or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         food:
             The food the person holds.
@@ -427,6 +433,9 @@ class BusinessElement(Element):
         label:
             The label of the firm or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         money:
             The money the firm holds.
 
@@ -597,6 +606,9 @@ class CentralBankElement(Element):
     Args:
         label:
             The label of the bank or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         money:
             The money of the bank, the negative of the money it issued plus its income of the step.

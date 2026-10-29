@@ -26,23 +26,20 @@ class CorrelatedGeometricBrownianMotionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the asset.
+
+        market:
+            The Wiener processes, one of which drives the price.
+
+        mu:
+            The drift.
+
+        sigma:
+            The volatility.
+
         index:
             The process of the `WienerProcessSpec`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the asset.
-
-            market:
-                The Wiener processes, one of which drives the price.
-
-            mu:
-                The drift.
-
-            sigma:
-                The volatility.
 
     Examples:
         >>> from skcomplex.specs import WienerProcessSpec

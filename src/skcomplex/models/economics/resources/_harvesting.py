@@ -49,17 +49,17 @@ class FarmerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        wealth:
+            The initial wealth.
+
         resource:
             The dotted name of the resource stock.
 
         effort:
             The dotted name of the harvest effort per farmer.
-
-        **values:
-            The values of the declared variables, by name:
-
-            wealth:
-                The initial wealth.
 
     Examples:
         >>> from skcomplex.models.economics.resources import FarmerElement

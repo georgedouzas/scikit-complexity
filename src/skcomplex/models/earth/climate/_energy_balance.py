@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, tanh
@@ -19,18 +19,18 @@ from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401
+def _daisyworld_albedo(s: SimpleNamespace) -> Expression:
     """Return the planetary albedo, the area average of the albedos of bare ground and of both daisies."""
     bare = s.p - s.white - s.black
     return bare * s.albedo_ground + s.white * s.albedo_white + s.black * s.albedo_black
 
 
-def _daisyworld_emission(s: Any) -> Expression:  # noqa: ANN401
+def _daisyworld_emission(s: SimpleNamespace) -> Expression:
     """Return the fourth power of the effective temperature of the planet."""
     return s.S * s.L * (1 - _daisyworld_albedo(s)) / s.sigma
 
 
-def _daisyworld_growth(s: Any, albedo: Expression) -> Expression:  # noqa: ANN401
+def _daisyworld_growth(s: SimpleNamespace, albedo: Expression) -> Expression:
     """Return the growth rate of daisies of an albedo, parabolic in their local temperature and zero outside it."""
     local = (s.q * (_daisyworld_albedo(s) - albedo) + _daisyworld_emission(s)) ** (1 / 4)
     growth = 1 - s.k * (s.optimum - local) ** 2
@@ -46,7 +46,7 @@ def _daisyworld_laws(s: SimpleNamespace) -> list[BaseLaw]:
     ]
 
 
-def _daisyworld_temperature(s: Any) -> Expression:  # noqa: ANN401
+def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
     """Return the effective temperature of Daisyworld."""
     return _daisyworld_emission(s.planet) ** (1 / 4)
 

@@ -50,6 +50,9 @@ class GoodsTraderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         sugar:
             The holding of sugar.
 
@@ -142,6 +145,9 @@ class ExchangeInteraction(Interaction):
         label:
             The label of the exchange.
 
+        traders:
+            The path of the group of traders.
+
         goods:
             The names of the traded goods.
 
@@ -150,12 +156,6 @@ class ExchangeInteraction(Interaction):
 
         quantity:
             The quantity of the bought good in every trade.
-
-        **values:
-            The values of the declared variables, by name:
-
-            traders:
-                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.markets import ExchangeInteraction

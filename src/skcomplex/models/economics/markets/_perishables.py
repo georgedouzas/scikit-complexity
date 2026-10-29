@@ -41,6 +41,9 @@ class CustomerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         s1:
             The satisfaction with the first shop.
 
@@ -86,6 +89,9 @@ class ProductElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         shop:
             The index of the shop, 0 or 1.
 
@@ -130,6 +136,9 @@ class ShopElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         share:
             The probability that a customer visits the shop, averaged over the customers.

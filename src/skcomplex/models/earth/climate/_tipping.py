@@ -37,6 +37,9 @@ class TippingElementElement(Element):
         label:
             The label of the element or the field.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial state, near `-1` for an element in its lower state.
 

@@ -62,8 +62,8 @@ class SugarPatchElement(Element):
         label:
             The label of the agent or group.
 
-        location:
-            The cell of the patch.
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         sugar:
             The sugar on the patch.
@@ -125,14 +125,14 @@ class ForagerElement(Element):
 
     A forager sees `vision` cells along each of the four lattice directions and moves to the free cell with the most
     sugar, the nearest among equals, or stays when no cell in sight beats its own. It dies when its wealth falls
-    below zero.
+    below zero. The class attribute `patches` names the path of the group of patches.
 
     Args:
         label:
             The label of the agent or group.
 
-        patches:
-            The path of the group of patches.
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         sugar:
             The wealth of the forager.
@@ -248,14 +248,14 @@ class CensusInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
-        foragers:
-            The path of the group of foragers.
-
         rule:
             Unused, since the census overrides `act`.
 
         phase:
             The phase the census counts in.
+
+        foragers:
+            The path of the group of foragers.
 
     Examples:
         >>> from skcomplex.models.economics.markets import CensusInteraction
@@ -269,7 +269,7 @@ class CensusInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         foragers: Annotated[str, RoleSpec()],
     ) -> None:

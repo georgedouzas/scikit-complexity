@@ -89,8 +89,8 @@ class PartElement(Element):
         label:
             The label of the agent or group.
 
-        location:
-            The initial location, unused without a space.
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         cost:
             The initial unit cost.
@@ -135,14 +135,11 @@ class RedesignInteraction(Interaction):
         label:
             The label of the interaction.
 
+        components:
+            The path of the group of components.
+
         dependencies:
             The design structure matrix.
-
-        **values:
-            The values of the declared variables, by name:
-
-            components:
-                The path of the group of components.
 
     Examples:
         >>> from skcomplex.models.economics.innovation import RedesignInteraction
@@ -198,6 +195,9 @@ class TechnologyElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         arity:
             The number of inputs.

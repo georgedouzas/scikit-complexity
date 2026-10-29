@@ -89,6 +89,9 @@ class BartererElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         chocolate:
             The holding of chocolate.
 

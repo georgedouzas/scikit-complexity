@@ -54,6 +54,9 @@ class StochasticEnergyBalanceElement(Element):
         label:
             The label of the climate.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         T:
             The initial temperature in kelvin.
 
@@ -154,6 +157,21 @@ class RampedFoldElement(Element):
         label:
             The label of the system.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial state.
+
+        a:
+            The cubic coefficient, negative.
+
+        b:
+            The linear coefficient, positive.
+
+        sigma:
+            The amplitude of the noise.
+
         phi0:
             The initial control.
 
@@ -162,21 +180,6 @@ class RampedFoldElement(Element):
 
         rate:
             The rate at which the control rises.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The initial state.
-
-            a:
-                The cubic coefficient, negative.
-
-            b:
-                The linear coefficient, positive.
-
-            sigma:
-                The amplitude of the noise.
 
     Examples:
         >>> from skcomplex.models.earth.climate import RampedFoldElement

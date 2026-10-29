@@ -34,6 +34,9 @@ class DuopolistElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         output:
             The initial output.
 

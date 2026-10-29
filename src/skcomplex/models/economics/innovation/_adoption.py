@@ -58,6 +58,9 @@ class HouseholdElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         income:
             The initial income, relative to the mean income at the start.
 

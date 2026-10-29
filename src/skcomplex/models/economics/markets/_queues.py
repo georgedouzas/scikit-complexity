@@ -38,6 +38,9 @@ class CarElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         stage:
             0 for the wash and 1 for the valet.
 
@@ -138,6 +141,9 @@ class TillElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         revenue:
             The money taken.

@@ -66,6 +66,9 @@ class ZeroIntelligenceBuyerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         value:
             The value of the unit to the buyer, its redemption value.
 
@@ -146,6 +149,9 @@ class ZeroIntelligenceSellerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The cost of the unit to the seller.

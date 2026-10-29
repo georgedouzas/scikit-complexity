@@ -104,6 +104,9 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         bid:
             The highest price the shopper pays.
 
@@ -186,6 +189,9 @@ class StoreElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         price:
             The price of a unit.

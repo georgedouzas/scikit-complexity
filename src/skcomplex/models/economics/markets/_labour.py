@@ -29,6 +29,9 @@ class EmployerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         bid:
             The wage offered for the vacancy.
 
@@ -112,6 +115,9 @@ class JobseekerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         ask:
             The reservation wage.
@@ -232,14 +238,14 @@ class SearchCountInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
-        workers:
-            The path of the group of workers.
-
         rule:
             Unused, since the office overrides `act`.
 
         phase:
             The phase the office counts in, which must precede the clearing of the market.
+
+        workers:
+            The path of the group of workers.
 
     Examples:
         >>> from skcomplex.models.economics.markets import SearchCountInteraction
@@ -253,7 +259,7 @@ class SearchCountInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         workers: Annotated[str, RoleSpec()],
     ) -> None:

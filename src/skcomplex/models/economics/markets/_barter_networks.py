@@ -105,6 +105,9 @@ class BarterTraderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         good1:
             The holding of the first good.
 

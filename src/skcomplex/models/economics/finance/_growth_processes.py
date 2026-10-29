@@ -35,6 +35,9 @@ class GibratFirmElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial size.
 
@@ -102,6 +105,9 @@ class KestenFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial size.

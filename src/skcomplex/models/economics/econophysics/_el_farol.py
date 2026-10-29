@@ -91,6 +91,9 @@ class PatronElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         predictors:
             The bit mask of the predictors of the pool that the patron holds.
 
@@ -182,17 +185,17 @@ class BarInteraction(InstitutionInteraction):
         label:
             The label of the bar.
 
-        patrons:
-            The path of the group of patrons.
+        rule:
+            The function of the model view that acts, unused since the bar overrides `act`.
 
         phase:
             The phase in which the bar counts its patrons.
 
-        **values:
-            The values of the declared variables, by name:
+        capacity:
+            The attendance above which the bar is too crowded to enjoy.
 
-            capacity:
-                The attendance above which the bar is too crowded to enjoy.
+        patrons:
+            The path of the group of patrons.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import BarInteraction
@@ -206,7 +209,7 @@ class BarInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = 'count',
         capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
         patrons: str = 'patrons',
