@@ -19,4 +19,5 @@ def test_stochastic_schelling_segregates_above_critical_beta():
     cold = _block_densities(_run(stochastic_schelling(beta=3.0, random_state=0), 100))
     assert cold.std() > 2 * hot.std()
     assert np.abs(hot - 0.5).max() < 0.4
-    assert cold.min() < 0.2 and cold.max() > 0.8  # noqa: PT018
+    assert cold.min() < 0.2
+    assert cold.max() > 0.8

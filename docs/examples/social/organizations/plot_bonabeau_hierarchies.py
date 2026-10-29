@@ -33,15 +33,15 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 # 10 when most cells are full.
 
 densities = np.linspace(0.1, 0.8, 8)
-spreads = []
+spread_runs = []
 for density in densities:
     runs = [
         Simulation(create(MODEL, density=density, random_state=seed), random_state=seed).check().run(until=100)
         for seed in range(3)
     ]
     finals = [run.trajectory_.agents('contenders', len(run.trajectory_.times) - 1).values['strength'] for run in runs]
-    spreads.append([np.std(final) for final in finals])
-spreads = np.asarray(spreads)
+    spread_runs.append([np.std(final) for final in finals])
+spreads = np.asarray(spread_runs)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.errorbar(densities, spreads.mean(axis=1), yerr=spreads.std(axis=1), marker='o', capsize=3)
 ax.set_xlabel('density of agents')

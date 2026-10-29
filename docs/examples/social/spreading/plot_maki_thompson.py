@@ -34,11 +34,11 @@ simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).ch
 theory = brentq(lambda x: x - np.exp(-2 * (1 - x)), 0.01, 0.9)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for n_people in (200, 1000, 5000):
-    finals = []
+    fractions = []
     for seed in range(20):
         run = Simulation(create(MODEL, n_people=n_people), dt=1.0, random_state=seed).check().run(until=40).trajectory_
-        finals.append(run.values('ignorants.n')[-1] / n_people)
-    finals = np.array(finals)
+        fractions.append(run.values('ignorants.n')[-1] / n_people)
+    finals = np.array(fractions)
     spread_out = finals[finals < 0.9]
     ax.plot(np.full(len(spread_out), n_people), spread_out, 'o', alpha=0.5, label=f'{n_people} people')
 ax.axhline(theory, color='black', linestyle='--', label=f'theory x = {theory:.3f}')

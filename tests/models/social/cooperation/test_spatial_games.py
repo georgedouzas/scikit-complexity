@@ -21,7 +21,8 @@ def _cooperation(trajectory):
 def test_spatial_prisoners_dilemma_regimes():
     """Test that cooperators and defectors coexist at temptation 1.85 and defectors win at temptation 3."""
     coexisting = _cooperation(_run(spatial_prisoners_dilemma(temptation=1.85), 50, dt=1))
-    assert coexisting[-10:].min() > 0.1 and coexisting[-10:].max() < 0.6  # noqa: PT018
+    assert coexisting[-10:].min() > 0.1
+    assert coexisting[-10:].max() < 0.6
     assert _cooperation(_run(spatial_prisoners_dilemma(temptation=3.0), 20, dt=1))[-1] == 0
     fermi = _run(spatial_prisoners_dilemma(temptation=1.05, imitation='fermi', share=0.5), 50, dt=1)
     assert _cooperation(fermi)[-1] > 0.9

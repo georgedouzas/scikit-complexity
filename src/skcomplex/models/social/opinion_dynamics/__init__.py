@@ -1,6 +1,8 @@
 """Opinion dynamics: voting, coevolving networks, persuasion, bounded confidence, conventions, and diffusion."""
 
+from ._adopter_view import AdopterView
 from ._axelrod import CultureCensusInteraction, VillageElement, axelrod, cultural_traits, largest_region
+from ._believer_view import BelieverView
 from ._bounded_confidence import (
     ConfidentElement,
     DiscussantElement,
@@ -8,6 +10,7 @@ from ._bounded_confidence import (
     deffuant,
     hegselmann_krause,
 )
+from ._citizen_view import CitizenView
 from ._coevolution import (
     ClubMemberElement,
     CoevolvingVoterElement,
@@ -17,8 +20,11 @@ from ._coevolution import (
     join_a_club,
 )
 from ._cognition import ConversationsInteraction, ThinkerElement, cognitive_consistency, settle
+from ._complex_agent_view import ComplexAgentView
 from ._conventions import NamerElement, NamingGamesInteraction, naming_game
 from ._diffusion import AdopterElement, AdoptionInteraction, BelieverElement, influentials, threshold_adoption
+from ._discussant_view import DiscussantView
+from ._influencee_view import InfluenceeView
 from ._kinetic_opinion import (
     OpinionEncountersInteraction,
     OpinionLevelElement,
@@ -29,6 +35,8 @@ from ._kinetic_opinion import (
     opinion_variance,
     persuasion_table,
 )
+from ._namer_view import NamerView
+from ._persuader_view import PersuaderView
 from ._persuasion import (
     CitizenElement,
     DiscussionsInteraction,
@@ -40,6 +48,10 @@ from ._persuasion import (
     sznajd,
 )
 from ._standardization import ComplexAgentElement, StandardizationInteraction, standardized_agents
+from ._thinker_view import ThinkerView
+from ._variant_voter_view import VariantVoterView
+from ._village_view import VillageView
+from ._voter_view import VoterView
 from ._voters import (
     MajorityVoterElement,
     VariantVoterElement,
@@ -51,33 +63,45 @@ from ._voters import (
 
 __all__: list[str] = [
     'AdopterElement',
+    'AdopterView',
     'AdoptionInteraction',
     'BelieverElement',
+    'BelieverView',
     'CitizenElement',
+    'CitizenView',
     'ClubMemberElement',
     'CoevolvingVoterElement',
     'ComplexAgentElement',
+    'ComplexAgentView',
     'ConfidentElement',
     'ConversationsInteraction',
     'CultureCensusInteraction',
     'DiscussantElement',
+    'DiscussantView',
     'DiscussionsInteraction',
     'EncountersInteraction',
     'InfluenceeElement',
+    'InfluenceeView',
     'MajorityVoterElement',
     'NamerElement',
+    'NamerView',
     'NamingGamesInteraction',
     'OpinionEncountersInteraction',
     'OpinionLevelElement',
     'PersuaderElement',
+    'PersuaderView',
     'SeparationInteraction',
     'SocialImpactInteraction',
     'StandardizationInteraction',
     'ThinkerElement',
+    'ThinkerView',
     'TieElement',
     'VariantVoterElement',
+    'VariantVoterView',
     'VillageElement',
+    'VillageView',
     'VoterElement',
+    'VoterView',
     'axelrod',
     'coevolving_voter',
     'cognitive_consistency',
