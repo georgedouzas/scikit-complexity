@@ -9,7 +9,6 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from fractions import Fraction
 from functools import cache
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -165,23 +164,22 @@ class SymbolicAnalysis(BaseAnalysis):
         self.kind = kind
         self.use_initial_state = use_initial_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the system of the source, checking that it has the form of the kind."""
         system = self._read_system(source)
         problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
         if self.kind == 'hamiltonian':
             self.problem_ = QuantumAnalysis._quantum_problem(problem)
-            return self
+            return
         if self.kind == 'equations' and problem.form == FormKind.QUANTUM:
             error_msg = (
                 'A quantum system has an operator Hamiltonian, not state equations. Use '
@@ -189,9 +187,8 @@ class SymbolicAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         self.problem_ = self._compiled_problem(problem, PURPOSES[self.kind])
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Derive the equations, their solution, the Hamiltonian, or the boundary flows."""
         if self.kind == 'equations':
             self.equations_ = self._equations_of_problem(self.problem_)
@@ -201,7 +198,6 @@ class SymbolicAnalysis(BaseAnalysis):
             self.hamiltonian_ = self.problem_.hamiltonian_operator
         else:
             self.inflows_ = self._conservation(self.problem_)
-        return self
 
     @staticmethod
     def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -80,26 +79,24 @@ class RollingAnalysis(BaseAnalysis):
         self.window = window
         self.detrend = detrend
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and the window."""
         self._check_choice('kind', self.kind, KINDS)
         if self.window is None or self.window < MIN_WINDOW:
             error_msg = f'{type(self).__name__} has window={self.window!r}. Give a window of {MIN_WINDOW} or more.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series as columns."""
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the rolling statistic of every series and its trend."""
         window = int(self.window or 0)
         columns = self.values_.T
@@ -107,7 +104,6 @@ class RollingAnalysis(BaseAnalysis):
             [self._rolling(column, window, self._statistic, self.kind, detrend=self.detrend) for column in columns],
         )
         self.trend_ = np.asarray([self._trend(row) for row in self.statistic_])
-        return self
 
     @staticmethod
     def _statistic(segment: Array, kind: str) -> float:

@@ -32,6 +32,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=30)
 )
 
@@ -58,6 +59,7 @@ for temperature in temperatures:
     run = (
         Simulation(ordered, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(ordered))
         .check()
+        .prepare()
         .run(until=40)
     )
     measured.append(np.abs(run.trajectory_.values('magnetization')[10:]).mean())

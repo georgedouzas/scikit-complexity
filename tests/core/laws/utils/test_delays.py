@@ -40,7 +40,11 @@ class DelayedElement(Element):
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
     trajectory = (
-        Simulation(System(elements=[DelayedElement('d', kind='material_delay3')]), dt=0.01).check().run(14).trajectory_
+        Simulation(System(elements=[DelayedElement('d', kind='material_delay3')]), dt=0.01)
+        .check()
+        .prepare()
+        .run(14)
+        .trajectory_
     )
     times = np.asarray(trajectory.times)
     output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
@@ -51,7 +55,9 @@ def test_third_order_delay_follows_the_erlang_step_response():
 @pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden state per stage that tends to the step."""
-    trajectory = Simulation(System(elements=[DelayedElement('d', kind=kind)]), dt=1).check().run(80).trajectory_
+    trajectory = (
+        Simulation(System(elements=[DelayedElement('d', kind=kind)]), dt=1).check().prepare().run(80).trajectory_
+    )
     hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'material_delay1' else 1.0

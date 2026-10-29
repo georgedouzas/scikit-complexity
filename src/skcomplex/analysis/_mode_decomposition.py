@@ -5,7 +5,6 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -125,22 +124,20 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         self.dt = dt
         self.label = label
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a validation share outside `[0, 1)` or a negative horizon."""
         SparseIdentificationAnalysis._check_validation(self.validation)
         SparseIdentificationAnalysis._check_horizon(self.horizon)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Runs) -> Self:
+    def _prepare(self, source: Runs) -> None:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Fit the decomposition and set the surrogate system, its errors, its modes, and the forecast."""
         samples = self.samples_
         lifted, labels, states = self._lift(samples, self.dictionary)
@@ -175,7 +172,6 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         self.generator_ = generator
         growth = np.exp(np.outer(self.dt_ * np.arange(1, self.horizon + 1), self.eigenvalues_))
         self.forecast_ = np.real((growth * self.amplitudes_) @ self.modes_.T).reshape(self.horizon, len(states))
-        return self
 
     @staticmethod
     def _lift(samples: SamplesSpec, dictionary: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:

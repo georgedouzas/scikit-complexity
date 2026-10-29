@@ -11,7 +11,7 @@ PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-12)
 
 def _run(system, until, dt):
     """Return the trajectory of a system integrated tightly."""
-    return Simulation(system, dt=dt, random_state=0, solver=PRECISE).check().run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, solver=PRECISE).check().prepare().run(until=until).trajectory_
 
 
 def test_lq_radiosensitizer_fraction_survival():
@@ -38,9 +38,15 @@ def test_lq_radiosensitizer_regrows_at_the_inhibited_rate():
 
 def test_radiotherapy_competition_lets_normal_cells_survive():
     """Test that the tumour excludes the normal cells without radiation and that irradiation lets them coexist."""
-    untreated = Simulation(radiotherapy_competition(a2=0.0, epsilon=0.0), dt=20.0).check().run(until=3000.0).trajectory_
+    untreated = (
+        Simulation(radiotherapy_competition(a2=0.0, epsilon=0.0), dt=20.0)
+        .check()
+        .prepare()
+        .run(until=3000.0)
+        .trajectory_
+    )
     assert untreated.values('tissue.N')[-1] < 1e-3
     assert abs(untreated.values('tissue.A')[-1] - 1.0) < 1e-3
-    treated = Simulation(radiotherapy_competition(), dt=20.0).check().run(until=2000.0).trajectory_
+    treated = Simulation(radiotherapy_competition(), dt=20.0).check().prepare().run(until=2000.0).trajectory_
     assert treated.values('tissue.N')[-1] > 0.05
     assert treated.values('tissue.A')[-1] < 0.8

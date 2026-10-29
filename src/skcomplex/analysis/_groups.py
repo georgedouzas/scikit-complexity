@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -22,26 +21,31 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
     """Symbols of every group member and the explicit value of every reduction of one problem.
 
     It prepares on a compiled problem and runs on the names of the groups of one owner and one member, setting
-    `substitution_`, the substitution that writes the equations of that member out.
+    `expansion_`, the substitution that writes the equations of that member out.
 
     Args:
         parameter_values:
             The parameter vector whose values the member parameters take.
+
+    Attributes:
+        expansion_:
+            The symbols of the member and the value of every reduction, by the symbol they replace, set by `run`.
     """
+
+    expansion_: dict[Expression, Expression]
+
+    def _check(self) -> None:
+        """Accept every setting, since an expansion has none to validate; an expansion with settings validates them."""
 
     def __init__(self, parameter_values: npt.NDArray[np.float64] | None = None) -> None:
         self.parameter_values = parameter_values
 
-    def _prepare(self, context: ProblemSpec | None) -> Self:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Keep the problem, start the symbols and values of its members, and find the symbols of single components.
 
         Args:
             context:
                 The compiled problem whose groups are expanded.
-
-        Returns:
-            expansion:
-                The expansion itself.
 
         Raises:
             ValidationError:
@@ -64,10 +68,9 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
                 if entry.members is None and entry.name in context.symbols:
                     for column, item in enumerate(components_of(context.symbols[entry.name])):
                         self.by_index_[(is_state, entry.start + column)] = item
-        return self
 
-    def _run(self, inputs: tuple[set[str], int] | None) -> dict[Expression, Expression]:
-        """Set and return `substitution_`, the substitution of one member: its symbols for those of the named groups.
+    def _run(self, inputs: tuple[set[str], int] | None) -> None:
+        """Set `expansion_`, the substitution of one member: its symbols for those of the named groups.
 
         Every reduction is written as an explicit sum read by the member, and the values of new member parameters are
         kept in `values_`.
@@ -75,10 +78,6 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         Args:
             inputs:
                 The names of the groups of the owner, and the member.
-
-        Returns:
-            substitution:
-                The symbols of the member and the value of every reduction, by the symbol they replace.
 
         Raises:
             ValidationError:
@@ -95,8 +94,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
                 for reduction in self.problem_.reductions
             },
         )
-        self.substitution_ = mapping
-        return mapping
+        self.expansion_ = mapping
 
     def _member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""

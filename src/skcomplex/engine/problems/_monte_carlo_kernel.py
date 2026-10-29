@@ -50,6 +50,8 @@ class MonteCarloKernel(BaseKernel):
             Whether the energy change reads the mask of the real neighbours of a neighbour sum.
     """
 
+    values_: None
+
     def __init__(
         self,
         owner: str,
@@ -142,6 +144,7 @@ class MonteCarloKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one sweep of the lattice."""
+        self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
         size = self.target.size

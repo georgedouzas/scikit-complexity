@@ -205,7 +205,7 @@ class FieldFunctionsPass(BasePass):
         def conserved(t: float, x: Array, p: Array) -> Array:
             rates = np.asarray(drift(t, x, p), dtype=float)
             for volume in volumes:
-                rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)), dtype=float)
+                rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
             return rates
 
         return conserved
@@ -330,10 +330,10 @@ class FieldFunctionsPass(BasePass):
             raise ValidationError(error_msg)
         columns = list(zip(*expressions, strict=True))
         printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *parameters])
-        fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)), owner) for column in columns)
+        fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)).code_, owner) for column in columns)
         jacobians = tuple(
             FieldFunctionsPass._function_of(
-                printer.run([value.diff(state) for value in column for state in states]),
+                printer.run([value.diff(state) for value in column for state in states]).code_,
                 owner,
             )
             for column in columns
@@ -348,22 +348,26 @@ class FieldFunctionsPass(BasePass):
             critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(parameters)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-                roots.append(FieldFunctionsPass._function_of(critical_printer.run(found), owner))
+                roots.append(FieldFunctionsPass._function_of(critical_printer.run(found).code_, owner))
             critical = tuple(roots)
         boundaries = tuple(
             (kind, float(SR(value)) if not callable(value) else 0.0)
             for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
         )
-        return FiniteVolumeKernel(
-            owner,
-            tuple(reference.entry.start for _, reference in laws),
-            space.shape_,
-            space.spacings_,
-            boundaries,
-            fluxes=fluxes,
-            jacobians=jacobians,
-            parameters=tuple(references[item] for item in parameters),
-            limiter=first.limiter,
-            riemann=first.riemann,
-            critical=critical,
-        ).check()
+        return (
+            FiniteVolumeKernel(
+                owner,
+                tuple(reference.entry.start for _, reference in laws),
+                space.shape_,
+                space.spacings_,
+                boundaries,
+                fluxes=fluxes,
+                jacobians=jacobians,
+                parameters=tuple(references[item] for item in parameters),
+                limiter=first.limiter,
+                riemann=first.riemann,
+                critical=critical,
+            )
+            .check()
+            .prepare()
+        )

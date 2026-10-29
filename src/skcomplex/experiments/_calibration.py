@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -144,7 +143,7 @@ class CalibrationExperiment(BaseExperiment):
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
         for seed in self.seeds_:
-            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).check()
+            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).check().prepare()
             trajectory = simulation.run(until).trajectory_
             runs.append(
                 {
@@ -159,7 +158,7 @@ class CalibrationExperiment(BaseExperiment):
         simulated = self._simulate(values)
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series_.items()])
 
-    def _run(self, inputs: None = None) -> Self:
+    def _run(self, inputs: None = None) -> None:
         """Fit the parameters and set the estimates, their covariance, and the fit statistics."""
         names = list(self.bounds)
         start = np.asarray([(self.initial or {}).get(name, sum(self.bounds[name]) / 2) for name in names], dtype=float)
@@ -193,4 +192,3 @@ class CalibrationExperiment(BaseExperiment):
         self.mape_ = float(100 * np.mean(np.abs(final[nonzero] / observed[nonzero]))) if nonzero.any() else np.nan
         self.simulated_ = self._simulate(estimate)
         self.success_ = bool(fit.success)
-        return self

@@ -20,6 +20,6 @@ def test_particle_moves_with_its_velocity_and_is_drawn_as_points():
     """Test that a particle runs into the kinematic law of its position and is drawn at its positions."""
     x, v = vector([var('x0'), var('x1')]), vector([var('v0'), var('v1')])
     particle = ParticleElement('ball', x=[0, 1], m=2.0).check().prepare()
-    (law,) = particle.run(SimpleNamespace(x=x, v=v))
+    (law,) = particle.run(SimpleNamespace(x=x, v=v)).laws_
     assert (law.target, law.value) == (x, v)
     assert particle.default_visual_ == VisualSpec('points', {'position': 'x'})

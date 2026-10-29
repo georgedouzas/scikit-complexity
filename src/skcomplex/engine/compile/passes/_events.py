@@ -65,12 +65,12 @@ class DelaysPass(BasePass):
             values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
             columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
             printer = ExpressionPrinter(time=declarations.time, compiled=True).check().prepare(symbols)
-            function = printer.run([SR(tau)])
+            function = printer.run([SR(tau)]).code_
             delays = function(0.0, *columns) if callable(function) else None
             if not isinstance(delays, list):
                 error_msg = f'The printer returns no function of the delay of {spec.owner}.'
                 raise TypeError(error_msg)
-            return float(np.min(delays[0]))
+            return float(np.min(np.asarray(delays[0], dtype=float)))
         error_msg = (
             f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '
             'argument, `delayed(x, tau, minimum)`.'

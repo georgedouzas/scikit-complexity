@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=200)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=200)
 
 # %%
 # Instability of uniform flow
@@ -46,7 +46,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=
 # in a stop-and-go wave. A ring with a larger headway, where `V'(b) < a / 2`, should instead return to uniform flow.
 
 trajectory = simulation.trajectory_
-stable = Simulation(create(MODEL, length=80.0), dt=1.0).check().run(until=200).trajectory_
+stable = Simulation(create(MODEL, length=80.0), dt=1.0).check().prepare().run(until=200).trajectory_
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
 spread.semilogy(trajectory.times, trajectory.values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
 spread.semilogy(stable.times, stable.values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')

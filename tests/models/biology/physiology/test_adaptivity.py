@@ -10,7 +10,7 @@ def test_adaptive_response_costs_fall_with_adaptivity():
     """Test that adaptive response costs less than stimulus-response, avoiding repairs, and anticipation less still."""
     totals, repairs = {}, {}
     for strategy in ('stimulus-response', 'adaptive', 'anticipatory'):
-        trajectory = Simulation(adaptive_response_costs(strategy), dt=0.1).check().run(200).trajectory_
+        trajectory = Simulation(adaptive_response_costs(strategy), dt=0.1).check().prepare().run(200).trajectory_
         costs = [
             trajectory.values(f'organism.{kind}_cost')[-1] for kind in ('response', 'restore', 'repair', 'prepare')
         ]

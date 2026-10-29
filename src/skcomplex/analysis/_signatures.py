@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 
@@ -74,7 +73,7 @@ class SignatureAnalysis(BaseAnalysis):
         """Return the system kind, since the analysis reads every kind of data of a trajectory."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the data of every kind the trajectory holds."""
         if not isinstance(source, Trajectory):
             error_msg = f'{type(self).__name__} reads a trajectory, not {type(source).__name__}.'
@@ -93,7 +92,6 @@ class SignatureAnalysis(BaseAnalysis):
             self.jumps_ = np.abs(np.diff(frames, axis=0)).sum(axis=1)
         if DataKind.SERIES in self.kinds_:
             self.series_ = self._read_series(source)
-        return self
 
     def _get_series_signature(self) -> SignatureSpec:
         """Return the power spectra of the series and the autocorrelation time, or the return map of a map."""
@@ -239,7 +237,7 @@ class SignatureAnalysis(BaseAnalysis):
             yscale='log',
         )
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the signature of every data kind of the trajectory."""
         signatures = {
             DataKind.AGENTS: self._get_agents_signature,
@@ -249,4 +247,3 @@ class SignatureAnalysis(BaseAnalysis):
             DataKind.SERIES: self._get_series_signature,
         }
         self.signatures_ = [signatures[kind]() for kind in self.kinds_]
-        return self

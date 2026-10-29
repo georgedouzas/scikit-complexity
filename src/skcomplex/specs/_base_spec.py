@@ -15,7 +15,8 @@ class BaseSpec(BaseConfig):
 
     A spec declares what a class reads, records what a run produced, or holds what a compiler built. It never changes,
     holds only its fields, `check()`, and readers of its own fields, and is prepared and run like any configurable
-    object, both doing nothing. A child validates its fields in `_check()`.
+    object, both doing nothing. It is the only base whose hooks have defaults: a child that validates its fields
+    overrides `_check()`.
 
     Examples:
         >>> from dataclasses import dataclass
@@ -28,8 +29,20 @@ class BaseSpec(BaseConfig):
         1.0
     """
 
+    def _check(self) -> None:
+        """Validate the fields of the spec, raising a named error for an invalid one; accept every field here."""
+
+    def _prepare(self, context: object | None) -> None:
+        """Prepare nothing, since a spec is a value."""
+
+    def _run(self, inputs: object | None) -> None:
+        """Run nothing, since a spec is a value."""
+
     def _is_checked(self) -> None:
         """Accept a spec that was not checked, since a frozen spec cannot be marked."""
+
+    def _is_prepared(self) -> None:
+        """Accept a spec that was not prepared, since a frozen spec cannot be marked."""
 
     def check(self) -> Self:
         """Validate the fields of the spec.
@@ -43,4 +56,18 @@ class BaseSpec(BaseConfig):
                 A field is invalid, named in the message.
         """
         self._check()
+        return self
+
+    def prepare(self, context: object | None = None) -> Self:
+        """Prepare the spec, which a value leaves as it is.
+
+        Args:
+            context:
+                What the spec serves, which a spec does not read.
+
+        Returns:
+            self:
+                The spec.
+        """
+        self._prepare(context)
         return self

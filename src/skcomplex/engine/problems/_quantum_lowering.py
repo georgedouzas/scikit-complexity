@@ -27,8 +27,8 @@ from ._quantum_kernel import QuantumKernel
 class QuantumLowering(BaseConfig[None, tuple[object, str]]):
     """Lowering of operators of quantum subsystems to sparse matrices on the whole space and coefficients to functions.
 
-    `run((expression, owner))` returns the terms of an operator, with constant terms folded and terms of equal
-    coefficients summed. The owner, the description of the law or observable of the operator, names it in errors.
+    `run((expression, owner))` keeps in `kernels_` the terms of an operator, with constant terms folded and terms of
+    equal coefficients summed. The owner, the description of the law or observable of the operator, names it in errors.
 
     Args:
         time:
@@ -42,7 +42,20 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
 
         arguments:
             The index in the parameter vector of every parameter symbol.
+
+    Attributes:
+        kernels_:
+            The terms of the operator of the last run: the constant term first, if any, then one term per distinct
+            coefficient.
     """
+
+    kernels_: tuple[QuantumKernel, ...]
+
+    def _check(self) -> None:
+        """Accept every setting, since a quantum lowering has none to validate."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a quantum lowering prepares nothing."""
 
     def __init__(
         self,
@@ -56,17 +69,13 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         self.dimensions = dimensions
         self.arguments = arguments
 
-    def _run(self, inputs: tuple[object, str] | None) -> tuple[QuantumKernel, ...]:
-        """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
+    def _run(self, inputs: tuple[object, str] | None) -> None:
+        """Set the terms of an operator, with constant terms folded and terms of equal coefficients summed.
 
         Args:
             inputs:
                 The Sage expression of the operator, built with `local_operator`, `operator_product`, and `dagger`, and
                 the description of its law or observable.
-
-        Returns:
-            terms:
-                The constant term first, if any, then one term per distinct coefficient.
 
         Raises:
             ValidationError:
@@ -86,16 +95,20 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check()] if constant else []
+        terms = (
+            [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check().prepare()] if constant else []
+        )
         for coefficient, matrices in grouped.items():
             terms.append(
                 QuantumKernel(
                     QuantumKernel._sum_matrices(matrices, size),
                     coefficient,
                     self._function(coefficient, owner),
-                ).check(),
+                )
+                .check()
+                .prepare(),
             )
-        return tuple(terms)
+        self.kernels_ = tuple(terms)
 
     def _operator(self, expression: object, owner: str) -> OperatorSpec:
         """Return the operator of a Sage expression of local operators of the subsystems.
@@ -190,7 +203,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             )
             raise ValidationError(error_msg)
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables)
-        lowered = ExpressionPrinter._function_of(printer.run([coefficient]))
+        lowered = ExpressionPrinter._function_of(printer.run([coefficient]).code_)
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Array) -> complex:

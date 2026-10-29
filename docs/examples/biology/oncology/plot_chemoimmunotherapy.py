@@ -23,7 +23,7 @@ SOLVER = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, solver=SOLVER, observers=[observer]).check().run(until=60)
+simulation = Simulation(system, dt=0.25, solver=SOLVER, observers=[observer]).check().prepare().run(until=60)
 
 # %%
 # Each therapy alone and both together
@@ -38,7 +38,7 @@ arms = {
 }
 fig, (tumour, tcells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.25, solver=SOLVER).check().run(until=60).trajectory_
+    trajectory = Simulation(arm, dt=0.25, solver=SOLVER).check().prepare().run(until=60).trajectory_
     tumour.semilogy(trajectory.times, trajectory.values('tumour.A').clip(1e-2), label=name)
     tcells.semilogy(trajectory.times, trajectory.values('tumour.E').clip(1e-2), label=name)
 combined = simulation.trajectory_

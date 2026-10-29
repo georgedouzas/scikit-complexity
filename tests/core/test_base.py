@@ -12,7 +12,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import BasePart
-from skcomplex.core.elements import BaseElement
+from skcomplex.core.elements import BaseElement, Element
 from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BaseLaw
 from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
@@ -51,21 +51,19 @@ class DoublingPart(BasePart):
         if not isinstance(self.factor, int | float):
             error_msg = f'The factor {self.factor!r} is not a number.'
             raise ValidationError(error_msg)
-        return self
 
     def _prepare(self, context=None):
         """Count the preparation and keep the context."""
         self.prepared_ = getattr(self, 'prepared_', 0) + 1
         self.context_ = context
-        return self
 
     def _get_laws(self, namespace):
         """Return no laws."""
         return []
 
     def _run(self, inputs):
-        """Return the input times the factor."""
-        return self.factor * inputs
+        """Set `doubled_`, the input times the factor."""
+        self.doubled_ = self.factor * inputs
 
 
 class SpecifiedPart(BasePart):
@@ -86,16 +84,17 @@ class SpecifiedPart(BasePart):
         self.plain = plain
 
     def _check(self):
-        """Return the part."""
-        return self
+        """Accept every argument."""
 
     def _prepare(self, context=None):
-        """Return the part."""
-        return self
+        """Prepare nothing."""
 
     def _get_laws(self, namespace):
         """Return no laws."""
         return []
+
+    def _run(self, inputs):
+        """Run nothing."""
 
 
 class ExtendedPart(SpecifiedPart):
@@ -139,7 +138,7 @@ def test_verbs_check_prepare_and_run():
     """Test that checking marks the part, preparing derives its attributes from a context, and running acts."""
     part = DoublingPart('doubling').check().prepare('context')
     assert (part.prepared_, part.context_) == (1, 'context')
-    assert part.run(3) == 6
+    assert part.run(3).doubled_ == 6
 
 
 def test_part_must_be_checked_before_it_is_prepared_or_run():
@@ -188,9 +187,14 @@ def test_constructor_only_stores_its_arguments():
     assert cloned is not part
 
 
-def test_part_runs_into_its_laws_by_default():
-    """Test that running a part without its own `_run` returns its laws for the namespace."""
-    assert SpecifiedPart('a').check().run(SimpleNamespace()) == []
+def test_element_runs_into_its_laws():
+    """Test that running an element sets its laws for the namespace, as interactions and systems do."""
+
+    class StillElement(Element):
+        def _get_laws(self, namespace):
+            return []
+
+    assert StillElement('a').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_parts_derive_from_the_part_base():

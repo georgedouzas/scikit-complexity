@@ -7,7 +7,6 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -248,13 +247,17 @@ class Experiment(BaseExperiment):
         arguments, paths = Experiment._split_overrides(task)
         problem = Experiment._compile(task.source, arguments, task.scenario.system, task.observables)
         problem = Experiment._with_values(problem, paths)
-        simulation = Simulation(
-            problem,
-            random_state=np.random.default_rng(task.seed),
-            schedule=Experiment._schedule(problem, task.scenario),
-            dt=task.dt,
-            solver=task.solver,
-        ).check()
+        simulation = (
+            Simulation(
+                problem,
+                random_state=np.random.default_rng(task.seed),
+                schedule=Experiment._schedule(problem, task.scenario),
+                dt=task.dt,
+                solver=task.solver,
+            )
+            .check()
+            .prepare()
+        )
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
         if task.outputs is not None:
@@ -301,7 +304,7 @@ class Experiment(BaseExperiment):
             return self.executor
         return ThreadPoolExecutor() if self.executor == 'thread' else ProcessPoolExecutor()
 
-    def _run(self, inputs: None = None) -> Self:
+    def _run(self, inputs: None = None) -> None:
         """Run every task and keep the results in `result_`."""
         if self.executor == 'serial':
             results = [self._run_task(task) for task in self.tasks_]
@@ -322,4 +325,3 @@ class Experiment(BaseExperiment):
                 if owned:
                     executor.shutdown()
         self.result_ = ExperimentResult(results)
-        return self

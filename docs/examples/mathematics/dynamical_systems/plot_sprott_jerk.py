@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().run(until=300)
+simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().prepare().run(until=300)
 trajectory = simulation.trajectory_
 points = np.column_stack([trajectory.values(name) for name in ('jerk.x', 'jerk.x_d1', 'jerk.x_d2')])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[255, 170, 40]), static=True)
@@ -51,7 +51,7 @@ observer.recording_.flush()
 # Successive maxima of `x` should lie close to a single curve, the trace of the fold of the band. The largest Lyapunov
 # exponent should be positive, near the 0.036 that Sprott reports, and the exponents should sum to the divergence `-A`.
 
-x = Simulation(create(MODEL), dt=0.05).check().run(until=3000).trajectory_.values('jerk.x')[2000:]
+x = Simulation(create(MODEL), dt=0.05).check().prepare().run(until=3000).trajectory_.values('jerk.x')[2000:]
 maxima = x[find_peaks(x)[0]]
 # The symbolic Jacobian of `|x|` divides by `|x|`, so the tangent dynamics start off `x = 0` (see fix-core-defects).
 exponents = LyapunovAnalysis(until=3000).check().prepare(create(MODEL, x=0.1)).run().exponents_

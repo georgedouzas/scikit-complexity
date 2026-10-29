@@ -59,13 +59,11 @@ class PeakAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.series_ = self._read_series(source, [self.variable])
-        return self
 
     def _run(self, inputs=None):
         values = self.series_.values[:, 0]
         self.peak_ = float(values.max())
         self.peak_time_ = float(self.series_.times[values.argmax()])
-        return self
 
 
 def last_value(trajectory):

@@ -48,6 +48,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=250,
     )
@@ -73,6 +74,7 @@ def headings(coupling):
             observables=describe(MODEL).observables_of(model_system),
         )
         .check()
+        .prepare()
         .run(until=300)
     )
     return run.trajectory_.times, run.trajectory_.values('heading_a'), run.trajectory_.values('heading_b')

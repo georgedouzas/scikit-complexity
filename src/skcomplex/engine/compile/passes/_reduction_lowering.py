@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Self
 
 import numpy as np
 import scipy.sparse
@@ -46,9 +45,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of the reductions and neighbourhood reductions of laws to placeholders, compiled once each.
 
     `prepare(compilation)` reads the layout and the drawn values of the compilation, and `run(laws)` takes the laws of
-    every kernel spec and returns them with every reduction replaced by the placeholder that kernels read, collecting
-    the reductions, deduplicated, with their hidden entries. `_apply_references()` then gives every spec the references
-    of its placeholders.
+    every kernel spec and sets them in `lowered_` with every reduction replaced by the placeholder that kernels read,
+    collecting the reductions, deduplicated, with their hidden entries. `_apply_references()` then gives every spec the
+    references of its placeholders.
 
     Attributes:
         declarations_:
@@ -85,16 +84,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     local_: dict[Expression, NeighborhoodKernel]
     sequence_: list[ReductionKernel | NeighborhoodKernel]
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Read the layout and the drawn values of the compilation, with no reduction collected yet.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
         """
         super()._prepare(context)
         draws = self.compilation_.draws
@@ -102,18 +97,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.drawn_ = draws.size if draws else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
-        return self
 
-    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return the laws of every kernel spec with every reduction replaced by its placeholder.
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
+        """Set the laws of every kernel spec with every reduction replaced by its placeholder.
 
         Args:
             inputs:
                 The laws of every kernel spec, crossing laws included.
-
-        Returns:
-            laws:
-                The lowered laws of every kernel spec.
 
         Raises:
             PipelineError:
@@ -122,7 +112,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         if inputs is None:
             error_msg = 'The reduction lowering runs on the laws of every kernel spec. Pass them to `run`.'
             raise PipelineError(error_msg)
-        return [(spec, [self._lower_law(law, spec) for law in laws]) for spec, laws in inputs]
+        self.lowered_ = [(spec, [self._lower_law(law, spec) for law in laws]) for spec, laws in inputs]
 
     @property
     def parameters_(self) -> int:
@@ -418,19 +408,23 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
             }
-            compiled = ReductionKernel(
-                placeholder,
-                reduction.kind,
-                argument_key,
-                condition_key,
-                weights,
-                entry=entry,
-                size=size,
-                group=group,
-                reads=reads,
-                time=self.declarations_.time,
-                members=members,
-            ).check()
+            compiled = (
+                ReductionKernel(
+                    placeholder,
+                    reduction.kind,
+                    argument_key,
+                    condition_key,
+                    weights,
+                    entry=entry,
+                    size=size,
+                    group=group,
+                    reads=reads,
+                    time=self.declarations_.time,
+                    members=members,
+                )
+                .check()
+                .prepare()
+            )
             self.found_[key] = compiled
             self.sequence_.append(compiled)
             self.by_symbol_[placeholder] = compiled
@@ -583,17 +577,21 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
-            compiled = NeighborhoodKernel(
-                symbol(f'_neighbours_{index}'),
-                reduction.kind,
-                argument,
-                weight,
-                entry,
-                group=group,
-                search=search,
-                reads=reads,
-                time=self.declarations_.time,
-            ).check()
+            compiled = (
+                NeighborhoodKernel(
+                    symbol(f'_neighbours_{index}'),
+                    reduction.kind,
+                    argument,
+                    weight,
+                    entry,
+                    group=group,
+                    search=search,
+                    reads=reads,
+                    time=self.declarations_.time,
+                )
+                .check()
+                .prepare()
+            )
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled

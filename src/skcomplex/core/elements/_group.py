@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
@@ -183,7 +182,7 @@ class GroupElement(BaseElement):
             error_msg = f'Group {self.label!r} has size {self.size!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a part, an element type, a size, or values the group cannot take.
 
         Raises:
@@ -195,19 +194,14 @@ class GroupElement(BaseElement):
 
             ValidationError:
                 The element type is not an element class, or the size is not a positive integer.
-
-        Returns:
-            group:
-                The group itself.
         """
         super()._check()
         self._check_on()
         self._check_element()
         self._check_size()
         self.element(self.label).set_params(**(self.values or {}))
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the visual of the group when it sets none, `size_`, and `values_`.
 
         The default visual of a group is the visual of a member, or the plain visual when the member sets none. The size
@@ -224,10 +218,6 @@ class GroupElement(BaseElement):
 
             ValidationError:
                 A per-member value does not have one row per member.
-
-        Returns:
-            group:
-                The group itself.
         """
         super()._prepare(context)
         member = self.element(self.label).set_params(**(self.values or {}))
@@ -236,7 +226,6 @@ class GroupElement(BaseElement):
         self.size_ = self._size_of(context)
         self.values_ = self._flatten_values()
         self._check_value_rows()
-        return self
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the element type, written for one member, for a namespace of symbols.

@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().run(until=200)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=200)
 
 
 def discordant(trajectory, frame):
@@ -56,7 +56,12 @@ def discordant(trajectory, frame):
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for rewiring in (0.1, 0.3, 0.6, 0.9):
-    run = Simulation(create(MODEL, n_voters=400, rewiring=rewiring), dt=5.0, random_state=1).check().run(until=300)
+    run = (
+        Simulation(create(MODEL, n_voters=400, rewiring=rewiring), dt=5.0, random_state=1)
+        .check()
+        .prepare()
+        .run(until=300)
+    )
     trajectory = run.trajectory_
     axis.plot(
         trajectory.times,

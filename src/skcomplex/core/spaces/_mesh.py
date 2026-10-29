@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -52,7 +51,7 @@ class MeshSpace(BaseSpace):
         self.points = points
         self.cells = cells
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
         points = np.asarray(self.points, dtype=float)
         kind = skfem.MeshTri if points.shape[0] == TRIANGLE_DIMENSIONS else skfem.MeshTet
@@ -64,7 +63,6 @@ class MeshSpace(BaseSpace):
         self.positions_ = points.T
         self.periodic_ = False
         self.default_visual_ = None
-        return self
 
     def _get_neighbors(self, site: int, neighborhood: BaseNeighborhood | None = None) -> npt.NDArray[np.intp]:
         """Return the nodes that share a cell with a node, in increasing order."""

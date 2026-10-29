@@ -65,7 +65,7 @@ def test_pair_interaction_stores_its_roles_and_cutoff():
         'second': 'gas',
     }
     assert list(RepulsionInteraction._get_specs()) == ['first', 'second', 'cutoff', 'k']
-    assert repulsion.check().prepare().run(SimpleNamespace()) == []
+    assert repulsion.check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_pair_interaction_needs_a_positive_cutoff():

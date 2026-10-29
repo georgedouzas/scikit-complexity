@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...errors import ValidationError
 from ..types import Target
@@ -58,15 +57,9 @@ class FractionalNoiseLaw(NoiseLaw):
         super().__init__(target, value, order, convention=convention, label=label)
         self.hurst = hurst
 
-    def _check(self) -> Self:
-        """Raise an error for an invalid noise or a numeric Hurst index outside `(0, 1)`.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an invalid noise or a numeric Hurst index outside `(0, 1)`."""
         super()._check()
         if isinstance(self.hurst, int | float) and not 0 < self.hurst < 1:
             error_msg = f'The Hurst index of the noise of {self.target} is {self.hurst}. Give a number in (0, 1).'
             raise ValidationError(error_msg)
-        return self

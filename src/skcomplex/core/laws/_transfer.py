@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -117,13 +116,8 @@ class TransferLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
-        """Raise an error for invalid holders, an amount that is a NumPy array, or a symbolic jump size.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for invalid holders, an amount that is a NumPy array, or a symbolic jump size."""
         self._check_holders()
         self._check_array('amount')
         if self.rate is not None and not SR(self.amount).is_numeric():
@@ -131,17 +125,12 @@ class TransferLaw(BaseLaw):
                 f'The transfer {self.label} has a rate, so its amount is a jump size, but {self.amount} is a symbol.'
             )
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the amount at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the amount at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            amount:
-                The amount, a number when nothing symbolic is left.
         """
-        return self._evaluate(self.amount, inputs)
+        self.value_ = self._evaluate(self.amount, inputs)

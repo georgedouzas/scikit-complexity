@@ -44,14 +44,14 @@ def _frames(system, steps, dt=0.1):
             if inputs is not None:
                 frames.append(inputs)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0).check()
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0).check().prepare()
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 
 
 def _first_frame(system):
     """Return the problem and the first frame of a system."""
-    simulation = Simulation(system).check().run(until=0.0)
+    simulation = Simulation(system).check().prepare().run(until=0.0)
     problem = simulation.problem_
     return problem, FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
 

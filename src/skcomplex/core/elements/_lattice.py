@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Self
 
 import numpy as np
 
@@ -95,7 +94,7 @@ class LatticeElement(GroupElement):
             for name, value in values.items()
         }
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `size_`, the number of sites, `values_`, with one row per site, and `default_visual_`.
 
         The default visual is the visual of a member, or the default visual of the space when the member sets none.
@@ -110,12 +109,7 @@ class LatticeElement(GroupElement):
 
             ValidationError:
                 A per-site value does not have one row per site.
-
-        Returns:
-            group:
-                The group itself.
         """
         super()._prepare(context)
         if self.space is not None and self.default_visual_ == VisualSpec():
             self.default_visual_ = VisualSpec(self.space.default_visual_ or 'sites')
-        return self

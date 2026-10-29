@@ -99,7 +99,8 @@ class CollocationSolver(OptimalControlSolver):
         ...         return [RateLaw(s.x, s.u)]
         >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
         >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
-        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver).check().run(until=1.0)
+        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver)
+        >>> simulation = simulation.check().prepare().run(until=1.0)
         >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
     """

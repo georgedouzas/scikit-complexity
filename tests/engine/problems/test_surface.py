@@ -4,14 +4,14 @@ import enum
 import inspect
 
 from skcomplex.engine import problems as package
-from skcomplex.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch
+from skcomplex.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch, SourceLoader
 from skcomplex.specs import BaseRecordSpec, BaseSpec, BaseStructureSpec
 
-BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter)
+BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter, SourceLoader)
 
 
 def test_public_names_are_classes_under_the_bases():
-    """Every public name is a class derived from a base of the package, or an enumeration of values."""
+    """Every public name is a class derived from a base of the package, the source loader, or an enumeration."""
     for name in package.__all__:
         item = getattr(package, name)
         assert inspect.isclass(item), name

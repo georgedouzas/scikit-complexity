@@ -22,7 +22,7 @@ MODEL = 'kirschner_panetta'
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL, alpha_a=0.02)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).check().run(until=1000)
+simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).check().prepare().run(until=1000)
 
 # %%
 # Oscillations and clearance
@@ -33,7 +33,11 @@ simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).che
 
 untreated = simulation.trajectory_
 treated = (
-    Simulation(create(MODEL, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver).check().run(until=1000).trajectory_
+    Simulation(create(MODEL, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
+    .check()
+    .prepare()
+    .run(until=1000)
+    .trajectory_
 )
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
 cycles.semilogy(untreated.times, untreated.values('site.A'), label='tumour')

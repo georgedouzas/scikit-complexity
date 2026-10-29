@@ -38,6 +38,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=40)
 )
 
@@ -65,6 +66,7 @@ for k in couplings:
     run = (
         Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=100)
         .trajectory_
     )

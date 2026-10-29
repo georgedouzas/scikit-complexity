@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -50,14 +49,8 @@ class DriveLaw(BaseLaw):
         """Return what the drive requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> Self:
-        """Raise an error for a function that cannot be called.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a function that cannot be called."""
         if not callable(self.function):
             error_msg = f'The function of a drive must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
-        return self

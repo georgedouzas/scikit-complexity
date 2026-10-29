@@ -20,7 +20,7 @@ MODEL = 'mirollo_strogatz'
 
 system = create(MODEL, n_oscillators=5, S=2.0, gamma=1.0, epsilon=0.1, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # Absorption into ever fewer groups
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for seed in range(3):
-    run = Simulation(create(MODEL, n_oscillators=30, epsilon=0.1, seed=seed), dt=0.1).check().run(until=60)
+    run = Simulation(create(MODEL, n_oscillators=30, epsilon=0.1, seed=seed), dt=0.1).check().prepare().run(until=60)
     charges = np.asarray(run.trajectory_.values('oscillators.x'))
     groups = [len(np.unique(np.round(frame, 6))) for frame in charges]
     ax.step(run.trajectory_.times, groups, where='post', label=f'seed {seed}')

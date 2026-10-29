@@ -301,7 +301,9 @@ class ObservableEvaluator:
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
+        function = (
+            ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression]).code_
+        )
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
@@ -449,7 +451,7 @@ class ObservableEvaluator:
             time=self.problem.time,
             parameters=parameters,
         )
-        expression = lowering.check().prepare().run(expression)
+        expression = lowering.check().prepare().run(expression).expression_
         readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
         reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)
@@ -582,16 +584,8 @@ class ObservableEvaluator:
         Returns:
             terms:
                 The terms of the operator.
-
-        Raises:
-            TypeError:
-                The lowering returns something else than terms.
         """
-        terms = ObservableEvaluator._lowering_of(problem).run((operator, path))
-        if not isinstance(terms, tuple):
-            error_msg = f'A quantum lowering returns a tuple of terms, not a {type(terms).__name__}.'
-            raise TypeError(error_msg)
-        return terms
+        return ObservableEvaluator._lowering_of(problem).run((operator, path)).kernels_
 
     @staticmethod
     def _quantum_member_getter(

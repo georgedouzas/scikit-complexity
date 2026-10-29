@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=24)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=6000)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=6000)
 trajectory = simulation.trajectory_
 points = np.column_stack([trajectory.values(f'map.{name}') for name in 'xyz'])[50:]
 colors = plt.get_cmap('plasma')(points[:, 1] / np.ptp(points[:, 1]) - points[:, 1].min() / np.ptp(points[:, 1]))

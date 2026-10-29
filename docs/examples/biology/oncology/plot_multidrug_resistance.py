@@ -21,7 +21,7 @@ MODEL = 'multidrug_resistance'
 
 system = create(MODEL, u2=0.0, u3=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=2.0, observers=[observer]).check().run(until=600)
+simulation = Simulation(system, dt=2.0, observers=[observer]).check().prepare().run(until=600)
 
 # %%
 # One drug against three
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer]).check().run(until=
 
 names = ('S', 'R1', 'R2', 'R3', 'R12', 'R13', 'R23', 'R123')
 single = simulation.trajectory_
-combined = Simulation(create(MODEL), dt=2.0).check().run(until=600).trajectory_
+combined = Simulation(create(MODEL), dt=2.0).check().prepare().run(until=600).trajectory_
 fig, (one, three) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, trajectory, title in ((one, single, 'Drug 1 alone'), (three, combined, 'All three drugs')):
     for name in ('S', 'R1', 'R12', 'R123'):

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -125,7 +124,7 @@ class EmbeddingAnalysis(BaseAnalysis):
         self.ratio = ratio
         self.escape = escape
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the delays and dimensions, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
@@ -137,13 +136,12 @@ class EmbeddingAnalysis(BaseAnalysis):
                 'Use 1 or more.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the one series to embed."""
         series = self._read_series(source, self.variables)
         if series.values.shape[1] != 1:
@@ -154,9 +152,8 @@ class EmbeddingAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Choose the delay and the dimension unless given, and compute the embedding or the false neighbours."""
         array = self.values_[:, 0]
         self.mutual_information_ = None
@@ -174,7 +171,7 @@ class EmbeddingAnalysis(BaseAnalysis):
                 ratio=self.ratio,
                 escape=self.escape,
             )
-            return self
+            return
         if self.dimension is not None:
             self.dimension_ = self.dimension
         else:
@@ -188,7 +185,6 @@ class EmbeddingAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             self.dimension_ = int(below[0] + 1)
         self.points_ = self._delay_embedding(array, self.dimension_, self.delay_)
-        return self
 
     @staticmethod
     def _first_minimum(values: Array) -> int:

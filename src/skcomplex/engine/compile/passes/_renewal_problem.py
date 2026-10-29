@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
@@ -146,12 +147,12 @@ class RenewalProblemPass(BasePass):
                 raise ValidationError(error_msg)
             readers.append(reference)
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
-        function = printer.run(list(expressions))
+        function = printer.run(list(expressions)).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the renewal laws of {owner}.'
             raise TypeError(error_msg)
 
-        def evaluate(*values: object) -> list[object]:
+        def evaluate(*values: object) -> list[npt.ArrayLike]:
             results = function(*values)
             if not isinstance(results, list):
                 error_msg = f'The function of the renewal laws of {owner} returns no list of values.'
@@ -318,15 +319,19 @@ class RenewalProblemPass(BasePass):
             )
 
         lowered = [item.subs(calls) for item in values]
-        return RenewalKernel(
-            label=label,
-            members=rows,
-            counts=counts,
-            states=RenewalProblemPass._recorded_states(group, references, rows)[0],
-            names=RenewalProblemPass._recorded_states(group, references, rows)[1],
-            targets=RenewalProblemPass._target_places(owner, targets, references, rows),
-            reset=RenewalProblemPass._member_function(owner, lowered, references, names, time) if lowered else None,
-            waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
-            before=samplers(first),
-            after=samplers(later),
-        ).check()
+        return (
+            RenewalKernel(
+                label=label,
+                members=rows,
+                counts=counts,
+                states=RenewalProblemPass._recorded_states(group, references, rows)[0],
+                names=RenewalProblemPass._recorded_states(group, references, rows)[1],
+                targets=RenewalProblemPass._target_places(owner, targets, references, rows),
+                reset=RenewalProblemPass._member_function(owner, lowered, references, names, time) if lowered else None,
+                waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
+                before=samplers(first),
+                after=samplers(later),
+            )
+            .check()
+            .prepare()
+        )

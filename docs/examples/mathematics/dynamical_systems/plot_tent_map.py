@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=200)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=200)
 slopes = np.linspace(1.0, 2.0, 400)
 diagram = (
     OrbitDiagramExperiment(

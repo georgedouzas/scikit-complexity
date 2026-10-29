@@ -28,7 +28,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, speed=200.0, distance=1.0, m=0.01, M=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=4.0)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=4.0)
 
 # %%
 # Height of the swing against the speed of the bullet
@@ -40,7 +40,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until
 speeds = np.linspace(50.0, 400.0, 8)
 heights = []
 for speed in speeds:
-    run = Simulation(create(MODEL, speed=speed, distance=1.0, m=0.01, M=1.0), dt=0.005).check().run(until=2.0)
+    run = Simulation(create(MODEL, speed=speed, distance=1.0, m=0.01, M=1.0), dt=0.005).check().prepare().run(until=2.0)
     angle = np.ravel(run.trajectory_.values('pendulum.theta'))
     heights.append(1 - np.cos(np.abs(angle).max()))
 grid = np.linspace(0.0, 400.0, 200)

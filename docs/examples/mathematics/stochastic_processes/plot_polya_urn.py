@@ -30,7 +30,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, n_urns=6), dt=1.0, observers=[observer], random_state=0).check().run(until=200)
+simulation = (
+    Simulation(create(MODEL, n_urns=6), dt=1.0, observers=[observer], random_state=0).check().prepare().run(until=200)
+)
 trajectory = simulation.trajectory_
 share = trajectory.values('urns.red') / (trajectory.values('urns.red') + trajectory.values('urns.blue'))
 for urn in range(6):
@@ -55,7 +57,13 @@ shares.set_ylabel('share of red balls')
 shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
-    urns = Simulation(create(MODEL, n_urns=2000, red=red), dt=1.0, random_state=1).check().run(until=200).trajectory_
+    urns = (
+        Simulation(create(MODEL, n_urns=2000, red=red), dt=1.0, random_state=1)
+        .check()
+        .prepare()
+        .run(until=200)
+        .trajectory_
+    )
     share = urns.values('urns.red')[-1] / (urns.values('urns.red')[-1] + urns.values('urns.blue')[-1])
     limits.hist(share, bins=20, range=(0, 1), density=True, alpha=0.5, color=color, label=f'red = {red}, blue = 1')
     limits.plot(grid, stats.beta.pdf(grid, red, 1), color=color)

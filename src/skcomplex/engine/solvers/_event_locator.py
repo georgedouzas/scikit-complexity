@@ -146,10 +146,7 @@ class EventLocator:
             )
             raise SolverError(error_msg)
         self._last[event.label] = time
-        after = event.run(RunStateSpec(time, state, p))
-        if not isinstance(after, np.ndarray):
-            error_msg = f'The event kernel of {event.label} returned a {type(after).__name__}, not a state vector.'
-            raise TypeError(error_msg)
+        after = event.run(RunStateSpec(time, state, p)).values_
         self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy()))
         if event.terminal:
             self.stopped_at = time

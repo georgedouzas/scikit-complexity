@@ -21,7 +21,7 @@ MODEL = 'de_pillis_radunskaya'
 
 system = create(MODEL, u=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=150)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=150)
 
 # %%
 # Untreated and treated tumours
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=
 # normal cells. With the infusion, the tumour should fall below 1% of its initial size and the normal cells should stay
 # above 0.7 of their capacity.
 
-untreated = Simulation(create(MODEL), dt=0.5).check().run(until=150).trajectory_
+untreated = Simulation(create(MODEL), dt=0.5).check().prepare().run(until=150).trajectory_
 treated = simulation.trajectory_
 fig, (tumour, normal) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(untreated.times, untreated.values('patient.A'), label='untreated')

@@ -20,7 +20,7 @@ MODEL = 'michaelis_menten'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Rate equations against single molecules
@@ -32,7 +32,13 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=
 trajectory = simulation.trajectory_
 fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
-    jumps = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=seed).check().run(until=50).trajectory_
+    jumps = (
+        Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=seed)
+        .check()
+        .prepare()
+        .run(until=50)
+        .trajectory_
+    )
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
         curves.step(jumps.times, jumps.values(f'{species}.n'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:

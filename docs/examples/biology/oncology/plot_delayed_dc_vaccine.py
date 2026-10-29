@@ -23,7 +23,7 @@ MODEL = 'delayed_dc_vaccine'
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).check().run(until=30)
+simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).check().prepare().run(until=30)
 
 # %%
 # The lag of two divisions
@@ -32,9 +32,11 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).che
 # small until two divisions `2 tau3`, when the first vaccinated naive helper cells mature, and then rise steeply.
 
 vaccinated = simulation.trajectory_
-unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.1, solver=solver).check().run(until=30).trajectory_
-early = Simulation(create(MODEL), dt=0.02, solver=solver).check().run(until=2).trajectory_
-early_unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.02, solver=solver).check().run(until=2).trajectory_
+unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.1, solver=solver).check().prepare().run(until=30).trajectory_
+early = Simulation(create(MODEL), dt=0.02, solver=solver).check().prepare().run(until=2).trajectory_
+early_unvaccinated = (
+    Simulation(create(MODEL, dose=0.0), dt=0.02, solver=solver).check().prepare().run(until=2).trajectory_
+)
 fig, (lag, cells) = plt.subplots(1, 2, figsize=(10, 4))
 lag.plot(
     early.times,

@@ -21,7 +21,7 @@ MODEL = 'two_compartment_pharmacokinetics'
 
 system = create(MODEL, c0=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=10.0, observers=[observer]).check().run(until=3000)
+simulation = Simulation(system, dt=10.0, observers=[observer]).check().prepare().run(until=3000)
 
 # %%
 # Bi-exponential decay

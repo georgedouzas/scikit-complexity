@@ -33,6 +33,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=250)
 )
 
@@ -55,6 +56,7 @@ for index, d in enumerate((1, 2, 3)):
                 observables=describe(MODEL).observables_of(system),
             )
             .check()
+            .prepare()
             .run(until=STEPS)
             .trajectory_.values('total_cost')
             for seed in range(SEEDS)

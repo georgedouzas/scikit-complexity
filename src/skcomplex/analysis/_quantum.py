@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +15,6 @@ from ..core.system import System
 from ..engine.compile import QuantumCompiler, compile_system
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
 from ..engine.problems import BaseProblemSpec, QuantumProblemSpec
-from ..engine.problems._quantum_kernel import QuantumKernel
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import RunStateSpec, SectorSpec
@@ -131,7 +129,7 @@ class QuantumAnalysis(BaseAnalysis):
         >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
         >>> trajectory = Simulation(
         ...     pair, compiler=QuantumCompiler(), dt=1.0, initial_state={'system.state': singlet},
-        ... ).check().run(until=1.0).trajectory_
+        ... ).check().prepare().run(until=1.0).trajectory_
         >>> analysis = QuantumAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
         >>> bool(np.allclose(analysis.entropy_, np.log(2)))
         True
@@ -152,7 +150,7 @@ class QuantumAnalysis(BaseAnalysis):
         self.sector = sector
         self.subsystems = subsystems
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, that the kind reads every changed setting, and the subsystems of the entanglement."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
@@ -162,13 +160,12 @@ class QuantumAnalysis(BaseAnalysis):
         if self.n_states < 1:
             error_msg = f'{type(self).__name__} has n_states={self.n_states!r}. Use 1 or more.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the quantum system, or read the quantum problem of a trajectory."""
         if self.kind in {'purity', 'entanglement'}:
             if not isinstance(source, Trajectory):
@@ -178,11 +175,10 @@ class QuantumAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             self.problem_, _ = self._states_of(source)
             self.trajectory_ = source
-            return self
+            return
         self.problem_ = self._quantum_problem(self._read_system(source))
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
         if self.kind == 'purity':
             problem, states = self._states_of(self.trajectory_)
@@ -190,23 +186,22 @@ class QuantumAnalysis(BaseAnalysis):
                 self.purity_ = np.sum(np.abs(states) ** 2, axis=1) ** 2
             else:
                 self.purity_ = np.sum(np.abs(states) ** 2, axis=(1, 2))
-            return self
+            return
         if self.kind == 'entanglement':
             if not self.subsystems:
                 error_msg = f'{type(self).__name__} of kind entanglement needs the subsystems to keep. Give subsystems.'
                 raise AnalysisError(error_msg)
             problem, states = self._states_of(self.trajectory_)
             self.entropy_ = self._entanglement(problem, states, self.subsystems)
-            return self
+            return
         p = self._parameters_of(self.problem_, self.parameters)
         if self.kind == 'ground-state':
             energies, states = self._lowest_states(self.problem_, p, 1, None)
             self.energy_ = float(energies[0])
             self.state_ = states[:, 0]
-            return self
+            return
         basis = None if self.sector is None else self._sector_basis(self.problem_, self.sector, p)
         self.energies_, self.states_ = self._lowest_states(self.problem_, p, self.n_states, basis)
-        return self
 
     @staticmethod
     def _quantum_problem(system: System | BaseProblemSpec) -> QuantumProblemSpec:
@@ -240,15 +235,14 @@ class QuantumAnalysis(BaseAnalysis):
         if problem.lowering is None:
             error_msg = 'The quantum problem has no lowering of operators, so its sectors cannot be read.'
             raise AnalysisError(error_msg)
-        lowered = problem.lowering.run((sector.operator(problem.namespaces['']), 'the sector'))
-        terms = [term for term in lowered if isinstance(term, QuantumKernel)] if isinstance(lowered, tuple) else []
+        terms = problem.lowering.run((sector.operator(problem.namespaces['']), 'the sector')).kernels_
         if not terms:
             error_msg = 'The operator of a sector lowers to no term.'
             raise AnalysisError(error_msg)
         state = RunStateSpec(0.0, np.zeros(0), p)
-        matrix = terms[0].matrix * QuantumKernel._coefficient_of(terms[0].run(state))
+        matrix = terms[0].matrix * terms[0].run(state).values_
         for term in terms[1:]:
-            matrix = matrix + term.matrix * QuantumKernel._coefficient_of(term.run(state))
+            matrix = matrix + term.matrix * term.run(state).values_
         diagonal = matrix.diagonal()
         if abs(matrix).sum() - np.abs(diagonal).sum() > DIAGONAL_TOLERANCE:
             error_msg = (

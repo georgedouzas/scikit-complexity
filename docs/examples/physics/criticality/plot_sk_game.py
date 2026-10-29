@@ -43,6 +43,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(200)
 )
 
@@ -65,6 +66,7 @@ for temperature in temperatures:
             random_state=0,
         )
         .check()
+        .prepare()
         .run(150)
         .trajectory_.values('agents.sigma'),
     )[-50:]

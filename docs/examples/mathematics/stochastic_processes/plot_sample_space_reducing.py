@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer], random_state=0).check().run(until=40)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer], random_state=0).check().prepare().run(until=40)
 path = levels(simulation.trajectory_)
 observer.recording_.send_columns(
     'levels/ball_0',
@@ -54,7 +54,12 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 states = np.arange(1, 100)
 for lam in (1.0, 0.7, 0.4, 0.0):
-    run = Simulation(create(MODEL, n_balls=200, n_states=100, lam=lam), dt=1, random_state=1).check().run(until=1000)
+    run = (
+        Simulation(create(MODEL, n_balls=200, n_states=100, lam=lam), dt=1, random_state=1)
+        .check()
+        .prepare()
+        .run(until=1000)
+    )
     visits = np.bincount(levels(run.trajectory_)[100:].astype(int).ravel(), minlength=101)[1:100]
     (line,) = ax.loglog(states, visits / visits.sum(), '.', label=f'lam = {lam}')
     reference = states ** (-lam)

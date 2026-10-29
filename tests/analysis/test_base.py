@@ -13,7 +13,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.errors import AnalysisError, NotCheckedError
+from skcomplex.errors import AnalysisError, NotCheckedError, NotPreparedError
 from skcomplex.models import run
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -51,11 +51,9 @@ class MeanAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.series_ = self._read_series(source, self.variables)
-        return self
 
     def _run(self, inputs=None):
         self.mean_ = self.series_.values.mean(axis=0)
-        return self
 
 
 class DegreeAnalysis(BaseAnalysis):
@@ -66,11 +64,9 @@ class DegreeAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.graphs_ = self._read_networks(source)
-        return self
 
     def _run(self, inputs=None):
         self.degree_ = np.asarray([2 * graph.number_of_edges() / graph.number_of_nodes() for graph in self.graphs_])
-        return self
 
 
 class PathAnalysis(BaseAnalysis):
@@ -81,11 +77,9 @@ class PathAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.path_ = self._read_path(source)
-        return self
 
     def _run(self, inputs=None):
         self.jumps_ = self.path_.times.size - 1
-        return self
 
 
 class FieldAnalysis(BaseAnalysis):
@@ -99,11 +93,9 @@ class FieldAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.frames_ = self._read_fields(source, self.name)
-        return self
 
     def _run(self, inputs=None):
         self.mean_ = self.frames_.reshape(self.frames_.shape[0], -1).mean(axis=1)
-        return self
 
 
 class AgentAnalysis(BaseAnalysis):
@@ -114,11 +106,9 @@ class AgentAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.snapshots_ = self._read_snapshots(source)
-        return self
 
     def _run(self, inputs=None):
         self.count_ = self.snapshots_.ids.size
-        return self
 
 
 def test_analysis_reads_a_trajectory():
@@ -166,7 +156,7 @@ def test_series_labels_of_every_scalar_series():
 def test_jump_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
     system = System(elements=[BirthDeathElement('cells')])
-    trajectory = Simulation(system, dt=0.01, random_state=0).check().run(until=20).trajectory_
+    trajectory = Simulation(system, dt=0.01, random_state=0).check().prepare().run(until=20).trajectory_
     path = PathAnalysis().check().prepare(trajectory).path_
     assert path.label == 'cells.n'
     assert np.all(np.diff(path.states) != 0)
@@ -239,5 +229,5 @@ def test_verbs_run_in_order():
     """Test that prepare needs check and run needs prepare."""
     with pytest.raises(NotCheckedError):
         MeanAnalysis().prepare([1.0])
-    with pytest.raises(AnalysisError, match='prepared with a source'):
+    with pytest.raises(NotPreparedError, match='must be prepared'):
         MeanAnalysis().check().run()

@@ -2,7 +2,6 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Self
 
 from ...errors import ValidationError
 from ._base import BaseNeighborhood
@@ -34,9 +33,8 @@ class RadiusNeighborhood(BaseNeighborhood):
         self.radius = radius
         self.center = center
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a radius that is not positive."""
         if not float(self.radius) > 0:
             error_msg = f'A radius neighbourhood needs a positive radius, but got {self.radius!r}.'
             raise ValidationError(error_msg)
-        return self

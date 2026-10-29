@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).check().run(until=200)
+simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).check().prepare().run(until=200)
 rates = np.linspace(2.8, 4.0, 400)
 diagram = (
     OrbitDiagramExperiment(

@@ -72,7 +72,13 @@ class WordKernel(BaseKernel):
 
     `check()` compiles the productions, `prepare(problem)` starts the word at its axiom, and `run(state)` rewrites it
     once with the parameters and the random stream of the state.
+
+    Attributes:
+        values_:
+            The current word with its geometry, set by `prepare` and rewritten by `run`.
     """
+
+    values_: WordStructureSpec
 
     def __init__(
         self,
@@ -191,7 +197,7 @@ class WordKernel(BaseKernel):
             )
             raise RewritingError(error_msg)
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare([*variables, *symbols])
-        compiled = ExpressionPrinter._function_of(printer.run(values))
+        compiled = ExpressionPrinter._function_of(printer.run(values).code_)
 
         def evaluate(*arguments: object) -> Arrays:
             result = compiled(*arguments)
@@ -267,19 +273,18 @@ class WordKernel(BaseKernel):
             self._weights(group, values, 0)
 
     def _prepare(self, context: object) -> None:
-        """Start the word at generation 0 for a run of the problem, as `structure_`."""
+        """Start the word at generation 0 for a run of the problem, as `values_`."""
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Word {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
-        self.structure_ = self._initial(context.initial_parameters)
+        self.values_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: RunStateSpec | None) -> WordStructureSpec:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Rewrite the current word once, every module in parallel, with the parameters and the random stream."""
         if inputs is None or inputs.rng is None:
             error_msg = f'Word {self.path!r} rewrites at a state with a random stream, but got {inputs!r}.'
             raise RewritingError(error_msg)
-        self.structure_ = self._rewrite(self.structure_, inputs.p, inputs.rng)
-        return self.structure_
+        self.values_ = self._rewrite(self.values_, inputs.p, inputs.rng)
 
     def _initial(self, values: npt.NDArray[np.float64]) -> WordStructureSpec:
         """Return the word at generation 0, the axiom with its geometry."""

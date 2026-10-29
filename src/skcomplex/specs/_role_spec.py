@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
@@ -35,12 +34,8 @@ class RoleSpec(BaseSpec):
     variadic: bool = False
     noise: bool = False
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a role that is both variadic and a noise role.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -49,7 +44,6 @@ class RoleSpec(BaseSpec):
         if self.variadic and self.noise:
             error_msg = 'A role is either variadic or a noise role, not both.'
             raise ValidationError(error_msg)
-        return self
 
 
 type Spec = StateSpec | ParameterSpec | RoleSpec

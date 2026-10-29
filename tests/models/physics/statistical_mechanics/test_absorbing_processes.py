@@ -14,6 +14,7 @@ def test_absorbing_birth_death_metastable_and_absorbed():
     active = (
         Simulation(absorbing_birth_death(kappa=2.0), dt=0.5, random_state=0, backend=NumbaBackend())
         .check()
+        .prepare()
         .run(
             until=1000,
         )
@@ -24,6 +25,7 @@ def test_absorbing_birth_death_metastable_and_absorbed():
     absorbed = (
         Simulation(absorbing_birth_death(kappa=0.5), dt=0.5, random_state=0, backend=NumbaBackend())
         .check()
+        .prepare()
         .run(
             until=100,
         )

@@ -5,7 +5,6 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 
@@ -260,25 +259,23 @@ class ReservoirAnalysis(BaseAnalysis):
         self.random_state = random_state
         self.label = label
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown reservoir kind, a validation share outside `[0, 1)`, or a negative horizon."""
         SparseIdentificationAnalysis._check_validation(self.validation)
         SparseIdentificationAnalysis._check_horizon(self.horizon)
         if self.kind not in RESERVOIR_KINDS:
             error_msg = f'The reservoir kind {self.kind!r} is unknown. Choose one of {RESERVOIR_KINDS}.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Runs) -> Self:
+    def _prepare(self, source: Runs) -> None:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Fit the readout of the reservoir and set the surrogate system, its errors, and the forecast."""
         samples = self.samples_
         node = self._reservoir_node(
@@ -325,7 +322,6 @@ class ReservoirAnalysis(BaseAnalysis):
             current = step.evaluate(0.0, *current)
             rows.append(current[: len(self.labels_)])
         self.forecast_ = np.asarray(rows).reshape(self.horizon, len(self.labels_))
-        return self
 
     @staticmethod
     def _reservoir_node(

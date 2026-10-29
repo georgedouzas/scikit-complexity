@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, StateSpec
@@ -25,6 +25,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         label:
             The label of the interaction, unique among the parts of its system.
 
+    Attributes:
+        laws_:
+            The laws the interaction contributes for the namespace of its last run.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions._base import BaseInteraction
@@ -42,6 +46,17 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         >>> GrowthInteraction('growth', target='rabbits', r=0.5).get_params()
         {'label': 'growth', 'r': 0.5, 'target': 'rabbits'}
     """
+
+    laws_: Sequence[BasePart]
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the interaction for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
 
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters, which interactions do not hold."""
@@ -61,29 +76,19 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for declarations the interaction cannot take.
 
         Raises:
             ValidationError:
                 The type declares states.
-
-        Returns:
-            interaction:
-                The interaction itself.
         """
         self._check_states()
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
-        """Return the interaction, which has nothing to prepare.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Leave the interaction as it is, since it has nothing to prepare.
 
         Args:
             context:
                 The space the interaction inherits from its system, which an interaction does not read.
-
-        Returns:
-            interaction:
-                The interaction itself.
         """
-        return self

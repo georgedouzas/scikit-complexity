@@ -35,7 +35,7 @@ class GillespieSolver(Solver):
         ...     ),
         ... )
         >>> stepper = GillespieSolver(random_state=0).check().prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).tolist()
+        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
         [0.0, 10.0]
     """
 

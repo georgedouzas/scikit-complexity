@@ -5,7 +5,6 @@
 
 import dataclasses
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -132,7 +131,7 @@ class SectionAnalysis(BaseAnalysis):
         self.solver = solver
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, that the kind reads every changed setting, and that its needed settings are given."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
@@ -148,13 +147,12 @@ class SectionAnalysis(BaseAnalysis):
         if self.direction not in DIRECTIONS:
             error_msg = f'{type(self).__name__} has direction={self.direction!r}. Use one of -1, 0, or 1.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the flow of the section."""
         problem = self._compiled_problem(self._read_system(source), 'A section')
         if problem.form not in {FormKind.ODE, FormKind.SDE}:
@@ -168,7 +166,6 @@ class SectionAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         self.problem_ = problem
-        return self
 
     def _crossings(self, problem: ProblemSpec) -> tuple[Array, Array]:
         """Return the times and the states where the state crosses the value of the Poincaré section."""
@@ -182,11 +179,12 @@ class SectionAnalysis(BaseAnalysis):
             return float(x[index] - value)
 
         transient = self.transient if self.transient is not None else 0.0
-        event = EventKernel(SECTION, guard, None, int(self.direction), False).check()
+        event = EventKernel(SECTION, guard, None, int(self.direction), False).check().prepare()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
             Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)
             .check()
+            .prepare()
             .run(self.until)
             .trajectory_
         )
@@ -208,11 +206,13 @@ class SectionAnalysis(BaseAnalysis):
         period = float(self.period)
         transient = int(self.transient if self.transient is not None else 100)
         until = period * (transient + self.n_points - 1)
-        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check()
+        simulation = (
+            Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check().prepare()
+        )
         trajectory = simulation.run(until).trajectory_
         return trajectory.times[transient:], trajectory.states[transient:]
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Run the system and take the section."""
         problem = self.problem_
         self.times_, self.states_ = self._crossings(problem) if self.kind == 'poincare' else self._samples(problem)
@@ -222,4 +222,3 @@ class SectionAnalysis(BaseAnalysis):
             values = np.asarray([problem.states.read(state, name) for state in self.states_], dtype=float)
             size = problem.states.entry(name).size
             self.values_[name] = values.reshape(len(self.times_), -1) if size > 1 else values.reshape(-1)
-        return self

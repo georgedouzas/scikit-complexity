@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Self
 
 from .base import BasePart
 from .elements import BaseElement
@@ -21,6 +20,10 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
     A system is defined by its parts and by nothing about how it runs. An interaction refers to an element by its path
     relative to the system that holds the interaction, so `forest/foxes` names the element `foxes` of the nested system
     `forest`. Groups and nested systems without a space of their own live on the space of the system.
+
+    Attributes:
+        laws_:
+            The laws the system contributes for the namespace of its last run.
 
     Examples:
         >>> from typing import Annotated
@@ -39,9 +42,11 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         ...         return [RateLaw(namespace.x, -namespace.x)]
         >>> system = System(elements=[DecayElement('decay')]).check().prepare()
         >>> namespace = SimpleNamespace(decay=SimpleNamespace(x=var('x')))
-        >>> [type(law).__name__ for law in system.run(namespace)]
+        >>> [type(law).__name__ for law in system.run(namespace).laws_]
         ['RateLaw']
     """
+
+    laws_: Sequence[BasePart]
 
     def __init__(
         self,
@@ -87,27 +92,17 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         around = [part for part in (self.space, self.time) if part is not None]
         return [*around, *self.elements, *self.interactions, *self.systems]
 
-    def _check(self) -> Self:
-        """Check every part of the system.
-
-        Returns:
-            system:
-                The system itself.
-        """
+    def _check(self) -> None:
+        """Check every part of the system."""
         for part in self._get_parts():
             part.check()
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Prepare the space and the time, then the elements and the nested systems on the space, then the interactions.
 
         Args:
             context:
                 The space a nested system inherits from the system that holds it, or `None`.
-
-        Returns:
-            system:
-                The system itself.
         """
         space = self.space if self.space is not None else context
         for part in (self.space, self.time):
@@ -117,7 +112,15 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
             part.prepare(space)
         for part in self.interactions:
             part.prepare()
-        return self
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the system for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of every part, each for the namespace of its label.

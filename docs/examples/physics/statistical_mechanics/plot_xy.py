@@ -28,7 +28,7 @@ MODEL = 'xy'
 
 system = create(MODEL, size=64, temperature=0.3, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=200)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=200)
 
 # %%
 # Vortices and energy against temperature
@@ -41,7 +41,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 
 def measure(temperature):
     """Return the vortex density and the energy per spin over the last 100 of 400 sweeps from random angles."""
-    run = Simulation(create(MODEL, size=32, temperature=temperature, random_state=1), random_state=1).check()
+    run = Simulation(create(MODEL, size=32, temperature=temperature, random_state=1), random_state=1).check().prepare()
     theta = np.asarray(run.run(until=400).trajectory_.lattice('spins.theta'))[-100:]
     right, down = np.roll(theta, -1, axis=-1), np.roll(theta, -1, axis=-2)
     energy = -(np.cos(theta - right) + np.cos(theta - down)).mean()

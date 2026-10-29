@@ -35,7 +35,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=100)
-simulation = Simulation(create(MODEL, n_workers=4), observers=[observer], random_state=0).check().run(until=DAY)
+simulation = (
+    Simulation(create(MODEL, n_workers=4), observers=[observer], random_state=0).check().prepare().run(until=DAY)
+)
 
 # %%
 # Revenue against demand
@@ -50,7 +52,9 @@ frames = np.arange(0, len(trajectory.times), 100)
 revenue = [trajectory.agents('till', frame).values['revenue'][0] for frame in frames]
 expected = P_PASS * P_ENTER * ((1 - P_VALET) * WASH + P_VALET * VALET)
 workers = np.array([1, 2, 3, 4, 6])
-days = [Simulation(create(MODEL, n_workers=n), random_state=0).check().run(until=DAY).trajectory_ for n in workers]
+days = [
+    Simulation(create(MODEL, n_workers=n), random_state=0).check().prepare().run(until=DAY).trajectory_ for n in workers
+]
 earned = np.array([day.agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
 fig, (till, labour) = plt.subplots(1, 2, figsize=(10, 4))
 till.plot(trajectory.times[frames] / 3600, revenue, label='till')

@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -49,12 +48,8 @@ class HilbertSpec(BaseSpec):
     basis: Mapping[str, int] = field(default_factory=dict)
     display: str | None = 'z'
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a dimension, an operator, a basis state, or a display that does not fit the space.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -78,4 +73,3 @@ class HilbertSpec(BaseSpec):
         if self.display is not None and self.operators and self.display not in self.operators:
             error_msg = f'The display operator {self.display!r} is not one of {", ".join(self.operators)}.'
             raise ValidationError(error_msg)
-        return self

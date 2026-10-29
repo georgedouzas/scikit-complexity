@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -65,43 +64,28 @@ class EquationLaw(BaseLaw):
             return self.lhs.lhs(), self.lhs.rhs()
         return SR(self.lhs), SR(self.rhs)
 
-    def _check(self) -> Self:
-        """Raise an error for an equation without a right side whose left side is not a relation.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an equation without a right side whose left side is not a relation."""
         if self.rhs is None and not (isinstance(self.lhs, Expression) and self.lhs.is_relational()):
             error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: str | None = None) -> Self:
+    def _prepare(self, context: str | None = None) -> None:
         """Set `lhs_` and `rhs_`, the two sides, besides the attributes of every law.
 
         Args:
             context:
                 The path of the element or interaction that returns the law, or `None`.
-
-        Returns:
-            law:
-                The law itself.
         """
         super()._prepare(context)
         self.lhs_, self.rhs_ = self._get_sides()
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the residual `lhs - rhs` at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the residual `lhs - rhs` at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            residual:
-                The residual, a number when nothing symbolic is left.
         """
         lhs, rhs = self._get_sides()
-        return self._evaluate(lhs - rhs, inputs)
+        self.value_ = self._evaluate(lhs - rhs, inputs)

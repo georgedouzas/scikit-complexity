@@ -39,6 +39,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=10,
     )
@@ -58,6 +59,7 @@ def final_density(activation):
     run = (
         Simulation(model_system, dt=20.0, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=20)
     )
     return run.trajectory_.values('tumour_density')[-1]

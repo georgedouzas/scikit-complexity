@@ -27,7 +27,9 @@ MODEL = 'motility_induced_phase_separation'
 system = create(MODEL, n_particles=600, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.5, observers=[observer], random_state=0).check().run(until=120)
+simulation = (
+    Simulation(system, solver=solver, dt=0.5, observers=[observer], random_state=0).check().prepare().run(until=120)
+)
 
 # %%
 # Bimodal local density

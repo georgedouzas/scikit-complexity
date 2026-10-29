@@ -6,7 +6,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
@@ -63,12 +62,8 @@ class TopologyRequestSpec(BaseSpec):
     layer: str | None = None
     values: tuple[tuple[str, object], ...] = ()
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown kind or kept end, or a number of edges that is not a whole number.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -83,4 +78,3 @@ class TopologyRequestSpec(BaseSpec):
         if int(self.edges) != self.edges or self.edges < 0:
             error_msg = f'A topology request adds a whole number of edges of at least 0, not {self.edges!r}.'
             raise ValidationError(error_msg)
-        return self

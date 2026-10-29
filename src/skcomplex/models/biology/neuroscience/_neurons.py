@@ -136,7 +136,7 @@ def integrate_and_fire(
     Examples:
         >>> from skcomplex.models.biology.neuroscience import integrate_and_fire
         >>> from skcomplex.engine.runtime import Simulation
-        >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).check().run(until=50.0).trajectory_
+        >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).check().prepare().run(until=50.0).trajectory_
         >>> round(trajectory.events[0].time, 2)
         13.86
     """

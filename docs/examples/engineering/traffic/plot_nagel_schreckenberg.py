@@ -22,7 +22,7 @@ MODEL = 'nagel_schreckenberg'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=200)
 
 # %%
 # The fundamental diagram
@@ -34,7 +34,13 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=20
 densities = np.linspace(0.02, 0.8, 27)
 flows = []
 for density in densities:
-    run = Simulation(create(MODEL, density=float(density), random_state=1), dt=1).check().run(until=200).trajectory_
+    run = (
+        Simulation(create(MODEL, density=float(density), random_state=1), dt=1)
+        .check()
+        .prepare()
+        .run(until=200)
+        .trajectory_
+    )
     speeds = run.lattice('road.velocity')[100:]
     flows.append(density * speeds[speeds >= 0].mean())
 fig, ax = plt.subplots(figsize=(6, 4.5))

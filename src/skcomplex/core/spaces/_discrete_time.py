@@ -2,7 +2,6 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -36,20 +35,18 @@ class DiscreteTime(BaseTime):
         super().__init__(label)
         self.schedule = schedule
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a schedule that is neither known nor a `ScheduleSpec`."""
         if isinstance(self.schedule, ScheduleSpec):
             self.schedule.check()
-            return self
+            return
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set the schedule."""
         self.schedule_ = self.schedule
-        return self
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
         """Return every step from 0 to a time."""

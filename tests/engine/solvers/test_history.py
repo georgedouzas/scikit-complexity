@@ -127,10 +127,11 @@ def _divergence_rate(tau, until=1500.0, window=100.0):
     Lyapunov exponent while the distance stays small.
     """
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
-    first = Simulation(mackey_glass(tau=tau), dt=0.5, solver=solver).check().run(until=until).trajectory_
+    first = Simulation(mackey_glass(tau=tau), dt=0.5, solver=solver).check().prepare().run(until=until).trajectory_
     second = (
         Simulation(mackey_glass(x=0.5 + 1e-8, tau=tau), dt=0.5, solver=clone(solver))
         .check()
+        .prepare()
         .run(until=until)
         .trajectory_
     )
@@ -147,7 +148,9 @@ def test_mackey_glass_is_chaotic_at_seventeen():
 
 def test_mackey_glass_is_periodic_at_six():
     """Test that Mackey-Glass at tau = 6 settles on a periodic orbit whose maxima repeat."""
-    values = Simulation(mackey_glass(tau=6.0), dt=0.1).check().run(until=600).trajectory_.values('cells.x')[3000:]
+    values = (
+        Simulation(mackey_glass(tau=6.0), dt=0.1).check().prepare().run(until=600).trajectory_.values('cells.x')[3000:]
+    )
     peaks = values[1:-1][(values[1:-1] > values[:-2]) & (values[1:-1] > values[2:])]
     assert peaks.size > 10
     assert np.ptp(peaks) < 1e-3
@@ -156,7 +159,13 @@ def test_mackey_glass_is_periodic_at_six():
 
 def test_hutchinson_oscillates_above_threshold():
     """Test that the delayed logistic oscillates around K with a stable amplitude when r tau is above pi/2."""
-    values = Simulation(hutchinson(r=1.0, tau=2.0), dt=0.1).check().run(until=200).trajectory_.values('population.n')
+    values = (
+        Simulation(hutchinson(r=1.0, tau=2.0), dt=0.1)
+        .check()
+        .prepare()
+        .run(until=200)
+        .trajectory_.values('population.n')
+    )
     middle, late = values[1000:1500], values[1500:]
     assert np.ptp(late) > 50
     assert np.ptp(late) == pytest.approx(np.ptp(middle), rel=0.01)
@@ -165,7 +174,13 @@ def test_hutchinson_oscillates_above_threshold():
 
 def test_hutchinson_settles_below_threshold():
     """Test that the delayed logistic settles at K when r tau is below pi/2."""
-    values = Simulation(hutchinson(r=1.0, tau=1.0), dt=0.1).check().run(until=200).trajectory_.values('population.n')
+    values = (
+        Simulation(hutchinson(r=1.0, tau=1.0), dt=0.1)
+        .check()
+        .prepare()
+        .run(until=200)
+        .trajectory_.values('population.n')
+    )
     assert values[-1] == pytest.approx(100, abs=1e-3)
 
 
@@ -173,7 +188,11 @@ def test_hutchinson_settles_below_threshold():
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
     trajectory = (
-        Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver()).check().run(until=2).trajectory_
+        Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver())
+        .check()
+        .prepare()
+        .run(until=2)
+        .trajectory_
     )
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
@@ -205,7 +224,9 @@ def test_declared_history_is_read_before_the_start():
             """Return the laws of the remembered element."""
             return _with_history(s)
 
-    trajectory = Simulation(System(elements=[RememberedElement('d')]), dt=0.1).check().run(until=1).trajectory_
+    trajectory = (
+        Simulation(System(elements=[RememberedElement('d')]), dt=0.1).check().prepare().run(until=1).trajectory_
+    )
     assert trajectory.values('d.x')[-1] == pytest.approx(1 - 0.5, abs=1e-5)
 
 
@@ -235,7 +256,7 @@ def test_history_is_keyed_by_state():
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_bouncing_ball_impact_times(solver):
     """Test that the impact times of a ball with restitution 0.8 match the analytic times within 1e-6."""
-    trajectory = Simulation(bouncing_ball(), dt=0.01, solver=solver()).check().run(until=3.3).trajectory_
+    trajectory = Simulation(bouncing_ball(), dt=0.01, solver=solver()).check().prepare().run(until=3.3).trajectory_
     times = np.asarray([event.time for event in trajectory.events])
     assert times.size == 7
     assert times == pytest.approx(_impact_times(times.size), abs=1e-6)
@@ -246,7 +267,9 @@ def test_bouncing_ball_impact_times(solver):
 
 def test_terminal_event_ends_the_run():
     """Test that a terminal event at 3.2 ends the run there with the state at the crossing."""
-    trajectory = Simulation(System(elements=[ClockElement('clock')]), dt=0.5).check().run(until=10).trajectory_
+    trajectory = (
+        Simulation(System(elements=[ClockElement('clock')]), dt=0.5).check().prepare().run(until=10).trajectory_
+    )
     assert trajectory.times[-1] == pytest.approx(3.2)
     assert trajectory.values('clock.x')[-1] == pytest.approx(3.2)
     assert [event.label for event in trajectory.events] == ['clock']
@@ -272,7 +295,7 @@ def test_event_without_reset_fires_once():
             """Return the laws of the marker element."""
             return [RateLaw(s.x, -1), CrossingLaw(s.x, direction=-1)]
 
-    trajectory = Simulation(System(elements=[MarkerElement('m')]), dt=0.5).check().run(until=2).trajectory_
+    trajectory = Simulation(System(elements=[MarkerElement('m')]), dt=0.5).check().prepare().run(until=2).trajectory_
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
     assert trajectory.values('m.x')[-1] == pytest.approx(-1.0)
 
@@ -299,7 +322,7 @@ def test_chattering_event_raises(solver):
             return [RateLaw(s.x, -1), CrossingLaw(s.x, {s.x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
-        Simulation(System(elements=[StickyElement('c')]), dt=0.5, solver=solver()).check().run(until=2)
+        Simulation(System(elements=[StickyElement('c')]), dt=0.5, solver=solver()).check().prepare().run(until=2)
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
@@ -308,6 +331,7 @@ def test_step_response(solver):
     trajectory = (
         Simulation(System(elements=[FirstOrderElement('f')]), dt=0.25, solver=solver())
         .check()
+        .prepare()
         .run(until=10)
         .trajectory_
     )
@@ -340,7 +364,7 @@ def test_pulse_train_and_series_breakpoints():
 
     problem = compile_system(System(elements=[DrivenElement('d')]))
     assert problem.breakpoints.between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
-    trajectory = Simulation(problem, dt=0.5).check().run(until=5).trajectory_
+    trajectory = Simulation(problem, dt=0.5).check().prepare().run(until=5).trajectory_
     assert trajectory.values('d.y')[-1] == pytest.approx(1.5 + 2.0, abs=1e-6)
 
 
@@ -353,6 +377,7 @@ def test_schedule_ramps_a_parameter():
             schedule={'f.k': lambda t: 1.0 + t},
         )
         .check()
+        .prepare()
         .run(until=3)
     )
     assert simulation.trajectory_.parameters[:, 0].tolist() == [1.0, 2.0, 3.0, 4.0]
@@ -367,6 +392,7 @@ def test_stratonovich_geometric_brownian_motion(stepper):
             (
                 Simulation(system, dt=1.0, solver=stepper(dt=0.01), random_state=seed, record=False)
                 .check()
+                .prepare()
                 .run(until=1)
                 .state_[0]
             )
@@ -421,6 +447,7 @@ def test_milstein_and_heun_converge_on_additive_noise():
                 random_state=0,
             )
             .check()
+            .prepare()
             .run(
                 1000,
             )
@@ -440,7 +467,9 @@ def test_steppers_without_hybrid_path_reject_events():
 def test_fixed_step_longer_than_delay_is_rejected():
     """Test that a fixed step longer than the smallest delay raises an error."""
     with pytest.raises(SolverError, match='smallest delay'):
-        Simulation(System(elements=[DelayedElement('d')]), dt=2.0, solver=RK4Solver(dt=2.0)).check().run(until=2)
+        Simulation(System(elements=[DelayedElement('d')]), dt=2.0, solver=RK4Solver(dt=2.0)).check().prepare().run(
+            until=2,
+        )
 
 
 def test_events_are_attached_to_frames():
@@ -452,7 +481,7 @@ def test_events_are_attached_to_frames():
             if inputs is not None:
                 frames.append(inputs)
 
-    Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).check().run(until=1.5)
+    Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).check().prepare().run(until=1.5)
     assert [len(frame.events) for frame in frames] == [0, 1, 0, 1]
 
 
@@ -485,7 +514,7 @@ def test_very_short_delay_with_scipy(tau):
             return _short_delay(s)
 
     system = System(elements=[ShortElement('d')])
-    trajectory = Simulation(system, solver=ScipyODESolver()).check().run(until=0.2).trajectory_
+    trajectory = Simulation(system, solver=ScipyODESolver()).check().prepare().run(until=0.2).trajectory_
     assert trajectory.values('d.x')[-1] == pytest.approx(math.exp(-0.2), abs=1e-3)
 
 
@@ -518,7 +547,7 @@ def test_periodic_breakpoints_over_unbounded_runs():
 
     problem = compile_system(System(elements=[DosedElement('a')]))
     assert problem.breakpoints.next_after(1.0) == 21.0
-    trajectory = Simulation(problem, dt=0.5).check().run(until=10).trajectory_
+    trajectory = Simulation(problem, dt=0.5).check().prepare().run(until=10).trajectory_
     expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
     assert trajectory.values('a.c')[-1] == pytest.approx(expected, rel=1e-5)
 
@@ -552,7 +581,7 @@ def test_delay_of_parameter_expression():
 
     problem = compile_system(System(elements=[ScaledElement('d')]))
     assert problem.delays[0].minimum == 1.0
-    trajectory = Simulation(problem, dt=0.5).check().run(until=3).trajectory_
+    trajectory = Simulation(problem, dt=0.5).check().prepare().run(until=3).trajectory_
     assert trajectory.values('d.x')[-1] == pytest.approx(-1 / 6, abs=1e-6)
 
 
@@ -560,7 +589,7 @@ def test_state_conditions_restart_the_integrator_without_stalling():
     """Test that the bathtub drains without a stall warning, keeps its water nonnegative, and records no events."""
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        trajectory = Simulation(bathtub(water=20.0), dt=1).check().run(until=6).trajectory_
+        trajectory = Simulation(bathtub(water=20.0), dt=1).check().prepare().run(until=6).trajectory_
     assert np.all(np.asarray(trajectory.values('tub.water')) >= -1e-6)
     assert not trajectory.events
 

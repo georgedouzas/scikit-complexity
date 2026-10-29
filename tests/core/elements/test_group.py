@@ -72,7 +72,7 @@ def test_group_prepares_its_size_values_and_visual():
 def test_group_runs_into_the_laws_of_one_member():
     """Test that a group runs into the laws of its element type, written for one member."""
     n = var('n')
-    (law,) = GroupElement('herds', element=PopulationElement, size=3).check().prepare().run(SimpleNamespace(n=n))
+    (law,) = GroupElement('herds', element=PopulationElement, size=3).check().prepare().run(SimpleNamespace(n=n)).laws_
     assert law.value == n
 
 

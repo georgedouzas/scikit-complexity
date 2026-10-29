@@ -105,7 +105,8 @@ class CoSimulationSolver(Solver):
         ...         ),
         ...     ],
         ... )
-        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5).check().run(until=1)
+        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5)
+        >>> simulation = simulation.check().prepare().run(until=1)
         >>> sorted(simulation.stepper_.steppers_)
         ['a', 'b']
     """
@@ -201,7 +202,7 @@ class CoSimulationSolver(Solver):
                 raise SolverError(error_msg)
             backend = NumbaBackend() if problem.backend == NumbaBackend._get_name() else NumpyBackend()
             compiler = PassCompiler(backend=backend, partition='subsystems')
-            partitioned = compiler.check().prepare(problem.system).run()
+            partitioned = compiler.check().prepare(problem.system).run().problem_
             if not isinstance(partitioned, ProblemSpec):
                 error_msg = f'The compiler returned a {type(partitioned).__name__}, not a ProblemSpec.'
                 raise TypeError(error_msg)
@@ -258,7 +259,7 @@ class CoSimulationSolver(Solver):
             return reduce_values_of
         condition = SR(1) if reduction.condition is None else reduction.condition
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(reduction.symbols))
-        function = printer.run([reduction.argument, condition])
+        function = printer.run([reduction.argument, condition]).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'
             raise TypeError(error_msg)
@@ -324,10 +325,7 @@ class CoSimulationSolver(Solver):
         stepper = self.steppers_[partition.name]
         if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
-        state = stepper.run(StepSpec(start, source.copy(), p, end))
-        if not isinstance(state, np.ndarray):
-            error_msg = f'The solver of {partition.name} returned a {type(state).__name__}, not a state vector.'
-            raise TypeError(error_msg)
+        state = stepper.run(StepSpec(start, source.copy(), p, end)).state_
         if partition.problem.boundary is not None:
             state = partition.problem.boundary(end, state, p)
         return state

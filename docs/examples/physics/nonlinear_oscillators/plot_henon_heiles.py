@@ -28,7 +28,7 @@ def start(y, py, energy=ENERGY):
 
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).check().run(until=100)
+simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Poincaré section

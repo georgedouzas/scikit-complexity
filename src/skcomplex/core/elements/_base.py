@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Self
 
 from ...specs import VisualSpec
 from ..base import BasePart
@@ -30,6 +30,9 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         default_visual_:
             The visual of the element when it sets none.
 
+        laws_:
+            The laws the element contributes for the namespace of its last run.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements._base import BaseElement
@@ -53,29 +56,29 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         {'label': 'rabbits', 'n': 40, 'r': 0.5, 'visual': VisualSpec(kind='line', options={})}
     """
 
+    laws_: Sequence[BasePart]
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the element for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
+
     def __init__(self, label: str, visual: VisualSpec | None = None) -> None:
         super().__init__(label)
         self.visual = visual
 
-    def _check(self) -> Self:
-        """Return the element, which has nothing to check besides its label.
+    def _check(self) -> None:
+        """Accept the element, which has nothing to check besides its label."""
 
-        Returns:
-            element:
-                The element itself.
-        """
-        return self
-
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the plain visual of an element.
 
         Args:
             context:
                 The space the element inherits from its system, which an element does not read.
-
-        Returns:
-            element:
-                The element itself.
         """
         self.default_visual_ = VisualSpec()
-        return self

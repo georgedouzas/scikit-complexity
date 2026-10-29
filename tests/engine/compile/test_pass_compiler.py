@@ -22,11 +22,11 @@ def _growth():
 
 
 def test_compiler_prepares_its_report_and_runs_to_the_problem():
-    """Test that `prepare` sets the report of a system and `run` returns its problem."""
+    """Test that `prepare` sets the report of a system and `run` sets its problem."""
     compiler = PassCompiler().check().prepare(_growth())
     assert isinstance(compiler.report_, ValidationReportSpec)
     assert compiler.report_.ok
-    problem = compiler.run({'rabbits.n': 20})
+    problem = compiler.run({'rabbits.n': 20}).problem_
     assert isinstance(problem, ProblemSpec)
     assert problem.initial_state.tolist() == [20.0]
 

@@ -22,7 +22,7 @@ MODEL = 'axelrod'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
 system = create(MODEL, width=20, height=20, features=3, traits=5, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=150)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=150)
 
 # %%
 # Order-disorder transition
@@ -35,7 +35,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
-    run = Simulation(create(MODEL, width=8, height=8, features=3, traits=q, random_state=0), random_state=0).check()
+    run = (
+        Simulation(create(MODEL, width=8, height=8, features=3, traits=q, random_state=0), random_state=0)
+        .check()
+        .prepare()
+    )
     shares.append(run.run(until=300).trajectory_.values('census.largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, simulation.trajectory_.values('census.largest_region'))

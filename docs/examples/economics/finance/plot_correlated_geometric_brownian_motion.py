@@ -26,7 +26,9 @@ RHO = 0.7
 system = create(MODEL, rho=RHO)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).check().run(until=3)
+simulation = (
+    Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=3)
+)
 
 # %%
 # Correlated log returns

@@ -22,7 +22,7 @@ MODEL = 'traffic_density_equation'
 
 system = create(MODEL, perturbation=1e-4)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[observer]).check().run(until=400)
+simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[observer]).check().prepare().run(until=400)
 
 # %%
 # Growth rates of the density waves

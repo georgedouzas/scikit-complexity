@@ -26,7 +26,8 @@ class LatticeSolver(Solver):
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeSolver(random_state=0).check().prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).astype(int).tolist()
+        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper.run(step).state_.astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
 
@@ -69,7 +70,7 @@ class LatticeSolver(Solver):
         for step in range(round(t), math.floor(until + 1e-9)):
             current = RunStateSpec(float(step + 1), state, p, self.rng_)
             for item in self.problem_.lattice:
-                result = item.run(current)
+                result = item.run(current).values_
                 if isinstance(result, RelaxationRecordSpec):
                     self.locator_.records.append(result)
                 elif isinstance(result, list):

@@ -39,7 +39,10 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_traders=200, intensity=6.0), observers=[observer], random_state=0).check().run(100)
+    Simulation(create(MODEL, n_traders=200, intensity=6.0), observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(100)
 )
 
 # %%
@@ -74,6 +77,7 @@ samples = {intensity: mean_field(intensity)[-300:] for intensity in intensities}
 simulated = {
     intensity: Simulation(create(MODEL, n_traders=200, intensity=intensity), random_state=0)
     .check()
+    .prepare()
     .run(100)
     .trajectory_.values('pricing.deviation')[-50:]
     for intensity in (1.0, 2.0, 4.0, 6.0)

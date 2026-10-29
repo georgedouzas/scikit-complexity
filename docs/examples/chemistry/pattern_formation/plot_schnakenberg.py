@@ -22,7 +22,9 @@ MODEL = 'schnakenberg'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).check().run(until=200)
+simulation = (
+    Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).check().prepare().run(until=200)
+)
 
 # %%
 # Pattern wavelength against the linear instability

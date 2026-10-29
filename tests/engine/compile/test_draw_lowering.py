@@ -210,7 +210,9 @@ class HiddenElement(Element):
 
 def _run(system, until, backend=None, random_state=0):
     """Return the trajectory of a system run with frames at every step."""
-    return Simulation(system, dt=1.0, random_state=random_state, backend=backend).check().run(until).trajectory_
+    return (
+        Simulation(system, dt=1.0, random_state=random_state, backend=backend).check().prepare().run(until).trajectory_
+    )
 
 
 def _codes(values):
@@ -299,7 +301,7 @@ def test_transition_reaches_the_stationary_distribution():
 
 def test_transition_follows_a_live_matrix_change():
     """Test that the run lengths of the first symbol fall from mean 10 to mean 2 after a live change."""
-    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).check().run(50000)
+    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).check().prepare().run(50000)
     simulation.update_parameters({'c.stay': 0.5})
     simulation.extend(100000)
     x = _codes(simulation.trajectory_.values('c.x'))
@@ -315,7 +317,7 @@ def test_transition_rejects_a_row_that_does_not_sum_to_one():
 
 def test_transition_rejects_a_live_change_that_breaks_a_row():
     """Test that a parameter change that makes an entry negative is rejected and the value is kept."""
-    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).check().run(10)
+    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).check().prepare().run(10)
     with pytest.raises(ParameterError, match=r'c\.stay.*entry \(0, 1\) of the transition law of c\.x.*below 0'):
         simulation.update_parameters({'c.stay': 1.2})
     assert simulation.problem_.parameters.read(simulation.parameters_, 'c.stay') == pytest.approx(0.9)

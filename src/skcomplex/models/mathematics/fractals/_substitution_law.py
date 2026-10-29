@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 from ....core.laws import BaseLaw
 from ....core.spaces import DiscreteTime
@@ -30,12 +29,18 @@ class SubstitutionLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
+    Attributes:
+        value_:
+            Pairs of a prototile name and the scale, the rotation, and the translation of its map, set by `run`.
+
     Examples:
         >>> from skcomplex.models.mathematics.fractals import SubstitutionLaw
         >>> from skcomplex.models.mathematics.fractals import AffineSpec
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).check().pieces)
         1
     """
+
+    value_: list[tuple[str, object]]
 
     def __init__(self, prototile: str, pieces: Sequence[tuple[str, AffineSpec]], *, label: str = '') -> None:
         super().__init__(label)
@@ -50,32 +55,22 @@ class SubstitutionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a piece that is not a pair of a prototile name and an affine map.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a piece that is not a pair of a prototile name and an affine map."""
         for piece in self.pieces:
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'
                 raise RewritingError(error_msg)
             piece[1].check()
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the pieces with the scale, the rotation, and the translation of their maps at given values.
+    def _run(self, inputs: object) -> None:
+        """Set `value_`, the pieces with the scale, the rotation, and the translation of their maps at given values.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the maps read to its value.
-
-        Returns:
-            pieces:
-                Pairs of a prototile name and the scale, the rotation, and the translation of its map.
         """
-        return [
+        self.value_ = [
             (name, self._evaluate((affine.scale, affine.rotation, tuple(affine.translation)), inputs))
             for name, affine in self.pieces
         ]

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -27,7 +26,7 @@ class GeneratorLaw(BaseLaw):
         >>> from skcomplex.core.laws import GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
         >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
-        >>> GeneratorLaw(var('h') * z).check().run({'h': 0.5})
+        >>> GeneratorLaw(var('h') * z).check().prepare().run({'h': 0.5}).value_
         0.5*local_operator(q, z)
     """
 
@@ -43,27 +42,17 @@ class GeneratorLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for an operator without local operators.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an operator without local operators."""
         if not has_operator(self.operator):
             error_msg = f'A generator takes an operator built from local operators, but got {self.operator!r}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the operator with its coefficients at given values of the symbols they read.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the operator with its coefficients at given values of the symbols they read.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            operator:
-                The operator.
         """
-        return self._evaluate(self.operator, inputs)
+        self.value_ = self._evaluate(self.operator, inputs)

@@ -508,7 +508,7 @@ def test_observable_read_in_its_own_partition():
         interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
     observables = [ObservableSpec('mean_wealth', group='savers', variable='W')]
-    simulation = Simulation(system, dt=0.5, observables=observables).check().run(until=5)
+    simulation = Simulation(system, dt=0.5, observables=observables).check().prepare().run(until=5)
     problem, trajectory = simulation.problem_, simulation.trajectory_
     assert not problem.partitions
     index = problem.states.entry('account.x').start
@@ -552,7 +552,7 @@ def test_propensity_after_event(backend):
         np.testing.assert_allclose(rates, expected, atol=1e-12)
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
-    trajectory = Simulation(system, backend=backend()).check().run(until=2).trajectory_
+    trajectory = Simulation(system, backend=backend()).check().prepare().run(until=2).trajectory_
     assert set(np.unique(trajectory.values('units.x'))) <= {0.0, 1.0}
 
 

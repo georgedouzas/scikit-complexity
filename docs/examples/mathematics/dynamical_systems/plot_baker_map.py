@@ -44,7 +44,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=80)
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=20000)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=20000)
 x, y = simulation.trajectory_.values('map.x')[20:], simulation.trajectory_.values('map.y')[20:]
 observer.recording_.log(
     'attractor',

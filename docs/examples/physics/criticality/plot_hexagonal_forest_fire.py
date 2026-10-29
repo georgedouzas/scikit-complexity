@@ -23,7 +23,7 @@ MODEL = 'hexagonal_forest_fire'
 
 system = create(MODEL, shape=(80, 80))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2, observers=[observer], random_state=0).check().run(until=400)
+simulation = Simulation(system, dt=2, observers=[observer], random_state=0).check().prepare().run(until=400)
 
 # %%
 # Fire activity and fronts on a graph
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=2, observers=[observer], random_state=0).chec
 # lattice. On a graph, fire moves along edges, so on a fully forested Watts-Strogatz graph without growth a fire lit
 # at one node should burn, at every step, exactly the nodes at that graph distance from it.
 
-steady = Simulation(create(MODEL, shape=(64, 64)), dt=1, random_state=1).check().run(5000)
+steady = Simulation(create(MODEL, shape=(64, 64)), dt=1, random_state=1).check().prepare().run(5000)
 burning = (steady.trajectory_.values('forest.cover')[1000:] == 2).sum(axis=1)
 histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(burning[burning > 0]).run()
 bins, density = histogram.edges_, histogram.density_
@@ -42,7 +42,9 @@ centers = np.sqrt(bins[1:] * bins[:-1])
 graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
 start = np.ones(500)
 start[0] = 2
-spread = Simulation(create(MODEL, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).check().run(until=15)
+spread = (
+    Simulation(create(MODEL, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).check().prepare().run(until=15)
+)
 front = (spread.trajectory_.values('forest.cover') == 2).sum(axis=1)
 distances = np.bincount(list(nx.single_source_shortest_path_length(graph, 0).values()), minlength=len(front))
 

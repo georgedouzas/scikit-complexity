@@ -21,7 +21,7 @@ MODEL = 'norton_simon'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=150)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=150)
 
 # %%
 # Regrowth after a dose

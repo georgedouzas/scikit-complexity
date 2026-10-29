@@ -31,6 +31,8 @@ class DrawKernel(BaseKernel):
             them.
     """
 
+    values_: None
+
     def __init__(self, offset: int, normal: npt.NDArray[np.bool_], sampled: tuple[SampledDrawSpec, ...] = ()) -> None:
         self.offset = offset
         self.normal = normal
@@ -61,6 +63,7 @@ class DrawKernel(BaseKernel):
 
         The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state.
         """
+        self.values_ = None
         state = self._state_of(inputs)
         q, rng, t, x = state.p, self._generator_of(state), state.t, state.x
         cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.normal.size]

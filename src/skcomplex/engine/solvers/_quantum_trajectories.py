@@ -66,7 +66,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> from skcomplex.engine.compile import QuantumCompiler
         >>> simulation = Simulation(
         ...     system, compiler=QuantumCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
-        ... ).check().run(until=20.0)
+        ... ).check().prepare().run(until=20.0)
         >>> float(simulation.trajectory_.values('q.z')[-1])
         -1.0
     """

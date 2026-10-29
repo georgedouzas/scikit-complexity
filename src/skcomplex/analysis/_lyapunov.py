@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import nolds
 import numba
@@ -12,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
 from ..core.system import System
-from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec
+from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec, SourceLoader
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -198,7 +197,7 @@ class LyapunovAnalysis(BaseAnalysis):
         self.trajectory_length = trajectory_length
         self.skip = skip
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, that the kind reads every changed setting, and the positive settings."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
@@ -208,26 +207,24 @@ class LyapunovAnalysis(BaseAnalysis):
                 'Use positive values.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind for the spectrum, and the series kind for the largest exponent of data."""
         return DataKind.SYSTEM if self.kind == 'spectrum' else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series for the largest exponent, or the dynamics of the system or the exponents for the spectrum."""
         if self.kind == 'largest':
             series = self._read_series(source, self.variables)
             self.values_ = series.values
             self.labels_ = series.labels
-            return self
+            return
         if isinstance(source, System | BaseProblemSpec | Trajectory):
             dynamics = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters)
             self.problem_: ProblemSpec | None = dynamics.problem
-            return self
+            return
         self.problem_ = None
         self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
-        return self
 
     def _compute_spectrum(self, dynamics: _DynamicsSpec) -> Array:
         """Return the exponents of the system from its tangent dynamics."""
@@ -255,7 +252,7 @@ class LyapunovAnalysis(BaseAnalysis):
             exponents = _flow_spectrum(f, jac, start, values, count, dt, steps, skip)
         return np.sort(np.asarray(exponents))[::-1]
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the spectrum with its dimension and entropy, or the largest exponent of every series."""
         if self.kind == 'largest':
             self.largest_exponent_ = np.asarray(
@@ -274,12 +271,11 @@ class LyapunovAnalysis(BaseAnalysis):
                 ],
                 dtype=float,
             )
-            return self
+            return
         if self.problem_ is not None:
             self.exponents_ = self._compute_spectrum(StabilityAnalysis._dynamics_of(self.problem_, self.parameters))
         self.kaplan_yorke_dimension_ = self._kaplan_yorke(self.exponents_)
         self.kolmogorov_sinai_entropy_ = float(self.exponents_[self.exponents_ > 0].sum())
-        return self
 
     @staticmethod
     def _without_kinks(expression: Expression) -> Expression:
@@ -312,7 +308,7 @@ class LyapunovAnalysis(BaseAnalysis):
             | {dynamics.time: 't'}
         )
         printer = ExpressionPrinter('scalar', names=lambda item: names[item]).check().prepare()
-        printed = printer.run([SR(item) for item in expressions])
+        printed = printer.run([SR(item) for item in expressions]).code_
         if not isinstance(printed, tuple):
             error_msg = f'The printer returned no code for the Jacobian of {name}.'
             raise AnalysisError(error_msg)
@@ -327,7 +323,7 @@ class LyapunovAnalysis(BaseAnalysis):
         lines.append('    return out')
         source = '\n'.join(lines) + '\n'
         if source not in FUNCTIONS:
-            module = LyapunovAnalysis._load_source('skcomplex_lyapunov', source, {}, None)
+            module = SourceLoader('skcomplex_lyapunov').check().prepare().run(source).module_
             FUNCTIONS[source] = numba.njit(getattr(module, name))
         return FUNCTIONS[source]
 

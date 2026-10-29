@@ -43,6 +43,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(280)
 )
 
@@ -61,7 +62,12 @@ responses = {}
 for sigma in sigmas:
     responses[sigma] = []
     for rate in rates:
-        run = Simulation(create(MODEL, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0).check().run(600)
+        run = (
+            Simulation(create(MODEL, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0)
+            .check()
+            .prepare()
+            .run(600)
+        )
         responses[sigma].append((run.trajectory_.values('neurons.phase')[100:] == 1).mean())
 
 

@@ -65,6 +65,8 @@ class ReductionKernel(BaseKernel):
             The entry of the reduced group that gives its size to compiled loops, or `None` for an element set.
     """
 
+    values_: None
+
     def __init__(
         self,
         symbol: Expression,
@@ -102,7 +104,7 @@ class ReductionKernel(BaseKernel):
         """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
-        return ExpressionPrinter._function_of(printer.run(expressions))
+        return ExpressionPrinter._function_of(printer.run(expressions).code_)
 
     @property
     def symbols(self) -> list[Expression]:
@@ -150,6 +152,7 @@ class ReductionKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the value of the reduction into the extended parameter vector of the state, the `p` of `inputs`."""
+        self.values_ = None
         state = self._state_of(inputs)
         q = state.p
         argument, condition = self.values(state.t, state.x, q)

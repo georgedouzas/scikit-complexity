@@ -22,7 +22,9 @@ MODEL = 'brusselator'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).check().run(until=100)
+simulation = (
+    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).check().prepare().run(until=100)
+)
 
 # %%
 # Pattern wavelength against the linear instability

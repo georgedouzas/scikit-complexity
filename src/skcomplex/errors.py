@@ -9,7 +9,11 @@ class SkcomplexError(Exception):
 
 
 class NotCheckedError(SkcomplexError):
-    """A part is prepared or run before it is checked."""
+    """A configurable object is prepared or run before it is checked."""
+
+
+class NotPreparedError(SkcomplexError):
+    """A configurable object is run before it is prepared."""
 
 
 class ValidationError(SkcomplexError):

@@ -34,6 +34,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=300)
 )
 
@@ -69,6 +70,7 @@ for temperature in temperatures:
             observables=describe(MODEL).observables_of(model_system),
         )
         .check()
+        .prepare()
         .run(
             until=400,
         )

@@ -45,7 +45,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, graph=ring, positive=0.7, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=STEPS)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=STEPS)
 
 # %%
 # Convergence on the majority
@@ -58,7 +58,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 
 def attitudes(graph, positive, seed=0):
     """Return the attitudes of the thinkers at every step."""
-    run = Simulation(create(MODEL, graph=graph, positive=positive, random_state=seed), random_state=seed).check()
+    run = (
+        Simulation(create(MODEL, graph=graph, positive=positive, random_state=seed), random_state=seed)
+        .check()
+        .prepare()
+    )
     trajectory = run.run(until=STEPS).trajectory_
     return np.array([trajectory.agents('thinkers', frame).values['attitude'] for frame in range(STEPS + 1)])
 

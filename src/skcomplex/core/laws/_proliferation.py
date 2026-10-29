@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -44,7 +43,7 @@ class ProliferationLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import ProliferationLaw
         >>> f, g = var('f'), var('g')
-        >>> ProliferationLaw(f, g, 0.5).check().run({})
+        >>> ProliferationLaw(f, g, 0.5).check().prepare().run({}).value_
         (0.5, None)
     """
 
@@ -73,30 +72,19 @@ class ProliferationLaw(BaseLaw):
         """Return what the law requires of a system: continuous time on activity lattices."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
-    def _check(self) -> Self:
-        """Raise an error for a rate or outcome table of the wrong dimensions, or whose activities disagree.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a rate or outcome table of the wrong dimensions, or whose activities disagree."""
         self._check_table('rate', (0, 2))
         if self.outcomes is not None:
             self._check_table('outcomes', (3,))
         self._check_outcomes('rate', 'outcomes')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the rate and the outcome table at given values of the symbols they read.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the rate and the outcome table at given values of the symbols they read.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            tables:
-                The rate and the outcome table, as nested lists of numbers when nothing symbolic is left, or `None`
-                for the candidate's own activity.
         """
         outcomes = None if self.outcomes is None else np.asarray(self.outcomes, dtype=object).tolist()
-        return self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)
+        self.value_ = self._evaluate((np.asarray(self.rate, dtype=object).tolist(), outcomes), inputs)

@@ -23,7 +23,9 @@ MODEL = 'majority_rule'
 STEPS = 20
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).check().run(until=STEPS)
+simulation = (
+    Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).check().prepare().run(until=STEPS)
+)
 
 # %%
 # Coarsening, freezing, and amplification
@@ -38,6 +40,7 @@ densities = np.linspace(0.3, 0.7, 17)
 finals = [
     Simulation(create(MODEL, density=density, random_state=0))
     .check()
+    .prepare()
     .run(until=STEPS)
     .trajectory_.values('voters.opinion')[-1]
     .mean()

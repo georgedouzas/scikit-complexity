@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -239,7 +238,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {", ".join(missing)}. Give them.'
             raise AnalysisError(error_msg)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the settings each kind needs, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
@@ -257,13 +256,12 @@ class IrreversibilityAnalysis(BaseAnalysis):
                 f'field={self.field!r}. Use a positive temperature and step and a nonzero field.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind for rates and discrete paths, and the ensemble kind for samples and ensembles."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.PATH
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the rate matrix, the paths as rows, the samples, or the ensemble the kind measures."""
         name = self.variables[0] if self.variables else None
         self.duration_ = self.duration
@@ -272,15 +270,14 @@ class IrreversibilityAnalysis(BaseAnalysis):
             self.values_: npt.NDArray[np.int64] | Array = np.asarray(path.states, dtype=np.int64).reshape(1, -1)
             if self.duration is None:
                 self.duration_ = float(path.times[-1] - path.times[0])
-            return self
+            return
         if isinstance(source, Trajectory):
             self.values_ = self._read_series(source, self.variables).values[:, 0].reshape(1, -1)
-            return self
+            return
         dtype = np.int64 if self.kind in PATH_KINDS else float
         array = np.asarray(source, dtype=dtype)
         paths = self.kind in PATH_KINDS or self.kind == 'langevin-entropy-production'
         self.values_ = array.reshape(1, -1) if paths and array.ndim == 1 else array
-        return self
 
     def _run_jumps(self) -> None:
         """Compute the entropy every jump path produces in the medium."""
@@ -359,7 +356,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.product_, self.error_ = self._get_product(values), float(np.std(boots, ddof=1))
         self.holds_ = self.product_ + 2 * self.error_ >= TUR_BOUND
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the measure of the kind."""
         if self.kind == 'entropy-production':
             self.entropy_production_ = self._entropy_production(self.values_)
@@ -383,7 +380,6 @@ class IrreversibilityAnalysis(BaseAnalysis):
                     self.response_,
                     self.temperature,
                 )
-        return self
 
     @staticmethod
     def _entropy_production(rates: npt.ArrayLike) -> float:

@@ -27,6 +27,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = (
     Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
     .check()
+    .prepare()
     .run(
         until=100,
     )

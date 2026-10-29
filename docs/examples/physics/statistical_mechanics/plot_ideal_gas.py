@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_molecules=800, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=2.0)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=2.0)
 
 # %%
 # Speeds against the Maxwell-Boltzmann distribution

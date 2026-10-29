@@ -18,7 +18,7 @@ def _crossing_periods(times, series, level):
 
 def test_circadian_clock_period_is_about_a_day():
     """Test that Goldbeter's PER model oscillates with a period of about 23.7 hours."""
-    trajectory = Simulation(circadian_clock(), dt=0.5).check().run(until=240).trajectory_
+    trajectory = Simulation(circadian_clock(), dt=0.5).check().prepare().run(until=240).trajectory_
     keep = trajectory.times > 48
     mrna = trajectory.values('clock.M')[keep]
     periods = _crossing_periods(trajectory.times[keep], mrna, mrna.mean())
@@ -29,7 +29,7 @@ def test_circadian_clock_period_lengthens_with_degradation():
     """Test that a larger maximal degradation rate of PER lengthens the period of Goldbeter's clock."""
     periods = []
     for v_d in (0.8, 1.6):
-        trajectory = Simulation(circadian_clock(v_d=v_d), dt=0.1).check().run(until=480).trajectory_
+        trajectory = Simulation(circadian_clock(v_d=v_d), dt=0.1).check().prepare().run(until=480).trajectory_
         keep = trajectory.times > 240
         mrna = trajectory.values('clock.M')[keep]
         periods.append(_crossing_periods(trajectory.times[keep], mrna, mrna.mean()).mean())

@@ -46,6 +46,7 @@ def test_word_is_rewritten_in_parallel():
     trajectory = (
         Simulation(System(elements=[AlgaeElement('algae', axiom='A')]), compiler=RewritingCompiler())
         .check()
+        .prepare()
         .run(until=4)
         .trajectory_
     )

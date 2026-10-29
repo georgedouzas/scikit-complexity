@@ -21,7 +21,7 @@ MODEL = 'employment_takeover'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/colour')
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # A frozen state

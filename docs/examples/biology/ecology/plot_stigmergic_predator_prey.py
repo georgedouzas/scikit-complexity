@@ -20,7 +20,7 @@ MODEL = 'stigmergic_predator_prey'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100)
 
 # %%
 # Populations with and without shared emotions
@@ -29,7 +29,11 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # changes how the animals move, and with it the timing of the prey boom and crash.
 
 without = (
-    Simulation(create(MODEL, emotions=False, random_state=0), dt=1, random_state=0).check().run(until=100).trajectory_
+    Simulation(create(MODEL, emotions=False, random_state=0), dt=1, random_state=0)
+    .check()
+    .prepare()
+    .run(until=100)
+    .trajectory_
 )
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(axes, [simulation.trajectory_, without], ['with emotions', 'without'], strict=True):

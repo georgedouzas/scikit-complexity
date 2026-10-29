@@ -35,7 +35,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, size=10**6), dt=1, observers=[observer], random_state=0).check().run(until=14)
+simulation = (
+    Simulation(create(MODEL, size=10**6), dt=1, observers=[observer], random_state=0).check().prepare().run(until=14)
+)
 trajectory = simulation.trajectory_
 lengths = [trajectory.agents('fragments', frame).values['length'] for frame in range(len(trajectory.times))]
 rows = np.zeros((15 * len(lengths), 800, 3), dtype=np.uint8)

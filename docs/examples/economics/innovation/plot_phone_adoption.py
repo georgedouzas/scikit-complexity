@@ -33,6 +33,7 @@ simulation = (
         observables=describe(MODEL).observables_of(model_system),
     )
     .check()
+    .prepare()
     .run(until=18)
 )
 
@@ -47,6 +48,7 @@ model_system = create(MODEL, random_state=0)
 trajectory = (
     Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
     .check()
+    .prepare()
     .run(until=YEARS)
     .trajectory_
 )

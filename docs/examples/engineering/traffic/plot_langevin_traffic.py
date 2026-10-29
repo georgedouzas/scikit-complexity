@@ -47,6 +47,7 @@ simulation = (
         random_state=0,
     )
     .check()
+    .prepare()
     .run(
         until=200,
     )
@@ -66,7 +67,7 @@ densities = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
 flows, variances = [], []
 for density in densities:
     cars = create(MODEL, n_cars=round(density * length), length=length, gamma=gamma, D1=D1)
-    run = Simulation(cars, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).check().run(until=100)
+    run = Simulation(cars, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).check().prepare().run(until=100)
     speeds = run.trajectory_.values('cars.v')
     flows.append(density * speeds[25:].mean())
     variances.append(speeds[25:].var())

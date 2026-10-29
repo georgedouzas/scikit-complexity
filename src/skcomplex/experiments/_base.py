@@ -58,7 +58,7 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
     """Base of designs, which give rows of values by factory argument or dotted path.
 
     A design stores its settings, such as the number of rows, in `__init__`. Preparing it on a mapping from name to
-    what it samples sets its rows, and running it returns them:
+    what it samples sets its rows in `rows_`, which running it keeps:
 
     - a sampled design reads a pair `(low, high)` or a SciPy distribution per name;
     - a grid design reads a sequence of values per name;
@@ -75,11 +75,14 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
         >>> class MidpointDesign(BaseDesign):
         ...     def _prepare(self, bounds=None):
         ...         self.rows_ = [{name: sum(bound) / 2 for name, bound in (bounds or {}).items()}]
-        >>> MidpointDesign().check().check().prepare({'r': (0.0, 1.0)}).run()
+        >>> MidpointDesign().check().check().prepare({'r': (0.0, 1.0)}).run().rows_
         [{'r': 0.5}]
     """
 
     rows_: list[Row]
+
+    def _check(self) -> None:
+        """Accept every setting, since a design has none to validate; a design with settings validates them."""
 
     def _check_size(self, n: object) -> None:
         """Raise an error for a number of rows that is not a nonnegative integer."""
@@ -123,16 +126,15 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set the rows of the design in `rows_` from the mapping of what it samples."""
 
-    def _run(self, inputs: None = None) -> list[Row]:
-        """Return a copy of the prepared rows."""
-        return [dict(row) for row in self.rows_]
+    def _run(self, inputs: None = None) -> None:
+        """Keep the prepared rows in `rows_`, since a design computes them when it prepares."""
 
 
 class BaseExperiment(BaseConfig[None, None], ABC):
     """Base of experiments, which run a model, given by a factory of systems or a system, many times.
 
     An experiment stores its source and settings in `__init__`, validates them in `check`, resolves the source and
-    what it runs in `prepare`, and runs in `run`, which returns the experiment with its results in the attributes that
+    what it runs in `prepare`, and runs in `run`, which keeps its results in the attributes that
     end in `_`. A child implements `_prepare` and `_run`, and reads the model with the private methods of the base. A
     model of the library is passed as its factory, or as a system that `skcomplex.models.create` returns, since
     experiments do not import the model library.
@@ -144,12 +146,15 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         ...     def __init__(self, source):
         ...         self.source = source
         ...
+        ...     def _check(self):
+        ...         pass
+        ...
         ...     def _prepare(self, context):
         ...         self.factory_ = self._check_source(self.source)
         ...
         ...     def _run(self, inputs):
-        ...         return self
-        >>> len(SystemExperiment(logistic_growth).check().prepare().run().factory_().elements)
+        ...         self.system_ = self.factory_()
+        >>> len(SystemExperiment(logistic_growth).check().prepare().run().system_.elements)
         1
     """
 
@@ -158,8 +163,8 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         """Resolve the source and what the experiment runs, and set the attributes that end in `_`."""
 
     @abstractmethod
-    def _run(self, inputs: None = None) -> 'BaseExperiment':
-        """Run the experiment, set its results as attributes that end in `_`, and return it."""
+    def _run(self, inputs: None = None) -> None:
+        """Run the experiment and set its results as attributes that end in `_`."""
 
     @staticmethod
     def _check_source(source: object) -> Source:
@@ -203,7 +208,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
         replicated = BaseExperiment._replicate(system, size, values)
-        simulation = Simulation(replicated, dt=step, random_state=random_state).check()
+        simulation = Simulation(replicated, dt=step, random_state=random_state).check().prepare()
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod

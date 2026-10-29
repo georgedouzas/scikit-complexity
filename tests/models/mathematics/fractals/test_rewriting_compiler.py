@@ -124,7 +124,7 @@ def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
     assert compile_system(system, compiler=RewritingCompiler()).form == REWRITING
-    trajectory = Simulation(system, compiler=RewritingCompiler()).check().run(until=5).trajectory_
+    trajectory = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
     assert trajectory.values('word.size').tolist() == [1, 2, 3, 5, 8, 13]
 
@@ -132,12 +132,12 @@ def test_generations_as_steps():
 def test_fractional_generation():
     """Test that a fractional step is refused."""
     with pytest.raises(ValidationError, match=r'dt = 0\.5 must be a positive integer'):
-        Simulation(_fibonacci(), dt=0.5, compiler=RewritingCompiler()).check().run(until=2)
+        Simulation(_fibonacci(), dt=0.5, compiler=RewritingCompiler()).check().prepare().run(until=2)
 
 
 def test_parikh_vector():
     """Test that the symbol counts are consecutive Fibonacci numbers whose sum is the size."""
-    trajectory = Simulation(_fibonacci(), compiler=RewritingCompiler()).check().run(until=10).trajectory_
+    trajectory = Simulation(_fibonacci(), compiler=RewritingCompiler()).check().prepare().run(until=10).trajectory_
     a, b = trajectory.values('word.A'), trajectory.values('word.B')
     assert np.array_equal(a[:-1], b[1:])
     assert np.array_equal(a[2:], a[1:-1] + a[:-2])
@@ -156,8 +156,8 @@ def test_stochastic_choice():
             ),
         ],
     )
-    first = Simulation(system, random_state=3, compiler=RewritingCompiler()).check().run(until=1).trajectory_
-    second = Simulation(system, random_state=3, compiler=RewritingCompiler()).check().run(until=1).trajectory_
+    first = Simulation(system, random_state=3, compiler=RewritingCompiler()).check().prepare().run(until=1).trajectory_
+    second = Simulation(system, random_state=3, compiler=RewritingCompiler()).check().prepare().run(until=1).trajectory_
     share = first.structure('word', 1).count('+') / 10000
     assert share == pytest.approx(0.3, abs=0.015)
     assert np.array_equal(first.structure('word', 1).codes, second.structure('word', 1).codes)
@@ -183,7 +183,7 @@ def test_context_with_ignored_symbols():
     system = System(
         elements=[RuledWordElement('word', axiom='BAA+A', ignore='+', rules=[ProductionLaw('A', 'B', left='B')])],
     )
-    trajectory = Simulation(system, compiler=RewritingCompiler()).check().run(until=3).trajectory_
+    trajectory = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=3).trajectory_
     assert [trajectory.structure('word', frame).text for frame in range(1, 4)] == ['BBA+A', 'BBB+A', 'BBB+B']
 
 
@@ -203,7 +203,7 @@ def test_bracketed_contexts():
             ),
         ],
     )
-    trajectory = Simulation(system, compiler=RewritingCompiler()).check().run(until=1).trajectory_
+    trajectory = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=1).trajectory_
     assert trajectory.structure('word', 1).text == 'AY[X]Z[E]'
 
 
@@ -215,7 +215,12 @@ def test_context_takes_precedence():
         ],
     )
     assert (
-        Simulation(system, compiler=RewritingCompiler()).check().run(until=1).trajectory_.structure('word', 1).text
+        Simulation(system, compiler=RewritingCompiler())
+        .check()
+        .prepare()
+        .run(until=1)
+        .trajectory_.structure('word', 1)
+        .text
         == 'BBC'
     )
 
@@ -224,7 +229,7 @@ def test_parametric_growth():
     """Test parametric productions with a condition and successor parameters of a system parameter."""
     word = GrowthElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})
     system = System(elements=[word])
-    simulation = Simulation(system, compiler=RewritingCompiler()).check().run(until=6)
+    simulation = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=6)
     trajectory = simulation.trajectory_
     assert trajectory.structure('plant', 5).text == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
     assert trajectory.structure('plant', 6).text == trajectory.structure('plant', 5).text
@@ -238,6 +243,7 @@ def test_parameter_change_between_generations():
     trajectory = (
         Simulation(System(elements=[word]), schedule={'plant.R': lambda t: 0.25}, compiler=RewritingCompiler())
         .check()
+        .prepare()
         .run(until=1)
         .trajectory_
     )
@@ -249,7 +255,7 @@ def test_exponential_growth_stopped():
     system = System(
         elements=[RuledWordElement('koch', axiom='F', max_size=10**5, rules=[ProductionLaw('F', 'F+F--F+F')])],
     )
-    simulation = Simulation(system, compiler=RewritingCompiler()).check()
+    simulation = Simulation(system, compiler=RewritingCompiler()).check().prepare()
     with pytest.raises(RewritingError, match="Word 'koch' would reach 152916 symbols at generation 8"):
         simulation.run(until=10)
     assert len(simulation.trajectory_.times) == 8
@@ -332,7 +338,7 @@ def test_koch_curve_length():
             ),
         ],
     )
-    trajectory = Simulation(system, compiler=RewritingCompiler()).check().run(until=4).trajectory_
+    trajectory = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=4).trajectory_
     curve = trajectory.structure('koch', 4)
     segments = curve.segments()
     assert segments.shape == (256, 2, 2)
@@ -350,6 +356,7 @@ def test_branches_return():
             compiler=RewritingCompiler(),
         )
         .check()
+        .prepare()
         .run(0)
         .trajectory_
     )
@@ -369,6 +376,7 @@ def test_three_dimensional_word_geometry():
             compiler=RewritingCompiler(),
         )
         .check()
+        .prepare()
         .run(0)
         .trajectory_
     )
@@ -388,6 +396,7 @@ def test_module_parameters_override_the_word_geometry():
     segments = (
         Simulation(System(elements=[word]), compiler=RewritingCompiler())
         .check()
+        .prepare()
         .run(0)
         .trajectory_.structure('plant', 0)
         .segments()
@@ -416,6 +425,7 @@ def _cantor(generations):
             compiler=RewritingCompiler(),
         )
         .check()
+        .prepare()
         .run(until=generations)
         .trajectory_
     )
@@ -461,6 +471,7 @@ def _sierpinski(generations):
             compiler=RewritingCompiler(),
         )
         .check()
+        .prepare()
         .run(until=generations)
         .trajectory_
     )
@@ -508,6 +519,7 @@ def test_chair_tiling_covers_its_chair():
             compiler=RewritingCompiler(),
         )
         .check()
+        .prepare()
         .run(3)
         .trajectory_
     )
@@ -524,7 +536,9 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
     dot = PrototileSpec('dot', [(0, 0), (0.1, 0)])
     rule = SubstitutionLaw('square', [('square', AffineSpec(scale=0.5)), ('dot', AffineSpec())])
     patch = RuledPatchElement('patch', prototiles=[square, dot], rules=[rule])
-    trajectory = Simulation(System(elements=[patch]), compiler=RewritingCompiler()).check().run(until=2).trajectory_
+    trajectory = (
+        Simulation(System(elements=[patch]), compiler=RewritingCompiler()).check().prepare().run(until=2).trajectory_
+    )
     assert trajectory.values('patch.dot').tolist() == [0, 1, 2]
     with pytest.raises(RewritingError, match='not one of'):
         compile_system(
@@ -550,9 +564,9 @@ def test_rewriting_compiler_reports_a_classical_system():
 
 
 def test_rewriting_compiler_runs_the_problem():
-    """Test that the prepared rewriting compiler returns the rewriting problem when run."""
+    """Test that the prepared rewriting compiler sets the rewriting problem when run."""
     words = System(elements=[WordElement('algae', axiom='A')])
-    problem = RewritingCompiler().check().prepare(words).run()
+    problem = RewritingCompiler().check().prepare(words).run().problem_
     assert problem.form == REWRITING
 
 
@@ -561,6 +575,7 @@ def test_snapshot_is_a_structure_state():
     snapshot = (
         Simulation(System(elements=[AlgaeElement('algae', axiom='A')]), compiler=RewritingCompiler())
         .check()
+        .prepare()
         .run(until=2)
         .stepper_.snapshot_
     )
@@ -573,6 +588,7 @@ def test_rule_of_a_word():
     trajectory = (
         Simulation(System(elements=[AlgaeElement('algae', axiom='A')]), compiler=RewritingCompiler())
         .check()
+        .prepare()
         .run(until=5)
         .trajectory_
     )

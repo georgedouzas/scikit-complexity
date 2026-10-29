@@ -22,20 +22,29 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     A backend stores its settings in its constructor, `prepare()` takes nothing, and `run(kernels)` takes the
     `LoweredKernelsSpec` of a problem, with its form, the size of its state vector, its reductions, and its draws, and
-    returns the `LoweredFunctionsSpec` of the form. Subclasses implement the hooks `_run`, `_get_name`, the name a
-    problem records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes functions of.
+    keeps the `LoweredFunctionsSpec` of the form in `functions_`. Subclasses implement the hooks `_run`, `_get_name`,
+    the name a problem records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes
+    functions of.
+
+    Attributes:
+        functions_:
+            The numeric functions of the form of the kernels of the last run.
     """
 
-    def _run(self, inputs: LoweredKernelsSpec | None) -> LoweredFunctionsSpec:
-        """Return the numeric functions of the form of the kernels.
+    functions_: LoweredFunctionsSpec
+
+    def _check(self) -> None:
+        """Accept every setting, since a backend has none to validate; a backend with settings validates them."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a backend prepares nothing; a backend that derives facts sets them."""
+
+    def _run(self, inputs: LoweredKernelsSpec | None) -> None:
+        """Set the numeric functions of the form of the kernels.
 
         Args:
             inputs:
                 The kernels of a problem.
-
-        Returns:
-            functions:
-                The numeric functions of the form.
 
         Raises:
             NotImplementedError:
@@ -85,18 +94,8 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         Returns:
             outputs:
                 The pairs in pair mode, or `None`, and one array of values per output.
-
-        Raises:
-            TypeError:
-                The kernel does not return its number of indices, its pairs, and its values.
         """
-        result = kernel.run(state)
-        if not isinstance(result, tuple):
-            error_msg = (
-                f'A law kernel returns its indices, pairs, and values as a tuple, not a {type(result).__name__}.'
-            )
-            raise TypeError(error_msg)
-        _, pairs, values = result
+        _, pairs, values = kernel.run(state).values_
         return pairs, values
 
     @staticmethod

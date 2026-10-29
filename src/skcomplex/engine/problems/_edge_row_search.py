@@ -32,7 +32,13 @@ class EdgeRowSearch(BaseSearch):
 
         center:
             Whether a node is its own neighbour.
+
+    Attributes:
+        pairs_:
+            The row starts, the neighbours, and the edge rows of every node of the last run.
     """
+
+    pairs_: EdgesFound
 
     def __init__(
         self,
@@ -51,8 +57,8 @@ class EdgeRowSearch(BaseSearch):
         self.directed = directed
         self.center = center
 
-    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
-        """Return the neighbours of every node along the active edges."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the neighbours of every node along the active edges."""
         state = self._state_of(inputs)
         q = state.p
         keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
@@ -69,4 +75,4 @@ class EdgeRowSearch(BaseSearch):
         order = np.argsort(readers * self.size + others, kind='stable')
         counts = np.bincount(readers, minlength=self.size)
         indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-        return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
+        self.pairs_ = indptr, others[order].astype(np.intp), ids[order].astype(np.intp)

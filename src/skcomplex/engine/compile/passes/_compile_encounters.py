@@ -193,16 +193,20 @@ class CompileEncountersPass(BasePass):
         rate = TableValuesSpec(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
         if table is None:
             empty = np.zeros(0, dtype=np.intp)
-            return EncounterKernel(
-                owner,
-                CompileEncountersPass._effect(law),
-                candidate,
-                field_indices,
-                test,
-                rate=rate,
-                entries=(empty,) * 3,
-                probabilities=None,
-            ).check()
+            return (
+                EncounterKernel(
+                    owner,
+                    CompileEncountersPass._effect(law),
+                    candidate,
+                    field_indices,
+                    test,
+                    rate=rate,
+                    entries=(empty,) * 3,
+                    probabilities=None,
+                )
+                .check()
+                .prepare()
+            )
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
         probabilities = TableValuesSpec(
@@ -211,17 +215,21 @@ class CompileEncountersPass(BasePass):
             CompileEncountersPass._parameter_indices(table, references, owner),
             time,
         )
-        return EncounterKernel(
-            owner,
-            CompileEncountersPass._effect(law),
-            candidate,
-            field_indices,
-            test,
-            rate=rate,
-            entries=entries,
-            probabilities=probabilities,
-            fused=fused,
-        ).check()
+        return (
+            EncounterKernel(
+                owner,
+                CompileEncountersPass._effect(law),
+                candidate,
+                field_indices,
+                test,
+                rate=rate,
+                entries=entries,
+                probabilities=probabilities,
+                fused=fused,
+            )
+            .check()
+            .prepare()
+        )
 
     @staticmethod
     def _compile_encounters(

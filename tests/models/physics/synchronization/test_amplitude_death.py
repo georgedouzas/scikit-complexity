@@ -26,6 +26,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
             observables=describe('oscillator_death').observables_of(built),
         )
         .check()
+        .prepare()
         .run(until=20)
         .trajectory_
     )
@@ -40,6 +41,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
             observables=describe('oscillator_death').observables_of(built),
         )
         .check()
+        .prepare()
         .run(until=20)
         .trajectory_
     )
@@ -54,6 +56,7 @@ def test_oscillator_death_follows_quartic_threshold():
     assert (
         Simulation(above, dt=0.5, observables=describe('oscillator_death').observables_of(above))
         .check()
+        .prepare()
         .run(until=40)
         .trajectory_.values('amplitude')[-1]
         < 1e-3
@@ -61,6 +64,7 @@ def test_oscillator_death_follows_quartic_threshold():
     assert (
         Simulation(below, dt=0.5, observables=describe('oscillator_death').observables_of(below))
         .check()
+        .prepare()
         .run(until=40)
         .trajectory_.values('amplitude')[-1]
         > 0.3
@@ -83,6 +87,7 @@ def test_heterogeneous_global_coupling_restabilizes_fixed_point():
             observables=describe('heterogeneous_global_coupling').observables_of(built),
         )
         .check()
+        .prepare()
         .run(until=60)
         .trajectory_.values('amplitude')[-1]
         for k in (0.0, 2.0, 15.0)
@@ -102,6 +107,7 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
     trajectory = (
         Simulation(system, dt=0.5, observables=describe('heterogeneous_global_coupling').observables_of(system))
         .check()
+        .prepare()
         .run(until=60)
         .trajectory_
     )

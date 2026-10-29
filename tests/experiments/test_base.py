@@ -30,7 +30,7 @@ def test_bases_are_abstract():
 
 def test_sampled_design_reads_distributions():
     """Test that a sampled design maps its samples through the quantile function of a SciPy distribution."""
-    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run()
+    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run().rows_
     assert 9.5 < sum(row['r'] for row in rows) / len(rows) < 10.5
 
 
@@ -51,11 +51,14 @@ def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     ensemble = (
-        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1).check().run(until=50)
+        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1)
+        .check()
+        .prepare()
+        .run(until=50)
     )
     values = np.asarray(ensemble.trajectory_.values('map.x'))
     for index in (0, 37, 99):
-        single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).check().run(until=50)
+        single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).check().prepare().run(until=50)
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('map.x')), atol=1e-12)
 
 

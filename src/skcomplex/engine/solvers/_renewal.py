@@ -37,7 +37,7 @@ class RenewalSolver(Solver):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
         >>> problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
         >>> stepper = RenewalSolver(random_state=0).check().prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_
         >>> bool(np.all(state[:3] > 50))
         True
     """

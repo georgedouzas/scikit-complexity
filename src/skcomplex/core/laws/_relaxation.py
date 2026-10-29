@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -74,13 +73,7 @@ class RelaxationLaw(BaseLaw):
         """Return what the relaxation requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> Self:
-        """Check every drive and relaxation law.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Check every drive and relaxation law."""
         for law in (*self.drive, *self.relax):
             law.check()
-        return self

@@ -23,7 +23,7 @@ MODEL = 'discrete_master_equation'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=250)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=250)
 
 # %%
 # Relaxation to the Boltzmann distribution
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=25
 
 def divergence(beta):
     """Return the Kullback-Leibler divergence from the Boltzmann distribution at every step."""
-    run = Simulation(create(MODEL, beta=beta), dt=1).check().run(until=2000)
+    run = Simulation(create(MODEL, beta=beta), dt=1).check().prepare().run(until=2000)
     probabilities = np.clip(run.trajectory_.values('states.P'), 1e-300, None)
     boltzmann = np.exp(-beta * run.trajectory_.values('states.U')[0])
     boltzmann /= boltzmann.sum()

@@ -37,5 +37,5 @@ def test_views_and_logs_of_word_geometries(tmp_path):
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]
     for name, system in [('tree', tree), ('plain', plain)]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(system, observers=[observer], compiler=RewritingCompiler()).check().run(until=2)
+        Simulation(system, observers=[observer], compiler=RewritingCompiler()).check().prepare().run(until=2)
         assert observer.logged_frames_ == 3

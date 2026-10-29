@@ -21,7 +21,7 @@ MODEL = 'droop_cell_quota'
 
 system = create(MODEL, Q=1.0, d=0.45)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # Quota equilibrium

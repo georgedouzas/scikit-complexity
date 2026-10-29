@@ -154,7 +154,11 @@ def test_power_exponent_of_two_mean_field_transitions():
     assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
     couplings = np.linspace(1.02, 1.2, 10)
     orders = [
-        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0).check().run(until=400.0).trajectory_
+        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0)
+        .check()
+        .prepare()
+        .run(until=400.0)
+        .trajectory_
         for coupling in couplings
     ]
     names = orders[0].problem.states.names

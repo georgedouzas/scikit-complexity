@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -32,7 +31,7 @@ class RuleLaw(BaseLaw):
     Examples:
         >>> from skcomplex.core.laws import RuleLaw
         >>> moved = []
-        >>> RuleLaw(lambda agent, model: moved.append(agent)).check().run(('walker', None))
+        >>> RuleLaw(lambda agent, model: moved.append(agent)).check().prepare().run(('walker', None)).value_
         >>> moved
         ['walker']
     """
@@ -50,28 +49,18 @@ class RuleLaw(BaseLaw):
         """Return what the rule requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a function that cannot be called.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a function that cannot be called."""
         if not callable(self.function):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
+    def _run(self, inputs: object) -> None:
         """Run the rule on its arguments, the agent and the model, or the model alone.
 
         Args:
             inputs:
                 The arguments of the function, a sequence such as `(agent, model)`.
-
-        Returns:
-            result:
-                What the function returns, usually `None`.
         """
         arguments = tuple(inputs) if isinstance(inputs, Sequence) else (inputs,)
-        return self.function(*arguments)
+        self.value_ = self.function(*arguments)

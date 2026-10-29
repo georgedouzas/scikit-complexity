@@ -107,7 +107,7 @@ def _advance(stepper, problem, until, frames=1):
     x, t = problem.initial_state, 0.0
     for index in range(frames):
         following = until * (index + 1) / frames
-        x = stepper.run(StepSpec(t, x, problem.initial_parameters, following))
+        x = stepper.run(StepSpec(t, x, problem.initial_parameters, following)).state_
         t = following
     return x
 
@@ -171,7 +171,7 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     p = problem.initial_parameters
     stepper.run(StepSpec(0.0, problem.initial_state, p, 1.0))
-    restarted = stepper.run(StepSpec(1.0, np.array([1.0]), p, 2.0))
+    restarted = stepper.run(StepSpec(1.0, np.array([1.0]), p, 2.0)).state_
     fresh = _advance(GrunwaldLetnikovSolver(dt=0.01), problem, 1.0)
     assert restarted == pytest.approx(fresh, abs=1e-12)
 
@@ -203,7 +203,7 @@ def test_ordinary_stepper_rejects_fractional_form():
 
 def test_simulation_runs_fractional_system_with_default_solver():
     """Test that a simulation runs a fractional system with the fractional predictor-corrector by default."""
-    simulation = Simulation(System(elements=[RelaxingElement('a')]), dt=0.5).check().run(until=5.0)
+    simulation = Simulation(System(elements=[RelaxingElement('a')]), dt=0.5).check().prepare().run(until=5.0)
     assert isinstance(simulation.stepper_, FractionalABMSolver)
     exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
@@ -214,7 +214,7 @@ def test_cosimulation_runs_fractional_partition():
     system = System(
         systems=[System('memory', elements=[RelaxingElement('a')]), System('steps', elements=[CounterElement('c')])],
     )
-    simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).check().run(until=5.0)
+    simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).check().prepare().run(until=5.0)
     forms = {partition.name: partition.problem.form for partition in simulation.problem_.partitions}
     assert forms == {'memory': FormKind.FRACTIONAL, 'steps': FormKind.DISCRETE}
     exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))

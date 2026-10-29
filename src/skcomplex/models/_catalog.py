@@ -234,4 +234,4 @@ def run(name: str, *, settings: Mapping[str, object] | None = None, **parameters
     if unknown:
         error_msg = f'No run setting named {unknown[0]!r}. Give `until` or an argument of `Simulation`.'
         raise ArgumentError(error_msg)
-    return simulation.set_params(**chosen).check().run(until=float(until))
+    return simulation.set_params(**chosen).check().prepare().run(until=float(until))

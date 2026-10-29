@@ -288,7 +288,7 @@ def _hebbian(space, activities):
 def test_neighbor_interaction_stores_its_layer():
     """Test that a neighbour interaction keeps the layer it runs on, and none by default."""
     assert ContagionInteraction('contagion', people='people', layer='work').layer == 'work'
-    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()) == []
+    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 @BACKENDS
@@ -296,7 +296,9 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     """Test that Hebbian weights end higher on edges between co-active nodes than on edges between inactive ones."""
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-    simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1).check()
+    simulation = (
+        Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1).check().prepare()
+    )
     weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
     sources, targets = space.check().prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
@@ -343,7 +345,7 @@ def test_two_layers_carry_infection_and_wages_apart():
             WagesInteraction('wages', people='people', jobs='jobs'),
         ],
     )
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).check().run(until=20.0).trajectory_
+    trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).check().prepare().run(until=20.0).trajectory_
     infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
@@ -351,7 +353,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         elements=[people(), jobs],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
-    trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).check().run(until=20.0).trajectory_
+    trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).check().prepare().run(until=20.0).trajectory_
     assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
@@ -387,7 +389,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         elements=[LatticeElement('nodes', element=SISElement, space=space, values=values)],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().run(until=60.0).trajectory_
+    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=60.0).trajectory_
     assert trajectory.values('nodes.i')[-1].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 

@@ -34,6 +34,7 @@ simulation = (
         observables=describe(MODEL).observables_of(model_system),
     )
     .check()
+    .prepare()
     .run(until=STEPS)
 )
 

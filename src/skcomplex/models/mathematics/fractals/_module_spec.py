@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -33,12 +32,8 @@ class ModuleSpec(BaseSpec):
     name: str
     parameters: tuple[float | Expression, ...] = ()
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a name that is not a nonempty string.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             RewritingError:
@@ -47,7 +42,6 @@ class ModuleSpec(BaseSpec):
         if not isinstance(self.name, str) or not self.name:
             error_msg = f'The name of a module must be a nonempty string, but it is {self.name!r}.'
             raise RewritingError(error_msg)
-        return self
 
 
 type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]

@@ -22,7 +22,7 @@ MODEL = 'lighthill_whitham_richards'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).check().run(until=1.0)
+simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).check().prepare().run(until=1.0)
 
 # %%
 # Shock speed

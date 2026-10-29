@@ -37,7 +37,10 @@ observer = RerunObserver(
     interval=3,
 )
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at}).check().run(until=PERIOD)
+    Simulation(system, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at})
+    .check()
+    .prepare()
+    .run(until=PERIOD)
 )
 
 # %%
@@ -48,7 +51,11 @@ simulation = (
 # that shrinks with the sweep rate, and never visit the unstable middle branch.
 
 trajectory = simulation.trajectory_
-fine = Simulation(create(MODEL, x=-1.0, beta1=-0.6, beta2=1.0), dt=0.1, schedule={'form.beta1': beta1_at}).check()
+fine = (
+    Simulation(create(MODEL, x=-1.0, beta1=-0.6, beta2=1.0), dt=0.1, schedule={'form.beta1': beta1_at})
+    .check()
+    .prepare()
+)
 fine = fine.run(until=PERIOD).trajectory_
 x = np.linspace(-1.3, 1.3, 400)
 branch = x**3 - x

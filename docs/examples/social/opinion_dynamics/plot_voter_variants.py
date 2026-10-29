@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, graph=graph, contrarians=0.1, share=0.6, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=50)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=50)
 
 # %%
 # The contrarian effect
@@ -49,7 +49,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 def magnetization(contrarians, seed, steps=STEPS):
     """Return the magnetization after every step of a run."""
     system = create(MODEL, graph=graph, contrarians=contrarians, share=0.6, random_state=seed)
-    trajectory = Simulation(system, random_state=seed).check().run(until=steps).trajectory_
+    trajectory = Simulation(system, random_state=seed).check().prepare().run(until=steps).trajectory_
     return np.array([2 * trajectory.agents('voters', frame).values['opinion'].mean() - 1 for frame in range(steps + 1)])
 
 

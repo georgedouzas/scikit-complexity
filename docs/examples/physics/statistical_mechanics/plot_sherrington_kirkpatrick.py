@@ -31,6 +31,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=100)
 )
 
@@ -51,6 +52,7 @@ for temperature in temperatures:
     spins = (
         Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample))
         .check()
+        .prepare()
         .run(until=100)
         .trajectory_.values('spins.spin')[50:]
     )

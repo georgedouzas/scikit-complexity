@@ -294,11 +294,12 @@ class CensusPass(BasePass):
             ValidationError:
                 `laws` returns something other than declarable laws, or laws its binding does not take.
         """
-        declared = component.run(spec.namespace)
-        if not isinstance(declared, list | tuple) or not all(isinstance(law, BaseLaw) for law in declared):
+        returned = component.prepare().run(spec.namespace).laws_
+        laws = [law for law in returned if isinstance(law, BaseLaw)]
+        if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        declared = [law.check().prepare(spec.owner) for law in declared]
+        declared = [law.check().prepare(spec.owner) for law in laws]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
                 f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'

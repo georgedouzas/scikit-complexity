@@ -6,7 +6,6 @@
 import difflib
 import re
 from collections.abc import Callable, Mapping
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -65,16 +64,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     requests_: list[_RequestSpec]
     draws_: DrawKernel | None
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Read where the parameters end and the time symbol of the compilation, with no draws yet.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
 
         Raises:
             ValidationError:
@@ -87,26 +82,20 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_ = [], None
-        return self
 
-    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return the laws of every kernel spec with the draws of their update laws replaced by drawn values.
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
+        """Set the laws of every kernel spec with the draws of their update laws replaced by drawn values.
 
         Args:
             inputs:
                 The laws of every kernel spec.
 
-        Returns:
-            laws:
-                The lowered laws of every kernel spec.
-
         Raises:
             ValidationError:
                 One draw name has two declarations in a component.
         """
-        lowered = [(spec, self._lower(spec, laws)) for spec, laws in inputs or []]
+        self.lowered_ = [(spec, self._lower(spec, laws)) for spec, laws in inputs or []]
         self._allocate()
-        return lowered
 
     def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
@@ -196,7 +185,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if request.draw is not None:
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
-        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check().prepare()
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
@@ -256,7 +245,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments).code_
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)

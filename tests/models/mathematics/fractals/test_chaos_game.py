@@ -28,6 +28,7 @@ def test_chaos_game_agrees_across_backends():
         (
             Simulation(create('chaos_game', n_points=20), dt=1, random_state=0, backend=backend)
             .check()
+            .prepare()
             .run(1000)
             .trajectory_
         )

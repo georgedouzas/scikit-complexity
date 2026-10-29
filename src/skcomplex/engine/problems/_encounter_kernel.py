@@ -54,7 +54,13 @@ class EncounterKernel(BaseKernel):
 
         fused:
             Whether the gain runs in one fused loop compiled with Numba, rather than in NumPy.
+
+    Attributes:
+        values_:
+            The contribution of the encounter to the rate of every state at the last run.
     """
+
+    values_: Array
 
     def __init__(
         self,
@@ -93,7 +99,7 @@ class EncounterKernel(BaseKernel):
         symbols = sorted(table.parameters, key=str)
         if id(table) not in self._functions:
             printer = ExpressionPrinter(time=table.time, compiled=True).check().prepare(symbols)
-            self._functions[id(table)] = ExpressionPrinter._function_of(printer.run(list(selected)))
+            self._functions[id(table)] = ExpressionPrinter._function_of(printer.run(list(selected)).code_)
         indices = np.asarray([table.parameters[item] for item in symbols], dtype=np.intp)
         computed = self._functions[id(table)](0.0, *(float(value) for value in p[indices]))
         return np.asarray(ExpressionPrinter._values_of(computed), dtype=float)
@@ -163,8 +169,8 @@ class EncounterKernel(BaseKernel):
         """
         return x[self.candidate] * (self.rate_matrix(p) @ x[self.field])
 
-    def _run(self, inputs: RunStateSpec | None) -> Array:
-        """Return the contribution of the encounter to the rate of every state, zero outside its densities."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the contribution of the encounter to the rate of every state, zero outside its densities."""
         state = self._state_of(inputs)
         x, p = state.x, state.p
         rates = np.zeros(x.size)
@@ -172,4 +178,4 @@ class EncounterKernel(BaseKernel):
             rates[self.candidate] -= self._loss(x, p)
         if self.kind != 'destruction':
             rates[self.test] += self._gain(x, p)
-        return rates
+        self.values_ = rates

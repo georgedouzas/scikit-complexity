@@ -23,7 +23,7 @@ PRICE, MU, SIGMA, YEARS, DT = 100.0, 0.05, 0.2, 10, 0.05
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, price=PRICE, mu=MU, sigma=SIGMA)
-simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).check().run(until=YEARS)
+simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).check().prepare().run(until=YEARS)
 
 # %%
 # Log returns
@@ -32,7 +32,9 @@ simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).che
 # `sigma^2 tau`. Along one path of 200 years, the variance of the log returns should grow linearly with the lag, and
 # the one-step log returns should follow that normal density.
 
-long_run = Simulation(create(MODEL, price=PRICE, mu=MU, sigma=SIGMA), dt=DT, random_state=1).check().run(until=200)
+long_run = (
+    Simulation(create(MODEL, price=PRICE, mu=MU, sigma=SIGMA), dt=DT, random_state=1).check().prepare().run(until=200)
+)
 logs = np.log(long_run.trajectory_.values('asset.price'))
 lags = np.unique(np.logspace(0, 2.5, 20).astype(int))
 returns = logs[1:] - logs[:-1]

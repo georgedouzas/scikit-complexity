@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -123,7 +122,7 @@ class LinearizationAnalysis(BaseAnalysis):
         self.state_weights = state_weights
         self.control_weights = control_weights
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Check that the weights of the regulator are given together."""
         if (self.state_weights is None) != (self.control_weights is None):
             error_msg = (
@@ -131,13 +130,12 @@ class LinearizationAnalysis(BaseAnalysis):
                 'or neither.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the system of the source, checking that it runs in continuous time."""
         problem = self._compiled_problem(self._read_system(source), 'Linearization')
         if problem.form != FormKind.ODE:
@@ -146,9 +144,8 @@ class LinearizationAnalysis(BaseAnalysis):
             )
             raise ValidationError(error_msg)
         self.problem_ = problem
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Derive the state-space matrices, their ranks, and the gain of the regulator."""
         problem = self.problem_
         adaptive = problem.adaptive_parameters
@@ -192,7 +189,6 @@ class LinearizationAnalysis(BaseAnalysis):
             if self.state_weights is None or self.control_weights is None
             else self._lqr(self.A_, self.B_, self.state_weights, self.control_weights)
         )
-        return self
 
     @staticmethod
     def _initial_values(problem: ProblemSpec) -> dict[str, float]:

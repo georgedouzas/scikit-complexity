@@ -14,7 +14,7 @@ from skcomplex.models.biology.ecology import PopulationElement
 def test_conservation_observer_keeps_the_totals():
     """Test that the conservation observer tracks the total of every quantity of a balanced run."""
     observer = ConservationObserver()
-    Simulation(create('bathtub'), dt=1, observers=[observer]).check().run(10)
+    Simulation(create('bathtub'), dt=1, observers=[observer]).check().prepare().run(10)
     assert observer.totals_['water'] == pytest.approx(25.0)
     assert observer.initial_ is not None
 

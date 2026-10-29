@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
@@ -35,7 +34,7 @@ class RateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import RateLaw
         >>> n = var('n')
-        >>> RateLaw(n, 2 * n).check().run({'n': 3.0})
+        >>> RateLaw(n, 2 * n).check().prepare().run({'n': 3.0}).value_
         6.0
     """
 
@@ -53,25 +52,15 @@ class RateLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a value that is a NumPy array.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array."""
         self._check_array('value')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the rate at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the rate at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            rate:
-                The rate, a number when nothing symbolic is left.
         """
-        return self._evaluate(self.value, inputs)
+        self.value_ = self._evaluate(self.value, inputs)

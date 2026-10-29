@@ -35,7 +35,11 @@ def test_zero_range_process_condensation():
     for density in (3.0, 0.25):
         system = zero_range_process(50, density=density, b=4.0)
         trajectory = (
-            Simulation(system, dt=100.0, random_state=0, backend=NumbaBackend()).check().run(until=20000).trajectory_
+            Simulation(system, dt=100.0, random_state=0, backend=NumbaBackend())
+            .check()
+            .prepare()
+            .run(until=20000)
+            .trajectory_
         )
         occupations = trajectory.values('sites.n')[50:]
         assert (occupations.sum(axis=1) == round(density * 50)).all()
@@ -50,7 +54,9 @@ def test_dissipative_zero_range_level_profile():
     """Test that the occupation of every level matches the balance of currents of the product stationary state."""
     settings = {'n_levels': 4, 'branches': 2, 'nu': 1.0, 'alpha': 0.5, 'beta_ext': 1.0, 'dissipation': 0.5}
     system = dissipative_zero_range(**settings)
-    trajectory = Simulation(system, dt=1.0, random_state=0, backend=NumbaBackend()).check().run(until=6000).trajectory_
+    trajectory = (
+        Simulation(system, dt=1.0, random_state=0, backend=NumbaBackend()).check().prepare().run(until=6000).trajectory_
+    )
     quanta = trajectory.values('nodes.n')[100:]
     starts = [0, 1, 3, 7, 15]
     occupied = [(quanta[:, start:stop] > 0).mean() for start, stop in itertools.pairwise(starts)]
@@ -66,7 +72,9 @@ def test_dissipative_zero_range_level_profile():
 def test_asep_phases(alpha, gamma, current, bulk):
     """Test the current and the bulk density of the low-density, high-density, and maximal-current phases."""
     system = asep(100, alpha=alpha, gamma=gamma)
-    trajectory = Simulation(system, dt=2.0, random_state=0, backend=NumbaBackend()).check().run(until=4000).trajectory_
+    trajectory = (
+        Simulation(system, dt=2.0, random_state=0, backend=NumbaBackend()).check().prepare().run(until=4000).trajectory_
+    )
     occupations = trajectory.values('lane.n')[250:]
     assert abs(gamma * occupations[:, -1].mean() - current) < 0.02
     assert abs(occupations[:, 40:60].mean() - bulk) < 0.05

@@ -3,8 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
-
 import numpy as np
 
 from ....analysis import DistributionAnalysis
@@ -45,25 +43,22 @@ class KineticTemperatureAnalysis(DistributionAnalysis):
         super().__init__("moments", group=group)
         self.mass = mass
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the mass."""
         if self.mass <= 0:
             error_msg = f"{type(self).__name__} has mass={self.mass!r}. Use a positive mass."
             raise AnalysisError(error_msg)
-        return self
 
-    def _prepare(self, source: object) -> Self:
+    def _prepare(self, source: object) -> None:
         """Read the velocities of the agents of every frame from a trajectory or an array."""
         if not isinstance(source, Trajectory | np.ndarray | list | tuple):
             error_msg = f'{type(self).__name__} reads a trajectory or an array of velocities, not {source!r}.'
             raise AnalysisError(error_msg)
         self.values_ = self._read_velocities(source, self.group)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the kinetic temperature of every frame."""
         self.temperature_ = self._kinetic_temperature(self.values_, self.mass)
-        return self
 
     @staticmethod
     def _kinetic_temperature(velocities: Array, mass: float) -> Array:

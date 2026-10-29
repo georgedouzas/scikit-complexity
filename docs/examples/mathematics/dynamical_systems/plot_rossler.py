@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=25)
-simulation = Simulation(create(MODEL), dt=0.05, observers=[observer]).check().run(until=300)
+simulation = Simulation(create(MODEL), dt=0.05, observers=[observer]).check().prepare().run(until=300)
 points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyz'])[400:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.06, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
@@ -55,7 +55,7 @@ observer.recording_.flush()
 # single-humped curve like the logistic map, which is how the fold of the band makes the flow chaotic. The power
 # spectrum of `x` should keep a sharp peak at the mean rotation frequency near 1 / 6 above a broad chaotic background.
 
-x = Simulation(create(MODEL), dt=0.05).check().run(until=3000).trajectory_.values('rossler.x')[400:]
+x = Simulation(create(MODEL), dt=0.05).check().prepare().run(until=3000).trajectory_.values('rossler.x')[400:]
 maxima = x[find_peaks(x)[0]]
 spectrum = SpectrumAnalysis(dt=0.05).check().prepare(x).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]

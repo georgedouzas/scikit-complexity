@@ -31,6 +31,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = (
     Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
     .check()
+    .prepare()
     .run(
         until=300,
     )
@@ -46,7 +47,12 @@ simulation = (
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
 hexagons = simulation.trajectory_.lattice('layer.u')[-1]
-rolls_run = Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0).check().run(until=300)
+rolls_run = (
+    Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0)
+    .check()
+    .prepare()
+    .run(until=300)
+)
 rolls = rolls_run.trajectory_.lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 

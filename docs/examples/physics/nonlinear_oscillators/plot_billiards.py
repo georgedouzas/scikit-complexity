@@ -20,7 +20,7 @@ MODEL = 'billiards'
 
 system = create(MODEL, shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.04, observers=[observer]).check().run(until=40)
+simulation = Simulation(system, dt=0.04, observers=[observer]).check().prepare().run(until=40)
 
 # %%
 # Separation of nearby paths
@@ -35,6 +35,7 @@ paths = [
     (
         Simulation(create(MODEL, shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), dt=0.01)
         .check()
+        .prepare()
         .run(until=60)
     )
     for velocity in [(0.6, 0.8), (vx, vy)]

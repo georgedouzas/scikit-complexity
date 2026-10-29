@@ -21,7 +21,12 @@ from skcomplex.models import create
 MODEL = 'random_walk'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, n_walkers=6), dt=0.5, observers=[observer], random_state=0).check().run(until=100)
+simulation = (
+    Simulation(create(MODEL, n_walkers=6), dt=0.5, observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(until=100)
+)
 
 # %%
 # Diffusive spreading
@@ -34,7 +39,11 @@ simulation = Simulation(create(MODEL, n_walkers=6), dt=0.5, observers=[observer]
 fig, (spread, distribution) = plt.subplots(1, 2, figsize=(11, 4))
 for bias in (0.5, 0.7):
     run = (
-        Simulation(create(MODEL, n_walkers=2000, bias=bias), dt=1.0, random_state=1).check().run(until=100).trajectory_
+        Simulation(create(MODEL, n_walkers=2000, bias=bias), dt=1.0, random_state=1)
+        .check()
+        .prepare()
+        .run(until=100)
+        .trajectory_
     )
     positions = run.values('walkers.x')
     spread.plot(run.times, positions.var(axis=1), label=f'variance, bias {bias}')

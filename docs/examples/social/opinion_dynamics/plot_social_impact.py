@@ -22,7 +22,7 @@ MODEL = 'social_impact'
 
 system = create(MODEL, random_state=2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=20)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=20)
 
 # %%
 # Consensus or a surviving minority
@@ -34,7 +34,12 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for exponent, style in [(2.0, '-'), (3.0, '--')]:
     for seed in range(6):
-        run = Simulation(create(MODEL, exponent=exponent, random_state=seed), random_state=0).check().run(until=20)
+        run = (
+            Simulation(create(MODEL, exponent=exponent, random_state=seed), random_state=0)
+            .check()
+            .prepare()
+            .run(until=20)
+        )
         trajectory = run.trajectory_
         shares = [
             np.mean(np.asarray(trajectory.agents('people', frame).values['opinion']) > 0)

@@ -24,7 +24,7 @@ MODEL = 'oregonator'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
 solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).check().run(until=30)
+simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).check().prepare().run(until=30)
 
 # %%
 # Limit cycle and period

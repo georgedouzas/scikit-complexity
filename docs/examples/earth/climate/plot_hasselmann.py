@@ -31,6 +31,7 @@ simulation = (
         random_state=0,
     )
     .check()
+    .prepare()
     .run(
         until=100,
     )
@@ -46,6 +47,7 @@ lam, sigma = 0.5, 0.3
 run = (
     Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
     .check()
+    .prepare()
     .run(until=2000)
     .trajectory_
 )

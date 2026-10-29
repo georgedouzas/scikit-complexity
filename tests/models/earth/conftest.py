@@ -17,4 +17,4 @@ def _run(
 ) -> Trajectory:
     """Return the trajectory of a system."""
     simulation = Simulation(system, dt=dt, solver=solver, random_state=0, observables=observables)
-    return simulation.check().run(until=until).trajectory_
+    return simulation.check().prepare().run(until=until).trajectory_

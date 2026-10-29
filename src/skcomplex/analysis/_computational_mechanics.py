@@ -5,7 +5,6 @@
 
 from collections import Counter
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 from scipy import stats
@@ -78,7 +77,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         self.max_length = max_length
         self.significance = significance
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the longest history and the significance level."""
         if self.max_length < 1 or not 0 < self.significance < 1:
             error_msg = (
@@ -86,13 +85,12 @@ class EpsilonMachineAnalysis(BaseAnalysis):
                 'Use a longest history of 1 or more and a significance between 0 and 1.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the one series of symbols of the source."""
         series = self._read_series(source, self.variables)
         if series.values.shape[1] != 1:
@@ -103,9 +101,8 @@ class EpsilonMachineAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.values_ = series.values[:, 0]
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Reconstruct the causal states, their transitions, and their stationary distribution."""
         alphabet, codes = np.unique(self.values_, return_inverse=True)
         if not self.max_length < codes.size:
@@ -128,7 +125,6 @@ class EpsilonMachineAnalysis(BaseAnalysis):
         self.stationary_ = totals / totals.sum()
         self.statistical_complexity_ = float(stats.entropy(self.stationary_, base=2))
         self.entropy_rate_ = float(self.stationary_ @ stats.entropy(self.probabilities_, base=2, axis=1))
-        return self
 
     @staticmethod
     def _history_counts(codes: IntArray, length: int, size: int) -> dict[IntTuple, IntArray]:

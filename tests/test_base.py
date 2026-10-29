@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import pkgutil
+from dataclasses import dataclass
 
 import pytest
 from sklearn.base import clone
@@ -10,6 +11,7 @@ from sklearn.base import clone
 import skcomplex
 from skcomplex.base import BaseConfig
 from skcomplex.errors import NotCheckedError
+from skcomplex.specs import BaseSpec
 
 
 class ScalingConfig(BaseConfig):
@@ -22,14 +24,12 @@ class ScalingConfig(BaseConfig):
         if self.factor == 0:
             msg = 'factor'
             raise ValueError(msg)
-        return self
 
     def _prepare(self, context):
         self.offset_ = 0 if context is None else context
-        return self
 
     def _run(self, inputs):
-        return self.factor * inputs + self.offset_
+        self.scaled_ = self.factor * inputs + self.offset_
 
     def _release(self):
         self.released_ = True
@@ -39,7 +39,8 @@ def test_verbs_check_prepare_and_run():
     """Test that checking, preparing against a context, and running act through the hooks."""
     config = ScalingConfig(3).check().prepare(1)
     assert config.offset_ == 1
-    assert config.run(2) == 7
+    assert config.run(2) is config
+    assert config.scaled_ == 7
 
 
 def test_check_runs_the_check_hook():
@@ -65,13 +66,12 @@ def test_final_run_releases():
     assert config.released_
 
 
-def test_hooks_of_the_root_do_nothing():
-    """Test that a child overriding no hook checks, prepares, and runs to nothing."""
-
-    class EmptyConfig(BaseConfig):
-        pass
-
-    assert EmptyConfig().check().prepare().run() is None
+def test_verbs_return_the_object():
+    """Test that checking, preparing, and running return the object, as in scikit-learn."""
+    config = ScalingConfig()
+    assert config.check() is config
+    assert config.prepare() is config
+    assert config.run(1) is config
 
 
 def test_settings_follow_scikit_learn():
@@ -100,3 +100,29 @@ def test_every_base_derives_from_the_root():
             ):
                 outside.append(f'{loaded.__name__}.{name}')
     assert outside == []
+
+
+def test_a_class_without_a_hook_cannot_be_created():
+    """Test that a configurable class that implements `_check` and `_prepare` but not `_run` cannot be created."""
+
+    class IdleConfig(BaseConfig):
+        def _check(self):
+            pass
+
+        def _prepare(self, context):
+            pass
+
+    with pytest.raises(TypeError, match='_run'):
+        IdleConfig()
+
+
+def test_a_spec_without_hooks_checks_prepares_and_runs():
+    """Test that a spec, the only configurable object with default hooks, checks, prepares, and runs unchanged."""
+
+    @dataclass(frozen=True)
+    class SpanSpec(BaseSpec):
+        start: float
+        end: float
+
+    span = SpanSpec(0.0, 1.0)
+    assert span.check().prepare().run() is span

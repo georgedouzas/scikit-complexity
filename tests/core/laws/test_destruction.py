@@ -14,7 +14,7 @@ def test_destruction_targets_the_candidate_and_runs_into_its_rate():
     """Test that a destruction targets the candidate and runs into its rate at the values of its parameters."""
     law = DestructionLaw(F, G, 2 * MU).check().prepare()
     assert law.targets_ == (F,)
-    assert law.run({'mu': 0.1}) == pytest.approx(0.2)
+    assert law.run({'mu': 0.1}).value_ == pytest.approx(0.2)
 
 
 def test_destruction_rejects_a_rate_of_wrong_shape():

@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Self
+from typing import Annotated
 
 from ....core.elements import Element
 from ....specs import StateSpec, VisualSpec
@@ -76,30 +76,19 @@ class WordElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> Self:
-        """Raise an error for an invalid geometry or a maximum size that is not a positive integer.
-
-        Returns:
-            element:
-                The element itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an invalid geometry or a maximum size that is not a positive integer."""
         if self.geometry is not None:
             self.geometry.check()
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
             error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
             raise RewritingError(error_msg)
-        return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: object = None) -> None:
         """Set `default_visual_`, the geometry of the word.
 
         Args:
             context:
                 The space the element inherits from its system, which the element does not read.
-
-        Returns:
-            element:
-                The element itself.
         """
         self.default_visual_ = VisualSpec(GeometryVisual)
-        return self

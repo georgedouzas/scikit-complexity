@@ -6,7 +6,6 @@
 import math
 from collections import Counter
 from collections.abc import Hashable, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -181,7 +180,7 @@ class EntropyAnalysis(BaseAnalysis):
         self.random_state = random_state
         self.reference = reference
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('measure', self.measure, MEASURES)
@@ -208,7 +207,6 @@ class EntropyAnalysis(BaseAnalysis):
                 'Use positive values.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the ensemble kind for ensembles, the field kind for windows of a field, and the series kind else."""
@@ -216,7 +214,7 @@ class EntropyAnalysis(BaseAnalysis):
             return DataKind.ENSEMBLE
         return DataKind.FIELD if isinstance(self.dimension, tuple) else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series of the source as columns, the frames of a field for windows, or the runs of an ensemble."""
         if self.kind == 'ensemble':
             self.values_: npt.NDArray[np.int64] | Array = np.asarray(source, dtype=np.int64)
@@ -225,17 +223,16 @@ class EntropyAnalysis(BaseAnalysis):
             if self.values_.min() < 0 or self.values_.max() >= law.size:
                 error_msg = f'Outcomes must lie between 0 and {law.size - 1}, the outcomes of the reference law.'
                 raise AnalysisError(error_msg)
-            return self
+            return
         if self._get_data_kind() == DataKind.FIELD:
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
             self.values_ = frames[None] if frames.ndim == SNAPSHOT_DIMENSIONS else frames
             self.labels_ = [name or 'field']
-            return self
+            return
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
     def _compute_distribution(self, values: npt.NDArray[np.generic]) -> float:
         """Return the Shannon, Rényi, or Tsallis entropy of symbols or of a probability vector."""
@@ -303,22 +300,21 @@ class EntropyAnalysis(BaseAnalysis):
             return np.asarray(entropies, dtype=float)
         return float(antropy.spectral_entropy(array, sf=1 / self.dt, method='fft', normalize=self.normalize))
 
-    def _run_ensemble(self) -> Self:
+    def _run_ensemble(self) -> None:
         """Compute the entropy of every frame of an ensemble and its divergence from the reference law."""
         law = np.asarray(self.reference, dtype=float)
         histograms = [np.bincount(frame, minlength=law.size) / frame.size for frame in self.values_.T]
         self.entropy_ = np.asarray([self._shannon(histogram, probabilities=True) for histogram in histograms])
         self.divergence_ = np.asarray([stats.entropy(histogram, law, base=2) for histogram in histograms])
         self.error_ = float((np.count_nonzero(law) - 1) / (2 * self.values_.shape[0] * np.log(2)))
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the entropy of every series or frame, or of every frame of an ensemble."""
         if self.kind == 'ensemble':
-            return self._run_ensemble()
+            self._run_ensemble()
+            return
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
         self.entropy_ = np.asarray([self._compute(item) for item in items], dtype=float)
-        return self
 
     @staticmethod
     def _probabilities(items: Sequence[Hashable]) -> Array:

@@ -42,7 +42,7 @@ def _frames(system, steps, dt):
             if inputs is not None:
                 frames.append(inputs)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()]).check()
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()]).check().prepare()
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 
@@ -99,7 +99,7 @@ def test_bodies_visual_logs_outline_once():
 
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
-    problem = Simulation(create('double_pendulum')).check().run(until=0.0).problem_
+    problem = Simulation(create('double_pendulum')).check().prepare().run(until=0.0).problem_
     views = (
         BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path).check().prepare(problem).views_
     )

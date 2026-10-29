@@ -5,7 +5,6 @@
 
 import itertools
 from collections import Counter
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -108,7 +107,7 @@ class MotifAnalysis(BaseAnalysis):
         self.samples = samples
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the size, the null ensemble, the samples, and that the kind reads every setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('size', self.size, SIZES)
@@ -117,22 +116,20 @@ class MotifAnalysis(BaseAnalysis):
         if self.samples < 1:
             error_msg = f'{type(self).__name__} has samples={self.samples!r}. Use 1 or more.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the network kind."""
         return DataKind.NETWORK
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the graph of every frame of a trajectory, or a graph."""
         self.graphs_ = self._read_networks(source)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Count or score the motifs of every frame."""
         if self.kind == 'counts':
             self.counts_ = [self._motif_counts(graph, self.size) for graph in self.graphs_]
-            return self
+            return
         scores = [
             self._motif_scores(graph, self.size, self.null, self.samples, self.random_state) for graph in self.graphs_
         ]
@@ -140,7 +137,6 @@ class MotifAnalysis(BaseAnalysis):
         self.null_mean_ = [means for _, means, _, _ in scores]
         self.null_std_ = [deviations for _, _, deviations, _ in scores]
         self.z_scores_ = [values for _, _, _, values in scores]
-        return self
 
     @staticmethod
     def _extend(

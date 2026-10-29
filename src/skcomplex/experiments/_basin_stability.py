@@ -6,7 +6,6 @@
 from collections import Counter
 from collections.abc import Callable, Mapping
 from concurrent.futures import Executor
-from typing import Self
 
 import numpy as np
 
@@ -114,7 +113,7 @@ class BasinStabilityExperiment(BaseExperiment):
         """Draw the initial states within the bounds."""
         self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().prepare(self.bounds).rows_
 
-    def _run(self, inputs: None = None) -> Self:
+    def _run(self, inputs: None = None) -> None:
         """Run every initial state, label its trajectory, and set the fraction and error of every attractor."""
         self.labels_ = self._label_members() if self.vectorized else self._label_runs()
         counts = Counter(self.labels_)
@@ -122,7 +121,6 @@ class BasinStabilityExperiment(BaseExperiment):
         self.errors_ = {
             label: float(np.sqrt(fraction * (1 - fraction) / self.n)) for label, fraction in self.fractions_.items()
         }
-        return self
 
     def _label_runs(self) -> list[object]:
         """Return the label of the separate run of every initial state."""

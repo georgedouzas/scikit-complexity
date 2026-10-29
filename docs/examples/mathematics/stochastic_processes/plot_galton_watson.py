@@ -37,10 +37,13 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_individuals=10), dt=1, observers=[observer], random_state=0).check().run(until=40)
+    Simulation(create(MODEL, n_individuals=10), dt=1, observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(until=40)
 )
 runs = [simulation.trajectory_] + [
-    Simulation(create(MODEL, n_individuals=10), dt=1, random_state=seed).check().run(until=40).trajectory_
+    Simulation(create(MODEL, n_individuals=10), dt=1, random_state=seed).check().prepare().run(until=40).trajectory_
     for seed in range(1, 8)
 ]
 for index, run in enumerate(runs):
@@ -66,6 +69,7 @@ extinct = [
             len(
                 Simulation(create(MODEL, n_individuals=1, m=m), dt=1, random_state=seed)
                 .check()
+                .prepare()
                 .run(until=12)
                 .trajectory_.agents('population', 12)
                 .ids,

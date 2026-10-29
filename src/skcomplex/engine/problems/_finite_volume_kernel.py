@@ -56,7 +56,13 @@ class FiniteVolumeKernel(BaseKernel):
         critical:
             For Godunov fluxes, one function per dimension of the parameters that returns the states where the flux
             has a minimum or maximum.
+
+    Attributes:
+        values_:
+            The rates of the conserved states of the last run, as a full vector.
     """
+
+    values_: Array
 
     def __init__(
         self,
@@ -141,8 +147,8 @@ class FiniteVolumeKernel(BaseKernel):
                 padded.append(np.pad(values, width, mode='constant', constant_values=value))
         return padded
 
-    def _run(self, inputs: RunStateSpec | None) -> Array:
-        """Return the rates of the conserved states, minus the divergence of the numerical fluxes, as a full vector."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the rates of the conserved states, minus the divergence of the numerical fluxes, as a full vector."""
         state = self._state_of(inputs)
         x, p = state.x, state.p
         states = self._states(x)
@@ -177,7 +183,7 @@ class FiniteVolumeKernel(BaseKernel):
         rates = np.zeros_like(x)
         for start, total in zip(self.starts, totals, strict=True):
             rates[start : start + self.size] = total.ravel()
-        return rates
+        self.values_ = rates
 
     def max_speed(self, x: Array, p: Array) -> float:
         """Return the largest wave speed over the cells and the dimensions.

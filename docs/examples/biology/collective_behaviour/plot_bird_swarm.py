@@ -21,7 +21,7 @@ MODEL = 'bird_swarm'
 
 system = create(MODEL, n_birds=30, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Mill or flock

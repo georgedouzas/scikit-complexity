@@ -24,7 +24,11 @@ def _giant(graph):
 def test_targeted_attacks_break_the_giant_component_faster_than_failures():
     """Test that removing hubs destroys the giant component while as many random failures leave it mostly whole."""
     trajectory = (
-        Simulation(network_attack(500, strategy='targeted'), dt=1, random_state=0).check().run(until=24).trajectory_
+        Simulation(network_attack(500, strategy='targeted'), dt=1, random_state=0)
+        .check()
+        .prepare()
+        .run(until=24)
+        .trajectory_
     )
     frame = next(frame for frame in range(25) if len(trajectory.network(frame).nodes) <= 425)
     attacked = trajectory.network(frame).graph()
@@ -45,7 +49,7 @@ def test_network_attack_rejects_an_unknown_strategy():
 def test_erdos_renyi_construction_gives_a_giant_component_past_mean_degree_one():
     """Test that the edge by edge Erdős-Rényi construction reaches its mean degree and a giant component after 1."""
     system = random_graph_ensembles(400, ensemble='erdos_renyi', mean_degree=4, steps=40)
-    trajectory = Simulation(system, dt=1.0, random_state=1).check().run(until=40).trajectory_
+    trajectory = Simulation(system, dt=1.0, random_state=1).check().prepare().run(until=40).trajectory_
     means = np.array([2 * len(trajectory.network(frame).sources) / 400 for frame in range(41)])
     giants = np.array([_giant(trajectory.network(frame).graph()) for frame in range(41)])
     assert means[-1] == pytest.approx(4, rel=0.1)

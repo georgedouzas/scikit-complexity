@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -138,7 +137,9 @@ class _Graph:
         if unknown:
             error_msg = f'The loop gain {expression} reads {unknown[0]}, which is no state or parameter of the system.'
             raise AnalysisError(error_msg)
-        function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
+        function = (
+            ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression]).code_
+        )
         if not callable(function):
             error_msg = f'The printer returned no function of the loop gain {expression}.'
             raise AnalysisError(error_msg)
@@ -263,7 +264,7 @@ class LoopAnalysis(BaseAnalysis):
         >>> from skcomplex.models import create
         >>> LoopAnalysis().check().prepare(create('bass_diffusion')).run().polarities_
         ['reinforcing', 'balancing']
-        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).check().run(2).trajectory_
+        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).check().prepare().run(2).trajectory_
         >>> LoopAnalysis('dominance').check().prepare(trajectory).run().gains_.shape
         (3, 2)
     """
@@ -281,17 +282,16 @@ class LoopAnalysis(BaseAnalysis):
         self.frame = frame
         self.quantity = quantity
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the system of the source, and keep the trajectory that dominance and the flow matrix read."""
         if self.kind != 'loops' and not isinstance(source, Trajectory):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory, not {type(source).__name__}.'
@@ -304,7 +304,6 @@ class LoopAnalysis(BaseAnalysis):
                 "states with the kind 'loops', or its Jacobian with StabilityAnalysis."
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _set_loops(self, found: list[_LoopSpec]) -> None:
         """Set the nodes and the polarities of loops."""
@@ -361,11 +360,11 @@ class LoopAnalysis(BaseAnalysis):
         self.holders_ = tuple(holders)
         self.matrix_ = values
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Derive the loops, their dominance, or the flow matrix."""
         if self.kind == 'loops':
             self._run_loops()
-            return self
+            return
         if self.trajectory_ is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory. Prepare it on one.'
             raise AnalysisError(error_msg)
@@ -373,7 +372,6 @@ class LoopAnalysis(BaseAnalysis):
             self._run_dominance(self.trajectory_)
         else:
             self._run_flow_matrix(self.trajectory_)
-        return self
 
     @staticmethod
     def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_LoopSpec]]:

@@ -6,7 +6,6 @@
 from collections.abc import Callable
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -33,8 +32,8 @@ _REDUCERS: dict[str, Callable[..., Expression]] = {
 class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
     """Values of the observables that laws read at the current state, built from the blocks of a system.
 
-    `prepare()` starts with no observable evaluated, and `run((node, label))` returns the namespace of the observable a
-    role of a component binds to, evaluating every observable once.
+    `prepare()` starts with no observable evaluated, and `run((node, label))` sets `observed_`, the namespace of the
+    observable a role of a component binds to, evaluating every observable once.
 
     Args:
         declarations:
@@ -46,38 +45,37 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
     Attributes:
         values_:
             The value of every evaluated observable with the references of the symbols it reads, by path.
+
+        observed_:
+            The namespace of the observable the last run's role binds to with the references of its symbols, or `None`
+            for a role bound to no live observable.
     """
 
     values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]
+    observed_: ObservedSpec | None
+
+    def _check(self) -> None:
+        """Accept every setting, since a compilation observer has none to validate."""
 
     def __init__(self, declarations: DeclarationsSpec, live: Declared) -> None:
         self.declarations = declarations
         self.live = live
 
-    def _prepare(self, context: None) -> Self:
+    def _prepare(self, context: None) -> None:
         """Start with no observable evaluated.
 
         Args:
             context:
                 Nothing: the observer serves its declarations.
-
-        Returns:
-            self:
-                The prepared observer.
         """
         self.values_ = {}
-        return self
 
-    def _run(self, inputs: tuple[NodeSpec, object] | None) -> ObservedSpec | None:
-        """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable.
+    def _run(self, inputs: tuple[NodeSpec, object] | None) -> None:
+        """Set the namespace of the observable a role binds to, or `None` for a role bound to no live observable.
 
         Args:
             inputs:
                 The component that holds the role and the label the role binds to.
-
-        Returns:
-            observed:
-                The namespace of the observable with the references of its symbols, or `None`.
 
         Raises:
             ValidationError:
@@ -89,10 +87,11 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         node, label = inputs
         path = f'{node.scope}{label}' if isinstance(label, str) else None
         if path not in self.live:
-            return None
+            self.observed_ = None
+            return
         scope, observable = self.live[path]
         value, references = self._value(path, scope, observable)
-        return ObservedSpec(SimpleNamespace(value=value), dict(references))
+        self.observed_ = ObservedSpec(SimpleNamespace(value=value), dict(references))
 
     def _system_value(
         self,

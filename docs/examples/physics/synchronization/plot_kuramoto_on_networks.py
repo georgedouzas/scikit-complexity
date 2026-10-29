@@ -22,7 +22,7 @@ MODEL = 'kuramoto_on_networks'
 system = create(MODEL, n_oscillators=200, K=3.0, sigma=0.5, seed=0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], observables=observables).check().run(until=30)
+simulation = Simulation(system, dt=0.2, observers=[observer], observables=observables).check().prepare().run(until=30)
 
 # %%
 # Onset of synchronization on two networks
@@ -41,6 +41,7 @@ for network in ('erdos_renyi', 'watts_strogatz'):
         run = (
             Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
             .check()
+            .prepare()
             .run(until=40)
         )
         order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-20:]))

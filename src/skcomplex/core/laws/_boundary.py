@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...specs import RequirementSpec
 from ..types import Target
@@ -29,7 +28,7 @@ class BoundaryLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import floor, var
         >>> from skcomplex.core.laws import BoundaryLaw
         >>> x = var('x')
-        >>> BoundaryLaw(x, x - floor(x)).check().run({'x': 2.25})
+        >>> BoundaryLaw(x, x - floor(x)).check().prepare().run({'x': 2.25}).value_
         0.25
     """
 
@@ -46,25 +45,15 @@ class BoundaryLaw(BaseLaw):
         """Return what the law requires of a system: nothing, since it holds in any time."""
         return RequirementSpec()
 
-    def _check(self) -> Self:
-        """Raise an error for a value that is a NumPy array.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array."""
         self._check_array('value')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the new value at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the new value at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            value:
-                The new value, a number when nothing symbolic is left.
         """
-        return self._evaluate(self.value, inputs)
+        self.value_ = self._evaluate(self.value, inputs)

@@ -41,7 +41,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().run(until=20)
+simulation = (
+    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
+)
 
 # %%
 # Circling suppresses diffusion
@@ -56,7 +58,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
     system_o = create(MODEL, n_particles=500, omega=omega, size=1e5, random_state=1)
-    run = Simulation(system_o, solver=solver, dt=0.1, random_state=1).check().run(until=40)
+    run = Simulation(system_o, solver=solver, dt=0.1, random_state=1).check().prepare().run(until=40)
     positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

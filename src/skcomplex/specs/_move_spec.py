@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
@@ -43,12 +42,8 @@ class MoveSpec(BaseSpec):
     values: tuple[float, ...] = ()
     width: float = 0.0
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown kind of move.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -57,4 +52,3 @@ class MoveSpec(BaseSpec):
         if self.kind not in MOVES:
             error_msg = f'Unknown move {self.kind!r}. Use one of {", ".join(MOVES)}.'
             raise ValidationError(error_msg)
-        return self

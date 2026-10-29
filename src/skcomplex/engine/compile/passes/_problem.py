@@ -267,7 +267,7 @@ class ProblemPass(BasePass):
                 'Events and delays read states and parameters of single elements and interactions.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the events or delays of {owner}.'
             raise TypeError(error_msg)
@@ -278,7 +278,7 @@ class ProblemPass(BasePass):
             if not isinstance(results, list):
                 error_msg = f'The function of the events or delays of {owner} returns no list of values.'
                 raise TypeError(error_msg)
-            return [float(value) for value in results]
+            return [float(value) for value in np.asarray(results, dtype=float)]
 
         return evaluate
 
@@ -324,7 +324,7 @@ class ProblemPass(BasePass):
         reads = [
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the resets of an event of {spec.owner}.'
             raise TypeError(error_msg)
@@ -508,7 +508,9 @@ class ProblemPass(BasePass):
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
-                ).check(),
+                )
+                .check()
+                .prepare(),
             )
         return tuple(compiled)
 
@@ -557,7 +559,9 @@ class ProblemPass(BasePass):
                         0,
                         False,
                         hidden=True,
-                    ).check(),
+                    )
+                    .check()
+                    .prepare(),
                 )
         return tuple(compiled)
 

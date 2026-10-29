@@ -94,7 +94,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
             if term.time_dependent:
                 varying.append([matrix, self._coefficient(term, p)])
             else:
-                constant = constant + QuantumSolver._complex_of(term.run(RunStateSpec(0.0, np.zeros(0), p))) * matrix
+                constant = constant + term.run(RunStateSpec(0.0, np.zeros(0), p)).values_ * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
@@ -200,32 +200,11 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
-    def _complex_of(value: object) -> complex:
-        """Return the coefficient a term kernel computed as a complex number.
-
-        Args:
-            value:
-                The coefficient.
-
-        Returns:
-            coefficient:
-                The complex coefficient.
-
-        Raises:
-            TypeError:
-                The coefficient is not a number.
-        """
-        if not isinstance(value, int | float | complex | np.number):
-            error_msg = f'The term kernel returned a {type(value).__name__}, not a number.'
-            raise TypeError(error_msg)
-        return complex(value)
-
-    @staticmethod
     def _coefficient(term: QuantumKernel, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 
         def value(t: float) -> complex:
-            return QuantumSolver._complex_of(term.run(RunStateSpec(t, np.zeros(0), parameters)))
+            return term.run(RunStateSpec(t, np.zeros(0), parameters)).values_
 
         return value

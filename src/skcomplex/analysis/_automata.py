@@ -6,7 +6,6 @@
 import functools
 import itertools
 from collections.abc import Callable, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -232,7 +231,7 @@ class AutomatonAnalysis(BaseAnalysis):
         self.windows = windows
         self.base = base
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the method, that the kind reads every changed setting, and that it has what it needs."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
@@ -243,7 +242,6 @@ class AutomatonAnalysis(BaseAnalysis):
         if needed is not None and getattr(self, needed) is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {needed}. Give it.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
@@ -260,7 +258,7 @@ class AutomatonAnalysis(BaseAnalysis):
             return 'automaton'
         return None
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Keep the automaton, the linear automaton, or the subshift, after checking that the kind reads it."""
         models = SOURCES[self.kind]
         if (
@@ -273,7 +271,6 @@ class AutomatonAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         self.automaton_ = source
-        return self
 
     def _get_automaton(self) -> AutomatonProtocol:
         """Return the automaton of a rule, raising an error for a linear automaton or a subshift."""
@@ -298,7 +295,7 @@ class AutomatonAnalysis(BaseAnalysis):
             decision = self._is_injective(self._get_automaton(), method=self.method)
         setattr(self, f'{self.kind.replace("-", "_")}_', decision)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Decide or measure the automaton."""
         if self.kind in {'injective', 'surjective', 'pre-injective'}:
             self._decide()
@@ -321,7 +318,6 @@ class AutomatonAnalysis(BaseAnalysis):
                 )
                 raise AnalysisError(error_msg)
             self.entropy_ = self._configuration_entropy(subject, self.windows, base=self.base)
-        return self
 
     def _run_pair(self) -> None:
         """Set the composition with the second automaton, or the difference pattern of a changed configuration."""

@@ -36,7 +36,8 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
         >>> compiler = RewritingCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver()).check()
+        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
+        >>> simulation = simulation.check().prepare()
         >>> trajectory = simulation.run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
@@ -79,7 +80,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         super()._prepare(problem)
         self.systems_ = problem.rewriting
         self.structures_: dict[str, WordStructureSpec | PatchStructureSpec] = {
-            item.path: item.prepare(problem).structure_ for item in self.systems_
+            item.path: item.prepare(problem).values_ for item in self.systems_
         }
         self._collect()
 
@@ -110,9 +111,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         """
         for generation in range(round(until - t)):
             state = RunStateSpec(t + generation, x, p, self.rng_)
-            for item in self.systems_:
-                item.run(state)
-            self.structures_ = {item.path: item.structure_ for item in self.systems_}
+            self.structures_ = {item.path: item.run(state).values_ for item in self.systems_}
         return self._state()
 
     def _collect(self) -> None:

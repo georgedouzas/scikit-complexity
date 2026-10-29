@@ -23,7 +23,7 @@ SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).check().run(until=10)
+simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).check().prepare().run(until=10)
 
 # %%
 # Logistic growth at a lowered rate
@@ -32,7 +32,11 @@ simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).ch
 # instead of 0.83. The treated tumour should follow the logistic curve of that rate, and lag behind the untreated one.
 
 untreated = (
-    Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER).check().run(until=10).trajectory_
+    Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER)
+    .check()
+    .prepare()
+    .run(until=10)
+    .trajectory_
 )
 treated = simulation.trajectory_
 times, cells = treated.times, treated.values('tumour.A')

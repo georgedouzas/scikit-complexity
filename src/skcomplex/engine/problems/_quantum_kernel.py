@@ -27,7 +27,13 @@ class QuantumKernel(BaseKernel):
 
         function:
             The function `c(t, p)` of the coefficient, or `None` for a constant matrix.
+
+    Attributes:
+        values_:
+            The coefficient at the time and the parameters of the state of the last run.
     """
+
+    values_: complex
 
     def __init__(
         self,
@@ -44,27 +50,23 @@ class QuantumKernel(BaseKernel):
         """Whether the coefficient depends on time."""
         return bool(self.coefficient.has(symbol('t')))
 
-    def _run(self, inputs: RunStateSpec | None) -> complex:
-        """Return the coefficient at the time and the parameters of the state.
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the coefficient at the time and the parameters of the state, 1 for a constant matrix.
 
         Args:
             inputs:
                 The state.
-
-        Returns:
-            coefficient:
-                The coefficient, 1 for a constant matrix.
         """
         state = self._state_of(inputs)
-        return 1.0 if self.function is None else self.function(state.t, state.p)
+        self.values_ = 1 + 0j if self.function is None else self.function(state.t, state.p)
 
     @staticmethod
     def _coefficient_of(value: object) -> complex:
-        """Return what `run` of a term kernel returned as a complex coefficient.
+        """Return the value a lowered coefficient function computed as a complex coefficient.
 
         Args:
             value:
-                What `run` returned.
+                The computed value.
 
         Returns:
             coefficient:
@@ -75,7 +77,7 @@ class QuantumKernel(BaseKernel):
                 The value is not a number.
         """
         if not isinstance(value, int | float | complex | np.number):
-            error_msg = f'A term kernel returns a number, not a {type(value).__name__}.'
+            error_msg = f'A coefficient function computes a number, not a {type(value).__name__}.'
             raise TypeError(error_msg)
         return complex(value)
 

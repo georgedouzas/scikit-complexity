@@ -24,7 +24,9 @@ MODEL = 'scaled_brownian_motion'
 system = create(MODEL, n_particles=8, alpha=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).check().run(until=10)
+simulation = (
+    Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).check().prepare().run(until=10)
+)
 
 # %%
 # Anomalous mean squared displacement
@@ -36,7 +38,10 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1).check().run(10)
+        Simulation(create(MODEL, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
+        .check()
+        .prepare()
+        .run(10)
     )
     times = run.trajectory_.times[1:]
     squared = np.mean(run.trajectory_.values('walkers.x')[1:] ** 2, axis=1)

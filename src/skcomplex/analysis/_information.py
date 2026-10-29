@@ -6,7 +6,6 @@
 import math
 from collections import Counter
 from collections.abc import Hashable, Sequence
-from typing import Self
 
 import ennemi
 import numpy as np
@@ -178,7 +177,7 @@ class InformationAnalysis(BaseAnalysis):
         self.k = k
         self.base = base
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('symbols', self.symbols, (None, *SYMBOLS))
@@ -203,27 +202,25 @@ class InformationAnalysis(BaseAnalysis):
                 f'base={self.base!r}. Use a max_delay of 0 or more, a dimension of 2 or more, and a positive base.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series of the source as columns and turn them into symbols."""
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
         if self.symbols is None:
             self.symbols_ = self.values_
-            return self
+            return
         self.symbols_ = np.column_stack(
             [
                 self._symbolize(column, self.symbols, self.bins, order=self.order, delay=self.delay)
                 for column in self.values_.T
             ],
         )
-        return self
 
     def _compute_pair(self, first: AnyArray, second: AnyArray, *, same: bool) -> float:
         """Return the mutual information, the transfer entropy, or the divergence from one series to another."""
@@ -267,7 +264,7 @@ class InformationAnalysis(BaseAnalysis):
         ]
         return whole - np.asarray(parts, dtype=float)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the information of every pair of series, of every series, or of all series together."""
         columns = self.symbols_
         if self.kind in PAIRWISE:
@@ -282,7 +279,6 @@ class InformationAnalysis(BaseAnalysis):
             self.information_ = self._compute_joint(columns)
         else:
             self.information_ = np.asarray([self._compute_series(column) for column in columns.T], dtype=float)
-        return self
 
     @staticmethod
     def _rank_index(patterns: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:

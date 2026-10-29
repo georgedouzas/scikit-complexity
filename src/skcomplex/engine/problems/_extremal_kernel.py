@@ -50,7 +50,13 @@ class ExtremalKernel(BaseKernel):
 
         loop:
             The compiled loop of the applications on the Numba backend, or `None` for the NumPy loop.
+
+    Attributes:
+        values_:
+            The records of the applications of the last run, each with the time, the site, and the extremal value.
     """
+
+    values_: list[ExtremalRecordSpec]
 
     def __init__(
         self,
@@ -100,8 +106,8 @@ class ExtremalKernel(BaseKernel):
             x[state.start + sites] = np.asarray(value, dtype=float)
         return site, float(best)
 
-    def _run(self, inputs: RunStateSpec | None) -> list[ExtremalRecordSpec]:
-        """Apply the law `repeat` times to the state vector of the state in place, and return the records.
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Apply the law `repeat` times to the state vector of the state in place, and set the records.
 
         Every record holds the time of the state, the site, and the extremal value of one application.
         """
@@ -109,10 +115,11 @@ class ExtremalKernel(BaseKernel):
         x, p, rng, time = state.x, state.p, self._generator_of(state), state.t
         if self.loop is None:
             found = [self._apply_once(x, p, rng) for _ in range(self.repeat)]
-            return [ExtremalRecordSpec(self.label, time, site, value) for site, value in found]
+            self.values_ = [ExtremalRecordSpec(self.label, time, site, value) for site, value in found]
+            return
         sites, values = np.zeros(self.repeat, dtype=np.intp), np.zeros(self.repeat)
         self.loop(x, np.ascontiguousarray(p, dtype=float), rng, self.members, self.counts, self.repeat, sites, values)
-        return [
+        self.values_ = [
             ExtremalRecordSpec(self.label, time, int(site), float(value))
             for site, value in zip(sites.tolist(), values.tolist(), strict=True)
         ]

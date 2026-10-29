@@ -20,7 +20,7 @@ MODEL = 'toggle_switch'
 
 system = create(MODEL, proteins=(60.0, 0.0))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Two basins of attraction
@@ -32,7 +32,9 @@ grid = np.linspace(0, 120, 9)
 fig, ax = plt.subplots(figsize=(6, 5))
 for first in grid:
     for second in grid:
-        trajectory = Simulation(create(MODEL, proteins=(first, second)), dt=0.5).check().run(until=100).trajectory_
+        trajectory = (
+            Simulation(create(MODEL, proteins=(first, second)), dt=0.5).check().prepare().run(until=100).trajectory_
+        )
         winner = 'tab:blue' if trajectory.values('gene_0.p')[-1] > trajectory.values('gene_1.p')[-1] else 'tab:orange'
         ax.plot(trajectory.values('gene_0.p'), trajectory.values('gene_1.p'), color=winner, linewidth=0.6, alpha=0.7)
 ax.plot([0, 120], [0, 120], ':', color='black', label='equal start')

@@ -27,7 +27,7 @@ TRANSIENT = 1500
 
 system = create(MODEL, memory=0.75, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=50)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=STEPS)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=STEPS)
 trajectory = simulation.trajectory_
 temperatures = np.asarray(trajectory.values('agents.temperature'))
 fitness = np.asarray(trajectory.values('agents.fitness'))[::3][TRANSIENT // 3 :]
@@ -60,6 +60,7 @@ for scale in scales:
     runs = [
         Simulation(create(MODEL, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
         .check()
+        .prepare()
         .run(until=300)
         .trajectory_.values('agents.reward')
         .mean(axis=1)[150:]

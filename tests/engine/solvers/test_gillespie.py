@@ -24,7 +24,7 @@ def test_gillespie_conserves_individuals():
     )
     stepper = GillespieSolver()
     stepper.set_params(random_state=np.random.default_rng(1)).check().prepare(problem)
-    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
     assert state.sum() == 50
     assert 0 < state[0] < 50
     assert np.all(state == np.round(state))
@@ -43,7 +43,9 @@ def _epidemic():
 
 def _gillespie_run(backend):
     """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
-    simulation = Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0).check()
+    simulation = (
+        Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0).check().prepare()
+    )
     simulation.run(until=50)
     start = time.perf_counter()
     trajectory = simulation.run(until=50).trajectory_

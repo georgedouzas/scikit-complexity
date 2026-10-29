@@ -40,7 +40,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0, observables=observables).check().run(until=STEPS)
+simulation = (
+    Simulation(system, observers=[observer], random_state=0, observables=observables).check().prepare().run(until=STEPS)
+)
 
 # %%
 # Stationary distribution of wealth

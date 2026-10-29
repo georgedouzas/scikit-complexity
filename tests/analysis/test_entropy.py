@@ -138,7 +138,7 @@ def test_sample_entropy_of_white_noise():
 
 def test_sample_entropy_of_periodic_orbits_on_two_domains():
     """Test that the Van der Pol limit cycle and the logistic map at r = 3.2 give sample entropies below 0.05."""
-    trajectory = Simulation(create('van_der_pol'), dt=0.01).check().run(until=100.0).trajectory_
+    trajectory = Simulation(create('van_der_pol'), dt=0.01).check().prepare().run(until=100.0).trajectory_
     cycle = trajectory.values('oscillator.x')[len(trajectory.times) // 2 :]
     assert _entropy('sample', cycle, dimension=2)[0] < 0.05
     assert _entropy('sample', _logistic(3.2, 3000), dimension=2)[0] < 0.05

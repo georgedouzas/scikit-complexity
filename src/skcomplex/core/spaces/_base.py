@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -28,17 +27,18 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
             The label of the neighbourhood.
     """
 
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a neighbourhood contributes no laws to a system."""
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
 
-    def _check(self) -> Self:
-        """Return the neighbourhood, which has nothing to check besides its label by default."""
-        return self
+    def _check(self) -> None:
+        """Accept the neighbourhood, which has nothing to check besides its label by default."""
 
-    def _prepare(self, context: None = None) -> Self:
-        """Return the neighbourhood, which has nothing to prepare by default."""
-        return self
+    def _prepare(self, context: None = None) -> None:
+        """Leave the neighbourhood as it is, since it has nothing to prepare by default."""
 
 
 class BaseSpace(BasePart[None, SimpleNamespace]):
@@ -75,13 +75,15 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
             The name of the visual of groups on the space when neither the group nor its element sets one, or `None`.
     """
 
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a space contributes no laws to a system."""
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the space contributes for a namespace of symbols, none by default."""
         return []
 
-    def _check(self) -> Self:
-        """Return the space, which has nothing to check besides its label by default."""
-        return self
+    def _check(self) -> None:
+        """Accept the space, which has nothing to check besides its label by default."""
 
     def _get_lacks(self) -> frozenset[str]:
         """Return the options lattices offer that the space does not, such as `'image'`, none by default."""
@@ -192,13 +194,15 @@ class BaseTime(BasePart[None, SimpleNamespace]):
             The schedule of a discrete time, or `None`.
     """
 
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a time contributes no laws to a system."""
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since the time decides which laws a system may hold but contributes none."""
         return []
 
-    def _check(self) -> Self:
-        """Return the time, which has nothing to check besides its label by default."""
-        return self
+    def _check(self) -> None:
+        """Accept the time, which has nothing to check besides its label by default."""
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
         """Return the times of the frames of a run up to a time, its start and its end by default.

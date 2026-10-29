@@ -30,7 +30,10 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0).check().run(299)
+    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(299)
 )
 
 # %%
@@ -41,7 +44,9 @@ simulation = (
 # run of 100000 symbols should drop from the entropy of single symbols to `h` at `m = 2` and stay there, since one
 # symbol of the past holds all the memory of the source.
 
-symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).check().run(100000).trajectory_
+symbols = (
+    Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).check().prepare().run(100000).trajectory_
+)
 blocks = EntropyAnalysis('block', dimension=8).check().prepare(symbols.values('source.symbol').astype(int)).run()
 entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])

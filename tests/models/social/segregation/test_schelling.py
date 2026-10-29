@@ -28,6 +28,10 @@ def _similar_share(snapshot):
 def test_schelling_segregation_increases():
     """Test that the share of similar neighbours is higher after 100 steps than at the start."""
     trajectory = (
-        Simulation(schelling(20, 20, threshold=0.5, random_state=0), random_state=0).check().run(until=100).trajectory_
+        Simulation(schelling(20, 20, threshold=0.5, random_state=0), random_state=0)
+        .check()
+        .prepare()
+        .run(until=100)
+        .trajectory_
     )
     assert _similar_share(trajectory.agents('residents', 100)) > _similar_share(trajectory.agents('residents', 0))

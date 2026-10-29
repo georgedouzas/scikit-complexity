@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 system = create(MODEL)
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=60.0, solver=solver, observers=[observer]).check().run(until=10800)
+simulation = Simulation(system, dt=60.0, solver=solver, observers=[observer]).check().prepare().run(until=10800)
 
 # %%
 # Composition of the corona and its equilibrium
@@ -49,7 +49,7 @@ simulation = Simulation(system, dt=60.0, solver=solver, observers=[observer]).ch
 # affinity `n_i alpha_i P_i / delta_i`, so it should end up holding nearly all the nanoparticles, after albumin held
 # most of them first. A run of ten hours with a logarithmic time axis shows both phases.
 
-long_run = Simulation(create(MODEL), dt=10.0, solver=solver).check().run(until=36000).trajectory_
+long_run = Simulation(create(MODEL), dt=10.0, solver=solver).check().prepare().run(until=36000).trajectory_
 fig, (shares, balance) = plt.subplots(1, 2, figsize=(10, 4))
 total = 36.0
 hours = long_run.times[1:] / 3600

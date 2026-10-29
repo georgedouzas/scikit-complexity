@@ -20,7 +20,7 @@ MODEL = 'meadow_capacity'
 
 system = create(MODEL, cows=80, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=25)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=25)
 
 # %%
 # Herds of different sizes
@@ -31,7 +31,11 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 fig, ax = plt.subplots(figsize=(8, 4))
 for herd in [40, 80, 160, 320]:
     trajectory = (
-        Simulation(create(MODEL, cows=herd, random_state=0), dt=1, random_state=0).check().run(until=25).trajectory_
+        Simulation(create(MODEL, cows=herd, random_state=0), dt=1, random_state=0)
+        .check()
+        .prepare()
+        .run(until=25)
+        .trajectory_
     )
     ax.plot(trajectory.times, trajectory.values('cows.count'), 'o-', markersize=3, label=f'{herd} cows')
 ax.axhline(64, color='black', linestyle='--', label='capacity without regrowth')

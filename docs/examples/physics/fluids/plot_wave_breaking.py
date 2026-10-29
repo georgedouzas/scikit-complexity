@@ -26,7 +26,7 @@ MODEL = 'wave_breaking'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observer]).check().run(until=25)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observer]).check().prepare().run(until=25)
 
 # %%
 # Breaking time and the conservation of waves

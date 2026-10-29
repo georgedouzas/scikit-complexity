@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from sage.all__sagemath_symbolics import RR
 
@@ -49,12 +48,8 @@ class ParameterSpec(BaseSpec):
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a parameter per role that is a vector or adaptive, or for invalid bounds.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -69,4 +64,3 @@ class ParameterSpec(BaseSpec):
                 f'The bounds {self.bounds!r} need an adaptive parameter and a lower bound at most the upper one.'
             )
             raise ValidationError(error_msg)
-        return self

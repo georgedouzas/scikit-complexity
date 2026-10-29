@@ -56,9 +56,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, x=-0.5, y=0.02), dt=1, observers=[observer]).check().run(until=30)
+simulation = Simulation(create(MODEL, x=-0.5, y=0.02), dt=1, observers=[observer]).check().prepare().run(until=30)
 starts = [(-0.5, 0.02), (-0.5, -0.02), (0.3, 0.55), (0.3, 0.45), (0.3, -0.55), (0.3, -0.45)]
-orbits = [Simulation(create(MODEL, x=x, y=y), dt=1).check().run(until=30).trajectory_ for x, y in starts]
+orbits = [Simulation(create(MODEL, x=x, y=y), dt=1).check().prepare().run(until=30).trajectory_ for x, y in starts]
 labels = basins(SIZE)
 palette = np.array([[230, 90, 60], [70, 160, 220], [250, 200, 60]], dtype=np.uint8)
 observer.recording_.log('basins', rr.Image(palette[labels]), static=True)

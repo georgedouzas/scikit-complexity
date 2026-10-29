@@ -55,7 +55,7 @@ from ...core.spaces import (
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
-from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec, SourceLoader
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -167,23 +167,16 @@ class NumbaBackend(BaseBackend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _run(self, inputs: LoweredKernelsSpec | None) -> LoweredFunctionsSpec:
-        """Return the numeric functions of the form of the kernels, compiled with Numba where every law compiles.
+    def _run(self, inputs: LoweredKernelsSpec | None) -> None:
+        """Set the numeric functions of the form of the kernels, compiled with Numba where every law compiles.
 
         Args:
             inputs:
                 The kernels of a problem.
 
-        Returns:
-            functions:
-                The numeric functions of the form.
-
         Raises:
             ValidationError:
                 No kernels are passed, or they have no form.
-
-            TypeError:
-                The printer does not return the lines of the kernel source.
         """
         if inputs is None or inputs.form is None:
             error_msg = 'A backend runs on the kernels of a problem of one form. Pass a `LoweredKernelsSpec` to `run`.'
@@ -219,10 +212,7 @@ class NumbaBackend(BaseBackend):
             if compiled[kind]
         ]
         printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS).check()
-        lines = printer.prepare(reductions if reduced and fused else None).run(parts)
-        if not isinstance(lines, list):
-            error_msg = f'The Numba printer returns the lines of the kernel source, not a {type(lines).__name__}.'
-            raise TypeError(error_msg)
+        lines = printer.prepare(reductions if reduced and fused else None).run(parts).code_
         accelerated_loop = {
             FormKind.ODE: 'rk4',
             FormKind.SDE: 'euler_maruyama',
@@ -253,7 +243,7 @@ class NumbaBackend(BaseBackend):
         if has_loop:
             accelerated = self._accelerated(accelerated_loop, module, layout, lowering, draws)
             lowering = replace(lowering, accelerated=accelerated)
-        return replace(lowering, backends=backends)
+        self.functions_ = replace(lowering, backends=backends)
 
     def _lowering(
         self,
@@ -557,7 +547,7 @@ class NumbaBackend(BaseBackend):
         """
         cached = text.replace('cache=CACHE', f'cache={not functions}')
         source = f'# Compiled helpers: {HELPERS_FINGERPRINT}\n{cached}'
-        return NumbaBackend._load_source('skcomplex_kernels', source, functions, cache_dir)
+        return SourceLoader('skcomplex_kernels', functions).check().prepare(cache_dir).run(source).module_
 
 
 HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()

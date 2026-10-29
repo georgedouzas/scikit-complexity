@@ -51,7 +51,7 @@ class EncounterFunctionsPass(BasePass):
         def encountered(t: float, x: Array, p: Array) -> Array:
             rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
             for encounter in encounters:
-                rates += np.asarray(encounter.run(RunStateSpec(t, x, p)), dtype=float)
+                rates += np.asarray(encounter.run(RunStateSpec(t, x, p)).values_, dtype=float)
             return rates
 
         return replace(functions, drift=encountered, accelerated=None)

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -36,7 +35,7 @@ class DestructionLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import DestructionLaw
         >>> f, g, mu = var('f'), var('g'), var('mu')
-        >>> DestructionLaw(f, g, 2 * mu).check().run({'mu': 0.1})
+        >>> DestructionLaw(f, g, 2 * mu).check().prepare().run({'mu': 0.1}).value_
         0.2
     """
 
@@ -54,25 +53,15 @@ class DestructionLaw(BaseLaw):
         """Return what the law requires of a system: continuous time on activity lattices."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
-    def _check(self) -> Self:
-        """Raise an error for a rate table of the wrong dimensions.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a rate table of the wrong dimensions."""
         self._check_table('rate', (0, 2))
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the rate at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the rate at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            rate:
-                The rate, a number or nested lists of numbers when nothing symbolic is left.
         """
-        return self._evaluate(np.asarray(self.rate, dtype=object).tolist(), inputs)
+        self.value_ = self._evaluate(np.asarray(self.rate, dtype=object).tolist(), inputs)

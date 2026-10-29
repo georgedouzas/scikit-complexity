@@ -111,7 +111,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
 
 def _run(system, solver, until, dt=0.05):
     """Return the trajectory of a run."""
-    return Simulation(system, solver=solver, dt=dt).check().run(until=until).trajectory_
+    return Simulation(system, solver=solver, dt=dt).check().prepare().run(until=until).trajectory_
 
 
 def test_lammps_loads():
@@ -138,7 +138,7 @@ def test_lammps_rejects_population_model():
         ],
     )
     with pytest.raises(BackendError, match='LAMMPS') as error:
-        Simulation(system, solver=LammpsSolver()).check().run(until=1)
+        Simulation(system, solver=LammpsSolver()).check().prepare().run(until=1)
     for name in ('rabbits', 'foxes', 'growth', 'hunt', 'death'):
         assert name in str(error.value)
 
@@ -151,7 +151,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
-        Simulation(system, solver=LammpsSolver()).check().run(until=0.1)
+        Simulation(system, solver=LammpsSolver()).check().prepare().run(until=0.1)
 
 
 def test_lammps_rejects_groups_with_different_masses():
@@ -161,7 +161,7 @@ def test_lammps_rejects_groups_with_different_masses():
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='different masses'):
-        Simulation(system, solver=LammpsSolver()).check().run(until=0.1)
+        Simulation(system, solver=LammpsSolver()).check().prepare().run(until=0.1)
 
 
 def test_lammps_custom_pair_energy_matches_native_forces():
@@ -227,7 +227,7 @@ def test_lammps_walls_confine_atoms_on_their_own():
     backend.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     state = problem.initial_state
     for step in range(20):
-        state = backend.run(StepSpec(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5))
+        state = backend.run(StepSpec(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5)).state_
         positions = problem.states.read(state, 'gas.x')
         assert np.all((positions >= 0) & (positions <= 10))
 
@@ -260,13 +260,17 @@ def test_lammps_thermostat_temperature_changes_live():
         ],
         space=gas.space,
     )
-    simulation = Simulation(
-        system,
-        solver=LammpsSolver(dt=0.01, fixes=LAMMPS_FIXES),
-        dt=0.5,
-        clock=RealTimeClock(speed=10.0),
-        random_state=0,
-    ).check()
+    simulation = (
+        Simulation(
+            system,
+            solver=LammpsSolver(dt=0.01, fixes=LAMMPS_FIXES),
+            dt=0.5,
+            clock=RealTimeClock(speed=10.0),
+            random_state=0,
+        )
+        .check()
+        .prepare()
+    )
     simulation.start(until=20)
     time.sleep(1.0)
     simulation.update_parameters({'bath.temperature': 3.0})
@@ -296,13 +300,17 @@ def test_lammps_runs_10000_atoms_in_real_time():
         ],
         space=ContinuousSpace(extent=(121.0, 121.0), boundary='reflecting'),
     )
-    simulation = Simulation(
-        system,
-        solver=LammpsSolver(dt=0.005),
-        dt=0.05,
-        clock=RealTimeClock(speed=1.0),
-        record=False,
-    ).check()
+    simulation = (
+        Simulation(
+            system,
+            solver=LammpsSolver(dt=0.005),
+            dt=0.05,
+            clock=RealTimeClock(speed=1.0),
+            record=False,
+        )
+        .check()
+        .prepare()
+    )
     simulation.run(until=5)
     assert simulation.clock_.max_lag_ <= 0.2
 
@@ -316,7 +324,7 @@ def test_lammps_solver_is_an_external_solver():
 def test_lammps_final_run_closes_the_instance():
     """Test that the last frame of a run closes the LAMMPS instance, which runs again only once refitted."""
     problem = compile_system(_lennard_jones_gas())
-    simulation = Simulation(problem, solver=LammpsSolver(dt=0.005), dt=0.05).check().run(until=0.1)
+    simulation = Simulation(problem, solver=LammpsSolver(dt=0.005), dt=0.05).check().prepare().run(until=0.1)
     assert simulation.stepper_.released_
     with pytest.raises(SolverError, match='closed its LAMMPS instance'):
         simulation.extend(until=0.2)

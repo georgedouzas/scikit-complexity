@@ -21,7 +21,7 @@ MODEL = 'agent_based_sir'
 
 system = create(MODEL, people=500, infected=5, beta=0.6, gamma=0.02, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=299)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=299)
 
 # %%
 # Compartments over time

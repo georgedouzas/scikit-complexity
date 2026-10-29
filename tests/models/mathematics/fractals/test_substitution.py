@@ -56,7 +56,7 @@ def test_filled_gasket():
 def test_koch_curve_in_rerun(tmp_path):
     """Test that the Koch curve logs one frame per generation and that its view is the primary view."""
     observer = RerunObserver('koch', save_path=tmp_path / 'koch.rrd', blueprint='default')
-    Simulation(create('koch_curve'), observers=[observer], compiler=RewritingCompiler()).check().run(until=5)
+    Simulation(create('koch_curve'), observers=[observer], compiler=RewritingCompiler()).check().prepare().run(until=5)
     assert observer.logged_frames_ == 6
     view = observer.views_[0]
     assert isinstance(view, rrb.Spatial2DView)
@@ -67,6 +67,8 @@ def test_filled_and_outlined_visuals(tmp_path):
     """Test that a filled patch and its outlines are logged."""
     for name, options in [('sierpinski_substitution', {}), ('sierpinski_substitution', {'filled': False})]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(create(name, **options), observers=[observer], compiler=RewritingCompiler()).check().run(until=3)
+        Simulation(create(name, **options), observers=[observer], compiler=RewritingCompiler()).check().prepare().run(
+            until=3,
+        )
         assert observer.logged_frames_ == 4
     assert repr(GeometryVisual()) == 'GeometryVisual()'

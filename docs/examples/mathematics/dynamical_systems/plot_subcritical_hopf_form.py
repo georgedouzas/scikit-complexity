@@ -30,7 +30,9 @@ def alpha_at(time):
 
 system = create(MODEL, x=1.0, alpha=-0.1)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).check().run(until=290)
+simulation = (
+    Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).check().prepare().run(until=290)
+)
 
 # %%
 # Amplitude along the sweep and the two attractors
@@ -50,6 +52,7 @@ finals = {
                 dt=1.0,
             )
             .check()
+            .prepare()
             .run(until=150)
             .state_,
         )

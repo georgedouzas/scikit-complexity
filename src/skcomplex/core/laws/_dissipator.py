@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR
 
@@ -34,7 +33,7 @@ class DissipatorLaw(BaseLaw):
         >>> from skcomplex.core.laws import DissipatorLaw
         >>> from skcomplex.core.laws.utils import local_operator
         >>> minus = local_operator(SR.symbol('q'), SR.symbol('minus'))
-        >>> DissipatorLaw(minus, 2 * var('gamma')).check().run({'gamma': 0.05})
+        >>> DissipatorLaw(minus, 2 * var('gamma')).check().prepare().run({'gamma': 0.05}).value_
         (local_operator(q, minus), 0.1)
     """
 
@@ -51,13 +50,8 @@ class DissipatorLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for an operator without local operators, or a rate that is not a number or an expression.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an operator without local operators, or a rate that is not a number or an expression."""
         if not has_operator(self.operator):
             error_msg = f'A dissipator takes an operator built from local operators, but got {self.operator!r}.'
             raise ValidationError(error_msg)
@@ -68,17 +62,12 @@ class DissipatorLaw(BaseLaw):
         if rate is None or has_operator(rate):
             error_msg = f'The rate of a dissipator is a number or a symbolic expression, but got {self.rate!r}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the operator and the rate at given values of the symbols they read.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the operator and the rate at given values of the symbols they read.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            dissipator:
-                The collapse operator and the rate.
         """
-        return self._evaluate((self.operator, self.rate), inputs)
+        self.value_ = self._evaluate((self.operator, self.rate), inputs)

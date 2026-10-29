@@ -22,7 +22,7 @@ MODEL = 'anti_pd1_checkpoint'
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).check().run(until=150)
+simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).check().prepare().run(until=150)
 
 # %%
 # Dose response
@@ -38,6 +38,7 @@ runs = {
         solver=solver,
     )
     .check()
+    .prepare()
     .run(until=150)
     for dose in (0.0, 1e-9, 2e-9)
 }

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Self
 
 import numpy as np
 import scipy.sparse
@@ -21,8 +20,8 @@ from ..problems._reduction_kernel import ReductionKernel
 class _MemberReductions(BaseConfig[None, object]):
     """Reductions in the member expression of an observable, compiled with the reduction lowering of laws.
 
-    `prepare()` starts with the reads given and no reduction found, and `run(expression)` returns an expression with
-    every reduction replaced by the placeholder of its value, compiling every reduction once.
+    `prepare()` starts with the reads given and no reduction found, and `run(expression)` sets `expression_`, the
+    expression with every reduction replaced by the placeholder of its value, compiling every reduction once.
 
     Args:
         path:
@@ -49,10 +48,17 @@ class _MemberReductions(BaseConfig[None, object]):
 
         found_:
             The kernel of every reduction found, by its call.
+
+        expression_:
+            The expression the last run lowered, with placeholders, or the value it ran on when not an expression.
     """
 
     reads_: dict[Expression, ReadSpec]
     found_: dict[str, ReductionKernel]
+    expression_: object
+
+    def _check(self) -> None:
+        """Accept every setting, since a member reduction has none to validate."""
 
     def __init__(
         self,
@@ -71,35 +77,39 @@ class _MemberReductions(BaseConfig[None, object]):
         self.time = time
         self.parameters = parameters
 
-    def _prepare(self, context: None) -> Self:
+    def _prepare(self, context: None) -> None:
         """Start with the reads given and no reduction found.
 
         Args:
             context:
                 Nothing: the lowering serves its observable.
-
-        Returns:
-            self:
-                The prepared lowering.
         """
         self.reads_, self.found_ = dict(self.reads), {}
-        return self
 
-    def _run(self, inputs: object | None) -> object:
-        """Return an expression with every reduction replaced by the placeholder of its value.
+    def _run(self, inputs: object | None) -> None:
+        """Set an expression with every reduction replaced by the placeholder of its value.
 
         Args:
             inputs:
+                The expression, or any other value, which is kept unchanged.
+        """
+        self.expression_ = self._lowered(inputs)
+
+    def _lowered(self, expression: object) -> object:
+        """Return an expression with every reduction replaced by the placeholder of its value.
+
+        Args:
+            expression:
                 The expression, or any other value, which is returned unchanged.
 
         Returns:
             lowered:
                 The expression with placeholders.
         """
-        if not isinstance(inputs, Expression):
-            return inputs
-        placeholders = {item.call: self._placeholder(item) for item in reductions_in(inputs)}
-        lowered = inputs
+        if not isinstance(expression, Expression):
+            return expression
+        placeholders = {item.call: self._placeholder(item) for item in reductions_in(expression)}
+        lowered = expression
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
         return lowered
@@ -165,8 +175,8 @@ class _MemberReductions(BaseConfig[None, object]):
             )
             raise ValidationError(error_msg)
         self._check_over(reduction)
-        argument = SR(self._run(reduction.argument))
-        condition = None if reduction.condition is None else SR(self._run(reduction.condition))
+        argument = SR(self._lowered(reduction.argument))
+        condition = None if reduction.condition is None else SR(self._lowered(reduction.condition))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.time}
         weights = self._weights(reduction)
         index = len(self.found_)
@@ -175,18 +185,22 @@ class _MemberReductions(BaseConfig[None, object]):
         entry = EntrySpec(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
-        self.found_[key] = ReductionKernel(
-            symbol=placeholder,
-            kind=reduction.kind,
-            argument=argument,
-            condition=condition,
-            weights=weights,
-            entry=entry,
-            size=self.size,
-            group=self.group,
-            reads=reads,
-            time=self.time,
-        ).check()
+        self.found_[key] = (
+            ReductionKernel(
+                symbol=placeholder,
+                kind=reduction.kind,
+                argument=argument,
+                condition=condition,
+                weights=weights,
+                entry=entry,
+                size=self.size,
+                group=self.group,
+                reads=reads,
+                time=self.time,
+            )
+            .check()
+            .prepare()
+        )
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
         self.reads_[placeholder] = ReadSpec(False, indices, entry)
         return placeholder

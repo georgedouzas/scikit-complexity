@@ -141,13 +141,13 @@ def test_rate_runs_into_its_value():
     n, r = var('n r')
     law = RateLaw(n, r * n, order=1).check().prepare()
     assert (law.targets_, law.order) == ((n,), 1)
-    assert law.run({'n': 3.0, 'r': 2.0}) == 6.0
+    assert law.run({'n': 3.0, 'r': 2.0}).value_ == 6.0
 
 
 def test_initial_angular_velocity():
     """Test that a state of order 2 starts from its angle and its angular velocity, both recorded by path."""
     system = System(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)])
-    trajectory = Simulation(system, dt=0.1).check().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_
     assert trajectory.values('bob.theta')[0] == pytest.approx(0.1)
     assert trajectory.values('bob.theta_d1')[0] == pytest.approx(0.5)
     assert trajectory.values('bob.theta')[1] > 0.1
@@ -155,7 +155,7 @@ def test_initial_angular_velocity():
 
 def test_first_order_unchanged():
     """Test that a state without an order compiles without companion states."""
-    simulation = Simulation(System(elements=[StockElement('a')]), dt=0.5).check().run(until=1)
+    simulation = Simulation(System(elements=[StockElement('a')]), dt=0.5).check().prepare().run(until=1)
     assert simulation.problem_.states.names == ['a.n']
 
 
@@ -165,7 +165,7 @@ def test_newton_superposition_of_separate_laws():
         elements=[MassElement('mass')],
         interactions=[SpringInteraction('spring', target='mass'), DamperInteraction('damper', target='mass')],
     )
-    trajectory = Simulation(system, solver=PRECISE, dt=0.1).check().run(until=10).trajectory_
+    trajectory = Simulation(system, solver=PRECISE, dt=0.1).check().prepare().run(until=10).trajectory_
     gamma = 0.4 / (2 * 2.0)
     omega = np.sqrt(8.0 / 2.0 - gamma**2)
     t = trajectory.times
@@ -177,13 +177,15 @@ def test_order_mismatch_is_rejected():
     """Test that a law asserting order 1 on a state of order 2 names the law, the state, and both orders."""
     system = System(elements=[MassElement('mass')], interactions=[MismatchedInteraction('wrong', target='mass')])
     with pytest.raises(ValidationError, match=r'mass\.x gives the derivative of order 1, but the state has order 2'):
-        Simulation(system).check().run(until=1)
+        Simulation(system).check().prepare().run(until=1)
 
 
 def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
     system = System(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
-    trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.001), dt=0.1).check().run(until=10).trajectory_
+    trajectory = (
+        Simulation(system, solver=VelocityVerletSolver(dt=0.001), dt=0.1).check().prepare().run(until=10).trajectory_
+    )
     energy = 0.5 * 2.0 * trajectory.values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
 
