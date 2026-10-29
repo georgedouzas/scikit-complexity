@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
@@ -392,8 +392,8 @@ def chua(
         raise ParameterError(error_msg)
     element = ChuaCircuitElement if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
     initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
-    values: dict[str, Any] = {name: value for name, value in initial.items() if value is not None}
-    return System(elements=[element('circuit', z=z, **values)])
+    values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
+    return System(elements=[element('circuit', z=z).set_params(**values)])
 
 
 @register_model(

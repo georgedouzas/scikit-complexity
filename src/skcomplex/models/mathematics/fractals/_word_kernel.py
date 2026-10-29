@@ -412,7 +412,12 @@ class WordKernel(BaseKernel):
         strokes = BaseStructureSpec._frozen(segments, np.float64)
         frozen_depths = BaseStructureSpec._frozen(depths, np.int64)
         return WordStructureSpec(
-            self.names, frozen_codes, frozen_table, generation, strokes=strokes, depths=frozen_depths
+            self.names,
+            frozen_codes,
+            frozen_table,
+            generation,
+            strokes=strokes,
+            depths=frozen_depths,
         )
 
     @staticmethod
