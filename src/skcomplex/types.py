@@ -104,18 +104,18 @@ class DataKind(StrEnum):
     @property
     def reading(self) -> str:
         """Plain arrays or graphs the analyses of the kind read."""
-        return _READINGS[self]
-
-
-_READINGS = {
-    DataKind.SERIES: 'a series of values, or the columns of an array as series',
-    DataKind.PATH: 'the jump times and the states after every jump',
-    DataKind.FIELD: 'a grid of values, or frames of grids',
-    DataKind.AGENTS: 'positions, velocities, headings, or states of agents, one row per agent',
-    DataKind.NETWORK: 'a NetworkX graph, or one graph per frame',
-    DataKind.ENSEMBLE: 'one row per run and one column per common time',
-    DataKind.SYSTEM: 'a system, a problem compiled from one, or a trajectory of one, whose equations are analysed',
-}
+        readings = {
+            DataKind.SERIES: 'a series of values, or the columns of an array as series',
+            DataKind.PATH: 'the jump times and the states after every jump',
+            DataKind.FIELD: 'a grid of values, or frames of grids',
+            DataKind.AGENTS: 'positions, velocities, headings, or states of agents, one row per agent',
+            DataKind.NETWORK: 'a NetworkX graph, or one graph per frame',
+            DataKind.ENSEMBLE: 'one row per run and one column per common time',
+            DataKind.SYSTEM: (
+                'a system, a problem compiled from one, or a trajectory of one, whose equations are analysed'
+            ),
+        }
+        return readings[self]
 
 
 class ReadKind(Enum):
