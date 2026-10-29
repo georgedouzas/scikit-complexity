@@ -5,12 +5,12 @@
 
 import functools
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR
 
+from ..types import Array, ComplexArray
 from ._base_spec import BaseSpec
 from ._entry_spec import EntrySpec
 
@@ -123,7 +123,7 @@ class LayoutSpec(BaseSpec):
         error_msg = f'No variable or component named {name!r}. Available names are: {", ".join(self.names)}.'
         raise KeyError(error_msg)
 
-    def read(self, vector: npt.NDArray[np.float64], name: str) -> npt.NDArray[Any] | float | complex:
+    def read(self, vector: npt.NDArray[np.float64], name: str) -> Array | ComplexArray | float | complex:
         """Return the value of a variable from a flat vector or from rows of flat vectors.
 
         Args:
@@ -144,7 +144,7 @@ class LayoutSpec(BaseSpec):
             return values
         return complex(values) if entry.is_complex else float(values)
 
-    def values(self, vector: npt.NDArray[np.float64]) -> dict[str, npt.NDArray[Any] | float | complex]:
+    def values(self, vector: npt.NDArray[np.float64]) -> dict[str, Array | ComplexArray | float | complex]:
         """Return the value of every variable of a flat vector.
 
         Args:

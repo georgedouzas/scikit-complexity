@@ -5,8 +5,10 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
 
+import numpy.typing as npt
+
+from ..types import IntArray
 from ._base_spec import BaseSpec
 
 
@@ -30,6 +32,6 @@ class TotalisticSpec(BaseSpec):
         2
     """
 
-    rule: Mapping[int, float] | Callable[[Any], Any]
+    rule: Mapping[int, float] | Callable[[IntArray], npt.ArrayLike]
     default: float = 0.0
     states: int = 2

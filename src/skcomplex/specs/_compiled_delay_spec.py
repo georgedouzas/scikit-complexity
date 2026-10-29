@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -18,4 +17,4 @@ class _CompiledDelaySpec(BaseSpec):
 
     call: Expression
     output: Expression
-    references: Mapping[Expression, Any]
+    references: Mapping[Expression, object]

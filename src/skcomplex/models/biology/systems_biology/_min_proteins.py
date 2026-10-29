@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -18,6 +18,7 @@ from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....types import Array
 from ..._catalog import register_model
 
 
@@ -121,7 +122,7 @@ class MinSkeletonElement(Element):
             laws:
                 The laws of the component.
         """
-        attach: Any = (s.k_d + s.k_dd * s.md) * s.cdt
+        attach = (s.k_d + s.k_dd * s.md) * s.cdt
         recruit = s.k_de * s.md * s.ce
         release = s.k_off * s.mde
         exchange = s.lam * s.cdd
@@ -204,7 +205,7 @@ def min_protein_skeleton(
     """
     rng = np.random.default_rng(random_state)
     uniform = _uniform_state(MinSkeletonElement('site'), total_D, total_E)
-    values: dict[str, Any] = {name: np.full(n_sites, value) for name, value in uniform.items()}
+    values: dict[str, Array] = {name: np.full(n_sites, value) for name, value in uniform.items()}
     noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, n_sites)
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise

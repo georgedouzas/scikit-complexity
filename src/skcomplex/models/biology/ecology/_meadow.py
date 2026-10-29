@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -24,7 +24,11 @@ from ._pasture_view import PastureView
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
     """Return the cell of an agent as a tuple of integers."""
-    return tuple(int(item) for item in np.atleast_1d(cast('Any', agent.location)))
+    location = agent.location
+    if not isinstance(location, tuple):
+        error_msg = f'The agent is located at a {type(location).__name__}, not at the coordinates of a lattice cell.'
+        raise TypeError(error_msg)
+    return tuple(int(item) for item in location)
 
 
 class PastureElement(Element):

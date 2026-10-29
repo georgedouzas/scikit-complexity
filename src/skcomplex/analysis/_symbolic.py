@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from fractions import Fraction
 from functools import cache
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -39,7 +39,7 @@ from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..errors import AnalysisError, ConservationError
 from ..specs import TransferNetworkSpec
 from ..specs._unknown_spec import _UnknownSpec
-from ..types import DataKind, FormKind
+from ..types import Array, ComplexArray, DataKind, FormKind
 from ._base import BaseAnalysis, Source
 from ._quantum import QuantumAnalysis
 
@@ -251,7 +251,7 @@ class SymbolicAnalysis(BaseAnalysis):
 
     @staticmethod
     @cache
-    def _mittag_leffler_coefficients(alpha: float, beta: float, bits: int, count: int) -> tuple[Any, ...]:
+    def _mittag_leffler_coefficients(alpha: float, beta: float, bits: int, count: int) -> tuple[RealNumber, ...]:
         """Return the coefficients `1 / Gamma(alpha k + beta)` of the power series for `k < count` in a Sage field."""
         reals = RealField(bits)
         a, b = reals(alpha), reals(beta)
@@ -320,7 +320,7 @@ class SymbolicAnalysis(BaseAnalysis):
         raise AnalysisError(error_msg)
 
     @staticmethod
-    def _mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> npt.NDArray[Any]:
+    def _mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> Array | ComplexArray:
         """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z) = sum_k z^k / Gamma(alpha k + beta)`.
 
         `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)` solves the fractional relaxation `D^alpha x =

@@ -5,8 +5,10 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
 
+import numpy.typing as npt
+
+from ..types import IntArray
 from ._base_spec import BaseSpec
 
 
@@ -31,6 +33,6 @@ class OuterTotalisticSpec(BaseSpec):
         2
     """
 
-    rule: Mapping[tuple[int, int], float] | Callable[[Any, Any], Any]
+    rule: Mapping[tuple[int, int], float] | Callable[[IntArray, IntArray], npt.ArrayLike]
     default: float = 0.0
     states: int = 2

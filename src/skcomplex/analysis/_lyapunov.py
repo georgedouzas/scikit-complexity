@@ -3,20 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Self
+from collections.abc import Mapping, Sequence
+from typing import Self
 
 import nolds
 import numba
 import numpy as np
-from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
+from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
 from ..core.system import System
 from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array, DataKind
+from ..types import Array, DataKind, VectorFunction
 from ._base import BaseAnalysis, Source
 from ._stability import StabilityAnalysis
 
@@ -26,20 +26,20 @@ SETTINGS = {
     'largest': {'variables', 'dt', 'dimension', 'delay', 'min_separation', 'trajectory_length', 'skip'},
 }
 """Settings every kind reads, besides `kind`."""
-FUNCTIONS: dict[str, Callable[..., Any]] = {}
+FUNCTIONS: dict[str, VectorFunction] = {}
 
 
 @numba.njit
 def _flow_spectrum(
-    f: Any,
-    jac: Any,
-    x: Any,
-    p: Any,
+    f: VectorFunction,
+    jac: VectorFunction,
+    x: Array,
+    p: Array,
     n: int,
     dt: float,
     steps: int,
     skip: int,
-) -> Any:
+) -> Array:
     """Integrate a flow and its tangent vectors with RK4, re-orthonormalising every step, and average the growth."""
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
@@ -64,7 +64,7 @@ def _flow_spectrum(
 
 
 @numba.njit
-def _map_spectrum(f: Any, jac: Any, x: Any, p: Any, n: int, steps: int, skip: int) -> Any:
+def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n: int, steps: int, skip: int) -> Array:
     """Iterate a map and its tangent vectors, re-orthonormalising every step, and average the growth."""
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
@@ -281,13 +281,13 @@ class LyapunovAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _without_kinks(expression: Any) -> Any:
+    def _without_kinks(expression: Expression) -> Expression:
         """Return an expression with each `abs(u)` as `u sgn(u)`, whose derivative is `sgn(u)`, not `u / |u|`."""
         wild = SR.wild(0)
         return SR(expression).subs({abs(wild): wild * sgn(wild)})
 
     @staticmethod
-    def _jacobian(dynamics: _DynamicsSpec) -> list[Any]:
+    def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
         """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
         wild = SR.wild(0)
         rates = [LyapunovAnalysis._without_kinks(rate) for rate in dynamics.rates]
@@ -297,9 +297,9 @@ class LyapunovAnalysis(BaseAnalysis):
     def _function(
         name: str,
         dynamics: _DynamicsSpec,
-        expressions: list[Any],
+        expressions: list[Expression],
         shape: tuple[int, ...],
-    ) -> Callable[..., Any]:
+    ) -> VectorFunction:
         """Return a Numba function `f(t, x, p)` that fills an array of a shape, compiled once per printed source.
 
         The parameters are read from `p` in the order of `dynamics.parameters`, so models of one structure share the

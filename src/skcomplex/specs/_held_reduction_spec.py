@@ -5,10 +5,10 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
+from ..types import AnyArray
 from ._base_spec import BaseSpec
 
 
@@ -17,7 +17,7 @@ class _HeldReductionSpec(BaseSpec):
     """Reduction of a group that a co-simulation computes at every synchronisation point and holds until the next."""
 
     group: str
-    reduce: str | Callable[[Any], Any]
+    reduce: str | Callable[[AnyArray], object]
     variables: tuple[str, ...] = ()
     symbols: tuple[Expression, ...] = ()
     argument: Expression | None = None

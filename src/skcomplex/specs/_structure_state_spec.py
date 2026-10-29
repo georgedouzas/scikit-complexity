@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 from ._base_spec import BaseSpec
 
@@ -27,5 +26,5 @@ class StructureStateSpec(BaseSpec):
         1.0
     """
 
-    structures: Mapping[str, Any] = field(default_factory=dict)
+    structures: Mapping[str, object] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)

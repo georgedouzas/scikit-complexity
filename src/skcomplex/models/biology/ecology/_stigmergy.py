@@ -5,7 +5,7 @@
 
 import itertools
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -26,8 +26,8 @@ MARKS = 'ground/marks'
 PLANTS = 'plants'
 PREY = 'prey'
 PREDATORS = 'predators'
-PREY_TRAITS: dict[str, Any] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
-PREDATOR_TRAITS: dict[str, Any] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
+PREY_TRAITS: dict[str, float] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
+PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
 
 class EmotionMarksElement(Element):

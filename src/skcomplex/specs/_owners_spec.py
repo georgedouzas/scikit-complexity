@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Any
 
 from ._base_spec import BaseSpec
 
@@ -15,7 +14,7 @@ class _OwnersSpec(BaseSpec):
 
     declared: dict[str, set[type]]
     lowered: dict[str, set[type]]
-    solvers: list[Any]
+    solvers: list[type]
 
     def under(self, scope: str, *, nested: bool) -> tuple[dict[str, set[type]], dict[str, set[type]]]:
         """Return the declared kinds and lowered classes of the owners of a scope, or of its own components alone."""

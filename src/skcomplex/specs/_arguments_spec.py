@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Any
 
 from ..types import Array, Indices
 from ._base_spec import BaseSpec
@@ -33,7 +32,7 @@ class ArgumentsSpec(BaseSpec):
     starts: tuple[int, ...] = ()
     sizes: tuple[int, ...] = ()
 
-    def values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Any]:
+    def values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
         """Return the values of the arguments, per-site values restricted to some sites.
 
         Args:
@@ -50,7 +49,7 @@ class ArgumentsSpec(BaseSpec):
             values:
                 The value of every argument by name.
         """
-        found: dict[str, Any] = {}
+        found: dict[str, Array | float] = {}
         for name, is_state, start, size in zip(self.names, self.vectors, self.starts, self.sizes, strict=True):
             source = x if is_state else p
             if size == 1:

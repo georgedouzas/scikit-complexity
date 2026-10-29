@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -141,7 +141,7 @@ class QuantumAnalysis(BaseAnalysis):
         kind: str = 'spectrum',
         *,
         n_states: int = 6,
-        parameters: Mapping[str, Any] | None = None,
+        parameters: Mapping[str, object] | None = None,
         sector: SectorSpec | None = None,
         subsystems: Sequence[str] | None = None,
     ) -> None:
@@ -217,7 +217,7 @@ class QuantumAnalysis(BaseAnalysis):
         return problem
 
     @staticmethod
-    def _parameters_of(problem: QuantumProblemSpec, values: Mapping[str, Any] | None) -> Array:
+    def _parameters_of(problem: QuantumProblemSpec, values: Mapping[str, object] | None) -> Array:
         """Return the initial parameter vector with some values replaced by dotted name."""
         p = problem.initial_parameters.copy()
         for name, value in (values or {}).items():
