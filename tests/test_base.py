@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import pkgutil
+from dataclasses import dataclass
 
 import pytest
 from sklearn.base import clone
@@ -10,6 +11,7 @@ from sklearn.base import clone
 import skcomplex
 from skcomplex.base import BaseConfig
 from skcomplex.errors import NotCheckedError
+from skcomplex.specs import BaseSpec
 
 
 class ScalingConfig(BaseConfig):
@@ -98,3 +100,29 @@ def test_every_base_derives_from_the_root():
             ):
                 outside.append(f'{loaded.__name__}.{name}')
     assert outside == []
+
+
+def test_a_class_without_a_hook_cannot_be_created():
+    """Test that a configurable class that implements `_check` and `_prepare` but not `_run` cannot be created."""
+
+    class IdleConfig(BaseConfig):
+        def _check(self):
+            pass
+
+        def _prepare(self, context):
+            pass
+
+    with pytest.raises(TypeError, match='_run'):
+        IdleConfig()
+
+
+def test_a_spec_without_hooks_checks_prepares_and_runs():
+    """Test that a spec, the only configurable object with default hooks, checks, prepares, and runs unchanged."""
+
+    @dataclass(frozen=True)
+    class SpanSpec(BaseSpec):
+        start: float
+        end: float
+
+    span = SpanSpec(0.0, 1.0)
+    assert span.check().prepare().run() is span

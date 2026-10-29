@@ -54,6 +54,9 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
     values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]
     observed_: ObservedSpec | None
 
+    def _check(self) -> None:
+        """Accept every setting, since a compilation observer has none to validate."""
+
     def __init__(self, declarations: DeclarationsSpec, live: Declared) -> None:
         self.declarations = declarations
         self.live = live

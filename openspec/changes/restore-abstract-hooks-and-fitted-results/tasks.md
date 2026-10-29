@@ -38,8 +38,8 @@
 ## 7. Abstract hooks
 
 - [x] 7.0 Apply the decisions taken during the migration (design.md): accept `SourceLoader` in the surface test; declare `laws_` on the element, interaction, and system bases only and give `BaseLaw` a `_run` setting `value_`; add `NotPreparedError` and the prepare guard to `BaseConfig`, exempting `BaseSpec`, and reduce `BaseAnalysis`'s overrides to forwarding; verify `pytest tests/test_base.py tests/core tests/engine/problems/test_surface.py tests/analysis/test_base.py` passes.
-- [ ] 7.1 Declare `_check`, `_prepare`, and `_run` as abstract methods on `BaseConfig` with complete docstrings, keep `_release` as an optional hook, and implement the hooks a family shares in its base, and the hooks of classes outside a family in the class; verify a test that creates a solver without `_run` raises `TypeError` naming `_run`, and that a spec with no hook checks, prepares, and runs.
-- [ ] 7.2 Drop `ABC` from the bases of children that declare no abstract method of their own; verify `mypy src` passes.
+- [x] 7.1 Declare `_check`, `_prepare`, and `_run` as abstract methods on `BaseConfig` with complete docstrings, keep `_release` as an optional hook, and implement the hooks a family shares in its base, and the hooks of classes outside a family in the class; verify a test that creates a solver without `_run` raises `TypeError` naming `_run`, and that a spec with no hook checks, prepares, and runs.
+- [x] 7.2 Drop `ABC` from the bases of children that declare no abstract method of their own; verify `mypy src` passes.
 
 ## 8. Integration
 

@@ -93,6 +93,9 @@ class SpecifiedPart(BasePart):
         """Return no laws."""
         return []
 
+    def _run(self, inputs):
+        """Run nothing."""
+
 
 class ExtendedPart(SpecifiedPart):
     """Part that takes the state of its base again without annotating it, and adds a parameter first."""

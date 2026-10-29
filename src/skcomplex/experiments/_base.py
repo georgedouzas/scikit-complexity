@@ -81,6 +81,9 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
 
     rows_: list[Row]
 
+    def _check(self) -> None:
+        """Accept every setting, since a design has none to validate; a design with settings validates them."""
+
     def _check_size(self, n: object) -> None:
         """Raise an error for a number of rows that is not a nonnegative integer."""
         if isinstance(n, bool) or not isinstance(n, int | np.integer) or n < 0:
@@ -142,6 +145,9 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         >>> class SystemExperiment(BaseExperiment):
         ...     def __init__(self, source):
         ...         self.source = source
+        ...
+        ...     def _check(self):
+        ...         pass
         ...
         ...     def _prepare(self, context):
         ...         self.factory_ = self._check_source(self.source)

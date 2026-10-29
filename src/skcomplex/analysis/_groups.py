@@ -34,6 +34,9 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
 
     expansion_: dict[Expression, Expression]
 
+    def _check(self) -> None:
+        """Accept every setting, since an expansion has none to validate; an expansion with settings validates them."""
+
     def __init__(self, parameter_values: npt.NDArray[np.float64] | None = None) -> None:
         self.parameter_values = parameter_values
 

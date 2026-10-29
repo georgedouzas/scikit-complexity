@@ -78,6 +78,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     agents_: Mapping[str, list[object]]
     state_: Array
 
+    def _check(self) -> None:
+        """Accept every setting, since a solver has none to validate; a solver with settings validates them."""
+
     def __init__(self, *, random_state: int | np.random.Generator | None = None, until: float = math.inf) -> None:
         self.random_state = random_state
         self.until = until

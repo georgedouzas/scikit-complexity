@@ -393,6 +393,9 @@ class BasePass(BaseConfig[Compilation, None]):
 
     compilation_: Compilation
 
+    def _check(self) -> None:
+        """Accept every setting, since a pass has none to validate; a pass with settings validates them."""
+
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads; none by default."""
         return ()
@@ -505,6 +508,9 @@ class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
     compilation_: Compilation
     added_: dict[int, tuple[KernelSpec, dict[Expression, ReferenceSpec]]]
     lowered_: LoweredT
+
+    def _check(self) -> None:
+        """Accept every setting, since a lowering has none to validate; a lowering with settings validates them."""
 
     def _prepare(self, context: Compilation | None) -> None:
         """Take the compilation the lowering serves, with no reference added yet.

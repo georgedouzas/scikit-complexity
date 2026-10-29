@@ -147,6 +147,12 @@ class BaseMarketProtocol(BaseConfig[None, ClearingSpec]):
 
     trades_: list[Trade]
 
+    def _check(self) -> None:
+        """Accept every setting, since a protocol has none to validate; a protocol with settings validates them."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a protocol prepares nothing; one that derives facts sets them."""
+
     def _run(self, inputs: ClearingSpec | None) -> None:
         """Set the trades of the orders of one clearing, none when a side has no orders.
 

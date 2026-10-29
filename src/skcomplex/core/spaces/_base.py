@@ -27,6 +27,9 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
             The label of the neighbourhood.
     """
 
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a neighbourhood contributes no laws to a system."""
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
@@ -71,6 +74,9 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         default_visual_:
             The name of the visual of groups on the space when neither the group nor its element sets one, or `None`.
     """
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a space contributes no laws to a system."""
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the space contributes for a namespace of symbols, none by default."""
@@ -187,6 +193,9 @@ class BaseTime(BasePart[None, SimpleNamespace]):
         schedule_:
             The schedule of a discrete time, or `None`.
     """
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Run nothing, since a time contributes no laws to a system."""
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since the time decides which laws a system may hold but contributes none."""

@@ -33,6 +33,12 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     functions_: LoweredFunctionsSpec
 
+    def _check(self) -> None:
+        """Accept every setting, since a backend has none to validate; a backend with settings validates them."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a backend prepares nothing; a backend that derives facts sets them."""
+
     def _run(self, inputs: LoweredKernelsSpec | None) -> None:
         """Set the numeric functions of the form of the kernels.
 

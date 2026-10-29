@@ -57,3 +57,17 @@ class BaseSpec(BaseConfig):
         """
         self._check()
         return self
+
+    def prepare(self, context: object | None = None) -> Self:
+        """Prepare the spec, which a value leaves as it is.
+
+        Args:
+            context:
+                What the spec serves, which a spec does not read.
+
+        Returns:
+            self:
+                The spec.
+        """
+        self._prepare(context)
+        return self

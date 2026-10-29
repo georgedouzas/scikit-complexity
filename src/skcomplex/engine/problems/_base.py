@@ -41,6 +41,12 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 
     values_: object
 
+    def _check(self) -> None:
+        """Accept every setting, since a kernel has none to validate; a kernel with settings validates them."""
+
+    def _prepare(self, context: object | None) -> None:
+        """Derive nothing from the context, since a kernel prepares nothing; a kernel that derives facts sets them."""
+
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a kernel runs at, raising an error when none is passed.
@@ -98,6 +104,12 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
 
     pairs_: object
 
+    def _check(self) -> None:
+        """Accept every setting, since a search has none to validate; a search with settings validates them."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a search prepares nothing; a search that derives facts sets them."""
+
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a search runs at, raising an error when none is passed.
@@ -133,3 +145,6 @@ class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """
 
     code_: object
+
+    def _check(self) -> None:
+        """Accept every setting, since a printer has none to validate; a printer with settings validates them."""

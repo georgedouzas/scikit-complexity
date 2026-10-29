@@ -51,6 +51,12 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
 
     kernels_: tuple[QuantumKernel, ...]
 
+    def _check(self) -> None:
+        """Accept every setting, since a quantum lowering has none to validate."""
+
+    def _prepare(self, context: None) -> None:
+        """Derive nothing from the context, since a quantum lowering prepares nothing."""
+
     def __init__(
         self,
         time: Expression,
