@@ -1,13 +1,13 @@
 """Market realizations shared by the economics packages: matching protocols, orders, trades, and market interactions."""
 
 from ._markets import (
+    BaseMarketProtocol,
     BilateralSearch,
     CallAuction,
     DeferredAcceptance,
     MarketInteraction,
     Order,
     OrderBook,
-    Protocol,
     RationedQueue,
     SampleAndSwitch,
     Trade,
@@ -16,13 +16,13 @@ from ._markets import (
 )
 
 __all__: list[str] = [
+    'BaseMarketProtocol',
     'BilateralSearch',
     'CallAuction',
     'DeferredAcceptance',
     'MarketInteraction',
     'Order',
     'OrderBook',
-    'Protocol',
     'RationedQueue',
     'SampleAndSwitch',
     'Trade',

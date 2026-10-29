@@ -107,7 +107,7 @@ def _check_option(value: str, allowed: tuple[str, ...], name: str) -> None:
         raise ValueError(error_msg)
 
 
-class Protocol:
+class BaseMarketProtocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
     Subclasses implement `match(buyers, sellers, rng, storage)`, which receives the orders of the participants with
@@ -205,7 +205,7 @@ class Protocol:
 
 
 @dataclass(frozen=True)
-class BilateralSearch(Protocol):
+class BilateralSearch(BaseMarketProtocol):
     """Random bilateral search: buyers in random order meet random sellers and trade when their limits cross.
 
     Every buyer makes up to `tries` meetings with sellers that still offer something, and trades at the midpoint of
@@ -257,7 +257,7 @@ BILATERAL_SEARCH = BilateralSearch()
 
 
 @dataclass(frozen=True)
-class SampleAndSwitch(Protocol):
+class SampleAndSwitch(BaseMarketProtocol):
     """Partner choice that samples sellers and switches to a cheaper one with some probability.
 
     The protocol follows chapter 2 of Caiani et al. (2016). Every buyer, in random order, samples `sample` sellers that
@@ -316,7 +316,7 @@ class SampleAndSwitch(Protocol):
 
 
 @dataclass(frozen=True)
-class RationedQueue(Protocol):
+class RationedQueue(BaseMarketProtocol):
     """Queue of buyers served by the cheapest sellers until the goods run out, so the last buyers are rationed.
 
     Buyers queue in random order, by decreasing bid, or in order of creation, and each buys at the ask of the cheapest
@@ -384,7 +384,7 @@ def _clear_at(buyers: list[Order], sellers: list[Order], price: float, rng: np.r
 
 
 @dataclass(frozen=True)
-class Walrasian(Protocol):
+class Walrasian(BaseMarketProtocol):
     """Walrasian auctioneer: tâtonnement to the price that balances demand and supply, then trade at that price.
 
     Starting from the last clearing price, or the median of the limits, the auctioneer moves the price by
@@ -458,7 +458,7 @@ class Walrasian(Protocol):
 
 
 @dataclass(frozen=True)
-class OrderBook(Protocol):
+class OrderBook(BaseMarketProtocol):
     """Limit order book with price-time priority, cleared continuously as orders arrive.
 
     Every participant submits one limit order, in random order of arrival or in order of creation. An incoming order
@@ -520,7 +520,7 @@ class OrderBook(Protocol):
 
 
 @dataclass(frozen=True)
-class CallAuction(Protocol):
+class CallAuction(BaseMarketProtocol):
     """Call auction: collect every order, then trade the largest volume at one uniform price.
 
     Bids are sorted by decreasing and asks by increasing limit, and they are paired while the bid covers the ask. The
@@ -581,7 +581,7 @@ def _richer(seller: AgentView, buyer: AgentView) -> float:
 
 
 @dataclass(frozen=True)
-class DeferredAcceptance(Protocol):
+class DeferredAcceptance(BaseMarketProtocol):
     """Stable matching of Gale and Shapley, buyers proposing to sellers that hold as many buyers as they offer units.
 
     Buyers rank the sellers whose ask they accept by `buyer_preference(buyer, seller)`, by default the lower ask, and
@@ -750,7 +750,7 @@ class MarketInteraction(Interaction):
         *,
         buyers: Annotated[str, RoleSpec()],
         sellers: Annotated[str, RoleSpec()],
-        protocol: Protocol = BILATERAL_SEARCH,
+        protocol: BaseMarketProtocol = BILATERAL_SEARCH,
         phase: str | None = None,
         bid: str = 'bid',
         ask: str = 'ask',
