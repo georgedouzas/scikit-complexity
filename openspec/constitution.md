@@ -224,16 +224,17 @@ conventions are the taste it cannot check.
 This section instantiates the body above for this repository. It is the repo-specific part, and it is a starting point
 to fill in as the project takes shape.
 
-- Ecosystem contract: the scikit-learn estimator contract. Every configurable base derives from the framework's
-  `BaseEstimator`, a child of `sklearn.base.BaseEstimator`, and speaks three verbs: `check()` validates the stored
-  arguments, `prepare(*context)` checks and derives every attribute ending in an underscore, and
-  `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `prepare`
-  acquired. Each verb calls a private hook, `_check`, `_prepare`, `_run`, or `_release`, with a trivial default, and no
-  family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen dataclasses whose
-  only shared method is `check()`, which returns a checked copy. A system is defined by elements, interactions, and laws
-  alone, its parts, which derive from `BasePart`: it declares abstract `_check`, `_prepare`, and `_run` hooks that
-  return the part or its contribution, and the verbs on them. Elements and systems return themselves, and laws, frozen
-  values, return checked and prepared copies and run into their contribution. Elements and groups derive from
+- Ecosystem contract: the scikit-learn estimator contract. Every configurable base derives from `BaseConfig` in
+  `skcomplex.base`, a child of `sklearn.base.BaseEstimator`, and speaks three verbs: `check()` validates the stored
+  arguments, `prepare(context)` derives every attribute ending in an underscore, and `run(inputs, final=False)`
+  performs the family's one action and, when `final` is true, releases what `prepare` acquired. Every verb returns the
+  object, and a run keeps what it produces in attributes ending in an underscore, one name per family, such as
+  `laws_` for elements, interactions, and systems, `value_` for laws, `problem_` for compilers, `state_` for solvers,
+  and `values_` for kernels. Each verb calls a private hook, `_check`, `_prepare`, or `_run`, which `BaseConfig`
+  declares abstract and every class MUST implement, returning `None`; `_release` is optional and does nothing by
+  default. No family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen specs
+  deriving from `BaseSpec`, the only base whose hooks have defaults, whose only shared method is `check()`. A system is
+  defined by elements, interactions, and laws alone, its parts, which derive from `BasePart`. Elements and groups derive from
   `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
   helpers they share. A system holds its elements, interactions, and nested systems, and is none of them. What a
