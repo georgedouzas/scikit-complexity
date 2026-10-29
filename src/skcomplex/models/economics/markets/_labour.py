@@ -19,7 +19,7 @@ from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
-from ..common.markets import DeferredAcceptance, MarketInteraction, Trade
+from ..common.markets import DeferredAcceptanceProtocol, MarketInteraction, Trade
 from ._employer_view import EmployerView
 from ._jobseeker_view import JobseekerView
 
@@ -394,7 +394,7 @@ def labour_market(
         'labour',
         buyers='firms',
         sellers='workers',
-        protocol=DeferredAcceptance(pricing='bid'),
+        protocol=DeferredAcceptanceProtocol(pricing='bid'),
         phase='matching',
         money=None,
         goods=None,

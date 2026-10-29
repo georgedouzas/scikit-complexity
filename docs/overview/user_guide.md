@@ -3367,9 +3367,11 @@ agents learn from their past.
   per step.
 - `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from
   `skcomplex.models.economics.common.markets`, matches two groups. Buyers state their limit `bid` and
-  `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearch`, `SampleAndSwitch` (partner
-  choice with switching), `RationedQueue`, `Walrasian` (tâtonnement), `OrderBook` (price-time priority), `CallAuction`
-  (one uniform price), and `DeferredAcceptance` (stable matching by the `matching` library). Every trade moves
+  `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearchProtocol`, the default,
+  `SampleAndSwitchProtocol` (partner choice with switching), `RationedQueueProtocol`, `WalrasianProtocol`
+  (tâtonnement), `OrderBookProtocol` (price-time priority), `CallAuctionProtocol` (one uniform price), and
+  `DeferredAcceptanceProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
+  `protocol.check().run(ClearingSpec(buyers, sellers, rng, storage))` sets its `trades_`. Every trade moves
   `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
   `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
 - An `InstitutionInteraction`, from `skcomplex.models.economics.common.institutions`, acts once per round of its
@@ -3398,7 +3400,7 @@ from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateS
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.common.institutions import InstitutionInteraction
-from skcomplex.models.economics.common.markets import CallAuction, MarketInteraction
+from skcomplex.models.economics.common.markets import CallAuctionProtocol, MarketInteraction
 
 
 class TraderElement(Element):
@@ -3453,7 +3455,7 @@ auction = System(
         GroupElement('sellers', element=TraderElement, size=20, values=sellers),
     ],
     interactions=[
-        MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='trade'),
+        MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuctionProtocol(), phase='trade'),
         ClerkInteraction('clerk', phase='trade'),
     ],
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),

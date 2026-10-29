@@ -20,7 +20,7 @@ from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.markets import OrderBook
+from ..common.markets import ClearingSpec, Order, OrderBookProtocol
 from ._stock_trader_view import StockTraderView
 
 LOWEST_PRICE = 0.01
@@ -279,7 +279,11 @@ class BookInteraction(Interaction):
                 The model view of the book.
         """
         traders = model.agents('traders', StockTraderView)
-        trades = OrderBook().evaluate(traders, traders, model.rng, 1)
+        buyers = [Order(trader, trader.bid, trader.demand, trader.money) for trader in traders if trader.demand > 0]
+        sellers = [Order(trader, trader.ask, trader.supply) for trader in traders if trader.supply > 0]
+        protocol = OrderBookProtocol().check()
+        protocol.run(ClearingSpec(buyers, sellers, model.rng, {}))
+        trades = protocol.trades_
         for trade in trades:
             transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
             transfer(trade.seller, trade.buyer, trade.quantity, 'shares')

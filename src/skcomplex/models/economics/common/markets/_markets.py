@@ -15,10 +15,11 @@ from typing import Annotated, ClassVar, Self
 import numpy as np
 from matching.games import HospitalResident
 
+from .....base import BaseConfig
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
 from .....engine.solvers import AgentView, ModelView
-from .....specs import RoleSpec
+from .....specs import BaseSpec, RoleSpec
 
 type Preference = Callable[[AgentView, AgentView], float]
 
@@ -107,82 +108,76 @@ def _check_option(value: str, allowed: tuple[str, ...], name: str) -> None:
         raise ValueError(error_msg)
 
 
-class BaseMarketProtocol:
-    """Base class of market protocols, which match buyers with sellers and return the trades.
+@dataclass(frozen=True)
+class ClearingSpec(BaseSpec):
+    """Orders of one clearing of a market, with the random generator and the storage that persists across clearings.
 
-    Subclasses implement `match(buyers, sellers, rng, storage)`, which receives the orders of the participants with
-    something to trade, the random generator, and a storage that persists across clearings, and returns trades whose
-    quantities respect the orders' quantities and budgets, and `_check`, which raises an error for an invalid option.
-    A protocol's `evaluate` clears the orders of agents: given the buyers and sellers, it reads their orders from the
-    states `bid`, `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, whose
-    `buyer` and `seller` are the paired agents.
+    Args:
+        buyers:
+            The orders of the buyers.
+
+        sellers:
+            The orders of the sellers.
+
+        rng:
+            The random generator, such as `model.rng`.
+
+        storage:
+            The storage of the market that persists across clearings, such as `model.storage`.
     """
 
-    def _check(self) -> Self:
-        """Return the protocol with its options checked; accept every option by default."""
-        return self
+    buyers: list[Order]
+    sellers: list[Order]
+    rng: np.random.Generator
+    storage: dict[str, object]
 
-    def check(self) -> Self:
-        """Return the protocol with its options checked.
 
-        Returns:
-            protocol:
-                The checked protocol.
+class BaseMarketProtocol(BaseConfig[None, ClearingSpec]):
+    """Base class of market protocols, which match buyers with sellers and set the trades.
 
-        Raises:
-            ValueError:
-                An option of the protocol is unknown.
-        """
-        return self._check()
+    A protocol is checked once and run on the orders of every clearing, `protocol.run(ClearingSpec(buyers, sellers,
+    rng, storage))`, and sets the attribute `trades_`, whose quantities respect the orders' quantities and budgets. A
+    child validates its options in `_check` and matches the orders in `_match`, which is called only when both sides
+    have orders.
 
-    def evaluate(
-        self,
-        left: Sequence[object],
-        right: Sequence[object],
-        rng: np.random.Generator,
-        capacity: int,
-    ) -> list[Trade]:
-        """Return the trades between buyers and sellers, as a pairing of the matching law.
+    Attributes:
+        trades_:
+            The trades of the last clearing.
+    """
+
+    trades_: list[Trade]
+
+    def _run(self, inputs: ClearingSpec | None) -> list[Trade]:
+        """Set the trades of the orders of one clearing, none when a side has no orders.
 
         Args:
-            left:
-                The buyers.
-
-            right:
-                The sellers.
-
-            rng:
-                The random generator.
-
-            capacity:
-                The largest number of trades of every participant, which protocols do not limit.
+            inputs:
+                The orders of the clearing.
 
         Returns:
             trades:
                 The trades.
-        """
-        buyers = [
-            Order(agent, _read(agent, 'bid', math.inf), _read(agent, 'demand', 1.0), _read(agent, 'money', math.inf))
-            for agent in left
-            if isinstance(agent, AgentView)
-        ]
-        sellers = [
-            Order(agent, _read(agent, 'ask', 0.0), _read(agent, 'supply', 1.0))
-            for agent in right
-            if isinstance(agent, AgentView)
-        ]
-        buyers = [order for order in buyers if order.quantity > 0]
-        sellers = [order for order in sellers if order.quantity > 0]
-        return self.match(buyers, sellers, rng, {}) if buyers and sellers else []
 
-    def match(
+        Raises:
+            ValueError:
+                No orders were given.
+        """
+        if inputs is None:
+            error_msg = 'A market protocol runs on the orders of a clearing, a `ClearingSpec`.'
+            raise ValueError(error_msg)
+        self.trades_ = []
+        if inputs.buyers and inputs.sellers:
+            self.trades_ = self._match(inputs.buyers, inputs.sellers, inputs.rng, inputs.storage)
+        return self.trades_
+
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
         rng: np.random.Generator,
         storage: dict[str, object],
     ) -> list[Trade]:
-        """Return the trades between buyers and sellers.
+        """Return the trades between buyers and sellers that both have orders.
 
         Args:
             buyers:
@@ -192,10 +187,10 @@ class BaseMarketProtocol:
                 The orders of the sellers.
 
             rng:
-                The random generator, such as `model.rng`.
+                The random generator.
 
             storage:
-                The storage of the market that persists across clearings, such as `model.storage`.
+                The storage of the market that persists across clearings.
 
         Returns:
             trades:
@@ -204,8 +199,7 @@ class BaseMarketProtocol:
         raise NotImplementedError
 
 
-@dataclass(frozen=True)
-class BilateralSearch(BaseMarketProtocol):
+class BilateralSearchProtocol(BaseMarketProtocol):
     """Random bilateral search: buyers in random order meet random sellers and trade when their limits cross.
 
     Every buyer makes up to `tries` meetings with sellers that still offer something, and trades at the midpoint of
@@ -219,20 +213,25 @@ class BilateralSearch(BaseMarketProtocol):
             The price of a trade, `'midpoint'`, `'bid'`, or `'ask'`.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import BilateralSearch
-        >>> BilateralSearch(tries=3).tries
+        >>> from skcomplex.models.economics.common.markets import BilateralSearchProtocol
+        >>> BilateralSearchProtocol(tries=3).tries
         3
     """
 
-    tries: int = 1
-    pricing: str = 'midpoint'
+    def __init__(
+        self,
+        tries: int = 1,
+        pricing: str = 'midpoint',
+    ) -> None:
+        self.tries = tries
+        self.pricing = pricing
 
     def _check(self) -> Self:
         """Return the protocol after checking the pricing rule."""
         _check_option(self.pricing, PRICINGS, 'pricing')
         return self
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -253,11 +252,7 @@ class BilateralSearch(BaseMarketProtocol):
         return trades
 
 
-BILATERAL_SEARCH = BilateralSearch()
-
-
-@dataclass(frozen=True)
-class SampleAndSwitch(BaseMarketProtocol):
+class SampleAndSwitchProtocol(BaseMarketProtocol):
     """Partner choice that samples sellers and switches to a cheaper one with some probability.
 
     The protocol follows chapter 2 of Caiani et al. (2016). Every buyer, in random order, samples `sample` sellers that
@@ -276,16 +271,22 @@ class SampleAndSwitch(BaseMarketProtocol):
             The name of the buyer state that holds the id of its partner.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import SampleAndSwitch
-        >>> SampleAndSwitch(sample=2, intensity=4.0).intensity
+        >>> from skcomplex.models.economics.common.markets import SampleAndSwitchProtocol
+        >>> SampleAndSwitchProtocol(sample=2, intensity=4.0).intensity
         4.0
     """
 
-    sample: int = 3
-    intensity: float = 1.0
-    partner: str = 'partner'
+    def __init__(
+        self,
+        sample: int = 3,
+        intensity: float = 1.0,
+        partner: str = 'partner',
+    ) -> None:
+        self.sample = sample
+        self.intensity = intensity
+        self.partner = partner
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -315,8 +316,7 @@ class SampleAndSwitch(BaseMarketProtocol):
         return trades
 
 
-@dataclass(frozen=True)
-class RationedQueue(BaseMarketProtocol):
+class RationedQueueProtocol(BaseMarketProtocol):
     """Queue of buyers served by the cheapest sellers until the goods run out, so the last buyers are rationed.
 
     Buyers queue in random order, by decreasing bid, or in order of creation, and each buys at the ask of the cheapest
@@ -327,19 +327,23 @@ class RationedQueue(BaseMarketProtocol):
             The order of the queue, `'random'`, `'bid'`, or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import RationedQueue
-        >>> RationedQueue(order='bid').order
+        >>> from skcomplex.models.economics.common.markets import RationedQueueProtocol
+        >>> RationedQueueProtocol(order='bid').order
         'bid'
     """
 
-    order: str = 'random'
+    def __init__(
+        self,
+        order: str = 'random',
+    ) -> None:
+        self.order = order
 
     def _check(self) -> Self:
         """Return the protocol after checking the order of the queue."""
         _check_option(self.order, ORDERS, 'order')
         return self
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -383,9 +387,8 @@ def _clear_at(buyers: list[Order], sellers: list[Order], price: float, rng: np.r
     return trades
 
 
-@dataclass(frozen=True)
-class Walrasian(BaseMarketProtocol):
-    """Walrasian auctioneer: tâtonnement to the price that balances demand and supply, then trade at that price.
+class WalrasianProtocol(BaseMarketProtocol):
+    """WalrasianProtocol auctioneer: tâtonnement to the price that balances demand and supply, then trade at that price.
 
     Starting from the last clearing price, or the median of the limits, the auctioneer moves the price by
     `p <- p (1 + adjustment (D - S) / (D + S))` until the relative excess demand falls below `tolerance`, where `D` is
@@ -403,16 +406,22 @@ class Walrasian(BaseMarketProtocol):
             The relative excess demand at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import Walrasian
-        >>> Walrasian(adjustment=0.05).iterations
+        >>> from skcomplex.models.economics.common.markets import WalrasianProtocol
+        >>> WalrasianProtocol(adjustment=0.05).iterations
         500
     """
 
-    adjustment: float = 0.1
-    iterations: int = 500
-    tolerance: float = 1e-3
+    def __init__(
+        self,
+        adjustment: float = 0.1,
+        iterations: int = 500,
+        tolerance: float = 1e-3,
+    ) -> None:
+        self.adjustment = adjustment
+        self.iterations = iterations
+        self.tolerance = tolerance
 
-    def price(self, buyers: list[Order], sellers: list[Order], start: float) -> float:
+    def _get_price(self, buyers: list[Order], sellers: list[Order], start: float) -> float:
         """Return the price the tâtonnement reaches from a start.
 
         Args:
@@ -439,7 +448,7 @@ class Walrasian(BaseMarketProtocol):
             price *= 1 + self.adjustment * (demand - supply) / total
         return price
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -452,13 +461,12 @@ class Walrasian(BaseMarketProtocol):
             return []
         last = storage.get('price')
         start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(limits))
-        price = self.price(buyers, sellers, start)
+        price = self._get_price(buyers, sellers, start)
         storage['price'] = price
         return _clear_at(buyers, sellers, price, rng)
 
 
-@dataclass(frozen=True)
-class OrderBook(BaseMarketProtocol):
+class OrderBookProtocol(BaseMarketProtocol):
     """Limit order book with price-time priority, cleared continuously as orders arrive.
 
     Every participant submits one limit order, in random order of arrival or in order of creation. An incoming order
@@ -471,19 +479,23 @@ class OrderBook(BaseMarketProtocol):
             The order of arrival, `'random'` or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import OrderBook
-        >>> OrderBook().arrival
+        >>> from skcomplex.models.economics.common.markets import OrderBookProtocol
+        >>> OrderBookProtocol().arrival
         'random'
     """
 
-    arrival: str = 'random'
+    def __init__(
+        self,
+        arrival: str = 'random',
+    ) -> None:
+        self.arrival = arrival
 
     def _check(self) -> Self:
         """Return the protocol after checking the order of arrival."""
         _check_option(self.arrival, ('random', 'sequential'), 'arrival')
         return self
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -519,20 +531,19 @@ class OrderBook(BaseMarketProtocol):
         return trades
 
 
-@dataclass(frozen=True)
-class CallAuction(BaseMarketProtocol):
+class CallAuctionProtocol(BaseMarketProtocol):
     """Call auction: collect every order, then trade the largest volume at one uniform price.
 
     Bids are sorted by decreasing and asks by increasing limit, and they are paired while the bid covers the ask. The
     price is the midpoint of the last paired bid and ask, and every paired buyer and seller trades at it.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import CallAuction
-        >>> CallAuction()
-        CallAuction()
+        >>> from skcomplex.models.economics.common.markets import CallAuctionProtocol
+        >>> CallAuctionProtocol()
+        CallAuctionProtocol()
     """
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -580,8 +591,7 @@ def _richer(seller: AgentView, buyer: AgentView) -> float:
     return _read(buyer, 'bid', 0.0)
 
 
-@dataclass(frozen=True)
-class DeferredAcceptance(BaseMarketProtocol):
+class DeferredAcceptanceProtocol(BaseMarketProtocol):
     """Stable matching of Gale and Shapley, buyers proposing to sellers that hold as many buyers as they offer units.
 
     Buyers rank the sellers whose ask they accept by `buyer_preference(buyer, seller)`, by default the lower ask, and
@@ -600,21 +610,27 @@ class DeferredAcceptance(BaseMarketProtocol):
             The price of a match, `'ask'`, `'bid'`, or `'midpoint'`.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import DeferredAcceptance
-        >>> DeferredAcceptance(pricing='bid').pricing
+        >>> from skcomplex.models.economics.common.markets import DeferredAcceptanceProtocol
+        >>> DeferredAcceptanceProtocol(pricing='bid').pricing
         'bid'
     """
 
-    buyer_preference: Preference | None = None
-    seller_preference: Preference | None = None
-    pricing: str = 'ask'
+    def __init__(
+        self,
+        buyer_preference: Preference | None = None,
+        seller_preference: Preference | None = None,
+        pricing: str = 'ask',
+    ) -> None:
+        self.buyer_preference = buyer_preference
+        self.seller_preference = seller_preference
+        self.pricing = pricing
 
     def _check(self) -> Self:
         """Return the protocol after checking the pricing rule."""
         _check_option(self.pricing, PRICINGS, 'pricing')
         return self
 
-    def match(
+    def _match(
         self,
         buyers: list[Order],
         sellers: list[Order],
@@ -710,7 +726,8 @@ class MarketInteraction(Interaction):
             The path of the group of sellers.
 
         protocol:
-            The protocol that matches the participants, such as `OrderBook()`.
+            The protocol that matches the participants, such as `OrderBookProtocol()`, or `None` for
+            `BilateralSearchProtocol()`.
 
         phase:
             The phase the market clears in, or `None` for the default phase.
@@ -737,8 +754,8 @@ class MarketInteraction(Interaction):
             A function of every trade and the model view, run after the transfers, or `None`.
 
     Examples:
-        >>> from skcomplex.models.economics.common.markets import MarketInteraction, OrderBook
-        >>> MarketInteraction('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
+        >>> from skcomplex.models.economics.common.markets import MarketInteraction, OrderBookProtocol
+        >>> MarketInteraction('exchange', buyers='traders', sellers='traders', protocol=OrderBookProtocol()).reports
         ('price', 'volume', 'unmatched')
     """
 
@@ -750,7 +767,7 @@ class MarketInteraction(Interaction):
         *,
         buyers: Annotated[str, RoleSpec()],
         sellers: Annotated[str, RoleSpec()],
-        protocol: BaseMarketProtocol = BILATERAL_SEARCH,
+        protocol: BaseMarketProtocol | None = None,
         phase: str | None = None,
         bid: str = 'bid',
         ask: str = 'ask',
@@ -776,7 +793,8 @@ class MarketInteraction(Interaction):
     def _check(self) -> Self:
         """Raise an error for an undeclared or missing value, or an unknown option of the protocol."""
         super()._check()
-        self.protocol.check()
+        if self.protocol is not None:
+            self.protocol.check()
         return self
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -850,7 +868,9 @@ class MarketInteraction(Interaction):
                 The model view of the market.
         """
         buyers, sellers = self.orders(model)
-        trades = self.protocol.match(buyers, sellers, model.rng, model.storage) if buyers and sellers else []
+        protocol = BilateralSearchProtocol().check() if self.protocol is None else self.protocol
+        protocol.run(ClearingSpec(buyers, sellers, model.rng, model.storage))
+        trades = protocol.trades_
         for trade in trades:
             self.settle(trade, model)
         volume = sum(trade.quantity for trade in trades)

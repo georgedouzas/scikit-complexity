@@ -18,7 +18,7 @@ from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.markets import MarketInteraction, SampleAndSwitch, Trade
+from ..common.markets import MarketInteraction, SampleAndSwitchProtocol, Trade
 from ._bank_view import BankView
 from ._firm_view import FirmView
 
@@ -317,7 +317,7 @@ class CreditMarketInteraction(MarketInteraction):
             The path of the group of banks.
 
         protocol:
-            The protocol that matches firms with banks, such as `SampleAndSwitch()`.
+            The protocol that matches firms with banks, such as `SampleAndSwitchProtocol()`.
 
         phase:
             The phase the market clears in, or `None` for the default phase.
@@ -480,7 +480,7 @@ def credit_networks(
         'credit',
         buyers='firms',
         sellers='banks',
-        protocol=SampleAndSwitch(sample=sample, intensity=intensity),
+        protocol=SampleAndSwitchProtocol(sample=sample, intensity=intensity),
         phase='credit',
         money=None,
         goods=None,

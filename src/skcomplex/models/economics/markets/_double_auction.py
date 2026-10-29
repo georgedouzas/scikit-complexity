@@ -18,7 +18,7 @@ from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
-from ..common.markets import CallAuction, MarketInteraction, OrderBook, Trade
+from ..common.markets import CallAuctionProtocol, MarketInteraction, OrderBookProtocol, Trade
 from ._zero_intelligence_buyer_view import ZeroIntelligenceBuyerView
 from ._zero_intelligence_seller_view import ZeroIntelligenceSellerView
 
@@ -364,7 +364,7 @@ def double_auction(
         'auction',
         buyers='buyers',
         sellers='sellers',
-        protocol=OrderBook() if protocol == 'order_book' else CallAuction(),
+        protocol=OrderBookProtocol() if protocol == 'order_book' else CallAuctionProtocol(),
         phase='trade',
         money=None,
         goods=None,
