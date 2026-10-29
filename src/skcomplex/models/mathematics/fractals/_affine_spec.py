@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -52,12 +51,8 @@ class AffineSpec(BaseSpec):
     reflect: bool = False
     matrix: npt.ArrayLike | None = None
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a translation that is not a point of the plane, or a matrix that is not 3 by 3.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             RewritingError:
@@ -71,7 +66,6 @@ class AffineSpec(BaseSpec):
                 f'The matrix of an affine map is homogeneous 3 by 3, but it has the shape {np.shape(self.matrix)}.'
             )
             raise RewritingError(error_msg)
-        return self
 
     def matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
         """Return the homogeneous matrix of the map at values of the parameters its expressions read.

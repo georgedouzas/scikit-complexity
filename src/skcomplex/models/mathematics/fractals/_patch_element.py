@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, Self
+from typing import Annotated
 
 from ....core.elements import Element
 from ....specs import StateSpec, VisualSpec
@@ -67,13 +67,8 @@ class PatchElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> Self:
-        """Raise an error for no prototiles, an invalid prototile, or a tile of an unknown prototile.
-
-        Returns:
-            element:
-                The element itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for no prototiles, an invalid prototile, or a tile of an unknown prototile."""
         if not self.prototiles:
             error_msg = f'The patch {self.label} needs at least one prototile.'
             raise RewritingError(error_msg)
@@ -83,18 +78,12 @@ class PatchElement(Element):
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
             placement.check()
-        return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: object = None) -> None:
         """Set `default_visual_`, the geometry of the tiles.
 
         Args:
             context:
                 The space the element inherits from its system, which the element does not read.
-
-        Returns:
-            element:
-                The element itself.
         """
         self.default_visual_ = VisualSpec(GeometryVisual)
-        return self

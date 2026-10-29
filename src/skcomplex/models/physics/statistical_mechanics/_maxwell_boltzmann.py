@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -61,7 +60,7 @@ class MaxwellBoltzmannAnalysis(FitAnalysis):
         self.mass = mass
         self.temperature = temperature
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the mass and the temperature."""
         if self.mass <= 0 or (self.temperature is not None and self.temperature <= 0):
             error_msg = (
@@ -69,21 +68,18 @@ class MaxwellBoltzmannAnalysis(FitAnalysis):
                 "values."
             )
             raise AnalysisError(error_msg)
-        return self
 
-    def _prepare(self, source: object) -> Self:
+    def _prepare(self, source: object) -> None:
         """Read the velocities of the agents of every frame from a trajectory or an array."""
         if not isinstance(source, Trajectory | np.ndarray | list | tuple):
             error_msg = f'{type(self).__name__} reads a trajectory or an array of velocities, not {source!r}.'
             raise AnalysisError(error_msg)
         self.values_ = self._read_velocities(source, self.group)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Test the speeds of every frame."""
         tests = [self._maxwell_boltzmann(frame, self.mass, self.temperature) for frame in self.values_]
         self.temperature_, self.statistic_, self.p_value_ = np.asarray(tests).T
-        return self
 
     @staticmethod
     def _maxwell_boltzmann(frame: npt.ArrayLike, mass: float, temperature: float | None) -> tuple[float, float, float]:

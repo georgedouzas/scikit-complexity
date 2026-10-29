@@ -10,7 +10,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar, Self
+from typing import Annotated, ClassVar
 
 import numpy as np
 from matching.games import HospitalResident
@@ -146,16 +146,12 @@ class BaseMarketProtocol(BaseConfig[None, ClearingSpec]):
 
     trades_: list[Trade]
 
-    def _run(self, inputs: ClearingSpec | None) -> list[Trade]:
+    def _run(self, inputs: ClearingSpec | None) -> None:
         """Set the trades of the orders of one clearing, none when a side has no orders.
 
         Args:
             inputs:
                 The orders of the clearing.
-
-        Returns:
-            trades:
-                The trades.
 
         Raises:
             ValueError:
@@ -167,7 +163,6 @@ class BaseMarketProtocol(BaseConfig[None, ClearingSpec]):
         self.trades_ = []
         if inputs.buyers and inputs.sellers:
             self.trades_ = self._match(inputs.buyers, inputs.sellers, inputs.rng, inputs.storage)
-        return self.trades_
 
     def _match(
         self,
@@ -225,10 +220,9 @@ class BilateralSearchProtocol(BaseMarketProtocol):
         self.tries = tries
         self.pricing = pricing
 
-    def _check(self) -> Self:
-        """Return the protocol after checking the pricing rule."""
+    def _check(self) -> None:
+        """Check the pricing rule."""
         _check_option(self.pricing, PRICINGS, 'pricing')
-        return self
 
     def _match(
         self,
@@ -337,10 +331,9 @@ class RationedQueueProtocol(BaseMarketProtocol):
     ) -> None:
         self.order = order
 
-    def _check(self) -> Self:
-        """Return the protocol after checking the order of the queue."""
+    def _check(self) -> None:
+        """Check the order of the queue."""
         _check_option(self.order, ORDERS, 'order')
-        return self
 
     def _match(
         self,
@@ -489,10 +482,9 @@ class OrderBookProtocol(BaseMarketProtocol):
     ) -> None:
         self.arrival = arrival
 
-    def _check(self) -> Self:
-        """Return the protocol after checking the order of arrival."""
+    def _check(self) -> None:
+        """Check the order of arrival."""
         _check_option(self.arrival, ('random', 'sequential'), 'arrival')
-        return self
 
     def _match(
         self,
@@ -624,10 +616,9 @@ class DeferredAcceptanceProtocol(BaseMarketProtocol):
         self.seller_preference = seller_preference
         self.pricing = pricing
 
-    def _check(self) -> Self:
-        """Return the protocol after checking the pricing rule."""
+    def _check(self) -> None:
+        """Check the pricing rule."""
         _check_option(self.pricing, PRICINGS, 'pricing')
-        return self
 
     def _match(
         self,
@@ -789,12 +780,11 @@ class MarketInteraction(Interaction):
         self.goods = goods
         self.on_trade = on_trade
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an undeclared or missing value, or an unknown option of the protocol."""
         super()._check()
         if self.protocol is not None:
             self.protocol.check()
-        return self
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.
@@ -868,8 +858,7 @@ class MarketInteraction(Interaction):
         """
         buyers, sellers = self.orders(model)
         protocol = BilateralSearchProtocol().check() if self.protocol is None else self.protocol
-        protocol.run(ClearingSpec(buyers, sellers, model.rng, model.storage))
-        trades = protocol.trades_
+        trades = protocol.run(ClearingSpec(buyers, sellers, model.rng, model.storage)).trades_
         for trade in trades:
             self.settle(trade, model)
         volume = sum(trade.quantity for trade in trades)

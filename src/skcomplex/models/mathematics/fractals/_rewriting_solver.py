@@ -79,7 +79,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         super()._prepare(problem)
         self.systems_ = problem.rewriting
         self.structures_: dict[str, WordStructureSpec | PatchStructureSpec] = {
-            item.path: item.prepare(problem).structure_ for item in self.systems_
+            item.path: item.prepare(problem).values_ for item in self.systems_
         }
         self._collect()
 
@@ -110,9 +110,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         """
         for generation in range(round(until - t)):
             state = RunStateSpec(t + generation, x, p, self.rng_)
-            for item in self.systems_:
-                item.run(state)
-            self.structures_ = {item.path: item.structure_ for item in self.systems_}
+            self.structures_ = {item.path: item.run(state).values_ for item in self.systems_}
         return self._state()
 
     def _collect(self) -> None:

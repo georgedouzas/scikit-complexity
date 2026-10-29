@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -83,14 +82,13 @@ class SusceptibilityAnalysis(DistributionAnalysis):
         self.temperatures = temperatures
         self.parameters = parameters
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the system size."""
         if self.size <= 0:
             error_msg = f"{type(self).__name__} has size={self.size!r}. Use a positive size."
             raise AnalysisError(error_msg)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the moments of the absolute samples, the susceptibility, and its peak."""
         super()._run()
         self.susceptibility_ = self.size * self.variance_
@@ -101,7 +99,6 @@ class SusceptibilityAnalysis(DistributionAnalysis):
             if self.parameters is None
             else self._refined_peak(np.asarray(self.parameters, dtype=float), self.susceptibility_)
         )
-        return self
 
     @staticmethod
     def _refined_peak(grid: Array, values: Array) -> float:
