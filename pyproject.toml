@@ -165,12 +165,18 @@ extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.Hilbert
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
-# Test modules are public, so ruff asks for `__init__` docstrings that pydoclint forbids beside a class docstring.
+# Test classes document their arguments in the class docstring, so their `__init__` methods carry none.
 "test_*" = ["ANN", "PLR2004", "D107"]
 "conftest.py" = ["D107"]
 "src/skcomplex/core/declarations.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
 "src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
+# The background run keeps any error it meets for `wait` to raise in the calling thread.
+"src/skcomplex/engine/runtime/_simulations.py" = ["BLE001"]
+# Model element constructors only store their many arguments, which trips the statement count.
+"src/skcomplex/models/**" = ["PLR0915"]
+# The gallery tools run the installed Rerun viewer in a subprocess and import Playwright only for the web backend.
+"docs/gallery_tools/**" = ["S404", "S603", "PLC0415"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -192,6 +198,8 @@ check-yield-types = false
 check-class-attributes = false
 # Raises sections name propagated exceptions too, which pydoclint cannot see in the function body.
 skip-checking-raises = true
+# Constructors carry their own docstrings, as ruff D107 asks, beside the class docstring.
+allow-init-docstring = true
 
 [tool.bandit]
 # Read by the checks nox session, which passes `-c pyproject.toml`. B101 is the

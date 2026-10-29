@@ -723,7 +723,7 @@ class DelayedVaccinatedTumourElement(Element):
         1.26
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
@@ -1088,7 +1088,7 @@ class SuppressedTumourElement(Element):
         0.5
     """
 
-    def __init__(  # noqa: PLR0915
+    def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,

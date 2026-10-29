@@ -152,7 +152,10 @@ def checks(session: nox.Session, file: str) -> None:
     if arg in ['types', 'all']:
         session.run('mypy', file)
     if arg in ['security', 'all']:
-        session.run('bandit', '-c', 'pyproject.toml', '-r', file)
+        session.run('bandit', '-c', 'pyproject.toml', '-r', file, '-x', 'docs/gallery_tools')
+        if file == 'docs':
+            # The gallery tools run the installed Rerun viewer in a subprocess.
+            session.run('bandit', '-c', 'pyproject.toml', '-r', 'docs/gallery_tools', '-s', 'B101,B404,B603')
     if arg in ['docs', 'all'] and file == 'src':
         session.run('interrogate', file)
         session.run('pydoclint', file)

@@ -369,7 +369,7 @@ class Simulation(BaseConfig[None, float]):
         """Run the loop and keep any error for `wait` to raise."""
         try:
             self._loop(until)
-        except BaseException as error:  # noqa: BLE001
+        except Exception as error:
             self._error = error
 
     def _check_domains(self) -> None:
