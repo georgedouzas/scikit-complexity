@@ -45,20 +45,20 @@ class DilutedNeuronElement(Element):
         label:
             The label of the neuron or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        spin:
+            The initial value, -1 or 1.
+
+        pattern:
+            The value of the first stored pattern at the neuron, whose overlap with the network is recorded.
+
+        beta:
+            The inverse temperature `β`.
+
         couplings:
             The coupling matrix `J`, one row and one column per neuron.
-
-        **values:
-            The values of the declared variables, by name:
-
-            spin:
-                The initial value, -1 or 1.
-
-            pattern:
-                The value of the first stored pattern at the neuron, whose overlap with the network is recorded.
-
-            beta:
-                The inverse temperature `β`.
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuronElement

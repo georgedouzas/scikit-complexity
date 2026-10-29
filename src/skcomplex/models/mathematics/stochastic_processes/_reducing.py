@@ -28,6 +28,9 @@ class ReducingBallElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         level:
             The initial state, from 1 to `n_states`.
 
@@ -96,6 +99,9 @@ class FragmentElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         length:
             The initial size.

@@ -75,6 +75,9 @@ class NetworkWalkerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         steps:
             The initial number of steps taken.
 

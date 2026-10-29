@@ -52,11 +52,20 @@ class CartPendulumElement(Element):
         label:
             The label of the cart.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position of the cart.
 
+        x_d1:
+            The initial velocity of the cart.
+
         theta:
             The initial angle from upright.
+
+        theta_d1:
+            The initial angular velocity.
 
         force:
             The horizontal force on the cart, the control input.
@@ -136,8 +145,14 @@ class DrivenOscillatorElement(Element):
         label:
             The label of the oscillator.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial displacement.
+
+        x_d1:
+            The initial velocity.
 
         force:
             The force per unit mass, the control input.

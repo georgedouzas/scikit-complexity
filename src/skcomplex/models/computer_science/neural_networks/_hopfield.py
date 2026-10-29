@@ -37,6 +37,9 @@ class NeuronElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         spin:
             The initial state, -1 or 1.
 

@@ -29,17 +29,17 @@ class RoadElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        velocity:
+            The initial velocity, or -1 for an empty cell.
+
+        slowdown:
+            The probability of random braking.
+
         vmax:
             The largest velocity.
-
-        **values:
-            The values of the declared variables, by name:
-
-            velocity:
-                The initial velocity, or -1 for an empty cell.
-
-            slowdown:
-                The probability of random braking.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import RoadElement

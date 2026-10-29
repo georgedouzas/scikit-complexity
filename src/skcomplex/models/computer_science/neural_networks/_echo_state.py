@@ -47,26 +47,26 @@ class ReservoirUnitElement(Element):
         label:
             The label of the unit or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        r:
+            The initial activity.
+
+        w_in:
+            The weight `w` of the input.
+
+        leak:
+            The leak rate `a`, 1 for units without memory of their own.
+
+        amplitude:
+            The amplitude `A` of the input.
+
+        frequency:
+            The angular frequency `f` of the input, per step.
+
         weights:
             The recurrent weights `W`, one row and one column per unit.
-
-        **values:
-            The values of the declared variables, by name:
-
-            r:
-                The initial activity.
-
-            w_in:
-                The weight `w` of the input.
-
-            leak:
-                The leak rate `a`, 1 for units without memory of their own.
-
-            amplitude:
-                The amplitude `A` of the input.
-
-            frequency:
-                The angular frequency `f` of the input, per step.
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnitElement

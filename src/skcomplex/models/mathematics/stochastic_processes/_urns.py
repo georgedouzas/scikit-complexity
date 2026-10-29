@@ -26,17 +26,17 @@ class PolyaUrnElement(Element):
         label:
             The label of the urn or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        red:
+            The initial number of red balls.
+
+        blue:
+            The initial number of blue balls.
+
         added:
             The number of balls of the drawn color added after every draw.
-
-        **values:
-            The values of the declared variables, by name:
-
-            red:
-                The initial number of red balls.
-
-            blue:
-                The initial number of blue balls.
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrnElement

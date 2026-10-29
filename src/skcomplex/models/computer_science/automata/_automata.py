@@ -29,14 +29,14 @@ class ElementaryCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         rule:
             The Wolfram number of the rule.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import ElementaryCellElement
@@ -77,17 +77,17 @@ class LifeCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         born:
             The numbers of live neighbours that bring a dead cell to life.
 
         survive:
             The numbers of live neighbours that keep a live cell alive.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import LifeCellElement
@@ -143,6 +143,9 @@ class AntCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         color:
             The initial color, 0 for white and 1 for black.

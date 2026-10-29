@@ -57,38 +57,38 @@ class LightSensitiveRobotElement(Element):
         label:
             The label of the robot or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial horizontal position.
+
+        y:
+            The initial vertical position.
+
+        phi:
+            The initial direction of motion.
+
+        V0:
+            The speed in the dark.
+
+        V_inf:
+            The speed in strong light.
+
+        I0:
+            The intensity at the centre of the light.
+
+        r0:
+            The width of the light.
+
+        tau:
+            The time scale of rotational diffusion.
+
+        R:
+            The radius of the well.
+
         delay:
             The sensory delay, 0 for a robot that reacts to the light it measures now.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The initial horizontal position.
-
-            y:
-                The initial vertical position.
-
-            phi:
-                The initial direction of motion.
-
-            V0:
-                The speed in the dark.
-
-            V_inf:
-                The speed in strong light.
-
-            I0:
-                The intensity at the centre of the light.
-
-            r0:
-                The width of the light.
-
-            tau:
-                The time scale of rotational diffusion.
-
-            R:
-                The radius of the well.
 
     Examples:
         >>> from skcomplex.models.engineering.robotics import LightSensitiveRobotElement
@@ -160,6 +160,9 @@ class SwarmRobotElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         heading:
             The direction of motion.

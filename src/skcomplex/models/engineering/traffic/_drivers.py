@@ -41,6 +41,9 @@ class MotoristElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The position along the road.
 
@@ -207,6 +210,9 @@ class DriverElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         speed:
             The speed.

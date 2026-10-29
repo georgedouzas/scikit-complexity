@@ -96,6 +96,9 @@ class StrategyElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
@@ -133,6 +136,12 @@ class EvolutionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        mutation:
+            The probability that an action of a child is replaced by a random one.
+
+        population:
+            The path of the group of strategies.
+
         sessions:
             The number of rooms a strategy cleans to be scored.
 
@@ -144,15 +153,6 @@ class EvolutionInteraction(Interaction):
 
         density:
             The probability that a cell holds a can.
-
-        **values:
-            The values of the declared variables, by name:
-
-            mutation:
-                The probability that an action of a child is replaced by a random one.
-
-            population:
-                The path of the group of strategies.
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import EvolutionInteraction

@@ -58,14 +58,14 @@ class MajorityCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         memory:
             The memory set, of odd size, usually the identity and the generators.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import MajorityCellElement
@@ -106,14 +106,14 @@ class ParityCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         memory:
             The memory set.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import ParityCellElement
@@ -164,6 +164,9 @@ class LaplacianCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The initial value, an integer from 0 to `modulus - 1`.
@@ -219,6 +222,9 @@ class GoldenMeanCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         alive:
             The initial value, 0 or 1.

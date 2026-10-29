@@ -84,11 +84,26 @@ class CantorElement(PatchElement):
         label:
             The label of the patch.
 
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
         ratio:
             The length of each kept part relative to its interval.
 
         prototiles:
             The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import CantorElement
@@ -144,11 +159,26 @@ class SierpinskiElement(PatchElement):
         label:
             The label of the patch.
 
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
         shape:
             `'triangle'` or `'carpet'`.
 
         prototiles:
             The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import SierpinskiElement

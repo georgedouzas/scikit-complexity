@@ -46,6 +46,9 @@ class BernoulliTrialElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         outcome:
             The initial outcome, 1 for a success and 0 for a failure.
 

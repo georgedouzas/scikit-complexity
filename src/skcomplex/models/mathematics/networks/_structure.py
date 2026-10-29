@@ -55,6 +55,9 @@ class NetworkNodeElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         degree:
             The degree of the node.
 

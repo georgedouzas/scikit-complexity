@@ -48,17 +48,17 @@ class ChaosPointElement(Element):
         label:
             The label of the point or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        p:
+            The initial position.
+
         maps:
             The coefficients `(a, b, c, d, e, f)` of every affine map.
 
         weights:
             The weight of every map.
-
-        **values:
-            The values of the declared variables, by name:
-
-            p:
-                The initial position.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import ChaosPointElement

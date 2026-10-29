@@ -16,6 +16,9 @@ class IntegratorElement(Element):
         label:
             The label of the integrator.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         value:
             The initial value of the integral.
 

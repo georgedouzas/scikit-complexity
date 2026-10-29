@@ -44,17 +44,17 @@ class NoisyElementaryCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
+        noise:
+            The probability that the output of the rule is flipped.
+
         rule:
             The Wolfram number of the rule.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
-
-            noise:
-                The probability that the output of the rule is flipped.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import NoisyElementaryCellElement
@@ -102,6 +102,9 @@ class DiffusionCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial content.
@@ -151,6 +154,9 @@ class PascalCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The initial value, a nonnegative integer.

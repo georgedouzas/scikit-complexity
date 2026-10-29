@@ -40,6 +40,9 @@ class BitStringElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         genome:
             The initial genome, an integer whose binary digits are the bits.
 
@@ -76,23 +79,20 @@ class ReproductionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        death:
+            The probability that an agent dies in a step.
+
+        mutation:
+            The probability that a newborn has one random bit flipped.
+
+        population:
+            The path of the group of bit strings.
+
         zero_values:
             The value of a 0 at every locus.
 
         one_values:
             The value of a 1 at every locus.
-
-        **values:
-            The values of the declared variables, by name:
-
-            death:
-                The probability that an agent dies in a step.
-
-            mutation:
-                The probability that a newborn has one random bit flipped.
-
-            population:
-                The path of the group of bit strings.
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import ReproductionInteraction

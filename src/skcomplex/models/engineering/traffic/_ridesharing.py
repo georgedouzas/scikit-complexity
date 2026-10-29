@@ -105,6 +105,9 @@ class RiderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         destination_x:
             The column of the destination.
 
@@ -178,6 +181,9 @@ class CabElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         task:
             0 when idle, 1 on the way to a rider, and 2 on the way to a destination.
@@ -300,23 +306,20 @@ class DispatchInteraction(Interaction):
         label:
             The label of the dispatcher.
 
+        riders:
+            The path of the group of riders.
+
+        cabs:
+            The path of the group of cabs.
+
+        demand:
+            The mean number of new riders in a step.
+
         width:
             The number of columns of the grid.
 
         height:
             The number of rows of the grid.
-
-        **values:
-            The values of the declared variables, by name:
-
-            riders:
-                The path of the group of riders.
-
-            cabs:
-                The path of the group of cabs.
-
-            demand:
-                The mean number of new riders in a step.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import DispatchInteraction
