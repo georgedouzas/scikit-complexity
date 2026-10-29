@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -68,7 +67,7 @@ class KramersMoyalAnalysis(BaseAnalysis):
         self.bins = bins
         self.bandwidth = bandwidth
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the step, the number of bins, and the bandwidth."""
         if self.dt <= 0 or self.bins < 1 or (self.bandwidth is not None and self.bandwidth <= 0):
             error_msg = (
@@ -76,13 +75,12 @@ class KramersMoyalAnalysis(BaseAnalysis):
                 'Use positive values.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the one series of the source."""
         series = self._read_series(source, self.variables)
         if series.values.shape[1] != 1:
@@ -92,9 +90,8 @@ class KramersMoyalAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         self.values_ = np.asarray(series.values[:, 0], dtype=float)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the drift and the diffusion in every bin."""
         moments, edges = self._import('kramersmoyal').km(
             self.values_,
@@ -105,4 +102,3 @@ class KramersMoyalAnalysis(BaseAnalysis):
         self.positions_ = np.asarray(edges[0], dtype=float)
         self.drift_ = moments[1] / self.dt
         self.diffusion_ = moments[2] / self.dt
-        return self

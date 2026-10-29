@@ -7,11 +7,10 @@ from skcomplex.experiments import GridDesign
 
 
 def test_grid_design_runs_every_combination():
-    """Test that a grid design gives every combination of the values, and that running returns a copy of its rows."""
+    """Test that a grid design gives every combination of the values, and that running keeps its rows."""
     design = GridDesign().check().check().prepare({'r': [1, 2], 'K': [10, 20, 30]})
     assert len(design.rows_) == 6
-    design.run()[0]['r'] = 5
-    assert design.rows_[0] == {'r': 1, 'K': 10}
+    assert design.run().rows_[0] == {'r': 1, 'K': 10}
 
 
 def test_grid_design_rejects_a_value_that_is_not_a_sequence():

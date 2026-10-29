@@ -30,7 +30,7 @@ def test_bases_are_abstract():
 
 def test_sampled_design_reads_distributions():
     """Test that a sampled design maps its samples through the quantile function of a SciPy distribution."""
-    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run()
+    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run().rows_
     assert 9.5 < sum(row['r'] for row in rows) / len(rows) < 10.5
 
 

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -130,7 +129,7 @@ class DomainAnalysis(BaseAnalysis):
         self.times = times
         self.attribute = attribute
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the method, the spacing, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('method', self.method, METHODS)
@@ -138,13 +137,12 @@ class DomainAnalysis(BaseAnalysis):
         if self.spacing <= 0:
             error_msg = f'{type(self).__name__} has spacing={self.spacing!r}. Use a positive spacing.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind."""
         return DataKind.FIELD
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the frames and their times from a trajectory, an array, or a graph."""
         if isinstance(source, nx.Graph):
             if self.kind != 'interface-density':
@@ -152,7 +150,7 @@ class DomainAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             self.frames_: list[nx.Graph] | Array = self._read_networks(source)
             self.times_ = np.zeros(1)
-            return self
+            return
         name = self.variables[0] if self.variables else None
         frames = self._read_fields(source, name)
         if isinstance(source, Trajectory):
@@ -161,21 +159,19 @@ class DomainAnalysis(BaseAnalysis):
             self.frames_, self.times_ = frames[None], np.zeros(1)
         else:
             self.frames_, self.times_ = frames, np.asarray(self.times, dtype=float)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the domain measure of every frame."""
         if self.kind in {'size', 'growth'}:
             self.size_ = np.asarray([self._domain_size(frame, self.method, self.spacing) for frame in self.frames_])
             if self.kind == 'growth':
                 self.exponent_ = self._growth_exponent(self.times_, self.size_, self.fit_range)
-            return self
+            return
         if self.kind == 'wavelength':
             patterns = np.asarray([self._pattern(frame, self.spacing) for frame in self.frames_]).reshape(-1, 3)
             self.wavelength_, self.wavenumber_, self.orientation_ = patterns.T
-            return self
+            return
         self.density_ = np.asarray([self._interface_density(frame, self.attribute) for frame in self.frames_])
-        return self
 
     @staticmethod
     def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:

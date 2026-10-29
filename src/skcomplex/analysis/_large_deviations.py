@@ -6,7 +6,6 @@
 import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -211,7 +210,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {name}. Give it.'
             raise AnalysisError(error_msg)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the settings each kind needs, and the cloning schedule."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
@@ -229,13 +228,12 @@ class LargeDeviationAnalysis(BaseAnalysis):
         if self.block < 1 or self.dt <= 0:
             error_msg = f'{type(self).__name__} has block={self.block!r} and dt={self.dt!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind for jump processes, the series kind for blocks, and the ensemble kind for samples."""
         return DATA_KINDS[self.kind]
 
-    def _prepare(self, source: Source | ProblemSpec | Mapping[int, npt.ArrayLike]) -> Self:
+    def _prepare(self, source: Source | ProblemSpec | Mapping[int, npt.ArrayLike]) -> None:
         """Read the rate matrix, the increments, the system, or the samples the kind estimates from."""
         if self.kind == 'tilted':
             self.rates_ = np.asarray(source, dtype=float)
@@ -255,7 +253,6 @@ class LargeDeviationAnalysis(BaseAnalysis):
             self.samples_ = {size: np.asarray(source[size], dtype=float) for size in sorted(source)}
         else:
             self.observations_ = np.asarray(source, dtype=float)
-        return self
 
     def _run_tilted(self) -> None:
         """Compute the largest eigenvalue of the tilted generator at every tilt."""
@@ -341,14 +338,14 @@ class LargeDeviationAnalysis(BaseAnalysis):
         self.mean_ = float(np.sum(self.weights_ * self.observations_))
         self.effective_size_ = float(1 / np.sum(self.weights_**2))
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the estimate of the kind, and the rate function at the values."""
         if self.kind == 'histogram':
             self._run_histogram()
-            return self
+            return
         if self.kind == 'reweight':
             self._run_reweight()
-            return self
+            return
         self.tilts_ = np.atleast_1d(np.asarray(self.tilts, dtype=float))
         if self.kind == 'tilted':
             self._run_tilted()
@@ -361,7 +358,6 @@ class LargeDeviationAnalysis(BaseAnalysis):
         if self.values is not None:
             self.values_ = np.atleast_1d(np.asarray(self.values, dtype=float))
             self.rate_function_ = self._legendre_transform(self.tilts_, self.scgf_, self.values_)
-        return self
 
     @staticmethod
     def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:

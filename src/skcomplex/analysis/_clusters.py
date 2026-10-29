@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -108,19 +107,18 @@ class ClusterAnalysis(BaseAnalysis):
         self.diagonal = diagonal
         self.axis = axis
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and that the kind reads every changed setting."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
             raise AnalysisError(error_msg)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind."""
         return DataKind.FIELD
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read a graph, or the grids of the source, the last frame of a trajectory but for spanning."""
         self.grids_: npt.NDArray[np.bool_] | None = None
         self.graph_: nx.Graph | None = None
@@ -132,14 +130,13 @@ class ClusterAnalysis(BaseAnalysis):
                 )
                 raise AnalysisError(error_msg)
             self.graph_ = source
-            return self
+            return
         name = self.variables[0] if self.variables else None
         grids = np.asarray(self._read_fields(source, name), dtype=bool)
         if self.kind == 'spanning':
             self.grids_ = grids
         else:
             self.grids_ = grids[-1:] if isinstance(source, Trajectory) else grids[None]
-        return self
 
     def _get_grids(self) -> npt.NDArray[np.bool_]:
         """Return the grids the analysis read, raising an error for a graph, which has none."""
@@ -170,7 +167,7 @@ class ClusterAnalysis(BaseAnalysis):
             _, sizes = self._label(self._get_grids()[0], periodic=self.periodic, diagonal=self.diagonal)
         self.sizes_ = np.sort(sizes)[::-1]
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the clusters, their sizes, the percolation observables, or the spanning probability."""
         if self.kind == 'labels':
             grid = self._get_grids()[0]
@@ -186,7 +183,6 @@ class ClusterAnalysis(BaseAnalysis):
                 for grid in self._get_grids()
             ]
             self.probability_ = float(np.mean(spans))
-        return self
 
     @staticmethod
     def _merge(labels: IntArray, axis: int) -> None:

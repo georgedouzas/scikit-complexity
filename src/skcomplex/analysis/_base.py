@@ -63,18 +63,15 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         ...
         ...     def _prepare(self, source):
         ...         self.series_ = self._read_series(source, self.variables)
-        ...         return self
         ...
         ...     def _run(self, inputs):
         ...         self.mean_ = self.series_.values.mean(axis=0)
-        ...         return self
         >>> MeanAnalysis().check().prepare(np.array([1.0, 2.0, 3.0])).run().mean_.tolist()
         [2.0]
     """
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the settings of the analysis, raising a named error for one it cannot take."""
-        return self
 
     def _check_choice(self, name: str, value: object, choices: tuple[object, ...]) -> None:
         """Raise an error for a setting that is not one of its choices."""
@@ -112,11 +109,11 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         """Return the kind of data the analysis reads."""
 
     @abstractmethod
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the data of the analysis from a source and set the attributes that end in `_`."""
 
     @abstractmethod
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the results of the analysis and set them as attributes that end in `_`."""
 
     @staticmethod

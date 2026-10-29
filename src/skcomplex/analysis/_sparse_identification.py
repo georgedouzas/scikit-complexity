@@ -9,7 +9,7 @@ import math
 import re
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Self
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -129,22 +129,20 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         self.dt = dt
         self.label = label
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a validation share outside `[0, 1)` or a negative horizon."""
         self._check_validation(self.validation)
         self._check_horizon(self.horizon)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Runs) -> Self:
+    def _prepare(self, source: Runs) -> None:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Fit the sparse model and set the surrogate system, its errors, its coefficients, and the forecast."""
         samples = self.samples_
         states = self._state_names(samples.labels)
@@ -173,7 +171,6 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         self.features_ = [str(name) for name in model.get_feature_names()]
         self.coefficients_ = coefficients
         self.forecast_ = self._forecast()
-        return self
 
     def _forecast(self) -> Array:
         """Return the variables of the fitted system simulated from the last sample, one row per sample."""

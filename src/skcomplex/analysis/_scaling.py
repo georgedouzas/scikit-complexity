@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import nolds
 import numpy as np
@@ -175,7 +174,7 @@ class ScalingAnalysis(BaseAnalysis):
         self.critical = critical
         self.above = above
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the order, the settings the kind needs, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('against', self.against, AGAINST)
@@ -189,7 +188,6 @@ class ScalingAnalysis(BaseAnalysis):
                 '`parameters` and `critical`.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind for box counting and variance-mean, the ensemble kind for power, and series else."""
@@ -197,7 +195,7 @@ class ScalingAnalysis(BaseAnalysis):
             return DataKind.FIELD
         return DataKind.ENSEMBLE if self.kind == 'power' else DataKind.SERIES
 
-    def _prepare(self, source: Source | Mapping[float, npt.ArrayLike]) -> Self:
+    def _prepare(self, source: Source | Mapping[float, npt.ArrayLike]) -> None:
         """Read the series or the points as columns, the last frame or every frame of a field, or samples by size."""
         self.samples_: dict[float, Array] | None = None
         if self.kind == 'variance-mean':
@@ -205,24 +203,23 @@ class ScalingAnalysis(BaseAnalysis):
                 self.samples_ = {float(size): np.asarray(samples, dtype=np.float64) for size, samples in source.items()}
                 self.values_: Array = np.zeros(0)
                 self.labels_ = [f'{size:g}' for size in self.samples_]
-                return self
+                return
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
             self.values_ = frames if frames.ndim == FRAME_DIMENSIONS else frames[None]
             self.labels_ = [name or 'field']
-            return self
+            return
         if self.kind == 'box-counting':
             name = self.variables[0] if self.variables else None
             field = self._read_fields(source, name)
             self.values_ = field[-1] if isinstance(source, Trajectory) else field
             self.labels_ = [name or 'field']
-            return self
+            return
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the exponents of the series, or the dimension of the cells or points."""
         if self.kind == 'box-counting':
             self.scales_, self.counts_, self.exponent_ = self._box_counting(self.values_, self.scales)
@@ -247,7 +244,6 @@ class ScalingAnalysis(BaseAnalysis):
             self.scales_ = curves[0][0]
             self.fluctuations_ = np.asarray([fluctuations for _, fluctuations, _ in curves])
             self.exponent_ = np.asarray([exponent for _, _, exponent in curves])
-        return self
 
     @staticmethod
     def _fluctuation(

@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -79,7 +78,7 @@ class PartialInformationAnalysis(BaseAnalysis):
         self.redundancy = redundancy
         self.base = base
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the redundancy measure and the base."""
         if self.redundancy not in REDUNDANCIES:
             error_msg = (
@@ -89,13 +88,12 @@ class PartialInformationAnalysis(BaseAnalysis):
         if self.base <= 0:
             error_msg = f'{type(self).__name__} has base={self.base!r}. Use a positive base.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the two sources and the target as three columns."""
         series = self._read_series(source, self.variables)
         if series.values.shape[1] != SERIES:
@@ -106,9 +104,8 @@ class PartialInformationAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Decompose the information of the sources about the target."""
         columns = np.column_stack([column.ravel() for column in self.values_.T])
         measure = getattr(self._import('dit').pid, REDUNDANCIES[self.redundancy])
@@ -119,4 +116,3 @@ class PartialInformationAnalysis(BaseAnalysis):
         self.unique_second_ = float(lattice.get_pi(((1,),))) * scale
         self.synergy_ = float(lattice.get_pi(((0, 1),))) * scale
         self.total_ = self.redundancy_ + self.unique_first_ + self.unique_second_ + self.synergy_
-        return self

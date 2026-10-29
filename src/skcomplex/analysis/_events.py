@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -152,7 +151,7 @@ class EventAnalysis(BaseAnalysis):
         self.max_step = max_step
         self.dt = dt
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the window of counts, the steps of branching, and that the kind reads every setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
@@ -162,13 +161,12 @@ class EventAnalysis(BaseAnalysis):
         if self.kind == 'branching' and (self.max_step < 1 or self.dt <= 0):
             error_msg = f'{type(self).__name__} has max_step={self.max_step!r} and dt={self.dt!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind for counts of event times, and the series kind otherwise."""
         return DataKind.PATH if self.kind == 'counts' else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the one series with its times, the times of the events, the records of excursions, or the trials."""
         records = self._records(source)
         if records:
@@ -181,7 +179,7 @@ class EventAnalysis(BaseAnalysis):
             self.sizes_ = np.asarray([record.size for record in records], dtype=np.float64)
             self.durations_ = np.asarray([record.duration for record in records], dtype=np.float64)
             self.shapes_: list[Array] = []
-            return self
+            return
         name = self.variables[0] if self.variables else None
         if self.kind == 'counts':
             if isinstance(source, Trajectory):
@@ -192,7 +190,7 @@ class EventAnalysis(BaseAnalysis):
                 self.times_ = np.asarray(source, dtype=float)
                 self.labels_ = [name or 'events']
             self.values_ = self.times_[:, None]
-            return self
+            return
         series = self._read_series(source, self.variables)
         if series.values.shape[1] != 1 and self.kind != 'branching':
             error_msg = (
@@ -203,16 +201,15 @@ class EventAnalysis(BaseAnalysis):
         self.times_ = np.asarray(series.times, dtype=float)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the events, the counts, the laminar durations, the excursions, or the branching ratio."""
         if self.kind == 'excursions':
             if self.values_ is not None:
                 self.shapes_ = self._excursions(np.asarray(self.values_[:, 0], dtype=np.float64), self.threshold)
                 self.sizes_ = np.asarray([shape.sum() for shape in self.shapes_], dtype=np.float64)
                 self.durations_ = np.asarray([shape.size for shape in self.shapes_], dtype=np.float64)
-            return self
+            return
         if self.values_ is None or self.times_ is None:
             error_msg = f'{type(self).__name__} reads records of excursions for the kind excursions only.'
             raise AnalysisError(error_msg)
@@ -222,20 +219,19 @@ class EventAnalysis(BaseAnalysis):
                 self.max_step,
                 self.dt,
             )
-            return self
+            return
         if self.kind == 'counts':
             self.counts_ = self._event_counts(self.times_, float(self.window or 0), self.start, self.end)
-            return self
+            return
         array = self._read_real(self.values_[:, 0], 'values')
         if self.kind == 'laminar-durations':
             self.durations_ = self._laminar_durations(array, self.times_, self.threshold)
-            return self
+            return
         self.starts_, self.sizes_, self.durations_, self.peaks_, self.waiting_times_ = self._detect_events(
             array,
             self.times_,
             self.threshold,
         )
-        return self
 
     @staticmethod
     def _step(clock: Array) -> float:

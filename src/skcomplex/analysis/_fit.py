@@ -5,7 +5,6 @@
 
 import warnings
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import numpy as np
 import powerlaw
@@ -196,7 +195,7 @@ class FitAnalysis(BaseAnalysis):
         self.simulations = simulations
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the law, the alternatives, that the law reads every changed setting, and its needed settings."""
         if self.law not in LAWS:
             error_msg = f'{type(self).__name__} has law={self.law!r}. Use one of {", ".join(LAWS)}.'
@@ -211,18 +210,16 @@ class FitAnalysis(BaseAnalysis):
         if self.law == 'extreme-value' and self.block is None:
             error_msg = f'{type(self).__name__} of law {self.law!r} needs the number of samples per block. Set `block`.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the samples of the source pooled into one sample."""
         series = self._read_samples_of(source, self.variables, self.group)
         self.values_ = self._read_real(series.values, 'values').ravel()
         self.labels_ = series.labels
-        return self
 
     def _bootstrap(self, array: Array, fit: powerlaw.Fit) -> float:
         """Return the share of synthetic samples, a power-law tail and a resampled body, farther from their fit."""
@@ -301,7 +298,7 @@ class FitAnalysis(BaseAnalysis):
         self.statistic_ = float(result.statistic)
         self.p_value_ = float(result.pvalue)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Fit the law to the sample."""
         if self.law == 'power':
             with warnings.catch_warnings():
@@ -315,7 +312,6 @@ class FitAnalysis(BaseAnalysis):
             self._run_extreme_value()
         else:
             self._run_named_law()
-        return self
 
     @staticmethod
     def _fit_at(array: Array, minimum: float, maximum: float | None, *, discrete: bool) -> powerlaw.Fit:

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -81,7 +80,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
         self.over = over
         self.state = state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the shape against a given box, or the values a state is coarse-grained over."""
         if self.over is not None:
             grid = np.asarray(self.over, dtype=float)
@@ -91,7 +90,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
             if self.values is not None:
                 error_msg = f'{type(self).__name__} counts members over values of a state, so it takes no `values`.'
                 raise AnalysisError(error_msg)
-            return self
+            return
         if self.state is not None:
             error_msg = f'{type(self).__name__} has state={self.state!r} but no values to bin it over. Set `over`.'
             raise AnalysisError(error_msg)
@@ -101,16 +100,16 @@ class CoarseGrainAnalysis(BaseAnalysis):
         if self.box is not None and len(self.shape) != len(self.box):
             error_msg = f'The shape {tuple(self.shape)} needs one entry per dimension of the box, {len(self.box)}.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the agents kind."""
         return DataKind.AGENTS
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the positions of an array, or of the agents of a trajectory with the box of its space."""
         if self.over is not None:
-            return self._prepare_state(source)
+            self._prepare_state(source)
+            return
         if isinstance(source, Trajectory):
             snapshots = self._read_snapshots(source)
             if snapshots.positions is None:
@@ -128,9 +127,8 @@ class CoarseGrainAnalysis(BaseAnalysis):
         if len(self.shape) != self.box_.size:
             error_msg = f'The shape {tuple(self.shape)} needs one entry per dimension of the box, {self.box_.size}.'
             raise AnalysisError(error_msg)
-        return self
 
-    def _prepare_state(self, source: Source) -> Self:
+    def _prepare_state(self, source: Source) -> None:
         """Read the values of the state of every member, from an array or from a trajectory."""
         if isinstance(source, Trajectory):
             if self.state is None:
@@ -144,7 +142,6 @@ class CoarseGrainAnalysis(BaseAnalysis):
             error_msg = f'{type(self).__name__} needs the values of one member or more, one row per frame.'
             raise AnalysisError(error_msg)
         self.box_ = None
-        return self
 
     def _get_density(self, values: Array) -> Array:
         """Return the fraction of members at the value of `over` nearest to their value, ties to the lower value."""
@@ -173,15 +170,14 @@ class CoarseGrainAnalysis(BaseAnalysis):
         field = np.stack(columns, axis=-1).reshape(*shape, weights.shape[1])
         return field[..., 0] if weights.shape[1] == 1 else field
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the field of the snapshot, or of every frame of a trajectory."""
         if self.over is not None:
             frames = self.positions_ if self.positions_.ndim == SNAPSHOT_DIMENSIONS else self.positions_[None]
             densities = np.asarray([self._get_density(row) for row in frames])
             self.field_ = densities if self.positions_.ndim == SNAPSHOT_DIMENSIONS else densities[0]
-            return self
+            return
         if self.positions_.ndim > SNAPSHOT_DIMENSIONS:
             self.field_ = np.asarray([self._get_field(frame) for frame in self.positions_])
-            return self
+            return
         self.field_ = self._get_field(self.positions_)
-        return self

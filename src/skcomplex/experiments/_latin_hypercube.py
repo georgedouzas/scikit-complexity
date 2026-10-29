@@ -25,7 +25,7 @@ class LatinHypercubeDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import LatinHypercubeDesign
-        >>> rows = LatinHypercubeDesign(n=4, random_state=0).check().check().prepare({'r': (0.0, 1.0)}).run()
+        >>> rows = LatinHypercubeDesign(n=4, random_state=0).check().check().prepare({'r': (0.0, 1.0)}).run().rows_
         >>> sorted(int(row['r'] * 4) for row in rows)
         [0, 1, 2, 3]
     """

@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Sequence
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -134,7 +133,7 @@ class NeighborAnalysis(BaseAnalysis):
         self.empty = empty
         self.diagonal = diagonal
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the number of bins, and that the kind reads every changed setting."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
@@ -143,26 +142,25 @@ class NeighborAnalysis(BaseAnalysis):
         if self.bins < 1:
             error_msg = f'{type(self).__name__} has bins={self.bins!r}. Use 1 or more.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind for like shares, and the agents kind otherwise."""
         return DataKind.FIELD if self.kind == 'like-share' else DataKind.AGENTS
 
-    def _prepare_states(self, source: Source) -> Self:
+    def _prepare_states(self, source: Source) -> None:
         """Read the grids of states of a trajectory or an array, or a graph."""
         if isinstance(source, nx.Graph):
             self.frames_ = self._read_networks(source)
-            return self
+            return
         name = self.variables[0] if self.variables else None
         frames = self._read_fields(source, name)
         self.frames_ = list(frames) if isinstance(source, Trajectory) else [frames]
-        return self
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the positions and the box of the agents, or the states of a grid or a network."""
         if self.kind == 'like-share':
-            return self._prepare_states(source)
+            self._prepare_states(source)
+            return
         box = None if self.box is None else np.asarray(self.box, dtype=float)
         if isinstance(source, Trajectory):
             snapshots = self._read_snapshots(source, self.group)
@@ -177,9 +175,8 @@ class NeighborAnalysis(BaseAnalysis):
             positions = array[None] if array.ndim == SNAPSHOT_DIMENSIONS else array
         self.positions_ = positions
         self.box_ = box
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the neighbour statistic of every frame."""
         if self.kind == 'like-share':
             shares = [
@@ -187,20 +184,19 @@ class NeighborAnalysis(BaseAnalysis):
                 for frame in self.frames_
             ]
             self.share_ = np.asarray(shares)
-            return self
+            return
         if self.kind == 'distances':
             self.distances_ = np.asarray(
                 [self._nearest_neighbor_distances(frame, self.box_) for frame in self.positions_],
             )
-            return self
+            return
         if self.box_ is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs a periodic box. Set `box` to its sides.'
             raise AnalysisError(error_msg)
         if self.kind == 'clark-evans':
             self.ratio_ = np.asarray([self._clark_evans_ratio(frame, self.box_) for frame in self.positions_])
-            return self
+            return
         self.radii_, self.distribution_ = self._radial_distribution(self.positions_, self.box_, self.bins, self.r_max)
-        return self
 
     @staticmethod
     def _shifts(ndim: int, *, diagonal: bool) -> list[tuple[int, ...]]:

@@ -20,7 +20,7 @@ class GridDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import GridDesign
-        >>> GridDesign().check().check().prepare({'r': [0.5, 1.0], 'K': [100, 200]}).run()
+        >>> GridDesign().check().check().prepare({'r': [0.5, 1.0], 'K': [100, 200]}).run().rows_
         [{'r': 0.5, 'K': 100}, {'r': 0.5, 'K': 200}, {'r': 1.0, 'K': 100}, {'r': 1.0, 'K': 200}]
     """
 

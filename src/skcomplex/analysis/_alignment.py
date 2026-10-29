@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -113,17 +112,16 @@ class AlignmentAnalysis(BaseAnalysis):
         self.group = group
         self.vectors = vectors
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the agents kind, the first of the kinds the analysis reads."""
         return DataKind.AGENTS
 
-    def _prepare_array(self, source: Source) -> Self:
+    def _prepare_array(self, source: Source) -> None:
         """Read the angles, the vectors, or the positions and velocities of one snapshot or of every frame."""
         array = np.asarray(source, dtype=float)
         if self.kind == 'mean-rotation':
@@ -136,13 +134,13 @@ class AlignmentAnalysis(BaseAnalysis):
         else:
             frames = array[None] if array.ndim == 1 else array
             self.angles_ = frames.reshape(frames.shape[0], -1)
-        return self
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the agents of a trajectory, or else its field or its series, or the snapshots of an array."""
         self.angles_ = self.vectors_ = self.positions_ = None
         if not isinstance(source, Trajectory):
-            return self._prepare_array(source)
+            self._prepare_array(source)
+            return
         kinds = self._get_data_kinds(source)
         name = self.variables[0] if self.variables else None
         if DataKind.AGENTS in kinds and (self.group is not None or self.variables is None):
@@ -161,9 +159,8 @@ class AlignmentAnalysis(BaseAnalysis):
                 f'{held}. Use a source with agents, a field of angles or vectors, or series of angles.'
             )
             raise AnalysisError(error_msg)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the alignment of every frame."""
         angles, vectors, positions = self.angles_, self.vectors_, self.positions_
         if angles is None and vectors is not None:
@@ -176,7 +173,7 @@ class AlignmentAnalysis(BaseAnalysis):
             if positions is None or vectors is None:
                 raise AnalysisError(error_msg)
             self.order_ = self._mean_rotation(positions, vectors)
-            return self
+            return
         if angles is None:
             raise AnalysisError(error_msg)
         if self.kind == 'mean-vector':
@@ -191,7 +188,6 @@ class AlignmentAnalysis(BaseAnalysis):
             mean = self._mean_phase(angles)
             self.order_ = np.abs(mean)
             self.phase_ = np.angle(mean)
-        return self
 
     @staticmethod
     def _unit_vectors(values: npt.ArrayLike, *, vectors: bool) -> Array:

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -150,7 +149,7 @@ class MarkovAnalysis(BaseAnalysis):
         self.reversible = reversible
         self.dt = dt
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the matrix, the lags, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         if self.matrix is not None:
@@ -165,23 +164,21 @@ class MarkovAnalysis(BaseAnalysis):
         if self.dt <= 0:
             error_msg = f'{type(self).__name__} has dt={self.dt!r}. Use a positive time step.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind."""
         return DataKind.PATH
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the matrix with `matrix`, or the states of the paths, a trajectory through its jump path."""
         if self.matrix is not None:
             self.matrix_ = np.asarray(source, dtype=float)
-            return self
+            return
         if isinstance(source, Trajectory):
             name = self.variables[0] if self.variables else None
             self.path_ = self._paths(self._read_path(source, name).states)
-            return self
+            return
         self.path_ = self._paths(source)
-        return self
 
     def _get_matrix(self) -> Array:
         """Return the matrix read, or the transition matrix estimated from the paths."""
@@ -207,7 +204,7 @@ class MarkovAnalysis(BaseAnalysis):
         """Return one path as a row, or several paths as rows, as deeptime reads them."""
         return self.path_[0] if self.path_.shape[0] == 1 else self.path_
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the quantity of the kind."""
         rates = self.matrix == 'rate'
         if self.kind == 'transition-matrix':
@@ -230,7 +227,6 @@ class MarkovAnalysis(BaseAnalysis):
                 ],
                 dtype=float,
             )
-        return self
 
     @staticmethod
     def _paths(states: npt.ArrayLike) -> npt.NDArray[np.int64]:

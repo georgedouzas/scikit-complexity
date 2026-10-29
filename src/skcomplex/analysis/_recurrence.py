@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -106,7 +105,7 @@ class RecurrenceAnalysis(BaseAnalysis):
         self.theiler = theiler
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the radius, the rate, the shortest line, and the Theiler window."""
         if (self.radius is not None and self.radius <= 0) or not 0 < self.rate < 1:
             error_msg = (
@@ -120,20 +119,18 @@ class RecurrenceAnalysis(BaseAnalysis):
                 'line of 1 or more and a Theiler window of 0 or more.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind, whose rows are the points."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series as the coordinates of the points."""
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the recurrence matrix and its quantification."""
         array = self.values_
         self.radius_ = (
@@ -164,7 +161,6 @@ class RecurrenceAnalysis(BaseAnalysis):
         self.longest_diagonal_ = int(diagonals.max())
         self.trapping_time_ = float(long_verticals.mean()) if long_verticals.size else 0.0
         self.entropy_ = float(stats.entropy(counts)) if counts.size else 0.0
-        return self
 
     @staticmethod
     def _radius_for_rate(array: Array, rate: float, random_state: int | None) -> float:

@@ -6,7 +6,6 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -146,26 +145,24 @@ class StabilityAnalysis(BaseAnalysis):
         self.points = points
         self.at = at
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the system kind."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Compile the system of the source, checking that it has a symbolic vector field, or read a field model."""
         if self.kind == 'dispersion':
             if not isinstance(source, System):
                 error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
                 raise AnalysisError(error_msg)
             self.system_ = source
-            return self
+            return
         self.problem_ = self._dynamics_of(self._read_system(source), self.parameters).problem
-        return self
 
     def _find_points(self, dynamics: _DynamicsSpec) -> list[dict[str, Expression | float]]:
         """Return the fixed points, solved symbolically or else searched numerically."""
@@ -197,7 +194,7 @@ class StabilityAnalysis(BaseAnalysis):
         )
         return np.linalg.eigvals(numeric)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Derive the Jacobian, nullclines, and fixed points with their classes, or the dispersion relation."""
         if self.kind == 'dispersion':
             waves, magnitudes, growth_rates, frequencies, uniform = self._dispersion_relation(self.system_, self.at)
@@ -207,7 +204,7 @@ class StabilityAnalysis(BaseAnalysis):
             self.frequencies_ = frequencies
             self.uniform_ = uniform
             self.band_ = np.unique(np.round(magnitudes[growth_rates > 0], 12))
-            return self
+            return
         dynamics = self._dynamics_of(self.problem_, self.parameters)
         self.names_ = dynamics.names
         self.jacobian_ = matrix(SR, [[rate.diff(item) for item in dynamics.symbols] for rate in dynamics.rates])
@@ -221,7 +218,6 @@ class StabilityAnalysis(BaseAnalysis):
         )
         self.eigenvalues_ = [self._eigenvalues_at(dynamics, point) for point in self.fixed_points_]
         self.classifications_ = [self._classify(values, discrete=dynamics.discrete) for values in self.eigenvalues_]
-        return self
 
     @staticmethod
     def _check_groups(problem: ProblemSpec) -> None:
@@ -273,8 +269,7 @@ class StabilityAnalysis(BaseAnalysis):
             entry_name = name.partition('[')[0]
             entry = problem.states.entry(entry_name)
             if entry.members is None:
-                expansion.run((set(), 0))
-                placeholders = expansion.substitution_
+                placeholders = expansion.run((set(), 0)).expansion_
                 names.append(name)
                 symbols.append(item)
                 rates.append(rate.subs(placeholders) if placeholders else rate)
@@ -288,8 +283,7 @@ class StabilityAnalysis(BaseAnalysis):
                 if other.name.rpartition('.')[0] == owner
             }
             for member in range(entry.rows):
-                expansion.run((own, member))
-                mapping = expansion.substitution_
+                mapping = expansion.run((own, member)).expansion_
                 names.append(entry.component_names[member * entry.columns + column])
                 symbols.append(mapping[item])
                 rates.append(rate.subs(mapping))
