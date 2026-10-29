@@ -91,17 +91,20 @@ The runtime, the visuals, and the analyses SHALL read a problem only through the
 - **THEN** the run succeeds, and no module of `skcomplex.engine` reads a quantum problem's own methods
 
 ### Requirement: Specs live in one package
-`skcomplex.specs` SHALL be a package with one module per spec, whose `__init__` exports every spec, so that the
-declarations a class reads, the records of a run, and the parts a compiler builds are all imported from it.
+Every spec SHALL be a frozen `BaseSpec` in a module of its own, in the lowest package that can import every type its
+fields name: `skcomplex.specs` for specs built from root types, `skcomplex.core.specs` for specs that name core
+classes, the engine package whose classes they name, such as `skcomplex.engine.problems` for the problem and kernel
+specs, and `skcomplex.experiments.specs` for experiment specs. Each of these packages SHALL export its public specs.
 
 #### Scenario: Specs from one place
-- **WHEN** a user imports `StateSpec`, `SupportSpec`, `ProblemSpec`, and `FrameSpec` from `skcomplex.specs`
+- **WHEN** a user imports `StateSpec` and `SupportSpec` from `skcomplex.specs`, `NodeSpec` from
+  `skcomplex.core.specs`, and `ProblemSpec` and `FrameSpec` from `skcomplex.engine.problems`
 - **THEN** every import succeeds and each class is a frozen `BaseSpec`
 
 #### Scenario: No scattered dataclass
 - **WHEN** a test lists every dataclass defined in `skcomplex.core`, `skcomplex.engine`, `skcomplex.analysis`, and
   `skcomplex.experiments`
-- **THEN** the list is empty
+- **THEN** every one of them is a frozen `BaseSpec`
 
 ### Requirement: Acting objects are classes, not dataclasses
 An object that keeps state between calls or acts SHALL be a class under the base of its package, deriving from
