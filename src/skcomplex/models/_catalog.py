@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ..core.system import System
 from ..engine.runtime import Simulation
+from ..errors import ArgumentError, ValidationError
 from ..specs import ObservableSpec
 from ._model_catalog import ModelCatalog
 from ._model_entry import Factory, ModelEntry
@@ -209,11 +210,29 @@ def run(name: str, *, settings: Mapping[str, object] | None = None, **parameters
     Raises:
         RegistryError:
             No model has the name.
+
+        ValidationError:
+            The setting `until` is not a number, or `initial_state` is not a mapping.
+
+        ArgumentError:
+            A setting is neither `until` nor an argument of `Simulation`.
     """
     entry = MODELS.entry(name)
     chosen: dict[str, object] = {'random_state': 0, **entry.defaults, **(settings or {})}
-    until = float(chosen.pop('until', 10.0))  # type: ignore[arg-type]
+    until = chosen.pop('until', 10.0)
+    if not isinstance(until, int | float):
+        error_msg = f'The run setting `until` of {name} is {until!r}. Give it as a number.'
+        raise ValidationError(error_msg)
+    initial_state = chosen.pop('initial_state', None) or {}
+    if not isinstance(initial_state, Mapping):
+        error_msg = f'The run setting `initial_state` of {name} is {initial_state!r}. Give it as a mapping.'
+        raise ValidationError(error_msg)
     system = entry.factory(**parameters)
-    initial = {**entry.initial_state_of(**parameters), **dict(chosen.pop('initial_state', None) or {})}  # type: ignore[call-overload]
-    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen).check()  # type: ignore[arg-type]
-    return simulation.run(until=until)
+    initial = {**entry.initial_state_of(**parameters), **initial_state}
+    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial)
+    for setting, value in chosen.items():
+        if setting not in vars(simulation):
+            error_msg = f'No run setting named {setting!r}. Give `until` or an argument of `Simulation`.'
+            raise ArgumentError(error_msg)
+        setattr(simulation, setting, value)
+    return simulation.check().run(until=float(until))

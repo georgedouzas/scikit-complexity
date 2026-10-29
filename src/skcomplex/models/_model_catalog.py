@@ -159,15 +159,24 @@ class ModelCatalog:
         if not isinstance(field, str):
             error_msg = f'The model {node.name} of {module} registers no field path. Give `field` as a string.'
             raise RegistryError(error_msg)
-        tags, references = values['tags'] or (), values['references'] or ()
         return ModelListing(
             name=str(values['name'] or node.name),
             field=field,
             description=str(values['description'] or self._summarize(ast.get_docstring(node) or '')),
-            tags=tuple(tags),  # type: ignore[call-overload]
-            references=tuple(references),  # type: ignore[call-overload]
+            tags=self._strings(values['tags'], 'tags', module),
+            references=self._strings(values['references'], 'references', module),
             module=module,
         )
+
+    @staticmethod
+    def _strings(value: object, keyword: str, module: str) -> tuple[str, ...]:
+        """Return the strings of a registered tuple or list, empty when the registration does not give it."""
+        if value is None:
+            return ()
+        if not isinstance(value, tuple | list):
+            error_msg = f'A model of {module} registers the argument {keyword!r} as {value!r}. Give a tuple of strings.'
+            raise RegistryError(error_msg)
+        return tuple(str(item) for item in value)
 
     def _literal(self, call: ast.Call, keyword: str, module: str, constants: dict[str, object]) -> object:
         """Return the static value of a keyword argument of a registration, or `None` when it is not given."""
@@ -215,7 +224,11 @@ class ModelCatalog:
             items: list[object] = []
             for element in node.elts:
                 if isinstance(element, ast.Starred):
-                    items.extend(self._evaluate(element.value, constants))  # type: ignore[call-overload]
+                    unpacked = self._evaluate(element.value, constants)
+                    if not isinstance(unpacked, tuple | list):
+                        error_msg = f'The unpacked value {unpacked!r} is not a tuple or a list.'
+                        raise ValueError(error_msg)
+                    items.extend(unpacked)
                 else:
                     items.append(self._evaluate(element, constants))
             return tuple(items) if isinstance(node, ast.Tuple) else items

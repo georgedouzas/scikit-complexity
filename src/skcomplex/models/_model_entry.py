@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from ..core.system import System
-from ..engine.compile import compile_system
+from ..engine.compile import BaseCompiler, compile_system
 from ..errors import ValidationError
 from ..specs import ObservableSpec
 
@@ -143,5 +143,9 @@ class ModelEntry:
     def formalism(self) -> str:
         """Mathematical form of the model with its default parameters, inferred by compiling it once."""
         if self.name not in _FORMALISMS:
-            _FORMALISMS[self.name] = str(compile_system(self.factory(), compiler=self.defaults.get('compiler')).form)
+            compiler = self.defaults.get('compiler')
+            if compiler is not None and not isinstance(compiler, BaseCompiler):
+                error_msg = f'The default compiler of {self.name} is {compiler!r}, which is not a compiler.'
+                raise ValidationError(error_msg)
+            _FORMALISMS[self.name] = str(compile_system(self.factory(), compiler=compiler).form)
         return _FORMALISMS[self.name]
