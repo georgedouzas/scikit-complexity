@@ -1,10 +1,6 @@
-"""Test that printed NumPy, Numba, and Lepton code evaluates every operator as Sage does."""
+"""Test the NumPy, Numba, and Lepton code that the expression printer writes for every operator."""
 
-import math
-
-import numpy as np
 import pytest
-import scipy.special
 from sage.all__sagemath_symbolics import (
     abs_symbolic,
     arccos,
@@ -32,106 +28,95 @@ from skcomplex.engine._utils import symbol
 from skcomplex.engine.problems import ExpressionPrinter
 
 X, Y = symbol('x'), symbol('y')
-VALUES = {X: 0.3, Y: 1.7}
 OPERATORS = {
-    'sum': X + Y,
-    'difference': X - 2 * Y,
-    'product': 3 * X * Y,
-    'division': X / Y,
-    'rational': 2 * X / 3,
-    'negative power': X**-3,
-    'square root': sqrt(X + Y),
-    'inverse square root': 1 / sqrt(Y),
-    'real power': Y**1.5,
-    'symbolic power': Y**X,
-    'negation': -((X + Y) ** 2),
-    'constant': pi * X,
-    'exp': exp(-X / 3),
-    'log': log(Y),
-    'sin': sin(X),
-    'cos': cos(X),
-    'tan': tan(X),
-    'arcsin': arcsin(X),
-    'arccos': arccos(X),
-    'arctan': arctan(X),
-    'sinh': sinh(X),
-    'cosh': cosh(X),
-    'tanh': tanh(X),
-    'erf': erf(X),
-    'abs': abs_symbolic(X - Y),
-    'floor': floor(Y),
-    'ceil': ceil(Y),
-    'min': min_symbolic(X, Y),
-    'max': max_symbolic(X, Y),
-    'less': where(X < Y, 1, 0),
-    'less or equal': where(X <= Y, 1, 0),
-    'greater': where(X > Y, 1, 0),
-    'greater or equal': where(X >= Y, 1, 0),
-    'either': where(either(X > Y, Y > 1), 1, 0),
-    'both': where(both(X > Y, Y > 1), 1, 0),
-    'mod': mod(Y, X),
+    'sum': (X + Y, 'x + y', 'x + y', 'x + y'),
+    'difference': (X - 2 * Y, 'x - 2*y', 'x - 2*y', 'x - 2*y'),
+    'product': (3 * X * Y, '3*x*y', '3*x*y', '3*x*y'),
+    'division': (X / Y, 'x/y', 'x/y', 'x/y'),
+    'rational': (2 * X / 3, '2*x/3', '2*x/3', '2*x/3'),
+    'negative power': (X**-3, '1/x**3', '1/x**3', '1/x^3'),
+    'square root': (sqrt(X + Y), 'np.sqrt(x + y)', 'math.sqrt(x + y)', 'sqrt(x + y)'),
+    'inverse square root': (1 / sqrt(Y), '1/np.sqrt(y)', '1/math.sqrt(y)', '1/sqrt(y)'),
+    'real power': (Y**1.5, 'y**1.5', 'y**1.5', 'y^1.5'),
+    'symbolic power': (Y**X, 'y**x', 'y**x', 'y^x'),
+    'negation': (-((X + Y) ** 2), '-(x + y)**2', '-(x + y)**2', '-(x + y)^2'),
+    'constant': (pi * X, '3.141592653589793*x', '3.141592653589793*x', '3.141592653589793*x'),
+    'exp': (exp(-X / 3), 'np.exp(-x/3)', 'math.exp(-x/3)', 'exp(-x/3)'),
+    'log': (log(Y), 'np.log(y)', 'math.log(y)', 'log(y)'),
+    'sin': (sin(X), 'np.sin(x)', 'math.sin(x)', 'sin(x)'),
+    'cos': (cos(X), 'np.cos(x)', 'math.cos(x)', 'cos(x)'),
+    'tan': (tan(X), 'np.tan(x)', 'math.tan(x)', 'tan(x)'),
+    'arcsin': (arcsin(X), 'np.arcsin(x)', 'math.asin(x)', 'asin(x)'),
+    'arccos': (arccos(X), 'np.arccos(x)', 'math.acos(x)', 'acos(x)'),
+    'arctan': (arctan(X), 'np.arctan(x)', 'math.atan(x)', 'atan(x)'),
+    'sinh': (sinh(X), 'np.sinh(x)', 'math.sinh(x)', 'sinh(x)'),
+    'cosh': (cosh(X), 'np.cosh(x)', 'math.cosh(x)', 'cosh(x)'),
+    'tanh': (tanh(X), 'np.tanh(x)', 'math.tanh(x)', 'tanh(x)'),
+    'erf': (erf(X), 'erf(x)', 'math.erf(x)', 'erf(x)'),
+    'abs': (abs_symbolic(X - Y), 'np.abs(x - y)', 'abs(x - y)', 'abs(x - y)'),
+    'floor': (floor(Y), 'np.floor(y)', 'math.floor(y)', 'floor(y)'),
+    'ceil': (ceil(Y), 'np.ceil(y)', 'math.ceil(y)', 'ceil(y)'),
+    'min': (min_symbolic(X, Y), 'np.minimum(x, y)', 'min(x, y)', 'min(x, y)'),
+    'max': (max_symbolic(X, Y), 'np.maximum(x, y)', 'max(x, y)', 'max(x, y)'),
+    'less': (
+        where(X < Y, 1, 0),
+        'np.where((x < y), 1, 0)',
+        '(1 if (x < y) else 0)',
+        'select((1 - step(x - y)), 1, 0)',
+    ),
+    'less or equal': (
+        where(X <= Y, 1, 0),
+        'np.where((x <= y), 1, 0)',
+        '(1 if (x <= y) else 0)',
+        'select(step(y - x), 1, 0)',
+    ),
+    'greater': (
+        where(X > Y, 1, 0),
+        'np.where((x > y), 1, 0)',
+        '(1 if (x > y) else 0)',
+        'select((1 - step(y - x)), 1, 0)',
+    ),
+    'greater or equal': (
+        where(X >= Y, 1, 0),
+        'np.where((x >= y), 1, 0)',
+        '(1 if (x >= y) else 0)',
+        'select(step(x - y), 1, 0)',
+    ),
+    'either': (
+        where(either(X > Y, Y > 1), 1, 0),
+        'np.where(np.logical_or((x > y), (y > 1)), 1, 0)',
+        '(1 if ((x > y) or (y > 1)) else 0)',
+        'select(max((1 - step(y - x)), (1 - step(1 - y))), 1, 0)',
+    ),
+    'both': (
+        where(both(X > Y, Y > 1), 1, 0),
+        'np.where(np.logical_and((x > y), (y > 1)), 1, 0)',
+        '(1 if ((x > y) and (y > 1)) else 0)',
+        'select(((1 - step(y - x))*(1 - step(1 - y))), 1, 0)',
+    ),
+    'mod': (mod(Y, X), 'np.mod(y, x)', '(y % x)', '(y - x*floor(y/x))'),
 }
-LEPTON_NAMESPACE = {
-    'step': lambda value: float(value >= 0),
-    'delta': lambda value: float(value == 0),
-    'select': lambda condition, then, otherwise: then if condition != 0 else otherwise,
-    'asin': math.asin,
-    'acos': math.acos,
-    'atan': math.atan,
-    'abs': abs,
-    'min': min,
-    'max': max,
-    **{
-        name: getattr(math, name)
-        for name in ('exp', 'log', 'sqrt', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'erf', 'floor', 'ceil')
-    },
-}
-
-
-def _evaluate(code, namespace):
-    """Return the value of printed code in a namespace."""
-    return eval(code, namespace)  # noqa: S307  # nosec B307: evaluates printed code of the test operators
-
-
-def _evaluate_all(assignments, code, namespace):
-    """Return the value of printed code after running the assignments of its bound subexpressions."""
-    for bound, value in assignments:
-        namespace[bound] = _evaluate(value, namespace)
-    return float(_evaluate(code, namespace))
-
-
-def _expected(expression):
-    """Return the value Sage gives an expression at the test values."""
-    return float(expression.subs(VALUES))
-
-
-def _variables():
-    """Return the test values by symbol name."""
-    return {str(item): value for item, value in VALUES.items()}
 
 
 @pytest.mark.parametrize('name', sorted(OPERATORS))
-def test_numpy_code_evaluates_operator(name):
-    """Test that NumPy code of an operator gives the Sage value."""
-    assignments, (code,) = ExpressionPrinter().check().prepare().run([OPERATORS[name]])
-    namespace = {'np': np, 'erf': scipy.special.erf, **_variables()}
-    assert _evaluate_all(assignments, code, namespace) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
+def test_numpy_code_of_operator(name):
+    """Test the NumPy code of an operator."""
+    expression, code, _, _ = OPERATORS[name]
+    assert ExpressionPrinter().check().prepare().run([expression]) == ([], [code])
 
 
 @pytest.mark.parametrize('name', sorted(OPERATORS))
-def test_numba_code_evaluates_operator(name):
-    """Test that scalar code of an operator, as the Numba backend compiles it, gives the Sage value."""
-    assignments, (code,) = ExpressionPrinter('scalar').check().prepare().run([OPERATORS[name]])
-    namespace = {'np': np, 'math': math, **_variables()}
-    assert _evaluate_all(assignments, code, namespace) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
+def test_numba_code_of_operator(name):
+    """Test the scalar code of an operator, as the Numba backend compiles it."""
+    expression, _, code, _ = OPERATORS[name]
+    assert ExpressionPrinter('scalar').check().prepare().run([expression]) == ([], [code])
 
 
 @pytest.mark.parametrize('name', sorted(OPERATORS))
-def test_lepton_code_evaluates_operator(name):
-    """Test that Lepton code of an operator, read with Lepton's functions, gives the Sage value."""
-    code = ExpressionPrinter('lepton', shared=False).check().prepare().run([OPERATORS[name]])[1][0].replace('^', '**')
-    value = _evaluate(code, {**LEPTON_NAMESPACE, **_variables()})
-    assert float(value) == pytest.approx(_expected(OPERATORS[name]), rel=1e-12)
+def test_lepton_code_of_operator(name):
+    """Test the Lepton code of an operator, written with Lepton's functions."""
+    expression, _, _, code = OPERATORS[name]
+    assert ExpressionPrinter('lepton', shared=False).check().prepare().run([expression]) == ([], [code])
 
 
 def test_repeated_subexpressions_are_computed_once():

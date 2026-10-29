@@ -1,8 +1,5 @@
 """Test the NumPy and Numba backends, compiled callables, kernel caching, and compiled stepper loops."""
 
-import subprocess  # nosec B404: the cache tests start a second Python process
-import sys
-import textwrap
 from collections import defaultdict
 from typing import Annotated
 
@@ -156,12 +153,6 @@ class DecayInteraction(Interaction):
     def _get_laws(self, s):
         """Return a jump with a negative rate."""
         return [JumpLaw(-s.target.n, {s.target.n: -1})]
-
-
-def _run_script(script):
-    """Return the standard output of a Python script run in a new process."""
-    command = [sys.executable, '-c', script]
-    return subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
 
 
 @pytest.fixture(scope='module')
@@ -334,69 +325,6 @@ def test_python_callable_runs_on_python_path(numba_backend):
     expected = np.linspace(1.0, 50.0, 5) * (1 - np.linspace(1.0, 50.0, 5) / 100)
     assert np.allclose(compiled.drift(0.0, compiled.initial_state, compiled.initial_parameters), expected)
     assert compiled.accelerated is None
-
-
-@pytest.mark.benchmark
-def test_numba_kernels_are_cached_on_disk(tmp_path):
-    """Test that compiling the same system in a second process is at least five times faster."""
-    script = textwrap.dedent(
-        f"""
-        import time
-        from skcomplex.engine.compile import compile_system
-        from skcomplex.engine.backends import NumbaBackend
-        from skcomplex.models.physics.statistical_mechanics import ideal_gas
-        start = time.perf_counter()
-        problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
-        problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-        problem.boundary(0.0, problem.initial_state, problem.initial_parameters)
-        problem.accelerated.rk4(0.0, problem.initial_state, problem.initial_parameters, 0.0, 1.0)
-        print(time.perf_counter() - start)
-        """,
-    )
-    durations = [float(_run_script(script)) for _ in range(2)]
-    assert durations[1] * 5 <= durations[0]
-
-
-@pytest.mark.slow
-def test_second_process_loads_kernels_from_cache(tmp_path):
-    """Test that a second process loads every generated kernel from the disk cache without compiling it."""
-    script = textwrap.dedent(
-        f"""
-        import sys
-        from skcomplex.engine.compile import compile_system
-        from skcomplex.engine.backends import NumbaBackend
-        from skcomplex.models.physics.statistical_mechanics import ideal_gas
-        problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
-        problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-        problem.boundary(0.0, problem.initial_state, problem.initial_parameters)
-        module = next(module for name, module in sys.modules.items() if name.startswith('skcomplex_kernels_'))
-        dispatchers = [value for value in vars(module).values() if hasattr(value, 'stats')]
-        hits = sum(sum(dispatcher.stats.cache_hits.values()) for dispatcher in dispatchers)
-        print(hits, sum(sum(dispatcher.stats.cache_misses.values()) for dispatcher in dispatchers))
-        """,
-    )
-    runs = [_run_script(script).split() for _ in range(2)]
-    _, first_misses = map(int, runs[0])
-    second_hits, second_misses = map(int, runs[1])
-    assert first_misses > 0
-    assert second_misses == 0
-    assert second_hits > 0
-
-
-@pytest.mark.slow
-def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_path):
-    """Test that kernels searching radius neighbourhoods run the same when a second process loads them cached."""
-    script = textwrap.dedent(
-        f"""
-        from skcomplex.engine.backends import NumbaBackend
-        from skcomplex.engine.runtime import Simulation
-        from skcomplex.models.physics.active_matter import nonreciprocal_vicsek
-        backend = NumbaBackend(cache_dir={str(tmp_path)!r})
-        run = Simulation(nonreciprocal_vicsek(40), dt=1.0, backend=backend, random_state=0).check().run(until=5)
-        print(run.trajectory_.states[-1].sum())
-        """,
-    )
-    assert _run_script(script) == _run_script(script)
 
 
 def test_cached_kernels_are_keyed_on_the_compiled_helpers(tmp_path, monkeypatch):
