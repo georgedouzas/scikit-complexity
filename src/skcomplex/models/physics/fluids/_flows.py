@@ -6,11 +6,11 @@
 import math
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
@@ -93,7 +93,7 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     )
 
 
-def _velocity(omega: Any) -> tuple[Any, Any]:  # noqa: ANN401
+def _velocity(omega: Expression) -> tuple[Expression, Expression]:
     """Return the velocity of a vorticity, from its streamfunction `psi` with `laplacian(psi) = -omega`."""
     slopes = gradient(inverse_laplacian(-omega), 2)
     return slopes[1], -slopes[0]
@@ -108,6 +108,9 @@ class VorticityElement(Element):
     Args:
         label:
             The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         omega:
             The initial vorticity.
@@ -163,6 +166,9 @@ class BoussinesqElement(Element):
     Args:
         label:
             The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         omega:
             The initial vorticity.
@@ -325,7 +331,7 @@ def incompressible_flow(
     """
     shape = tuple(int(item) for item in shape)
     space = LatticeSpace(shape, spacing=tuple(length / count for length, count in zip(size, shape, strict=True)))
-    values: dict[str, Any] = {}
+    values: dict[str, object] = {}
     if vorticity is not None:
         values['omega'] = np.asarray(vorticity, dtype=float)
     if buoyancy is None:

@@ -50,6 +50,7 @@ from ._spins import IsingSpinElement, PottsSpinElement, XYSpinElement, ising, po
 from ._susceptibility import SusceptibilityAnalysis
 from ._traps import TrapWalkerElement, trap_model
 from ._urns import EhrenfestUrnElement, ehrenfest_urn
+from ._walker_view import WalkerView
 
 __all__: list[str] = [
     'BondSpinElement',
@@ -76,6 +77,7 @@ __all__: list[str] = [
     'TrapWalkerElement',
     'TreeNodeElement',
     'WalkerElement',
+    'WalkerView',
     'XXZExchangeInteraction',
     'XYSpinElement',
     'ZeemanFieldInteraction',

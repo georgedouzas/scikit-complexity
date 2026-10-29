@@ -13,6 +13,7 @@ from ._collective import (
     toner_tu,
 )
 from ._collisions import BinaryCollisionsInteraction, FlockerElement, binary_collision_flocking
+from ._flocker_view import FlockerView
 from ._flocks import (
     CohesiveParticleElement,
     NematicParticleElement,
@@ -34,6 +35,7 @@ from ._particles import (
     depot_brownian_particles,
     run_and_tumble,
 )
+from ._tumbler_view import TumblerView
 
 __all__: list[str] = [
     'ActiveParticleElement',
@@ -44,6 +46,7 @@ __all__: list[str] = [
     'CuckerSmaleAlignmentInteraction',
     'DepotParticleElement',
     'FlockerElement',
+    'FlockerView',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
     'OrnsteinUhlenbeckParticleElement',
@@ -52,6 +55,7 @@ __all__: list[str] = [
     'PolarFluidElement',
     'SoftRepulsionInteraction',
     'TumblerElement',
+    'TumblerView',
     'VicsekParticleElement',
     'active_brownian_particles',
     'active_model_b',

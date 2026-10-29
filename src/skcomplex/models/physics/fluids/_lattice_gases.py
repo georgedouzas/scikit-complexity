@@ -29,6 +29,7 @@ VELOCITIES = np.column_stack(
 )
 HEAD_ON = (0b001001, 0b010010, 0b100100)
 TRIPLES = (0b010101, 0b101010)
+TURN_PROBABILITY = 0.5
 DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 
 
@@ -55,7 +56,7 @@ COLLISIONS = _collisions()
 def _collide(*channels: Array, random: Array) -> tuple[Array, ...]:
     """Return the channels after the head-on and symmetric three-particle collisions of FHP-I at every site."""
     codes = sum(np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels))
-    following = COLLISIONS[codes, (random < 0.5).astype(np.intp)]  # noqa: PLR2004
+    following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
     return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
 
 
@@ -80,6 +81,9 @@ class FHPSiteElement(Element):
     Args:
         label:
             The label of the site or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         n0:
             The initial occupation of the channel at 0 degrees.

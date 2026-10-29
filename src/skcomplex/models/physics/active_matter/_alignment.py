@@ -47,23 +47,23 @@ class PolarAlignmentInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The interaction range `d0`.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        gamma:
+            The strength of the alignment.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group or particle of the first members.
-
-            second:
-                The path of the group or particle of the second members.
-
-            cutoff:
-                The interaction range `d0`.
-
-            gamma:
-                The strength of the alignment.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import PolarAlignmentInteraction

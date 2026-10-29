@@ -31,6 +31,9 @@ class TrapWalkerElement(Element):
         label:
             The label of the walker or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The place of the trap.
 

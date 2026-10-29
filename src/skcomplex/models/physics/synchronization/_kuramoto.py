@@ -181,26 +181,26 @@ class PhaseCouplingInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group of the first members.
+
+        second:
+            The path of the group of the second members.
+
+        cutoff:
+            The distance beyond which pairs do not interact.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        K:
+            The coupling strength of one pair.
+
+        alpha:
+            The phase lag.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group of the first members.
-
-            second:
-                The path of the group of the second members.
-
-            cutoff:
-                The distance beyond which pairs do not interact.
-
-            K:
-                The coupling strength of one pair.
-
-            alpha:
-                The phase lag.
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import PhaseCouplingInteraction

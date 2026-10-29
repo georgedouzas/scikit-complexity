@@ -46,6 +46,30 @@ class LearnerElement(Element):
         label:
             The label of the agent or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        incentive:
+            The initial incentive `Q`.
+
+        spin:
+            The initial action, -1 or 1.
+
+        temperature:
+            The initial temperature `T` of the softmax policy.
+
+        fitness:
+            The initial fitness `s Q`.
+
+        reward:
+            The initial reward `s h`.
+
+        memory:
+            The weight `alpha` of the latest field in the incentive, so small values keep a long memory.
+
+        max_temperature:
+            The largest temperature of a newcomer.
+
         couplings:
             The coupling matrix `J`, one row and one column per agent.
 
@@ -55,30 +79,6 @@ class LearnerElement(Element):
         settling:
             The number of steps of learning alone after every replacement, so replacements happen when `t` is a
             multiple of `settling + 1`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            incentive:
-                The initial incentive `Q`.
-
-            spin:
-                The initial action, -1 or 1.
-
-            temperature:
-                The initial temperature `T` of the softmax policy.
-
-            fitness:
-                The initial fitness `s Q`.
-
-            reward:
-                The initial reward `s h`.
-
-            memory:
-                The weight `alpha` of the latest field in the incentive, so small values keep a long memory.
-
-            max_temperature:
-                The largest temperature of a newcomer.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import LearnerElement

@@ -94,23 +94,23 @@ class WallParticleElement(Element):
         label:
             The label of the particle.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        z:
+            The distance from the wall.
+
+        D0:
+            The diffusion coefficient far from the wall.
+
+        a:
+            The distance over which the wall slows diffusion.
+
+        drift:
+            The settling velocity far from the wall.
+
         convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            z:
-                The distance from the wall.
-
-            D0:
-                The diffusion coefficient far from the wall.
-
-            a:
-                The distance over which the wall slows diffusion.
-
-            drift:
-                The settling velocity far from the wall.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import WallParticleElement

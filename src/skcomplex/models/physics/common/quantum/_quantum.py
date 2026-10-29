@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 from typing import Annotated
 
 import numpy as np
@@ -16,6 +15,9 @@ from .....core.elements import Element
 from .....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from .....errors import ValidationError
 from .....specs import HilbertSpec, StateSpec, VisualSpec
+
+MIN_SPIN_DIMENSION = 2
+"""Dimension of the smallest spin, a spin one half."""
 
 
 def spin_space(j: float = 0.5) -> HilbertSpec:
@@ -41,7 +43,7 @@ def spin_space(j: float = 0.5) -> HilbertSpec:
         3
     """
     size = 2 * j + 1
-    if not float(size).is_integer() or size < 2:  # noqa: PLR2004
+    if not float(size).is_integer() or size < MIN_SPIN_DIMENSION:
         error_msg = f'A spin has j = {j!r}, which is not a positive multiple of one half.'
         raise ValidationError(error_msg)
     operators = {
@@ -115,9 +117,10 @@ def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
             line = np.fft.ifft(-(waves[:, None] ** 2) * np.fft.fft(np.eye(length), axis=0), axis=0).real
         else:
             line = (np.eye(length, k=-1) - 2 * np.eye(length) + np.eye(length, k=1)) / spacing**2
-        factors = [np.eye(item) for item in lattice.shape_]
-        factors[axis] = line
-        laplacian += functools.reduce(np.kron, factors)
+        term: npt.NDArray[np.floating] = np.ones((1, 1))
+        for index, item in enumerate(lattice.shape_):
+            term = np.kron(term, line if index == axis else np.eye(item))
+        laplacian += term
     return laplacian
 
 

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
@@ -87,7 +88,7 @@ class DrivenAnchorInteraction(PotentialInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        center: Annotated[list[float], ParameterSpec(vector=True)] = 0.0,
+        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
         amplitude: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:

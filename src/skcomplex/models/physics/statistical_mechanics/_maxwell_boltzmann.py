@@ -13,7 +13,6 @@ from scipy import stats
 from ....analysis import FitAnalysis
 from ....engine.runtime import Trajectory
 from ....errors import AnalysisError
-from ....types import Array
 from ._kinetic_temperature import KineticTemperatureAnalysis
 
 
@@ -84,8 +83,9 @@ class MaxwellBoltzmannAnalysis(FitAnalysis):
         return self
 
     @staticmethod
-    def _maxwell_boltzmann(velocities: Array, mass: float, temperature: float | None) -> tuple[float, float, float]:
+    def _maxwell_boltzmann(frame: npt.ArrayLike, mass: float, temperature: float | None) -> tuple[float, float, float]:
         """Return the temperature and the Kolmogorov-Smirnov test of the speeds of one frame against the chi law."""
+        velocities = np.asarray(frame, dtype=float)
         chosen = (
             float(KineticTemperatureAnalysis._kinetic_temperature(velocities, mass))
             if temperature is None

@@ -57,38 +57,38 @@ class NonreciprocalMoverElement(Element):
         label:
             The label of the mover.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The position.
+
+        theta:
+            The heading.
+
+        species:
+            The species, 0 for A or 1 for B.
+
+        v0:
+            The speed.
+
+        eta:
+            The width of the uniform noise of the heading.
+
+        J_aa:
+            The alignment of A with A.
+
+        J_ab:
+            The alignment of A with B.
+
+        J_ba:
+            The alignment of B with A.
+
+        J_bb:
+            The alignment of B with B.
+
         radius:
             The radius of the neighbourhood.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The position.
-
-            theta:
-                The heading.
-
-            species:
-                The species, 0 for A or 1 for B.
-
-            v0:
-                The speed.
-
-            eta:
-                The width of the uniform noise of the heading.
-
-            J_aa:
-                The alignment of A with A.
-
-            J_ab:
-                The alignment of A with B.
-
-            J_ba:
-                The alignment of B with A.
-
-            J_bb:
-                The alignment of B with B.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import NonreciprocalMoverElement

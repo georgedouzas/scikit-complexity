@@ -47,23 +47,23 @@ class FullyConnectedSpinElement(Element):
         label:
             The label of the spin or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        spin:
+            The initial spin, 1 or -1.
+
+        J:
+            The scale of the couplings.
+
+        h:
+            The external field.
+
+        temperature:
+            The temperature.
+
         couplings:
             The coupling matrix `C`, one row and one column per spin, or `None` for the uniform couplings `1 / N`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            spin:
-                The initial spin, 1 or -1.
-
-            J:
-                The scale of the couplings.
-
-            h:
-                The external field.
-
-            temperature:
-                The temperature.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpinElement

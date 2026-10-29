@@ -29,6 +29,9 @@ class SwarmalatorElement(Element):
         label:
             The label of the swarmalator or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -82,35 +85,35 @@ class SwarmalatorCouplingInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group of the first members.
+
+        second:
+            The path of the group of the second members.
+
+        cutoff:
+            The distance beyond which pairs do not interact, large for the all-to-all model.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        A:
+            The strength of the attraction.
+
+        B:
+            The strength of the repulsion.
+
+        J:
+            The influence of the phase similarity on the attraction.
+
+        K:
+            The phase coupling, synchronizing when positive.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
         n_units:
             The number of swarmalators `N` that normalizes the coupling.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group of the first members.
-
-            second:
-                The path of the group of the second members.
-
-            cutoff:
-                The distance beyond which pairs do not interact, large for the all-to-all model.
-
-            A:
-                The strength of the attraction.
-
-            B:
-                The strength of the repulsion.
-
-            J:
-                The influence of the phase similarity on the attraction.
-
-            K:
-                The phase coupling, synchronizing when positive.
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import SwarmalatorCouplingInteraction

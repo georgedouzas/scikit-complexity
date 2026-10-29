@@ -29,23 +29,23 @@ class IsingSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        spin:
+            The initial spin, 1 or -1.
+
+        J:
+            The coupling between neighbouring spins.
+
+        h:
+            The external field.
+
+        temperature:
+            The temperature in units of the coupling.
+
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            spin:
-                The initial spin, 1 or -1.
-
-            J:
-                The coupling between neighbouring spins.
-
-            h:
-                The external field.
-
-            temperature:
-                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import IsingSpinElement
@@ -94,23 +94,23 @@ class PottsSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        color:
+            The initial state from 0 to `q - 1`.
+
+        J:
+            The coupling between neighbouring spins.
+
+        temperature:
+            The temperature in units of the coupling.
+
         q:
             The number of states.
 
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            color:
-                The initial state from 0 to `q - 1`.
-
-            J:
-                The coupling between neighbouring spins.
-
-            temperature:
-                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import PottsSpinElement
@@ -164,20 +164,20 @@ class XYSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial angle.
+
+        J:
+            The coupling between neighbouring spins.
+
+        temperature:
+            The temperature in units of the coupling.
+
         width:
             The largest change of a proposed rotation.
-
-        **values:
-            The values of the declared variables, by name:
-
-            theta:
-                The initial angle.
-
-            J:
-                The coupling between neighbouring spins.
-
-            temperature:
-                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import XYSpinElement

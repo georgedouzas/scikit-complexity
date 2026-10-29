@@ -7,7 +7,7 @@ import itertools
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos, oo
@@ -24,24 +24,30 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.particles import GravityInteraction
 
-FIGURE_EIGHT = {
-    'G': 1.0,
-    'masses': [1.0, 1.0, 1.0],
-    'positions': [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
-    'velocities': [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
-}
-INNER_SOLAR_SYSTEM = {
-    'G': 4 * math.pi**2,
-    'masses': [1.0, 1.66e-7, 2.45e-6, 3.0e-6, 3.23e-7],
-    'positions': [[0.0, 0.0], [0.387, 0.0], [0.723, 0.0], [1.0, 0.0], [1.524, 0.0]],
-    'velocities': [
+type Preset = tuple[float, list[float], list[list[float]], list[list[float]]]
+
+FIGURE_EIGHT: Preset = (
+    1.0,
+    [1.0, 1.0, 1.0],
+    [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
+    [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
+)
+"""Gravitational constant, masses, positions, and velocities of the figure-eight orbit."""
+
+INNER_SOLAR_SYSTEM: Preset = (
+    4 * math.pi**2,
+    [1.0, 1.66e-7, 2.45e-6, 3.0e-6, 3.23e-7],
+    [[0.0, 0.0], [0.387, 0.0], [0.723, 0.0], [1.0, 0.0], [1.524, 0.0]],
+    [
         [0.0, 0.0],
         [0.0, 2 * math.pi / math.sqrt(0.387)],
         [0.0, 2 * math.pi / math.sqrt(0.723)],
         [0.0, 2 * math.pi],
         [0.0, 2 * math.pi / math.sqrt(1.524)],
     ],
-}
+)
+"""Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
+
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
 
@@ -93,7 +99,7 @@ class RotatingFrameBodyElement(Element):
         ]
 
 
-def _preset(name: str) -> dict[str, Any]:
+def _preset(name: str) -> Preset:
     """Return the masses, positions, velocities, and gravitational constant of a named configuration."""
     if name not in PRESETS:
         error_msg = f'Unknown preset {name!r}. Use one of {", ".join(sorted(PRESETS))}.'
@@ -199,11 +205,11 @@ def n_body(
         >>> len(n_body('inner_solar_system').interactions)
         10
     """
-    configuration = _preset(preset)
-    masses = configuration['masses'] if masses is None else masses
-    positions = configuration['positions'] if positions is None else positions
-    velocities = configuration['velocities'] if velocities is None else velocities
-    G = configuration['G'] if G is None else G
+    preset_G, preset_masses, preset_positions, preset_velocities = _preset(preset)
+    masses = preset_masses if masses is None else masses
+    positions = preset_positions if positions is None else positions
+    velocities = preset_velocities if velocities is None else velocities
+    G = preset_G if G is None else G
     bodies = [
         ParticleElement(f'body_{index}', x=list(position), v=list(velocity), m=mass)
         for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))

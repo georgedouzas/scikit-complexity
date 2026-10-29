@@ -90,23 +90,20 @@ class FlashingSawtoothInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the particle or the group.
+
+        barrier:
+            The height of the sawtooth.
+
+        L:
+            The period of the sawtooth.
+
+        asymmetry:
+            The fraction of the period over which the potential rises, 0.5 for a symmetric potential.
+
         switches:
             The increasing times at which the potential turns off and on in turn.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the particle or the group.
-
-            barrier:
-                The height of the sawtooth.
-
-            L:
-                The period of the sawtooth.
-
-            asymmetry:
-                The fraction of the period over which the potential rises, 0.5 for a symmetric potential.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import FlashingSawtoothInteraction

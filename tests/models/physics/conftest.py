@@ -1,6 +1,6 @@
 """Share the run helpers and the series checks of the physics model tests."""
 
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -9,6 +9,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.engine.solvers import BaseSolver, ScipyODESolver
 from skcomplex.models import describe
+from skcomplex.specs import ObservableSpec
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
@@ -18,10 +19,13 @@ def _run(
     until: float,
     dt: float,
     solver: BaseSolver = ACCURATE,
-    **settings: Any,  # noqa: ANN401
+    *,
+    observables: Sequence[ObservableSpec] = (),
+    schedule: Mapping[str, Callable[[float], float]] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, dt=dt, solver=solver, **settings).check().run(until=until).trajectory_
+    simulation = Simulation(system, dt=dt, solver=solver, observables=observables, schedule=schedule)
+    return simulation.check().run(until=until).trajectory_
 
 
 def _series(trajectory: Trajectory, *names: str) -> list[npt.NDArray[np.float64]]:

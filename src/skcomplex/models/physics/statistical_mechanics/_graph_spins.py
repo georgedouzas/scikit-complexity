@@ -33,23 +33,23 @@ class GraphIsingSpinElement(Element):
         label:
             The label of the spin or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        spin:
+            The initial spin, 1 or -1.
+
+        J:
+            The coupling between neighbouring spins.
+
+        h:
+            The external field.
+
+        temperature:
+            The temperature in units of the coupling.
+
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            spin:
-                The initial spin, 1 or -1.
-
-            J:
-                The coupling between neighbouring spins.
-
-            h:
-                The external field.
-
-            temperature:
-                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpinElement

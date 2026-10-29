@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated, Any, cast
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -17,6 +16,7 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import total, uniform, where
 from ....core.system import System
+from ....errors import ValidationError
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -30,8 +30,11 @@ def _reward(actions: Array, couplings: Array) -> float:
 
 def _observables(system: System) -> list[ObservableSpec]:
     """Return the observable of the mean reward per agent of the SK game."""
-    values = cast('Mapping[str, Any]', system.elements[0].values)
-    couplings = np.asarray(values['couplings'], dtype=float)
+    agents = system.elements[0]
+    if not isinstance(agents, GroupElement) or agents.values is None:
+        error_msg = 'The SK game needs its first element to be the group of agents with their couplings.'
+        raise ValidationError(error_msg)
+    couplings = np.asarray(agents.values['couplings'], dtype=float)
     return [
         ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
     ]
@@ -47,23 +50,23 @@ class LearningAgentElement(Element):
         label:
             The label of the agent or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        sigma:
+            The initial action, -1 or 1.
+
+        Q:
+            The initial incentive.
+
+        alpha:
+            The memory parameter, the weight of the latest reward.
+
+        temperature:
+            The exploration temperature `T` of the softmax policy.
+
         couplings:
             The coupling matrix `J`, one row and one column per agent.
-
-        **values:
-            The values of the declared variables, by name:
-
-            sigma:
-                The initial action, -1 or 1.
-
-            Q:
-                The initial incentive.
-
-            alpha:
-                The memory parameter, the weight of the latest reward.
-
-            temperature:
-                The exploration temperature `T` of the softmax policy.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import LearningAgentElement

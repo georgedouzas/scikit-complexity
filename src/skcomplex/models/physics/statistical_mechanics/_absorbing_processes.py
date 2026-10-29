@@ -28,6 +28,9 @@ class ReactingParticlesElement(Element):
         label:
             The label of the particles.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of particles.
 

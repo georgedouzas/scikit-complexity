@@ -49,6 +49,9 @@ class TrapSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         occupied:
             Whether a walker is on the site.
 

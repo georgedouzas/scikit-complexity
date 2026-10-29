@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -19,23 +19,18 @@ from ....types import Array
 from ..._catalog import register_model
 
 
-def _glauber(source: Array, destination: Array, beta: Any, w: Any) -> Array:  # noqa: ANN401
+def _glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
     """Return the probability `w / (1 + exp(beta (U_destination - U_source)))` of a move between two states."""
     return w / (1 + np.exp(beta * (destination - source)))
 
 
-def _master_step(  # noqa: PLR0917
-    left: Array,
-    center: Array,
-    right: Array,
-    energy_left: Array,
-    energy: Array,
-    energy_right: Array,
-    *,
-    beta: Any,  # noqa: ANN401
-    w: Any,  # noqa: ANN401
-) -> Array:
-    """Return the probabilities after one step of the master equation with moves to the two neighbouring states."""
+def _master_step(*around: Array, beta: float | Array, w: float | Array) -> Array:
+    """Return the probabilities after one step of the master equation with moves to the two neighbouring states.
+
+    The neighbourhood columns are the probabilities and then the potentials of the left state, the state, and the right
+    state.
+    """
+    left, center, right, energy_left, energy, energy_right = around
     gain = _glauber(energy_left, energy, beta, w) * left + _glauber(energy_right, energy, beta, w) * right
     loss = (_glauber(energy, energy_left, beta, w) + _glauber(energy, energy_right, beta, w)) * center
     return center + gain - loss
@@ -51,6 +46,9 @@ class MicrostateElement(Element):
     Args:
         label:
             The label of the state or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         P:
             The initial probability.
@@ -109,6 +107,9 @@ class ZoneElement(Element):
     Args:
         label:
             The label of the zone or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial number of particles in the zone.
@@ -169,6 +170,9 @@ class OrderParameterElement(Element):
     Args:
         label:
             The label of the order parameter.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial order parameter.

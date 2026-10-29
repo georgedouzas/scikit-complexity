@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqrt
 from sage.sets.real_set import RealSet
 
@@ -360,7 +361,7 @@ class MagnetInteraction(PotentialInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        center: Annotated[list[float], ParameterSpec(vector=True)] = 0.0,
+        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:

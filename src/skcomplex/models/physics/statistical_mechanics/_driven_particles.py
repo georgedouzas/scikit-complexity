@@ -60,6 +60,9 @@ class ParticleSiteElement(Element):
         label:
             The label of the site or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of particles.
 
@@ -86,6 +89,9 @@ class TreeNodeElement(ParticleSiteElement):
     Args:
         label:
             The label of the node or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of quanta.
@@ -292,7 +298,7 @@ class ExclusionHopsInteraction(Interaction):
 
 
 class ReservoirInteraction(Interaction):
-    """Reservoir that adds one particle to each of its sites at rate `entry` and removes one at rate `exit`.
+    """Reservoir that adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
 
     A particle leaves only an occupied site. With exclusion a particle enters only an empty site.
 
@@ -300,24 +306,21 @@ class ReservoirInteraction(Interaction):
         label:
             The label of the reservoir.
 
+        sites:
+            The sites in contact with the reservoir.
+
+        inflow:
+            The rate at which a particle enters a site.
+
+        outflow:
+            The rate at which a particle leaves an occupied site.
+
         exclusion:
             Whether a site holds at most one particle.
 
-        **values:
-            The values of the declared variables, by name:
-
-            sites:
-                The sites in contact with the reservoir.
-
-            entry:
-                The rate at which a particle enters a site.
-
-            exit:
-                The rate at which a particle leaves an occupied site.
-
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ReservoirInteraction
-        >>> ReservoirInteraction('bath', sites=['lane[0]'], entry=0.5).exit
+        >>> ReservoirInteraction('bath', sites=['lane[0]'], inflow=0.5).outflow
         0.0
     """
 
@@ -326,14 +329,14 @@ class ReservoirInteraction(Interaction):
         label: str,
         *,
         sites: Annotated[list[str], RoleSpec(variadic=True)],
-        entry: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        exit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,  # noqa: A002
+        inflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        outflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         exclusion: bool = False,
     ) -> None:
         super().__init__(label)
         self.sites = sites
-        self.entry = entry
-        self.exit = exit
+        self.inflow = inflow
+        self.outflow = outflow
         self.exclusion = exclusion
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -350,7 +353,7 @@ class ReservoirInteraction(Interaction):
         laws: list[BaseLaw] = []
         for site in s.sites:
             room = 1 - site.n if self.exclusion else 1
-            laws += [JumpLaw(s.entry * room, {site.n: 1}), JumpLaw(s.exit * where(site.n > 0, 1, 0), {site.n: -1})]
+            laws += [JumpLaw(s.inflow * room, {site.n: 1}), JumpLaw(s.outflow * where(site.n > 0, 1, 0), {site.n: -1})]
         return laws
 
 
@@ -483,8 +486,8 @@ def dissipative_zero_range(
                 )
     leaves = [f'nodes[{index}]' for index in range(_level_start(n_levels, branches), n_nodes)]
     interactions += [
-        ReservoirInteraction('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
-        ReservoirInteraction('dissipation', sites=leaves, exit=dissipation),
+        ReservoirInteraction('injection', sites=['nodes[0]'], inflow=nu * np.exp(-beta_ext * epsilon0), outflow=nu),
+        ReservoirInteraction('dissipation', sites=leaves, outflow=dissipation),
     ]
     return System(elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
@@ -553,7 +556,7 @@ def asep(
     )
     interactions = [
         ExclusionHopsInteraction('hops', sites='lane', p=p, q=q),
-        ReservoirInteraction('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
-        ReservoirInteraction('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
+        ReservoirInteraction('entry', sites=['lane[0]'], inflow=alpha, exclusion=True),
+        ReservoirInteraction('exit', sites=[f'lane[{n_sites - 1}]'], outflow=gamma, exclusion=True),
     ]
     return System(elements=[lane], interactions=interactions)

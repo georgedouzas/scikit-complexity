@@ -30,6 +30,9 @@ class WaveNumberElement(Element):
         label:
             The label of the site or the field.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         k:
             The initial wave number.
 
@@ -78,6 +81,9 @@ class CarlemanGasElement(Element):
     Args:
         label:
             The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         f_plus:
             The initial density of right-moving particles.
