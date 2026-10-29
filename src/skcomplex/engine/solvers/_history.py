@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 
 from ...errors import SolverError
-from ...specs import ProblemSpec
 from ...types import Array, Interpolant
+from ..problems import ProblemSpec
 
 _RESTART = 1e-12
 

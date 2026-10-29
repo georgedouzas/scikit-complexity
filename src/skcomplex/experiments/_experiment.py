@@ -12,16 +12,17 @@ from typing import Self
 import numpy as np
 from sklearn.base import BaseEstimator, clone
 
-from ..engine.runtime import Simulation, Trajectory
+from ..core.specs import ScenarioSpec
+from ..engine.problems import BaseProblemSpec
+from ..engine.runtime import Simulation
 from ..errors import ExperimentError, ValidationError
-from ..specs import BaseProblemSpec, ObservableSpec, ScenarioSpec
+from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
-from ..specs._task_spec import _TaskSpec
 from ..types import Bounds
 from ._base import BaseDesign, BaseExperiment, Source
 from ._results import ExperimentResult
+from .specs._task_spec import Output, _TaskSpec
 
-type Output = str | Callable[[Trajectory], object]
 EXECUTORS = ('serial', 'thread', 'process')
 
 

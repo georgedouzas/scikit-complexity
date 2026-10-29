@@ -11,7 +11,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...specs import AgentSnapshotSpec
+from ..problems import BaseProblemSpec
 from ._base import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
 
 _PATH_COLOR = (86, 180, 233)

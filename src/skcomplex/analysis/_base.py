@@ -19,17 +19,10 @@ from ..base import BaseConfig
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..core.system import System
 from ..engine.compile import compile_system
+from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ValidationError
-from ..specs import (
-    BaseProblemSpec,
-    JumpPathSpec,
-    NetworkSnapshotSpec,
-    ProblemSpec,
-    SamplesSpec,
-    SeriesSpec,
-    SnapshotsSpec,
-)
+from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, SnapshotsSpec
 from ..types import Array, DataKind, DomainKind, FormKind
 
 type Source = Trajectory | System | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike

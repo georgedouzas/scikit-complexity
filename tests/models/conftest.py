@@ -6,10 +6,11 @@ from typing import Any
 import numpy as np
 
 from skcomplex.core.system import System
+from skcomplex.engine.problems import BaseProblemSpec, FrameSpec
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Simulation, Trajectory
 from skcomplex.engine.solvers import BaseSolver
 from skcomplex.models import create, describe
-from skcomplex.specs import BaseProblemSpec, FrameSpec, ObservableSpec
+from skcomplex.specs import ObservableSpec
 
 
 def _run(system: System, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:

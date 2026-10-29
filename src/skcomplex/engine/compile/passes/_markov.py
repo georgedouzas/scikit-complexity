@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....errors import ValidationError
-from ....specs import DeclarationsSpec, EntrySpec, KernelSpec, MatrixLawSpec, ReferenceSpec, RunStateSpec
+from ....specs import EntrySpec, MatrixLawSpec, RunStateSpec
 from ....types import Array, DomainKind, ReadKind
 from ..._utils import symbols_of
-from ...problems import ExpressionPrinter
+from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass
 from .._compilation import BlockLaws

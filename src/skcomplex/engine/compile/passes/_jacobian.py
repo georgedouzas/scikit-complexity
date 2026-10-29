@@ -6,8 +6,8 @@
 from typing import cast
 
 from ....core.laws import RateLaw
-from ....specs import DeclarationsSpec, LoweredKernelsSpec, ReductionScheduleSpec
 from ....types import FormKind
+from ...problems import DeclarationsSpec, LoweredKernelsSpec, ReductionScheduleSpec
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 

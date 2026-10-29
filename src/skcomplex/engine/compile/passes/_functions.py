@@ -14,25 +14,14 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import BackendWarning
-from ....specs import (
-    AcceleratedSpec,
-    DeclarationsSpec,
-    EntrySpec,
-    LayoutSpec,
-    LoweredFunctionsSpec,
-    LoweredKernelsSpec,
-    OutputSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    RunStateSpec,
-)
+from ....specs import AcceleratedSpec, EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
 from ....types import Array, FormKind, ReadKind, VectorFunction
 from ...backends import BaseBackend, NumpyBackend
+from ...problems import DeclarationsSpec, LoweredKernelsSpec, OutputSpec, ProblemSpec, ReductionScheduleSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
-from .._draw_lowering import DrawLowering
 from .._forms import STEPWISE_FORMS
 
 
@@ -41,7 +30,7 @@ class FunctionsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('kernels', 'form', 'layout', 'reductions', 'drawing')
+        return ('kernels', 'form', 'layout', 'reductions', 'draws')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -146,12 +135,11 @@ class FunctionsPass(BasePass):
         lowered = cast('LoweredKernelsSpec', compilation.kernels)
         declarations = cast('DeclarationsSpec', compilation.layout)
         reductions = cast('ReductionScheduleSpec', compilation.reductions)
-        drawing = cast('DrawLowering', compilation.drawing)
+        draws = compilation.draws
         backend = FunctionsPass._chosen_backend(
             compilation, form, declarations.members,
         )
         kernels, size = lowered.kernels, declarations.ends[True]
-        draws = drawing.draws_
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
         lowering = cast('LoweredFunctionsSpec', backend.prepare().run(complete))
         functions: dict[str, object] = vars(lowering).copy()

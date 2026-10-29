@@ -11,9 +11,9 @@ from typing import Self
 import numpy as np
 
 from ..engine.compile import compile_system
+from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import ValidationError
-from ..specs import ProblemSpec
 from ._base import BaseExperiment, Source
 from ._experiment import Experiment
 from ._random import RandomDesign

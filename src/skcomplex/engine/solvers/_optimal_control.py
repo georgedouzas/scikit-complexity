@@ -15,13 +15,13 @@ from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec, ProblemSpec
-from ...specs._control_problem_spec import _ControlProblemSpec
+from ...specs import ControlSolutionSpec
 from ...specs._control_spec import _ControlSpec
 from ...types import Array, Cost, FormKind, GridFunction
 from .._utils import symbols_of
 from ..compile import ObservableEvaluator
-from ..problems import ExpressionPrinter
+from ..problems import ExpressionPrinter, ProblemSpec
+from ..problems._control_problem_spec import _ControlProblemSpec
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9

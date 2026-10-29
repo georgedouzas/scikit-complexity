@@ -18,11 +18,13 @@ from sage.sets.real_set import RealSet
 from ....core.elements import GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from ....core.specs import NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import BlockSpec, DeclarationsSpec, EntrySpec, NodeSpec, ReferenceSpec, VariableSpec, WienerProcessSpec
-from ....specs._declarations_spec import _ACTIVE, ENDS
+from ....specs import EntrySpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
+from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS
 from .._base import BasePass
 
 _MEMBERS = '~members'

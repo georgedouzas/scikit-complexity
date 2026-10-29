@@ -4,12 +4,8 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from ._base_spec import BaseSpec
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass(frozen=True)

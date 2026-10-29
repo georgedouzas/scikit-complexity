@@ -6,7 +6,6 @@
 import functools
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -15,9 +14,6 @@ import shapely
 from ..errors import ValidationError
 from ..types import AnyArray
 from ._base_spec import BaseSpec
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass(frozen=True)

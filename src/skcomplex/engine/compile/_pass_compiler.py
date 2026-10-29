@@ -31,6 +31,7 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
+from ...core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...core.system import System
 from ...errors import (
     ParameterError,
@@ -41,25 +42,14 @@ from ...errors import (
     SpaceTooLargeError,
     ValidationError,
 )
-from ...specs import (
-    BaseProblemSpec,
-    CensusRecordSpec,
-    CensusSpec,
-    IssueSpec,
-    NeighborReductionSpec,
-    NodeSpec,
-    ObservableSpec,
-    PartitionSpec,
-    ProblemSpec,
-    TopologyRequestSpec,
-    WienerProcessSpec,
-)
+from ...specs import IssueSpec, NeighborReductionSpec, ObservableSpec, TopologyRequestSpec, WienerProcessSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import _ERROR
 from ...specs._plan_spec import _PlanSpec
 from ...types import DomainKind, FormKind, NoiseKind, VariableKind
 from .._utils import declarations_of, symbol
 from ..backends import BaseBackend
+from ..problems import BaseProblemSpec, PartitionSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass

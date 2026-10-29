@@ -10,7 +10,7 @@ from typing import cast
 from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
-from ....specs import NodeSpec
+from ....core.specs import NodeSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass

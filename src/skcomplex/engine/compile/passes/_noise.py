@@ -16,10 +16,11 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
-from ....specs import DeclarationsSpec, KernelSpec, WienerProcessSpec
-from ....specs._noise_term_spec import _NoiseTermSpec
+from ....specs import WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of
+from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._noise_term_spec import _NoiseTermSpec
 from .._base import BasePass
 from .._compilation import Laws
 

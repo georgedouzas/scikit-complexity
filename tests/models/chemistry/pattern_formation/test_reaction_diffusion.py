@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
 from skcomplex.models.physics.heat import heat_diffusion
-from skcomplex.specs import FrameSpec
 
 
 class Images:

@@ -42,8 +42,9 @@ from ...core.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from ...specs import LoweredFunctionsSpec, LoweredKernelsSpec, ReductionScheduleSpec, SupportSpec
+from ...specs import LoweredFunctionsSpec, SupportSpec
 from ...types import FormKind, NoiseKind, OrderKind
+from ..problems import LoweredKernelsSpec, ReductionScheduleSpec
 from ..problems._law_kernel import LawKernel
 from ._base import BaseBackend
 

@@ -9,8 +9,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ....core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ....engine.problems import BaseProblemSpec, FrameSpec
 from ....engine.viz import BaseVisual
-from ....specs import BaseProblemSpec, BaseStructureSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ....specs import BaseStructureSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._word_structure_spec import WordStructureSpec
 

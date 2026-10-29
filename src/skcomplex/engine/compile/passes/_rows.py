@@ -11,10 +11,10 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs import KernelSpec
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ....types import ReadKind
 from ..._utils import components_of
+from ...problems import KernelSpec
 from .._base import BasePass
 from .._compilation import BlockLaws, Laws
 from .._draw_lowering import DrawLowering

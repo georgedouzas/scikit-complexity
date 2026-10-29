@@ -9,10 +9,11 @@ from typing import Any, cast
 import numpy as np
 
 from ...errors import SolverError
-from ...specs import DrawSpec, ReferenceSpec, RenewalRecordSpec, RunStateSpec
+from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Drawn, Indices, ReadKind
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
+from ._reference_spec import ReferenceSpec
 
 type MemberFunction = tuple[Callable[..., list[Any]], tuple[ReferenceSpec | str, ...]]
 """Function of the states and parameters of renewing members and of the values drawn for them, with its readers."""

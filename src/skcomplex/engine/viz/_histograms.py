@@ -11,7 +11,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import BaseSpace
-from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...specs import AgentSnapshotSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._agents import AgentsVisual
 from ._base import _SERIES_COLORS, BaseVisual
 

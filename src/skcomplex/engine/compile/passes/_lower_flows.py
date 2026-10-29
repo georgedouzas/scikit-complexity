@@ -15,7 +15,7 @@ class LowerFlowsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'layout', 'flows')
+        return ('lowered', 'layout', 'transfer')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -24,6 +24,6 @@ class LowerFlowsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the flows and their delays."""
         compilation = self.compilation_
-        flows = cast('TransferLowering', compilation.flows)
+        flows = TransferLowering().check().prepare(compilation)
         lowered = cast('BlockLaws', compilation.lowered)
         compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

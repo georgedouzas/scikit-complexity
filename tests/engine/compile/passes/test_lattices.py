@@ -23,6 +23,7 @@ from skcomplex.core.spaces import (
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
@@ -33,7 +34,6 @@ from skcomplex.models.physics.statistical_mechanics import graph_ising
 from skcomplex.specs import (
     EnergySpec,
     ExtremalRecordSpec,
-    FrameSpec,
     MoveSpec,
     OuterTotalisticSpec,
     ParameterSpec,

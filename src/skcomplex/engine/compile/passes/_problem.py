@@ -14,25 +14,22 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
 from ....errors import ValidationError
-from ....specs import (
-    BlockSpec,
-    CompiledElementSpec,
-    CompiledInteractionSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LayoutSpec,
-    NodeSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-    VisualSpec,
-)
+from ....specs import LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
 from ....types import Array, FormKind, ReadKind, Scalars, VariableKind, VectorFunction
 from ..._utils import components_of, declarations_of, symbols_of
-from ...problems import ExpressionPrinter
+from ...problems import (
+    BlockSpec,
+    DeclarationsSpec,
+    ExpressionPrinter,
+    KernelSpec,
+    ProblemSpec,
+    ReductionScheduleSpec,
+    ReferenceSpec,
+)
 from ...problems._event_kernel import EventKernel
 from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass

@@ -7,8 +7,9 @@ import math
 
 import numpy as np
 
-from ...specs import ProblemSpec, RunStateSpec
+from ...specs import RunStateSpec
 from ...types import Array, StepFunction
+from ..problems import ProblemSpec
 from ._event_locator import EventLocator
 
 

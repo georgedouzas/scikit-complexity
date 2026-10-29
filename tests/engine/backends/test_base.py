@@ -20,6 +20,7 @@ from skcomplex.core.system import System
 from skcomplex.engine._utils import vector
 from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import LoweredKernelsSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
@@ -33,16 +34,7 @@ from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
-from skcomplex.specs import (
-    CallSpec,
-    LoweredFunctionsSpec,
-    LoweredKernelsSpec,
-    ParameterSpec,
-    RoleSpec,
-    StateSpec,
-    StepSpec,
-    VisualSpec,
-)
+from skcomplex.specs import CallSpec, LoweredFunctionsSpec, ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.types import FormKind
 
 CUTOFF = 2.5

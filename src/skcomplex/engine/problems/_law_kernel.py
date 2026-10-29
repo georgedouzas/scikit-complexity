@@ -11,14 +11,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import LayoutSpec, NoiseProcessSpec, OutputSpec, ReferenceSpec, RunStateSpec, WienerBlockSpec
+from ...specs import LayoutSpec, NoiseProcessSpec, RunStateSpec, WienerBlockSpec
 from ...specs._jump_channels_spec import _JumpChannelsSpec
-from ...specs._reference_spec import Search
 from ...types import Array, Indices, OptionalPairs, Reader, ReadKind
 from ._base import BaseKernel
 from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
+from ._output_spec import OutputSpec
 from ._pair_search import PairSearch
+from ._reference_spec import ReferenceSpec, Search
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 

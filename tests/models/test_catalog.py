@@ -14,6 +14,7 @@ from sklearn.base import clone
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
+from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.errors import RegistryError, ValidationError
@@ -24,7 +25,6 @@ from skcomplex.models.biology.ecology import (
     PopulationElement,
     PredationInteraction,
 )
-from skcomplex.specs import ProblemSpec
 
 
 def _loaded(code: str) -> list[str]:

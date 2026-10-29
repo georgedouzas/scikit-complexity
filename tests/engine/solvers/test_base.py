@@ -5,9 +5,10 @@ import pytest
 from sage.all__sagemath_symbolics import RR
 
 from skcomplex.engine._utils import symbol
+from skcomplex.engine.problems import BaseProblemSpec
 from skcomplex.engine.solvers import BaseSolver
 from skcomplex.errors import SolverError
-from skcomplex.specs import BaseProblemSpec, EntrySpec, LayoutSpec, StepSpec
+from skcomplex.specs import EntrySpec, LayoutSpec, StepSpec
 from skcomplex.types import FormKind
 
 

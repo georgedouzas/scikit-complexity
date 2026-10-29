@@ -16,12 +16,13 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 from ...base import BaseConfig
 from ...core.laws.utils import dagger, has_operator, operator_product
 from ...core.laws.utils._quantum import LOCAL_OPERATOR
+from ...core.specs._subsystem_spec import _SubsystemSpec
 from ...errors import ValidationError
-from ...specs import LocalOperatorSpec, OperatorSpec, QuantumProblemSpec
-from ...specs._subsystem_spec import _SubsystemSpec
+from ...specs import LocalOperatorSpec, OperatorSpec
 from ...types import Array
 from ._expression_printer import ExpressionPrinter
 from ._quantum_kernel import QuantumKernel
+from ._quantum_problem_spec import QuantumProblemSpec
 
 
 class QuantumLowering(BaseConfig):

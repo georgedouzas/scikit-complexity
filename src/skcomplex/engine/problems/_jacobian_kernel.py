@@ -13,14 +13,17 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import OutputSpec, ReductionScheduleSpec, ReferenceSpec, RunStateSpec
+from ...specs import RunStateSpec
 from ...types import Array, Indices, Partials, ReadKind, Sparse, Symmetry
 from .._utils import symbols_of
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
+from ._output_spec import OutputSpec
 from ._reduction_kernel import ReductionKernel
+from ._reduction_schedule_spec import ReductionScheduleSpec
+from ._reference_spec import ReferenceSpec
 from ._too_dense import _TooDense
 
 """Index of the expression and symbol of every nonzero derivative, with the NumPy function of the derivatives."""

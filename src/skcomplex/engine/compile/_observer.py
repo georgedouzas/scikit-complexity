@@ -13,10 +13,12 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseConfig
 from ...core.laws.utils import count, maximum, mean, minimum, total, variance
+from ...core.specs import NodeSpec
 from ...errors import ValidationError
-from ...specs import BlockSpec, DeclarationsSpec, NodeSpec, ObservableSpec, ObservedSpec, ProblemSpec, ReferenceSpec
+from ...specs import ObservableSpec
 from ...types import ReadKind
 from .._utils import vector
+from ..problems import BlockSpec, DeclarationsSpec, ObservedSpec, ProblemSpec, ReferenceSpec
 from ._observables import Declared, ObservableEvaluator
 
 _REDUCERS: dict[str, Callable[..., Expression]] = {

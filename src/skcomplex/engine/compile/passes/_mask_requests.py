@@ -9,10 +9,10 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, UpdateLaw
-from ....specs import DeclarationsSpec, KernelSpec
-from ....specs._declarations_spec import _ACTIVE
 from ....types import ReadKind
 from ..._utils import vector
+from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import _ACTIVE
 from ...problems._edge_search import EdgeSearch
 from .._base import BasePass
 from .._compilation import Laws

@@ -8,9 +8,10 @@ import pytest
 
 from skcomplex.core.spaces import BaseSpace
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import FrameSpec, ProblemSpec
 from skcomplex.engine.viz import BaseVisual
 from skcomplex.models import create
-from skcomplex.specs import AgentSnapshotSpec, FrameSpec, ProblemSpec
+from skcomplex.specs import AgentSnapshotSpec
 
 
 @pytest.fixture(scope='module')

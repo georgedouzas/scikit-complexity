@@ -6,9 +6,10 @@
 from collections.abc import Iterable, Mapping
 from typing import Any, cast
 
+from ....core.specs import CensusSpec
 from ....core.system import System
 from ....errors import IncompatibleLawsError
-from ....specs import CensusSpec, IssueSpec
+from ....specs import IssueSpec
 from ....specs._owners_spec import _OwnersSpec
 from ....specs._plan_spec import _PlanSpec
 from ....specs._planned_partition_spec import _PlannedPartitionSpec

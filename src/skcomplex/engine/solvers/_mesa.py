@@ -6,7 +6,7 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import mesa
 import networkx as nx
@@ -19,19 +19,13 @@ from mesa.experimental.continuous_space import ContinuousSpaceAgent
 from ...core.elements import GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ...core.specs import CompiledAgentsSpec
 from ...errors import ConservationError, SimulationError, SpaceError
-from ...specs import (
-    AgentSnapshotSpec,
-    AgentStateSpec,
-    CompiledAgentsSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    ProblemSpec,
-    SupportSpec,
-)
+from ...specs import AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
+from ..problems import ProblemSpec
 from ._external import ExternalSolver
 
 _DEFAULT_PHASE = 'default'
@@ -416,13 +410,6 @@ class AgentView:
     def __init__(self, agent: mesa.Agent, stepper: 'MesaSolver') -> None:
         self._agent = agent
         self._stepper = stepper
-
-    if TYPE_CHECKING:
-        # Declared for type checkers only, which cannot see the properties of the class of a group. At runtime the
-        # view defines neither method, so an unknown name raises Python's own `AttributeError`.
-        def __getattr__(self, name: str) -> Any: ...  # noqa: ANN401
-
-        def __setattr__(self, name: str, value: Any) -> None: ...  # noqa: ANN401
 
     @property
     def id(self) -> int:

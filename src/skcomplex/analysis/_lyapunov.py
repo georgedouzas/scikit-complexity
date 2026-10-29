@@ -13,11 +13,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
 from ..core.system import System
-from ..engine.problems import ExpressionPrinter
+from ..engine.problems import BaseProblemSpec, ExpressionPrinter
+from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import BaseProblemSpec
-from ..specs._dynamics_spec import _DynamicsSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 from ._stability import StabilityAnalysis

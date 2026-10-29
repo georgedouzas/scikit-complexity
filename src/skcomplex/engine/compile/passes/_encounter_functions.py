@@ -7,8 +7,9 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....specs import DeclarationsSpec, RunStateSpec
+from ....specs import RunStateSpec
 from ....types import Array
+from ...problems import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
 from .._base import BasePass
 

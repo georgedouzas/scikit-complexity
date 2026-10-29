@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.laws.utils import delay_parts
 from ..engine._utils import symbols_of
-from ..engine.problems import ExpressionPrinter
+from ..engine.problems import ExpressionPrinter, ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import LoopTermSpec, ProblemSpec
+from ..specs import LoopTermSpec
 from ..specs._loop_spec import _LoopSpec
 from ..types import DataKind
 from ._base import BaseAnalysis, Source

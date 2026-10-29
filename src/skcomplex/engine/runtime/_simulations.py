@@ -18,19 +18,11 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.system import System
 from ...errors import ParameterError, SimulationError, ValidationError
-from ...specs import (
-    AgentStateSpec,
-    BaseProblemSpec,
-    EntrySpec,
-    FrameSpec,
-    ObservableSpec,
-    RunStateSpec,
-    StepSpec,
-    StructureStateSpec,
-)
+from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
 from ..backends import BaseBackend
 from ..compile import BaseCompiler, ObservableEvaluator, PassCompiler
+from ..problems import BaseProblemSpec, FrameSpec
 from ..solvers import BaseSolver, CoSimulationSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -612,7 +604,7 @@ class Simulation(BaseConfig):
     @staticmethod
     def _partition_problems(problem: BaseProblemSpec) -> tuple[BaseProblemSpec, ...]:
         """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
-        return tuple(partition.problem for partition in problem.partitions)
+        return problem.partition_problems
 
     @staticmethod
     def _default_dt(until: float) -> float:

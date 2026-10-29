@@ -14,16 +14,10 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.elements import Element
 from ...core.spaces import LatticeSpace
-from ...specs import (
-    BaseProblemSpec,
-    CompiledAgentsSpec,
-    CompiledElementSpec,
-    FrameSpec,
-    QuantumProblemSpec,
-    QuantumViewSpec,
-)
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec, QuantumViewSpec
 from ...types import Array
 from ..compile import QuantumCompiler
+from ..problems import BaseProblemSpec, FrameSpec, QuantumProblemSpec
 from ..problems._quantum_kernel import QuantumKernel
 from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual

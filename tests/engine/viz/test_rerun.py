@@ -16,6 +16,7 @@ from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, N
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.viz import (
     BaseVisual,
@@ -32,7 +33,7 @@ from skcomplex.models.physics.common.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling
-from skcomplex.specs import FrameSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from skcomplex.specs import StateSpec, TopologyRequestSpec, VisualSpec
 
 
 class LoggedPaths:

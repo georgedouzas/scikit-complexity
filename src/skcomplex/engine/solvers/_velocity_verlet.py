@@ -12,9 +12,10 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...specs import ProblemSpec, SupportSpec
+from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind
 from .._utils import components_of
+from ..problems import ProblemSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._solver import Solver

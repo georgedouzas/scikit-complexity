@@ -23,11 +23,11 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...errors import SolverError
-from ...specs import ProblemSpec, SupportSpec
+from ...specs import SupportSpec
 from ...types import Array, ComplexArray, FormKind, OrderKind
 from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import ExpressionPrinter
+from ..problems import ExpressionPrinter, ProblemSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 from ..problems._steps import step_count
 from ._solver import Solver

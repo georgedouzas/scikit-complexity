@@ -14,13 +14,14 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws.utils import draws_in, reductions_in
 from ....errors import ValidationError
-from ....specs import BoundRenewalSpec, DeclarationsSpec, DrawSpec, ProblemSpec, ReferenceSpec
+from ....specs import DrawSpec
 from ....specs._draw_spec import DRAWS
 from ....types import Indices, ReadKind
 from ..._utils import components_of, symbol, symbols_of
-from ...problems import ExpressionPrinter
+from ...problems import DeclarationsSpec, ExpressionPrinter, ProblemSpec, ReferenceSpec
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
+from .._bound_renewal_spec import BoundRenewalSpec
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 

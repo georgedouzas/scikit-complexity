@@ -13,9 +13,9 @@ import numpy.typing as npt
 from scipy import linalg, special
 
 from ..core.system import System
+from ..engine.problems import ProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import AnalysisError
-from ..specs import ProblemSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 

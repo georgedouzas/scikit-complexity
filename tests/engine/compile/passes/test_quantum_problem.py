@@ -9,12 +9,12 @@ from skcomplex.engine.compile import (
     QuantumCompiler,
     compile_system,
 )
+from skcomplex.engine.problems import BaseProblemSpec, ProblemSpec, QuantumProblemSpec
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
     SpinElement,
     mode_space,
 )
-from skcomplex.specs import BaseProblemSpec, ProblemSpec, QuantumProblemSpec
 from skcomplex.types import FormKind
 
 

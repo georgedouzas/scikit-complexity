@@ -12,24 +12,20 @@ from sage.all__sagemath_symbolics import SR
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
 from ....errors import ValidationError
-from ....specs import (
-    BlockSpec,
-    CapacityRowsSpec,
-    CompiledRequestSpec,
-    DeclarationsSpec,
-    EntrySpec,
-    KernelSpec,
-    LayoutSpec,
-    LoweredKernelsSpec,
-    NetworkRowsSpec,
-    OutputSpec,
-    ReductionScheduleSpec,
-    TopologyRequestSpec,
-)
-from ....specs._declarations_spec import _ACTIVE, ENDS
+from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, TopologyRequestSpec
 from ....specs._weight_spec import _WeightSpec
 from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
+from ...problems import (
+    BlockSpec,
+    CompiledRequestSpec,
+    DeclarationsSpec,
+    KernelSpec,
+    LoweredKernelsSpec,
+    OutputSpec,
+    ReductionScheduleSpec,
+)
+from ...problems._declarations_spec import _ACTIVE, ENDS
 from ...problems._edge_search import EdgeSearch
 from ...problems._law_kernel import LawKernel
 from ...problems._topology_kernel import TopologyKernel

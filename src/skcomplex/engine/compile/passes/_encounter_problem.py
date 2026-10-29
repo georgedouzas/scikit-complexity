@@ -6,7 +6,7 @@
 from dataclasses import fields
 from typing import cast
 
-from ....specs import KineticProblemSpec, ProblemSpec
+from ...problems import KineticProblemSpec, ProblemSpec
 from .._base import BasePass
 
 

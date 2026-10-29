@@ -28,11 +28,13 @@ from ....core.laws import (
     TransferLaw,
     UpdateLaw,
 )
+from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
-from ....specs import BlockSpec, CensusRecordSpec, CensusSpec, DeclarationsSpec, EntrySpec, KernelSpec, NodeSpec
+from ....specs import EntrySpec
 from ....types import ElementKind, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of
+from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel

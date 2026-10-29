@@ -19,7 +19,7 @@ class DrawsPass(BasePass):
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
-        return ('drawn', 'drawing')
+        return ('drawn', 'draws')
 
     def _run(self, inputs: object = None) -> None:
         """Lower the draws of the laws."""
@@ -27,4 +27,4 @@ class DrawsPass(BasePass):
         drawing = DrawLowering().check().prepare(compilation)
         compilation.drawn = drawing.run(cast('Laws', compilation.drawn))
         drawing._apply_references()
-        compilation.drawing = drawing
+        compilation.draws = drawing.draws_

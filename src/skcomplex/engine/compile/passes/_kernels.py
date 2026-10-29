@@ -16,19 +16,10 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs import (
-    CallSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LayoutSpec,
-    LoweredKernelsSpec,
-    NoiseProcessSpec,
-    OutputSpec,
-    ReferenceSpec,
-    WienerProcessSpec,
-)
+from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey, ReadKind
 from ..._utils import components_of, symbols_of
+from ...problems import DeclarationsSpec, KernelSpec, LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ...problems._law_kernel import LawKernel
 from .._base import BasePass
 from .._compilation import Laws

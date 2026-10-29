@@ -12,18 +12,11 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....errors import ValidationError
-from ....specs import (
-    CensusRecordSpec,
-    CensusSpec,
-    DeclarationsSpec,
-    IssueSpec,
-    NodeSpec,
-    NoiseProcessSpec,
-    OutputSpec,
-    ReferenceSpec,
-)
+from ....specs import IssueSpec, NoiseProcessSpec
 from ....types import Indices, ReadKind
+from ...problems import DeclarationsSpec, OutputSpec, ReferenceSpec
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._field_lowering import FieldLowering

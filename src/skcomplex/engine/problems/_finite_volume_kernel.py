@@ -9,10 +9,11 @@ from typing import Any
 import numpy as np
 import scipy.sparse
 
-from ...specs import ReferenceSpec, RunStateSpec
+from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
+from ._reference_spec import ReferenceSpec
 
 TIME = symbol('t')
 _STENCIL = 2

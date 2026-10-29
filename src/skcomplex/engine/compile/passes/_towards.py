@@ -9,8 +9,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs import BlockSpec, DeclarationsSpec, KernelSpec
 from ....specs._weight_spec import _WeightSpec
+from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Laws

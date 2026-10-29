@@ -14,23 +14,16 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
-from ....specs import (
-    BlockSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    NodeSpec,
-    ProblemSpec,
-    ReferenceSpec,
-    SetSymbolSpec,
-    WienerProcessSpec,
-)
-from ....specs._declarations_spec import _ACTIVE, ENDS
-from ....specs._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE
+from ....specs import WienerProcessSpec
 from ....types import ReadKind, VariableKind
 from ..._utils import declarations_of, domain_of, symbol, vector
+from ...problems import BlockSpec, DeclarationsSpec, KernelSpec, ProblemSpec, ReferenceSpec, SetSymbolSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
+from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE
 from .._base import BasePass
 from .._observables import ObservableEvaluator
 from .._observer import Observer

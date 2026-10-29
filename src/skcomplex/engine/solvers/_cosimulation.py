@@ -38,12 +38,12 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...errors import SolverError, ValidationError
-from ...specs import AgentStateSpec, EntrySpec, PartitionSpec, ProblemSpec, StepSpec, SupportSpec
+from ...specs import AgentStateSpec, EntrySpec, StepSpec, SupportSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
 from ..backends import NumbaBackend, NumpyBackend
 from ..compile import ObservableEvaluator, PassCompiler
-from ..problems import ExpressionPrinter
+from ..problems import ExpressionPrinter, PartitionSpec, ProblemSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS

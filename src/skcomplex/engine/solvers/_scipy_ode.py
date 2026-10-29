@@ -25,9 +25,10 @@ from ...core.laws import (
 )
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...specs import ProblemSpec, RunStateSpec, SupportSpec
+from ...specs import RunStateSpec, SupportSpec
 from ...specs._segment_spec import _SegmentSpec
 from ...types import Array, FormKind, OrderKind
+from ..problems import ProblemSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 from ._solver import Solver

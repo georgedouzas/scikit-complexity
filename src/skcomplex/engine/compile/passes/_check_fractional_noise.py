@@ -13,8 +13,8 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, FractionalNoiseLaw, NoiseLaw
 from ....errors import ValidationError
-from ....specs import DeclarationsSpec, KernelSpec
 from ..._utils import components_of, symbols_of
+from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
 from .._compilation import BlockLaws
 

@@ -10,10 +10,12 @@ from sage.all__sagemath_symbolics import CC
 
 from ....core.laws import RuleLaw
 from ....core.spaces import BaseSpace
+from ....core.specs import CompiledAgentsSpec, NodeSpec
 from ....errors import BackendError, LabelError, ValidationError
-from ....specs import BlockSpec, CompiledAgentsSpec, DeclarationsSpec, KernelSpec, NodeSpec, ProblemSpec, VisualSpec
+from ....specs import VisualSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
+from ...problems import BlockSpec, DeclarationsSpec, KernelSpec, ProblemSpec
 from .._base import BasePass
 from ._layout import LayoutPass
 from ._problem import ProblemPass

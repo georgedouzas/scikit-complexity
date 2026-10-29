@@ -11,9 +11,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
-from ....specs import DeclarationsSpec, KernelSpec, LinearTermSpec, ReferenceSpec
-from ....specs._linear_term_spec import OPERATORS
 from ....types import ReadKind, Terms
+from ...problems import DeclarationsSpec, KernelSpec, LinearTermSpec, ReferenceSpec
+from ...problems._linear_term_spec import OPERATORS
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._field_lowering import FieldLowering

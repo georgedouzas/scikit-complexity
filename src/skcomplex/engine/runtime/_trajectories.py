@@ -9,7 +9,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...specs import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ...specs import AgentSnapshotSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ..problems import BaseProblemSpec
 
 
 class Trajectory:

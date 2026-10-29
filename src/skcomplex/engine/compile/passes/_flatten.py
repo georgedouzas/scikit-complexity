@@ -12,9 +12,10 @@ import numpy as np
 from ....core.elements import Element, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from ....core.specs import NodeSpec
 from ....core.system import System
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
-from ....specs import NodeSpec, WienerProcessSpec
+from ....specs import WienerProcessSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass

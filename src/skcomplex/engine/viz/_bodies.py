@@ -12,9 +12,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
 from ...types import Colors, Marks, Outline, Positions
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _UPWARD, BaseVisual
 from ._points import _TRAIL_LENGTH
 

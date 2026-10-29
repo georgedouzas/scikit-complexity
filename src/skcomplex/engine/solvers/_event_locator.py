@@ -9,8 +9,9 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ...errors import SolverError
-from ...specs import BaseRecordSpec, EventRecordSpec, ProblemSpec, RunStateSpec
+from ...specs import BaseRecordSpec, EventRecordSpec, RunStateSpec
 from ...types import Array, Interpolant
+from ..problems import ProblemSpec
 from ..problems._event_kernel import EventKernel
 
 SEPARATION = 1e-10

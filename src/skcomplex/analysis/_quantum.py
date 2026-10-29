@@ -15,9 +15,10 @@ import scipy.sparse as sp
 from ..core.system import System
 from ..engine.compile import QuantumCompiler, compile_system
 from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
+from ..engine.problems import BaseProblemSpec, QuantumProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
-from ..specs import BaseProblemSpec, QuantumProblemSpec, RunStateSpec
+from ..specs import RunStateSpec
 from ..types import Array, DataKind, Sector
 from ._base import BaseAnalysis, Source
 

@@ -13,8 +13,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....engine._utils import symbols_of
-from ....engine.problems import BaseKernel, ExpressionPrinter
-from ....specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, RunStateSpec
+from ....engine.problems import BaseKernel, BaseProblemSpec, ExpressionPrinter
+from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
 from ....types import Arrays
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._group_spec import _GroupSpec

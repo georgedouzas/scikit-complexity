@@ -10,8 +10,9 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import SolverError
-from ...specs import BaseProblemSpec, ProblemSpec, StepSpec, SupportSpec
+from ...specs import StepSpec, SupportSpec
 from ...types import Array, Bounded, FormKind, Take
+from ..problems import BaseProblemSpec, ProblemSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 

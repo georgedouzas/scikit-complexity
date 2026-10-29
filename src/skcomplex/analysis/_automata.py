@@ -12,10 +12,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
+from ..core.types import AutomatonProtocol, LinearAutomatonProtocol, SubshiftProtocol
 from ..errors import AnalysisError
 from ..specs import TableSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
-from ..types import AutomatonProtocol, DataKind, IntArray, LinearAutomatonProtocol, SubshiftProtocol
+from ..types import DataKind, IntArray
 from ._base import BaseAnalysis, Source
 
 MAX_CONFIGURATIONS = 2**16

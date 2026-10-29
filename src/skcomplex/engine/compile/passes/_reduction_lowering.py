@@ -18,26 +18,16 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, 
 from ....core.laws.utils import both, neighborhoods_in, reductions_in
 from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
 from ....errors import RoleError, ValidationError
-from ....specs import (
-    CallSpec,
-    DeclarationsSpec,
-    EntrySpec,
-    KernelSpec,
-    NeighborReductionSpec,
-    PairReadSpec,
-    ReadSpec,
-    ReductionSpec,
-    ReferenceSpec,
-)
+from ....specs import CallSpec, EntrySpec, NeighborReductionSpec, PairReadSpec, ReadSpec, ReductionSpec
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
 from ....types import ReadKind, VariableKind
 from ..._utils import declarations_of, symbol, symbols_of, vector
+from ...problems import DeclarationsSpec, KernelSpec, ReferenceSpec
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
 from .._base import BaseLowering, BasePass
 from .._complex import _modulus_form
-from .._draw_lowering import DrawLowering
 from .._observables import _HeldElement
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
@@ -98,9 +88,9 @@ class ReductionLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        drawing = cast('DrawLowering', self.compilation_.drawing)
+        draws = self.compilation_.draws
         self.declarations_ = cast('DeclarationsSpec', self.compilation_.layout)
-        self.drawn_ = drawing.draws_.size if drawing.draws_ else 0
+        self.drawn_ = draws.size if draws else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
         return self

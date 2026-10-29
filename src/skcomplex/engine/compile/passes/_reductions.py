@@ -7,8 +7,8 @@ from dataclasses import replace
 from typing import cast
 
 from ....core.laws import CrossingLaw
-from ....specs import DeclarationsSpec, KernelSpec, ReductionScheduleSpec
 from ....types import ReadKind
+from ...problems import DeclarationsSpec, KernelSpec, ReductionScheduleSpec
 from .._base import BasePass
 from .._compilation import Laws
 from ._reduction_lowering import ReductionLowering
@@ -19,7 +19,7 @@ class ReductionsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')
+        return ('drawn', 'drawn_apart', 'layout', 'draws', 'events')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""

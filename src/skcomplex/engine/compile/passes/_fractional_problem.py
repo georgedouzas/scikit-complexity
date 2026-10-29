@@ -13,8 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
-from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec, LoweredKernelsSpec, ProblemSpec
+from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
 from ....types import Array, FormKind
+from ...problems import LoweredKernelsSpec, ProblemSpec
 from ...problems._law_kernel import LawKernel
 from .._base import BasePass
 from ._check_fractional_noise import CheckFractionalNoisePass

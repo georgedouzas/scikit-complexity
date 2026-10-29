@@ -6,11 +6,12 @@ import pytest
 from skcomplex.core.elements import GroupElement, LatticeElement, ParticleElement
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpinElement
-from skcomplex.specs import AgentSnapshotSpec, FrameSpec
+from skcomplex.specs import AgentSnapshotSpec
 
 
 class Logs:

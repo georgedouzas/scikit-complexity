@@ -8,9 +8,9 @@ from typing import cast
 from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
-from ....specs import BlockSpec, KernelSpec
 from ....types import VariableKind
 from ..._utils import components_of, declarations_of
+from ...problems import BlockSpec, KernelSpec
 from .._base import BasePass
 from .._compilation import BlockLaws
 

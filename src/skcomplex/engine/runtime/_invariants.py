@@ -8,7 +8,7 @@ from collections.abc import Mapping
 import numpy as np
 
 from ...errors import ConservationError, ValidationError
-from ...specs import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import BaseObserver
 
 

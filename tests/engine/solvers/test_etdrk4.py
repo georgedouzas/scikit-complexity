@@ -12,6 +12,7 @@ from skcomplex.core.laws.utils import inverse_laplacian, laplacian
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CrankNicolsonSolver,
@@ -31,7 +32,7 @@ from skcomplex.models.physics.fluids import (
 )
 from skcomplex.models.physics.heat import heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
-from skcomplex.specs import FrameSpec, StateSpec, VisualSpec
+from skcomplex.specs import StateSpec, VisualSpec
 
 
 class HeatElement(Element):

@@ -8,17 +8,13 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from enum import Enum, StrEnum
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
-
-if TYPE_CHECKING:
-    from .core.spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
-
 
 # arrays
 type Array = npt.NDArray[np.float64]
@@ -210,50 +206,3 @@ class ElementKind(StrEnum):
     SYSTEM = 'system'
 
 
-class AutomatonProtocol(Protocol):
-    """Cellular automaton the analysis reads by its methods, such as `Automaton` of the automata models."""
-
-    space: BaseSpace
-    neighborhood: LatticeNeighborhood | MemoryNeighborhood
-    rule: object
-    states: int
-
-    @property
-    def reads(self) -> LatticeNeighborhood | MemoryNeighborhood:
-        """Neighbourhood the rule reads."""
-
-    @property
-    def size(self) -> int:
-        """Number of sites."""
-
-    def table(self) -> Indices:
-        """Return the site of every cell the rule reads at every site."""
-
-    def local_map(self) -> IntArray:
-        """Return the next value of every pattern of the cells the rule reads."""
-
-    def step(self, configuration: npt.ArrayLike) -> IntArray:
-        """Return the image of a configuration."""
-
-    def run(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
-        """Return the configurations of a number of steps."""
-
-
-class LinearAutomatonProtocol(Protocol):
-    """Linear cellular automaton the analysis reads by its matrix and its Laurent polynomial."""
-
-    def matrix(self) -> Any:  # noqa: ANN401
-        """Return the Sage matrix of the automaton on its space."""
-
-    def laurent_polynomial(self) -> Any:  # noqa: ANN401
-        """Return the Sage Laurent polynomial of the automaton on `Z^d`."""
-
-
-class SubshiftProtocol(Protocol):
-    """Subshift of finite type the analysis reads by its count of admissible configurations and its violations."""
-
-    def count(self, space: BaseSpace) -> int:
-        """Return the number of admissible configurations of a space."""
-
-    def violations(self, configuration: npt.ArrayLike, space: BaseSpace) -> npt.NDArray[np.bool_]:
-        """Return the sites at which a forbidden pattern appears."""

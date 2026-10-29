@@ -11,7 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _MODULUS, _PHASE, BaseVisual
 
 

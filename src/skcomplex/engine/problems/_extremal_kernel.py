@@ -8,8 +8,9 @@ from typing import Any, cast
 
 import numpy as np
 
+from ...core.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import ArgumentsSpec, ExtremalRecordSpec, LatticeStateSpec, RunStateSpec
+from ...specs import ArgumentsSpec, ExtremalRecordSpec, RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 

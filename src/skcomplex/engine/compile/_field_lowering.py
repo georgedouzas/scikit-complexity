@@ -19,10 +19,10 @@ from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
-from ...specs import DeclarationsSpec, DiffusiveLimitSpec, KernelSpec, NeighborReadSpec, ReferenceSpec
+from ...specs import NeighborReadSpec
 from ...types import Indices, Offset, ReadKind
 from .._utils import domain_of, symbol
-from ..problems import ExpressionPrinter
+from ..problems import DeclarationsSpec, DiffusiveLimitSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ._base import BaseLowering, BasePass

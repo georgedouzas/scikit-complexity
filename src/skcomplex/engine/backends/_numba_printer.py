@@ -12,10 +12,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
-from ...specs import EntrySpec, OutputSpec, ReadSpec, ReductionScheduleSpec, ReferenceSpec
+from ...specs import EntrySpec, ReadSpec
 from ...types import ReadKind
 from .._utils import symbols_of
-from ..problems import BasePrinter, ExpressionPrinter
+from ..problems import BasePrinter, ExpressionPrinter, OutputSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
 from ..problems._law_kernel import LawKernel

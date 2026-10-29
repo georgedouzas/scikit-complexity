@@ -56,17 +56,9 @@ from ...core.spaces import (
     StaticTime,
 )
 from ...errors import BackendWarning, ValidationError
-from ...specs import (
-    AcceleratedSpec,
-    EntrySpec,
-    LoweredFunctionsSpec,
-    LoweredKernelsSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-    SupportSpec,
-)
+from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, ReadKind
-from ..problems import ExpressionPrinter
+from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch

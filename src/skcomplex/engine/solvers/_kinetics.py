@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import SR
 from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
 from ...core.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
-from ...specs import KineticProblemSpec, ProblemSpec, SupportSpec
+from ...specs import SupportSpec
 from ...types import Array, FormKind, Indices, IntArray, OrderKind
+from ..problems import KineticProblemSpec, ProblemSpec
 from ..problems._encounter_kernel import EncounterKernel
 from ._solver import Solver
 

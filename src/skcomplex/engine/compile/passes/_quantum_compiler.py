@@ -17,28 +17,18 @@ from sage.all__sagemath_symbolics import CC, SR, Expression
 from ....core.elements import BaseElement, Element, GroupElement
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
+from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec, QuantumViewSpec
+from ....core.specs._subsystem_spec import _SubsystemSpec
 from ....core.system import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
-from ....specs import (
-    BaseProblemSpec,
-    CompiledElementSpec,
-    CompiledInteractionSpec,
-    EntrySpec,
-    HilbertSpec,
-    IssueSpec,
-    LayoutSpec,
-    NodeSpec,
-    ObservableSpec,
-    QuantumProblemSpec,
-    QuantumViewSpec,
-)
-from ....specs._quantum_problem_spec import REAL_TOLERANCE
-from ....specs._subsystem_spec import _SubsystemSpec
+from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
 from ....types import Array, FormKind, VariableKind
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
+from ...problems import BaseProblemSpec, QuantumProblemSpec
 from ...problems._quantum_kernel import QuantumKernel
 from ...problems._quantum_lowering import QuantumLowering
+from ...problems._quantum_problem_spec import REAL_TOLERANCE
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError

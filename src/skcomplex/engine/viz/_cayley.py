@@ -10,7 +10,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import CayleySpace
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _NODE_SPACING, _UPWARD, BaseVisual
 
 _NODE_SHARE = 0.15

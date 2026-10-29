@@ -4,8 +4,8 @@ import enum
 import inspect
 
 from skcomplex.engine import problems as package
-from skcomplex.engine.problems import BaseKernel, BasePrinter, BaseSearch
-from skcomplex.specs import BaseProblemSpec, BaseRecordSpec, BaseSpec, BaseStructureSpec
+from skcomplex.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch
+from skcomplex.specs import BaseRecordSpec, BaseSpec, BaseStructureSpec
 
 BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter)
 

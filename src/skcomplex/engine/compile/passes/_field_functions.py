@@ -15,10 +15,10 @@ from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....errors import ValidationError
-from ....specs import BlockSpec, DeclarationsSpec, KernelSpec, LayoutSpec, ReferenceSpec, RunStateSpec
+from ....specs import LayoutSpec, RunStateSpec
 from ....types import Array, ReadKind, VariableKind
 from ..._utils import declarations_of
-from ...problems import ExpressionPrinter
+from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from .._base import BasePass
 from .._compilation import Laws

@@ -20,14 +20,15 @@ from ...core.elements import ParticleElement
 from ...core.interactions import BaseInteraction, PairPotentialInteraction
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.specs import CompiledElementSpec, CompiledInteractionSpec
 from ...core.system import System
 from ...errors import BackendError, SolverError
-from ...specs import CompiledElementSpec, CompiledInteractionSpec, LammpsFixSpec, ProblemSpec, SupportSpec
+from ...specs import LammpsFixSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, PairArguments, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
 from ..compile import compile_system
-from ..problems import ExpressionPrinter
+from ..problems import ExpressionPrinter, ProblemSpec
 from ..problems._steps import step_count
 from ._external import ExternalSolver
 

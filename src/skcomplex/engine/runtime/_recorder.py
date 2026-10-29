@@ -6,7 +6,7 @@
 import numpy as np
 
 from ...errors import SimulationError
-from ...specs import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import BaseObserver
 from ._trajectories import Trajectory
 

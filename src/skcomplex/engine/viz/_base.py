@@ -14,8 +14,10 @@ import rerun.blueprint as rrb
 
 from ...base import BaseConfig
 from ...core.spaces import BaseSpace, NetworkSpace
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import AgentSnapshotSpec, BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec
+from ...specs import AgentSnapshotSpec
+from ..problems import BaseProblemSpec, FrameSpec
 
 _UPWARD = np.array([1.0, -1.0])
 _LAYOUT_SEED = 0

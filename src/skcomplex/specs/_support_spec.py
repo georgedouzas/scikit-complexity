@@ -8,12 +8,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from ..types import NoiseKind, OrderKind
 from ._base_spec import BaseSpec
-
-if TYPE_CHECKING:
-    from ..types import NoiseKind, OrderKind
 
 
 @dataclass(frozen=True)

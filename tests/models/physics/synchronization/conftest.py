@@ -7,7 +7,7 @@ import numpy.typing as npt
 
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.specs import ProblemSpec
+from skcomplex.engine.problems import ProblemSpec
 
 
 def _random_drift(system: System) -> tuple[ProblemSpec, npt.NDArray[np.float64], npt.NDArray[np.float64]]:

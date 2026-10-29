@@ -19,6 +19,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import distributed_delay, mean, total
 from skcomplex.core.spaces import ContinuousTime, VonNeumannNeighborhood
+from skcomplex.core.specs import ScenarioSpec
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
@@ -38,7 +39,6 @@ from skcomplex.specs import (
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
-    ScenarioSpec,
     ScheduleSpec,
     StateSpec,
     TopologyRequestSpec,
@@ -360,8 +360,8 @@ def test_specs_are_frozen_records():
         StateSpec().order = 2
 
 
-def test_no_package_outside_the_specs_defines_a_dataclass():
-    """Test that no module of the core, the engine, analysis, or experiments defines a dataclass."""
+def test_every_dataclass_is_a_frozen_spec():
+    """Test that every dataclass of the core, the engine, analysis, and experiments is a frozen spec."""
     defined = []
     for package in ('core', 'engine', 'analysis', 'experiments'):
         loaded = importlib.import_module(f'skcomplex.{package}')
@@ -374,7 +374,10 @@ def test_no_package_outside_the_specs_defines_a_dataclass():
             except ImportError:
                 continue
             for value in vars(module).values():
-                if inspect.isclass(value) and value.__module__ == module.__name__ and dataclasses.is_dataclass(value):
+                own = inspect.isclass(value) and value.__module__ == module.__name__
+                if own and dataclasses.is_dataclass(value) and not (
+                    issubclass(value, BaseSpec) and value.__dataclass_params__.frozen
+                ):
                     defined.append(f'{module.__name__}.{value.__qualname__}')
     assert defined == []
 

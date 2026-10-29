@@ -26,23 +26,16 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...errors import ConservationError, LabelError, ValidationError
-from ...specs import (
-    BlockSpec,
-    DeclarationsSpec,
-    EntrySpec,
-    KernelSpec,
-    LoopTermSpec,
-    ReferenceSpec,
-    TransferNetworkSpec,
-)
-from ...specs._born_spec import _BornSpec
+from ...specs import EntrySpec, LoopTermSpec, TransferNetworkSpec
 from ...specs._compiled_delay_spec import _CompiledDelaySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
-from ...specs._record_spec import _RecordSpec
 from ...specs._recorded_spec import _RecordedSpec
 from ...types import Array, VariableKind
 from ...types import ReadKind as Read
 from .._utils import declarations_of, symbol, symbols_of
+from ..problems import BlockSpec, DeclarationsSpec, KernelSpec, ReferenceSpec, TransferStateSpec
+from ..problems._born_spec import _BornSpec
+from ..problems._record_spec import _RecordSpec
 from ._base import BaseLowering, BasePass
 
 _BOUNDARY_PREFIX = '__boundary'
@@ -95,8 +88,14 @@ class TransferLowering(BaseLowering):
                 The prepared lowering.
         """
         super()._prepare(context)
-        self.quantities_ = self._quantities_of(cast('DeclarationsSpec', self.compilation_.layout).blocks)
-        self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
+        state = self.compilation_.transfer
+        if state is None:
+            self.quantities_ = self._quantities_of(cast('DeclarationsSpec', self.compilation_.layout).blocks)
+            self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
+            return self
+        self.quantities_, self.born_ = dict(state.quantities), dict(state.born)
+        self.flows_, self.records_, self.delays_ = list(state.flows), list(state.records), list(state.delays)
+        self.terms_ = list(state.terms)
         return self
 
     def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
@@ -122,6 +121,17 @@ class TransferLowering(BaseLowering):
             for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
         ]
 
+    def _state(self) -> TransferStateSpec:
+        """Return the state of the lowering, which the compilation keeps for the pass that lowers the flows."""
+        return TransferStateSpec(
+            self.quantities_,
+            self.born_,
+            tuple(self.flows_),
+            tuple(self.records_),
+            tuple(self.delays_),
+            tuple(self.terms_),
+        )
+
     def _replace_specs(self, specs: Mapping[int, KernelSpec]) -> None:
         """Replace the kernel specs the lowering holds by new ones, such as specs whose rows are settled.
 
@@ -129,11 +139,9 @@ class TransferLowering(BaseLowering):
             specs:
                 The new spec of every replaced spec, by the identity of the replaced spec.
         """
-        born = {id(item): replace(item, spec=specs.get(id(item.spec), item.spec)) for item in self.flows_}
-        self.flows_ = [born[id(item)] for item in self.flows_]
-        self.born_ = {key: born[id(item)] for key, item in self.born_.items()}
-        self.records_ = [replace(record, spec=specs.get(id(record.spec), record.spec)) for record in self.records_]
-        self.terms_ = [(specs.get(id(spec), spec), *rest) for spec, *rest in self.terms_]
+        state = self._state().replaced(specs)
+        self.born_, self.flows_, self.records_ = dict(state.born), list(state.flows), list(state.records)
+        self.terms_ = list(state.terms)
 
     @staticmethod
     def _quantities_of(blocks: Mapping[str, BlockSpec]) -> dict[str, str]:

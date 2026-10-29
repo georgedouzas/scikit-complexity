@@ -16,12 +16,12 @@ from scipy import stats
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import draws_in, where
 from ...errors import ValidationError
-from ...specs import CallSpec, DeclarationsSpec, DrawSpec, EntrySpec, KernelSpec, ReferenceSpec, SampledDrawSpec
-from ...specs._request_spec import _RequestSpec
+from ...specs import CallSpec, DrawSpec, EntrySpec, SampledDrawSpec
 from ...types import Array, ReadKind
 from .._utils import components_of, symbol, symbols_of, vector
-from ..problems import ExpressionPrinter
+from ..problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
+from ..problems._request_spec import _RequestSpec
 from ._base import BaseLowering
 
 _NORMAL_KINDS = frozenset({'normal'})

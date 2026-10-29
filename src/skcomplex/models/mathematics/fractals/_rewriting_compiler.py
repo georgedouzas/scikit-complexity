@@ -12,11 +12,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element, GroupElement
+from ....core.specs import CompiledElementSpec, NodeSpec
 from ....core.system import System
 from ....engine._utils import declarations_of, symbol
 from ....engine.compile import BaseCompiler, FlattenPass, LayoutPass, ProblemPass
+from ....engine.problems import BaseProblemSpec
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
-from ....specs import BaseProblemSpec, CompiledElementSpec, EntrySpec, IssueSpec, LayoutSpec, NodeSpec, ParametersSpec
+from ....specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
 from ....types import VariableKind
 from ._patch_element import PatchElement
 from ._patch_kernel import PatchKernel

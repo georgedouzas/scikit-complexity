@@ -25,27 +25,22 @@ from ....core.spaces import (
     MemoryNeighborhood,
     NetworkSpace,
 )
+from ....core.specs import CensusSpec, LatticeContextSpec, LatticeStateSpec
 from ....errors import ValidationError
 from ....specs import (
     ArgumentsSpec,
-    CensusSpec,
-    DeclarationsSpec,
     EnergySpec,
     IssueSpec,
-    KernelSpec,
-    LatticeContextSpec,
-    LatticeStateSpec,
     LookupSpec,
     MoveSpec,
     OuterTotalisticSpec,
-    ProblemSpec,
     SamplerSpec,
     TableSpec,
     TotalisticSpec,
 )
 from ....types import Array, Indices, ReadKind
 from ..._utils import symbol
-from ...problems import ExpressionPrinter
+from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ProblemSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._monte_carlo_kernel import MonteCarloKernel

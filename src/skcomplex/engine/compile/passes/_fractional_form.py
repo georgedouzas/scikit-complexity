@@ -8,11 +8,13 @@ from __future__ import annotations
 from typing import cast
 
 from ....core.spaces import ContinuousTime
+from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import BackendError, SolverError
-from ....specs import CensusRecordSpec, CensusSpec, DeclarationsSpec, FractionalStateSpec, IssueSpec, NodeSpec
+from ....specs import FractionalStateSpec, IssueSpec
 from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
+from ...problems import DeclarationsSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._forms import _FORMS

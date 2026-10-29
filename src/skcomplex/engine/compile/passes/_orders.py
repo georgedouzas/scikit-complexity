@@ -16,11 +16,12 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs import BlockSpec, CallSpec, DeclarationsSpec, KernelSpec
+from ....specs import CallSpec
 from ....specs._orders_spec import _OrdersSpec
-from ....specs._relation_spec import _RelationSpec
 from ....types import VariableKind
 from ..._utils import components_of, declarations_of, symbol, vector
+from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
+from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
 from .._compilation import BlockLaws
 from .._laws import _KERNEL_FREE_LAWS

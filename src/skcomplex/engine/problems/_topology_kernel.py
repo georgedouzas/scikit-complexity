@@ -14,15 +14,15 @@ from ...errors import ValidationError
 from ...specs import (
     EDGE_KINDS,
     CapacityRowsSpec,
-    CompiledRequestSpec,
     NetworkRowsSpec,
     NetworkSnapshotSpec,
-    ReductionScheduleSpec,
     RunStateSpec,
     TopologyRequestSpec,
 )
 from ...types import Array, Pair
 from ._base import BaseKernel
+from ._compiled_request_spec import CompiledRequestSpec
+from ._reduction_schedule_spec import ReductionScheduleSpec
 
 _NO_REDUCTIONS = ReductionScheduleSpec()
 

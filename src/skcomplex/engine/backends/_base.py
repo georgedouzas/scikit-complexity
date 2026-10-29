@@ -7,8 +7,9 @@
 import numpy as np
 
 from ...base import BaseConfig
-from ...specs import LoweredFunctionsSpec, LoweredKernelsSpec, ReferenceSpec, RunStateSpec, SupportSpec
+from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec
 from ...types import Array, Indices, ReadKind, VectorFunction
+from ..problems import LoweredKernelsSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
 
 _AUTO_MEMBERS = 1000

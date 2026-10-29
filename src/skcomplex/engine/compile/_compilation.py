@@ -12,34 +12,31 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
+from ...core.specs import CensusSpec, NodeSpec
 from ...core.system import System
-from ...specs import (
+from ...specs import MatrixLawSpec, TopologyRequestSpec, TransferNetworkSpec
+from ...specs._plan_spec import _PlanSpec
+from ...types import FormKind
+from ..backends import BaseBackend
+from ..problems import (
     BlockSpec,
-    BoundRenewalSpec,
-    CensusSpec,
     DeclarationsSpec,
     DiffusiveLimitSpec,
     KernelSpec,
     LinearTermSpec,
     LoweredKernelsSpec,
-    MatrixLawSpec,
-    NodeSpec,
     OutputSpec,
     ProblemSpec,
     ReductionScheduleSpec,
-    TopologyRequestSpec,
-    TransferNetworkSpec,
+    TransferStateSpec,
 )
-from ...specs._plan_spec import _PlanSpec
-from ...types import FormKind
-from ..backends import BaseBackend
+from ..problems._draw_kernel import DrawKernel
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._markov_kernel import MarkovKernel
 from ..problems._topology_kernel import TopologyKernel
-from ._draw_lowering import DrawLowering
-from ._flows import TransferLowering
+from ._bound_renewal_spec import BoundRenewalSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
@@ -120,8 +117,8 @@ class Compilation:
         kinds:
             The law classes of every owner.
 
-        drawing:
-            The draws of the laws.
+        draws:
+            The kernel of the draws of the laws.
 
         form:
             The form of the problem.
@@ -187,8 +184,8 @@ class Compilation:
         encounters:
             The encounter laws, lowered for their members.
 
-        flows:
-            The lowering of flows and delays, which one pass creates and a later pass finishes.
+        transfer:
+            The state of the lowering of flows and delays, which one pass creates and a later pass finishes.
 
         transfer_network:
             The flows and stocks of the system.
@@ -223,7 +220,7 @@ class Compilation:
     drawn: Laws | None = None
     drawn_apart: Laws | None = None
     kinds: dict[str, set[type]] | None = None
-    drawing: DrawLowering | None = None
+    draws: DrawKernel | None = None
     form: FormKind | None = None
     reduced: Laws | None = None
     reduced_apart: Laws | None = None
@@ -245,7 +242,7 @@ class Compilation:
     symmetries: tuple[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]], ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
     encounters: tuple[EncounterKernel, ...] | None = None
-    flows: TransferLowering | None = None
+    transfer: TransferStateSpec | None = None
     transfer_network: TransferNetworkSpec | None = None
     rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None
@@ -303,5 +300,5 @@ class Compilation:
             self.renewals[index] = replace(renewal, spec=replaced.get(id(renewal.spec), renewal.spec))
         for key, (spec, request) in (self.request_jumps or {}).items():
             self.request_jumps[key] = (replaced.get(id(spec), spec), request)
-        if self.flows is not None:
-            self.flows._replace_specs(replaced)
+        if self.transfer is not None:
+            self.transfer = self.transfer.replaced(replaced)

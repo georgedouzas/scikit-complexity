@@ -6,14 +6,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from sage.all__sagemath_symbolics import RR
 
+from ..types import VariableKind
 from ._base_spec import BaseSpec
-
-if TYPE_CHECKING:
-    from ..types import VariableKind
 
 
 @dataclass(frozen=True)

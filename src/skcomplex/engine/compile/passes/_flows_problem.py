@@ -6,7 +6,8 @@
 from dataclasses import replace
 from typing import cast
 
-from ....specs import ProblemSpec, TransferNetworkSpec
+from ....specs import TransferNetworkSpec
+from ...problems import ProblemSpec
 from .._base import BasePass
 
 

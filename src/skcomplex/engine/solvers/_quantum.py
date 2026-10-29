@@ -15,9 +15,10 @@ import scipy.sparse as sp
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...specs import QuantumProblemSpec, RunStateSpec, SupportSpec
+from ...specs import RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
+from ..problems import QuantumProblemSpec
 from ..problems._quantum_kernel import QuantumKernel
 from ._base import BaseSolver
 

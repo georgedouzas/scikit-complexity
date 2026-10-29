@@ -6,13 +6,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
-from ..types import Array
+from ..types import Array, DataKind
 from ._base_spec import BaseSpec
-
-if TYPE_CHECKING:
-    from ..types import DataKind
 
 
 @dataclass(frozen=True)

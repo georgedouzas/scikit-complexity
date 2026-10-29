@@ -6,13 +6,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
-from ....specs import BaseProblemSpec
-
-if TYPE_CHECKING:
-    from ._patch_kernel import PatchKernel
-    from ._word_kernel import WordKernel
+from ....engine.problems import BaseProblemSpec
+from ._patch_kernel import PatchKernel
+from ._word_kernel import WordKernel
 
 type Compiled = WordKernel | PatchKernel
 

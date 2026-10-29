@@ -6,7 +6,7 @@
 from abc import abstractmethod
 
 from ...errors import BackendError
-from ...specs import ProblemSpec
+from ..problems import ProblemSpec
 from ._solver import Solver
 
 

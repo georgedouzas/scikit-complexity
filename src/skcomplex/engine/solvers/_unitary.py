@@ -7,8 +7,8 @@ from typing import Any
 
 import qutip
 
-from ...specs import QuantumProblemSpec
 from ...types import Array
+from ..problems import QuantumProblemSpec
 from ._quantum import QuantumSolver
 
 

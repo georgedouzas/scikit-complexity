@@ -9,8 +9,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ...core.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import LatticeStateSpec, RelaxationRecordSpec, RunStateSpec
+from ...specs import RelaxationRecordSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
 from ._drive_kernel import DriveKernel

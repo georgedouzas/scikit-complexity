@@ -29,9 +29,10 @@ from ..core.system import System
 from ..engine._utils import declared_variables
 from ..engine.compile import compile_system
 from ..engine.compile._probe import probe_laws
+from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
-from ..specs import BaseProblemSpec, ObservableSpec
+from ..specs import ObservableSpec
 from ..types import Bounds, Row, VariableKind
 
 type Source = Callable[..., System] | System

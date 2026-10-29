@@ -43,7 +43,7 @@ def test_grigorchuk_level_quotients_run_periodic_rules():
     """Test that the quotients of levels 1 to 4 hold 2, 8, 128, and 4096 sites and every cell reads inside them."""
     sizes = []
     for level in (1, 2, 3, 4):
-        space = CayleySpace(libgap.PermGroupOnLevel(grigorchuk_group(), level)).check().prepare()
+        space = CayleySpace(grigorchuk_group().PermGroupOnLevel(level)).check().prepare()
         sizes.append(space.size_)
         assert (space._index_table(MemoryNeighborhood(('1', *space.generators_))) < space.size_).all()
     assert sizes == [2, 8, 128, 4096]

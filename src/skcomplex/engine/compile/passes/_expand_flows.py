@@ -19,7 +19,7 @@ class ExpandFlowsPass(BasePass):
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
-        return ('collected', 'flows')
+        return ('collected', 'transfer')
 
     def _run(self, inputs: object = None) -> None:
         """Expand the flows of the collected laws."""
@@ -30,4 +30,4 @@ class ExpandFlowsPass(BasePass):
         compilation.collected = [
             (spec, laws, block) for (spec, laws), (_, _, block) in zip(expanded, collected, strict=True)
         ]
-        compilation.flows = flows
+        compilation.transfer = flows._state()

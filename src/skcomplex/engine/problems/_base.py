@@ -3,12 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import TYPE_CHECKING
 
 from ...base import BaseConfig
-
-if TYPE_CHECKING:
-    pass
 
 
 class BaseKernel(BaseConfig):

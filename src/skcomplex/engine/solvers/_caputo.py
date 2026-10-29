@@ -11,8 +11,9 @@ import numpy as np
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
-from ...specs import ProblemSpec, SupportSpec
+from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind
+from ..problems import ProblemSpec
 from ._solver import Solver
 
 GRID_TOLERANCE = 1e-9

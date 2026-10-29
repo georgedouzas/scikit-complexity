@@ -13,8 +13,9 @@ import numpy.typing as npt
 import scipy.sparse
 
 from ...core.spaces import BaseSpace
+from ...core.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import ArgumentsSpec, LatticeStateSpec, LookupSpec, RunStateSpec
+from ...specs import ArgumentsSpec, LookupSpec, RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 

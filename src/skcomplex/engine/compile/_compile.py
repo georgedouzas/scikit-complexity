@@ -9,8 +9,9 @@ from typing import cast
 from sklearn.base import clone
 
 from ...core.system import System
-from ...specs import BaseProblemSpec, ObservableSpec
+from ...specs import ObservableSpec
 from ..backends import BaseBackend
+from ..problems import BaseProblemSpec
 from ._base import BaseCompiler
 from ._pass_compiler import PassCompiler
 

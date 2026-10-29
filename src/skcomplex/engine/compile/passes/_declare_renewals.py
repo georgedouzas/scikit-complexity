@@ -10,9 +10,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.laws import BaseLaw
-from ....specs import BoundRenewalSpec, DeclarationsSpec, EntrySpec, KernelSpec
+from ....specs import EntrySpec
 from ..._utils import symbol
+from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
+from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Laws
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass

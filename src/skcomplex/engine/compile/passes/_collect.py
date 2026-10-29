@@ -5,7 +5,7 @@
 
 from typing import cast
 
-from ....specs import BlockSpec, KernelSpec
+from ...problems import BlockSpec, KernelSpec
 from .._base import BasePass
 from ._census import CensusPass
 

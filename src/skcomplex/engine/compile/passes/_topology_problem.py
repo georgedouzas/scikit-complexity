@@ -6,7 +6,7 @@
 from dataclasses import replace
 from typing import cast
 
-from ....specs import ProblemSpec
+from ...problems import ProblemSpec
 from .._base import BasePass
 
 

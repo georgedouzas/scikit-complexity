@@ -8,7 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from ...specs import ArgumentsSpec, LatticeStateSpec, RunStateSpec
+from ...core.specs import LatticeStateSpec
+from ...specs import ArgumentsSpec, RunStateSpec
 from ._base import BaseKernel
 
 _NO_ARGUMENTS = ArgumentsSpec()

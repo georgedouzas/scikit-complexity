@@ -3,10 +3,10 @@
 import numpy as np
 
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import PhaseRingVisual, RerunObserver
 from skcomplex.models import create
-from skcomplex.specs import FrameSpec
 
 
 class Logs:

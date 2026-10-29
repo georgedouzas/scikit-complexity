@@ -7,7 +7,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, EntrySpec, FrameSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...specs import EntrySpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _UPWARD, BaseVisual
 
 _PHASE_MARGIN = 0.1

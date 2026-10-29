@@ -8,7 +8,7 @@ import dataclasses
 import functools
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Self, cast
+from typing import Self, cast
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -16,12 +16,11 @@ from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.system import System
 from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
-from ...specs import BaseProblemSpec, IssueSpec, KernelSpec, ObservableSpec, ReferenceSpec, ValidationReportSpec
+from ...specs import IssueSpec, ObservableSpec, ValidationReportSpec
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import _AUTO_MEMBERS
-
-if TYPE_CHECKING:
-    from ._compilation import Compilation
+from ..problems import BaseProblemSpec, KernelSpec, ReferenceSpec
+from ._compilation import Compilation
 
 _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
@@ -493,7 +492,17 @@ class BaseLowering(BaseConfig):
             for key, (spec, added) in self.added_.items()
         }
         self.added_ = {}
+        self._replace_specs(replaced)
         self.compilation_._replace_specs(replaced)
+
+    def _replace_specs(self, specs: Mapping[int, KernelSpec]) -> None:
+        """Replace the kernel specs the lowering holds, none here.
+
+        Args:
+            specs:
+                The new spec of every replaced spec, by the identity of the replaced spec.
+        """
+        del specs
 
     def _run(self, inputs: object) -> list[BaseLaw]:
         """Return laws lowered.

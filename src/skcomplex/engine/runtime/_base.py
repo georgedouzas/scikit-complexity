@@ -7,7 +7,7 @@ import time
 from typing import Self
 
 from ...base import BaseConfig
-from ...specs import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec
 
 
 class BaseObserver(BaseConfig):

@@ -24,10 +24,10 @@ def test_processes_may_be_nothing():
 
 
 def test_no_module_outside_the_types_defines_a_kind_or_a_protocol():
-    """Test that no module outside `skcomplex.types` and the models defines an enum or a protocol."""
+    """Test that no module but a `types` module and the models defines an enum or a protocol."""
     defined = []
     for info in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
-        if info.name.startswith('skcomplex.models') or info.name == 'skcomplex.types':
+        if info.name.startswith('skcomplex.models') or info.name.endswith('.types'):
             continue
         try:
             module = importlib.import_module(info.name)

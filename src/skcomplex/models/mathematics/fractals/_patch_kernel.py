@@ -9,8 +9,8 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from ....engine.problems import BaseKernel
-from ....specs import BaseProblemSpec, BaseStructureSpec, ParametersSpec, RunStateSpec
+from ....engine.problems import BaseKernel, BaseProblemSpec
+from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
 from ._patch_element import PatchElement
 from ._patch_structure_spec import PatchStructureSpec
 from ._rewriting_error import RewritingError

@@ -9,8 +9,8 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
-from ...specs import ProblemSpec
 from ...types import Array
+from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._event_locator import EventLocator
 from ._history import _RESTART, History

@@ -9,11 +9,12 @@ from typing import Self
 
 import numpy as np
 
+from ..engine.problems import ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
-from ..specs import EventRecordSpec, ProblemSpec
+from ..specs import EventRecordSpec
 from ..types import Array, DataKind, FormKind
 from ._base import BaseAnalysis, Source
 

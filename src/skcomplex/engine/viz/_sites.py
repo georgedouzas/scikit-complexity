@@ -11,7 +11,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.spaces import LatticeSpace, NetworkSpace
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec, NetworkSnapshotSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...specs import NetworkSnapshotSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _GRID_RADIUS, _NODE_SPACING, BaseVisual
 
 _HEXAGON_RADIUS = float(1 / np.sqrt(3.0))

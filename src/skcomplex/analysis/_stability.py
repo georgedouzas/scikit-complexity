@@ -18,9 +18,9 @@ from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
 from ..engine._utils import components_of, declarations_of, symbol
+from ..engine.problems import ProblemSpec
+from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
-from ..specs import ProblemSpec
-from ..specs._dynamics_spec import _DynamicsSpec
 from ..types import Array, DataKind, FormKind, Point, VariableKind
 from ._base import BaseAnalysis, Source
 from ._groups import _Expansion

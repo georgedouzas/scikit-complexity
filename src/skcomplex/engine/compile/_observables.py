@@ -14,25 +14,22 @@ from sage.all__sagemath_symbolics import SR, Expression, I
 
 from ...core.elements import Element
 from ...core.laws.utils import has_operator, local_operator
+from ...core.specs import NodeSpec
 from ...core.system import System
 from ...errors import ValidationError
-from ...specs import (
-    BaseProblemSpec,
-    EntrySpec,
-    NodeSpec,
-    ObservableSpec,
-    ProblemSpec,
-    QuantumProblemSpec,
-    ReadSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-    StateSpec,
-)
+from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._recorded_spec import _RecordedSpec
 from ...types import AgentsOf, Array, FormKind, Getter, ReadKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
-from ..problems import ExpressionPrinter
+from ..problems import (
+    BaseProblemSpec,
+    ExpressionPrinter,
+    ProblemSpec,
+    QuantumProblemSpec,
+    ReductionScheduleSpec,
+    ReferenceSpec,
+)
 from ..problems._quantum_kernel import QuantumKernel
 from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseCompiler
@@ -174,7 +171,8 @@ def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
     }
     for path in held:
         readers = _readers_of(problem, path)
-        shared = [item.name for item in problem.partitions if groups[path] in item.owners and readers & item.owners]
+        partitions = problem.partitions if isinstance(problem, ProblemSpec) else ()
+        shared = [item.name for item in partitions if groups[path] in item.owners and readers & item.owners]
         if problem.form != FormKind.COUPLED or shared:
             error_msg = (
                 f'A law reads the observable {path} in the partition that computes it, but the observable is a Python '
@@ -259,7 +257,7 @@ class ObservableEvaluator:
                 self.getters_[path] = self._expression_getter(scope, path, observable)
             else:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
-        problems = (self.problem, *(partition.problem for partition in self.problem.partitions))
+        problems = (self.problem, *self.problem.partition_problems)
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
         transfer_network = self.problem.transfer_network
@@ -434,7 +432,7 @@ class ObservableEvaluator:
 
     def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> Getter:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
-        if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partitions:
+        if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
 

@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbo
 from ..base import BaseConfig
 from ..core.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
+from ..engine.problems import ProblemSpec
 from ..engine.problems._reduction_kernel import ReductionKernel
-from ..specs import EntrySpec, ProblemSpec
+from ..specs import EntrySpec
 
 
 class _Expansion(BaseConfig):

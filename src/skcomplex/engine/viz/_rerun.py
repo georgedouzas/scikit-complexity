@@ -16,8 +16,10 @@ import rerun.blueprint as rrb
 from rerun import bindings
 
 from ...core.spaces import NetworkSpace
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import BaseProblemSpec, CompiledAgentsSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
+from ...specs import RenewalRecordSpec
+from ..problems import BaseProblemSpec, FrameSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._base import BaseVisual
@@ -290,7 +292,7 @@ class RerunObserver(BaseObserver):
         """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
         views: list[rrb.View] = []
         paths = [f'{scope}/{item.label}' if scope else item.label for scope, item in problem.observables]
-        problems = (problem, *(partition.problem for partition in problem.partitions))
+        problems = (problem, *problem.partition_problems)
         paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
         if paths:
             views.append(self._series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))

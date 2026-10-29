@@ -11,8 +11,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy.linalg import solve_continuous_are
 
+from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
-from ..specs import ProblemSpec
 from ..types import Array, DataKind, FormKind
 from ._base import BaseAnalysis, Source
 from ._stability import StabilityAnalysis
