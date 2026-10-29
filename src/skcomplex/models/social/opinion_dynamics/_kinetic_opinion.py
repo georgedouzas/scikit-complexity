@@ -128,6 +128,9 @@ class OpinionLevelElement(Element):
         label:
             The label of the distribution.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         f:
             The initial density.
 

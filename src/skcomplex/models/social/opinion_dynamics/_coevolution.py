@@ -22,6 +22,7 @@ from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, V
 from ..._catalog import register_model
 
 SMALLEST_DEGREE = 1e-9
+FIRST_OPINION_SHARE = 0.5
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
 
 
@@ -59,6 +60,9 @@ class CoevolvingVoterElement(Element):
     Args:
         label:
             The label of the voter or the group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The opinion, 0 or 1.
@@ -192,6 +196,9 @@ class ClubMemberElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             1 for a member of the club and 0 for an outsider.
@@ -327,7 +334,7 @@ def coevolving_voter(
     """
     rng = np.random.default_rng(random_state)
     space = NetworkSpace(nx.gnp_random_graph(n_voters, mean_degree / (n_voters - 1), seed=rng))
-    opinions = (rng.random(n_voters) < 0.5).astype(float)  # noqa: PLR2004
+    opinions = (rng.random(n_voters) < FIRST_OPINION_SHARE).astype(float)
     return _coevolving(CoevolvingVoterElement, space, opinions, rewiring=rewiring, activity=activity)
 
 
@@ -384,5 +391,5 @@ def join_a_club(
     """
     rng = np.random.default_rng(random_state)
     space = NetworkSpace(nx.gnp_random_graph(n_agents, mean_degree / (n_agents - 1), seed=rng))
-    opinions = (rng.random(n_agents) < 0.5).astype(float)  # noqa: PLR2004
+    opinions = (rng.random(n_agents) < FIRST_OPINION_SHARE).astype(float)
     return _coevolving(ClubMemberElement, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)

@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._resident_view import ResidentView
 
 
 class ResidentElement(Element):
@@ -26,6 +27,9 @@ class ResidentElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         kind:
             The kind of the resident, 0 or 1.
@@ -52,6 +56,11 @@ class ResidentElement(Element):
         self.kind = kind
         self.threshold = threshold
 
+    @classmethod
+    def _get_view(cls) -> type[ResidentView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ResidentView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the relocation rule.
 
@@ -65,7 +74,7 @@ class ResidentElement(Element):
         """
         return [RuleLaw(self.relocate)]
 
-    def relocate(self, agent: AgentView, model: ModelView) -> None:
+    def relocate(self, agent: ResidentView, model: ModelView) -> None:
         """Move to a random empty cell while the share of similar neighbours is below the threshold.
 
         Args:
@@ -75,7 +84,7 @@ class ResidentElement(Element):
             model:
                 The model.
         """
-        neighbors = agent.neighbors()
+        neighbors = [item for item in agent.neighbors() if isinstance(item, ResidentView)]
         if not neighbors:
             return
         similar = sum(neighbor.kind == agent.kind for neighbor in neighbors) / len(neighbors)

@@ -17,15 +17,18 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._eater_view import EaterView
+from ._restaurant_view import RestaurantView
 
 MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
 HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))
 DAYS_PER_WEEK = 7
 KCAL_PER_KG = 7700.0
 OBESE = 30.0
+MALE_SHARE = 0.5
 
 
 def basal_metabolic_rate(weight: float, height: float, age: float, male: float) -> float:
@@ -73,6 +76,9 @@ class RestaurantElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         kind:
             The kind of restaurant.
 
@@ -103,6 +109,11 @@ class RestaurantElement(Element):
         self.sold = sold
         self.sold_high = sold_high
 
+    @classmethod
+    def _get_view(cls) -> type[RestaurantView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return RestaurantView
+
 
 class EaterElement(Element):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
@@ -116,6 +127,9 @@ class EaterElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         home:
             The position of the person's home.
@@ -194,6 +208,11 @@ class EaterElement(Element):
         self.reach = reach
         self.activity = activity
 
+    @classmethod
+    def _get_view(cls) -> type[EaterView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return EaterView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the daily rule.
 
@@ -207,11 +226,11 @@ class EaterElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def _eat(self, agent: AgentView, model: ModelView) -> None:
+    def _eat(self, agent: EaterView, model: ModelView) -> None:
         """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
-        restaurants = [other for other in agent.neighbors(radius=agent.reach) if other.group != agent.group]
+        restaurants = [other for other in agent.neighbors(radius=agent.reach) if isinstance(other, RestaurantView)]
         if not restaurants:
-            nearest = min(model.agents('restaurants', AgentView), key=agent.distance_to, default=None)
+            nearest = min(model.agents('restaurants', RestaurantView), key=agent.distance_to, default=None)
             restaurants = [] if nearest is None else [nearest]
         if not restaurants:
             return
@@ -221,7 +240,7 @@ class EaterElement(Element):
         restaurant.sold += 1
         restaurant.sold_high += float(high)
 
-    def _gain(self, agent: AgentView) -> None:
+    def _gain(self, agent: EaterView) -> None:
         """Change the weight by the calories of the week beyond the basal needs, and start a new week."""
         rate = basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
         needs = DAYS_PER_WEEK * agent.activity * rate
@@ -229,7 +248,7 @@ class EaterElement(Element):
         agent.calories = 0.0
         agent.bmi = agent.weight / (agent.height / 100) ** 2
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: EaterView, model: ModelView) -> None:
         """Eat at home, at work, and at home again, and update the weight at the end of a week.
 
         Args:
@@ -297,7 +316,7 @@ def obesity(
     rng = np.random.default_rng(random_state)
     homes, works = rng.uniform(0, size, (2, n_places, 2))
     home, work = homes[rng.integers(n_places, size=n_people)], works[rng.integers(n_places, size=n_people)]
-    male = (rng.random(n_people) < 0.5).astype(float)  # noqa: PLR2004
+    male = (rng.random(n_people) < MALE_SHARE).astype(float)
     height = np.where(male > 0, rng.normal(176, 7, n_people), rng.normal(163, 7, n_people))
     weight = rng.normal(24, 3, n_people) * (height / 100) ** 2
     people = GroupElement(

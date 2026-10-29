@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -50,7 +50,7 @@ def _imitate_fermi(
     payoffs: list[Array],
     strategies: list[Array],
     *,
-    noise: Any,  # noqa: ANN401
+    noise: float | Array,
     random: Array,
 ) -> Array:
     """Return strategies copied from a random neighbour with probability `1 / (1 + exp((P_own - P_other) / noise))`."""
@@ -92,20 +92,20 @@ class PrisonerElement(Element):
         label:
             The label of the player or the lattice group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        strategy:
+            The initial strategy, 1 or 0.
+
+        temptation:
+            The payoff of a defector against a cooperator.
+
+        noise:
+            The noise of the Fermi imitation.
+
         imitation:
             `'best'` for the best neighbour, or `'fermi'` for the Fermi rule.
-
-        **values:
-            The values of the declared variables, by name:
-
-            strategy:
-                The initial strategy, 1 or 0.
-
-            temptation:
-                The payoff of a defector against a cooperator.
-
-            noise:
-                The noise of the Fermi imitation.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import PrisonerElement
@@ -149,7 +149,7 @@ class PrisonerElement(Element):
             error_msg = f'Unknown imitation {imitation!r}. Use one of {", ".join(IMITATIONS)}.'
             raise ValidationError(error_msg)
 
-        def rule(*values: Array, temptation: Any, noise: Any, random: Array) -> Array:  # noqa: ANN401
+        def rule(*values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
             cells = dict(zip(SQUARE.offsets, values, strict=True))
 
             def payoff(center: Offset) -> Array:
@@ -176,6 +176,9 @@ class ContributorElement(Element):
     Args:
         label:
             The label of the player or the lattice group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 1 or 0.
@@ -218,7 +221,7 @@ class ContributorElement(Element):
                 The laws of the component.
         """
 
-        def rule(*values: Array, synergy: Any, noise: Any, random: Array) -> Array:  # noqa: ANN401
+        def rule(*values: Array, synergy: float | Array, noise: float | Array, random: Array) -> Array:
             cells = dict(zip(DIAMOND.offsets, values, strict=True))
             group = (*VON_NEUMANN, ORIGIN)
 

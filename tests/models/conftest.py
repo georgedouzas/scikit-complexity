@@ -1,7 +1,6 @@
 """Share the run helpers and the event observer of the model tests."""
 
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 
@@ -23,7 +22,7 @@ def _trajectory(
     until: float,
     dt: float,
     solver: BaseSolver | None = None,
-    **options: Any,  # noqa: ANN401
+    **options: object,
 ) -> Trajectory:
     """Return the trajectory of a model run with its standard observables."""
     system = create(name, **options)
@@ -53,7 +52,7 @@ def _peak(trajectory: Trajectory, name: str) -> float:
     return float(np.asarray(trajectory.times)[np.argmax(trajectory.values(name))])
 
 
-def _series(name: str, until: float, **arguments: Any) -> Trajectory:  # noqa: ANN401
+def _series(name: str, until: float, **arguments: object) -> Trajectory:
     """Return the trajectory of a model run with frames at every step."""
     system = create(name, **arguments)
     observables = describe(name).observables_of(system)

@@ -19,6 +19,7 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._employee_view import EmployeeView
 
 DAYS_PER_YEAR = 365
 PREDISPOSED = 0.1
@@ -30,37 +31,6 @@ def _wander(agent: AgentView, model: ModelView) -> None:
     """Move an agent to a random adjacent cell."""
     cells = agent.neighbor_cells()
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
-
-
-def _feel(agent: AgentView, model: ModelView) -> None:
-    """Draw how a predisposed employee feels about the organization today and update its disgruntlement."""
-    feeling = model.rng.normal(agent.culture, np.sqrt(agent.change))
-    if agent.days == 0:
-        agent.first = feeling
-    else:
-        agent.disgruntlement = (agent.expectation - feeling) * agent.affect_weight
-    agent.days += 1
-    agent.mean_feeling += (feeling - agent.mean_feeling) / agent.days
-    weights = agent.primacy + agent.consistency + agent.recency
-    agent.expectation = (
-        agent.primacy * agent.first + agent.consistency * agent.mean_feeling + agent.recency * feeling
-    ) / weights
-
-
-def _stress(agent: AgentView) -> None:
-    """Raise the stress of an employee who sees an agent of another group, a supervisor, and let it decay otherwise."""
-    supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
-    if supervised:
-        agent.stress += agent.alpha_seen * (agent.lambda_seen - agent.stress)
-    else:
-        agent.stress += agent.alpha_unseen * (agent.lambda_unseen - agent.stress)
-
-
-def _rehire(agent: AgentView, model: ModelView) -> None:
-    """Replace a leaving employee by a new hire with the same affect."""
-    agent.predisposed = float(model.rng.random() < PREDISPOSED)
-    agent.disgruntlement = agent.stress = agent.skill = 0.0
-    agent.days = agent.mean_feeling = agent.first = agent.expectation = 0.0
 
 
 class SupervisorElement(Element):
@@ -103,6 +73,9 @@ class EmployeeElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         predisposed:
             Whether the employee is predisposed to sabotage, 1, or not, 0.
@@ -234,6 +207,11 @@ class EmployeeElement(Element):
         self.skill_growth = skill_growth
         self.skill_variance = skill_variance
 
+    @classmethod
+    def _get_view(cls) -> type[EmployeeView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return EmployeeView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the daily rule.
 
@@ -247,7 +225,35 @@ class EmployeeElement(Element):
         """
         return [RuleLaw(self.work)]
 
-    def work(self, agent: AgentView, model: ModelView) -> None:
+    def _feel(self, agent: EmployeeView, model: ModelView) -> None:
+        """Draw how a predisposed employee feels about the organization today and update its disgruntlement."""
+        feeling = model.rng.normal(agent.culture, np.sqrt(agent.change))
+        if agent.days == 0:
+            agent.first = feeling
+        else:
+            agent.disgruntlement = (agent.expectation - feeling) * agent.affect_weight
+        agent.days += 1
+        agent.mean_feeling += (feeling - agent.mean_feeling) / agent.days
+        weights = agent.primacy + agent.consistency + agent.recency
+        agent.expectation = (
+            agent.primacy * agent.first + agent.consistency * agent.mean_feeling + agent.recency * feeling
+        ) / weights
+
+    def _stress(self, agent: EmployeeView) -> None:
+        """Raise the stress of an employee who sees a supervisor, an agent of another group, or let it decay."""
+        supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
+        if supervised:
+            agent.stress += agent.alpha_seen * (agent.lambda_seen - agent.stress)
+        else:
+            agent.stress += agent.alpha_unseen * (agent.lambda_unseen - agent.stress)
+
+    def _rehire(self, agent: EmployeeView, model: ModelView) -> None:
+        """Replace a leaving employee by a new hire with the same affect."""
+        agent.predisposed = float(model.rng.random() < PREDISPOSED)
+        agent.disgruntlement = agent.stress = agent.skill = 0.0
+        agent.days = agent.mean_feeling = agent.first = agent.expectation = 0.0
+
+    def work(self, agent: EmployeeView, model: ModelView) -> None:
         """Wander, feel, get stressed, learn, maybe leave, and update the risk.
 
         Args:
@@ -259,11 +265,11 @@ class EmployeeElement(Element):
         """
         _wander(agent, model)
         if agent.predisposed:
-            _feel(agent, model)
-        _stress(agent)
+            self._feel(agent, model)
+        self._stress(agent)
         agent.skill += model.rng.normal(agent.skill_growth, np.sqrt(agent.skill_variance))
         if model.rng.random() < agent.turnover / DAYS_PER_YEAR:
-            _rehire(agent, model)
+            self._rehire(agent, model)
         agent.risk = agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect
 
 

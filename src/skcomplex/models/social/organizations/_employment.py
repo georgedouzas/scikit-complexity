@@ -47,6 +47,9 @@ class WorkplaceElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         colour:
             The initial colour, 0 or 1.
 

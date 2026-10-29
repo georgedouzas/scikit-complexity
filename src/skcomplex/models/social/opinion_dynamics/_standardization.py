@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._complex_agent_view import ComplexAgentView
 
 MARKED = 2
 
@@ -43,6 +44,9 @@ class ComplexAgentElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         configuration:
             The internal configuration, from 0 to `H + 1`.
@@ -70,6 +74,11 @@ class ComplexAgentElement(Element):
         self.configuration = configuration
         self.spin = spin
 
+    @classmethod
+    def _get_view(cls) -> type[ComplexAgentView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ComplexAgentView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the standardization moves every agent.
 
@@ -95,23 +104,20 @@ class StandardizationInteraction(Interaction):
         label:
             The label of the interaction.
 
+        agents:
+            The path of the group of agents.
+
+        K:
+            The coupling of the characteristics `|S_i|`, which standardizes the agents.
+
+        J:
+            The coupling of the spins `S_i`, which orders the standardized agents.
+
+        T:
+            The temperature, the randomness of the choices.
+
         H:
             The number of configurations without the characteristic.
-
-        **values:
-            The values of the declared variables, by name:
-
-            agents:
-                The path of the group of agents.
-
-            K:
-                The coupling of the characteristics `|S_i|`, which standardizes the agents.
-
-            J:
-                The coupling of the spins `S_i`, which orders the standardized agents.
-
-            T:
-                The temperature, the randomness of the choices.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import StandardizationInteraction
@@ -157,7 +163,7 @@ class StandardizationInteraction(Interaction):
                 The model.
         """
         K, J, T = (model.parameter(name) for name in ('K', 'J', 'T'))
-        agents = model.agents(self.agents, AgentView)
+        agents = model.agents(self.agents, ComplexAgentView)
         size = len(agents)
         configurations = np.array([agent.configuration for agent in agents], dtype=float)
         spins = _spins_of(configurations)

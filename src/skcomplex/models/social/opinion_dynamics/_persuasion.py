@@ -17,10 +17,15 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._citizen_view import CitizenView
+from ._influencee_view import InfluenceeView
+from ._persuader_view import PersuaderView
+
+PAIR = 2
 
 
 def _shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
@@ -37,6 +42,9 @@ class PersuaderElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -58,6 +66,11 @@ class PersuaderElement(Element):
         super().__init__(label, visual=visual)
         self.opinion = opinion
 
+    @classmethod
+    def _get_view(cls) -> type[PersuaderView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return PersuaderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the persuasion rule.
 
@@ -71,7 +84,7 @@ class PersuaderElement(Element):
         """
         return [RuleLaw(self.persuade)]
 
-    def persuade(self, agent: AgentView, model: ModelView) -> None:
+    def persuade(self, agent: PersuaderView, model: ModelView) -> None:
         """Convince the neighbours of the agent and a random neighbour when the two agree.
 
         Args:
@@ -81,14 +94,15 @@ class PersuaderElement(Element):
             model:
                 The model.
         """
-        neighbors = agent.neighbors()
+        neighbors = [item for item in agent.neighbors() if isinstance(item, PersuaderView)]
         if not neighbors:
             return
         partner = neighbors[int(model.rng.integers(len(neighbors)))]
         if partner.opinion != agent.opinion:
             return
         for other in [*neighbors, *partner.neighbors()]:
-            other.opinion = agent.opinion
+            if isinstance(other, PersuaderView):
+                other.opinion = agent.opinion
 
 
 class CitizenElement(Element):
@@ -97,6 +111,9 @@ class CitizenElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -122,6 +139,11 @@ class CitizenElement(Element):
         super().__init__(label, visual=visual)
         self.opinion = opinion
         self.group_size = group_size
+
+    @classmethod
+    def _get_view(cls) -> type[CitizenView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return CitizenView
 
 
 class DiscussionsInteraction(Interaction):
@@ -171,7 +193,7 @@ class DiscussionsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
+        agents = model.agents(self.target, CitizenView)
         if not agents:
             return
         size = max(int(agents[0].group_size), 1)
@@ -189,6 +211,9 @@ class InfluenceeElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, -1 or 1.
@@ -229,6 +254,11 @@ class InfluenceeElement(Element):
         self.supportiveness = supportiveness
         self.exponent = exponent
         self.noise = noise
+
+    @classmethod
+    def _get_view(cls) -> type[InfluenceeView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return InfluenceeView
 
 
 class SocialImpactInteraction(Interaction):
@@ -281,8 +311,8 @@ class SocialImpactInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
-        if len(agents) < 2:  # noqa: PLR2004
+        agents = model.agents(self.target, InfluenceeView)
+        if len(agents) < PAIR:
             return
         locations = np.array([agent.location for agent in agents], dtype=float)
         opinions = np.array([agent.opinion for agent in agents], dtype=float)

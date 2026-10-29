@@ -16,10 +16,11 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._dweller_view import DwellerView
 
 
 def _block_of(location: object, side: int, columns: int) -> int:
@@ -34,6 +35,9 @@ class DwellerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         block:
             The index of the agent's block, set by the moves.
@@ -75,6 +79,11 @@ class DwellerElement(Element):
         self.slope = slope
         self.intercept = intercept
 
+    @classmethod
+    def _get_view(cls) -> type[DwellerView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return DwellerView
+
 
 class BlockMovesInteraction(Interaction):
     """Moves of the stochastic Schelling model, as many proposals per step as there are agents.
@@ -88,6 +97,9 @@ class BlockMovesInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of dwellers.
+
         width:
             The number of columns of the grid.
 
@@ -96,12 +108,6 @@ class BlockMovesInteraction(Interaction):
 
         side:
             The side of a square block in cells, which divides the width and the height.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of dwellers.
 
     Examples:
         >>> from skcomplex.models.social.segregation import BlockMovesInteraction
@@ -137,7 +143,7 @@ class BlockMovesInteraction(Interaction):
         """
         return [RuleLaw(self.move)]
 
-    def _change(self, agent: AgentView, counts: Array, origin: int, destination: int) -> float:
+    def _change(self, agent: DwellerView, counts: Array, origin: int, destination: int) -> float:
         """Return the utility change `dU` of a move between two blocks."""
         cells = self.side**2
         before = counts[[origin, destination]] / cells
@@ -156,7 +162,7 @@ class BlockMovesInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
+        agents = model.agents(self.target, DwellerView)
         columns = self.width // self.side
         counts = np.zeros(columns * (self.height // self.side))
         for agent in agents:

@@ -13,25 +13,12 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._namer_view import NamerView
 
-
-def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Generator) -> None:
-    """Play one naming game between a speaker and a hearer, the speaker inventing its own word when it knows none."""
-    spoken = np.array(speaker.words, dtype=float)
-    heard = np.array(hearer.words, dtype=float)
-    if not spoken.any():
-        spoken[own] = 1.0
-    known = np.flatnonzero(spoken)
-    name = known[int(rng.integers(len(known)))]
-    if heard[name]:
-        spoken[:] = heard[:] = 0.0
-        spoken[name] = heard[name] = 1.0
-    else:
-        heard[name] = 1.0
-    speaker.words, hearer.words = spoken, heard
+PAIR = 2
 
 
 class NamerElement(Element):
@@ -43,6 +30,9 @@ class NamerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         words:
             The initial inventory, 1 for every known word and 0 otherwise.
@@ -64,6 +54,11 @@ class NamerElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.words = words
+
+    @classmethod
+    def _get_view(cls) -> type[NamerView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return NamerView
 
 
 class NamingGamesInteraction(Interaction):
@@ -107,6 +102,22 @@ class NamingGamesInteraction(Interaction):
         """
         return [RuleLaw(self.play)]
 
+    @staticmethod
+    def _play(speaker: NamerView, hearer: NamerView, own: int, rng: np.random.Generator) -> None:
+        """Play one naming game between a speaker and a hearer, the speaker inventing a word when it knows none."""
+        spoken = np.array(speaker.words, dtype=np.float64)
+        heard = np.array(hearer.words, dtype=np.float64)
+        if not spoken.any():
+            spoken[own] = 1.0
+        known = np.flatnonzero(spoken)
+        name = known[int(rng.integers(len(known)))]
+        if heard[name]:
+            spoken[:] = heard[:] = 0.0
+            spoken[name] = heard[name] = 1.0
+        else:
+            heard[name] = 1.0
+        speaker.words, hearer.words = spoken, heard
+
     def play(self, model: ModelView) -> None:
         """Play one game per agent between random pairs.
 
@@ -114,12 +125,12 @@ class NamingGamesInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
-        if len(agents) < 2:  # noqa: PLR2004
+        agents = model.agents(self.target, NamerView)
+        if len(agents) < PAIR:
             return
         for _ in range(len(agents)):
             speaker, hearer = model.rng.choice(len(agents), size=2, replace=False)
-            _play(agents[speaker], agents[hearer], int(speaker), model.rng)
+            self._play(agents[speaker], agents[hearer], int(speaker), model.rng)
 
 
 @register_model(

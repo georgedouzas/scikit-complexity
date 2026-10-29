@@ -14,9 +14,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._task_view import TaskView
 
 
 class TaskElement(Element):
@@ -25,6 +26,9 @@ class TaskElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         priority:
             The priority, uniform on 0 to 1 for a new task.
@@ -60,6 +64,11 @@ class TaskElement(Element):
         self.age = age
         self.wait = wait
         self.greed = greed
+
+    @classmethod
+    def _get_view(cls) -> type[TaskView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return TaskView
 
 
 class ExecutionInteraction(Interaction):
@@ -113,7 +122,7 @@ class ExecutionInteraction(Interaction):
             model:
                 The model.
         """
-        tasks = model.agents(self.target, AgentView)
+        tasks = model.agents(self.target, TaskView)
         if not tasks:
             return
         priorities = [task.priority for task in tasks]

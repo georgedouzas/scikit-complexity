@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,9 +16,12 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
+from ....errors import SpaceError
 from ....specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._premises_view import PremisesView
+from ._traveller_view import TravellerView
 
 MONTH = 30
 QUARTER = 90
@@ -39,6 +42,9 @@ class PremisesElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         brothel:
             Whether the premises are a brothel, 1, or a house, 0.
@@ -80,6 +86,11 @@ class PremisesElement(Element):
         self.efficiency = efficiency
         self.day = day
 
+    @classmethod
+    def _get_view(cls) -> type[PremisesView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return PremisesView
+
 
 class TravellerElement(Element):
     """Woman of the brothel movement model: a trafficking victim, or a woman who travels freely.
@@ -87,6 +98,9 @@ class TravellerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         victim:
             Whether the woman is a trafficking victim, 1, or not, 0.
@@ -113,6 +127,11 @@ class TravellerElement(Element):
         self.victim = victim
         self.trips = trips
 
+    @classmethod
+    def _get_view(cls) -> type[TravellerView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return TravellerView
+
 
 class DailyMovementsInteraction(Interaction):
     """Day of the brothel movement model.
@@ -126,17 +145,14 @@ class DailyMovementsInteraction(Interaction):
         label:
             The label of the interaction.
 
+        women:
+            The path of the group of travellers.
+
+        premises:
+            The path of the group of premises, which the rule reads and updates.
+
         n_cities:
             The number of cities, vertical bands of equal width.
-
-        **values:
-            The values of the declared variables, by name:
-
-            women:
-                The path of the group of travellers.
-
-            premises:
-                The path of the group of premises, which the rule reads and updates.
 
     Examples:
         >>> from skcomplex.models.social.organizations import DailyMovementsInteraction
@@ -174,26 +190,36 @@ class DailyMovementsInteraction(Interaction):
         """Return the city of a cell of a grid of a given width."""
         return _cell(location)[0] * self.n_cities // width
 
-    def _travel(self, woman: AgentView, cell: tuple[int, int], width: int) -> None:
+    @staticmethod
+    def _shape(model: ModelView) -> tuple[int, int]:
+        """Return the width and the height of the grid of the model."""
+        dimensions = model.dimensions
+        if dimensions is None:
+            error_msg = 'The trafficking model runs on a grid, and its agents live in no space.'
+            raise SpaceError(error_msg)
+        width, height = dimensions
+        return int(width), int(height)
+
+    def _travel(self, woman: TravellerView, cell: tuple[int, int], width: int) -> None:
         """Move a woman to a cell and count a trip when the city changes."""
         if self._city(cell, width) != self._city(woman.location, width):
             woman.trips += 1
         woman.move_to(cell)
 
-    def _move_free(self, women: list[AgentView], model: ModelView) -> None:
+    def _move_free(self, women: list[TravellerView], model: ModelView) -> None:
         """Move a random free woman to a random cell of a random city."""
         free = [woman for woman in women if not woman.victim]
         if not free:
             return
-        width, height = cast('tuple[int, int]', model.dimensions)
+        width, height = self._shape(model)
         city = int(model.rng.integers(self.n_cities))
         start, stop = city * width // self.n_cities, (city + 1) * width // self.n_cities
         cell = (int(model.rng.integers(start, stop)), int(model.rng.integers(height)))
         self._travel(free[int(model.rng.integers(len(free)))], cell, width)
 
-    def _move_victims(self, women: list[AgentView], brothels: list[tuple[int, int]], model: ModelView) -> None:
+    def _move_victims(self, women: list[TravellerView], brothels: list[tuple[int, int]], model: ModelView) -> None:
         """Move a random number of the victims of every brothel to random brothels."""
-        width = cast('tuple[int, int]', model.dimensions)[0]
+        width = self._shape(model)[0]
         for brothel in brothels:
             victims = [woman for woman in women if woman.victim and _cell(woman.location) == brothel]
             moved = model.rng.permutation(len(victims))[: int(model.rng.integers(len(victims) + 1))]
@@ -207,7 +233,7 @@ class DailyMovementsInteraction(Interaction):
             model:
                 The model.
         """
-        women, premises = model.agents('women', AgentView), model.agents('premises', AgentView)
+        women, premises = model.agents('women', TravellerView), model.agents('premises', PremisesView)
         if not premises:
             return
         day = premises[0].day + 1

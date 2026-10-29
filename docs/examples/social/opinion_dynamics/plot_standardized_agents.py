@@ -71,12 +71,12 @@ def rate_function(q, m, temperature):
 q_grid, m_grid = np.meshgrid(np.linspace(0, 1, 401), np.linspace(0, 1, 401), indexing='ij')
 inside = m_grid <= q_grid
 temperatures = np.linspace(LOW, HIGH, 60)
-maxima = []
+peaks = []
 for temperature in temperatures:
     values = np.where(inside, rate_function(q_grid, m_grid, temperature), -np.inf)
     best = np.unravel_index(np.argmax(values), values.shape)
-    maxima.append((q_grid[best], m_grid[best]))
-maxima = np.array(maxima)
+    peaks.append((q_grid[best], m_grid[best]))
+maxima = np.array(peaks)
 times = simulation.trajectory_.times
 ramp = np.array([temperature_at(time) for time in times])
 rising = times <= PEAK

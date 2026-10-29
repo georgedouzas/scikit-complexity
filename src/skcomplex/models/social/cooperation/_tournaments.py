@@ -16,12 +16,14 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._strategist_view import StrategistView
 
 GENES = 7
+PAIR = 2
 PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (1.0, 1.0)}
 
 
@@ -73,21 +75,15 @@ def play(first: npt.ArrayLike, second: npt.ArrayLike, rounds: int = 6) -> tuple[
     return scores[0], scores[1]
 
 
-def _offspring(parent: AgentView, rng: np.random.Generator) -> Array:
-    """Return the genome of a parent, with one gene flipped with the mutation probability."""
-    genome = np.array(parent.genome, dtype=float)
-    if rng.random() < parent.mutation:
-        index = int(rng.integers(GENES))
-        genome[index] = 1.0 - genome[index]
-    return genome
-
-
 class StrategistElement(Element):
     """Agent of the prisoner's dilemma tournament, with a genome of responses and the fitness of its last games.
 
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         genome:
             The seven moves, 1 to cooperate and 0 to defect, for the opponent's last two moves: none, C, D, CC, CD,
@@ -125,6 +121,11 @@ class StrategistElement(Element):
         self.death = death
         self.mutation = mutation
 
+    @classmethod
+    def _get_view(cls) -> type[StrategistView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return StrategistView
+
 
 class TournamentInteraction(Interaction):
     """Tournament and selection of strategies of the iterated prisoner's dilemma.
@@ -137,14 +138,11 @@ class TournamentInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of strategists.
+
         rounds:
             The number of rounds of every game.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of strategists.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import TournamentInteraction
@@ -176,7 +174,7 @@ class TournamentInteraction(Interaction):
         """
         return [RuleLaw(self.compete)]
 
-    def _melee(self, agents: list[AgentView], rng: np.random.Generator) -> Array:
+    def _melee(self, agents: list[StrategistView], rng: np.random.Generator) -> Array:
         """Return the mean score per round of every agent after playing its two neighbours in a random ring."""
         order = rng.permutation(len(agents))
         totals = np.zeros(len(agents))
@@ -187,6 +185,15 @@ class TournamentInteraction(Interaction):
             totals[second] += scores[1]
         return totals / (2 * self.rounds)
 
+    @staticmethod
+    def _offspring(parent: StrategistView, rng: np.random.Generator) -> Array:
+        """Return the genome of a parent, with one gene flipped with the mutation probability."""
+        genome = np.array(parent.genome, dtype=np.float64)
+        if rng.random() < parent.mutation:
+            index = int(rng.integers(GENES))
+            genome[index] = 1.0 - genome[index]
+        return genome
+
     def compete(self, model: ModelView) -> None:
         """Play the tournament, then replace the dead with offspring chosen by fitness.
 
@@ -194,13 +201,13 @@ class TournamentInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
-        if len(agents) < 2:  # noqa: PLR2004
+        agents = model.agents(self.target, StrategistView)
+        if len(agents) < PAIR:
             return
         fitness = self._melee(agents, model.rng)
         dead = np.flatnonzero(model.rng.random(len(agents)) < agents[0].death)
         parents = model.rng.choice(len(agents), size=len(dead), p=fitness / fitness.sum())
-        genomes = [_offspring(agents[parent], model.rng) for parent in parents]
+        genomes = [self._offspring(agents[parent], model.rng) for parent in parents]
         for agent, value in zip(agents, fitness, strict=True):
             agent.fitness = float(value)
         for index, genome in zip(dead, genomes, strict=True):

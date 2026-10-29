@@ -229,6 +229,9 @@ class PedestriansElement(Element):
         label:
             The label of the crowd.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         f:
             The initial density.
 
