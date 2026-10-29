@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import BackendWarning
 from ....specs import EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
-from ....types import Array, FormKind, ReadKind, VectorFunction
+from ....types import Array, FormKind, VectorFunction
 from ...backends import BaseBackend, NumpyBackend
 from ...problems import DeclarationsSpec, OutputSpec, ProblemSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
+from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS

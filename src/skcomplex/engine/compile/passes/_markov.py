@@ -14,10 +14,11 @@ from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....errors import ValidationError
 from ....specs import EntrySpec, MatrixLawSpec, RunStateSpec
-from ....types import Array, DomainKind, ReadKind
+from ....types import Array, DomainKind
 from ..._utils import symbols_of
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._markov_kernel import MarkovKernel
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Compilation
 

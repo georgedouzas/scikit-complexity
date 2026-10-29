@@ -5,8 +5,8 @@
 
 from dataclasses import replace
 
-from ....types import ReadKind
 from ...problems import DeclarationsSpec, KernelSpec, ReductionScheduleSpec
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._reduction_lowering import ReductionLowering

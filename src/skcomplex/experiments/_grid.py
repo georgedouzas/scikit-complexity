@@ -7,8 +7,8 @@ import itertools
 from collections.abc import Iterable
 
 from ..errors import ValidationError
-from ..types import Bounds
 from ._base import BaseDesign
+from .types import Bounds
 
 
 class GridDesign(BaseDesign):

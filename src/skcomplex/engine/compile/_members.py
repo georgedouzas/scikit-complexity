@@ -14,10 +14,10 @@ from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec
-from ...types import ReadKind
 from .._utils import domain_of, symbol, vector
 from ..problems import KernelSpec, ReferenceSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 

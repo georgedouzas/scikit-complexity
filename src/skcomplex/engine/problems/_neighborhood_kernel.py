@@ -25,7 +25,8 @@ from ...core.spaces import (
 )
 from ...errors import ValidationError
 from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
-from ...types import Array, EdgesFound, Indices, Pairs
+from ...types import Array, Indices
+from ..types import EdgesFound, Pairs
 from ._base import BaseKernel
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter

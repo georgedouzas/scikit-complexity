@@ -15,8 +15,9 @@ from sage.sets.real_set import RealSet
 
 from .....core.interactions import BaseInteraction, Interaction, PairPotentialInteraction, PotentialInteraction
 from .....core.laws import BaseLaw, NoiseLaw, RateLaw
+from .....engine.types import PairArguments
 from .....specs import LammpsFixSpec, ParameterSpec, RoleSpec
-from .....types import Array, PairArguments
+from .....types import Array
 
 
 def _distance(first: FreeModuleElement, second: FreeModuleElement) -> Expression:

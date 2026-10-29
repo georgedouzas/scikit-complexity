@@ -5,7 +5,7 @@
 
 import itertools
 
-from ...types import Offset
+from ...types import IntTuple
 from ._base import BaseNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
 
@@ -40,7 +40,7 @@ class VonNeumannNeighborhood(LatticeNeighborhood):
         self.n_dim = n_dim
         self.center = center
 
-    def _get_offsets(self) -> tuple[Offset, ...]:
+    def _get_offsets(self) -> tuple[IntTuple, ...]:
         """Return the offsets within the Manhattan distance, after the site itself when included."""
         steps = range(-self.radius, self.radius + 1)
         offsets = tuple(

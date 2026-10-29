@@ -9,9 +9,10 @@ import numpy as np
 from ...base import BaseConfig
 from ...errors import ValidationError
 from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec
-from ...types import Array, Indices, OptionalPairs, ReadKind, VectorFunction
+from ...types import Array, Indices, VectorFunction
 from ..problems import LoweredKernelsSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
+from ..types import OptionalPairs, ReadKind
 
 _AUTO_MEMBERS = 1000
 

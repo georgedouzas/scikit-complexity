@@ -11,9 +11,9 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLa
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
-from ....types import ReadKind
 from ..._utils import components_of
 from ...problems import KernelSpec
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering

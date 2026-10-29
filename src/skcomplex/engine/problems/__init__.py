@@ -20,6 +20,7 @@ from ._quantum_problem_spec import QuantumProblemSpec
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
+from ._symmetry_spec import SymmetrySpec
 from ._transfer_state_spec import TransferStateSpec
 
 __all__: list[str] = [
@@ -45,5 +46,6 @@ __all__: list[str] = [
     'ReductionScheduleSpec',
     'ReferenceSpec',
     'SetSymbolSpec',
+    'SymmetrySpec',
     'TransferStateSpec',
 ]

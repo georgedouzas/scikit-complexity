@@ -5,8 +5,8 @@
 
 from SALib.sample import morris as morris_sample
 
-from ..types import Bounds
 from ._base import BaseDesign
+from .types import Bounds
 
 
 class MorrisDesign(BaseDesign):

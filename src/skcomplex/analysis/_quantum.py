@@ -19,8 +19,8 @@ from ..engine.problems import BaseProblemSpec, QuantumProblemSpec
 from ..engine.problems._quantum_kernel import QuantumKernel
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
-from ..specs import RunStateSpec
-from ..types import Array, DataKind, Sector
+from ..specs import RunStateSpec, SectorSpec
+from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
@@ -60,7 +60,8 @@ class QuantumAnalysis(BaseAnalysis):
             Parameter values by dotted name that replace the initial ones.
 
         sector:
-            A function of the system namespace that returns the conserved operator, and its eigenvalue, or `None`.
+            The sector of a conserved diagonal operator whose basis states the spectrum keeps, or `None` for every
+            basis state.
 
         subsystems:
             The keys of the subsystems to keep, such as `chain[0]`, or the path of a whole element or group.
@@ -141,7 +142,7 @@ class QuantumAnalysis(BaseAnalysis):
         *,
         n_states: int = 6,
         parameters: Mapping[str, Any] | None = None,
-        sector: Sector | None = None,
+        sector: SectorSpec | None = None,
         subsystems: Sequence[str] | None = None,
     ) -> None:
         self.kind = kind
@@ -231,15 +232,14 @@ class QuantumAnalysis(BaseAnalysis):
     @staticmethod
     def _sector_basis(
         problem: QuantumProblemSpec,
-        sector: Sector,
+        sector: SectorSpec,
         p: Array,
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
-        expression, value = sector
         if problem.lowering is None:
             error_msg = 'The quantum problem has no lowering of operators, so its sectors cannot be read.'
             raise AnalysisError(error_msg)
-        lowered = problem.lowering.run((expression(problem.namespaces['']), 'the sector'))
+        lowered = problem.lowering.run((sector.operator(problem.namespaces['']), 'the sector'))
         terms = [term for term in lowered if isinstance(term, QuantumKernel)] if isinstance(lowered, tuple) else []
         if not terms:
             error_msg = 'The operator of a sector lowers to no term.'
@@ -254,9 +254,9 @@ class QuantumAnalysis(BaseAnalysis):
                 'The operator of a sector must be diagonal in the product basis, such as a sum of `z` operators.'
             )
             raise AnalysisError(error_msg)
-        basis = np.flatnonzero(np.abs(diagonal - value) < SECTOR_TOLERANCE)
+        basis = np.flatnonzero(np.abs(diagonal - sector.value) < SECTOR_TOLERANCE)
         if not basis.size:
-            error_msg = f'No basis state has the eigenvalue {value} of the sector operator.'
+            error_msg = f'No basis state has the eigenvalue {sector.value} of the sector operator.'
             raise AnalysisError(error_msg)
         return basis
 

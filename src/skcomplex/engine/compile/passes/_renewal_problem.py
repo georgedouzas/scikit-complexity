@@ -15,10 +15,11 @@ from ....core.laws.utils import draws_in, reductions_in
 from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
 from ....specs._draw_spec import DRAWS
-from ....types import Indices, ReadKind
+from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
 from ...problems import ExpressionPrinter, ReferenceSpec
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
+from ...types import ReadKind
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Compilation

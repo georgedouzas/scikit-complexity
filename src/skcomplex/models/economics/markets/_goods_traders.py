@@ -17,9 +17,10 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
+from ....core.types import Pairing
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array, Pairing
+from ....types import Array
 from ..._catalog import register_model
 from ._exchange import cobb_douglas, neighbor_pairing, trade_goods
 

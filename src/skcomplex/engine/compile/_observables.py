@@ -20,7 +20,7 @@ from ...errors import ValidationError
 from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._recorded_spec import _RecordedSpec
-from ...types import AgentsOf, Array, FormKind, Getter, Indices, ReadKind, VariableKind
+from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import (
     BaseProblemSpec,
@@ -33,6 +33,7 @@ from ..problems import (
 from ..problems._quantum_kernel import QuantumKernel
 from ..problems._quantum_lowering import QuantumLowering
 from ..problems._reduction_kernel import ReductionKernel
+from ..types import AgentsFunction, ObservableFunction, ReadKind
 from ._base import BaseCompiler
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
@@ -240,7 +241,7 @@ class ObservableEvaluator:
                 Two observables share a path, an observable has neither an expression nor a group, or an expression
                 reads a symbol it cannot.
         """
-        self.getters_: dict[str, Getter] = {}
+        self.getters_: dict[str, ObservableFunction] = {}
         if isinstance(self.problem, QuantumProblemSpec):
             self._scalars = {}
             self.getters_ = self._quantum_getters(self.problem)
@@ -283,7 +284,7 @@ class ObservableEvaluator:
         expression: object,
         observables: Mapping[Expression, str],
         members: Mapping[Expression, Callable[[Array, Array], Array]],
-    ) -> Getter:
+    ) -> ObservableFunction:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
         expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
@@ -317,7 +318,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: _RecordedSpec) -> Getter:
+    def _recorded_getter(self, recorded: _RecordedSpec) -> ObservableFunction:
         """Return the getter of a flow or an objective, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Array, Array], Array]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
@@ -335,7 +336,7 @@ class ObservableEvaluator:
             members[item] = self._from_vector(reference.is_state, indices)
         return self._compile(recorded.path, recorded.expression, {}, members)
 
-    def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
+    def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         earlier = {
@@ -398,7 +399,7 @@ class ObservableEvaluator:
             raise ValidationError(error_msg)
         return entry
 
-    def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
+    def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
         """Return the getter of a reduction over a group of elements or agents."""
         group = self._join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
@@ -461,7 +462,7 @@ class ObservableEvaluator:
 
         return read_expression
 
-    def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> Getter:
+    def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> ObservableFunction:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
@@ -487,7 +488,7 @@ class ObservableEvaluator:
         return read_agents
 
     @staticmethod
-    def _quantum_getters(problem: QuantumProblemSpec) -> dict[str, Getter]:
+    def _quantum_getters(problem: QuantumProblemSpec) -> dict[str, ObservableFunction]:
         """Return the getters of the observables of a quantum problem, with the energy, and the purity when it is open.
 
         An observable gives an operator, a Sage expression of local operators, as a function of the namespace of its
@@ -507,7 +508,7 @@ class ObservableEvaluator:
             ValidationError:
                 Two observables share a path, or an observable does not give an operator.
         """
-        getters: dict[str, Getter] = {}
+        getters: dict[str, ObservableFunction] = {}
         for scope, observable in problem.observables:
             label = observable.label if observable.element is None else f'{observable.element}.{observable.label}'
             path = ObservableEvaluator._join(scope, label)
@@ -600,7 +601,7 @@ class ObservableEvaluator:
         path: str,
         observable: ObservableSpec,
         group: str,
-    ) -> Getter:
+    ) -> ObservableFunction:
         """Return the getter of a quantum observable evaluated member by member and reduced.
 
         The observable gives the operator of a member as a function of its namespace, or names a local operator of every
@@ -637,7 +638,7 @@ class ObservableEvaluator:
         return value
 
     @staticmethod
-    def _expectation_getter(problem: QuantumProblemSpec, terms: Sequence[QuantumKernel]) -> Getter:
+    def _expectation_getter(problem: QuantumProblemSpec, terms: Sequence[QuantumKernel]) -> ObservableFunction:
         """Return the getter of the expectation value of an operator at the state of a quantum problem."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
@@ -647,7 +648,7 @@ class ObservableEvaluator:
         return get
 
     @staticmethod
-    def _purity_getter(problem: QuantumProblemSpec) -> Getter:
+    def _purity_getter(problem: QuantumProblemSpec) -> ObservableFunction:
         """Return the getter of the purity `Tr(rho^2)` of the state of a quantum problem."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
@@ -657,7 +658,7 @@ class ObservableEvaluator:
 
         return get
 
-    def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsOf | None = None) -> dict[str, object]:
+    def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsFunction | None = None) -> dict[str, object]:
         """Return the value of every observable by path.
 
         Args:
@@ -704,7 +705,7 @@ class ObservableEvaluator:
         return lambda x, p: (x if is_state else p)[indices]
 
     @staticmethod
-    def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
+    def _renewal_counter(counts: npt.NDArray[np.intp]) -> ObservableFunction:
         """Return the getter of the number of renewals of a renewal law over all its members."""
 
         def count_renewals(t: float, x: Array, p: Array, done: Mapping[str, object]) -> float:

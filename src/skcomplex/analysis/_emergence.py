@@ -16,10 +16,11 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, UnobservedStatesWarning
-from ..types import AnyArray, Array, DataKind, IntArray, Partition
+from ..types import AnyArray, Array, DataKind, IntArray
 from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
 from ._markov import MarkovAnalysis
+from .types import Partition
 
 MATRIX_DIMENSIONS = 2
 

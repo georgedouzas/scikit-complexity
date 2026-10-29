@@ -8,7 +8,7 @@ from typing import Self
 import numpy as np
 
 from ...errors import ValidationError
-from ...types import Offset
+from ...types import IntTuple
 from ._base import BaseNeighborhood
 
 
@@ -32,11 +32,11 @@ class LatticeNeighborhood(BaseNeighborhood):
         ((0, 1), (1, 0))
     """
 
-    def __init__(self, offsets: tuple[Offset, ...], *, label: str = 'neighborhood') -> None:
+    def __init__(self, offsets: tuple[IntTuple, ...], *, label: str = 'neighborhood') -> None:
         super().__init__(label)
         self.offsets = offsets
 
-    def _get_offsets(self) -> tuple[Offset, ...]:
+    def _get_offsets(self) -> tuple[IntTuple, ...]:
         """Return the offsets as tuples of integers."""
         return tuple(tuple(int(step) for step in np.atleast_1d(offset)) for offset in self.offsets)
 

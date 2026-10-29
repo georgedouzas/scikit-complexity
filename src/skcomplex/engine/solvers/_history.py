@@ -9,8 +9,9 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
-from ...types import Array, Indices, Interpolant
+from ...types import Array, Indices
 from ..problems import ProblemSpec
+from ..types import Interpolant
 
 _RESTART = 1e-12
 

@@ -14,8 +14,9 @@ from ....core.spaces import LatticeSpace
 from ....core.specs import CensusRecordSpec
 from ....errors import ValidationError
 from ....specs import IssueSpec, NoiseProcessSpec
-from ....types import Indices, ReadKind
+from ....types import Indices
 from ...problems import DeclarationsSpec, OutputSpec, ReferenceSpec
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._field_lowering import FieldLowering

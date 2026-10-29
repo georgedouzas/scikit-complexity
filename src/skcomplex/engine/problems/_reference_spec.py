@@ -14,7 +14,8 @@ from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
 from ...specs._neighbor_read_spec import NeighborReadSpec
-from ...types import Array, Indices, ReadKind
+from ...types import Array, Indices
+from ..types import ReadKind
 from ._edge_search import EdgeSearch
 from ._field_operator_kernel import FieldOperatorKernel
 from ._pair_search import PairSearch

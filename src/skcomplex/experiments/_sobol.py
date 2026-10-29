@@ -5,8 +5,8 @@
 
 from scipy.stats import qmc
 
-from ..types import Bounds
 from ._base import BaseDesign
+from .types import Bounds
 
 
 class SobolDesign(BaseDesign):

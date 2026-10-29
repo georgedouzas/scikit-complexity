@@ -5,7 +5,7 @@
 
 import itertools
 
-from ...types import Offset
+from ...types import IntTuple
 from ._base import BaseNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
 
@@ -36,6 +36,6 @@ class BoxNeighborhood(LatticeNeighborhood):
         self.radius = radius
         self.n_dim = n_dim
 
-    def _get_offsets(self) -> tuple[Offset, ...]:
+    def _get_offsets(self) -> tuple[IntTuple, ...]:
         """Return every offset within the radius in lexicographic order, the zero offset included."""
         return tuple(itertools.product(range(-self.radius, self.radius + 1), repeat=self.n_dim))

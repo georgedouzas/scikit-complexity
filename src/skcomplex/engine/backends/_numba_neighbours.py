@@ -8,7 +8,8 @@ import math
 import numpy as np
 from numba import njit
 
-from ...types import Aim, Array, Box, Context, Grid, IntArray, NeighborsFound, Shape
+from ...types import Array, IntArray
+from ..types import CellGrid, CellSearch, CellShape, Cone, FoundNeighbors, PeriodicBox
 
 CELLS_PER_MEMBER = 8
 FEWEST_CELLS = 64
@@ -16,7 +17,7 @@ ACTIVE_THRESHOLD = 0.5
 
 
 @njit(cache=True)
-def _shape(side: float, low: Array, high: Array, box: Box) -> Shape:
+def _shape(side: float, low: Array, high: Array, box: PeriodicBox) -> CellShape:
     """Return the cell counts, sides, and origin of a grid of cells of at least a side over a box."""
     periods, periodic = box
     n_dim = low.size
@@ -32,7 +33,7 @@ def _shape(side: float, low: Array, high: Array, box: Box) -> Shape:
 
 
 @njit(cache=True)
-def _inside(positions: Array, member: int, other: int, limit: float, context: Context) -> tuple[bool, float]:
+def _inside(positions: Array, member: int, other: int, limit: float, context: CellSearch) -> tuple[bool, float]:
     """Return whether a member is a neighbour of another within a squared distance and a cone, and its distance."""
     _, aim, box = context
     headings, cosine, cone = aim
@@ -51,7 +52,7 @@ def _inside(positions: Array, member: int, other: int, limit: float, context: Co
 
 
 @njit(cache=True)
-def _cells_around(positions: Array, member: int, reach: float, context: Context) -> tuple[IntArray, IntArray]:
+def _cells_around(positions: Array, member: int, reach: float, context: CellSearch) -> tuple[IntArray, IntArray]:
     """Return the lowest and highest cell coordinates of the cells within a reach of a member, each cell once."""
     grid, _, box = context
     shape = grid[0]
@@ -84,7 +85,7 @@ def _next_cell(current: IntArray, low: IntArray, high: IntArray) -> bool:
 
 
 @njit(cache=True)
-def _scan(positions: Array, member: int, reach: float, context: Context, found: NeighborsFound) -> int:
+def _scan(positions: Array, member: int, reach: float, context: CellSearch, found: FoundNeighbors) -> int:
     """Return the number of other members within a reach and a cone of a member, storing them and their distances."""
     grid = context[0]
     counts, strides, starts, order = grid[0][0], grid[1], grid[2], grid[3]
@@ -112,7 +113,7 @@ def _scan(positions: Array, member: int, reach: float, context: Context, found: 
 
 
 @njit(cache=True)
-def _within(positions: Array, radius: float, aim: Aim, box: Box, center: bool) -> tuple[IntArray, IntArray]:
+def _within(positions: Array, radius: float, aim: Cone, box: PeriodicBox, center: bool) -> tuple[IntArray, IntArray]:
     """Return the members within a radius, and inside a cone, of every member as CSR rows sorted by member.
 
     The search is serial: a kernel loaded from the Numba cache crashes when it calls a parallel function through a
@@ -137,7 +138,7 @@ def _within(positions: Array, radius: float, aim: Aim, box: Box, center: bool) -
 
 
 @njit(cache=True)
-def _side(positions: Array, k: int, box: Box) -> float:
+def _side(positions: Array, k: int, box: PeriodicBox) -> float:
     """Return the side of cells that hold about `k + 1` members each."""
     n_members, n_dim = positions.shape
     periods, periodic = box
@@ -152,7 +153,7 @@ def _side(positions: Array, k: int, box: Box) -> float:
 
 
 @njit(cache=True)
-def _nearest_of(positions: Array, member: int, k: int, side: float, context: Context) -> IntArray:
+def _nearest_of(positions: Array, member: int, k: int, side: float, context: CellSearch) -> IntArray:
     """Return the `k` nearest other members of a member, doubling the reach of the search until it holds them."""
     reach = side
     nothing = (np.empty(0, dtype=np.int64), np.empty(0), False)
@@ -197,7 +198,7 @@ def _sorted_rows(indptr: IntArray, indices: IntArray, edges: IntArray) -> None:
 
 
 @njit(cache=True)
-def _cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
+def _cell_coordinate(value: float, dimension: int, shape: CellShape, box: PeriodicBox) -> int:
     """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin.
 
     Args:
@@ -226,7 +227,7 @@ def _cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> in
 
 
 @njit(cache=True)
-def _build_grid(positions: Array, side: float, box: Box) -> Grid:
+def _build_grid(positions: Array, side: float, box: PeriodicBox) -> CellGrid:
     """Return a grid of cells of at least a side, coarsened to a few cells per member, with the members binned.
 
     The grid holds at most eight cells per member, and at least 64, so members far apart do not allocate a cell for
@@ -319,7 +320,7 @@ def _cone_neighbours(
     positions: Array,
     headings: Array,
     cone: tuple[float, float],
-    box: Box,
+    box: PeriodicBox,
     center: bool,
 ) -> tuple[IntArray, IntArray]:
     """Return the members within a radius and inside the cone around the heading of every member, as CSR rows.

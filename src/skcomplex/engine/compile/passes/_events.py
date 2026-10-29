@@ -13,10 +13,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import PipelineError, ValidationError
 from ....specs import EntrySpec
-from ....types import ReadKind
 from ..._utils import symbol, vector
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass

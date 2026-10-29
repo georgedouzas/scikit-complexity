@@ -9,7 +9,8 @@ import numpy as np
 
 from ...errors import SolverError
 from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
-from ...types import Array, Drawn, Indices, ReadKind
+from ...types import Array, Indices
+from ..types import Drawn, ReadKind
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter

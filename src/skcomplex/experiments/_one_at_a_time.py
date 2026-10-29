@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ..types import Bounds
 from ._base import BaseDesign
+from .types import Bounds
 
 
 class OneAtATimeDesign(BaseDesign):

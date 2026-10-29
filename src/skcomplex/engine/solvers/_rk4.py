@@ -23,8 +23,9 @@ from ...core.laws import (
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, Interpolant, OrderKind
+from ...types import Array, FormKind, OrderKind
 from ..problems._steps import step_count
+from ..types import Interpolant
 from ._base import BaseSolver
 from ._history import History
 from ._solver import Solver

@@ -18,7 +18,7 @@ from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
-from ....types import Array, FormKind, ReadKind, Scalars, VariableKind, VectorFunction
+from ....types import Array, FormKind, VariableKind, VectorFunction
 from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     BlockSpec,
@@ -30,6 +30,7 @@ from ...problems import (
 )
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
+from ...types import ReadKind, ScalarsFunction
 from .._base import BasePass
 from .._compilation import Compilation
 from ._events import _SWITCHES, RELATIONS
@@ -210,7 +211,7 @@ class ProblemPass(BasePass):
         return float(-expression.subs({time: 0}) / slope)
 
     @staticmethod
-    def _first_value(function: Scalars) -> Callable[[float, Array, Array], float]:
+    def _first_value(function: ScalarsFunction) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function."""
 
         def first(t: float, x: Array, p: Array) -> float:
@@ -219,7 +220,10 @@ class ProblemPass(BasePass):
         return first
 
     @staticmethod
-    def _reduced_guard(function: Scalars, reductions: ReductionScheduleSpec) -> Callable[[float, Array, Array], float]:
+    def _reduced_guard(
+        function: ScalarsFunction,
+        reductions: ReductionScheduleSpec,
+    ) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function, reading the reductions at its state."""
         if not reductions.steps:
             return ProblemPass._first_value(function)
@@ -252,7 +256,7 @@ class ProblemPass(BasePass):
         sources: Mapping[Expression, tuple[bool, int]],
         time: Expression,
         owner: str,
-    ) -> Scalars:
+    ) -> ScalarsFunction:
         """Return a function of time, the state vector, and the parameter vector that evaluates scalar expressions."""
         values = [SR(expression) for expression in expressions]
         arguments = sorted(symbols_of(values) - {time}, key=str)

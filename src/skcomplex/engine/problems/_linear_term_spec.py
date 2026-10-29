@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...core.elements import FieldElement
 from ...specs._base_spec import BaseSpec
-from ...types import Chain
+from ..types import Chain
 from ._reference_spec import ReferenceSpec
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')

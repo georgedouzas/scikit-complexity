@@ -6,7 +6,7 @@
 from typing import Self
 
 from ...specs import RequirementSpec
-from ...types import Target
+from ..types import Target
 from ._base import BaseLaw
 
 

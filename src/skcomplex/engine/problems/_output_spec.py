@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...specs._base_spec import BaseSpec
 from ...specs._noise_process_spec import NoiseProcessSpec
-from ...types import NumericFunction
+from ..types import NumericFunction
 from ._reference_spec import ReferenceSpec
 
 

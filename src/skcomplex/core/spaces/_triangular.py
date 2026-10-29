@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...types import Offset
+from ...types import IntTuple
 from ._base import BaseNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
 
@@ -32,6 +32,6 @@ class TriangularNeighborhood(LatticeNeighborhood):
         BaseNeighborhood.__init__(self, label)
         self.center = center
 
-    def _get_offsets(self) -> tuple[Offset, ...]:
+    def _get_offsets(self) -> tuple[IntTuple, ...]:
         """Return the six offsets, after the site itself when included."""
         return ((0, 0), *TRIANGULAR_OFFSETS) if self.center else TRIANGULAR_OFFSETS

@@ -6,8 +6,8 @@
 from collections.abc import Mapping, Sequence
 
 from ..errors import ValidationError
-from ..types import Bounds
 from ._base import BaseDesign
+from .types import Bounds
 
 
 class RowsDesign(BaseDesign):

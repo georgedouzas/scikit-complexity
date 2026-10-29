@@ -28,11 +28,12 @@ from ....errors import PipelineError, RoleError, ValidationError
 from ....specs import CallSpec, EntrySpec, NeighborReductionSpec, PairReadSpec, ReadSpec, ReductionSpec
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
-from ....types import ReadKind, VariableKind
+from ....types import VariableKind
 from ..._utils import declarations_of, symbol, symbols_of, vector
 from ...problems import DeclarationsSpec, KernelSpec, ReferenceSpec
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
+from ...types import ReadKind
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
 from .._complex import _modulus_form

@@ -10,8 +10,8 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ...types import Process, Target
 from ..spaces import ContinuousTime
+from ..types import Process, Target
 from ._base import BaseLaw
 
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}

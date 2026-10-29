@@ -55,6 +55,7 @@ from ._sampled_draw_spec import SampledDrawSpec
 from ._sampler_spec import MONTE_CARLO_SCHEDULES, SAMPLERS, SamplerSpec
 from ._samples_spec import SamplesSpec
 from ._schedule_spec import ScheduleSpec
+from ._sector_spec import SectorSpec
 from ._series_spec import SeriesSpec
 from ._signature_spec import SignatureSpec
 from ._snapshots_spec import SnapshotsSpec
@@ -136,6 +137,7 @@ __all__ = [
     'SamplerSpec',
     'SamplesSpec',
     'ScheduleSpec',
+    'SectorSpec',
     'SeriesSpec',
     'SignatureSpec',
     'SnapshotsSpec',

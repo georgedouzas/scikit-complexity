@@ -22,11 +22,12 @@ from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec
-from ...types import Indices, Offset, ReadKind
+from ...types import Indices, IntTuple
 from .._utils import domain_of, symbol
 from ..problems import DeclarationsSpec, DiffusiveLimitSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
@@ -74,7 +75,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     fields_: Mapping[str, FieldElement]
     initial_: Mapping[Expression, float]
-    shifted_: dict[Expression, tuple[Expression, Offset | int]]
+    shifted_: dict[Expression, tuple[Expression, IntTuple | int]]
     derived_: dict[Expression, tuple[FieldElement, FieldOperatorKernel]]
     limits_: list[float]
     volume_limits_: list[DiffusiveLimitSpec]
@@ -196,7 +197,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         self,
         item: Expression,
         place: FieldElement,
-        offset: Offset | int,
+        offset: IntTuple | int,
     ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
         reference = self._known_reference(item)
@@ -229,7 +230,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         table, ghost = self.tables_[key]
         return table, ghost, MODES[kind]
 
-    def _shift(self, expression: Expression, offset: Offset | int) -> Expression:
+    def _shift(self, expression: Expression, offset: IntTuple | int) -> Expression:
         """Return an expression read at a neighbouring site of every member.
 
         Args:
@@ -256,7 +257,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 if current is not None:
                     error_msg = f'A law of {self.spec.owner} nests operators on a network, which only take one step.'
                     raise ValidationError(error_msg)
-                total: Offset | int = offset
+                total: IntTuple | int = offset
             else:
                 total = tuple(a + b for a, b in zip(current or (0,) * len(offset), offset, strict=True))
             if not isinstance(total, int) and not any(total):
@@ -344,7 +345,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             )
         return total
 
-    def _lattice(self, expression: Expression, axis: int, name: str) -> tuple[LatticeSpace, Offset, Offset]:
+    def _lattice(self, expression: Expression, axis: int, name: str) -> tuple[LatticeSpace, IntTuple, IntTuple]:
         """Return the lattice of an expression and the unit offsets along an axis."""
         space = self._space(expression)
         if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
@@ -518,7 +519,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             self.limits_.append(1 / (stiffness * magnitude))
 
     @staticmethod
-    def _tag(offset: Offset | int) -> str:
+    def _tag(offset: IntTuple | int) -> str:
         """Return a name fragment for a lattice offset or a network neighbour slot."""
         if isinstance(offset, int):
             return f'k{offset}'

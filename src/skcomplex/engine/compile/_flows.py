@@ -31,11 +31,11 @@ from ...specs._compiled_delay_spec import _CompiledDelaySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ...specs._recorded_spec import _RecordedSpec
 from ...types import Array, VariableKind
-from ...types import ReadKind as Read
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import BlockSpec, DeclarationsSpec, KernelSpec, ReferenceSpec, TransferStateSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._record_spec import _RecordSpec
+from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
@@ -329,7 +329,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
-                self._add_reference(born.spec, accumulator, ReferenceSpec(entry, True, 0, Read.SINGLE))
+                self._add_reference(born.spec, accumulator, ReferenceSpec(entry, True, 0, ReadKind.SINGLE))
             if discrete:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
@@ -386,7 +386,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 np.full(order, start * each),
                 (order,),
             )
-            references = {stage: ReferenceSpec(entry, True, column, Read.SINGLE) for column, stage in enumerate(stages)}
+            references = {
+                stage: ReferenceSpec(entry, True, column, ReadKind.SINGLE) for column, stage in enumerate(stages)
+            }
             for stage, reference in references.items():
                 self._add_reference(spec, stage, reference)
             output = stages[-1] / (time / order) if material else stages[-1]
@@ -576,7 +578,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         values: dict[Expression, float] = {declarations.time: 0.0}
         for name in symbols_of([item]) - {declarations.time}:
             reference = self._reference_of(name, spec)
-            if reference is None or reference.source not in {Read.SINGLE, Read.MEMBER} or reference.entry.members:
+            if (
+                reference is None
+                or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
+                or reference.entry.members
+            ):
                 error_msg = (
                     f'A delay of {spec.owner} reads {name}, which is not a variable of a single element or '
                     'interaction. Delays and smoothings start from the initial value of their input, read from single '

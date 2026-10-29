@@ -7,9 +7,8 @@ from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ...types import Pairing
 from ..spaces import DiscreteTime
-from ..types import ModelViewProtocol
+from ..types import ModelViewProtocol, Pairing
 from ._base import BaseLaw
 from ._rule import RuleLaw
 from .utils import random_pairing

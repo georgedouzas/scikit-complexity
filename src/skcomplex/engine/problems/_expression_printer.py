@@ -16,8 +16,9 @@ from sage.structure.element import RingElement
 
 from ...errors import ValidationError
 from ...specs._dialect_spec import DIALECTS
-from ...types import Printed, PrintedKey
+from ..types import PrintedKey
 from ._base import BasePrinter
+from ._printed_spec import PrintedSpec
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
 _CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
@@ -157,12 +158,12 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 bind(operand)
             if counts[key] > 1:
                 name = f'{self.prefix}{len(assignments)}'
-                assignments.append((name, self._print(item)[0]))
+                assignments.append((name, self._print(item).code))
                 self.bound_[key] = name
 
         for expression in expressions if self.shared else ():
             bind(expression)
-        codes = [self._print(expression)[0] for expression in expressions]
+        codes = [self._print(expression).code for expression in expressions]
         if not self.compiled:
             return assignments, codes
         return self._function(assignments, codes)
@@ -220,43 +221,42 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         function: Callable[..., list[object]] = module._function
         return function
 
-    def _wrap(self, printed: Printed, precedence: int) -> str:
+    def _wrap(self, printed: PrintedSpec, precedence: int) -> str:
         """Return printed code, in parentheses when it binds less tightly than a precedence."""
-        code, level = printed
-        return code if level >= precedence else f'({code})'
+        return printed.code if printed.precedence >= precedence else f'({printed.code})'
 
-    def _number(self, value: _Number) -> Printed:
+    def _number(self, value: _Number) -> PrintedSpec:
         """Return the code of a number."""
         if isinstance(value, Integer | int):
-            return str(int(value)), (ATOM if value >= 0 else NEGATION)
+            return PrintedSpec(str(int(value)), ATOM if value >= 0 else NEGATION)
         if isinstance(value, Rational) and self.dialect_.exact_rationals:
             code = f'{abs(int(value.numerator()))}/{int(value.denominator())}'
-            return (f'-{code}', NEGATION) if value < 0 else (code, PRODUCT)
+            return PrintedSpec(f'-{code}', NEGATION) if value < 0 else PrintedSpec(code, PRODUCT)
         number = None if isinstance(value, complex) else self._real(value)
         if number is None:
             if not self.dialect_.complex_numbers:
                 name = f'complex number {value}'
                 raise self.dialect_.unknown(name)
-            return repr(complex(value)), ATOM
-        return repr(number), (ATOM if number >= 0 else NEGATION)
+            return PrintedSpec(repr(complex(value)), ATOM)
+        return PrintedSpec(repr(number), ATOM if number >= 0 else NEGATION)
 
-    def _template(self, name: str, arguments: Sequence[Expression]) -> Printed:
+    def _template(self, name: str, arguments: Sequence[Expression]) -> PrintedSpec:
         """Return the code of a function or relation from its template."""
         templates = {**self.dialect_.functions, **self.dialect_.relations}
         if name not in templates:
             raise self.dialect_.unknown(name)
         call = _CALL.fullmatch(templates[name]) is not None
         codes = [
-            self._print(argument)[0] if call else self._wrap(self._print(argument), ATOM) for argument in arguments
+            self._print(argument).code if call else self._wrap(self._print(argument), ATOM) for argument in arguments
         ]
         if name in self.dialect_.folds:
             code = codes[0]
             for other in codes[1:]:
                 code = templates[name].format(code, other)
-            return code, ATOM
-        return templates[name].format(*codes), ATOM
+            return PrintedSpec(code, ATOM)
+        return PrintedSpec(templates[name].format(*codes), ATOM)
 
-    def _product(self, item: Expression) -> Printed:
+    def _product(self, item: Expression) -> PrintedSpec:
         """Return the code of a product, with factors of negative powers in its denominator."""
         coefficient: _Number = 1
         numerator: list[str] = []
@@ -278,47 +278,47 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 numerator.insert(0, str(int(coefficient.numerator())))
             denominator.insert(0, str(int(coefficient.denominator())))
         elif coefficient != 1:
-            numerator.insert(0, self._number(coefficient)[0])
+            numerator.insert(0, self._number(coefficient).code)
         code = '*'.join(numerator) or '1'
         if denominator:
             divisor = denominator[0] if len(denominator) == 1 else f'({"*".join(denominator)})'
             code = f'{code}/{divisor}'
         if negative:
-            return f'-{code}', NEGATION
-        return code, PRODUCT
+            return PrintedSpec(f'-{code}', NEGATION)
+        return PrintedSpec(code, PRODUCT)
 
-    def _power(self, base: Expression, exponent: Expression) -> Printed:
+    def _power(self, base: Expression, exponent: Expression) -> PrintedSpec:
         """Return the code of a power, with square roots for exponents of a half."""
         if exponent.is_numeric() and self._numeric(exponent) == Rational((1, 2)):
             return self._template('sqrt', [base])
         if exponent.is_numeric() and self._numeric(exponent) == Rational((-1, 2)):
-            return f'1/{self._template("sqrt", [base])[0]}', PRODUCT
+            return PrintedSpec(f'1/{self._template("sqrt", [base]).code}', PRODUCT)
         if exponent.is_numeric() and self._numeric(exponent) == 1:
             return self._print(base)
         code = f'{self._wrap(self._print(base), ATOM)}{self.dialect_.power}{self._wrap(self._print(exponent), ATOM)}'
-        return code, POWER
+        return PrintedSpec(code, POWER)
 
-    def _total(self, item: Expression) -> Printed:
+    def _total(self, item: Expression) -> PrintedSpec:
         """Return the code of a sum."""
         terms = [self._print(term) for term in item.operands()]
         code = self._wrap(terms[0], SUM)
-        for term, level in terms[1:]:
-            if level == NEGATION and term.startswith('-'):
-                code += f' - {term[1:]}'
+        for term in terms[1:]:
+            if term.precedence == NEGATION and term.code.startswith('-'):
+                code += f' - {term.code[1:]}'
             else:
-                code += f' + {self._wrap((term, level), SUM + 1)}'
-        return code, SUM
+                code += f' + {self._wrap(term, SUM + 1)}'
+        return PrintedSpec(code, SUM)
 
-    def _leaf(self, item: Expression) -> Printed:
+    def _leaf(self, item: Expression) -> PrintedSpec:
         """Return the code of a bound subexpression, a symbol, a number, or a constant."""
         name = self.bound_.get(self._key(item)) if self.bound_ else None
         if name is not None:
-            return name, ATOM
+            return PrintedSpec(name, ATOM)
         if item.is_symbol():
-            return self.names_(item), ATOM
+            return PrintedSpec(self.names_(item), ATOM)
         return self._number(self._numeric(item) if item.is_numeric() else float(item))
 
-    def _print(self, item: Expression) -> Printed:
+    def _print(self, item: Expression) -> PrintedSpec:
         """Return the code of an expression and how tightly it binds."""
         if (
             item.is_symbol()

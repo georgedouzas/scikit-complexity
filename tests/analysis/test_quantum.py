@@ -13,6 +13,7 @@ from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.common.quantum import SpinElement
 from skcomplex.models.physics.statistical_mechanics import total_magnetization
+from skcomplex.specs import SectorSpec
 
 
 def _quantum(kind, source, **settings):
@@ -33,13 +34,13 @@ def test_spectrum_uses_parameters_and_sectors():
     system = create('quantum_heisenberg', n_sites=4)
     ferro = _quantum('spectrum', system, n_states=1, parameters={'exchange.J': -1.0})
     assert ferro.energies_[0] == pytest.approx(-1.0)
-    sector = _quantum('spectrum', system, n_states=1, sector=(total_magnetization, 2.0))
+    sector = _quantum('spectrum', system, n_states=1, sector=SectorSpec(total_magnetization, 2.0))
     assert sector.energies_[0] == pytest.approx(1.0)
     large = _quantum(
         'spectrum',
         create('quantum_heisenberg', n_sites=12),
         n_states=1,
-        sector=(total_magnetization, 0.0),
+        sector=SectorSpec(total_magnetization, 0.0),
     )
     assert large.energies_[0] / 12 == pytest.approx(0.25 - np.log(2), abs=0.02)
 
@@ -50,7 +51,7 @@ def test_spectrum_rejects_bad_requests():
     with pytest.raises(ParameterError):
         _quantum('spectrum', system, parameters={'exchange.K': 1.0})
     with pytest.raises(AnalysisError, match='eigenvalue'):
-        _quantum('spectrum', system, sector=(total_magnetization, 7.0))
+        _quantum('spectrum', system, sector=SectorSpec(total_magnetization, 7.0))
     with pytest.raises(ValidationError, match='no quantum element'):
         _quantum('spectrum', System(elements=[PopulationElement('rabbits')]))
 

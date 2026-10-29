@@ -1,20 +1,26 @@
-"""Define the protocols of the core: the automata that analyses read, and the model that agent rules read."""
+"""Define the types of the core: the targets of laws, the pairings of matches, and the protocols of the core."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping, Sequence
+from collections.abc import Callable, MutableMapping, Sequence
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.structure.element import Matrix
 
 from ..types import Indices, IntArray
 from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
+
+type Target = Expression | FreeModuleElement
+type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
+type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 
 
 @runtime_checkable

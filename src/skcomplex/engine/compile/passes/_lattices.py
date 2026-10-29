@@ -37,7 +37,7 @@ from ....specs import (
     TableSpec,
     TotalisticSpec,
 )
-from ....types import Array, Indices, ReadKind
+from ....types import Array, Indices
 from ..._utils import symbol
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec
 from ...problems._drive_kernel import DriveKernel
@@ -45,6 +45,7 @@ from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
+from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._laws import LATTICE_LAWS

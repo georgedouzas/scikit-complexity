@@ -20,10 +20,10 @@ from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
-from ..types import Bounds, Row
 from ._base import BaseDesign, BaseExperiment, Source
 from ._results import ExperimentResult
 from .specs._task_spec import Output, _TaskSpec
+from .types import Bounds, Row
 
 EXECUTORS = ('serial', 'thread', 'process')
 

@@ -21,6 +21,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe, run
 from skcomplex.models.physics.statistical_mechanics import total_magnetization
+from skcomplex.specs import SectorSpec
 
 MODEL = 'quantum_heisenberg'
 
@@ -53,7 +54,7 @@ magnon = run(MODEL, delta=0.0, settings={'until': 4.0, 'dt': 0.05}).trajectory_
 
 
 sizes = np.arange(4, 15, 2)
-ground = QuantumAnalysis(n_states=1, sector=(total_magnetization, 0.0)).check()
+ground = QuantumAnalysis(n_states=1, sector=SectorSpec(total_magnetization, 0.0)).check()
 energies = [ground.prepare(create(MODEL, n_sites=int(n))).run().energies_[0] / n for n in sizes]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):

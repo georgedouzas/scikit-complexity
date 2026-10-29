@@ -13,8 +13,8 @@ import rerun.blueprint as rrb
 
 from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...types import Colors, Marks, Outline, Positions
 from ..problems import BaseProblemSpec, FrameSpec
+from ..types import Colors, Marks, Outline, Positions
 from ._base import _UPWARD, BaseVisual
 from ._points import _TRAIL_LENGTH
 

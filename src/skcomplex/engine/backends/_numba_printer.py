@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec
-from ...types import ReadKind
 from .._utils import symbols_of
 from ..problems import BasePrinter, ExpressionPrinter, OutputSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._edge_row_search import EdgeRowSearch
@@ -25,6 +24,7 @@ from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._pair_search import PairSearch
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._static_search import StaticSearch
+from ..types import ReadKind
 from ._base import _AUTO_MEMBERS
 
 INDENT = '    '

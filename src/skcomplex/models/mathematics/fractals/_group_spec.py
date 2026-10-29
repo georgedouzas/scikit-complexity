@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ....specs import BaseSpec
-from ....types import Arrays
+from .types import Arrays
 
 
 @dataclass(frozen=True)

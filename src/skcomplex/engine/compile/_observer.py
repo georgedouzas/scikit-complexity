@@ -16,9 +16,9 @@ from ...core.laws.utils import count, maximum, mean, minimum, total, variance
 from ...core.specs import NodeSpec
 from ...errors import ValidationError
 from ...specs import ObservableSpec
-from ...types import ReadKind
 from .._utils import vector
 from ..problems import BlockSpec, DeclarationsSpec, ObservedSpec, ProblemSpec, ReferenceSpec
+from ..types import ReadKind
 from ._observables import Declared, ObservableEvaluator
 
 _REDUCERS: dict[str, Callable[..., Expression]] = {

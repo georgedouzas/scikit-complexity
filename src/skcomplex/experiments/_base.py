@@ -32,7 +32,8 @@ from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
-from ..types import Bounds, Row, VariableKind
+from ..types import VariableKind
+from .types import Bounds, Row
 
 type Source = Callable[..., System] | System
 _PROBLEMS: dict[tuple[object, ...], BaseProblemSpec] = {}

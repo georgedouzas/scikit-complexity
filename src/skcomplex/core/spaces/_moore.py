@@ -5,7 +5,7 @@
 
 import itertools
 
-from ...types import Offset
+from ...types import IntTuple
 from ._base import BaseNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
 
@@ -42,7 +42,7 @@ class MooreNeighborhood(LatticeNeighborhood):
         self.n_dim = n_dim
         self.center = center
 
-    def _get_offsets(self) -> tuple[Offset, ...]:
+    def _get_offsets(self) -> tuple[IntTuple, ...]:
         """Return the offsets within the radius along every dimension, after the site itself when included."""
         steps = range(-self.radius, self.radius + 1)
         offsets = tuple(offset for offset in itertools.product(steps, repeat=self.n_dim) if any(offset))

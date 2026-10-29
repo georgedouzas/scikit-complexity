@@ -12,11 +12,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....errors import ValidationError
 from ....specs import TableValuesSpec
-from ....types import Indices, ReadKind
+from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...problems import DeclarationsSpec, ReferenceSpec
 from ...problems._encounter_kernel import EncounterKernel
+from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 

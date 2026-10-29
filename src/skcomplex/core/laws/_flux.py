@@ -7,8 +7,8 @@ from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ...types import Target
 from ..spaces import ContinuousTime, LatticeSpace, MeshSpace
+from ..types import Target
 from ._base import BaseLaw
 
 LIMITERS = ('minmod', 'van-leer', None)

@@ -13,7 +13,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...errors import ValidationError
 from ...specs import LayoutSpec, NoiseProcessSpec, RunStateSpec, WienerBlockSpec
 from ...specs._jump_channels_spec import _JumpChannelsSpec
-from ...types import Array, Indices, OptionalPairs, Reader, ReadKind
+from ...types import Array, Indices
+from ..types import OptionalPairs, ReadFunction, ReadKind
 from ._base import BaseKernel
 from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
@@ -122,12 +123,12 @@ class LawKernel(BaseKernel):
         return ExpressionPrinter._function_of(printer.run(expressions))
 
     @functools.cached_property
-    def _readers(self) -> dict[Expression, Reader]:
+    def _readers(self) -> dict[Expression, ReadFunction]:
         """Reader of every symbol resolved so far."""
         return {}
 
     @functools.cached_property
-    def _argument_readers(self) -> list[Reader]:
+    def _argument_readers(self) -> list[ReadFunction]:
         """Readers of the arguments of the compiled function, in order."""
         return [self._reader(item) for item in self._arguments]
 
@@ -221,13 +222,13 @@ class LawKernel(BaseKernel):
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
         return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p))
 
-    def _reader(self, symbol: Expression) -> Reader:
+    def _reader(self, symbol: Expression) -> ReadFunction:
         """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
         if symbol in self._readers:
             return self._readers[symbol]
         reference = self.references[symbol]
         source = reference.source
-        read: Reader
+        read: ReadFunction
         if source is ReadKind.DERIVED or source is ReadKind.NEIGHBOR:
             if source is ReadKind.DERIVED:
                 for item in reference.derived.symbols:
@@ -243,7 +244,7 @@ class LawKernel(BaseKernel):
         self._readers[symbol] = read
         return read
 
-    def _member_reader(self, reference: ReferenceSpec) -> Reader:
+    def _member_reader(self, reference: ReferenceSpec) -> ReadFunction:
         """Return the function that reads a member symbol, indexed by the pairs of a pair kernel."""
         is_state, members, source = reference.is_state, reference.members, reference.source
         search = self.pairs if isinstance(self.pairs, PairSearch) else None
@@ -332,7 +333,7 @@ class LawKernel(BaseKernel):
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
 
     @staticmethod
-    def _single_reader(is_state: bool, index: int) -> Reader:
+    def _single_reader(is_state: bool, index: int) -> ReadFunction:
         """Return the function that reads one component shared by every evaluation index."""
         if is_state:
             return lambda x, p, pairs, t: x[index]

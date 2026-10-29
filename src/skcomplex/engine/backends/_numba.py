@@ -54,7 +54,7 @@ from ...core.spaces import (
 )
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, ReadKind, VectorFunction
+from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
 from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
@@ -62,6 +62,7 @@ from ..problems._edge_search import EdgeSearch
 from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._steps import step_count
+from ..types import ReadKind
 from . import _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
 from ._numba_loops import LOOPS, NO_BOUNDARY

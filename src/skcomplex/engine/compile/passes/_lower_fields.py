@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
-from ....types import ReadKind, Terms
 from ...problems import DiffusiveLimitSpec, KernelSpec, LinearTermSpec, ReferenceSpec
 from ...problems._linear_term_spec import OPERATORS
+from ...types import ReadKind, Terms
 from .._base import BasePass
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering

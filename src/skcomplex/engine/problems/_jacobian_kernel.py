@@ -4,7 +4,7 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -13,19 +13,21 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RunStateSpec
-from ...types import Array, Indices, ReadKind, Sparse, Symmetry
+from ...types import Array, Indices
 from .._utils import symbols_of
+from ..types import ReadKind, Sparse
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
 from ._output_spec import OutputSpec
+from ._partials_spec import PartialsSpec
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
+from ._symmetry_spec import SymmetrySpec
 from ._too_dense import _TooDenseError
 
-type Partials = tuple[list[tuple[int, Expression]], Callable[..., object] | None]
 """Index of the expression and symbol of every nonzero derivative, with the NumPy function of the derivatives."""
 
 _PATTERN_LIMIT = 4_000_000
@@ -63,7 +65,7 @@ class JacobianKernel(BaseKernel):
             The conservation laws, such as those of finite-volume fields.
 
         symmetries:
-            The state indices, lattice shape, and axes with their signs of every symmetric field state.
+            The mirror symmetries of the field states.
 
         constrained:
             The fixed rows, whose rates are zero.
@@ -77,7 +79,7 @@ class JacobianKernel(BaseKernel):
         time: Expression,
         volumes: tuple[FiniteVolumeKernel, ...] = (),
         *,
-        symmetries: tuple[Symmetry, ...] = (),
+        symmetries: tuple[SymmetrySpec, ...] = (),
         constrained: Indices | None = None,
     ) -> None:
         self.kernels = kernels
@@ -140,34 +142,38 @@ class JacobianKernel(BaseKernel):
         for reduction in self.reductions.reductions:
             by = [item for item in reduction.symbols if reduction.reads[item].is_state or item in self._by_symbol]
             self.reduction_partials_[reduction.symbol] = self._partials(reduction.symbols, [reduction.argument], by)
-        self.operand_partials_: dict[int, Partials] = {}
+        self.operand_partials_: dict[int, PartialsSpec] = {}
 
-    def _partials(self, arguments: list[Expression], expressions: list[Expression], by: list[Expression]) -> Partials:
+    def _partials(
+        self,
+        arguments: list[Expression],
+        expressions: list[Expression],
+        by: list[Expression],
+    ) -> PartialsSpec:
         """Return the nonzero partial derivatives of expressions by symbols, compiled into one NumPy function."""
-        pairs = [
+        pairs = tuple(
             (index, item)
             for index, expression in enumerate(expressions)
             for item in by
             if item in SR(expression).variables()
-        ]
+        )
         derivatives = [SR(expressions[index]).diff(item) for index, item in pairs]
         if not derivatives:
-            return pairs, None
+            return PartialsSpec(pairs, None)
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
-        return pairs, ExpressionPrinter._function_of(printer.run(derivatives))
+        return PartialsSpec(pairs, ExpressionPrinter._function_of(printer.run(derivatives)))
 
     @staticmethod
     def _derivatives(
-        partials: Partials,
+        partials: PartialsSpec,
         t: float,
         values: Sequence[object],
     ) -> list[tuple[int, Expression, npt.ArrayLike]]:
         """Return every derivative with the index of its expression and the symbol it is taken by."""
-        pairs, function = partials
-        if function is None:
+        if partials.function is None:
             return []
-        results = ExpressionPrinter._values_of(function(t, *values))
-        return [(index, item, value) for (index, item), value in zip(pairs, results, strict=True)]
+        results = ExpressionPrinter._values_of(partials.function(t, *values))
+        return [(index, item, value) for (index, item), value in zip(partials.pairs, results, strict=True)]
 
     @property
     def _by_symbol(self) -> dict[Expression, ReductionKernel]:
@@ -525,13 +531,14 @@ class JacobianKernel(BaseKernel):
         return members[inside], columns.astype(np.intp)
 
     @staticmethod
-    def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Sparse]:
+    def _mirror_projections(symmetries: Sequence[SymmetrySpec], size: int) -> list[Sparse]:
         """Return the matrices that project the rates of symmetric states onto their odd or even parts, axis by axis."""
         projections = []
-        for indices, dimensions, signs in symmetries:
-            grid = np.arange(int(np.prod(dimensions))).reshape(dimensions)
+        for symmetry in symmetries:
+            indices = symmetry.indices
+            grid = np.arange(int(np.prod(symmetry.shape))).reshape(symmetry.shape)
             free = np.setdiff1d(np.arange(size), indices)
-            for axis, sign in signs:
+            for axis, sign in symmetry.signs:
                 mirror = np.roll(np.flip(grid, axis=axis), 1, axis=axis).ravel()
                 rows = np.concatenate([free, indices, indices])
                 columns = np.concatenate([free, indices, indices[mirror]])

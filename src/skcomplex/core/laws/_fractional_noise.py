@@ -6,7 +6,7 @@
 from typing import Self
 
 from ...errors import ValidationError
-from ...types import Target
+from ..types import Target
 from ._noise import NoiseLaw
 
 

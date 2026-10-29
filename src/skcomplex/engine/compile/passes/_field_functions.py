@@ -16,11 +16,12 @@ from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec
-from ....types import Array, ReadKind, VariableKind, VectorFunction
+from ....types import Array, VariableKind, VectorFunction
 from ..._utils import declarations_of
-from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
+from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec, SymmetrySpec
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 
@@ -125,8 +126,8 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _symmetries(
         blocks: list[BlockSpec],
-    ) -> list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]]:
-        """Return the state indices, the lattice shape, and the axes with their signs of every symmetric field state."""
+    ) -> list[SymmetrySpec]:
+        """Return the mirror symmetries of the field states."""
         found = []
         for block in blocks:
             place = block.node.component
@@ -151,13 +152,13 @@ class FieldFunctionsPass(BasePass):
                     if parity is not None:
                         signs.append((axis, -1 if parity == 'odd' else 1))
                 indices = entry.start + np.arange(place.size_) * entry.columns
-                found.append((indices, space.shape_, signs))
+                found.append(SymmetrySpec(indices, space.shape_, tuple(signs)))
         return found
 
     @staticmethod
     def _with_symmetries(
         drift: VectorFunction | None,
-        symmetries: list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]],
+        symmetries: list[SymmetrySpec],
     ) -> VectorFunction | None:
         """Return the drift with the rates of symmetric states projected onto their odd or even parts."""
         if not symmetries or drift is None:
@@ -165,9 +166,10 @@ class FieldFunctionsPass(BasePass):
 
         def symmetric(t: float, x: Array, p: Array) -> Array:
             rates = np.array(drift(t, x, p), dtype=float)
-            for indices, dimensions, signs in symmetries:
-                values = np.reshape(rates[indices], dimensions)
-                for axis, sign in signs:
+            for symmetry in symmetries:
+                indices = symmetry.indices
+                values = np.reshape(rates[indices], symmetry.shape)
+                for axis, sign in symmetry.signs:
                     mirrored = np.roll(np.flip(values, axis=axis), 1, axis=axis)
                     values = (values + sign * mirrored) / 2
                 rates[indices] = values.ravel()

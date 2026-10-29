@@ -28,6 +28,7 @@ from ..problems import (
     OutputSpec,
     ProblemSpec,
     ReductionScheduleSpec,
+    SymmetrySpec,
     TransferStateSpec,
 )
 from ..problems._delayed_state_spec import _DelayedStateSpec
@@ -179,7 +180,7 @@ class Compilation:
             The conservation laws of fields.
 
         symmetries:
-            The state indices, the lattice shape, and the axes with their signs of every symmetric field state.
+            The mirror symmetries of the field states.
 
         constrained:
             The indices and values of the fixed nodes of meshes.
@@ -242,7 +243,7 @@ class Compilation:
     volume_limits: list[DiffusiveLimitSpec] | None = None
     linear: list[LinearTermSpec] | None = None
     volumes: tuple[FiniteVolumeKernel, ...] | None = None
-    symmetries: tuple[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]], ...] | None = None
+    symmetries: tuple[SymmetrySpec, ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
     encounters: tuple[EncounterKernel, ...] | None = None
     transfer: TransferStateSpec | None = None

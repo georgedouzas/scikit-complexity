@@ -8,7 +8,7 @@ from collections.abc import Callable
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 
 from ...errors import ValidationError
-from ...types import Parts
+from ..types import Parts
 from ._members import _SHIFT
 
 _LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})

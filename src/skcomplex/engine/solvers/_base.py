@@ -12,8 +12,9 @@ from ...base import BaseConfig
 from ...errors import SolverError, ValidationError
 from ...specs import StepSpec, SupportSpec
 from ...specs._base_record_spec import BaseRecordSpec
-from ...types import Array, Bounded, FormKind, Take
+from ...types import Array, FormKind
 from ..problems import BaseProblemSpec, ProblemSpec
+from ..types import BoundaryFunction, InterpolatingStepFunction
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 
@@ -277,8 +278,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         dt: float,
         locator: EventLocator,
         history: History | None,
-        bounded: Bounded,
-        take: Take,
+        bounded: BoundaryFunction,
+        take: InterpolatingStepFunction,
     ) -> Array:
         """Integrate with fixed steps that stop at breakpoints, record every step for delays, and locate events in it.
 

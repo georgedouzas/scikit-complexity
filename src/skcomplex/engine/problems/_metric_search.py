@@ -14,7 +14,8 @@ from ...core.spaces import (
     RadiusNeighborhood,
 )
 from ...specs import EntrySpec, HeadingSpec, RunStateSpec
-from ...types import Array, EdgesFound, Indices, Pairs
+from ...types import Array, Indices
+from ..types import EdgesFound, Pairs
 from ._base import BaseSearch
 
 

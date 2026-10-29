@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..types import Indices, Offset
+from ..types import Indices, IntTuple
 from ._base_spec import BaseSpec
 
 
@@ -36,7 +36,7 @@ class NeighborReadSpec(BaseSpec):
     table: Indices
     ghost: float | None
     sizes: tuple[int, ...] | None
-    steps: Offset | None
+    steps: IntTuple | None
     mode: int
 
     def read(self, column: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

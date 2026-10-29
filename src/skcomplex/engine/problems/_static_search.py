@@ -5,7 +5,8 @@
 
 
 from ...specs import RunStateSpec
-from ...types import EdgesFound, Indices
+from ...types import Indices
+from ..types import EdgesFound
 from ._base import BaseSearch
 
 

@@ -16,8 +16,8 @@ from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
 from ...specs._base_spec import BaseSpec
 from ...specs._observable_spec import ObservableSpec
-from ...types import Row
 from .._base import Source
+from ..types import Row
 
 type Output = str | Callable[[Trajectory], object]
 

@@ -8,7 +8,8 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...types import Array, FormKind, Interpolant
+from ...types import Array, FormKind
+from ..types import Interpolant
 from ._base import BaseSolver
 from ._history import History
 from ._solver import Solver

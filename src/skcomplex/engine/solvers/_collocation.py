@@ -12,8 +12,9 @@ from ...core.laws import EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
-from ...types import Array, Cost, GridFunction, OrderKind
+from ...types import Array, OrderKind
 from ..problems._control_problem_spec import _ControlProblemSpec
+from ..types import Cost, GridFunction
 from ._optimal_control import OptimalControlSolver
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')

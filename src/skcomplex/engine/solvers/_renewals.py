@@ -8,8 +8,9 @@ import math
 import numpy as np
 
 from ...specs import RunStateSpec
-from ...types import Array, StepFunction
+from ...types import Array
 from ..problems import ProblemSpec
+from ..types import StepFunction
 from ._event_locator import EventLocator
 
 
