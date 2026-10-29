@@ -13,9 +13,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._individual_view import IndividualView
 
 
 class IndividualElement(Element):
@@ -24,6 +25,9 @@ class IndividualElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         generation:
             The initial generation.
@@ -50,6 +54,11 @@ class IndividualElement(Element):
         self.generation = generation
         self.m = m
 
+    @classmethod
+    def _get_view(cls) -> type[IndividualView]:
+        """Return the view of the agents, which types their states and parameters."""
+        return IndividualView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reproduction rule.
 
@@ -63,7 +72,7 @@ class IndividualElement(Element):
         """
         return [RuleLaw(self.reproduce)]
 
-    def reproduce(self, agent: AgentView, model: ModelView) -> None:
+    def reproduce(self, agent: IndividualView, model: ModelView) -> None:
         """Create the offspring of the individual and remove it.
 
         Args:

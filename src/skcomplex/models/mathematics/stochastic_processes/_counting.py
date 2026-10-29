@@ -14,9 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._bernoulli_trial_view import BernoulliTrialView
 
 
 class PoissonCounterElement(Element):
@@ -45,6 +46,9 @@ class BernoulliTrialElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         outcome:
             The initial outcome, 1 for a success and 0 for a failure.
@@ -76,6 +80,11 @@ class BernoulliTrialElement(Element):
         self.successes = successes
         self.p = p
 
+    @classmethod
+    def _get_view(cls) -> type[BernoulliTrialView]:
+        """Return the view of the agents, which types their states and parameters."""
+        return BernoulliTrialView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the trial rule.
 
@@ -89,7 +98,7 @@ class BernoulliTrialElement(Element):
         """
         return [RuleLaw(self.draw)]
 
-    def draw(self, agent: AgentView, model: ModelView) -> None:
+    def draw(self, agent: BernoulliTrialView, model: ModelView) -> None:
         """Draw the next outcome and count it.
 
         Args:

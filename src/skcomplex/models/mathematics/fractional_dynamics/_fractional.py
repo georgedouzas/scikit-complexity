@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from functools import cache
 from types import SimpleNamespace
 from typing import Annotated
@@ -27,7 +28,7 @@ def _type_name(prefix: str, order: float) -> str:
 
 
 @cache
-def relaxation_type(order: float) -> type[Element]:
+def relaxation_type(order: float) -> Callable[..., Element]:
     """Return the element type of fractional relaxation `D^alpha x = -lambda x` of an order.
 
     Args:
@@ -64,7 +65,7 @@ def relaxation_type(order: float) -> type[Element]:
 
 
 @cache
-def oscillator_type(order: float) -> type[Element]:
+def oscillator_type(order: float) -> Callable[..., Element]:
     """Return the element type of the fractional oscillator `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
 
     Args:
@@ -105,7 +106,7 @@ def oscillator_type(order: float) -> type[Element]:
 
 
 @cache
-def van_der_pol_type(order: float) -> type[Element]:
+def van_der_pol_type(order: float) -> Callable[..., Element]:
     """Return the element type of the fractional Van der Pol system `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
 
     Args:
@@ -144,7 +145,7 @@ def van_der_pol_type(order: float) -> type[Element]:
 
 
 @cache
-def lorenz_type(order: float) -> type[Element]:
+def lorenz_type(order: float) -> Callable[..., Element]:
     """Return the element type of the fractional Lorenz flow, the Lorenz equations with Caputo derivatives of an order.
 
     Args:

@@ -6,7 +6,6 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -18,7 +17,7 @@ from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
 from ....types import Arrays
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._group_spec import _GroupSpec
-from ._module_spec import ModuleSpec
+from ._module_spec import Letters, ModuleSpec
 from ._production_law import ProductionLaw
 from ._rewriting_error import RewritingError
 from ._rewriting_loops import (
@@ -46,6 +45,7 @@ IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
 PROBABILITY_TOLERANCE = 1e-9
+SPACE_DIMENSION = 3
 
 
 _TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
@@ -256,13 +256,19 @@ class WordKernel(BaseKernel):
         for group in self.groups:
             self._weights(group, values, 0)
 
-    def _prepare(self, context: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Start the word at generation 0 for a run of the problem, as `structure_`."""
+        if context is None:
+            error_msg = f'Word {self.path!r} starts from the initial parameters of a problem, but got none.'
+            raise RewritingError(error_msg)
         self.structure_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: RunStateSpec) -> WordStructureSpec:
+    def _run(self, inputs: RunStateSpec | None) -> WordStructureSpec:
         """Rewrite the current word once, every module in parallel, with the parameters and the random stream."""
-        self.structure_ = self._rewrite(self.structure_, inputs.p, cast('np.random.Generator', inputs.rng))
+        if inputs is None or inputs.rng is None:
+            error_msg = f'Word {self.path!r} rewrites at a state with a random stream, but got {inputs!r}.'
+            raise RewritingError(error_msg)
+        self.structure_ = self._rewrite(self.structure_, inputs.p, inputs.rng)
         return self.structure_
 
     def _initial(self, values: npt.NDArray[np.float64]) -> WordStructureSpec:
@@ -398,20 +404,20 @@ class WordKernel(BaseKernel):
         generation: int,
     ) -> WordStructureSpec:
         """Return a word with the segments its geometry draws."""
-        frozen_codes, frozen_table = BaseStructureSpec._frozen(codes, np.int64), BaseStructureSpec._frozen(
-            table,
-            np.float64,
-        )
+        frozen_codes = BaseStructureSpec._frozen(codes, np.int64)
+        frozen_table = BaseStructureSpec._frozen(table, np.float64)
         if self.geometry is None:
             return WordStructureSpec(self.names, frozen_codes, frozen_table, generation)
         segments, depths = self._interpret(self.geometry, self.actions[codes], table, generation)
+        strokes = BaseStructureSpec._frozen(segments, np.float64)
+        frozen_depths = BaseStructureSpec._frozen(depths, np.int64)
         return WordStructureSpec(
             self.names,
             frozen_codes,
             frozen_table,
             generation,
-            strokes=BaseStructureSpec._frozen(segments, np.float64),
-            depths=BaseStructureSpec._frozen(depths, np.int64),
+            strokes=strokes,
+            depths=frozen_depths,
         )
 
     @staticmethod
@@ -421,7 +427,7 @@ class WordKernel(BaseKernel):
             return {str(name): int(arity) for name, arity in word.alphabet.items()}
         declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
         found: dict[str, int] = {}
-        parts: list[Any] = [word.axiom, *word.ignore]
+        parts: list[Letters] = [word.axiom, *word.ignore]
         for production in productions:
             parts += [production.predecessor, production.successor, production.left or '', production.right or '']
         for part in parts:
@@ -490,7 +496,7 @@ class WordKernel(BaseKernel):
         values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
         turns = np.isin(actions, _TURNS)
         values[turns] = np.deg2rad(values[turns])
-        if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
+        if geometry.dimension == SPACE_DIMENSION or np.isin(actions, (PUSH, POP)).any():
             segments, depths = _walk_word(actions, values, step, angle, heading)
             return segments[..., : geometry.dimension], depths
         turn = np.where(np.isnan(values), angle, values)

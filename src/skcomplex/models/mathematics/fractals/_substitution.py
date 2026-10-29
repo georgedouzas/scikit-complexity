@@ -26,6 +26,7 @@ from ._substitution_law import SubstitutionLaw
 from ._word_element import WordElement
 
 SHAPES = ('triangle', 'carpet')
+LARGEST_RATIO = 0.5
 
 
 def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
@@ -84,11 +85,26 @@ class CantorElement(PatchElement):
         label:
             The label of the patch.
 
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
         ratio:
             The length of each kept part relative to its interval.
 
         prototiles:
             The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import CantorElement
@@ -144,11 +160,26 @@ class SierpinskiElement(PatchElement):
         label:
             The label of the patch.
 
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
         shape:
             `'triangle'` or `'carpet'`.
 
         prototiles:
             The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import SierpinskiElement
@@ -265,7 +296,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
         >>> run('cantor_set', settings={'until': 3}).trajectory_.values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
-    if not 0 < ratio < 0.5:  # noqa: PLR2004
+    if not 0 < ratio < LARGEST_RATIO:
         error_msg = f'ratio = {ratio!r} must lie between 0 and 1/2.'
         raise ValidationError(error_msg)
     interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])

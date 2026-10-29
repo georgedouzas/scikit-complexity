@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
@@ -29,17 +29,17 @@ class RoadElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        velocity:
+            The initial velocity, or -1 for an empty cell.
+
+        slowdown:
+            The probability of random braking.
+
         vmax:
             The largest velocity.
-
-        **values:
-            The values of the declared variables, by name:
-
-            velocity:
-                The initial velocity, or -1 for an empty cell.
-
-            slowdown:
-                The probability of random braking.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import RoadElement
@@ -74,7 +74,7 @@ class RoadElement(Element):
         """
         vmax = self.vmax
 
-        def accelerate(velocity: Array, *ahead: Array, slowdown: Any, random: Array) -> Array:  # noqa: ANN401
+        def accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
             gap = np.full(velocity.shape, float(vmax))
             for distance in range(vmax, 0, -1):
                 gap = np.where(ahead[distance - 1] >= 0, distance - 1, gap)

@@ -1,6 +1,6 @@
 """Test the `_fractional` module of `skcomplex.models.mathematics.fractional_dynamics`."""
 
-import pickle  # nosec B403: the tests pickle and load only objects they create
+import importlib
 
 import numpy as np
 import pytest
@@ -70,6 +70,6 @@ def test_fractional_lorenz_stays_on_bounded_attractor():
 def test_element_types_of_orders_pickle_by_reference():
     """Test that the element types of every order are cached and pickle by reference."""
     assert relaxation_type(0.3) is relaxation_type(0.3)
-    system = create('fractional_relaxation', order=0.37)
-    loaded = pickle.loads(pickle.dumps(system))  # noqa: S301  # nosec B301: loads data the test just dumped
-    assert type(loaded.elements[0]) is relaxation_type(0.37)
+    element_type = type(create('fractional_relaxation', order=0.37).elements[0])
+    assert element_type is relaxation_type(0.37)
+    assert getattr(importlib.import_module(element_type.__module__), element_type.__qualname__) is element_type

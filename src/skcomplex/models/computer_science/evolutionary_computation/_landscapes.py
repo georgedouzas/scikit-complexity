@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._bit_string_view import BitStringView
 
 
 def _bits_of(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:
@@ -39,6 +40,9 @@ class BitStringElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         genome:
             The initial genome, an integer whose binary digits are the bits.
@@ -65,6 +69,11 @@ class BitStringElement(Element):
         self.genome = genome
         self.fitness = fitness
 
+    @classmethod
+    def _get_view(cls) -> type[BitStringView]:
+        """Return the view of the individuals, which types their states."""
+        return BitStringView
+
 
 class ReproductionInteraction(Interaction):
     """Death at a constant rate and replacement by mutated copies of parents chosen in proportion to their fitness.
@@ -76,23 +85,20 @@ class ReproductionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        death:
+            The probability that an agent dies in a step.
+
+        mutation:
+            The probability that a newborn has one random bit flipped.
+
+        population:
+            The path of the group of bit strings.
+
         zero_values:
             The value of a 0 at every locus.
 
         one_values:
             The value of a 1 at every locus.
-
-        **values:
-            The values of the declared variables, by name:
-
-            death:
-                The probability that an agent dies in a step.
-
-            mutation:
-                The probability that a newborn has one random bit flipped.
-
-            population:
-                The path of the group of bit strings.
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import ReproductionInteraction
@@ -139,7 +145,7 @@ class ReproductionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('population', AgentView)
+        agents = model.agents('population', BitStringView)
         genomes = np.array([agent.genome for agent in agents], dtype=float)
         fitness = np.array([agent.fitness for agent in agents], dtype=float)
         rng = model.rng

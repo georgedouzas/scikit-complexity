@@ -17,9 +17,10 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._network_walker_view import NetworkWalkerView
 
 
 class NodeContentElement(Element):
@@ -75,6 +76,9 @@ class NetworkWalkerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         steps:
             The initial number of steps taken.
 
@@ -95,6 +99,11 @@ class NetworkWalkerElement(Element):
         super().__init__(label, visual=visual)
         self.steps = steps
 
+    @classmethod
+    def _get_view(cls) -> type[NetworkWalkerView]:
+        """Return the view of the agents, which types their states."""
+        return NetworkWalkerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule.
 
@@ -108,7 +117,7 @@ class NetworkWalkerElement(Element):
         """
         return [RuleLaw(self.step)]
 
-    def step(self, agent: AgentView, model: ModelView) -> None:
+    def step(self, agent: NetworkWalkerView, model: ModelView) -> None:
         """Move to a random neighbouring node.
 
         Args:

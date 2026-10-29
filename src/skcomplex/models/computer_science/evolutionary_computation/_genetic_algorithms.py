@@ -15,10 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array, IntArray
 from ..._catalog import register_model
+from ._strategy_view import StrategyView
 
 N_SITUATIONS = 243
 N_ACTIONS = 7
@@ -96,6 +97,9 @@ class StrategyElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
@@ -120,6 +124,11 @@ class StrategyElement(Element):
         self.actions = actions
         self.score = score
 
+    @classmethod
+    def _get_view(cls) -> type[StrategyView]:
+        """Return the view of the strategies, which types their states."""
+        return StrategyView
+
 
 class EvolutionInteraction(Interaction):
     """Generation of a genetic algorithm: score every strategy in random rooms and breed the next generation.
@@ -133,6 +142,12 @@ class EvolutionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        mutation:
+            The probability that an action of a child is replaced by a random one.
+
+        population:
+            The path of the group of strategies.
+
         sessions:
             The number of rooms a strategy cleans to be scored.
 
@@ -144,15 +159,6 @@ class EvolutionInteraction(Interaction):
 
         density:
             The probability that a cell holds a can.
-
-        **values:
-            The values of the declared variables, by name:
-
-            mutation:
-                The probability that an action of a child is replaced by a random one.
-
-            population:
-                The path of the group of strategies.
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import EvolutionInteraction
@@ -222,7 +228,7 @@ class EvolutionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('population', AgentView)
+        agents = model.agents('population', StrategyView)
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         scores = np.array([agent.score for agent in agents], dtype=float)
         children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))

@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,8 +16,11 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
+from ....errors import SimulationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._driver_view import DriverView
+from ._motorist_view import MotoristView
 
 ROAD_WIDTH = 1.0
 
@@ -28,10 +31,10 @@ def _position(agent: AgentView) -> tuple[float, float]:
     return float(x), float(y)
 
 
-def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | None:
+def _car_ahead(agent: DriverView, model: ModelView, n_cars: int) -> DriverView | None:
     """Return the car whose rank follows the agent's rank on a road of `n_cars` cars, or `None` for the last car."""
     rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
-    return next((car for car in model.agents(agent.group, AgentView) if int(car.rank) == rank and car != agent), None)
+    return next((car for car in model.agents(agent.group, DriverView) if int(car.rank) == rank and car != agent), None)
 
 
 class MotoristElement(Element):
@@ -40,6 +43,9 @@ class MotoristElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The position along the road.
@@ -90,6 +96,11 @@ class MotoristElement(Element):
         self.acceleration = acceleration
         self.speed_limit = speed_limit
 
+    @classmethod
+    def _get_view(cls) -> type[MotoristView]:
+        """Return the view of the cars, which types their states and parameters."""
+        return MotoristView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the speed adjustment rule.
 
@@ -103,7 +114,7 @@ class MotoristElement(Element):
         """
         return [RuleLaw(self.adjust)]
 
-    def adjust(self, agent: AgentView, model: ModelView) -> None:
+    def adjust(self, agent: MotoristView, model: ModelView) -> None:
         """Brake when the car ahead is closer than the safe distance and accelerate otherwise.
 
         The lead car, which has no car ahead, keeps its distance to the car behind it instead.
@@ -115,7 +126,7 @@ class MotoristElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(agent.group, AgentView)
+        cars = model.agents(agent.group, MotoristView)
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -184,7 +195,7 @@ class CarelessBrakingInteraction(Interaction):
             model:
                 The model.
         """
-        cars = sorted(model.agents('cars', AgentView), key=lambda car: car.rank)
+        cars = sorted(model.agents('cars', MotoristView), key=lambda car: car.rank)
         if not cars:
             return
         if model.rng.random() < model.parameter('probability'):
@@ -207,6 +218,9 @@ class DriverElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         speed:
             The speed.
@@ -257,6 +271,11 @@ class DriverElement(Element):
         self.speed_limit = speed_limit
         self.eps = eps
 
+    @classmethod
+    def _get_view(cls) -> type[DriverView]:
+        """Return the view of the drivers, which types their states and parameters."""
+        return DriverView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the driving rule.
 
@@ -270,7 +289,7 @@ class DriverElement(Element):
         """
         return [RuleLaw(self.drive)]
 
-    def drive(self, agent: AgentView, model: ModelView) -> None:
+    def drive(self, agent: DriverView, model: ModelView) -> None:
         """Choose the speed from the distance to the car ahead and move along the ring.
 
         Args:
@@ -280,8 +299,11 @@ class DriverElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(agent.group, AgentView)
-        length = cast('tuple[float, float]', model.dimensions)[0]
+        cars = model.agents(agent.group, DriverView)
+        if model.dimensions is None:
+            error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
+            raise SimulationError(error_msg)
+        length = model.dimensions[0]
         ahead = _car_ahead(agent, model, len(cars))
         x, y = _position(agent)
         distance = (_position(ahead)[0] - x) % length if ahead is not None else length

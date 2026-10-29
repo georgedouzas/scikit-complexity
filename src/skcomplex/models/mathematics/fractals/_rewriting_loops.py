@@ -38,20 +38,15 @@ def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angl
 
 
 @njit(cache=True)
-def _neighbors(  # noqa: C901
+def _left_neighbors(
     codes: npt.NDArray[np.int64],
     ignored: npt.NDArray[np.bool_],
     opening: int,
     closing: int,
-) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    """Return the index of the left and the right neighbour of every module, or -1, skipping ignored symbols.
-
-    The left neighbour of the first module of a branch is the module the branch starts from, and the right neighbour
-    skips whole branches and stops at the end of a branch, as in Prusinkiewicz and Lindenmayer (1990 §1.8).
-    """
+) -> npt.NDArray[np.int64]:
+    """Return the index of the left neighbour of every module, or -1, the module a branch starts from at its start."""
     size = codes.size
     left = np.full(size, -1, dtype=np.int64)
-    right = np.full(size, -1, dtype=np.int64)
     stack = np.empty(size + 1, dtype=np.int64)
     depth = 0
     last = -1
@@ -64,11 +59,24 @@ def _neighbors(  # noqa: C901
             if depth > 0:
                 depth -= 1
                 last = stack[depth]
-        elif ignored[code]:
-            left[index] = last
         else:
             left[index] = last
-            last = index
+            if not ignored[code]:
+                last = index
+    return left
+
+
+@njit(cache=True)
+def _right_neighbors(
+    codes: npt.NDArray[np.int64],
+    ignored: npt.NDArray[np.bool_],
+    opening: int,
+    closing: int,
+) -> npt.NDArray[np.int64]:
+    """Return the index of the right neighbour of every module, or -1, skipping whole branches."""
+    size = codes.size
+    right = np.full(size, -1, dtype=np.int64)
+    stack = np.empty(size + 1, dtype=np.int64)
     depth = 0
     following = -1
     for index in range(size - 1, -1, -1):
@@ -81,16 +89,49 @@ def _neighbors(  # noqa: C901
             if depth > 0:
                 depth -= 1
                 following = stack[depth]
-        elif ignored[code]:
-            right[index] = following
         else:
             right[index] = following
-            following = index
-    return left, right
+            if not ignored[code]:
+                following = index
+    return right
 
 
 @njit(cache=True)
-def _walk_word(  # noqa: C901
+def _neighbors(
+    codes: npt.NDArray[np.int64],
+    ignored: npt.NDArray[np.bool_],
+    opening: int,
+    closing: int,
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    """Return the index of the left and the right neighbour of every module, or -1, skipping ignored symbols.
+
+    The left neighbour of the first module of a branch is the module the branch starts from, and the right neighbour
+    skips whole branches and stops at the end of a branch, as in Prusinkiewicz and Lindenmayer (1990 §1.8).
+    """
+    return _left_neighbors(codes, ignored, opening, closing), _right_neighbors(codes, ignored, opening, closing)
+
+
+@njit(cache=True)
+def _turned(
+    action: int,
+    turn: float,
+    forward: npt.NDArray[np.float64],
+    side: npt.NDArray[np.float64],
+    up: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Return the frame `(forward, side, up)` after a turn, a pitch, or a roll by an angle."""
+    if action in (LEFT, RIGHT, REVERSE):
+        turn = np.pi if action == REVERSE else (turn if action == LEFT else -turn)
+        return _rotate(forward, up, turn), _rotate(side, up, turn), up
+    if action in (PITCH_DOWN, PITCH_UP):
+        turn = turn if action == PITCH_DOWN else -turn
+        return _rotate(forward, side, turn), side, _rotate(up, side, turn)
+    turn = turn if action == ROLL_LEFT else -turn
+    return forward, _rotate(side, forward, turn), _rotate(up, forward, turn)
+
+
+@njit(cache=True)
+def _walk_word(
     actions: npt.NDArray[np.int64],
     values: npt.NDArray[np.float64],
     step: float,
@@ -101,10 +142,7 @@ def _walk_word(  # noqa: C901
 
     Each module has an action and a value, its first parameter or NaN, which overrides the step or the angle.
     """
-    draws = 0
-    for action in actions:
-        if action == DRAW:
-            draws += 1
+    draws = int(np.sum(actions == DRAW))
     segments = np.zeros((draws, 2, 3))
     depths = np.zeros(draws, dtype=np.int64)
     position = np.zeros(3)
@@ -118,26 +156,15 @@ def _walk_word(  # noqa: C901
         action = actions[index]
         value = values[index]
         if action in (DRAW, MOVE):
-            length = step if np.isnan(value) else value
-            end = position + length * forward
+            end = position + (step if np.isnan(value) else value) * forward
             if action == DRAW:
                 segments[drawn, 0] = position
                 segments[drawn, 1] = end
                 depths[drawn] = depth
                 drawn += 1
             position = end
-        elif action in (LEFT, RIGHT, REVERSE):
-            turn = angle if np.isnan(value) else value
-            turn = np.pi if action == REVERSE else (turn if action == LEFT else -turn)
-            forward, side = _rotate(forward, up, turn), _rotate(side, up, turn)
-        elif action in (PITCH_DOWN, PITCH_UP):
-            turn = angle if np.isnan(value) else value
-            turn = turn if action == PITCH_DOWN else -turn
-            forward, up = _rotate(forward, side, turn), _rotate(up, side, turn)
-        elif action in (ROLL_LEFT, ROLL_RIGHT):
-            turn = angle if np.isnan(value) else value
-            turn = turn if action == ROLL_LEFT else -turn
-            side, up = _rotate(side, forward, turn), _rotate(up, forward, turn)
+        elif action in (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT):
+            forward, side, up = _turned(action, angle if np.isnan(value) else value, forward, side, up)
         elif action == PUSH:
             stack[depth, 0] = position
             stack[depth, 1] = forward

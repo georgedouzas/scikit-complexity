@@ -12,6 +12,9 @@ import numpy as np
 from ....specs import BaseSpec
 from ._rewriting_error import RewritingError
 
+PLANE_DIMENSION = 2
+SEGMENT_VERTICES = 2
+
 
 @dataclass(frozen=True)
 class PrototileSpec(BaseSpec):
@@ -45,7 +48,7 @@ class PrototileSpec(BaseSpec):
                 The vertices are not points of the plane, or fewer than two.
         """
         points = np.asarray(self.vertices, dtype=float)
-        if points.ndim != 2 or points.shape[1] != 2 or len(points) < 2:  # noqa: PLR2004
+        if points.shape[1:] != (PLANE_DIMENSION,) or len(points) < SEGMENT_VERTICES:
             error_msg = f'Prototile {self.name!r} needs at least two vertices in the plane, but got {self.vertices!r}.'
             raise RewritingError(error_msg)
         return self
@@ -53,4 +56,4 @@ class PrototileSpec(BaseSpec):
     @property
     def is_segment(self) -> bool:
         """Whether the prototile is a segment, with two vertices, rather than a polygon."""
-        return len(self.vertices) == 2  # noqa: PLR2004
+        return len(self.vertices) == SEGMENT_VERTICES

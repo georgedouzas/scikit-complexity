@@ -38,6 +38,9 @@ class FailingElement(Element):
         label:
             The label of the node group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         degree:
             The number of edges of the node, read at the start of every step.
 
@@ -92,6 +95,9 @@ class EnsembleNodeElement(Element):
     Args:
         label:
             The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         degree:
             The number of edges of the node, read at the start of every step.

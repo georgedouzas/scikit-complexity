@@ -5,11 +5,13 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
+from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
+from sage.rings.ring import Field
+from sage.structure.element import Matrix
 
 from ....core.spaces import BaseSpace, LatticeNeighborhood
 from ....errors import ValidationError
@@ -51,7 +53,7 @@ class LinearAutomaton:
     coefficients: Sequence[float]
     field: str = 'GF(2)'
 
-    def _field(self) -> Any:  # noqa: ANN401
+    def _field(self) -> Field:
         """Return the Sage field of `'GF(p)'` or `'QQ'`."""
         if self.field == 'QQ':
             return QQ
@@ -78,7 +80,7 @@ class LinearAutomaton:
         characteristic = int(self._field().characteristic())
         return np.rint(image).astype(np.int64) % characteristic if characteristic else image
 
-    def matrix(self) -> Any:  # noqa: ANN401
+    def matrix(self) -> Matrix:
         """Return the matrix of the automaton over the field, whose row `g` gives the image at `g`.
 
         Returns:
@@ -100,7 +102,7 @@ class LinearAutomaton:
                 entries[site, neighbour] += field(QQ(coefficient))
         return entries
 
-    def laurent_polynomial(self) -> Any:  # noqa: ANN401
+    def laurent_polynomial(self) -> LaurentPolynomial:
         """Return the Laurent polynomial `sum a_s x^s` of an automaton on a lattice, its symbol on `Z^d`.
 
         Returns:

@@ -24,6 +24,9 @@ class StateFeedbackInteraction(Interaction):
         label:
             The label of the controller.
 
+        plant:
+            The path of the element that holds the states and the control input.
+
         control:
             The name of the adaptive parameter of the plant that the controller sets.
 
@@ -35,12 +38,6 @@ class StateFeedbackInteraction(Interaction):
 
         limits:
             The lower and upper limit of the control input, or `None` for no limits.
-
-        **values:
-            The values of the declared variables, by name:
-
-            plant:
-                The path of the element that holds the states and the control input.
 
     Examples:
         >>> from skcomplex.models.engineering.control import StateFeedbackInteraction

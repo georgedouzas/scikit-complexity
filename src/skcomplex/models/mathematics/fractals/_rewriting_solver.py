@@ -3,17 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
-
 import numpy as np
 
 from ....core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ....engine.solvers import BaseSolver
+from ....errors import SolverError
 from ....specs import RunStateSpec, StructureStateSpec, SupportSpec
 from ....types import Array, OrderKind
+from ._patch_structure_spec import PatchStructureSpec
 from ._production_law import ProductionLaw
 from ._rewriting_problem_spec import REWRITING, RewritingProblemSpec
 from ._substitution_law import SubstitutionLaw
+from ._word_structure_spec import WordStructureSpec
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
@@ -48,7 +49,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={ProductionLaw, SubstitutionLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -61,16 +62,25 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         """Return that the solver rewrites once per whole generation."""
         return True
 
-    def _prepare(self, problem: RewritingProblemSpec) -> None:
+    def _prepare(self, problem: RewritingProblemSpec | None) -> None:
         """Prepare the structures at generation 0.
 
         Args:
             problem:
                 The compiled problem.
+
+        Raises:
+            SolverError:
+                No problem is given.
         """
+        if problem is None:
+            error_msg = 'The rewriting solver prepares for a compiled rewriting problem, but got none.'
+            raise SolverError(error_msg)
         super()._prepare(problem)
-        self.systems_ = problem.rewriting if isinstance(problem, RewritingProblemSpec) else ()
-        self.structures_: dict[str, Any] = {item.path: item.prepare(problem).structure_ for item in self.systems_}
+        self.systems_ = problem.rewriting
+        self.structures_: dict[str, WordStructureSpec | PatchStructureSpec] = {
+            item.path: item.prepare(problem).structure_ for item in self.systems_
+        }
         self._collect()
 
     def _state(self) -> Array:
@@ -100,7 +110,9 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         """
         for generation in range(round(until - t)):
             state = RunStateSpec(t + generation, x, p, self.rng_)
-            self.structures_ = {item.path: item.run(state) for item in self.systems_}
+            for item in self.systems_:
+                item.run(state)
+            self.structures_ = {item.path: item.structure_ for item in self.systems_}
         return self._state()
 
     def _collect(self) -> None:

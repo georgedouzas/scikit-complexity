@@ -26,6 +26,9 @@ class QueueElement(Element):
         label:
             The label of the queue or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of customers.
 

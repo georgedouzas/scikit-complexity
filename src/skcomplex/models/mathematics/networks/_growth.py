@@ -22,6 +22,7 @@ from ..._catalog import register_model
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 SMALLEST_TOTAL = 1e-12
 SMALLEST_DEGREE = 1e-9
+JOINING_AGE = 0.5
 
 
 def _degree(node: SimpleNamespace) -> object:
@@ -51,6 +52,9 @@ class VertexElement(Element):
     Args:
         label:
             The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -100,6 +104,15 @@ class TriadVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        age:
+            The number of steps since the node joined.
+
+        degree:
+            The number of edges of the node.
 
         near:
             The number of neighbours of the node that joined in the previous step.
@@ -153,10 +166,10 @@ class TriadVertexElement(VertexElement):
 
         return [
             *super()._get_laws(s),
-            UpdateLaw(s.near, neighbors(where(s.other.age < 0.5, 1, 0))),  # noqa: PLR2004
+            UpdateLaw(s.near, neighbors(where(s.other.age < JOINING_AGE, 1, 0))),
             UpdateLaw(
                 TopologyRequestSpec('add-edge', edges=int(self.extra), toward=weight),
-                where(s.age < 0.5, 1, 0),  # noqa: PLR2004
+                where(s.age < JOINING_AGE, 1, 0),
             ),
         ]
 
@@ -167,6 +180,15 @@ class CopyingVertexElement(VertexElement):
     Args:
         label:
             The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        age:
+            The number of steps since the node joined.
+
+        degree:
+            The number of edges of the node.
 
         inverse:
             The inverse of the degree, which only the neighbours of the node read.
@@ -209,6 +231,9 @@ class AttachmentElement(Element):
     Args:
         label:
             The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         edges:
             The number of edges of every new node.
@@ -253,6 +278,9 @@ class CopyingElement(Element):
     Args:
         label:
             The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         edges:
             The number of edges of every new node.

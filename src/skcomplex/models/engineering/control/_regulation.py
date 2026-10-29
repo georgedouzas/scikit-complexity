@@ -16,6 +16,7 @@ from ....core.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.system import System
 from ....engine.solvers import RK4Solver
+from ....errors import ValidationError
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._integrator import IntegratorElement
@@ -52,11 +53,20 @@ class CartPendulumElement(Element):
         label:
             The label of the cart.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position of the cart.
 
+        x_d1:
+            The initial velocity of the cart.
+
         theta:
             The initial angle from upright.
+
+        theta_d1:
+            The initial angular velocity.
 
         force:
             The horizontal force on the cart, the control input.
@@ -136,8 +146,14 @@ class DrivenOscillatorElement(Element):
         label:
             The label of the oscillator.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial displacement.
+
+        x_d1:
+            The initial velocity.
 
         force:
             The force per unit mass, the control input.
@@ -307,6 +323,9 @@ def lqr_oscillator(
     model = LinearizationAnalysis(['oscillator.force'], state_weights=q * np.eye(2), control_weights=[[r]])
     model.check().prepare(System(elements=[oscillator])).run()
     gain = model.gain_
+    if gain is None:
+        error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'
+        raise ValidationError(error_msg)
     states = tuple(name.removeprefix('oscillator.') for name in model.states_)
     regulator = StateFeedbackInteraction(
         'regulator',

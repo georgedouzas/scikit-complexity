@@ -9,9 +9,12 @@ from typing import Self
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression
 
 from ....specs import BaseSpec
 from ._rewriting_error import RewritingError
+
+PLANE_DIMENSION = 2
 
 
 @dataclass(frozen=True)
@@ -43,11 +46,11 @@ class AffineSpec(BaseSpec):
         0.5
     """
 
-    scale: object = 1.0
-    rotation: object = 0.0
-    translation: Sequence[object] = (0.0, 0.0)
+    scale: float | Expression = 1.0
+    rotation: float | Expression = 0.0
+    translation: Sequence[float | Expression] = (0.0, 0.0)
     reflect: bool = False
-    matrix: Sequence[Sequence[float]] | None = None
+    matrix: npt.ArrayLike | None = None
 
     def _check(self) -> Self:
         """Raise an error for a translation that is not a point of the plane, or a matrix that is not 3 by 3.
@@ -60,7 +63,7 @@ class AffineSpec(BaseSpec):
             RewritingError:
                 The translation or the matrix has the wrong shape.
         """
-        if len(self.translation) != 2:  # noqa: PLR2004
+        if len(self.translation) != PLANE_DIMENSION:
             error_msg = f'The translation of an affine map is a point of the plane, not {self.translation!r}.'
             raise RewritingError(error_msg)
         if self.matrix is not None and np.shape(self.matrix) != (3, 3):

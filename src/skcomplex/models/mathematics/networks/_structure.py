@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -54,6 +54,9 @@ class NetworkNodeElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         degree:
             The degree of the node.
@@ -115,27 +118,27 @@ class NetworkNodeElement(Element):
         """
 
 
-def _path_length(s: Any) -> Any:  # noqa: ANN401
+def _path_length(s: SimpleNamespace) -> object:
     """Return the mean shortest path length of the largest component."""
     return s.measures.path_length
 
 
-def _assortativity(s: Any) -> Any:  # noqa: ANN401
+def _assortativity(s: SimpleNamespace) -> object:
     """Return the degree assortativity."""
     return s.measures.assortativity
 
 
-def _modularity(s: Any) -> Any:  # noqa: ANN401
+def _modularity(s: SimpleNamespace) -> object:
     """Return the modularity of the detected communities."""
     return s.measures.modularity
 
 
-def _agreement(s: Any) -> Any:  # noqa: ANN401
+def _agreement(s: SimpleNamespace) -> object:
     """Return the agreement of the detected communities with the reference partition."""
     return s.measures.agreement
 
 
-def _triangle_zscore(s: Any) -> Any:  # noqa: ANN401
+def _triangle_zscore(s: SimpleNamespace) -> object:
     """Return the z-score of triangles against degree-preserving edge switches."""
     return s.measures.triangle_zscore
 

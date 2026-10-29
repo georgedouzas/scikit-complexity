@@ -13,9 +13,11 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._fragment_view import FragmentView
+from ._reducing_ball_view import ReducingBallView
 
 
 class ReducingBallElement(Element):
@@ -27,6 +29,9 @@ class ReducingBallElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial state, from 1 to `n_states`.
@@ -58,6 +63,11 @@ class ReducingBallElement(Element):
         self.n_states = n_states
         self.lam = lam
 
+    @classmethod
+    def _get_view(cls) -> type[ReducingBallView]:
+        """Return the view of the agents, which types their states and parameters."""
+        return ReducingBallView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the jump rule.
 
@@ -71,7 +81,7 @@ class ReducingBallElement(Element):
         """
         return [RuleLaw(self.jump)]
 
-    def jump(self, agent: AgentView, model: ModelView) -> None:
+    def jump(self, agent: ReducingBallView, model: ModelView) -> None:
         """Jump to a lower state, to any state, or back to the top state.
 
         Args:
@@ -96,6 +106,9 @@ class FragmentElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         length:
             The initial size.
@@ -122,6 +135,11 @@ class FragmentElement(Element):
         self.length = length
         self.rate = rate
 
+    @classmethod
+    def _get_view(cls) -> type[FragmentView]:
+        """Return the view of the agents, which types their states and parameters."""
+        return FragmentView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the breaking rule.
 
@@ -135,7 +153,7 @@ class FragmentElement(Element):
         """
         return [RuleLaw(self.split)]
 
-    def split(self, agent: AgentView, model: ModelView) -> None:
+    def split(self, agent: FragmentView, model: ModelView) -> None:
         """Break the fragment in two with the breaking probability.
 
         Args:

@@ -24,6 +24,7 @@ from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg,
 GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
 GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
+FLIP_PROBABILITY = 0.5
 
 
 def _majority(center: Array, *values: Array, degree: Array) -> Array:
@@ -58,14 +59,14 @@ class MajorityCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         memory:
             The memory set, of odd size, usually the identity and the generators.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import MajorityCellElement
@@ -106,14 +107,14 @@ class ParityCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
         memory:
             The memory set.
-
-        **values:
-            The values of the declared variables, by name:
-
-            alive:
-                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import ParityCellElement
@@ -165,6 +166,9 @@ class LaplacianCellElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         value:
             The initial value, an integer from 0 to `modulus - 1`.
 
@@ -205,7 +209,7 @@ class LaplacianCellElement(Element):
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
     """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
-    flipped = np.where(random < 0.5, 1.0 - center, center)  # noqa: PLR2004
+    flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
     blocked = (flipped == 1) & ((left == 1) | (right == 1))
     return np.where(blocked, center, flipped)
 
@@ -219,6 +223,9 @@ class GoldenMeanCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         alive:
             The initial value, 0 or 1.
