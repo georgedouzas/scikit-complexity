@@ -227,7 +227,7 @@ def test_elements_without_laws_are_passive_agents():
             GroupElement('shoppers', element=ShopperElement, size=2),
         ],
     )
-    trajectory = Simulation(system, random_state=0).check().run(until=2).trajectory_
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
     assert [trajectory.agents('stalls', frame).values['stock'].tolist() for frame in (1, 2)] == [[1.0], [0.0]]
 
 
@@ -259,6 +259,7 @@ def test_agents_are_born_every_step():
     trajectory = (
         Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)]))
         .check()
+        .prepare()
         .run(until=3)
         .trajectory_
     )
@@ -269,7 +270,9 @@ def test_agents_are_born_every_step():
 def test_fixed_group_rejects_births():
     """Test that a rule creating a member of a group of fixed size raises an error that suggests a variable group."""
     with pytest.raises(SimulationError, match='variable=True'):
-        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10)])).check().run(until=1)
+        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10)])).check().prepare().run(
+            until=1,
+        )
 
 
 def test_model_rules_remove_agents():
@@ -279,7 +282,7 @@ def test_model_rules_remove_agents():
         interactions=[CullerInteraction('cull', target='walkers')],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
-    trajectory = Simulation(system, random_state=0).check().run(until=3).trajectory_
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_
     assert trajectory.values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
     assert 1 not in trajectory.agents('walkers', 1).ids.tolist()
 
@@ -291,7 +294,7 @@ def test_grid_neighbours(neighborhood, expected):
         elements=[GroupElement('probe', element=ProbeElement, size=1, location=(5, 5))],
         space=LatticeSpace((10, 10), boundary='fixed', neighborhood=neighborhood),
     )
-    snapshot = Simulation(system).check().run(until=1).trajectory_.agents('probe', 1)
+    snapshot = Simulation(system).check().prepare().run(until=1).trajectory_.agents('probe', 1)
     assert snapshot.values['cells'].tolist() == [expected]
 
 
@@ -301,7 +304,7 @@ def test_network_neighbours_follow_edges():
         elements=[GroupElement('nodes', element=ProbeElement, size=6)],
         space=NetworkSpace(nx.cycle_graph(6)),
     )
-    snapshot = Simulation(system).check().run(until=1).trajectory_.agents('nodes', 1)
+    snapshot = Simulation(system).check().prepare().run(until=1).trajectory_.agents('nodes', 1)
     assert snapshot.values['near'].tolist() == [2.0] * 6
     assert sorted(snapshot.locations.tolist()) == list(range(6))
 
@@ -314,7 +317,7 @@ def test_continuous_neighbours_within_radius():
         ],
         space=ContinuousSpace(extent=(10.0, 10.0)),
     )
-    snapshot = Simulation(system).check().run(until=1).trajectory_.agents('drifters', 1)
+    snapshot = Simulation(system).check().prepare().run(until=1).trajectory_.agents('drifters', 1)
     assert snapshot.values['near'].tolist() == [1.0, 1.0, 0.0]
 
 
@@ -329,6 +332,7 @@ def test_agent_runs_are_reproducible():
             random_state=0,
         )
         .check()
+        .prepare()
         .run(
             until=5,
         )
@@ -345,12 +349,12 @@ def test_agent_frames_use_integer_steps():
         Simulation(
             System(elements=[GroupElement('herd', element=BreederElement, size=2, variable=True)]),
             dt=0.5,
-        ).check().run(until=1)
+        ).check().prepare().run(until=1)
 
 
 def test_boltzmann_wealth_keeps_wealth():
     """Test that the Boltzmann wealth model as an ordinary system keeps its total wealth and its agents' ids."""
-    trajectory = Simulation(_money_system(), random_state=0).check().run(until=100).trajectory_
+    trajectory = Simulation(_money_system(), random_state=0).check().prepare().run(until=100).trajectory_
     totals = {int(trajectory.agents('agents', frame).values['wealth'].sum()) for frame in range(101)}
     assert totals == {50}
     assert trajectory.agents('agents', 5).ids.tolist() == list(range(1, 51))
@@ -359,7 +363,9 @@ def test_boltzmann_wealth_keeps_wealth():
 def test_agent_parameter_changes_live():
     """Test that a parameter update reaches the rules of the agents."""
     schedule = {'agents.transfer': lambda t: 1.0 if t < 5 else 0.0}
-    trajectory = Simulation(_money_system(), schedule=schedule, random_state=0).check().run(until=10).trajectory_
+    trajectory = (
+        Simulation(_money_system(), schedule=schedule, random_state=0).check().prepare().run(until=10).trajectory_
+    )
     frames = [trajectory.agents('agents', frame).values['wealth'] for frame in (7, 10)]
     assert np.array_equal(*frames)
 
@@ -447,7 +453,7 @@ def _census(looked_up='counted', space=None, schedule=None):
         interactions=[CensusInteraction('census', counted='cows', others='patches', looked_up=looked_up)],
     )
     system = System(systems=[farm], space=space)
-    simulation = Simulation(system, schedule=schedule, random_state=0).check().run(until=3)
+    simulation = Simulation(system, schedule=schedule, random_state=0).check().prepare().run(until=3)
     return simulation, list(SEEN)
 
 
@@ -489,7 +495,7 @@ def test_rule_reads_grid_dimensions_and_torus():
 def _views(space, locations):
     """Return views of two agents placed at given locations of a space."""
     system = System(elements=[GroupElement('cows', element=CattleElement, size=2, location=locations)], space=space)
-    simulation = Simulation(system, random_state=0).check().run(until=0)
+    simulation = Simulation(system, random_state=0).check().prepare().run(until=0)
     stepper = simulation.stepper_
     return [AgentView(agent, stepper) for agent in stepper._group_agents('cows')]
 
@@ -590,6 +596,7 @@ def test_rules_read_model_time():
     trajectory = (
         Simulation(System(elements=[GroupElement('clocks', element=ClockedElement, size=2)]))
         .check()
+        .prepare()
         .run(until=3)
         .trajectory_
     )
@@ -606,7 +613,7 @@ def test_one_agent_takes_one_entry_values():
         elements=[GroupElement('one', element=ClockedElement, size=1, values={'n': [3.0]}, location=[(1, 1)])],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
-    snapshot = Simulation(system).check().run(until=0).trajectory_.agents('one', 0)
+    snapshot = Simulation(system).check().prepare().run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]
 
@@ -657,7 +664,7 @@ def test_agent_views_read_and_set_states_as_properties():
     """Test that a rule sets a state through its view and that an undeclared state raises Python's own error."""
     UNDECLARED.clear()
     system = System(elements=[GroupElement('foragers', element=ForagerElement, size=2)], time=DiscreteTime())
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().run(until=3).trajectory_
+    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=3).trajectory_
     assert trajectory.agents('foragers', 3).values['food'].tolist() == [3.0, 3.0]
     assert UNDECLARED
     assert all(UNDECLARED)
@@ -693,6 +700,7 @@ def test_memory_window():
     trajectory = (
         Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=2)]), random_state=0)
         .check()
+        .prepare()
         .run(until=5)
         .trajectory_
     )
@@ -717,4 +725,6 @@ def test_memory_of_unremembered_state_raises():
             return [RuleLaw(lambda agent, model: agent.lags('money'))]
 
     with pytest.raises(KeyError, match='remember'):
-        Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).check().run(until=1)
+        Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).check().prepare().run(
+            until=1,
+        )

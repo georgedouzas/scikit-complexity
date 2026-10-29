@@ -22,7 +22,7 @@ MODEL = 'two_mass_spring_damper'
 
 system = create(MODEL, x1=1.2, x2=2.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Normal-mode spectrum
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 # The power spectrum of a long run of the first mass should show two sharp peaks, at the angular frequencies 1 and
 # `sqrt(3)` of the normal modes, dashed, and nothing else since the system is linear and undamped.
 
-run = Simulation(create(MODEL, x1=1.2, x2=2.0), dt=0.1).check().run(until=2000)
+run = Simulation(create(MODEL, x1=1.2, x2=2.0), dt=0.1).check().prepare().run(until=2000)
 spectrum = SpectrumAnalysis(dt=0.1).check().prepare(np.ravel(run.trajectory_.values('first.x')) - 1.0).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 fig, ax = plt.subplots(figsize=(6, 4))

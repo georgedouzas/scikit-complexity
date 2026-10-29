@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=3000)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=3000)
 points = np.column_stack([simulation.trajectory_.values('map.x'), -simulation.trajectory_.values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -54,7 +54,7 @@ observer.recording_.flush()
 # close to the 1.21 that Grassberger and Procaccia measured.
 
 orbit = np.column_stack([simulation.trajectory_.values('map.x'), simulation.trajectory_.values('map.y')])[10:]
-long_orbit = Simulation(create(MODEL), dt=1).check().run(until=100_000).trajectory_
+long_orbit = Simulation(create(MODEL), dt=1).check().prepare().run(until=100_000).trajectory_
 long_orbit = np.column_stack([long_orbit.values('map.x'), long_orbit.values('map.y')])[10:]
 dimension = ScalingAnalysis('correlation-dimension').check().prepare(long_orbit[:20000]).run().exponent_
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))

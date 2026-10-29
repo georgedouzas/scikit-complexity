@@ -18,7 +18,9 @@ def _bubble_areas(zeta):
     system = System(
         elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
     )
-    trajectory = Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02)).check().run(until=300).trajectory_
+    trajectory = (
+        Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02)).check().prepare().run(until=300).trajectory_
+    )
     phi = trajectory.lattice('fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
 
@@ -29,6 +31,7 @@ def test_active_model_b_keeps_the_mean_and_phase_separates():
     trajectory = (
         Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
         .check()
+        .prepare()
         .run(until=300)
         .trajectory_
     )

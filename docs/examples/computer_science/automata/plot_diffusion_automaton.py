@@ -21,7 +21,12 @@ MODEL = 'diffusion_automaton'
 R = 0.1
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, shape=(80, 80), r=R, width=10), dt=1, observers=[observer]).check().run(until=200)
+simulation = (
+    Simulation(create(MODEL, shape=(80, 80), r=R, width=10), dt=1, observers=[observer])
+    .check()
+    .prepare()
+    .run(until=200)
+)
 
 # %%
 # Spreading and conservation

@@ -39,7 +39,8 @@ class CrossingLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import CrossingLaw
         >>> height, velocity = var('height'), var('velocity')
-        >>> CrossingLaw(height, {velocity: -0.8 * velocity}, direction=-1).check().run({'velocity': -2.0}).value_
+        >>> law = CrossingLaw(height, {velocity: -0.8 * velocity}, direction=-1).check().prepare()
+        >>> law.run({'velocity': -2.0}).value_
         {velocity: 1.6}
     """
 

@@ -23,7 +23,7 @@ MODEL = 'metapopulation'
 graph = nx.barabasi_albert_graph(30, 2, seed=0)
 system = create(MODEL, graph=graph)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=150)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=150)
 
 # %%
 # Arrival time against distance

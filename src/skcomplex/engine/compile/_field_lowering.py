@@ -425,13 +425,17 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
             key=str,
         )
-        read = FieldOperatorKernel(
-            operand=operand,
-            symbols=symbols,
-            apply=self._spectral_apply(multiplier, dimensions),
-            multiplier=multiplier,
-            dimensions=dimensions,
-        ).check()
+        read = (
+            FieldOperatorKernel(
+                operand=operand,
+                symbols=symbols,
+                apply=self._spectral_apply(multiplier, dimensions),
+                multiplier=multiplier,
+                dimensions=dimensions,
+            )
+            .check()
+            .prepare()
+        )
         return self._derived(place, read)
 
     def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
@@ -449,12 +453,16 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
             key=str,
         )
-        read = FieldOperatorKernel(
-            operand=operand,
-            symbols=symbols,
-            apply=lambda values: matrix @ values,
-            matrix=matrix,
-        ).check()
+        read = (
+            FieldOperatorKernel(
+                operand=operand,
+                symbols=symbols,
+                apply=lambda values: matrix @ values,
+                matrix=matrix,
+            )
+            .check()
+            .prepare()
+        )
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:

@@ -27,7 +27,9 @@ MODEL = 'brownian_near_wall'
 system = create(MODEL, z=20.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).check().run(until=250)
+simulation = (
+    Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).check().prepare().run(until=250)
+)
 
 # %%
 # Barometric equilibrium
@@ -40,6 +42,7 @@ simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], ran
 run = (
     Simulation(create(MODEL, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
     .check()
+    .prepare()
     .run(until=15000)
 )
 heights = run.trajectory_.values('particle.z')[200:]

@@ -32,7 +32,10 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, reach=9.0, random_state=0), observers=[observer], random_state=0).check().run(until=STEPS)
+    Simulation(create(MODEL, reach=9.0, random_state=0), observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(until=STEPS)
 )
 
 # %%
@@ -62,6 +65,7 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
                 [
                     Simulation(create(MODEL, reach=reach, mode=mode, random_state=seed), random_state=seed)
                     .check()
+                    .prepare()
                     .run(until=STEPS)
                     .trajectory_.agents('people', STEPS)
                     .values['adopted']

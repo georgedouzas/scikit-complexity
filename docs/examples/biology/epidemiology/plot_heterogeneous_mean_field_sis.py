@@ -21,7 +21,7 @@ MODEL = 'heterogeneous_mean_field_sis'
 
 system = create(MODEL, lam=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Endemic density by degree

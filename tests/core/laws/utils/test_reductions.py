@@ -583,10 +583,14 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
     below = (
         Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
         .check()
+        .prepare()
         .run(10.0)
     )
     above = (
-        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).check().run(10.0)
+        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+        .check()
+        .prepare()
+        .run(10.0)
     )
     weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
         above.trajectory_.values('oscillators.theta'),
@@ -602,6 +606,7 @@ def test_kuramoto_agrees_across_backends():
         (
             Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
             .check()
+            .prepare()
             .run(2.0)
             .trajectory_
         )
@@ -665,7 +670,9 @@ def _vicsek(size=400, side=5.0):
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek model exceeds 0.9 at low noise and high density."""
-    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).check().run(100).trajectory_
+    trajectory = (
+        Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).check().prepare().run(100).trajectory_
+    )
     order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
@@ -681,6 +688,7 @@ def test_vicsek_agrees_across_backends():
             backend=backend,
         )
         .check()
+        .prepare()
         .run(50)
         .trajectory_
         for backend in BACKENDS

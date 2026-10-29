@@ -29,6 +29,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=100,
     )
@@ -49,6 +50,7 @@ for luminosity in luminosities:
     run = (
         Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=200)
         .trajectory_
     )

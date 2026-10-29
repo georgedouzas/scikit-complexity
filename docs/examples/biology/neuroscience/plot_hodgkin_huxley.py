@@ -21,7 +21,7 @@ MODEL = 'hodgkin_huxley'
 
 system = create(MODEL, I=10.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Gates and the firing rate

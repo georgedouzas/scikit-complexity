@@ -29,7 +29,8 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver().check()
-        >>> _ = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).check().run(until=3)
+        >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer])
+        >>> _ = simulation.check().prepare().run(until=3)
         >>> observer.count_
         4
     """

@@ -21,7 +21,7 @@ MODEL = 'drug_resistance_switching'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=120)
+simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=120)
 
 # %%
 # Spontaneous and induced resistance
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().run(until=
 # Without induction, resistance arises only from the rare spontaneous mutations and takes much longer to fill the
 # tumour. With induction the resistant cells should reach half the capacity in less than half the time.
 
-spontaneous = Simulation(create(MODEL, alpha_m=0.0), dt=0.5).check().run(until=120).trajectory_
+spontaneous = Simulation(create(MODEL, alpha_m=0.0), dt=0.5).check().prepare().run(until=120).trajectory_
 induced = simulation.trajectory_
 fig, (resistant, sensitive) = plt.subplots(1, 2, figsize=(10, 4))
 resistant.plot(induced.times, induced.values('tumour.Rm'), label='induced, alpha_m = 0.01')

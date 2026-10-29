@@ -60,12 +60,16 @@ def test_interacting_gas_of_100000_runs_in_real_time():
         ],
         space=ContinuousSpace(extent=(size, size), boundary='reflecting'),
     )
-    simulation = Simulation(
-        system,
-        solver=VelocityVerletSolver(dt=0.01),
-        dt=0.01,
-        clock=RealTimeClock(speed=1.0),
-        record=False,
-    ).check()
+    simulation = (
+        Simulation(
+            system,
+            solver=VelocityVerletSolver(dt=0.01),
+            dt=0.01,
+            clock=RealTimeClock(speed=1.0),
+            record=False,
+        )
+        .check()
+        .prepare()
+    )
     simulation.run(until=2)
     assert simulation.clock_.max_lag_ <= 0.2

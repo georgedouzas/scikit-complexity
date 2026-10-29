@@ -30,6 +30,7 @@ def cascade(bank):
     return (
         Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
         .check()
+        .prepare()
         .run(until=ROUNDS)
         .trajectory_
     )
@@ -58,6 +59,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=ROUNDS)
 )
 

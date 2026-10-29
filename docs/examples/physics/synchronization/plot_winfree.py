@@ -29,6 +29,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=50,
     )
@@ -48,6 +49,7 @@ for coupling in couplings:
     run = (
         Simulation(model_system, dt=0.25, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=200)
     )
     times, phases = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('oscillators.theta'))

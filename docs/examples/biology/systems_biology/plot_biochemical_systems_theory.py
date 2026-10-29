@@ -21,7 +21,7 @@ MODEL = 'biochemical_systems_theory'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # The steady state of an S-system
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 g = np.array([[0.0, 0.0, -0.5], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
 h = 0.5 * np.eye(3)
 steady = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.array([2.0, 1.0, 1.0]))))
-gma = Simulation(create(MODEL, form='gma'), dt=0.1).check().run(until=20).trajectory_
+gma = Simulation(create(MODEL, form='gma'), dt=0.1).check().prepare().run(until=20).trajectory_
 trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):

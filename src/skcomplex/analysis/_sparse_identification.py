@@ -175,11 +175,15 @@ class SparseIdentificationAnalysis(BaseAnalysis):
     def _forecast(self) -> Array:
         """Return the variables of the fitted system simulated from the last sample, one row per sample."""
         names = [f'{self.label}.{name}' for name in self.states_]
-        simulation = Simulation(
-            self.system_,
-            dt=self.dt_,
-            initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
-        ).check()
+        simulation = (
+            Simulation(
+                self.system_,
+                dt=self.dt_,
+                initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
+            )
+            .check()
+            .prepare()
+        )
         trajectory = simulation.run(until=self.horizon * self.dt_).trajectory_
         values = np.column_stack([np.asarray(trajectory.values(name), dtype=np.float64) for name in names])
         return values[1 : self.horizon + 1].reshape(self.horizon, len(names))

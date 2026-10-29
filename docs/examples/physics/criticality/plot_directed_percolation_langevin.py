@@ -26,13 +26,17 @@ MODEL = 'directed_percolation_langevin'
 
 system = create(MODEL, energy=1.05, e=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='neurons/rho', interval=1)
-simulation = Simulation(
-    system,
-    dt=1.0,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    observers=[observer],
-    random_state=0,
-).check()
+simulation = (
+    Simulation(
+        system,
+        dt=1.0,
+        solver=EulerMaruyamaSolver(dt=0.01),
+        observers=[observer],
+        random_state=0,
+    )
+    .check()
+    .prepare()
+)
 simulation.run(until=100)
 
 # %%
@@ -45,7 +49,11 @@ simulation.run(until=100)
 energies = np.linspace(0.6, 1.8, 13)
 densities = []
 for energy in energies:
-    run = Simulation(create(MODEL, shape=(16, 16), energy=energy), dt=1.0, solver=EulerMaruyamaSolver(dt=0.01)).check()
+    run = (
+        Simulation(create(MODEL, shape=(16, 16), energy=energy), dt=1.0, solver=EulerMaruyamaSolver(dt=0.01))
+        .check()
+        .prepare()
+    )
     densities.append(np.asarray(run.run(until=40).trajectory_.values('neurons.rho'))[-10:].mean())
 
 fig, ax = plt.subplots(figsize=(6, 4))

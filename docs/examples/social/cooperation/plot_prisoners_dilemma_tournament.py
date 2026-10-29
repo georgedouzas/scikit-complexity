@@ -22,7 +22,7 @@ MODEL = 'prisoners_dilemma_tournament'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=3000)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=3000)
 
 # %%
 # Eras of strategies

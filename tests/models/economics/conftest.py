@@ -15,7 +15,13 @@ def _run(
     observables: Sequence[ObservableSpec] = (),
 ) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state."""
-    return Simulation(system, dt=dt, random_state=0, observables=observables).check().run(until=until).trajectory_
+    return (
+        Simulation(system, dt=dt, random_state=0, observables=observables)
+        .check()
+        .prepare()
+        .run(until=until)
+        .trajectory_
+    )
 
 
 def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyArray]:
@@ -30,5 +36,5 @@ def _run_observed(
     invariants: Mapping[str, float] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a model run with a fixed random state."""
-    simulation = Simulation(system, random_state=0, observables=observables, invariants=invariants).check()
+    simulation = Simulation(system, random_state=0, observables=observables, invariants=invariants).check().prepare()
     return simulation.run(until=until).trajectory_

@@ -55,6 +55,7 @@ def _simulation():
             System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
         )
         .check()
+        .prepare()
         .run(until=2)
     )
 

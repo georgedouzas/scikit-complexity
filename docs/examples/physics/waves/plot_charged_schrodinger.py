@@ -24,7 +24,7 @@ MODEL = 'charged_schrodinger'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().run(until=8.0)
+simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=8.0)
 
 # %%
 # Acceleration by the field, not by a gauge
@@ -39,7 +39,7 @@ times = simulation.trajectory_.times
 density = simulation.trajectory_.values('packet.u') ** 2 + simulation.trajectory_.values('packet.w') ** 2
 centres = density @ positions / density.sum(axis=1)
 expected = np.where(times < 2.0, 0.5 * times**2, 2.0 + 2.0 * (times - 2.0))
-gauge = Simulation(create(MODEL, E=0.0, A_x=1.0, momentum=1.0), dt=0.1).check().run(until=8.0).trajectory_
+gauge = Simulation(create(MODEL, E=0.0, A_x=1.0, momentum=1.0), dt=0.1).check().prepare().run(until=8.0).trajectory_
 gauge_density = gauge.values('packet.u') ** 2 + gauge.values('packet.w') ** 2
 
 fig, (motion, norm) = plt.subplots(1, 2, figsize=(10, 4))

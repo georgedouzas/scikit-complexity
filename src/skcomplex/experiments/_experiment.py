@@ -247,13 +247,17 @@ class Experiment(BaseExperiment):
         arguments, paths = Experiment._split_overrides(task)
         problem = Experiment._compile(task.source, arguments, task.scenario.system, task.observables)
         problem = Experiment._with_values(problem, paths)
-        simulation = Simulation(
-            problem,
-            random_state=np.random.default_rng(task.seed),
-            schedule=Experiment._schedule(problem, task.scenario),
-            dt=task.dt,
-            solver=task.solver,
-        ).check()
+        simulation = (
+            Simulation(
+                problem,
+                random_state=np.random.default_rng(task.seed),
+                schedule=Experiment._schedule(problem, task.scenario),
+                dt=task.dt,
+                solver=task.solver,
+            )
+            .check()
+            .prepare()
+        )
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
         if task.outputs is not None:

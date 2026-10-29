@@ -480,12 +480,12 @@ class NeighborhoodKernel(BaseKernel):
             if changing is not None and over.layer in changing:
                 source, target, active = changing[over.layer]
                 directed = space.graphs_[over.layer].is_directed()
-                return EdgeRowSearch(source, target, active, rows, directed, center=over.center).check()
+                return EdgeRowSearch(source, target, active, rows, directed, center=over.center).check().prepare()
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).check()
+            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).check().prepare()
         if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).check()
+            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).check().prepare()
         position = NeighborhoodKernel._position_state(states)
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
@@ -502,7 +502,7 @@ class NeighborhoodKernel(BaseKernel):
             if heading is None:
                 error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
-        return MetricSearch(over, entries[position], periods, heading).check()
+        return MetricSearch(over, entries[position], periods, heading).check().prepare()
 
     @staticmethod
     def _spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:

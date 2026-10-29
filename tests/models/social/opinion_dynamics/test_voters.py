@@ -16,13 +16,15 @@ from ..conftest import _run, _values
 def test_voter_model_reaches_consensus():
     """Test that 20 voters on a connected network end with one opinion."""
     graph = nx.connected_watts_strogatz_graph(20, 4, 0.2, seed=0)
-    trajectory = Simulation(voter_model(graph, random_state=0), random_state=0).check().run(until=500).trajectory_
+    trajectory = (
+        Simulation(voter_model(graph, random_state=0), random_state=0).check().prepare().run(until=500).trajectory_
+    )
     assert len(set(trajectory.agents('voters', 500).values['opinion'].tolist())) == 1
 
 
 def test_majority_rule_settles():
     """Test that synchronous majority voting settles into domains that are fixed or blink with period two."""
-    trajectory = Simulation(majority_rule((50, 50)), dt=1).check().run(until=50).trajectory_
+    trajectory = Simulation(majority_rule((50, 50)), dt=1).check().prepare().run(until=50).trajectory_
     opinions = trajectory.values('voters.opinion')
     changes = np.abs(np.diff(opinions, axis=0)).sum(axis=1)
     assert changes[0] > 100

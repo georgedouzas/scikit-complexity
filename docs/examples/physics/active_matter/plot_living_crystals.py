@@ -28,7 +28,9 @@ MODEL = 'living_crystals'
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.002)
-simulation = Simulation(system, solver=solver, dt=0.2, observers=[observer], random_state=0).check().run(until=40)
+simulation = (
+    Simulation(system, solver=solver, dt=0.2, observers=[observer], random_state=0).check().prepare().run(until=40)
+)
 
 # %%
 # Clustering by phoretic attraction
@@ -53,7 +55,12 @@ def clustered_share(positions, side=50.0):
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times
 ax.plot(times, clustered_share(simulation.trajectory_.values('swimmers.x')), label='with attraction, v0 = 20')
-passive = Simulation(create(MODEL, v0=0.0, random_state=0), solver=solver, dt=0.2, random_state=0).check().run(until=40)
+passive = (
+    Simulation(create(MODEL, v0=0.0, random_state=0), solver=solver, dt=0.2, random_state=0)
+    .check()
+    .prepare()
+    .run(until=40)
+)
 ax.plot(times, clustered_share(passive.trajectory_.values('swimmers.x')), label='without attraction, v0 = 0')
 ax.set_xlabel('time t')
 ax.set_ylabel('share of colloids in clusters of 3 or more')

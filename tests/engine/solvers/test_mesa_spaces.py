@@ -93,7 +93,7 @@ def test_offer_before_acceptance():
         ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('acceptance')])),
     )
-    trajectory = Simulation(system, random_state=0).check().run(until=10).trajectory_
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
     workers = trajectory.agents('workers', 10)
     assert np.all(workers.values['stale'] == 0)
     assert np.all(workers.values['accepted'] == trajectory.agents('employers', 10).values['offer'].max())
@@ -103,7 +103,7 @@ def test_undeclared_phase_raises():
     """A rule in a phase that the system does not declare raises an error."""
     system = System(elements=[GroupElement('employers', element=EmployerElement, size=2)])
     with pytest.raises(SimulationError, match='offers'):
-        Simulation(system).check().run(until=1)
+        Simulation(system).check().prepare().run(until=1)
 
 
 def test_phases_keep_unphased_models():
@@ -130,7 +130,7 @@ def test_phases_keep_unphased_models():
         elements=[GroupElement('counters', element=CounterElement, size=3)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('extra', repeat=2)])),
     )
-    trajectory = Simulation(system, random_state=0).check().run(until=4).trajectory_
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=4).trajectory_
     assert trajectory.agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
 
 
@@ -155,7 +155,7 @@ def test_sequential_and_by_type_order():
             schedule=PhasesScheduleSpec([PhaseSpec('go', activation='by-type', groups=['second', 'first'])]),
         ),
     )
-    Simulation(system, random_state=0).check().run(until=1)
+    Simulation(system, random_state=0).check().prepare().run(until=1)
     assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
     seen.clear()
     sequential = System(
@@ -165,7 +165,7 @@ def test_sequential_and_by_type_order():
         ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('go', 'sequential')])),
     )
-    Simulation(sequential, random_state=0).check().run(until=1)
+    Simulation(sequential, random_state=0).check().prepare().run(until=1)
     assert [identity for _, identity in seen] == sorted(identity for _, identity in seen)
 
 

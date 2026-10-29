@@ -20,7 +20,7 @@ def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
-    trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).check().run(until=until).trajectory_
+    trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).check().prepare().run(until=until).trajectory_
     values = np.column_stack([trajectory.values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return values[first:]
@@ -53,7 +53,7 @@ def test_reservoir_analysis_runs_under_discrete_time():
     model = _fit(_sine_values(), horizon=20)
     assert isinstance(model.system_.time, DiscreteTime)
     assert PassCompiler().check().prepare(model.system_).report_.ok
-    run = Simulation(model.system_).check().run(until=20).trajectory_
+    run = Simulation(model.system_).check().prepare().run(until=20).trajectory_
     assert np.allclose(np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])[1:], model.forecast_)
 
 

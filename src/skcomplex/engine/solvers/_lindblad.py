@@ -53,7 +53,8 @@ class LindbladSolver(QuantumSolver):
         >>> system = System(elements=[QubitElement('q')])
         >>> from skcomplex.engine.compile import QuantumCompiler
         >>> compiler = QuantumCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z).check()
+        >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
+        >>> simulation = simulation.check().prepare()
         >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True

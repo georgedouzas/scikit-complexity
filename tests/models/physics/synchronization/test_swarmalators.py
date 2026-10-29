@@ -12,7 +12,11 @@ from skcomplex.models.physics.synchronization import (
 def _swarm_order(J, K):
     """Return the order parameters `S+`, `S-`, and the phase coherence of swarmalators at the end of a run."""
     trajectory = (
-        Simulation(swarmalators(60, J=J, K=K), dt=1.0, solver=RK4Solver(dt=0.1)).check().run(until=60).trajectory_
+        Simulation(swarmalators(60, J=J, K=K), dt=1.0, solver=RK4Solver(dt=0.1))
+        .check()
+        .prepare()
+        .run(until=60)
+        .trajectory_
     )
     positions = np.asarray(trajectory.values('units.x'))[-1]
     phases = np.asarray(trajectory.values('units.theta'))[-1]

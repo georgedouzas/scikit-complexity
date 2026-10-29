@@ -18,6 +18,7 @@ from matching.games import HospitalResident
 from .....base import BaseConfig
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
+from .....core.spaces import BaseSpace
 from .....engine.solvers import AgentView, ModelView
 from .....specs import BaseSpec, RoleSpec
 from .types import Preference
@@ -786,6 +787,16 @@ class MarketInteraction(Interaction):
         if self.protocol is not None:
             self.protocol.check()
 
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Prepare the protocol that matches the participants.
+
+        Args:
+            context:
+                The space the market inherits from its system, which a market does not read.
+        """
+        if self.protocol is not None:
+            self.protocol.prepare()
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.
 
@@ -857,7 +868,7 @@ class MarketInteraction(Interaction):
                 The model view of the market.
         """
         buyers, sellers = self.orders(model)
-        protocol = BilateralSearchProtocol().check() if self.protocol is None else self.protocol
+        protocol = BilateralSearchProtocol().check().prepare() if self.protocol is None else self.protocol
         trades = protocol.run(ClearingSpec(buyers, sellers, model.rng, model.storage)).trades_
         for trade in trades:
             self.settle(trade, model)

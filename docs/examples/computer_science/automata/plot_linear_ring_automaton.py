@@ -23,7 +23,7 @@ MODEL = 'linear_ring_automaton'
 
 system = create(MODEL, size=101, modulus=3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().run(until=40)
+simulation = Simulation(system, observers=[observer]).check().prepare().run(until=40)
 
 # %%
 # Nonzero cells and invertibility

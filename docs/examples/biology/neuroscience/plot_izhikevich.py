@@ -22,7 +22,7 @@ MODEL = 'izhikevich'
 
 system = create(MODEL, c=-50.0, d=2.0, I=10.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=100)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Firing patterns
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 patterns = {'regular spiking (c = -65, d = 8)': (-65.0, 8.0), 'chattering (c = -50, d = 2)': (-50.0, 2.0)}
 fig, (traces, intervals) = plt.subplots(1, 2, figsize=(11, 4))
 for offset, (label, (c, d)) in enumerate(patterns.items()):
-    trajectory = Simulation(create(MODEL, c=c, d=d, I=10.0), dt=0.1).check().run(until=200).trajectory_
+    trajectory = Simulation(create(MODEL, c=c, d=d, I=10.0), dt=0.1).check().prepare().run(until=200).trajectory_
     spikes = np.array([event.time for event in trajectory.events if event.label == 'spike'])
     traces.plot(trajectory.times, trajectory.values('neuron.v') - 120 * offset, label=label)
     intervals.plot(np.diff(spikes), 'o-', label=label)

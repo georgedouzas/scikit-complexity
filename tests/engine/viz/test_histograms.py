@@ -98,7 +98,7 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('moran', save_path=tmp_path / 'moran.rrd')
-    Simulation(create('moran_process'), observers=[observer], random_state=0).check().run(until=10)
+    Simulation(create('moran_process'), observers=[observer], random_state=0).check().prepare().run(until=10)
     assert 'population/trait/mean' in logged
     assert 'population/fitness/mean' in logged
 
@@ -203,6 +203,6 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('walkers', save_path=tmp_path / 'walkers.rrd')
-    Simulation(system, observers=[observer], random_state=0).check().run(until=3)
+    Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=3)
     assert 'walkers/x/histogram' in logged
     assert 'walkers/x/mean' in logged

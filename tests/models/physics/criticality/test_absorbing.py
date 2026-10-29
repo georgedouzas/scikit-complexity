@@ -13,6 +13,7 @@ def _stationary_density(energy):
     trajectory = (
         Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
         .check()
+        .prepare()
         .run(until=40)
         .trajectory_
     )

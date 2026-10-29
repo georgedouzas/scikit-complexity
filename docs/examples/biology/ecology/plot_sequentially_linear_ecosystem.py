@@ -21,7 +21,7 @@ MODEL = 'sequentially_linear_ecosystem'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().run(until=299)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().prepare().run(until=299)
 
 # %%
 # Extinctions and the turnover of the network

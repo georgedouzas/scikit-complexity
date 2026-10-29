@@ -78,6 +78,27 @@ is `ExpressionPrinter`, so the layer contract places it in `skcomplex.engine.pro
 `_load_source` takes today are an argument of its constructor. `NumbaBackend`, `ExpressionPrinter`,
 `LatticeProblemPass`, and `LyapunovAnalysis` hold one where they load source.
 
+### Decisions taken during the migration (by the user)
+- **Hooks shared by a family live in its base.** When the hooks become abstract, the 132 concrete classes that
+  inherit a hook from `BaseConfig` get it from their family base instead: `BasePass`, `BaseLowering`, `BaseSolver`,
+  `BaseKernel`, `BaseSearch`, `BasePrinter`, `BaseBackend`, `BaseObserver`, `BaseClock`, `BaseDesign`, and
+  `BaseMarketProtocol` implement the hooks their family shares. A child overrides a hook when it has something of
+  its own to check or prepare. A class outside a family, such as `QuantumLowering`, `Observer`, `_MemberReductions`,
+  and `_Expansion`, implements its own.
+- **`SourceLoader` stays public** in `skcomplex.engine.problems`, and the surface test of the package accepts it.
+- **Only elements, interactions, and systems keep `laws_`.** `BasePart` no longer declares or sets it; `BaseElement`,
+  `BaseInteraction`, and `System` do. `BaseLaw` implements `_run`, setting `value_` to the values of the law's
+  arguments at the given values of its symbols; the laws with a value of their own, such as `RateLaw`, override it.
+  The five lattice laws without a `_run` of their own (`DriveLaw`, `ExtremalLaw`, `LocalRuleLaw`, `RelaxationLaw`,
+  `SampleLaw`) inherit it.
+- **Running before preparing is an error for every object.** `BaseConfig.prepare` marks the object as prepared, and
+  `run` raises `NotPreparedError` for an object that was not prepared, as `check` does with `NotCheckedError`.
+  `BaseSpec` accepts a spec that was not prepared, since a frozen spec cannot be marked. `BaseAnalysis`'s overrides
+  only forward. `Simulation` follows the guard like every object: its `run` no longer prepares it, and every call
+  reads `Simulation(...).check().prepare().run(until=...)`.
+- **Kernels without a result set `values_` to `None`**, since their `run` returned `None` before, and the lattice
+  solver reads it.
+
 ## Risks / Trade-offs
 
 - **[Risk] A missed caller reads the return value, now `self`, and fails at run time rather than at import.**

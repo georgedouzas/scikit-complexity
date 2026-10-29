@@ -20,7 +20,7 @@ MODEL = 'logistic_growth'
 
 system = create(MODEL, n=2.0, r=0.5, K=100.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # Closed-form solution and growth rate

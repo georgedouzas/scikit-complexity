@@ -22,7 +22,7 @@ MODEL = 'maki_thompson'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).check().run(until=20)
+simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).check().prepare().run(until=20)
 
 # %%
 # The fifth who never hear
@@ -36,7 +36,13 @@ fig, ax = plt.subplots(figsize=(6, 4.5))
 for n_people in (200, 1000, 5000):
     fractions = []
     for seed in range(20):
-        run = Simulation(create(MODEL, n_people=n_people), dt=1.0, random_state=seed).check().run(until=40).trajectory_
+        run = (
+            Simulation(create(MODEL, n_people=n_people), dt=1.0, random_state=seed)
+            .check()
+            .prepare()
+            .run(until=40)
+            .trajectory_
+        )
         fractions.append(run.values('ignorants.n')[-1] / n_people)
     finals = np.array(fractions)
     spread_out = finals[finals < 0.9]

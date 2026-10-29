@@ -43,6 +43,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=STEPS)
 )
 
@@ -63,6 +64,7 @@ regulated = (
         observables=describe(MODEL).observables_of(regulated_system),
     )
     .check()
+    .prepare()
     .run(until=STEPS)
 )
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))

@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().run(until=300)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=300)
 
 # %%
 # Clustering against triad formation
@@ -50,10 +50,15 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ch
 triads = np.linspace(0.0, 1.0, 6)
 clustering = []
 for triad in triads:
-    run = Simulation(create(MODEL, n_nodes=1004, triad=triad), dt=500.0, random_state=1).check().run(until=1000)
+    run = (
+        Simulation(create(MODEL, n_nodes=1004, triad=triad), dt=500.0, random_state=1).check().prepare().run(until=1000)
+    )
     clustering.append(nx.average_clustering(run.trajectory_.network(-1).graph()))
 baseline = (
-    Simulation(create('barabasi_albert', n_nodes=1003, edges=3), dt=500.0, random_state=1).check().run(until=1000)
+    Simulation(create('barabasi_albert', n_nodes=1003, edges=3), dt=500.0, random_state=1)
+    .check()
+    .prepare()
+    .run(until=1000)
 )
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(triads, clustering, 'o-', label='Holme-Kim')

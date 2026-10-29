@@ -40,8 +40,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL, x=3.0), dt=0.1, observers=[observer]).check().run(until=40)
-inside = Simulation(create(MODEL, x=0.1), dt=0.1).check().run(until=40).trajectory_
+simulation = Simulation(create(MODEL, x=3.0), dt=0.1, observers=[observer]).check().prepare().run(until=40)
+inside = Simulation(create(MODEL, x=0.1), dt=0.1).check().prepare().run(until=40).trajectory_
 strips = [
     np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')])
     for run in (simulation.trajectory_, inside)
@@ -62,7 +62,7 @@ observer.recording_.flush()
 
 def cycle_amplitude(start, order):
     """Return the largest displacement over the last 10 time units of a run of 40."""
-    run = Simulation(create(MODEL, x=start, order=order), dt=0.1).check().run(until=40).trajectory_
+    run = Simulation(create(MODEL, x=start, order=order), dt=0.1).check().prepare().run(until=40).trajectory_
     return np.max(np.abs(run.values('oscillator.x')[-100:]))
 
 

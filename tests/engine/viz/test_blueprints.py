@@ -193,7 +193,7 @@ def test_rerun_observer_check_rejects_settings_without_the_default_blueprint(set
 def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
     """Test that a saved recording gets its blueprint with the same stem."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
     assert (tmp_path / 'run.rrd').exists()
     assert (tmp_path / 'run.rbl').exists()
     assert isinstance(observer.blueprint_, rrb.Blueprint)
@@ -202,7 +202,7 @@ def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
 def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
     """Test that no blueprint is sent or saved when none is given."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
     assert observer.blueprint_ is None
     assert not (tmp_path / 'run.rbl').exists()
 
@@ -211,7 +211,7 @@ def test_rerun_observer_accepts_given_blueprint(tmp_path):
     """Test that a given blueprint is sent unchanged."""
     blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
     assert observer.blueprint_ is blueprint
 
 
@@ -219,7 +219,7 @@ def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
     """Test that an unknown blueprint name is rejected."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
     with pytest.raises(ValidationError, match='default'):
-        Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().run(until=1)
+        Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
 
 
 def test_default_blueprint_puts_named_primary_view_first():

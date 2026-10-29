@@ -13,6 +13,7 @@ def test_stochastic_resonance_hops_between_wells():
     values = (
         Simulation(stochastic_resonance(), dt=0.5, random_state=0)
         .check()
+        .prepare()
         .run(until=300)
         .trajectory_.values('particle.x')
     )
@@ -23,7 +24,11 @@ def test_stochastic_resonance_hops_between_wells():
 def test_brownian_particle_stays_off_the_wall():
     """Test that the particle near the reflecting wall keeps a positive distance and finite values."""
     values = (
-        Simulation(brownian_near_wall(), dt=0.1, random_state=0).check().run(until=10).trajectory_.values('particle.z')
+        Simulation(brownian_near_wall(), dt=0.1, random_state=0)
+        .check()
+        .prepare()
+        .run(until=10)
+        .trajectory_.values('particle.z')
     )
     assert np.all(np.isfinite(values))
     assert values.min() >= 0.0

@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=150)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=150)
 
 # %%
 # Order against coupling
@@ -50,7 +50,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().ru
 betas = np.linspace(0.0, 0.6, 7)
 order, crossing, mixed = [], [], []
 for beta in betas:
-    run = Simulation(create(MODEL, beta=beta), dt=10.0, random_state=2).check().run(until=150).trajectory_
+    run = Simulation(create(MODEL, beta=beta), dt=10.0, random_state=2).check().prepare().run(until=150).trajectory_
     members = run.values('voters.opinion')[-1]
     snapshot = run.network(-1)
     order.append(abs(2 * members.mean() - 1))

@@ -43,10 +43,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=200)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=200)
 grid = np.linspace(0.4, 0.6, 40)
 starts = np.array([(x, y) for x in grid for y in grid])
-runs = [Simulation(create(MODEL, x=x, y=y), dt=1).check().run(until=6).trajectory_ for x, y in starts]
+runs = [Simulation(create(MODEL, x=x, y=y), dt=1).check().prepare().run(until=6).trajectory_ for x, y in starts]
 x = np.array([run.values('map.x') for run in runs])
 y = np.array([run.values('map.y') for run in runs])
 colors = plt.get_cmap('plasma')((starts[:, 0] - 0.4) / 0.2)[:, :3]

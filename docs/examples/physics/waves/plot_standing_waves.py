@@ -21,7 +21,7 @@ MODEL = 'standing_waves'
 
 system = create(MODEL, n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=4.0)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=4.0)
 
 # %%
 # Nodes and frequency

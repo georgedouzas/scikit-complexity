@@ -21,7 +21,7 @@ MODEL = 'rats'
 
 system = create(MODEL, n_rats=100, nervous=5, contagion=2.0, calming=1.0, spontaneous=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
 
 # %%
 # The phase transition
@@ -33,7 +33,7 @@ contagions = np.linspace(0.25, 4.0, 16)
 shares = []
 for contagion in contagions:
     system = create(MODEL, contagion=contagion, calming=1.0, spontaneous=0.0, stochastic=False)
-    trajectory = Simulation(system, dt=0.1).check().run(until=60).trajectory_
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=60).trajectory_
     shares.append(trajectory.values('nervous.n')[-1] / 100)
 grid = np.linspace(0.25, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -38,6 +38,7 @@ simulation = (
         random_state=0,
     )
     .check()
+    .prepare()
     .run(until=1500)
 )
 

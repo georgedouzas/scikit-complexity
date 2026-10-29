@@ -40,6 +40,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=60)
 )
 
@@ -60,6 +61,7 @@ exact_system = create(MODEL, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
 exact = outputs(
     Simulation(exact_system, random_state=0, observables=describe(MODEL).observables_of(exact_system))
     .check()
+    .prepare()
     .run(until=20)
     .trajectory_,
 )

@@ -38,7 +38,10 @@ system = create(MODEL, n_particles=200, seed=0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).check().run(until=300)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables)
+    .check()
+    .prepare()
+    .run(until=300)
 )
 
 # %%

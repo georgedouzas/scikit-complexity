@@ -19,7 +19,9 @@ def test_encounter_needs_continuous_time_on_activity_lattices():
 
 def test_encounter_runs_into_its_tables():
     """Test that an encounter runs into its rate and transition tables as nested lists of numbers."""
-    rate, transition = EncounterLaw(F, G, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check().run({}).value_
+    rate, transition = (
+        EncounterLaw(F, G, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check().prepare().run({}).value_
+    )
     assert rate == [[1.0, 2.0], [3.0, 4.0]]
     assert np.shape(transition) == (2, 2, 2)
 

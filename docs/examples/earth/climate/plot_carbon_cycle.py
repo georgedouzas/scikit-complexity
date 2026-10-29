@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # A threshold for the excursion
@@ -49,7 +49,7 @@ starts = np.linspace(2050.0, 2190.0, 29)
 peaks = []
 fig, (runs, response) = plt.subplots(1, 2, figsize=(10, 4))
 for w0 in starts:
-    run = Simulation(create(MODEL, w=w0), dt=0.05).check().run(until=20).trajectory_
+    run = Simulation(create(MODEL, w=w0), dt=0.05).check().prepare().run(until=20).trajectory_
     peaks.append(run.values('ocean.c').max())
     if w0 in starts[::7]:
         runs.plot(run.times, run.values('ocean.c'), linewidth=1, label=f'w0 = {w0:.0f}')

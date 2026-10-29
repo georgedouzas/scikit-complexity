@@ -22,6 +22,7 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
                 observables=describe('aligning_active_brownian_particles').observables_of(system),
             )
             .check()
+            .prepare()
             .run(until=200)
         )
         polarizations.append(_stationary_polarization(simulation.trajectory_, 100))

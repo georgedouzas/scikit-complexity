@@ -132,6 +132,7 @@ def test_unitary_evolution_follows_rabi_oscillations():
     simulation = (
         Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z, compiler=QuantumCompiler())
         .check()
+        .prepare()
         .run(until=np.pi / OMEGA)
     )
     trajectory = simulation.trajectory_
@@ -150,6 +151,7 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
             compiler=QuantumCompiler(),
         )
         .check()
+        .prepare()
         .run(until=10.0)
         .trajectory_
     )
@@ -164,13 +166,13 @@ def test_unitary_evolution_rejects_open_systems():
             System(elements=[DecayingElement('q')]),
             solver=UnitarySolver(),
             compiler=QuantumCompiler(),
-        ).check().run(until=1.0)
+        ).check().prepare().run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
     system = System(elements=[DecayingElement('q')])
-    simulation = Simulation(system, dt=0.5, observables=Z, compiler=QuantumCompiler()).check().run(until=4.0)
+    simulation = Simulation(system, dt=0.5, observables=Z, compiler=QuantumCompiler()).check().prepare().run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
     assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
@@ -183,6 +185,7 @@ def test_lindblad_evolution_lowers_purity():
     trajectory = (
         Simulation(System(elements=[DephasedElement('q')]), dt=0.2, compiler=QuantumCompiler())
         .check()
+        .prepare()
         .run(until=4.0)
         .trajectory_
     )
@@ -205,6 +208,7 @@ def test_quantum_trajectories_are_reproducible():
                 compiler=QuantumCompiler(),
             )
             .check()
+            .prepare()
             .run(until=10.0)
         )
         for _ in range(2)
@@ -228,6 +232,7 @@ def test_quantum_trajectories_average_to_the_master_equation():
                 compiler=QuantumCompiler(),
             )
             .check()
+            .prepare()
             .run(until=4.0)
             .trajectory_.values('z')
             for _ in range(500)
@@ -242,7 +247,10 @@ def test_quantum_trajectories_average_to_the_master_equation():
 def test_quantum_solvers_follow_parameter_updates():
     """Test that a quench of the anisotropy changes the energy after the update."""
     simulation = (
-        Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5, compiler=QuantumCompiler()).check().run(until=1.0)
+        Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5, compiler=QuantumCompiler())
+        .check()
+        .prepare()
+        .run(until=1.0)
     )
     simulation.update_parameters({'xxz.delta': 0.0})
     trajectory = simulation.extend(until=2.0).trajectory_

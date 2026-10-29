@@ -21,7 +21,7 @@ MODEL = 'drug_toxicity'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=84)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=84)
 
 # %%
 # Toxicity and exposure
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=
 # With clearance at the rate `eta`, the toxicity should decay as `exp(-eta t)` after the last dose.
 
 times = simulation.trajectory_.times
-cumulative = Simulation(create(MODEL, eta=0.0), dt=0.2).check().run(until=84).trajectory_
+cumulative = Simulation(create(MODEL, eta=0.0), dt=0.2).check().prepare().run(until=84).trajectory_
 exposure = np.concatenate(
     ([0.0], np.cumsum(np.diff(times) * (cumulative.values('patient.c')[1:] + cumulative.values('patient.c')[:-1]) / 2)),
 )

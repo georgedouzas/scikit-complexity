@@ -21,7 +21,7 @@ MODEL = 'newtons_cradle'
 
 system = create(MODEL, n_balls=5, speed=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=5)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=5)
 
 # %%
 # Momentum passed down the row

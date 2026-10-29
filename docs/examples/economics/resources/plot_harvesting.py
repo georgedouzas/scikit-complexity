@@ -24,7 +24,7 @@ EFFORT, R, K, UNTIL = 0.05, 1.0, 1000.0, 20
 
 system = create(MODEL, farmers=10, effort=EFFORT, r=R, K=K)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().run(until=UNTIL)
+simulation = Simulation(system, observers=[observer]).check().prepare().run(until=UNTIL)
 
 # %%
 # Equilibrium stock and sustainable yield
@@ -38,6 +38,7 @@ stocks = np.array(
     [
         Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K))
         .check()
+        .prepare()
         .run(until=200)
         .trajectory_.values('land/stock.n')[-1]
         for farmers in villages

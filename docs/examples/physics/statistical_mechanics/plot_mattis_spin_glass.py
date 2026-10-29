@@ -31,6 +31,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=400)
 )
 
@@ -56,6 +57,7 @@ for temperature in temperatures:
             observables=describe(MODEL).observables_of(model_system),
         )
         .check()
+        .prepare()
         .run(until=1000)
     )
     overlaps.append(np.abs(trajectory.trajectory_.values('overlap')[-30:]).mean())

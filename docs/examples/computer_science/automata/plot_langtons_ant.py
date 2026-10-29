@@ -21,7 +21,9 @@ MODEL = 'langtons_ant'
 CENTER = 60
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, shape=(120, 120)), dt=100, observers=[observer]).check().run(until=12000)
+simulation = (
+    Simulation(create(MODEL, shape=(120, 120)), dt=100, observers=[observer]).check().prepare().run(until=12000)
+)
 
 # %%
 # From the blob to the highway

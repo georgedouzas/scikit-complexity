@@ -23,7 +23,7 @@ WINDOW = (-1.6, 1.6, -1.2, 1.2)
 
 system = create(MODEL, c=-0.8 + 0.156j, shape=(240, 320), window=WINDOW)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Symmetry of the escape times

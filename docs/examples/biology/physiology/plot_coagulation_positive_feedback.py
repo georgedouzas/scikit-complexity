@@ -24,7 +24,7 @@ MODEL = 'coagulation_positive_feedback'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=40)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=40)
 
 # %%
 # All or nothing
@@ -37,7 +37,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 injuries = np.linspace(0.05, 2.0, 40)
 peaks, clots = [], []
 for injury in injuries:
-    trajectory = Simulation(create(MODEL, injury=injury), dt=0.1).check().run(until=120).trajectory_
+    trajectory = Simulation(create(MODEL, injury=injury), dt=0.1).check().prepare().run(until=120).trajectory_
     peaks.append(trajectory.values('blood.T').max())
     clots.append(trajectory.values('blood.F').max())
 fig, (response, clot) = plt.subplots(1, 2, figsize=(10, 4))

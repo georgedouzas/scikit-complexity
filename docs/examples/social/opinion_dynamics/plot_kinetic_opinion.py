@@ -43,6 +43,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=60,
     )
@@ -62,6 +63,7 @@ def final_distribution(confidence, repulsion):
     run = (
         Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=60)
     )
     return run.trajectory_.values('opinions.f')[-1], run.trajectory_.values('opinion_variance')[-1]

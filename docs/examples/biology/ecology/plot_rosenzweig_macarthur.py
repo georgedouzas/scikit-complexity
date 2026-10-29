@@ -23,7 +23,7 @@ MODEL = 'rosenzweig_macarthur'
 solver = describe(MODEL).defaults['solver']
 system = create(MODEL, rate=0.002)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).check().run(until=149)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).check().prepare().run(until=149)
 
 # %%
 # Slow and fast change
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).che
 # fast rise should send them through a collapse of many orders of magnitude before they recover.
 
 fast = simulation.trajectory_
-slow = Simulation(create(MODEL, rate=0.0002), dt=0.5, solver=solver).check().run(until=149).trajectory_
+slow = Simulation(create(MODEL, rate=0.0002), dt=0.5, solver=solver).check().prepare().run(until=149).trajectory_
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.semilogy(slow.times, slow.values('prey.n'), label='rate 0.0002: tracks the point')
 ax.semilogy(fast.times, fast.values('prey.n'), label='rate 0.002: tips')

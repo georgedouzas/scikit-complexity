@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ...errors import ValidationError
@@ -24,6 +25,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         label:
             The label of the interaction, unique among the parts of its system.
 
+    Attributes:
+        laws_:
+            The laws the interaction contributes for the namespace of its last run.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.interactions._base import BaseInteraction
@@ -41,6 +46,17 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         >>> GrowthInteraction('growth', target='rabbits', r=0.5).get_params()
         {'label': 'growth', 'r': 0.5, 'target': 'rabbits'}
     """
+
+    laws_: Sequence[BasePart]
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the interaction for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
 
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters, which interactions do not hold."""

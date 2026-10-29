@@ -21,7 +21,7 @@ MODEL = 'stommel'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Two basins of circulation
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=
 fig, ax = plt.subplots(figsize=(6, 5))
 for T0 in np.linspace(0.1, 2.9, 8):
     for S0 in np.linspace(0.1, 2.9, 8):
-        run = Simulation(create(MODEL, T=T0, S=S0), dt=0.1).check().run(until=50).trajectory_
+        run = Simulation(create(MODEL, T=T0, S=S0), dt=0.1).check().prepare().run(until=50).trajectory_
         T, S = run.values('ocean.T'), run.values('ocean.S')
         ax.plot(T, S, color='C3' if T[-1] > S[-1] else 'C0', linewidth=0.7)
         ax.plot(T[-1], S[-1], 'o', color='black', markersize=6)

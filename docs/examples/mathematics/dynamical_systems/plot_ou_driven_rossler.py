@@ -53,6 +53,7 @@ simulation = (
         backend=NumbaBackend(),
     )
     .check()
+    .prepare()
     .run(until=600)
 )
 points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyz'])[500:]
@@ -70,6 +71,7 @@ observer.recording_.flush()
 long = (
     Simulation(create(MODEL, rho=1.5), dt=0.1, solver=solver, random_state=1, backend=NumbaBackend())
     .check()
+    .prepare()
     .run(until=3000)
 )
 x, eta = long.trajectory_.values('rossler.x'), long.trajectory_.values('rossler.eta')
@@ -81,6 +83,7 @@ for control in np.linspace(-0.3, 0.3, 13):
     held = (
         Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend())
         .check()
+        .prepare()
         .run(until=800)
         .trajectory_.values('rossler.x')[3000:]
     )

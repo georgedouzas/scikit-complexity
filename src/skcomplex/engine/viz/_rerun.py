@@ -131,11 +131,12 @@ class RerunObserver(BaseObserver):
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).check().run(until=1)
+        >>> simulation = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
+        >>> _ = simulation.check().prepare().run(until=1)
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = Simulation(system, dt=0.1, observers=[observer]).check().run(until=1)
+        >>> _ = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=1)
         >>> path.with_suffix('.rbl').exists()
         True
 

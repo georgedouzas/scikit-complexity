@@ -46,6 +46,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=STEPS)
 )
 
@@ -63,6 +64,7 @@ for share in shares:
     run = (
         Simulation(create(MODEL, chartists=share, imitation=0.0, random_state=0), random_state=0)
         .check()
+        .prepare()
         .run(until=STEPS)
     )
     prices = run.trajectory_.values('book.price')[1:]

@@ -27,7 +27,7 @@ LENGTH = 40.0
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().run(until=400)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=400)
 
 # %%
 # A propagating unstable band

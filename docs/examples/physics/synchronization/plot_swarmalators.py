@@ -34,7 +34,10 @@ def order_parameters(positions, phases):
 system = create(MODEL, J=1.0, K=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0).check().run(until=100)
+    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0)
+    .check()
+    .prepare()
+    .run(until=100)
 )
 
 # %%
@@ -51,7 +54,12 @@ history = np.array([order_parameters(position, phase) for position, phase in zip
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
-    run = Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1)).check().run(until=60)
+    run = (
+        Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1))
+        .check()
+        .prepare()
+        .run(until=60)
+    )
     final.append(
         order_parameters(
             np.asarray(run.trajectory_.values('units.x'))[-1],

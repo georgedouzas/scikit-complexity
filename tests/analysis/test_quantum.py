@@ -65,13 +65,17 @@ def test_ground_state_is_stationary():
     entry = describe('quantum_heisenberg')
     initial = entry.initial_state_of(n_sites=6, initial='ground')
     assert initial == {'quantum_heisenberg.state': 'ground'}
-    simulation = Simulation(
-        system,
-        dt=0.5,
-        observables=entry.observables_of(system),
-        initial_state=initial,
-        compiler=QuantumCompiler(),
-    ).check()
+    simulation = (
+        Simulation(
+            system,
+            dt=0.5,
+            observables=entry.observables_of(system),
+            initial_state=initial,
+            compiler=QuantumCompiler(),
+        )
+        .check()
+        .prepare()
+    )
     trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory.values('energy')) < 1e-8
     assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
@@ -85,6 +89,7 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
     trajectory = (
         Simulation(system, dt=1.0, initial_state={'system.state': singlet}, compiler=QuantumCompiler())
         .check()
+        .prepare()
         .run(until=1.0)
         .trajectory_
     )
@@ -99,6 +104,7 @@ def test_purity_of_pure_and_dephased_runs():
     closed = (
         Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5, compiler=QuantumCompiler())
         .check()
+        .prepare()
         .run(until=1.0)
         .trajectory_
     )
@@ -106,12 +112,15 @@ def test_purity_of_pure_and_dephased_runs():
     opened = (
         Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5, compiler=QuantumCompiler())
         .check()
+        .prepare()
         .run(until=2.0)
         .trajectory_
     )
     assert np.all(np.diff(_quantum('purity', opened).purity_) <= 1e-10)
     assert _quantum('purity', opened).purity_[-1] < 1
-    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().run(until=1.0).trajectory_
+    rabbits = (
+        Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().prepare().run(until=1.0).trajectory_
+    )
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _quantum('purity', rabbits)
 

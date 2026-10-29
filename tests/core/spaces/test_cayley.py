@@ -74,7 +74,7 @@ class CopyElement(Element):
 
 def _run(system, until):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=1, random_state=0).check().run(until=until).trajectory_
+    return Simulation(system, dt=1, random_state=0).check().prepare().run(until=until).trajectory_
 
 
 def test_cayley_space_checks_its_group_and_ball():

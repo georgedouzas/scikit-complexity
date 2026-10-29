@@ -43,7 +43,9 @@ def _epidemic():
 
 def _gillespie_run(backend):
     """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
-    simulation = Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0).check()
+    simulation = (
+        Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0).check().prepare()
+    )
     simulation.run(until=50)
     start = time.perf_counter()
     trajectory = simulation.run(until=50).trajectory_

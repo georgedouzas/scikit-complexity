@@ -22,7 +22,7 @@ MODEL = 'friedmann_expansion'
 
 system = create(MODEL, a=0.3, H0=1.0, omega_matter=0.3, omega_lambda=0.7)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=2.0)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=2.0)
 
 # %%
 # Exact solution

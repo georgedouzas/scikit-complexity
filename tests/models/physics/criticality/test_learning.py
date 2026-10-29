@@ -19,6 +19,7 @@ def test_sk_game_freezes_at_low_temperature():
                 random_state=0,
             )
             .check()
+            .prepare()
             .run(150)
             .trajectory_.values('agents.sigma'),
         )[-50:]

@@ -8,7 +8,7 @@ from typing import Self
 
 from sklearn.base import BaseEstimator
 
-from .errors import NotCheckedError
+from .errors import NotCheckedError, NotPreparedError
 
 
 class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
@@ -21,7 +21,8 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
     - `check()` validates the settings through `_check()` and marks the object as checked.
     - `prepare(context)` prepares the checked object against the one thing it serves through `_prepare(context)`, and
       sets the attributes that end in `_`.
-    - `run(inputs, final=False)` performs the one action of the checked object on its one input through `_run(inputs)`,
+    - `run(inputs, final=False)` performs the one action of the checked and prepared object on its one input through
+      `_run(inputs)`,
       and keeps what the action produces in attributes that end in `_`; a last call with `final=True` also releases
       what preparing acquired through `_release()`.
 
@@ -59,6 +60,17 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         if not getattr(self, '_checked', False):
             raise NotCheckedError()
 
+    def _is_prepared(self) -> None:
+        """Raise an error for an object that was not prepared.
+
+        Raises:
+            NotPreparedError:
+                The object was not prepared with `prepare`.
+        """
+        if not getattr(self, '_prepared', False):
+            error_msg = f'{type(self).__name__} must be prepared before it runs. Call `prepare(...)` first.'
+            raise NotPreparedError(error_msg)
+
     def check(self) -> Self:
         """Validate the settings of the object and mark it as checked.
 
@@ -92,6 +104,7 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         """
         self._is_checked()
         self._prepare(context)
+        self._prepared = True
         return self
 
     def run(self, inputs: InputT | None = None, final: bool = False) -> Self:
@@ -111,8 +124,11 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         Raises:
             NotCheckedError:
                 The object was not checked with `check`.
+            NotPreparedError:
+                The object was not prepared with `prepare`.
         """
         self._is_checked()
+        self._is_prepared()
         self._run(inputs)
         if final:
             self._release()

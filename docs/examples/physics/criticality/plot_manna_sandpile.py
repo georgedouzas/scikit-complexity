@@ -25,7 +25,7 @@ MODEL = 'manna_sandpile'
 
 system = create(MODEL, shape=(32, 32), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=30, observers=[observer], random_state=0).check().run(until=8970)
+simulation = Simulation(system, dt=30, observers=[observer], random_state=0).check().prepare().run(until=8970)
 
 # %%
 # Self-organized criticality

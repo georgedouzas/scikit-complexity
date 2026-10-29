@@ -20,6 +20,7 @@ def test_binary_collision_flocking_orders_below_noise_threshold() -> None:
                 observables=describe('binary_collision_flocking').observables_of(system),
             )
             .check()
+            .prepare()
             .run(until=200)
         )
         polarizations.append(_stationary_polarization(simulation.trajectory_, 100))

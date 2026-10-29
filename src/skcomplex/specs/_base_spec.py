@@ -41,6 +41,9 @@ class BaseSpec(BaseConfig):
     def _is_checked(self) -> None:
         """Accept a spec that was not checked, since a frozen spec cannot be marked."""
 
+    def _is_prepared(self) -> None:
+        """Accept a spec that was not prepared, since a frozen spec cannot be marked."""
+
     def check(self) -> Self:
         """Validate the fields of the spec.
 

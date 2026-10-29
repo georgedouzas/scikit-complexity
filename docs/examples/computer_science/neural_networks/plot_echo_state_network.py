@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_units=200, spectral_radius=0.9, leak=0.3)
-first = Simulation(system, dt=1, observers=[observer]).check().run(until=100).trajectory_
+first = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=100).trajectory_
 start = np.random.default_rng(1).uniform(-1.0, 1.0, 200)
-second = Simulation(system, dt=1, initial_state={'units.r': start}).check().run(until=100).trajectory_
+second = Simulation(system, dt=1, initial_state={'units.r': start}).check().prepare().run(until=100).trajectory_
 time = [rr.TimeColumn('sim_time', duration=first.times)]
 for copy, trajectory in (('first', first), ('second', second)):
     for unit, color in zip(UNITS, COLORS, strict=True):
@@ -68,9 +68,13 @@ activity.set_title('Two copies, solid and dashed')
 activity.legend()
 for radius in (0.5, 0.9, 2.0):
     copies = create(MODEL, n_units=200, spectral_radius=radius, leak=0.3)
-    one = Simulation(copies, dt=1).check().run(until=300).trajectory_.values('units.r')
+    one = Simulation(copies, dt=1).check().prepare().run(until=300).trajectory_.values('units.r')
     two = (
-        Simulation(copies, dt=1, initial_state={'units.r': start}).check().run(until=300).trajectory_.values('units.r')
+        Simulation(copies, dt=1, initial_state={'units.r': start})
+        .check()
+        .prepare()
+        .run(until=300)
+        .trajectory_.values('units.r')
     )
     distance.semilogy(np.arange(301), np.linalg.norm(one - two, axis=1) + 1e-16, label=f'spectral radius {radius}')
 distance.set_xlabel('step t')

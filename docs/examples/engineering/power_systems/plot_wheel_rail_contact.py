@@ -21,7 +21,7 @@ MODEL = 'wheel_rail_contact'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=60)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=60)
 
 # %%
 # A linear track
@@ -33,7 +33,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until
 trajectory = simulation.trajectory_
 loads = np.linspace(250.0, 2000.0, 8)
 peaks = [
-    np.abs(Simulation(create(MODEL, F=load), dt=0.05).check().run(until=10).trajectory_.values('rail.z')).max()
+    np.abs(
+        Simulation(create(MODEL, F=load), dt=0.05).check().prepare().run(until=10).trajectory_.values('rail.z'),
+    ).max()
     for load in loads
 ]
 fig, (bogie, linear) = plt.subplots(1, 2, figsize=(10, 4))

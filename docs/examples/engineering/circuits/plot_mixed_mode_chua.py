@@ -22,7 +22,10 @@ MODEL = 'mixed_mode_chua'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 simulation = (
-    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer]).check().run(until=200)
+    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer])
+    .check()
+    .prepare()
+    .run(until=200)
 )
 
 # %%
@@ -36,6 +39,7 @@ for ax, c in zip(axes, [0.0, 0.00053, 0.00105], strict=True):
     run = (
         Simulation(create(MODEL, c=c), dt=0.25, solver=ScipyODESolver(method='Radau'))
         .check()
+        .prepare()
         .run(until=200)
         .trajectory_
     )

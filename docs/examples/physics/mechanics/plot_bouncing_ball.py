@@ -21,7 +21,7 @@ MODEL = 'bouncing_ball'
 
 system = create(MODEL, h=1.0, v=0.0, e=0.8)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().run(until=3.8)
+simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=3.8)
 
 # %%
 # Impact times

@@ -24,7 +24,10 @@ MODEL = 'asep'
 system = create(MODEL, n_sites=100, alpha=0.3, gamma=0.7)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).check().run(until=250)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend())
+    .check()
+    .prepare()
+    .run(until=250)
 )
 
 # %%
@@ -46,6 +49,7 @@ for index, (name, (alpha, gamma)) in enumerate(phases.items()):
             backend=NumbaBackend(),
         )
         .check()
+        .prepare()
         .run(
             until=4000,
         )

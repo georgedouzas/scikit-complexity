@@ -50,7 +50,7 @@ class EncounterLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import EncounterLaw
         >>> f, g = var('f'), var('g')
-        >>> rate, transition = EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5)).check().run({}).value_
+        >>> rate, transition = EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5)).check().prepare().run({}).value_
         >>> rate, np.shape(transition)
         (1.0, (2, 2, 2))
     """

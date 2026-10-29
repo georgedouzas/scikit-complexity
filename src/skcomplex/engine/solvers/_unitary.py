@@ -51,7 +51,8 @@ class UnitarySolver(QuantumSolver):
         >>> system = System(elements=[QubitElement('q')])
         >>> from skcomplex.engine.compile import QuantumCompiler
         >>> compiler = QuantumCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z).check()
+        >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z)
+        >>> simulation = simulation.check().prepare()
         >>> float(round(simulation.run(until=np.pi).trajectory_.values('q.z')[-1], 6))
         -1.0
     """

@@ -36,7 +36,8 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
         >>> compiler = RewritingCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver()).check()
+        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
+        >>> simulation = simulation.check().prepare()
         >>> trajectory = simulation.run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]

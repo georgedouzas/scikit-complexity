@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).check().run(100)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).check().prepare().run(100)
 
 # %%
 # Money changes only at the boundary

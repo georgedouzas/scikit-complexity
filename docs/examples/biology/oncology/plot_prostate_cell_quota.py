@@ -20,7 +20,7 @@ MODEL = 'prostate_cell_quota'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().run(until=1500)
+simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1500)
 
 # %%
 # Quotas set the growth

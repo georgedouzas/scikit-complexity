@@ -69,7 +69,11 @@ def test_domain_growth_two_coarsening_laws():
 def test_domain_growth_of_an_ising_trajectory():
     """Test that a quenched Ising trajectory gives one domain size per frame that grows."""
     trajectory = (
-        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0).check().run(until=100).trajectory_
+        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0)
+        .check()
+        .prepare()
+        .run(until=100)
+        .trajectory_
     )
     growth = _domains('growth', trajectory, fit_range=(10, 100))
     assert growth.size_.shape == (len(trajectory.times),)
@@ -82,7 +86,7 @@ def test_pattern_wavelength_turing_patterns_on_two_domains():
     rolls = run('swift_hohenberg').trajectory_.lattice('cells.u')[-1]
     wavelength = _domains('wavelength', rolls, spacing=16 * math.pi / 64).wavelength_[0]
     assert wavelength == pytest.approx(2 * math.pi, rel=0.05)
-    brusselator = Simulation(create('brusselator', b=1.95), dt=10.0).check().run(until=400.0).trajectory_
+    brusselator = Simulation(create('brusselator', b=1.95), dt=10.0).check().prepare().run(until=400.0).trajectory_
     spots = brusselator.lattice('cells.u')[-1]
     critical = 2 * math.pi / math.sqrt(1 / math.sqrt(1.0 * 8.0))
     assert _domains('wavelength', spots).wavelength_[0] == pytest.approx(critical, rel=0.1)

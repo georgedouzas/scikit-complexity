@@ -23,7 +23,7 @@ from .conftest import GRIGORCHUK_BALLS
 
 def _run(system, until):
     """Return a simulation of a system."""
-    return Simulation(system, dt=1, random_state=0).check().run(until=until)
+    return Simulation(system, dt=1, random_state=0).check().prepare().run(until=until)
 
 
 def _majority_holds(space, memory, before, after):

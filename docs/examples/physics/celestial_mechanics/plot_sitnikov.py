@@ -22,7 +22,7 @@ MODEL = 'sitnikov'
 
 system = create(MODEL, z=0.9, vz=0.0, e=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=50)
 
 # %%
 # Stroboscopic section

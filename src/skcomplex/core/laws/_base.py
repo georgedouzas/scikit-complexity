@@ -65,6 +65,17 @@ class BaseLaw(BasePart[str, object]):
     def _get_requirements(self) -> RequirementSpec:
         """Return what the law requires of a system, such as continuous or discrete time."""
 
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the values of the arguments of the law at given values of the symbols it reads.
+
+        A law with a value of its own, such as the rate of a `RateLaw`, overrides this hook.
+
+        Args:
+            inputs:
+                A mapping from the name of every symbol the law reads to its value.
+        """
+        self.value_ = self._evaluate(self._get_values(), inputs)
+
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the law itself, the one law it contributes, whatever the namespace."""
         return [self]

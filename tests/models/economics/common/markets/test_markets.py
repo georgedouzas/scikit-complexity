@@ -110,7 +110,7 @@ def _book_pairing(buyers, sellers, rng, capacity):
     """Return the trades of an order book with sequential arrival between buyers and sellers."""
     bids = [Order(agent, agent.bid, 1.0) for agent in buyers]
     asks = [Order(agent, agent.ask, 1.0) for agent in sellers]
-    return OrderBookProtocol(arrival='sequential').check().run(ClearingSpec(bids, asks, rng, {})).trades_
+    return OrderBookProtocol(arrival='sequential').check().prepare().run(ClearingSpec(bids, asks, rng, {})).trades_
 
 
 class BookInteraction(Interaction):
@@ -154,6 +154,7 @@ def test_order_book_priority():
     trades = (
         OrderBookProtocol(arrival='sequential')
         .check()
+        .prepare()
         .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
         .trades_
     )
@@ -171,6 +172,7 @@ def test_order_book_trades_at_resting_price():
     trades = (
         OrderBookProtocol(arrival='sequential')
         .check()
+        .prepare()
         .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
         .trades_
     )
@@ -180,7 +182,9 @@ def test_order_book_trades_at_resting_price():
 def test_call_auction_uniform_price():
     """A call auction pairs the highest bids with the lowest asks at one price."""
     buyers, sellers = _orders([10.0, 8.0, 3.0]), _orders([2.0, 5.0, 9.0])
-    trades = CallAuctionProtocol().check().run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {})).trades_
+    trades = (
+        CallAuctionProtocol().check().prepare().run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {})).trades_
+    )
     assert len(trades) == 2
     assert {trade.price for trade in trades} == {6.5}
 
@@ -191,12 +195,15 @@ def test_rationed_queue_and_walrasian():
     trades = (
         RationedQueueProtocol(order='bid')
         .check()
+        .prepare()
         .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
         .trades_
     )
     assert [(trade.price, trade.buyer.id) for trade in trades] == [(4.0, 0), (6.0, 1)]
     buyers, sellers = _orders([10.0, 9.0, 1.0]), _orders([4.0, 6.0])
-    trades = WalrasianProtocol().check().run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {})).trades_
+    trades = (
+        WalrasianProtocol().check().prepare().run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {})).trades_
+    )
     assert len(trades) == 2
     assert all(6.0 <= trade.price <= 9.0 for trade in trades)
 
@@ -207,6 +214,7 @@ def test_bilateral_search_and_budget():
     trades = (
         BilateralSearchProtocol(tries=2)
         .check()
+        .prepare()
         .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
         .trades_
     )
@@ -229,7 +237,11 @@ def test_deferred_acceptance_is_stable():
     for order in sellers:
         order.agent = Agent(order.agent.id, ask=order.limit)
     trades = (
-        DeferredAcceptanceProtocol().check().run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {})).trades_
+        DeferredAcceptanceProtocol()
+        .check()
+        .prepare()
+        .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
+        .trades_
     )
     pairs = {(trade.buyer.id, trade.seller.id) for trade in trades}
     assert pairs == {(1, 10), (0, 11)}
@@ -247,6 +259,7 @@ def test_sample_and_switch_keeps_partner():
     trades = (
         SampleAndSwitchProtocol(sample=2)
         .check()
+        .prepare()
         .run(ClearingSpec(buyers, sellers, np.random.default_rng(0), {}))
         .trades_
     )
@@ -257,7 +270,7 @@ def test_double_auction_efficiency():
     """Zero-intelligence traders with budget constraints realise over 90% of the maximum surplus."""
     rng = np.random.default_rng(1)
     values, costs, system = _zero_intelligence(50, rng)
-    simulation = Simulation(system, random_state=0).check().run(until=30)
+    simulation = Simulation(system, random_state=0).check().prepare().run(until=30)
     buyers = simulation.trajectory_.agents('buyers', 30)
     sellers = simulation.trajectory_.agents('sellers', 30)
     bought = buyers.values['goods'] > 0
@@ -282,6 +295,6 @@ def test_order_book_is_a_pairing_of_the_matching_law():
         ],
         interactions=[BookInteraction('book', buyers='buyers', sellers='sellers')],
     )
-    Simulation(system).check().run(1)
+    Simulation(system).check().prepare().run(1)
     assert len(PAIRS) == 1
     assert PAIRS[0][1] == EARLIEST[0]

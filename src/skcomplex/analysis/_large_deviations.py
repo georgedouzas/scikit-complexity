@@ -283,7 +283,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
         population, steps = self.population, round(self.until / self.interval)
         rng = np.random.default_rng(self.random_state)
         settings = {'dt': self.interval, **(self.simulation or {})}
-        simulation = Simulation(self.system_).set_params(**settings).check().run(until=self.interval)
+        simulation = Simulation(self.system_).set_params(**settings).check().prepare().run(until=self.interval)
         problem = simulation.problem_
         states = np.tile(problem.initial_state, (population, 1))
         log_growth, effective = 0.0, float(population)
@@ -293,7 +293,11 @@ class LargeDeviationAnalysis(BaseAnalysis):
                 start = replace(problem, initial_state=states[index].copy())
                 seed = int(rng.integers(2**31 - 1))
                 simulation = (
-                    Simulation(start, random_state=seed).set_params(**settings).check().run(until=self.interval)
+                    Simulation(start, random_state=seed)
+                    .set_params(**settings)
+                    .check()
+                    .prepare()
+                    .run(until=self.interval)
                 )
                 increments[index] = self._increment(observable, simulation.trajectory_)
                 states[index] = np.asarray(simulation.trajectory_.states)[-1]

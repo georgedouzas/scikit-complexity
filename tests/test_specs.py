@@ -293,7 +293,7 @@ def _two_populations():
 def _decaying_group(*observables):
     """Return a simulation of a decaying group of 4 members with observables."""
     system = System(elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})])
-    return Simulation(system, dt=0.5, observables=list(observables)).check()
+    return Simulation(system, dt=0.5, observables=list(observables)).check().prepare()
 
 
 @pytest.mark.parametrize(
@@ -479,14 +479,14 @@ def test_categorical_values_round_trip_as_labels():
         elements=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
-    trajectory = Simulation(system).check().run(until=1).trajectory_
+    trajectory = Simulation(system).check().prepare().run(until=1).trajectory_
     assert trajectory.values('ann.health').tolist() == ['infected', 'recovered']
 
 
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
-        Simulation(System(elements=[PersonElement('ann', health='dead')])).check().run(until=1)
+        Simulation(System(elements=[PersonElement('ann', health='dead')])).check().prepare().run(until=1)
 
 
 def test_checked_mode_catches_values_outside_alphabet():
@@ -496,15 +496,15 @@ def test_checked_mode_catches_values_outside_alphabet():
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health took the values 3\.0 at t = 1\.0, outside its domain'):
-        Simulation(system, checked=True).check().run(until=1)
-    unchecked = Simulation(system).check().run(until=1).trajectory_
+        Simulation(system, checked=True).check().prepare().run(until=1)
+    unchecked = Simulation(system).check().prepare().run(until=1).trajectory_
     assert unchecked.states[-1, 0] == 3.0
 
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past pi lies in (-pi, pi] after every step."""
     system = System(elements=[RotorElement('r', theta=6.0, omega=1.0)])
-    values = Simulation(system, dt=0.5).check().run(until=3).trajectory_.values('r.theta')
+    values = Simulation(system, dt=0.5).check().prepare().run(until=3).trajectory_.values('r.theta')
     assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
 
@@ -512,14 +512,14 @@ def test_angle_wraps_into_one_turn():
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
     system = System(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
-    values = Simulation(system, dt=0.1).check().run(until=1).trajectory_.values('r.theta')
+    values = Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_.values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
 
 
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(i theta) is recorded at every frame between 0 and 1."""
-    trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).check().run(until=10).trajectory_
+    trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).check().prepare().run(until=10).trajectory_
     order = trajectory.values('order')
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
@@ -530,7 +530,9 @@ def test_order_parameter_every_frame():
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     observables = [ObservableSpec('total', _total), ObservableSpec('share', _share)]
-    trajectory = Simulation(_two_populations(), dt=0.5, observables=observables).check().run(until=1).trajectory_
+    trajectory = (
+        Simulation(_two_populations(), dt=0.5, observables=observables).check().prepare().run(until=1).trajectory_
+    )
     assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
     assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
 
@@ -538,7 +540,7 @@ def test_expression_observable_of_elements():
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = System(systems=[System('market', elements=[PopulationElement('a', n=3.0)])])
-    simulation = Simulation(system, dt=1, observables=[ObservableSpec('market/volume', _volume)]).check()
+    simulation = Simulation(system, dt=1, observables=[ObservableSpec('market/volume', _volume)]).check().prepare()
     assert simulation.run(until=2).trajectory_.values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
@@ -552,7 +554,7 @@ def test_agent_reduction_read_by_other_partition():
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
     observables = [ObservableSpec('village/mean_wealth', group='savers', variable='wealth')]
-    trajectory = Simulation(system, dt=1, observables=observables).check().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1, observables=observables).check().prepare().run(until=2).trajectory_
     assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
 
@@ -567,7 +569,7 @@ def test_observable_read_in_one_form_is_lowered():
         interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
     observables = [ObservableSpec('mean_n', group='herd', variable='n')]
-    trajectory = Simulation(system, dt=1.0, observables=observables).check().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1.0, observables=observables).check().prepare().run(until=1).trajectory_
     assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
 
 
@@ -575,7 +577,7 @@ def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
     system = System(elements=[GroupElement('herd', element=PopulationElement, size=3)])
     with pytest.raises(AttributeError, match='herd'):
-        Simulation(system, observables=[ObservableSpec('bad', _herd)]).check().run(until=1)
+        Simulation(system, observables=[ObservableSpec('bad', _herd)]).check().prepare().run(until=1)
 
 
 def test_observable_lambda_is_rejected():
@@ -590,7 +592,7 @@ def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
     system = System(elements=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
-        Simulation(system, observables=[ObservableSpec('total', lambda s: s.a.n)]).check().run(until=1)
+        Simulation(system, observables=[ObservableSpec('total', lambda s: s.a.n)]).check().prepare().run(until=1)
 
 
 def test_observable_module_function_pickles():
@@ -598,10 +600,18 @@ def test_observable_module_function_pickles():
     observables = [ObservableSpec('total', _total)]
     restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
     expected = (
-        Simulation(_two_populations(), dt=0.5, observables=observables).check().run(until=1).trajectory_.values('total')
+        Simulation(_two_populations(), dt=0.5, observables=observables)
+        .check()
+        .prepare()
+        .run(until=1)
+        .trajectory_.values('total')
     )
     values = (
-        Simulation(_two_populations(), dt=0.5, observables=restored).check().run(until=1).trajectory_.values('total')
+        Simulation(_two_populations(), dt=0.5, observables=restored)
+        .check()
+        .prepare()
+        .run(until=1)
+        .trajectory_.values('total')
     )
     assert np.allclose(values, expected)
 
@@ -615,7 +625,7 @@ def test_observables_read_time():
         ],
     )
     observables = [ObservableSpec('timed', _timed), ObservableSpec('member_timed', _member_timed, group='herd')]
-    trajectory = Simulation(system, dt=1.0, observables=observables).check().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1.0, observables=observables).check().prepare().run(until=2).trajectory_
     assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
     assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
 
@@ -641,15 +651,16 @@ def test_observable_reads_plain_reduction_of_its_members():
 
 def test_observable_rejects_reduction_over_another_group():
     """Test that a reduction over a group other than the observable's raises the role error of laws."""
-    simulation = _decaying_group(ObservableSpec('other', _deviation_from_other, group='u', reduce='sum'))
     with pytest.raises(RoleError, match=r'observable other reads a group other than u'):
-        simulation.run(until=1)
+        _decaying_group(ObservableSpec('other', _deviation_from_other, group='u', reduce='sum'))
 
 
 def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
     observed = ObservableSpec('perceived', _perceived, element='tank')
-    trajectory = Simulation(System(elements=[SmoothedElement('tank')]), dt=0.5, observables=[observed]).check()
+    trajectory = (
+        Simulation(System(elements=[SmoothedElement('tank')]), dt=0.5, observables=[observed]).check().prepare()
+    )
     perceived = trajectory.run(until=4).trajectory_.values('tank.perceived')
     np.testing.assert_allclose(perceived, trajectory.trajectory_.values('tank.smoothing_delay1_0')[:, 0])
     assert perceived[0] == pytest.approx(1.0)
@@ -660,7 +671,10 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
     """Test that observing a delay that no law of the system reads raises an error that names the observable."""
     observed = ObservableSpec('smoothed', _smoothed_population, element='rabbits')
     with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
-        Simulation(System(elements=[PopulationElement('rabbits', n=2.0)]), observables=[observed]).check().run(until=1)
+        Simulation(
+            System(elements=[PopulationElement('rabbits', n=2.0)]),
+            observables=[observed],
+        ).check().prepare().run(until=1)
 
 
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():

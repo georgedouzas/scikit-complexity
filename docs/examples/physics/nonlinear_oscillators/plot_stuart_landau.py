@@ -21,7 +21,7 @@ MODEL = 'stuart_landau'
 mu, omega, beta = 1.0, 2.0, 1.0
 system = create(MODEL, x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=20)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # Amplitude and frequency

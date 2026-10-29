@@ -185,7 +185,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if request.draw is not None:
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
-        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check()
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check().prepare()
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:

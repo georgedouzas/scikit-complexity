@@ -408,19 +408,23 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
             }
-            compiled = ReductionKernel(
-                placeholder,
-                reduction.kind,
-                argument_key,
-                condition_key,
-                weights,
-                entry=entry,
-                size=size,
-                group=group,
-                reads=reads,
-                time=self.declarations_.time,
-                members=members,
-            ).check()
+            compiled = (
+                ReductionKernel(
+                    placeholder,
+                    reduction.kind,
+                    argument_key,
+                    condition_key,
+                    weights,
+                    entry=entry,
+                    size=size,
+                    group=group,
+                    reads=reads,
+                    time=self.declarations_.time,
+                    members=members,
+                )
+                .check()
+                .prepare()
+            )
             self.found_[key] = compiled
             self.sequence_.append(compiled)
             self.by_symbol_[placeholder] = compiled
@@ -573,17 +577,21 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
-            compiled = NeighborhoodKernel(
-                symbol(f'_neighbours_{index}'),
-                reduction.kind,
-                argument,
-                weight,
-                entry,
-                group=group,
-                search=search,
-                reads=reads,
-                time=self.declarations_.time,
-            ).check()
+            compiled = (
+                NeighborhoodKernel(
+                    symbol(f'_neighbours_{index}'),
+                    reduction.kind,
+                    argument,
+                    weight,
+                    entry,
+                    group=group,
+                    search=search,
+                    reads=reads,
+                    time=self.declarations_.time,
+                )
+                .check()
+                .prepare()
+            )
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled

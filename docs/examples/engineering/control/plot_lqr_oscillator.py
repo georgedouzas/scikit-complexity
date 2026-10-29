@@ -35,6 +35,7 @@ simulation = (
         observables=entry.observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=10)
 )
 

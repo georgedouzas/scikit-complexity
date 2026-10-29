@@ -186,7 +186,7 @@ culled = System(
     elements=[PopulationElement('deer', n=60.0)],
     interactions=[ThresholdInteraction('cull', target='deer')],
 )
-print(round(float(Simulation(culled, dt=1.0).check().run(until=20).trajectory_.values('deer.n')[-1])))
+print(round(float(Simulation(culled, dt=1.0).check().prepare().run(until=20).trajectory_.values('deer.n')[-1])))
 ```
 
 ### Symbolic expressions
@@ -311,7 +311,7 @@ class PhaseElement(Element):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).check().run(until=10).trajectory_.values('osc.z')
+z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).check().prepare().run(until=10).trajectory_.values('osc.z')
 print(z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4)))
 ```
 
@@ -409,10 +409,10 @@ system is stiff, so stiff systems also run with the default solver.
 ```python continuation
 from skcomplex.engine.runtime import Simulation
 
-trajectory = Simulation(landscape, dt=0.1).check().run(until=10).trajectory_
+trajectory = Simulation(landscape, dt=0.1).check().prepare().run(until=10).trajectory_
 print(round(float(trajectory.values('meadow/rabbits.n')[-1]), 3))
 
-simulation = Simulation(landscape, dt=0.1).check().run(until=10)
+simulation = Simulation(landscape, dt=0.1).check().prepare().run(until=10)
 simulation.update_parameters({'hunt.a': 0.0})
 print(len(simulation.extend(until=20).trajectory_.times))
 ```
@@ -484,7 +484,7 @@ class MackeyGlassElement(Element):
 
 
 cells = System(elements=[MackeyGlassElement('cells')])
-print(round(float(Simulation(cells, dt=0.5).check().run(until=300).trajectory_.values('cells.x')[-1]), 3))
+print(round(float(Simulation(cells, dt=0.5).check().prepare().run(until=300).trajectory_.values('cells.x')[-1]), 3))
 ```
 
 **Events.** `CrossingLaw(guard, reset, direction, terminal, label='')` fires when the guard crosses zero, upward for
@@ -524,7 +524,7 @@ class BallElement(Element):
         return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
 
-trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).check().run(until=3).trajectory_
+trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).check().prepare().run(until=3).trajectory_
 print([round(event.time, 6) for event in trajectory.events])
 ```
 
@@ -560,7 +560,7 @@ class FilterElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).check().run(until=10).trajectory_
+filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).check().prepare().run(until=10).trajectory_
 print(round(float(filtered.values('filter.y')[-1]), 4))
 ```
 
@@ -599,7 +599,7 @@ class GrowthElement(Element):
 
 
 growth = System(elements=[GrowthElement('asset')])
-print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).check().run(until=1).state_[0]), 3))
+print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).check().prepare().run(until=1).state_[0]), 3))
 ```
 
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
@@ -656,7 +656,7 @@ market = System(
     interactions=[MarketInteraction('drive', first='a', second='b', noise=processes)],
 )
 solver = EulerMaruyamaSolver(dt=1.0)
-trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).check().run(until=2000).trajectory_
+trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).check().prepare().run(until=2000).trajectory_
 print(round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1))
 ```
 
@@ -710,7 +710,7 @@ class DensityElement(Element):
 
 gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
-density = Simulation(gas, solver=solver, random_state=0).check().run(until=5).trajectory_.values('gas.rho')
+density = Simulation(gas, solver=solver, random_state=0).check().prepare().run(until=5).trajectory_.values('gas.rho')
 print(round(float(density[-1].sum()), 6), bool(density[-1].std() > 0))
 ```
 
@@ -779,7 +779,7 @@ class PersistentElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
-final = Simulation(walkers, dt=1.0, random_state=0).check().run(until=200).trajectory_.values('walkers.x')[-1]
+final = Simulation(walkers, dt=1.0, random_state=0).check().prepare().run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
 
@@ -832,7 +832,7 @@ class SourceElement(Element):
         ]
 
 
-simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).check().run(until=10000)
+simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).check().prepare().run(until=10000)
 print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
@@ -876,7 +876,7 @@ class FlierElement(Element):
 
 
 fliers = System(elements=[GroupElement('fliers', element=FlierElement, size=100)])
-flight = Simulation(fliers, dt=1.0, random_state=0).check().run(until=20)
+flight = Simulation(fliers, dt=1.0, random_state=0).check().prepare().run(until=20)
 print(flight.trajectory_.values('fliers.x').shape)
 ```
 
@@ -923,7 +923,7 @@ class WalkerElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
-walk = Simulation(walkers, dt=100.0, random_state=0).check().run(until=1000)
+walk = Simulation(walkers, dt=100.0, random_state=0).check().prepare().run(until=1000)
 print(walk.problem_.form.value, bool(walk.trajectory_.values('jumps.renewals')[-1] > 1000))
 ```
 
@@ -968,7 +968,7 @@ rough = Simulation(
     solver=FractionalEulerMaruyamaSolver(dt=0.01),
     dt=0.1,
     random_state=0,
-).check().run(until=1)
+).check().prepare().run(until=1)
 print(round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1))
 ```
 
@@ -1021,7 +1021,7 @@ class RelaxingElement(Element):
 
 
 system = System(elements=[RelaxingElement('a')])
-relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).check().run(until=20)
+relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).check().prepare().run(until=20)
 solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})
 print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
@@ -1091,7 +1091,7 @@ def order_parameter(s):
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 oscillators = System(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
-order = Simulation(oscillators, dt=1.0, observables=observables).check().run(until=50).trajectory_.values('order')
+order = Simulation(oscillators, dt=1.0, observables=observables).check().prepare().run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
@@ -1143,7 +1143,7 @@ coupled = System(
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
-print(round(float(Simulation(coupled, dt=1.0, observables=observables).check().run(until=20).trajectory_.values('X')[-1]), 2))
+print(round(float(Simulation(coupled, dt=1.0, observables=observables).check().prepare().run(until=20).trajectory_.values('X')[-1]), 2))
 ```
 
 ## Stocks and flows
@@ -1195,7 +1195,7 @@ class PeopleElement(Element):
 
 crowd = System(elements=[PeopleElement('crowd')])
 observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
-trajectory = Simulation(crowd, dt=1.0, observables=observed).check().run(until=10).trajectory_
+trajectory = Simulation(crowd, dt=1.0, observables=observed).check().prepare().run(until=10).trajectory_
 print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
 print(round(float(trajectory.values('crowd.birth_rate')[-1]), 3))
 ```
@@ -1212,7 +1212,7 @@ from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.engine.runtime import ConservationObserver
 
 print(SymbolicAnalysis('conservation').check().prepare(crowd).run().inflows_)
-monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).check().run(until=10).trajectory_
+monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).check().prepare().run(until=10).trajectory_
 print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(axis=1).tolist())
 ```
 
@@ -1297,7 +1297,7 @@ class TraderElement(Element):
 
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
 market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
-traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).check().run(until=3).trajectory_
+traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).check().prepare().run(until=3).trajectory_
 print(float(traders.agents('traders', 3).values['cash'].sum()))
 ```
 
@@ -1344,7 +1344,7 @@ room = System(elements=[HeaterElement('heater')])
 report = PassCompiler().check().prepare(System(elements=[HeaterElement('heater', power=2.0)])).report_
 print([issue.path for issue in report.errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-heated = Simulation(room, dt=0.5, schedule=schedule).check().run(until=3).trajectory_
+heated = Simulation(room, dt=0.5, schedule=schedule).check().prepare().run(until=3).trajectory_
 print(heated.values('heater.power').tolist())
 ```
 
@@ -1400,9 +1400,9 @@ def cost(s):
     return (s.plant.x**2 + s.plant.u**2) / 2
 
 
-optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).check().run(until=1.0)
+optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).check().prepare().run(until=1.0)
 print(round(float(optimal.trajectory_.values('plant.u')[0]), 3), round(float(optimal.stepper_.solution_.cost), 4))
-transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).check().run(until=1.0)
+transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).check().prepare().run(until=1.0)
 print(round(float(transcribed.trajectory_.values('plant.u')[0]), 3))
 ```
 
@@ -1733,7 +1733,7 @@ gas = System(
     elements=[GroupElement('gas', element=ParticleElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
-trajectory = Simulation(gas, dt=0.01).check().run(until=0.5).trajectory_
+trajectory = Simulation(gas, dt=0.01).check().prepare().run(until=0.5).trajectory_
 print(trajectory.values('gas.x').shape)
 ```
 
@@ -1793,7 +1793,7 @@ class UnitElement(Element):
 
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-print(Simulation(units, dt=0.5).check().run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist())
+print(Simulation(units, dt=0.5).check().prepare().run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist())
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
 
@@ -1818,7 +1818,7 @@ game = System(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-print(Simulation(game, dt=1.0).check().run(until=40).trajectory_.values('population.x')[-1].round(3).tolist())
+print(Simulation(game, dt=1.0).check().prepare().run(until=40).trajectory_.values('population.x')[-1].round(3).tolist())
 ```
 
 A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
@@ -1857,7 +1857,7 @@ network = System(
     elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
-print((Simulation(network, dt=1.0).check().run(until=30).state_.round(3) + 0.0).tolist())
+print((Simulation(network, dt=1.0).check().prepare().run(until=30).state_.round(3) + 0.0).tolist())
 ```
 
 ### Variadic roles
@@ -1912,7 +1912,7 @@ summed = System(
     ],
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
-simulation = Simulation(summed, dt=1).check().run(until=1)
+simulation = Simulation(summed, dt=1).check().prepare().run(until=1)
 simulation.update_parameters({'sum.weights[2]': 0.0})
 print(simulation.trajectory_.values('out.x').tolist(), simulation.parameters_.tolist())
 ```
@@ -1977,7 +1977,7 @@ ring = System(
     elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
     interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
-print(bool(Simulation(ring, dt=1.0).check().run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1))
+print(bool(Simulation(ring, dt=1.0).check().prepare().run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1))
 ```
 
 ### Jacobians of reductions
@@ -2071,7 +2071,7 @@ liquid = System(
     interactions=[LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5)],
     space=ContinuousSpace(n_dim=2),
 )
-print(Simulation(liquid, dt=0.05).check().run(until=1).trajectory_.values('atoms.x').shape)
+print(Simulation(liquid, dt=0.05).check().prepare().run(until=1).trajectory_.values('atoms.x').shape)
 ```
 
 `period` gives the side of a periodic box, so pair distances use the nearest periodic image.
@@ -2140,7 +2140,7 @@ glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
 cells = System(elements=[LatticeElement('cells', element=LifeElement, space=space, values={'alive': glider})])
-trajectory = Simulation(cells, dt=1).check().run(until=4).trajectory_
+trajectory = Simulation(cells, dt=1).check().prepare().run(until=4).trajectory_
 print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1))))
 ```
 
@@ -2160,7 +2160,7 @@ from skcomplex.engine.runtime import Simulation
 
 from skcomplex.models.physics.criticality import sandpile
 
-trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).check().run(until=2000).trajectory_
+trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).check().prepare().run(until=2000).trajectory_
 print(max(event.size for event in trajectory.events))
 ```
 
@@ -2207,7 +2207,7 @@ class SpinElement(Element):
 
 
 spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
-print(abs(Simulation(spins, dt=50, random_state=0).check().run(until=200).state_.mean()) > 0.9)
+print(abs(Simulation(spins, dt=50, random_state=0).check().prepare().run(until=200).state_.mean()) > 0.9)
 ```
 
 **Triangular lattices.** `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so
@@ -2246,7 +2246,7 @@ fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
 forest = System(elements=[LatticeElement('forest', element=BurnElement, space=space, values={'fire': fire})])
-burning = Simulation(forest, dt=1).check().run(until=3).trajectory_.lattice('forest.fire')
+burning = Simulation(forest, dt=1).check().prepare().run(until=3).trajectory_.lattice('forest.fire')
 print([int(item.sum()) for item in burning])
 ```
 
@@ -2301,7 +2301,7 @@ class GraphSpinElement(Element):
 
 graph = nx.random_regular_graph(4, 200, seed=0)
 spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
-print(abs(Simulation(spins, dt=50, random_state=0).check().run(until=200).state_.mean()) > 0.9)
+print(abs(Simulation(spins, dt=50, random_state=0).check().prepare().run(until=200).state_.mean()) > 0.9)
 ```
 
 **Extremal updates.** `ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with
@@ -2340,7 +2340,7 @@ class SpeciesElement(Element):
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=space, values={'fitness': fitness})])
-trajectory = Simulation(ring, dt=10, random_state=0).check().run(until=100).trajectory_
+trajectory = Simulation(ring, dt=10, random_state=0).check().prepare().run(until=100).trajectory_
 print(len(trajectory.events), trajectory.events[0].label)
 ```
 
@@ -2443,7 +2443,7 @@ system = System(
     ],
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
 )
-trajectory = Simulation(system, dt=0.5).check().run(until=1.0).trajectory_
+trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
 print(np.round(trajectory.values('synapses.w')[-1], 3).tolist())
 ```
 
@@ -2573,7 +2573,7 @@ system = System(
     space=NetworkSpace(nx.complete_graph(3)),
     time=DiscreteTime(),
 )
-trajectory = Simulation(system, dt=50.0, random_state=1).check().run(until=200).trajectory_
+trajectory = Simulation(system, dt=50.0, random_state=1).check().prepare().run(until=200).trajectory_
 snapshot = trajectory.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 print(snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10)
@@ -2675,7 +2675,7 @@ economy = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = Simulation(economy, dt=10.0).check().run(until=100).trajectory_.values('wealth.f')
+densities = Simulation(economy, dt=10.0).check().prepare().run(until=100).trajectory_.values('wealth.f')
 print(densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist())
 print(PassCompiler().check().prepare(economy).report_.ok)
 ```
@@ -2722,7 +2722,7 @@ welfare = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-print(Simulation(welfare, dt=10.0).check().run(until=100).trajectory_.values('wealth.f')[-1].round(3).tolist())
+print(Simulation(welfare, dt=10.0).check().prepare().run(until=100).trajectory_.values('wealth.f')[-1].round(3).tolist())
 ```
 
 ### Moments
@@ -2751,7 +2751,7 @@ observables = [
     ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
     ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
 ]
-trajectory = Simulation(economy, dt=10.0, observables=observables).check().run(until=100).trajectory_
+trajectory = Simulation(economy, dt=10.0, observables=observables).check().prepare().run(until=100).trajectory_
 variance = trajectory.values('wealth_variance')
 print(round(float(trajectory.values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist())
 ```
@@ -2770,7 +2770,7 @@ solvers that run it.
 ```python continuation
 from skcomplex.engine.solvers import KineticSolver
 
-sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).check().run(until=100)
+sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).check().prepare().run(until=100)
 print(round(float(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum()), 2))
 print(PassCompiler(solver=KineticSolver()).check().prepare(welfare).report_.ok)
 ```
@@ -2867,7 +2867,7 @@ class MajorityElement(Element):
 
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(elements=[LatticeElement('cells', element=MajorityElement, space=tree, values={'alive': cells})])
-print(tree.ball_sizes_, Simulation(majority, dt=1).check().run(until=3).trajectory_.values('cells.alive').shape)
+print(tree.ball_sizes_, Simulation(majority, dt=1).check().prepare().run(until=3).trajectory_.values('cells.alive').shape)
 print(CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).check().prepare().words_)
 ```
 
@@ -2988,7 +2988,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 space = LatticeSpace(400, spacing=0.05)
 rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = Simulation(System(elements=[rod]), dt=0.1).check().run(until=0.5).trajectory_
+trajectory = Simulation(System(elements=[rod]), dt=0.1).check().prepare().run(until=0.5).trajectory_
 heat = trajectory.values('rod.u')
 print(round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist())
 ```
@@ -3063,7 +3063,7 @@ line = FieldElement(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-state = Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).check().run(until=100).state_
+state = Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).check().prepare().run(until=100).state_
 print(round(float(np.abs(state).max()), 1))
 ```
 
@@ -3085,7 +3085,7 @@ from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.ecology import fisher_kpp
 
 stiff = fisher_kpp(400, D=1.0, spacing=0.05)
-simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).check().run(until=5)
+simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).check().prepare().run(until=5)
 print(simulation.stepper_.jacobian_pattern_.nnz, simulation.state_.max().round(3))
 ```
 
@@ -3114,7 +3114,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
-simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).check()
+simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).check().prepare()
 print(simulation.run(until=0.5).problem_.backend)
 ```
 
@@ -3159,7 +3159,7 @@ herds = System(
     elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-print(round(float(Simulation(herds, dt=0.1).check().run(until=1).trajectory_.values('herds.n')[-1, 0]), 4))
+print(round(float(Simulation(herds, dt=0.1).check().prepare().run(until=1).trajectory_.values('herds.n')[-1, 0]), 4))
 ```
 
 A plain Python callable of the values, as in `RateLaw(s.target.n, lambda t, values: ...)`, also works with the Numba
@@ -3199,7 +3199,7 @@ atoms = System(
     space=ContinuousSpace(n_dim=2),
 )
 solver = LammpsSolver(dt=0.005, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES)
-trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).check().run(until=1).trajectory_
+trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).check().prepare().run(until=1).trajectory_
 print(trajectory.values('atoms.x').shape)
 ```
 
@@ -3276,7 +3276,7 @@ foragers = System(
     elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
-trajectory = Simulation(foragers, random_state=0).check().run(until=20).trajectory_
+trajectory = Simulation(foragers, random_state=0).check().prepare().run(until=20).trajectory_
 print(int(trajectory.values('foragers.count')[-1]), len(trajectory.agents('foragers', 20).ids))
 ```
 
@@ -3351,7 +3351,7 @@ road = System(
     ],
     space=ContinuousSpace(extent=(50.0, 1.0), boundary='periodic'),
 )
-Simulation(road, random_state=0).check().run(until=5)
+Simulation(road, random_state=0).check().prepare().run(until=5)
 print(counts)
 ```
 
@@ -3372,7 +3372,7 @@ agents learn from their past.
   `SampleAndSwitchProtocol` (partner choice with switching), `RationedQueueProtocol`, `WalrasianProtocol`
   (tâtonnement), `OrderBookProtocol` (price-time priority), `CallAuctionProtocol` (one uniform price), and
   `DeferredAcceptanceProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
-  `protocol.check().run(ClearingSpec(buyers, sellers, rng, storage))` sets its `trades_`. Every trade moves
+  `protocol.check().prepare().run(ClearingSpec(buyers, sellers, rng, storage))` sets its `trades_`. Every trade moves
   `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
   `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
 - An `InstitutionInteraction`, from `skcomplex.models.economics.common.institutions`, acts once per round of its
@@ -3461,7 +3461,7 @@ auction = System(
     ],
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
 )
-trajectory = Simulation(auction, random_state=0).check().run(until=5).trajectory_
+trajectory = Simulation(auction, random_state=0).check().prepare().run(until=5).trajectory_
 prices = [round(float(price), 3) for price in trajectory.values('auction.price')[1:]]
 print(prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3))
 print(trajectory.values('auction.volume').tolist())
@@ -3504,7 +3504,7 @@ class CoinElement(Element):
 
 
 coins = System('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
-print(int(Simulation(coins, random_state=0).check().run(until=10).trajectory_.agents('coins', 10).values['heads'].sum()))
+print(int(Simulation(coins, random_state=0).check().prepare().run(until=10).trajectory_.agents('coins', 10).values['heads'].sum()))
 ```
 
 ## Rewriting systems
@@ -3535,7 +3535,7 @@ class AlgaeElement(WordElement):
 
 
 algae = System(elements=[AlgaeElement('algae', axiom='A')])
-trajectory = Simulation(algae, compiler=RewritingCompiler()).check().run(until=5).trajectory_
+trajectory = Simulation(algae, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
 print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
 
@@ -3574,7 +3574,7 @@ class ShrinkingElement(WordElement):
 
 
 plant = System(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
-print(Simulation(plant, compiler=RewritingCompiler()).check().run(until=5).trajectory_.structure('plant', 5).text)
+print(Simulation(plant, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
@@ -3605,7 +3605,7 @@ class KochElement(WordElement):
 
 
 koch = System(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
-curve = Simulation(koch, compiler=RewritingCompiler()).check().run(until=4).trajectory_.structure('koch', 4)
+curve = Simulation(koch, compiler=RewritingCompiler()).check().prepare().run(until=4).trajectory_.structure('koch', 4)
 print(len(curve.segments()), round(curve.length(), 6))
 
 interval = PrototileSpec('interval', [(0, 0), (1, 0)])
@@ -3618,7 +3618,7 @@ class CantorElement(PatchElement):
 
 
 cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
-trajectory = Simulation(cantor, compiler=RewritingCompiler()).check().run(until=5).trajectory_
+trajectory = Simulation(cantor, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
 print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).check().prepare(grid).run().exponent_, 2))
@@ -3691,7 +3691,7 @@ chain = System(
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=QuantumCompiler()).check().run(until=2.0).trajectory_
+trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=QuantumCompiler()).check().prepare().run(until=2.0).trajectory_
 print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 
@@ -3730,7 +3730,7 @@ from skcomplex.models.economics.resources import harvesting
 
 farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
-trajectory = Simulation(farming, random_state=0).check().run(until=50).trajectory_
+trajectory = Simulation(farming, random_state=0).check().prepare().run(until=50).trajectory_
 print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
 print(trajectory.values('village/farmers_count.value')[-1])
 ```
@@ -3776,7 +3776,7 @@ molecule = System(
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
-Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).check().run(until=5)
+Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).check().prepare().run(until=5)
 ```
 
 Particles appear as 3D points, populations as time series, agents on grids and in continuous spaces as points colored by
@@ -3821,12 +3821,12 @@ from skcomplex.models import create
 
 predation = create('lotka_volterra')
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('lotka_volterra.rrd'), blueprint='default')
-Simulation(predation, dt=0.1, observers=[observer]).check().run(until=20)
+Simulation(predation, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 print(type(observer.views_[0]).__name__)
 print(sorted(file.name for file in path.parent.glob('lotka_volterra.*')))
 custom = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='prey'), collapse_panels=True)
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('prey.rrd'), blueprint=custom)
-Simulation(predation, dt=0.1, observers=[observer]).check().run(until=20)
+Simulation(predation, dt=0.1, observers=[observer]).check().prepare().run(until=20)
 print(path.with_name('prey.rbl').exists())
 ```
 

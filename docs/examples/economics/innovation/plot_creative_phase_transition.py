@@ -23,7 +23,7 @@ MODEL = 'creative_phase_transition'
 UNTIL = 50
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, x=0.1, r=5.0), dt=1, observers=[observer]).check().run(until=20)
+simulation = Simulation(create(MODEL, x=0.1, r=5.0), dt=1, observers=[observer]).check().prepare().run(until=20)
 
 # %%
 # Phase diagram
@@ -56,7 +56,11 @@ series.legend()
 for index, start in enumerate((0.05, 0.1, 0.2)):
     diagram.plot(densities, [final_diversity(start, r) for r in densities], color=f'C{index}', label=f'x0 = {start}')
     finals = [
-        Simulation(create(MODEL, x=start, r=r), dt=1).check().run(until=UNTIL).trajectory_.values('system.x')[-1]
+        Simulation(create(MODEL, x=start, r=r), dt=1)
+        .check()
+        .prepare()
+        .run(until=UNTIL)
+        .trajectory_.values('system.x')[-1]
         for r in coarse
     ]
     diagram.plot(coarse, finals, 'o', color=f'C{index}')

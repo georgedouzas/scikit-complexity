@@ -23,7 +23,7 @@ MODEL = 'ising'
 
 system = create(MODEL, size=256, temperature=2.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100)
 
 # %%
 # Spontaneous magnetization against Onsager's solution
@@ -37,7 +37,7 @@ temperatures = np.linspace(1.5, 3.5, 17)
 measured = []
 for temperature in temperatures:
     system_t = create(MODEL, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).check().run(until=1500)
+    run = Simulation(system_t, dt=1, random_state=1).check().prepare().run(until=1500)
     measured.append(np.abs(run.trajectory_.values('spins.spin')[300:].mean(axis=1)).mean())
 grid = np.linspace(1.5, 2 / np.log(1 + np.sqrt(2)), 300)
 fig, ax = plt.subplots(figsize=(7, 4))
@@ -64,7 +64,7 @@ plt.show()
 information = []
 for temperature in temperatures:
     system_t = create(MODEL, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).check().run(until=600)
+    run = Simulation(system_t, dt=1, random_state=1).check().prepare().run(until=600)
     frames = np.asarray(run.trajectory_.values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
     analysis = InformationAnalysis('o-information').check().prepare((blocks > 0).astype(int)).run()

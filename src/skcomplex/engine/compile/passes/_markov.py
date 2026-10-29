@@ -196,7 +196,7 @@ class MarkovPass(BasePass):
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)
 
-        return MarkovKernel(law.description, evaluate, reads).check()
+        return MarkovKernel(law.description, evaluate, reads).check().prepare()
 
     @staticmethod
     def _emission(

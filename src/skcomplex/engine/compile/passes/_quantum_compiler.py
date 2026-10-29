@@ -626,7 +626,7 @@ class QuantumCompiler(BaseCompiler):
                     hamiltonians,
                     dissipators,
                     key,
-                    element.element.check().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
+                    element.element.check().prepare().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
                 )
             members[node.path] = tuple(namespaces)
         return members
@@ -719,7 +719,7 @@ class QuantumCompiler(BaseCompiler):
         entries, values, symbols = QuantumCompiler._parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
         arguments = QuantumCompiler._arguments_of(entries, symbols)
-        lowering = QuantumLowering(time, subsystems, dimensions, arguments).check()
+        lowering = QuantumLowering(time, subsystems, dimensions, arguments).check().prepare()
         groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
         hamiltonians: Hamiltonians = []
         dissipators: Dissipators = []

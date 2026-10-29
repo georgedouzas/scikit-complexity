@@ -26,7 +26,7 @@ def test_undeclared_report_raises():
         interactions=[InstitutionInteraction('reader', rule=_report_total)],
     )
     with pytest.raises(SimulationError, match='declare'):
-        Simulation(system).check().run(until=1)
+        Simulation(system).check().prepare().run(until=1)
 
 
 def test_observable_and_set_parameter_by_view():
@@ -45,5 +45,5 @@ def test_observable_and_set_parameter_by_view():
         interactions=[ReaderInteraction('reader')],
     )
     observables = [ObservableSpec('wealth', group='traders', variable='money', reduce='sum')]
-    trajectory = Simulation(system, random_state=0, observables=observables).check().run(until=2).trajectory_
+    trajectory = Simulation(system, random_state=0, observables=observables).check().prepare().run(until=2).trajectory_
     assert trajectory.values('reader.total')[-1] == 8.0

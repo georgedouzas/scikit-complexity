@@ -135,7 +135,7 @@ class Simulation(BaseConfig[None, float]):
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> simulation = Simulation(system, dt=1.0).check().run(until=20)
+        >>> simulation = Simulation(system, dt=1.0).check().prepare().run(until=20)
         >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
@@ -440,7 +440,7 @@ class Simulation(BaseConfig[None, float]):
         return super().prepare(context)
 
     def run(self, until: float | None = None, final: bool = False) -> Self:
-        """Prepare the simulation and run it from time 0 to `until` in the calling thread.
+        """Run the prepared simulation from time 0 to `until` in the calling thread.
 
         Args:
             until:
@@ -454,6 +454,8 @@ class Simulation(BaseConfig[None, float]):
                 The simulation itself.
 
         Raises:
+            NotPreparedError:
+                The simulation was not prepared with `prepare`.
             ValidationError:
                 No end time is passed.
         """
@@ -461,7 +463,7 @@ class Simulation(BaseConfig[None, float]):
         return self
 
     def _run(self, inputs: float | None) -> None:
-        """Prepare the simulation and run it from time 0 to `until` in the calling thread.
+        """Run the prepared simulation from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
         such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
@@ -477,7 +479,6 @@ class Simulation(BaseConfig[None, float]):
         if inputs is None:
             error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
             raise ValidationError(error_msg)
-        self.prepare()
         self._start(inputs)
         self._loop(inputs)
 
@@ -509,7 +510,7 @@ class Simulation(BaseConfig[None, float]):
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
-            >>> simulation = Simulation(system, dt=1.0).check().run(until=5)
+            >>> simulation = Simulation(system, dt=1.0).check().prepare().run(until=5)
             >>> simulation.update_parameters({'growth.r': 0.0})
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()

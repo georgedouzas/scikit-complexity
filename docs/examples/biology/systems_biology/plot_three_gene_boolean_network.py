@@ -20,7 +20,7 @@ MODEL = 'three_gene_boolean_network'
 
 system = create(MODEL, x=(1, 0, 0))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=10)
+simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=10)
 
 # %%
 # Attractors from every state
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().run(until=10
 fig, ax = plt.subplots(figsize=(7, 4))
 for start in range(8):
     bits = tuple(int(bit) for bit in format(start, '03b'))
-    run = Simulation(create(MODEL, x=bits), dt=1).check().run(until=8).trajectory_
+    run = Simulation(create(MODEL, x=bits), dt=1).check().prepare().run(until=8).trajectory_
     code = 4 * run.values('g1.x') + 2 * run.values('g2.x') + run.values('g3.x')
     ax.plot(run.times, code + 0.06 * (start - 3.5), 'o-', label=format(start, '03b'))
 ax.set_yticks(np.arange(8), [format(code, '03b') for code in range(8)])

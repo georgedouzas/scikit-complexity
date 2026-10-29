@@ -18,6 +18,7 @@ def test_benard_marangoni_forms_hexagons_with_a_free_surface():
         field = (
             Simulation(system, dt=10.0, solver=ETDRK4Solver(dt=0.5))
             .check()
+            .prepare()
             .run(until=200)
             .trajectory_.lattice('layer.u')
         )

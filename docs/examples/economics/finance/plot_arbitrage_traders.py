@@ -24,7 +24,7 @@ N_SITES, LENGTH, D, E, UNTIL = 200, 20.0, 0.5, 0.5, 3.5
 
 system = create(MODEL, n_sites=N_SITES, length=LENGTH, D=D, E=E)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='rho history', interval=1)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().run(until=UNTIL)
+simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=UNTIL)
 
 # %%
 # Drift, spreading, and growth

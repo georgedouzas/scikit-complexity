@@ -51,7 +51,7 @@ class ProductionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import ProductionLaw
-        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().run({}).value_]
+        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().prepare().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """
 

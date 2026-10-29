@@ -89,14 +89,18 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check()] if constant else []
+        terms = (
+            [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check().prepare()] if constant else []
+        )
         for coefficient, matrices in grouped.items():
             terms.append(
                 QuantumKernel(
                     QuantumKernel._sum_matrices(matrices, size),
                     coefficient,
                     self._function(coefficient, owner),
-                ).check(),
+                )
+                .check()
+                .prepare(),
             )
         self.kernels_ = tuple(terms)
 

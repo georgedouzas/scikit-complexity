@@ -21,6 +21,10 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
     relative to the system that holds the interaction, so `forest/foxes` names the element `foxes` of the nested system
     `forest`. Groups and nested systems without a space of their own live on the space of the system.
 
+    Attributes:
+        laws_:
+            The laws the system contributes for the namespace of its last run.
+
     Examples:
         >>> from typing import Annotated
         >>> from types import SimpleNamespace
@@ -41,6 +45,8 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         >>> [type(law).__name__ for law in system.run(namespace).laws_]
         ['RateLaw']
     """
+
+    laws_: Sequence[BasePart]
 
     def __init__(
         self,
@@ -106,6 +112,15 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
             part.prepare(space)
         for part in self.interactions:
             part.prepare()
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the system for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of every part, each for the namespace of its label.

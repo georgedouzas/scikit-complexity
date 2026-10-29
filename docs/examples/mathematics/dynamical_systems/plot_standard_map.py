@@ -31,6 +31,7 @@ def orbits(K, starts, until):
             dt=1,
         )
         .check()
+        .prepare()
         .run(until=until)
         .trajectory_
         for theta, p in starts
@@ -57,7 +58,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().run(until=1000)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=1000)
 rng = np.random.default_rng(0)
 starts = np.column_stack([np.linspace(0.1, 2 * np.pi - 0.1, 40), np.linspace(0.05, 2 * np.pi - 0.05, 40)])
 theta, p = orbits(1.2, starts, until=400)

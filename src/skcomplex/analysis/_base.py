@@ -589,7 +589,6 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
                 The analysis was not checked with `check`.
         """
         super().prepare(source)
-        self._prepared = True
         return self
 
     def run(self, inputs: object = None, final: bool = False) -> Self:
@@ -607,12 +606,9 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
                 The analysis itself, with its results in the attributes that end in `_`.
 
         Raises:
-            AnalysisError:
+            NotPreparedError:
                 The analysis was not prepared with a source.
         """
-        if not getattr(self, '_prepared', False):
-            error_msg = f'{type(self).__name__} must be prepared with a source before it runs. Call `prepare(source)`.'
-            raise AnalysisError(error_msg)
         super().run(inputs, final)
         return self
 

@@ -43,7 +43,7 @@ class ProliferationLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import ProliferationLaw
         >>> f, g = var('f'), var('g')
-        >>> ProliferationLaw(f, g, 0.5).check().run({}).value_
+        >>> ProliferationLaw(f, g, 0.5).check().prepare().run({}).value_
         (0.5, None)
     """
 

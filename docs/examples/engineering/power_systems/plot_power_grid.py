@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, added_line=(0, 2))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=300)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
 
 # %%
 # Synchrony with and without the extra capacity
@@ -50,7 +50,7 @@ for ax, (label, arguments) in zip(axes, grids, strict=True):
     run = (
         simulation.trajectory_
         if arguments is None
-        else Simulation(create(MODEL, **arguments), dt=1.0).check().run(300).trajectory_
+        else Simulation(create(MODEL, **arguments), dt=1.0).check().prepare().run(300).trajectory_
     )
     for node in range(8):
         ax.plot(run.times, run.values(f'node_{node}.phi_d1'), linewidth=0.8)

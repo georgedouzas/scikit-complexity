@@ -97,6 +97,7 @@ def test_shared_process_keeps_difference(backend, stepper):
             dt=0.1,
         )
         .check()
+        .prepare()
         .run(until=5)
         .trajectory_
     )
@@ -117,6 +118,7 @@ def test_correlated_increments_reproduce_covariance(backend):
             dt=1.0,
         )
         .check()
+        .prepare()
         .run(until=10_000)
         .trajectory_
     )
@@ -151,7 +153,13 @@ def test_shared_stratonovich_process_has_exact_mean():
             ]
 
     system = System(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
-    state = Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).check().run(until=1).state_
+    state = (
+        Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
+        .check()
+        .prepare()
+        .run(until=1)
+        .state_
+    )
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)
     assert abs(totals.mean() - 1.5 * math.exp(sigma**2 / 2)) < 2 * error

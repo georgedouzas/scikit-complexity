@@ -25,8 +25,8 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     - `_check()` validates the arguments of the part, after `check` validates the label.
     - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
-    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system by
-      default, or `value_`, the value of a law.
+    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system,
+      or `value_`, the value of a law.
 
     A part is generic in the context of `prepare` and the input of `run`, which every base of parts names: a law
     is prepared against the path of its owner, an element against the space of its system.
@@ -34,10 +34,6 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
     `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `check` validates every declared spec. A part
     must be checked before it is prepared or run.
-
-    Attributes:
-        laws_:
-            The laws the part contributes for the namespace of its last run.
 
     Examples:
         >>> from skcomplex.core.base import BasePart
@@ -60,8 +56,6 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         >>> DoublingPart('doubling').check().prepare().run(3).doubled_
         6
     """
-
-    laws_: Sequence[BasePart]
 
     def __init__(self, label: str) -> None:
         """Store the label of the part.
@@ -119,12 +113,16 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the part contributes for a namespace of symbols: a law contributes itself."""
 
-    def _run(self, inputs: InputT | None) -> None:
-        """Set `laws_`, the laws of the part for its namespace, which a law overrides to set its value.
+    def _laws_of(self, inputs: object) -> Sequence[BasePart]:
+        """Return the laws of the part for a namespace of symbols.
 
         Args:
             inputs:
                 The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the part.
 
         Raises:
             ValidationError:
@@ -133,7 +131,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         if not isinstance(inputs, SimpleNamespace):
             error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
             raise ValidationError(error_msg)
-        self.laws_ = self._get_laws(inputs)
+        return self._get_laws(inputs)
 
     def check(self) -> Self:
         """Validate the label and the arguments of the part and mark it as checked.

@@ -21,7 +21,7 @@ MODEL = 'exponential_linear_growth'
 
 system = create(MODEL, n=2.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().run(until=40)
+simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=40)
 
 # %%
 # Growth rate

@@ -95,7 +95,7 @@ def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
         space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):
-        trajectory = Simulation(system, dt=1, random_state=0).check().run(until=600).trajectory_
+        trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=600).trajectory_
         displacement = _displacement(trajectory, fit_range=(1, 150))
         assert displacement.exponent_ == pytest.approx(1, abs=0.05)
         assert displacement.msd_[-1] > 20.0**2

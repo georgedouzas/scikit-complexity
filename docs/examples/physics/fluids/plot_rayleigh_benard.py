@@ -27,7 +27,7 @@ MODEL = 'rayleigh_benard'
 system = create(MODEL, Ra=2000.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='flow/theta', interval=1)
 solver = ETDRK4Solver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).check().run(until=10)
+simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).check().prepare().run(until=10)
 
 # %%
 # Onset of convection
@@ -40,7 +40,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).ch
 rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
-    run = Simulation(create(MODEL, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).check().run(until=10)
+    run = Simulation(create(MODEL, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).check().prepare().run(until=10)
     amplitudes.append(np.abs(run.trajectory_.values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')

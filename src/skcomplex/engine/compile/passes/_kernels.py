@@ -216,7 +216,9 @@ class KernelsPass(BasePass):
                         layout_parameters=parameters,
                         pairs=spec.pairs,
                         outputs=kind_outputs,
-                    ).check(),
+                    )
+                    .check()
+                    .prepare(),
                 )
         return LoweredKernelsSpec(kernels, jump_changes, laws_of)
 

@@ -33,6 +33,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=30)
 )
 
@@ -58,6 +59,7 @@ for social_weight in (0.0, 2.0):
             observables=describe(MODEL).observables_of(system),
         )
         .check()
+        .prepare()
         .run(until=15)
         .trajectory_.values('fair_share')[-5:]
         .mean()

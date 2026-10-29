@@ -40,6 +40,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=100,
     )
@@ -58,6 +59,7 @@ def stationary(tax):
     run = (
         Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system))
         .check()
+        .prepare()
         .run(until=200)
     )
     return run.trajectory_.values('wealth.f')[-1], run.trajectory_.values('gini')[-1]

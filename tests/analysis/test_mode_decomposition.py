@@ -54,6 +54,7 @@ def _linear_trajectory():
     return (
         Simulation(System(elements=[LinearElement('linear')]), solver=solver, dt=0.05)
         .check()
+        .prepare()
         .run(until=10.0)
         .trajectory_
     )
@@ -88,7 +89,7 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     assert isinstance(decomposition.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    run = Simulation(decomposition.system_, solver=solver, dt=0.05).check().run(until=10.0).trajectory_
+    run = Simulation(decomposition.system_, solver=solver, dt=0.05).check().prepare().run(until=10.0).trajectory_
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
 
 
@@ -107,7 +108,13 @@ def test_mode_decomposition_run_matches_simulated_system():
     decomposition = _fit(_linear_values(_linear_trajectory(), 101), variables=NAMES, horizon=20, dt=0.05)
     names = [f'surrogate.{name}' for name in decomposition.states_]
     initial_state = dict(zip(names, decomposition.last_state_, strict=True))
-    run = Simulation(decomposition.system_, dt=0.05, initial_state=initial_state).check().run(until=1.0).trajectory_
+    run = (
+        Simulation(decomposition.system_, dt=0.05, initial_state=initial_state)
+        .check()
+        .prepare()
+        .run(until=1.0)
+        .trajectory_
+    )
     simulated = np.column_stack([run.values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast_, simulated, atol=1e-4)
 

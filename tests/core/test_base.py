@@ -12,7 +12,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import BasePart
-from skcomplex.core.elements import BaseElement
+from skcomplex.core.elements import BaseElement, Element
 from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BaseLaw
 from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
@@ -184,9 +184,14 @@ def test_constructor_only_stores_its_arguments():
     assert cloned is not part
 
 
-def test_part_runs_into_its_laws_by_default():
-    """Test that running a part without its own `_run` sets its laws for the namespace."""
-    assert SpecifiedPart('a').check().run(SimpleNamespace()).laws_ == []
+def test_element_runs_into_its_laws():
+    """Test that running an element sets its laws for the namespace, as interactions and systems do."""
+
+    class StillElement(Element):
+        def _get_laws(self, namespace):
+            return []
+
+    assert StillElement('a').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_parts_derive_from_the_part_base():

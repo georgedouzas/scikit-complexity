@@ -20,7 +20,7 @@ MODEL = 'ideta_intermittent_androgen'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().run(until=600)
+simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=600)
 
 # %%
 # Switching at the thresholds

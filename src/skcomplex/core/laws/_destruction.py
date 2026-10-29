@@ -35,7 +35,7 @@ class DestructionLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import DestructionLaw
         >>> f, g, mu = var('f'), var('g'), var('mu')
-        >>> DestructionLaw(f, g, 2 * mu).check().run({'mu': 0.1}).value_
+        >>> DestructionLaw(f, g, 2 * mu).check().prepare().run({'mu': 0.1}).value_
         0.2
     """
 

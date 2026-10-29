@@ -354,16 +354,20 @@ class FieldFunctionsPass(BasePass):
             (kind, float(SR(value)) if not callable(value) else 0.0)
             for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
         )
-        return FiniteVolumeKernel(
-            owner,
-            tuple(reference.entry.start for _, reference in laws),
-            space.shape_,
-            space.spacings_,
-            boundaries,
-            fluxes=fluxes,
-            jacobians=jacobians,
-            parameters=tuple(references[item] for item in parameters),
-            limiter=first.limiter,
-            riemann=first.riemann,
-            critical=critical,
-        ).check()
+        return (
+            FiniteVolumeKernel(
+                owner,
+                tuple(reference.entry.start for _, reference in laws),
+                space.shape_,
+                space.spacings_,
+                boundaries,
+                fluxes=fluxes,
+                jacobians=jacobians,
+                parameters=tuple(references[item] for item in parameters),
+                limiter=first.limiter,
+                riemann=first.riemann,
+                critical=critical,
+            )
+            .check()
+            .prepare()
+        )

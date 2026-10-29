@@ -23,6 +23,7 @@ def test_biased_trap_walk_subdiffusion():
             observables=describe('biased_trap_walk').observables_of(built),
         )
         .check()
+        .prepare()
         .run(until=2000)
     )
     times, position = simulation.trajectory_.times, simulation.trajectory_.values('position')

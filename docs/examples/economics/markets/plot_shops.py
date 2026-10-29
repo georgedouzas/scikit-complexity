@@ -50,6 +50,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=100)
 )
 
@@ -65,7 +66,12 @@ shares = np.linspace(0.0, 1.0, 5)
 survivors, leaders, prices = [], [], []
 for share in shares:
     system = create(MODEL, online=share, random_state=0)
-    run = Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).check().run(until=100)
+    run = (
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        .check()
+        .prepare()
+        .run(until=100)
+    )
     survivors.append(run.trajectory_.values('open_shops')[-1])
     leaders.append(run.trajectory_.values('concentration')[-1])
     prices.append(run.trajectory_.values('mean_price')[50:].mean())

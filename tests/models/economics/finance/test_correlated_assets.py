@@ -16,6 +16,7 @@ def test_correlated_geometric_brownian_motion_correlates_returns():
     trajectory = (
         Simulation(system, solver=EulerMaruyamaSolver(dt=1e-3), dt=0.01, random_state=0)
         .check()
+        .prepare()
         .run(until=100)
         .trajectory_
     )

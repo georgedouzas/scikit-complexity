@@ -24,5 +24,5 @@ def test_solow_reaches_steady_state():
         elements=[EconomyElement('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
-    capital = Simulation(system, dt=10.0).check().run(until=300).trajectory_.values('country.k')[-1]
+    capital = Simulation(system, dt=10.0).check().prepare().run(until=300).trajectory_.values('country.k')[-1]
     assert capital == pytest.approx((s / delta) ** (1 / (1 - alpha)), rel=1e-3)

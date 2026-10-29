@@ -21,7 +21,7 @@ MODEL = 'theta_neurons'
 
 system = create(MODEL, n_neurons=4, kappa=1.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=10)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=10)
 
 # %%
 # Coupling switches on collective firing
@@ -38,8 +38,20 @@ def spikes_of(trajectory):
     return trajectory.times[steps + 1], neurons
 
 
-coupled = Simulation(create(MODEL, n_neurons=50, kappa=1.5, random_state=0), dt=0.1).check().run(until=20).trajectory_
-uncoupled = Simulation(create(MODEL, n_neurons=50, kappa=0.0, random_state=0), dt=0.1).check().run(until=20).trajectory_
+coupled = (
+    Simulation(create(MODEL, n_neurons=50, kappa=1.5, random_state=0), dt=0.1)
+    .check()
+    .prepare()
+    .run(until=20)
+    .trajectory_
+)
+uncoupled = (
+    Simulation(create(MODEL, n_neurons=50, kappa=0.0, random_state=0), dt=0.1)
+    .check()
+    .prepare()
+    .run(until=20)
+    .trajectory_
+)
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, label in zip(axes, [uncoupled, coupled], ['kappa = 0', 'kappa = 1.5'], strict=True):
     times, neurons = spikes_of(trajectory)

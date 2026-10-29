@@ -28,7 +28,7 @@ class BoundaryLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import floor, var
         >>> from skcomplex.core.laws import BoundaryLaw
         >>> x = var('x')
-        >>> BoundaryLaw(x, x - floor(x)).check().run({'x': 2.25}).value_
+        >>> BoundaryLaw(x, x - floor(x)).check().prepare().run({'x': 2.25}).value_
         0.25
     """
 

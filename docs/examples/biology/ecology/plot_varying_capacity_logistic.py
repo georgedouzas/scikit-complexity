@@ -21,7 +21,7 @@ MODEL = 'varying_capacity_logistic'
 
 system = create(MODEL, n=5.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until=8)
+simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=8)
 
 # %%
 # A unique periodic solution
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().run(until
 # to the same cycle, which peaks after the capacity and stays inside its range.
 
 low = simulation.trajectory_
-high = Simulation(create(MODEL, n=180.0), dt=0.05).check().run(until=8).trajectory_
+high = Simulation(create(MODEL, n=180.0), dt=0.05).check().prepare().run(until=8).trajectory_
 capacity = 100.0 * (1 + 0.5 * np.sin(2 * np.pi * low.times))
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(low.times, capacity, color='grey', linestyle=':', label='carrying capacity')

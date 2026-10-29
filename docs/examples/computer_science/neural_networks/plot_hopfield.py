@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, patterns=patterns, noise=0.3, random_state=0)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().run(until=4)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=4)
 frames = [spins(simulation.trajectory_, frame).reshape(10, 10) for frame in range(5)] + [patterns[0].reshape(10, 10)]
 tiles = [np.pad(frame, 1) for frame in frames]
 strip = np.block([tiles[:3], tiles[3:]])
@@ -71,6 +71,7 @@ final = [
                     random_state=seed,
                 )
                 .check()
+                .prepare()
                 .run(until=4)
                 .trajectory_,
                 -1,

@@ -49,7 +49,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, width=30, height=30, sheep=200, wolves=20, regrowth=20.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).check().run(until=300)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=300)
 
 # %%
 # Populations over time

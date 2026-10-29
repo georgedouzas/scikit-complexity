@@ -23,6 +23,7 @@ def test_standardized_agents_match_the_exact_equilibrium():
     q = (
         Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
         .check()
+        .prepare()
         .run(until=5000)
         .trajectory_.values('q')
     )
@@ -36,6 +37,7 @@ def test_standardized_agents_order_below_t_m(temperature, ordered):
     trajectory = (
         Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
         .check()
+        .prepare()
         .run(until=1000)
         .trajectory_
     )

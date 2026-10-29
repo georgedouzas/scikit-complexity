@@ -19,7 +19,7 @@ from skcomplex.models import create
 MODEL = 'elementary_automaton'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, rule=30, size=201), dt=1, observers=[observer]).check().run(until=100)
+simulation = Simulation(create(MODEL, rule=30, size=201), dt=1, observers=[observer]).check().prepare().run(until=100)
 
 # %%
 # Regular and random rules
@@ -29,7 +29,13 @@ simulation = Simulation(create(MODEL, rule=30, size=201), dt=1, observers=[obser
 # Rule 30 should instead fill its triangle with a density of live cells near 1/2.
 
 rule30 = simulation.trajectory_.lattice('cells.alive')
-rule90 = Simulation(create(MODEL, rule=90, size=201), dt=1).check().run(until=100).trajectory_.lattice('cells.alive')
+rule90 = (
+    Simulation(create(MODEL, rule=90, size=201), dt=1)
+    .check()
+    .prepare()
+    .run(until=100)
+    .trajectory_.lattice('cells.alive')
+)
 generations = np.arange(rule90.shape[0])
 fig, (counts, density) = plt.subplots(1, 2, figsize=(11, 4))
 counts.semilogy(generations, rule90.sum(axis=1), 'o', markersize=3, label='rule 90, simulated')

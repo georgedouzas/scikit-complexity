@@ -26,7 +26,7 @@ class GeneratorLaw(BaseLaw):
         >>> from skcomplex.core.laws import GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
         >>> z = local_operator(SR.symbol('q'), SR.symbol('z'))
-        >>> GeneratorLaw(var('h') * z).check().run({'h': 0.5}).value_
+        >>> GeneratorLaw(var('h') * z).check().prepare().run({'h': 0.5}).value_
         0.5*local_operator(q, z)
     """
 

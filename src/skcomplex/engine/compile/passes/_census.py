@@ -294,7 +294,7 @@ class CensusPass(BasePass):
             ValidationError:
                 `laws` returns something other than declarable laws, or laws its binding does not take.
         """
-        returned = component.run(spec.namespace).laws_
+        returned = component.prepare().run(spec.namespace).laws_
         laws = [law for law in returned if isinstance(law, BaseLaw)]
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'

@@ -48,6 +48,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=200)
 )
 
@@ -79,6 +80,7 @@ for sigma in noises:
             observables=describe(MODEL).observables_of(model_system),
         )
         .check()
+        .prepare()
         .run(
             until=150,
         )

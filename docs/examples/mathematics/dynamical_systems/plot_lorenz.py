@@ -42,7 +42,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create(MODEL), dt=0.01, observers=[observer]).check().run(until=50)
+simulation = Simulation(create(MODEL), dt=0.01, observers=[observer]).check().prepare().run(until=50)
 points = np.column_stack([simulation.trajectory_.values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()

@@ -43,6 +43,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(
         until=100,
     )
@@ -57,7 +58,9 @@ simulation = (
 
 trajectory = simulation.trajectory_
 unchecked_system = create(MODEL, deterrence=0.0, recruitment=0.0)
-unchecked = Simulation(unchecked_system, dt=0.5, observables=describe(MODEL).observables_of(unchecked_system)).check()
+unchecked = (
+    Simulation(unchecked_system, dt=0.5, observables=describe(MODEL).observables_of(unchecked_system)).check().prepare()
+)
 unchecked_criminality = unchecked.run(until=100).trajectory_.values('mean_criminality')
 fig, (phase_axis, time_axis) = plt.subplots(1, 2, figsize=(10, 4))
 phase_axis.plot(trajectory.values('mean_criminality'), trajectory.values('security_forces'))

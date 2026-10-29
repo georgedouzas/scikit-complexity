@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 
 from ...specs import VisualSpec
@@ -29,6 +30,9 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         default_visual_:
             The visual of the element when it sets none.
 
+        laws_:
+            The laws the element contributes for the namespace of its last run.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements._base import BaseElement
@@ -51,6 +55,17 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         >>> PopulationElement('rabbits', n=40).get_params(deep=False)
         {'label': 'rabbits', 'n': 40, 'r': 0.5, 'visual': VisualSpec(kind='line', options={})}
     """
+
+    laws_: Sequence[BasePart]
+
+    def _run(self, inputs: SimpleNamespace | None) -> None:
+        """Set `laws_`, the laws of the element for a namespace of symbols.
+
+        Args:
+            inputs:
+                The namespace of the symbols the laws can use.
+        """
+        self.laws_ = self._laws_of(inputs)
 
     def __init__(self, label: str, visual: VisualSpec | None = None) -> None:
         super().__init__(label)

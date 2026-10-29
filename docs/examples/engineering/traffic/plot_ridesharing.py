@@ -51,6 +51,7 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
     )
     .check()
+    .prepare()
     .run(until=STEPS)
 )
 
@@ -68,7 +69,10 @@ waits, utilisations = [], []
 for demand in demands:
     system = create(MODEL, demand=demand, random_state=0)
     run = (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).check().run(until=STEPS)
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        .check()
+        .prepare()
+        .run(until=STEPS)
     )
     waits.append(np.nanmean(run.trajectory_.values('mean_wait')[STEPS // 2 :]))
     utilisations.append(run.trajectory_.values('utilisation')[STEPS // 2 :].mean())

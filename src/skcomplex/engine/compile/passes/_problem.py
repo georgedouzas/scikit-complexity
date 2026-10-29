@@ -508,7 +508,9 @@ class ProblemPass(BasePass):
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
-                ).check(),
+                )
+                .check()
+                .prepare(),
             )
         return tuple(compiled)
 
@@ -557,7 +559,9 @@ class ProblemPass(BasePass):
                         0,
                         False,
                         hidden=True,
-                    ).check(),
+                    )
+                    .check()
+                    .prepare(),
                 )
         return tuple(compiled)
 

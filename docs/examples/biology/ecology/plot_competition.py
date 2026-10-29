@@ -22,7 +22,7 @@ MODEL = 'competition'
 
 system = create(MODEL, first=5.0, second=60.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().run(until=30)
+simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=30)
 
 # %%
 # Phase plane and nullclines
