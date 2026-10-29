@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 import skfem
@@ -125,7 +125,7 @@ def heat_l_shape(
     refine: int = 3,
     *,
     D: float = 1.0,
-    temperature: Callable[..., Any] | float = harmonic,
+    temperature: Callable[[Array, Array], Array] | float = harmonic,
 ) -> System:
     """Return heat on the L-shaped domain with fixed boundary temperatures, discretised by linear finite elements.
 

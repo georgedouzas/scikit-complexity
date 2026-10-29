@@ -17,18 +17,19 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._flocker_view import FlockerView
 
 
-def _cosine(agent: AgentView) -> float:
+def _cosine(agent: FlockerView) -> float:
     """Return the first component of an agent's heading."""
     return math.cos(agent.theta)
 
 
-def _sine(agent: AgentView) -> float:
+def _sine(agent: FlockerView) -> float:
     """Return the second component of an agent's heading."""
     return math.sin(agent.theta)
 
@@ -56,6 +57,9 @@ class FlockerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         theta:
             The initial heading.
 
@@ -74,6 +78,11 @@ class FlockerElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta
+
+    @classmethod
+    def _get_view(cls) -> type:
+        """Return the class of the views of the element's agents."""
+        return FlockerView
 
 
 class BinaryCollisionsInteraction(Interaction):
@@ -151,7 +160,7 @@ class BinaryCollisionsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
+        agents = model.agents(self.target, FlockerView)
         size = np.asarray(model.dimensions, dtype=float)
         positions = np.array([agent.location for agent in agents], dtype=float)
         headings = np.array([agent.theta for agent in agents], dtype=float)

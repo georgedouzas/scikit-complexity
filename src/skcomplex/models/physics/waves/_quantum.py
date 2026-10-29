@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -83,7 +83,7 @@ class LatticeHamiltonianInteraction(Interaction):
         self.target = target
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the Hamiltonian of the particle.
 
         Args:
@@ -133,7 +133,7 @@ class PositionDephasingInteraction(Interaction):
         self.gamma = gamma
         self.n_sites = n_sites
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the dissipators of the site projectors.
 
         Args:

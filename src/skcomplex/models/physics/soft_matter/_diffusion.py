@@ -35,6 +35,9 @@ class BrownianParticleElement(Element):
         label:
             The label of the particle or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -88,26 +91,23 @@ class OpticalTrapInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the particle or the group.
+
+        k:
+            The stiffness along every axis.
+
+        amplitude:
+            The amplitude of the oscillation of the center along every axis.
+
+        frequency:
+            The frequency of the oscillation of the center.
+
         blink_period:
             The period of a blinking trap, or `None` for a trap that is always on.
 
         duty:
             The fraction of every blinking period during which the trap is on.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the particle or the group.
-
-            k:
-                The stiffness along every axis.
-
-            amplitude:
-                The amplitude of the oscillation of the center along every axis.
-
-            frequency:
-                The frequency of the oscillation of the center.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import OpticalTrapInteraction
@@ -165,6 +165,12 @@ class SpeckleFieldInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the particle or the group.
+
+        strength:
+            The product `u I0` of the polarizability constant and the reference intensity.
+
         centers:
             The centers of the hotspots.
 
@@ -173,15 +179,6 @@ class SpeckleFieldInteraction(Interaction):
 
         lengths:
             The decay lengths of the hotspots.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the particle or the group.
-
-            strength:
-                The product `u I0` of the polarizability constant and the reference intensity.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import SpeckleFieldInteraction
@@ -262,23 +259,23 @@ class ModulatedParticleElement(Element):
         label:
             The label of the particle or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        s0:
+            The noise amplitude at the middle of the box.
+
+        ds:
+            The change of the noise amplitude across the box.
+
+        L:
+            The length of the box.
+
         convention:
             The stochastic calculus of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The initial position.
-
-            s0:
-                The noise amplitude at the middle of the box.
-
-            ds:
-                The change of the noise amplitude across the box.
-
-            L:
-                The length of the box.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import ModulatedParticleElement

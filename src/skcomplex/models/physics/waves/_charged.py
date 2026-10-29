@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -30,6 +30,9 @@ class ChargedWaveFunctionElement(Element):
     Args:
         label:
             The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         u:
             The initial real part.
@@ -96,7 +99,7 @@ class ChargedWaveFunctionElement(Element):
             laws:
                 The laws of the component.
         """
-        potential: Any = s.A_x - s.E * ramp(s.t, 0, s.duration, s.duration)
+        potential = s.A_x - s.E * ramp(s.t, 0, s.duration, s.duration)
         drift = 2 * s.D * s.q * potential
         phase = s.q * s.A_t - s.D * s.q**2 * potential**2
         return [

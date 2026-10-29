@@ -38,6 +38,9 @@ class ContinuousTimeWalkerElement(Element):
         label:
             The label of the walker or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -99,6 +102,9 @@ class LevyWalkerElement(Element):
     Args:
         label:
             The label of the walker or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -171,6 +177,9 @@ class TransientWalkerElement(Element):
         label:
             The label of the walker or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -230,6 +239,9 @@ class FractionalWalkerElement(Element):
         label:
             The label of the walker or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -279,6 +291,9 @@ class LevyFlierElement(Element):
     Args:
         label:
             The label of the walker or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.

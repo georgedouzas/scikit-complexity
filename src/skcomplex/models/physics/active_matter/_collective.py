@@ -32,23 +32,23 @@ class SoftRepulsionInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The contact distance, the sum of the two radii.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        k:
+            The stiffness times the mobility.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group or particle of the first members.
-
-            second:
-                The path of the group or particle of the second members.
-
-            cutoff:
-                The contact distance, the sum of the two radii.
-
-            k:
-                The stiffness times the mobility.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import SoftRepulsionInteraction
@@ -95,26 +95,26 @@ class PhoreticAttractionInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The distance beyond which the attraction is neglected.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        v0:
+            The drift speed at the distance `R`.
+
+        R:
+            The particle radius.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group or particle of the first members.
-
-            second:
-                The path of the group or particle of the second members.
-
-            cutoff:
-                The distance beyond which the attraction is neglected.
-
-            v0:
-                The drift speed at the distance `R`.
-
-            R:
-                The particle radius.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import PhoreticAttractionInteraction
@@ -163,29 +163,29 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
         label:
             The label of the interaction.
 
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The distance beyond which agents do not align, large for the original all-to-all model.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        K:
+            The coupling strength.
+
+        beta:
+            The decay exponent of the communication weight.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
         n_agents:
             The number of agents `N` that normalizes the coupling.
-
-        **values:
-            The values of the declared variables, by name:
-
-            first:
-                The path of the group or particle of the first members.
-
-            second:
-                The path of the group or particle of the second members.
-
-            cutoff:
-                The distance beyond which agents do not align, large for the original all-to-all model.
-
-            K:
-                The coupling strength.
-
-            beta:
-                The decay exponent of the communication weight.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import CuckerSmaleAlignmentInteraction
@@ -240,6 +240,9 @@ class PolarFluidElement(Element):
     Args:
         label:
             The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial density.

@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._walker_view import WalkerView
 
 BURNING = 2
 BURNT = 3
@@ -39,7 +40,7 @@ def _burn(cover: Array, *around: Array) -> Array:
     return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
 
 
-def _spread(infected: Array, *around: Array, rate: Any, tau: Any, random: Array) -> Array:  # noqa: ANN401
+def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | Array, random: Array) -> Array:
     """Return the next infections of the contact process over a time slice `tau`."""
     share = sum(around) / len(around)
     infects = random < -np.expm1(-rate * tau * share)
@@ -47,20 +48,25 @@ def _spread(infected: Array, *around: Array, rate: Any, tau: Any, random: Array)
     return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
 
 
-def _hop_ring(occupied: Array, *, random: np.random.Generator, p: Any) -> Array:  # noqa: ANN401
+def _hop_ring(occupied: Array, *, random: np.random.Generator, p: float | Array) -> Array:
     """Return the occupations of a ring after one parallel update of the exclusion process."""
-    hops = (
-        (occupied == 1) & (np.roll(occupied, -1) == 0) & (random.random(occupied.shape) < p)  # nosec B311: seeded NumPy
-    )
+    hops = (occupied == 1) & (np.roll(occupied, -1) == 0) & (random.binomial(1, p, occupied.shape) == 1)
     return occupied - hops + np.roll(hops, 1)
 
 
-def _hop_open(occupied: Array, *, random: np.random.Generator, p: Any, alpha: Any, beta: Any) -> Array:  # noqa: ANN401
+def _hop_open(
+    occupied: Array,
+    *,
+    random: np.random.Generator,
+    p: float | Array,
+    alpha: float | Array,
+    beta: float | Array,
+) -> Array:
     """Return the occupations of an open line after one parallel update with entry at the left and exit at the right."""
     free = np.append(occupied[1:], 1.0) == 0
-    hops = (occupied == 1) & free & (random.random(occupied.shape) < p)  # nosec B311: seeded NumPy generator
-    exits = (occupied[-1] == 1) & (random.random() < np.ravel(beta)[-1])  # nosec B311: seeded NumPy generator
-    enters = (occupied[0] == 0) & (random.random() < np.ravel(alpha)[0])  # nosec B311: seeded NumPy generator
+    hops = (occupied == 1) & free & (random.binomial(1, p, occupied.shape) == 1)
+    exits = (occupied[-1] == 1) & (random.binomial(1, np.ravel(beta)[-1]) == 1)
+    enters = (occupied[0] == 0) & (random.binomial(1, np.ravel(alpha)[0]) == 1)
     following = occupied - hops
     following[1:] += hops[:-1]
     following[-1] -= exits
@@ -78,17 +84,17 @@ class Q2RSpinElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        spin:
+            The initial spin, 1 or -1.
+
+        phase:
+            The initial phase, 1 for updating and 0 for quiescent.
+
         n_dim:
             The number of dimensions of the lattice.
-
-        **values:
-            The values of the declared variables, by name:
-
-            spin:
-                The initial spin, 1 or -1.
-
-            phase:
-                The initial phase, 1 for updating and 0 for quiescent.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpinElement
@@ -135,6 +141,9 @@ class PercolationSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         cover:
             The initial cover, 0, 1, 2, or 3.
 
@@ -178,6 +187,9 @@ class ContactSiteElement(Element):
     Args:
         label:
             The label of the site or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         infected:
             The initial state, 1 for infected and 0 for healthy.
@@ -232,23 +244,23 @@ class ExclusionSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        occupied:
+            The initial occupation.
+
+        p:
+            The probability of a hop.
+
+        alpha:
+            The probability of an entry at the left end of an open line.
+
+        beta:
+            The probability of an exit at the right end of an open line.
+
         ring:
             Whether the line is a ring instead of an open line.
-
-        **values:
-            The values of the declared variables, by name:
-
-            occupied:
-                The initial occupation.
-
-            p:
-                The probability of a hop.
-
-            alpha:
-                The probability of an entry at the left end of an open line.
-
-            beta:
-                The probability of an exit at the right end of an open line.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSiteElement
@@ -295,6 +307,9 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         stuck:
             Whether the walker belongs to the aggregate.
 
@@ -327,7 +342,12 @@ class WalkerElement(Element):
         """
         return [RuleLaw(self.walk)]
 
-    def walk(self, agent: AgentView, model: ModelView) -> None:
+    @classmethod
+    def _get_view(cls) -> type:
+        """Return the class of the views of the element's agents."""
+        return WalkerView
+
+    def walk(self, agent: WalkerView, model: ModelView) -> None:
         """Stick next to the aggregate, or step to a random neighbouring cell.
 
         Args:
@@ -339,7 +359,7 @@ class WalkerElement(Element):
         """
         if agent.stuck:
             return
-        if any(other.stuck for other in agent.neighbors()):
+        if any(isinstance(other, WalkerView) and other.stuck for other in agent.neighbors()):
             agent.stuck = 1.0
             return
         cells = agent.neighbor_cells()

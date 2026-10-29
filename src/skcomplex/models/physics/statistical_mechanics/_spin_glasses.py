@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
@@ -18,7 +19,6 @@ from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
-from ....types import Array
 from ..._catalog import register_model
 from ._fully_connected_spins import SPIN_IMAGE
 
@@ -33,7 +33,10 @@ def _square(size: int | Sequence[int]) -> tuple[int, int]:
     return int(size), int(size)
 
 
-def _bond_states(right: Array, down: Array) -> dict[str, Array]:
+def _bond_states(
+    right: npt.NDArray[np.floating],
+    down: npt.NDArray[np.floating],
+) -> dict[str, npt.NDArray[np.floating]]:
     """Return the couplings of every site to its up, left, right, and down neighbours from the bonds right and down."""
     return {
         'J_up': np.roll(down, 1, axis=0),
@@ -58,6 +61,9 @@ class BondSpinElement(Element):
     Args:
         label:
             The label of the spin or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         spin:
             The initial spin, 1 or -1.
@@ -140,11 +146,11 @@ class MattisSpinElement(BondSpinElement):
         label:
             The label of the spin or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         spin:
             The initial spin, 1 or -1.
-
-        pattern:
-            The quenched pattern `xi`, 1 or -1.
 
         J_up:
             The coupling to the upper neighbour.
@@ -163,6 +169,9 @@ class MattisSpinElement(BondSpinElement):
 
         temperature:
             The temperature.
+
+        pattern:
+            The quenched pattern `xi`, 1 or -1.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import MattisSpinElement

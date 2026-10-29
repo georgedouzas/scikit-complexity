@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, EulerMaruyamaSolver, ModelView
+from ....engine.solvers import EulerMaruyamaSolver, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._tumbler_view import TumblerView
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
@@ -33,6 +34,9 @@ class ActiveParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -107,6 +111,9 @@ class OrnsteinUhlenbeckParticleElement(Element):
         label:
             The label of the particle or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial position.
 
@@ -175,6 +182,9 @@ class DepotParticleElement(Element):
     Args:
         label:
             The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial position.
@@ -259,6 +269,9 @@ class TumblerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         theta:
             The initial direction.
 
@@ -306,7 +319,12 @@ class TumblerElement(Element):
         """
         return [RuleLaw(self.run_and_tumble)]
 
-    def run_and_tumble(self, agent: AgentView, model: ModelView) -> None:
+    @classmethod
+    def _get_view(cls) -> type:
+        """Return the class of the views of the element's agents."""
+        return TumblerView
+
+    def run_and_tumble(self, agent: TumblerView, model: ModelView) -> None:
         """Run one step along the direction, then tumble at random.
 
         Args:

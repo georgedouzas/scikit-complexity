@@ -3,16 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
-import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import LatticeElement
 from ....core.interactions import BaseInteraction, Interaction, NeighborInteraction
-from ....core.laws import DissipatorLaw, GeneratorLaw
+from ....core.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -35,7 +33,7 @@ def _initial_labels(n_sites: int, initial: str) -> list[str]:
     return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
 
-def _sites(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _sites(values: object) -> object:
     """Return the values of every site, without reducing them."""
     return values
 
@@ -103,7 +101,7 @@ class XXZExchangeInteraction(NeighborInteraction):
         self.J = J
         self.delta = delta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange Hamiltonian of one bond.
 
         Args:
@@ -153,7 +151,7 @@ class ZeemanFieldInteraction(Interaction):
         self.target = target
         self.h = h
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the Hamiltonian of the field.
 
         Args:
@@ -197,7 +195,7 @@ class DephasingInteraction(Interaction):
         self.target = target
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return one dissipator per spin.
 
         Args:

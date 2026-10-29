@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -68,14 +68,14 @@ class SandpileCellElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        height:
+            The initial number of grains.
+
         threshold:
             The number of grains at which a site topples.
-
-        **values:
-            The values of the declared variables, by name:
-
-            height:
-                The initial number of grains.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import SandpileCellElement
@@ -132,6 +132,9 @@ class MannaCellElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         height:
             The initial number of grains.
 
@@ -183,6 +186,9 @@ class ForestElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         cover:
             The initial cover, 0, 1, or 2.
 
@@ -226,7 +232,7 @@ class ForestElement(Element):
         return [LocalRuleLaw(s.cover, NEAREST, _burn, stochastic=True)]
 
 
-def _burn(cover: Array, *around: Array, growth: Any, lightning: Any, random: Array) -> Array:  # noqa: ANN401
+def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
     """Return the covers after trees catch fire from burning neighbours or lightning, fires burn out, and trees grow."""
     burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
     ignites = burning | (random < lightning)
@@ -246,20 +252,20 @@ class SpreadingForestElement(Element):
         label:
             The label of the site or the lattice group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        cover:
+            The initial cover, 0, 1, or 2.
+
+        growth:
+            The probability that a tree grows on an empty site per step.
+
+        lightning:
+            The probability that lightning strikes a tree per step.
+
         neighbors:
             `'triangular'` for the six neighbours of a triangular lattice or `'graph'` for the neighbours of a node.
-
-        **values:
-            The values of the declared variables, by name:
-
-            cover:
-                The initial cover, 0, 1, or 2.
-
-            growth:
-                The probability that a tree grows on an empty site per step.
-
-            lightning:
-                The probability that lightning strikes a tree per step.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import SpreadingForestElement

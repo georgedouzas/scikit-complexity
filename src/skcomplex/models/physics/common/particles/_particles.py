@@ -4,6 +4,7 @@
 # License: MIT
 
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,9 +13,10 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import Interaction, PairPotentialInteraction, PotentialInteraction
+from .....core.interactions import BaseInteraction, Interaction, PairPotentialInteraction, PotentialInteraction
 from .....core.laws import BaseLaw, NoiseLaw, RateLaw
 from .....specs import LammpsFixSpec, ParameterSpec, RoleSpec
+from .....types import Array, PairArguments
 
 
 def _distance(first: FreeModuleElement, second: FreeModuleElement) -> Expression:
@@ -286,6 +288,9 @@ class LennardJonesInteraction(PairPotentialInteraction):
         cutoff:
             The distance beyond which pairs do not interact.
 
+        position:
+            The name of the vector state that holds the positions of the members.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
@@ -349,6 +354,9 @@ class SoftSphereInteraction(PairPotentialInteraction):
 
         cutoff:
             The contact distance, the sum of the two radii.
+
+        position:
+            The name of the vector state that holds the positions of the members.
 
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
@@ -450,7 +458,7 @@ class LangevinThermostatInteraction(Interaction):
         ]
 
 
-def _lennard_jones(value):  # noqa: ANN001, ANN202
+def _lennard_jones(value: Callable[[str], Array]) -> str:
     """Return the coefficients of `lj/cut`."""
     return f'{float(value("epsilon")[0])} {float(value("sigma")[0])}'
 
@@ -472,8 +480,10 @@ def _langevin(fix: LammpsFixSpec) -> str:
     return f'fix {fix.name} {fix.group} langevin {temperature} {temperature} {fix.mass() / gamma} {fix.seed()}'
 
 
-LAMMPS_PAIRS = {LennardJonesInteraction: ('lj/cut', _lennard_jones)}
-LAMMPS_FIXES = {
+LAMMPS_PAIRS: dict[type[BaseInteraction], tuple[str, PairArguments]] = {
+    LennardJonesInteraction: ('lj/cut', _lennard_jones),
+}
+LAMMPS_FIXES: dict[type[BaseInteraction], Callable[[LammpsFixSpec], str]] = {
     ConstantForceInteraction: _addforce,
     LinearDragInteraction: _viscous,
     LangevinThermostatInteraction: _langevin,
