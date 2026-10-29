@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from ._base_spec import BaseSpec
 
@@ -36,11 +35,5 @@ class EnergySpec(BaseSpec):
     expression: object
     over: object
 
-    def _check(self) -> Self:
-        """Return the spec, which has nothing to check.
-
-        Returns:
-            spec:
-                The spec itself.
-        """
-        return self
+    def _check(self) -> None:
+        """Accept the spec, which has nothing to check."""

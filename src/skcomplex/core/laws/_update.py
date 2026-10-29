@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...specs import RequirementSpec, TopologyRequestSpec
 from ..spaces import DiscreteTime
@@ -29,7 +28,7 @@ class UpdateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import UpdateLaw
         >>> x = var('x')
-        >>> UpdateLaw(x, 4 * x * (1 - x)).check().run({'x': 0.5})
+        >>> UpdateLaw(x, 4 * x * (1 - x)).check().run({'x': 0.5}).value_
         1.0
     """
 
@@ -46,25 +45,15 @@ class UpdateLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a value that is a NumPy array.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array."""
         self._check_array('value')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the next value at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the next value at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            value:
-                The next value, a number when nothing symbolic is left.
         """
-        return self._evaluate(self.value, inputs)
+        self.value_ = self._evaluate(self.value, inputs)

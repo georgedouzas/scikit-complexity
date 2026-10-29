@@ -2,7 +2,6 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Self
 
 from ...errors import ValidationError
 from ._base import BaseNeighborhood
@@ -35,9 +34,8 @@ class NearestNeighborhood(BaseNeighborhood):
         self.k = k
         self.center = center
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a number of neighbours that is not a whole number of at least 1."""
         if int(self.k) != self.k or int(self.k) < 1:
             error_msg = f'A nearest neighbourhood needs a whole number of neighbours of at least 1, but got {self.k!r}.'
             raise ValidationError(error_msg)
-        return self

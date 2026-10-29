@@ -124,7 +124,7 @@ class PumpElement(Element):
 def test_update_runs_into_its_value_and_targets_a_topology_request():
     """Test that an update runs into its new value, and targets a topology request that it fires with a probability."""
     x = var('x')
-    assert UpdateLaw(x, 2 * x).check().prepare().run({'x': 1.5}) == 3.0
+    assert UpdateLaw(x, 2 * x).check().prepare().run({'x': 1.5}).value_ == 3.0
     request = TopologyRequestSpec('rewire', keep='target')
     law = UpdateLaw(request, 0.1).check().prepare()
     assert law.targets_ == (request,)

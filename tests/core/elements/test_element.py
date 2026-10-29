@@ -191,13 +191,13 @@ def _firm_leverage(s):
 
 def test_element_has_no_laws_by_default():
     """Test that an element that returns no laws of its own runs into none."""
-    assert TallyElement('t').check().prepare().run(SimpleNamespace()) == []
+    assert TallyElement('t').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_element_runs_into_its_laws():
     """Test that an element runs into the laws it writes for a namespace of symbols."""
     n, k = var('n k')
-    (law,) = DecayingElement('a').check().prepare().run(SimpleNamespace(n=n, k=k))
+    (law,) = DecayingElement('a').check().prepare().run(SimpleNamespace(n=n, k=k)).laws_
     assert isinstance(law, RateLaw)
     assert law.value == -k * n
 

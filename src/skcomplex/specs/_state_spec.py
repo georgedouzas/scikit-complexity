@@ -6,7 +6,6 @@
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Self
 
 from sage.all__sagemath_symbolics import RR
 
@@ -78,12 +77,8 @@ class StateSpec(BaseSpec):
     position: bool = False
     velocity_of: str | None = None
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an order that is not positive, negative lags, both, or too many initial values.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -103,4 +98,3 @@ class StateSpec(BaseSpec):
         if len(self.initial) > companions:
             error_msg = f'{len(self.initial)} initial values were given for {companions} derivatives or lags.'
             raise ValidationError(error_msg)
-        return self

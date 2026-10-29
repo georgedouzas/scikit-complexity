@@ -288,7 +288,7 @@ def _hebbian(space, activities):
 def test_neighbor_interaction_stores_its_layer():
     """Test that a neighbour interaction keeps the layer it runs on, and none by default."""
     assert ContagionInteraction('contagion', people='people', layer='work').layer == 'work'
-    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()) == []
+    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 @BACKENDS

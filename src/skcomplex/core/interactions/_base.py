@@ -4,7 +4,6 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, StateSpec
@@ -61,29 +60,19 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for declarations the interaction cannot take.
 
         Raises:
             ValidationError:
                 The type declares states.
-
-        Returns:
-            interaction:
-                The interaction itself.
         """
         self._check_states()
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
-        """Return the interaction, which has nothing to prepare.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Leave the interaction as it is, since it has nothing to prepare.
 
         Args:
             context:
                 The space the interaction inherits from its system, which an interaction does not read.
-
-        Returns:
-            interaction:
-                The interaction itself.
         """
-        return self

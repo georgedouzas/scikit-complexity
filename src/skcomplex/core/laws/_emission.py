@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -61,25 +60,15 @@ class EmissionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length."""
         self._check_matrix('matrix')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the emission matrix at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the emission matrix at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            matrix:
-                The rows of the matrix, numbers when nothing symbolic is left.
         """
-        return self._evaluate([list(row) for row in self.matrix], inputs)
+        self.value_ = self._evaluate([list(row) for row in self.matrix], inputs)

@@ -4,7 +4,6 @@
 # License: MIT
 
 import re
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -272,12 +271,8 @@ class CayleySpace(BaseSpace):
             frontier, depth = found, depth + 1
         return words, rows, sizes
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a group that is not a Sage or GAP group, or a ball of negative radius.
-
-        Returns:
-            space:
-                The space itself.
 
         Raises:
             ValidationError:
@@ -289,9 +284,8 @@ class CayleySpace(BaseSpace):
         if self.ball is not None and (isinstance(self.ball, bool) or not isinstance(self.ball, int) or self.ball < 0):
             error_msg = f'The radius of a ball is a nonnegative integer, but it is {self.ball!r}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Enumerate the sites, and set their words, their neighbours by generator, their edges, and their positions."""
         group = self._get_gap_group()
         names = [str(generator) for generator in libgap.GeneratorsOfGroup(group)]
@@ -321,7 +315,6 @@ class CayleySpace(BaseSpace):
             sites = np.flatnonzero(self.lengths_ == length)
             angles = 2 * np.pi * np.arange(sites.size) / sites.size
             self.positions_[sites] = length * np.column_stack([np.cos(angles), np.sin(angles)])
-        return self
 
     def _get_lacks(self) -> frozenset[str]:
         """Return the options lattices offer that a Cayley graph does not: image visuals."""

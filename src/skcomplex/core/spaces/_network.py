@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -141,7 +140,7 @@ class NetworkSpace(BaseSpace):
             return len(self.hyperedges)
         return super()._count_parts(on, layer)
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a hyperedge or a layer that does not fit the nodes of the graph."""
         nodes = set(self.graph.nodes)
         for hyperedge in self.hyperedges:
@@ -161,9 +160,8 @@ class NetworkSpace(BaseSpace):
             if set(layer.graph.nodes) != nodes:
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set the graph, the edges, and the adjacency of every layer, and the position of every node."""
         self.size_ = int(self.graph.number_of_nodes())
         self.n_dim_ = 1
@@ -184,7 +182,6 @@ class NetworkSpace(BaseSpace):
         else:
             layout = nx.circular_layout(self.graph)
             self.positions_ = np.asarray([layout[node] for node in self.graph.nodes], dtype=float).reshape(-1, 2)
-        return self
 
     def _default_neighborhood(self) -> AdjacencyNeighborhood:
         """Return the neighbours along the edges of the graph."""

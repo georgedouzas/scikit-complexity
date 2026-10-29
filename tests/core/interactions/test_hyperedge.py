@@ -20,4 +20,4 @@ def test_hyperedge_interaction_has_no_laws_by_default():
     consensus = ConsensusInteraction('consensus', voters='voters').check().prepare()
     assert consensus.voters == 'voters'
     assert list(ConsensusInteraction._get_specs()) == ['voters']
-    assert consensus.run(SimpleNamespace()) == []
+    assert consensus.run(SimpleNamespace()).laws_ == []

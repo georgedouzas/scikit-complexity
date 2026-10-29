@@ -4,7 +4,6 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Self
 
 from ...specs import VisualSpec
 from ..base import BasePart
@@ -57,25 +56,14 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         super().__init__(label)
         self.visual = visual
 
-    def _check(self) -> Self:
-        """Return the element, which has nothing to check besides its label.
+    def _check(self) -> None:
+        """Accept the element, which has nothing to check besides its label."""
 
-        Returns:
-            element:
-                The element itself.
-        """
-        return self
-
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the plain visual of an element.
 
         Args:
             context:
                 The space the element inherits from its system, which an element does not read.
-
-        Returns:
-            element:
-                The element itself.
         """
         self.default_visual_ = VisualSpec()
-        return self

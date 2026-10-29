@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -42,7 +41,7 @@ class FluxLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import FluxLaw
         >>> u = var('u')
-        >>> FluxLaw(u, u**2 / 2, riemann='godunov').check().run({'u': 2.0})
+        >>> FluxLaw(u, u**2 / 2, riemann='godunov').check().run({'u': 2.0}).value_
         2.0
     """
 
@@ -69,13 +68,8 @@ class FluxLaw(BaseLaw):
         """Return what the law requires of a system: continuous time on a lattice or a mesh."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, MeshSpace))
 
-    def _check(self) -> Self:
-        """Raise an error for an unknown limiter or numerical flux.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an unknown limiter or numerical flux."""
         self._check_array('flux')
         if self.limiter not in LIMITERS:
             error_msg = f"Unknown limiter {self.limiter!r}. Use 'minmod', 'van-leer', or None."
@@ -83,17 +77,12 @@ class FluxLaw(BaseLaw):
         if self.riemann not in RIEMANN_SOLVERS:
             error_msg = f"Unknown numerical flux {self.riemann!r}. Use 'rusanov' or 'godunov'."
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the flux at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the flux at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            flux:
-                The flux, a number or one number per dimension when nothing symbolic is left.
         """
-        return self._evaluate(self.flux, inputs)
+        self.value_ = self._evaluate(self.flux, inputs)

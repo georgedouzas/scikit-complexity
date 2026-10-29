@@ -6,7 +6,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from multiprocessing.reduction import ForkingPickler
-from typing import Self
 
 from ..errors import ValidationError
 from ..types import AnyArray
@@ -55,12 +54,8 @@ class ObservableSpec(BaseSpec):
     reduce: str | Callable[[AnyArray], object] = 'mean'
     variable: str | None = None
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an expression or a function reduction that cannot be pickled, such as a lambda.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -75,4 +70,3 @@ class ObservableSpec(BaseSpec):
                     'function or a symbolic expression instead of a lambda or a local function.'
                 )
                 raise ValidationError(error_msg) from error
-        return self

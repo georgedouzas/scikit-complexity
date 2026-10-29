@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -85,17 +84,11 @@ class ExtremalLaw(BaseLaw):
         """Return what the law requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> Self:
-        """Raise an error for an unknown extremum or fewer than one application per step.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an unknown extremum or fewer than one application per step."""
         if self.extremum not in EXTREMA:
             error_msg = f'Unknown extremum {self.extremum!r}. Use one of {", ".join(EXTREMA)}.'
             raise ValidationError(error_msg)
         if int(self.repeat) < 1:
             error_msg = f'An extremal law applies at least once per step, but its repeat is {self.repeat}.'
             raise ValidationError(error_msg)
-        return self

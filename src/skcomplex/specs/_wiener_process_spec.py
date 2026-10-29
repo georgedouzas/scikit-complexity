@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
@@ -40,12 +39,8 @@ class WienerProcessSpec(BaseSpec):
     dimension: int = 1
     covariance: object = None
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a label that is not a string or a dimension below 1.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -57,4 +52,3 @@ class WienerProcessSpec(BaseSpec):
         if not (isinstance(self.dimension, int) and self.dimension >= 1):
             error_msg = f'Wiener processes have a positive whole dimension, but it is {self.dimension!r}.'
             raise ValidationError(error_msg)
-        return self

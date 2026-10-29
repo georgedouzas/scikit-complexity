@@ -156,7 +156,7 @@ def _shocked(first, second):
 
 def test_interaction_has_no_laws_by_default():
     """Test that an interaction that returns no laws of its own runs into none."""
-    assert Interaction('empty').check().prepare().run(SimpleNamespace()) == []
+    assert Interaction('empty').check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_interaction_requires_its_roles():

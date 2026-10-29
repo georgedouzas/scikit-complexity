@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Self
 
 from .base import BasePart
 from .elements import BaseElement
@@ -39,7 +38,7 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         ...         return [RateLaw(namespace.x, -namespace.x)]
         >>> system = System(elements=[DecayElement('decay')]).check().prepare()
         >>> namespace = SimpleNamespace(decay=SimpleNamespace(x=var('x')))
-        >>> [type(law).__name__ for law in system.run(namespace)]
+        >>> [type(law).__name__ for law in system.run(namespace).laws_]
         ['RateLaw']
     """
 
@@ -87,27 +86,17 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         around = [part for part in (self.space, self.time) if part is not None]
         return [*around, *self.elements, *self.interactions, *self.systems]
 
-    def _check(self) -> Self:
-        """Check every part of the system.
-
-        Returns:
-            system:
-                The system itself.
-        """
+    def _check(self) -> None:
+        """Check every part of the system."""
         for part in self._get_parts():
             part.check()
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Prepare the space and the time, then the elements and the nested systems on the space, then the interactions.
 
         Args:
             context:
                 The space a nested system inherits from the system that holds it, or `None`.
-
-        Returns:
-            system:
-                The system itself.
         """
         space = self.space if self.space is not None else context
         for part in (self.space, self.time):
@@ -117,7 +106,6 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
             part.prepare(space)
         for part in self.interactions:
             part.prepare()
-        return self
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of every part, each for the namespace of its label.

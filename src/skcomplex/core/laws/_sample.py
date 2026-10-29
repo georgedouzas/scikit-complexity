@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...specs import EnergySpec, MoveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -59,14 +58,8 @@ class SampleLaw(BaseLaw):
         """Return what the sweep requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> Self:
-        """Check the energy, the move, and the sampler.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Check the energy, the move, and the sampler."""
         for spec in (self.energy, self.move, self.sampler):
             if spec is not None:
                 spec.check()
-        return self
