@@ -3,12 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import hashlib
+import importlib.util
+import os
+import sys
 from abc import ABC
+from collections.abc import Mapping
+from pathlib import Path
+from types import ModuleType
 from typing import Self
 
 from sklearn.base import BaseEstimator
 
 from .errors import NotCheckedError
+
+CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
+"""The default directory of the generated sources and of Numba's cache."""
 
 
 class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
@@ -50,6 +60,60 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
 
     def _release(self) -> None:
         """Release what preparing acquired, such as a viewer or a process; release nothing here."""
+
+    @staticmethod
+    def _load_source(
+        prefix: str,
+        text: str,
+        functions: Mapping[str, object],
+        cache_dir: str | Path | None,
+    ) -> ModuleType:
+        """Return the module of generated source, imported from a file of the cache directory named by its digest.
+
+        Source without injected functions is kept in `sys.modules`, so the same source is imported once. Source with
+        injected functions is imported afresh, with the functions set on the module before its code runs.
+
+        Args:
+            prefix:
+                The start of the name of the module.
+
+            text:
+                The generated source.
+
+            functions:
+                The functions the source reads by name, injected into its module.
+
+            cache_dir:
+                The directory of the generated files, or `None` for `~/.cache/skcomplex/kernels`.
+
+        Returns:
+            module:
+                The module of the source.
+
+        Raises:
+            ImportError:
+                The generated file cannot be imported.
+        """
+        name = f'{prefix}_{hashlib.sha256(text.encode()).hexdigest()[:24]}'
+        if not functions and name in sys.modules:
+            return sys.modules[name]
+        directory = Path(cache_dir) if cache_dir is not None else CACHE_DIR
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f'{name}.py'
+        if not path.exists():
+            temporary = path.with_suffix(f'.{os.getpid()}.tmp')
+            temporary.write_text(text)
+            temporary.replace(path)
+        specification = importlib.util.spec_from_file_location(name, path)
+        if specification is None or specification.loader is None:
+            error_msg = f'The generated source at {path} cannot be imported.'
+            raise ImportError(error_msg)
+        module = importlib.util.module_from_spec(specification)
+        module.__dict__.update(functions)
+        if not functions:
+            sys.modules[name] = module
+        specification.loader.exec_module(module)
+        return module
 
     def _is_checked(self) -> None:
         """Raise an error for an object that was not checked.
