@@ -14,6 +14,6 @@ def test_rows_design_returns_its_rows():
 def test_rows_design_rejects_bounds_and_rows_that_are_not_mappings():
     """Test that a row that is not a mapping fails the check and that bounds fail the preparation."""
     with pytest.raises(ValidationError, match='mapping from name to value'):
-        RowsDesign([1.0]).check()  # type: ignore[list-item]
+        RowsDesign([1.0]).check()
     with pytest.raises(ValidationError, match='not from the bounds'):
         RowsDesign([{'K': 10}]).check().check().prepare({'r': (0.0, 1.0)})

@@ -96,6 +96,6 @@ class CapacityRowsSpec(BaseSpec):
             ends:
                 The source and target node rows.
         """
-        assert self.source is not None  # nosec B101: called for edge groups only
-        assert self.target is not None  # nosec B101: called for edge groups only
+        assert self.source is not None
+        assert self.target is not None
         return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)

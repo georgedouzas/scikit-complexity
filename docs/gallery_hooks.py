@@ -4,9 +4,9 @@ import logging
 import warnings
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
 
 from gallery_tools import build_from_environment, check_coverage
+from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.exceptions import PluginError
 from mkdocs_gallery import glr_path_static
 
@@ -18,7 +18,7 @@ for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 
 
-def on_pre_build(config: Any, **kwargs: Any) -> None:  # noqa: ANN401
+def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:
     """Fail the build on a failed example, a run example without a screenshot, or an orphan, and on any gap if strict.
 
     The checksums of the failed examples and of those without a screenshot are removed first, so the next build runs

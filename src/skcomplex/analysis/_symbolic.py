@@ -26,7 +26,11 @@ from sage.all__sagemath_symbolics import (
     diff,
     function,
 )
+from sage.rings.real_mpfr import RealNumber
+from sage.structure.element import Element
+from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
+from sage.symbolic.function import Function
 from sage.symbolic.function_factory import function as formal_function
 
 from ..engine._utils import components_of, domain_of
@@ -38,6 +42,9 @@ from ..specs._unknown_spec import _UnknownSpec
 from ..types import DataKind, FormKind
 from ._base import BaseAnalysis, Source
 from ._quantum import QuantumAnalysis
+
+ASYMPTOTIC_ORDER = 2
+DESOLVE_ORDER = 2
 
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
 SETTINGS: dict[str, set[str]] = {
@@ -62,14 +69,14 @@ SIGNS: dict[str, Expression] = {}
 
 
 def _evaluate_mittag_leffler(
-    self: Any,  # noqa: ANN401
-    alpha: Any,  # noqa: ANN401
-    beta: Any,  # noqa: ANN401
-    z: Any,  # noqa: ANN401
+    self: Function,
+    alpha: Element | complex,
+    beta: Element | complex,
+    z: Element | complex,
     *,
-    parent: Any = None,  # noqa: ANN401
-    algorithm: Any = None,  # noqa: ANN401
-) -> Any:  # noqa: ANN401
+    parent: Parent | None = None,
+    algorithm: str | None = None,
+) -> Element | complex | float:
     """Return the numeric value of the symbolic Mittag-Leffler function in the field of its arguments."""
     del self, algorithm
     if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
@@ -236,7 +243,7 @@ class SymbolicAnalysis(BaseAnalysis):
             SIGNS[name] = sign
 
     @staticmethod
-    def _reciprocal_gamma(argument: Any) -> Any:  # noqa: ANN401
+    def _reciprocal_gamma(argument: RealNumber) -> RealNumber:
         """Return `1 / Gamma(argument)` of a real number of a Sage field, which is 0 at the poles of gamma."""
         if argument <= 0 and argument == argument.round():
             return argument.parent()(0)
@@ -302,7 +309,7 @@ class SymbolicAnalysis(BaseAnalysis):
         scale = abs(z) ** (1 / alpha)
         if scale <= ASYMPTOTIC_SCALE:
             return SymbolicAnalysis._mittag_leffler_series(alpha, beta, z, scale)
-        if alpha < 2:  # noqa: PLR2004
+        if alpha < ASYMPTOTIC_ORDER:
             return SymbolicAnalysis._mittag_leffler_asymptotic(alpha, beta, z, scale)
         if scale <= LARGEST_SCALE:
             return SymbolicAnalysis._mittag_leffler_series(alpha, beta, z, scale)
@@ -556,7 +563,7 @@ class SymbolicAnalysis(BaseAnalysis):
                 unknown = unknowns[0]
                 conditions = [0, *(float(initial[index]) for index in unknown.indices)] if use_initial_state else None
                 equation = next(iter(equations.values()))
-                if unknown.order <= 2:  # noqa: PLR2004
+                if unknown.order <= DESOLVE_ORDER:
                     solution = desolve(equation, unknown.function, ivar=problem.time, ics=conditions)
                 else:
                     solution = desolve_laplace(equation, unknown.function, ivar=problem.time, ics=conditions)

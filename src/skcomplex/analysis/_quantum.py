@@ -189,8 +189,11 @@ class QuantumAnalysis(BaseAnalysis):
                 self.purity_ = np.sum(np.abs(states) ** 2, axis=(1, 2))
             return self
         if self.kind == 'entanglement':
+            if not self.subsystems:
+                error_msg = f'{type(self).__name__} of kind entanglement needs the subsystems to keep. Give subsystems.'
+                raise AnalysisError(error_msg)
             problem, states = self._states_of(self.trajectory_)
-            self.entropy_ = self._entanglement(problem, states, self.subsystems)  # type: ignore[arg-type]
+            self.entropy_ = self._entanglement(problem, states, self.subsystems)
             return self
         p = self._parameters_of(self.problem_, self.parameters)
         if self.kind == 'ground-state':

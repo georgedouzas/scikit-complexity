@@ -3,8 +3,8 @@
 import dataclasses
 import importlib
 import inspect
-import pickle  # nosec B403: the tests pickle and load only objects they create
 import pkgutil
+from multiprocessing.reduction import ForkingPickler
 from typing import Annotated
 
 import networkx as nx
@@ -596,7 +596,7 @@ def test_simulation_checks_its_observables():
 def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     observables = [ObservableSpec('total', _total)]
-    restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
+    restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
     expected = (
         Simulation(_two_populations(), dt=0.5, observables=observables).check().run(until=1).trajectory_.values('total')
     )

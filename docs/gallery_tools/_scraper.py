@@ -9,9 +9,11 @@ import time
 import weakref
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-from skcomplex.engine.problems import ProblemSpec
+from mkdocs_gallery.gen_data_model import GalleryScript
+from mkdocs_gallery.scrapers import figure_md_or_html
+
+from skcomplex.engine.problems import BaseProblemSpec
 from skcomplex.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache
@@ -35,7 +37,7 @@ _REDIRECT = _Redirect()
 _PREPARE = RerunObserver._prepare
 
 
-def _prepare(observer: RerunObserver, problem: ProblemSpec) -> None:
+def _prepare(observer: RerunObserver, problem: BaseProblemSpec) -> None:
     """Fit an observer, moving the relative recording path of an example that runs in its folder to its run."""
     path, target = observer.save_path, _REDIRECT.target
     in_example = Path.cwd().resolve() == _REDIRECT.source
@@ -45,7 +47,7 @@ def _prepare(observer: RerunObserver, problem: ProblemSpec) -> None:
     _PREPARE(observer, problem)
 
 
-def images_markdown(paths: list[Path], script: Any) -> str:  # noqa: ANN401
+def images_markdown(paths: list[Path], script: GalleryScript) -> str:
     """Return the Markdown of images of an example page, one below the other, in the order of the paths.
 
     Each image is rendered by `figure_md_or_html` of `mkdocs-gallery` with a single path, since its branch for several
@@ -62,8 +64,6 @@ def images_markdown(paths: list[Path], script: Any) -> str:  # noqa: ANN401
         markdown:
             The images as Markdown, separated by blank lines.
     """
-    from mkdocs_gallery.scrapers import figure_md_or_html  # noqa: PLC0415  # optional: only the docs build has it
-
     return '\n\n'.join(figure_md_or_html([path], script) for path in paths)
 
 
@@ -121,7 +121,7 @@ class RerunScraper:
         """Return the backend, which `mkdocs-gallery` shows in its configuration."""
         return f'RerunScraper(backend={self.backend!r})'
 
-    def begin(self, gallery_conf: dict[str, Any], file: Path | None) -> None:
+    def begin(self, gallery_conf: dict[str, object], file: Path | None) -> None:
         """Start the clock and the recording folder of an example, as a module resetter of `mkdocs-gallery`.
 
         Args:
@@ -137,7 +137,7 @@ class RerunScraper:
             shutil.rmtree(self._folder, ignore_errors=True)
         self._folder = Path(tempfile.mkdtemp(prefix=f'{Path(file).stem}-'))
         _REDIRECT.source, _REDIRECT.target = Path(file).resolve().parent, self._folder
-        RerunObserver._prepare = _prepare  # type: ignore[method-assign,unused-ignore]
+        RerunObserver._prepare = _prepare
         self._start, self._captured = time.perf_counter(), 0.0
 
     def _seconds(self) -> float | None:
@@ -154,7 +154,7 @@ class RerunScraper:
             shutil.move(blueprint, target.with_suffix('.rbl'))
         return target
 
-    def __call__(self, block: Any, script: Any) -> str:  # noqa: ANN401
+    def __call__(self, block: object, script: GalleryScript) -> str:
         """Return the Markdown of the screenshot of the recording a code block finished, or nothing.
 
         Args:

@@ -30,7 +30,7 @@ INVENTORY = DOCS / 'overview' / 'inventory.toml'
 def _scaffold(arguments: argparse.Namespace) -> int:
     """Write the scaffolds of the models without an example."""
     written = scaffold_examples(EXAMPLES, INVENTORY, overwrite=arguments.overwrite)
-    print(f'Wrote {len(written)} examples.')  # noqa: T201
+    sys.stdout.write(f'Wrote {len(written)} examples.\n')
     return 0
 
 
@@ -38,12 +38,12 @@ def _coverage(arguments: argparse.Namespace) -> int:
     """Report the models without an example and the orphan examples."""
     coverage = check_coverage(EXAMPLES)
     for name in coverage.missing:
-        print(f'Missing example: {name}')  # noqa: T201
+        sys.stdout.write(f'Missing example: {name}\n')
     for name in coverage.orphans:
-        print(f'Orphan example: {name}')  # noqa: T201
+        sys.stdout.write(f'Orphan example: {name}\n')
     examples = find_examples(EXAMPLES)
     scaffolded = sum(example.scaffolded for example in examples)
-    print(f'{len(examples)} examples, {len(examples) - scaffolded} curated, {scaffolded} scaffolded.')  # noqa: T201
+    sys.stdout.write(f'{len(examples)} examples, {len(examples) - scaffolded} curated, {scaffolded} scaffolded.\n')
     return 1 if arguments.strict and not coverage.complete else 0
 
 
@@ -54,7 +54,7 @@ def _run(arguments: argparse.Namespace) -> int:
     if arguments.names:
         examples = [example for example in examples if example.model in arguments.names]
     reports = run_examples(examples, build, Budget(), arguments.jobs)
-    print(summarize(reports))  # noqa: T201
+    sys.stdout.write(f'{summarize(reports)}\n')
     return 1 if any(report.error for report in reports) else 0
 
 

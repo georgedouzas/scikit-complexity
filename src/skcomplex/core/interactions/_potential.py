@@ -4,11 +4,12 @@
 # License: MIT
 
 from abc import abstractmethod
+from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import SR, Expression, vector
 
 from ...specs import RoleSpec
-from ..laws import RateLaw
+from ..laws import BaseLaw, RateLaw
 from ._interaction import Interaction
 
 
@@ -46,10 +47,10 @@ class PotentialInteraction(Interaction):
     """
 
     @abstractmethod
-    def _get_energy(self, namespace: object) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the potential energy as a symbolic expression of the positions of the particles of the roles."""
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the velocity change of every particle from the gradient of the energy.
 
         Args:
@@ -61,7 +62,7 @@ class PotentialInteraction(Interaction):
                 The rate laws of the velocities of the particles.
         """
         energy = SR(self._get_energy(namespace))
-        laws: list[object] = []
+        laws: list[BaseLaw] = []
         for name, spec in self._get_specs().items():
             if isinstance(spec, RoleSpec):
                 particle = getattr(namespace, name)

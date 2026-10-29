@@ -89,9 +89,9 @@ class SensitivityAnalysis(BaseAnalysis):
         """Return the ensemble kind, since the analysis reads the runs of an experiment."""
         return DataKind.ENSEMBLE
 
-    def _prepare(self, source: ExperimentResult) -> Self:  # type: ignore[override]
+    def _prepare(self, source: object = None) -> Self:
         """Read the design values and the output of every run of an experiment."""
-        if not isinstance(source, ExperimentResult) or not source.runs:
+        if not isinstance(source, ExperimentResult) or not source.runs or not isinstance(self.output, str):
             error_msg = f'A sensitivity analysis reads the result of an experiment with runs, not {source!r}.'
             raise AnalysisError(error_msg)
         if any(run.replicate or run.scenario != source.runs[0].scenario for run in source.runs):
@@ -99,7 +99,7 @@ class SensitivityAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.names_ = list(source.runs[0].row)
         self.inputs_ = np.asarray([[run.row[name] for name in self.names_] for run in source.runs], dtype=float)
-        self.outputs_ = np.asarray(source.column(self.output), dtype=float)  # type: ignore[arg-type]
+        self.outputs_ = np.asarray(source.column(self.output), dtype=float)
         return self
 
     def _run(self, inputs: object = None) -> Self:

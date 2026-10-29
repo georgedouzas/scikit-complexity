@@ -5,7 +5,6 @@ import os
 import shutil
 import tomllib
 from pathlib import Path
-from typing import Any
 
 import nox
 
@@ -14,16 +13,18 @@ os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 
 PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
-CHANGELOG_ARGS: dict[str, Any] = {
-    'repository': '.',
-    'convention': 'angular',
-    'template': 'keepachangelog',
-    'parse_trailers': True,
-    'parse_refs': False,
-    'sections': ['feat', 'fix', 'docs', 'style', 'refactor', 'tests', 'chore'],
-    'bump_latest': True,
-    'output': 'CHANGELOG.md',
-}
+CHANGELOG_ARGS: list[str] = [
+    '--convention',
+    'angular',
+    '--template',
+    'keepachangelog',
+    '--trailers',
+    '--sections',
+    'feat,fix,docs,style,refactor,tests,chore',
+    '--bump',
+    'auto',
+    '.',
+]
 
 
 def check_cli(session: nox.Session, args: list[str], default: str = 'all') -> str:
@@ -206,9 +207,7 @@ def changelog(session: nox.Session) -> None:
         session: The nox session.
     """
     session.run('pdm', 'install', '-dG', 'changelog', '--no-default', external=True)
-    from git_changelog.cli import build_and_render  # noqa: PLC0415
-
-    build_and_render(**CHANGELOG_ARGS)
+    session.run('git-changelog', *CHANGELOG_ARGS, '--output', 'CHANGELOG.md')
 
 
 @nox.session(python=PYTHON_VERSIONS[-1])
@@ -219,12 +218,8 @@ def release(session: nox.Session) -> None:
         session: The nox session.
     """
     session.run('pdm', 'install', '-dG', 'changelog', '--no-default', external=True)
-    from git_changelog.cli import build_and_render  # noqa: PLC0415
-
-    changelog, _ = build_and_render(**CHANGELOG_ARGS)
-    version = changelog.versions_list[0].planned_tag
-    if version is None:
-        version = changelog.versions_list[0].tag
+    session.run('git-changelog', *CHANGELOG_ARGS, '--output', 'CHANGELOG.md')
+    version = str(session.run('git-changelog', *CHANGELOG_ARGS, '--bumped-version', silent=True)).strip()
 
     # Create release branch and commit changelog
     session.run('git', 'checkout', '-b', f'release_{version}', external=True)

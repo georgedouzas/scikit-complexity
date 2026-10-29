@@ -109,11 +109,11 @@ class OrbitDiagramExperiment(BaseExperiment):
             error_msg = f'keep = {self.keep!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Set the simulated time of every run."""
         self.until_ = self.transient + (self.keep - 1) * (self.dt if self.dt is not None else 1.0)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: None = None) -> Self:
         """Run every value of the parameter and keep the values of the observable after the transient."""
         self.points_ = self._replicated_points() if self.vectorized else self._separate_points()
         self.periods_ = np.asarray(
@@ -135,8 +135,8 @@ class OrbitDiagramExperiment(BaseExperiment):
             random_state=self.random_state,
             executor=self.executor,
         )
-        result = experiment.check().prepare().run().result_
-        return [run.series[self.observable] for run in result.runs]
+        experiment.check().prepare().run()
+        return [np.asarray(run.series[self.observable], dtype=float) for run in experiment.result_.runs]
 
     def _replicated_points(self) -> list[Array]:
         """Return the kept values of every member of one simulation of the system replicated over the values."""

@@ -95,7 +95,7 @@ class LatticeElement(GroupElement):
             for name, value in values.items()
         }
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Set `size_`, the number of sites, `values_`, with one row per site, and `default_visual_`.
 
         The default visual is the visual of a member, or the default visual of the space when the member sets none.

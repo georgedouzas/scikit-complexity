@@ -128,15 +128,14 @@ class CalibrationExperiment(BaseExperiment):
             error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: object = None) -> None:
-        """Compile the model, read the data, and set the run settings and the random streams."""
+    def _prepare(self, context: None = None) -> None:
+        """Compile the model, read the data, and set the random streams."""
         factory = self._check_source(self.source)
         self.problem_ = self._compile(factory, self.arguments or {})
         self.series_ = {
             path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
             for path, (times, values) in self.data.items()
         }
-        self.settings_ = {'dt': self.dt} if self.dt is not None else {}
         self.seeds_ = np.random.SeedSequence(self.random_state).spawn(self.replicates)
 
     def _simulate(self, values: Sequence[float]) -> dict[str, Array]:
@@ -145,7 +144,7 @@ class CalibrationExperiment(BaseExperiment):
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
         for seed in self.seeds_:
-            simulation = Simulation(candidate, random_state=np.random.default_rng(seed), **self.settings_).check()
+            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).check()
             trajectory = simulation.run(until).trajectory_
             runs.append(
                 {
@@ -160,7 +159,7 @@ class CalibrationExperiment(BaseExperiment):
         simulated = self._simulate(values)
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series_.items()])
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: None = None) -> Self:
         """Fit the parameters and set the estimates, their covariance, and the fit statistics."""
         names = list(self.bounds)
         start = np.asarray([(self.initial or {}).get(name, sum(self.bounds[name]) / 2) for name in names], dtype=float)
@@ -181,6 +180,7 @@ class CalibrationExperiment(BaseExperiment):
         final = self._residuals(estimate)
         observed = np.concatenate([values for _, values in self.series_.values()])
         dof = max(observed.size - len(names), 1)
+        self.covariance_: Array | None
         try:
             self.covariance_ = np.linalg.inv(jacobian.T @ jacobian) * float(np.sum(final**2)) / dof
         except np.linalg.LinAlgError:

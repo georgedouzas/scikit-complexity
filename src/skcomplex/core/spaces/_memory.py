@@ -41,7 +41,7 @@ class MemoryNeighborhood(BaseNeighborhood):
         """Return the words of the memory set as strings."""
         return tuple(str(element) for element in self.elements)
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set `elements_`, the words of the memory set as strings."""
         self.elements_ = self._get_elements()
         return self

@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
 from ..core.system import System
-from ..engine.problems import BaseProblemSpec, ExpressionPrinter
+from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -222,7 +222,8 @@ class LyapunovAnalysis(BaseAnalysis):
             self.labels_ = series.labels
             return self
         if isinstance(source, System | BaseProblemSpec | Trajectory):
-            self.problem_ = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters).problem
+            dynamics = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters)
+            self.problem_: ProblemSpec | None = dynamics.problem
             return self
         self.problem_ = None
         self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
@@ -311,7 +312,11 @@ class LyapunovAnalysis(BaseAnalysis):
             | {dynamics.time: 't'}
         )
         printer = ExpressionPrinter('scalar', names=lambda item: names[item]).check().prepare()
-        assignments, codes = printer.run([SR(item) for item in expressions])
+        printed = printer.run([SR(item) for item in expressions])
+        if not isinstance(printed, tuple):
+            error_msg = f'The printer returned no code for the Jacobian of {name}.'
+            raise AnalysisError(error_msg)
+        assignments, codes = printed
         lines = [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
         lines += [f'    {bound} = {code}' for bound, code in assignments]
         lines += [

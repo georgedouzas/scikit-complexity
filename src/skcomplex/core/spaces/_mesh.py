@@ -11,6 +11,8 @@ import skfem
 
 from ._base import BaseNeighborhood, BaseSpace
 
+TRIANGLE_DIMENSIONS = 2
+
 
 class MeshSpace(BaseSpace):
     """Unstructured mesh of triangles or tetrahedra, whose nodes hold the members of finite element fields.
@@ -50,10 +52,10 @@ class MeshSpace(BaseSpace):
         self.points = points
         self.cells = cells
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
         points = np.asarray(self.points, dtype=float)
-        kind = skfem.MeshTri if points.shape[0] == 2 else skfem.MeshTet  # noqa: PLR2004
+        kind = skfem.MeshTri if points.shape[0] == TRIANGLE_DIMENSIONS else skfem.MeshTet
         self.mesh_ = kind(points, np.asarray(self.cells, dtype=np.int64))
         self.boundary_nodes_ = np.asarray(self.mesh_.boundary_nodes(), dtype=np.intp)
         self.n_dim_ = int(points.shape[0])

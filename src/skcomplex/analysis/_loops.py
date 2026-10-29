@@ -139,11 +139,15 @@ class _Graph:
             error_msg = f'The loop gain {expression} reads {unknown[0]}, which is no state or parameter of the system.'
             raise AnalysisError(error_msg)
         function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
+        if not callable(function):
+            error_msg = f'The printer returned no function of the loop gain {expression}.'
+            raise AnalysisError(error_msg)
         values = [
             (states if is_state else parameters)[:, index]
             for is_state, index in map(self.readers.__getitem__, arguments)
         ]
-        return np.broadcast_to(np.asarray(function(times, *values)[0], dtype=float), np.shape(times)).copy()
+        gains = np.asarray(function(times, *values), dtype=np.float64)[0]
+        return np.broadcast_to(gains, np.shape(times)).copy()
 
     @staticmethod
     def _without_delays(expression: Expression) -> Expression:
@@ -361,10 +365,14 @@ class LoopAnalysis(BaseAnalysis):
         """Derive the loops, their dominance, or the flow matrix."""
         if self.kind == 'loops':
             self._run_loops()
-        elif self.kind == 'dominance':
-            self._run_dominance(self.trajectory_)  # type: ignore[arg-type]
+            return self
+        if self.trajectory_ is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a trajectory. Prepare it on one.'
+            raise AnalysisError(error_msg)
+        if self.kind == 'dominance':
+            self._run_dominance(self.trajectory_)
         else:
-            self._run_flow_matrix(self.trajectory_)  # type: ignore[arg-type]
+            self._run_flow_matrix(self.trajectory_)
         return self
 
     @staticmethod

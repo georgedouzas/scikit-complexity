@@ -110,11 +110,11 @@ class BasinStabilityExperiment(BaseExperiment):
             error_msg = f'n = {self.n!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Draw the initial states within the bounds."""
-        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().check().prepare(self.bounds).run()
+        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().prepare(self.bounds).rows_
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: None = None) -> Self:
         """Run every initial state, label its trajectory, and set the fraction and error of every attractor."""
         self.labels_ = self._label_members() if self.vectorized else self._label_runs()
         counts = Counter(self.labels_)
@@ -141,11 +141,12 @@ class BasinStabilityExperiment(BaseExperiment):
             random_state=self.random_state,
             executor=self.executor,
         )
-        return [row['attractor'] for row in experiment.check().prepare().run().result_.rows]
+        experiment.check().prepare().run()
+        return [row['attractor'] for row in experiment.result_.rows]
 
     def _label_members(self) -> list[object]:
         """Return the label of every member of one simulation of the system replicated over the initial states."""
-        values = {path: [row[path] for row in self.rows_] for path in self.bounds}
+        values = {path: np.asarray([row[path] for row in self.rows_], dtype=float) for path in self.bounds}
         trajectory, system = self._run_replicated(self.source, values, self.until, self.dt, self.random_state)
         problem = compile_system(system)
         if not isinstance(problem, ProblemSpec):

@@ -5,7 +5,7 @@
 
 from typing import Self
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -59,11 +59,11 @@ class EquationLaw(BaseLaw):
         """Return what the law requires of a system: continuous or static time."""
         return RequirementSpec(time=(ContinuousTime, StaticTime))
 
-    def _get_sides(self) -> tuple[object, object]:
-        """Return the two sides of the equation, splitting a relation given as the left side."""
+    def _get_sides(self) -> tuple[Expression, Expression]:
+        """Return the two sides of the equation as expressions, splitting a relation given as the left side."""
         if self.rhs is None and isinstance(self.lhs, Expression):
             return self.lhs.lhs(), self.lhs.rhs()
-        return self.lhs, self.rhs
+        return SR(self.lhs), SR(self.rhs)
 
     def _check(self) -> Self:
         """Raise an error for an equation without a right side whose left side is not a relation.
@@ -77,7 +77,7 @@ class EquationLaw(BaseLaw):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: str | None = None) -> Self:
         """Set `lhs_` and `rhs_`, the two sides, besides the attributes of every law.
 
         Args:
@@ -104,4 +104,4 @@ class EquationLaw(BaseLaw):
                 The residual, a number when nothing symbolic is left.
         """
         lhs, rhs = self._get_sides()
-        return self._evaluate(lhs - rhs, inputs)  # type: ignore[operator]
+        return self._evaluate(lhs - rhs, inputs)

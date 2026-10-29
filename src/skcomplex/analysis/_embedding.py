@@ -160,10 +160,11 @@ class EmbeddingAnalysis(BaseAnalysis):
         array = self.values_[:, 0]
         self.mutual_information_ = None
         self.false_neighbors_ = None
-        self.delay_ = self.delay
         if self.delay is None:
             self.mutual_information_ = self._auto_mutual_information(array, self.max_delay, self.bins)
             self.delay_ = self._first_minimum(self.mutual_information_)
+        else:
+            self.delay_ = self.delay
         if self.kind == 'false-nearest-neighbors':
             self.false_neighbors_ = self._false_nearest_neighbors(
                 array,
@@ -173,8 +174,9 @@ class EmbeddingAnalysis(BaseAnalysis):
                 escape=self.escape,
             )
             return self
-        self.dimension_ = self.dimension
-        if self.dimension is None:
+        if self.dimension is not None:
+            self.dimension_ = self.dimension
+        else:
             self.false_neighbors_ = self._false_nearest_neighbors(array, self.delay_, self.max_dimension)
             below = np.flatnonzero(self.false_neighbors_ < self.threshold)
             if not below.size:

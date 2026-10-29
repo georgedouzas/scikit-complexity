@@ -47,7 +47,7 @@ class LatticeNeighborhood(BaseNeighborhood):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set `offsets_`, the offsets as tuples of integers."""
         self.offsets_ = self._get_offsets()
         return self

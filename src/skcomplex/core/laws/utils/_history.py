@@ -6,6 +6,8 @@
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.function import BuiltinFunction
 
+DELAY_ARGUMENTS = 2
+
 
 class _Derivative(BuiltinFunction):
     """Time derivative of a state of a given order, `derivative(x, j)`."""
@@ -41,7 +43,7 @@ class _Delayed(BuiltinFunction):
 
     def _eval_(self, *arguments: Expression) -> Expression | None:
         """Return the state itself for a delay of 0, or `None` to stay unevaluated."""
-        if len(arguments) >= 2 and SR(arguments[1]).is_numeric() and SR(arguments[1]).pyobject() == 0:  # noqa: PLR2004
+        if len(arguments) >= DELAY_ARGUMENTS and SR(arguments[1]).is_numeric() and SR(arguments[1]).pyobject() == 0:
             return arguments[0]
         return None
 

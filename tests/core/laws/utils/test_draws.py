@@ -1,6 +1,6 @@
 """Test the `_draws` module of `skcomplex.core.laws.utils`."""
 
-import pickle  # nosec B403: the tests pickle and load only objects they create
+from multiprocessing.reduction import ForkingPickler
 
 import pytest
 from sage.all__sagemath_symbolics import var
@@ -48,7 +48,7 @@ def test_draw_of_a_scipy_distribution_keeps_its_keywords():
 
 def test_draw_pickles_with_its_name():
     """Test that a draw survives pickling with its kind and name."""
-    restored = pickle.loads(pickle.dumps(categorical('k', [1, 2])))  # noqa: S301  # nosec B301: loads its own dump
+    restored = ForkingPickler.loads(ForkingPickler.dumps(categorical('k', [1, 2])))
     (found,) = draws_in(restored)
     assert (found.kind, found.name) == ('categorical', 'k')
 

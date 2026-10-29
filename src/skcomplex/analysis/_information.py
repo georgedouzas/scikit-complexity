@@ -19,6 +19,8 @@ from ..types import AnyArray, Array, DataKind
 from ._base import BaseAnalysis, Source
 from ._entropy import EntropyAnalysis
 
+MIN_DIMENSION = 2
+
 KINDS = (
     'mutual',
     'auto-mutual',
@@ -194,7 +196,7 @@ class InformationAnalysis(BaseAnalysis):
         if small:
             error_msg = f'{type(self).__name__} has {", ".join(small)}. Use 1 or more.'
             raise AnalysisError(error_msg)
-        if self.max_delay < 0 or self.dimension < 2 or self.base <= 0:  # noqa: PLR2004
+        if self.max_delay < 0 or self.dimension < MIN_DIMENSION or self.base <= 0:
             error_msg = (
                 f'{type(self).__name__} has max_delay={self.max_delay!r}, dimension={self.dimension!r}, and '
                 f'base={self.base!r}. Use a max_delay of 0 or more, a dimension of 2 or more, and a positive base.'
@@ -268,7 +270,7 @@ class InformationAnalysis(BaseAnalysis):
         """Compute the information of every pair of series, of every series, or of all series together."""
         columns = self.symbols_
         if self.kind in PAIRWISE:
-            self.information_ = np.asarray(
+            self.information_: float | Array = np.asarray(
                 [
                     [self._compute_pair(first, second, same=row == column) for column, second in enumerate(columns.T)]
                     for row, first in enumerate(columns.T)

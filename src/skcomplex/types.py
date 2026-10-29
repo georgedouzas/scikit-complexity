@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from enum import Enum, StrEnum
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -204,3 +204,23 @@ class ElementKind(StrEnum):
     EDGE_GROUP = 'edge-group'
     HYPEREDGE_GROUP = 'hyperedge-group'
     SYSTEM = 'system'
+
+
+class ReservoirNodeProtocol(Protocol):
+    """Node of ReservoirPy, imported on first use, as the reservoir step reads it: a reservoir or a ridge readout."""
+
+    initialized: bool
+    store: Array
+    state: dict[str, Array]
+
+    def initialize(self, x: Array) -> None:
+        """Initialize the node for inputs of the shape of an example."""
+
+    def run(self, x: Array) -> npt.ArrayLike:
+        """Return the outputs of the node driven by a series of inputs."""
+
+    def step(self, x: Array) -> npt.ArrayLike:
+        """Return the output of the node after one input."""
+
+    def fit(self, x: Array, y: Array) -> object:
+        """Fit the node to inputs and targets."""

@@ -46,7 +46,7 @@ class DiscreteTime(BaseTime):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set the schedule."""
         self.schedule_ = self.schedule
         return self

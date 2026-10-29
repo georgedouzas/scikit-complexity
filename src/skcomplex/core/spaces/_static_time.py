@@ -26,7 +26,7 @@ class StaticTime(BaseTime):
     def __init__(self, *, label: str = 'time') -> None:
         super().__init__(label)
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set no schedule."""
         self.schedule_ = None
         return self

@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 
@@ -14,8 +14,8 @@ from ..core.spaces import DiscreteTime
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import CallSpec
-from ..types import Array, DataKind
-from ._base import BaseAnalysis, SurrogateSource
+from ..types import Array, DataKind, ReservoirNodeProtocol
+from ._base import BaseAnalysis, Runs
 from ._sparse_identification import SparseIdentificationAnalysis
 
 RESERVOIR_KINDS = ('next_generation', 'echo_state')
@@ -25,7 +25,14 @@ ECHO_STATE_WARMUP = 100
 class _ReservoirStep:
     """Map from the variables and the memory of a reservoir to their values one sample later."""
 
-    def __init__(self, kind: str, node: Any, readout: Any, mean: Array, scale: Array) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        kind: str,
+        node: ReservoirNodeProtocol,
+        readout: ReservoirNodeProtocol,
+        mean: Array,
+        scale: Array,
+    ) -> None:
         self.kind = kind
         self.node = node
         self.readout = readout
@@ -107,7 +114,7 @@ class _ReservoirStep:
         size = len(self.mean)
         variables = np.asarray(values[:size], dtype=float)
         self._set_memory(np.asarray(values[size:], dtype=float))
-        features = self.node.step((variables - self.mean) / self.scale)
+        features = np.asarray(self.node.step((variables - self.mean) / self.scale), dtype=np.float64)
         following = variables + np.asarray(self.readout.step(features), dtype=float) * self.scale
         return np.concatenate([following, self.memory()])
 
@@ -265,7 +272,7 @@ class ReservoirAnalysis(BaseAnalysis):
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: SurrogateSource) -> Self:
+    def _prepare(self, source: Runs) -> Self:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
@@ -330,7 +337,7 @@ class ReservoirAnalysis(BaseAnalysis):
         leak: float,
         input_scaling: float,
         random_state: int | None,
-    ) -> Any:  # noqa: ANN401
+    ) -> ReservoirNodeProtocol:
         """Return the ReservoirPy node of a kind of reservoir, a nonlinear vector autoregression or a unit reservoir."""
         nodes = BaseAnalysis._import('reservoirpy.nodes')
         if kind == 'next_generation':

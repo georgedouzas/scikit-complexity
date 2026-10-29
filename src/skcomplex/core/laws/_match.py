@@ -9,6 +9,7 @@ from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ...types import Pairing
 from ..spaces import DiscreteTime
+from ..types import ModelViewProtocol
 from ._base import BaseLaw
 from ._rule import RuleLaw
 from .utils import random_pairing
@@ -97,10 +98,16 @@ class MatchLaw(BaseLaw):
         Returns:
             pairs:
                 The pairs of agents.
+
+        Raises:
+            ValidationError:
+                The input is not a model view.
         """
-        model = inputs
-        left = model.agents(self.left)  # type: ignore[attr-defined]
-        right = left if self.right is None else model.agents(self.right)  # type: ignore[attr-defined]
-        pairs = (self.pairing or random_pairing)(left, right, model.rng, self.capacity)  # type: ignore[attr-defined]
-        model.storage[f'match:{self.label}'] = pairs  # type: ignore[attr-defined]
+        if not isinstance(inputs, ModelViewProtocol):
+            error_msg = f'The match {self.label!r} runs on the model view of a step, but got {inputs!r}.'
+            raise ValidationError(error_msg)
+        left = inputs.agents(self.left)
+        right = left if self.right is None else inputs.agents(self.right)
+        pairs = (self.pairing or random_pairing)(left, right, inputs.rng, self.capacity)
+        inputs.storage[f'match:{self.label}'] = pairs
         return pairs

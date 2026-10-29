@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
 from typing import Self
 
 import numpy as np
@@ -11,6 +12,7 @@ from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
 from ...specs import RoleSpec, VisualSpec
+from ..base import BasePart
 from ..spaces import BaseSpace
 from ._base import BaseElement
 
@@ -205,7 +207,7 @@ class GroupElement(BaseElement):
         self.element(self.label).set_params(**(self.values or {}))
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Set `default_visual_`, the visual of the group when it sets none, `size_`, and `values_`.
 
         The default visual of a group is the visual of a member, or the plain visual when the member sets none. The size
@@ -227,16 +229,16 @@ class GroupElement(BaseElement):
             group:
                 The group itself.
         """
-        super()._prepare()
+        super()._prepare(context)
         member = self.element(self.label).set_params(**(self.values or {}))
         if member.visual is not None:
             self.default_visual_ = member.visual
-        self.size_ = self._size_of(context if isinstance(context, BaseSpace) else None)
+        self.size_ = self._size_of(context)
         self.values_ = self._flatten_values()
         self._check_value_rows()
         return self
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the element type, written for one member, for a namespace of symbols.
 
         Args:

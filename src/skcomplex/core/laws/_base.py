@@ -3,9 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 import inspect
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
+from types import SimpleNamespace
 from typing import Self
 
 import numpy as np
@@ -17,7 +20,7 @@ from ...specs import CallSpec, RequirementSpec
 from ..base import BasePart
 
 
-class BaseLaw(BasePart):
+class BaseLaw(BasePart[str, object]):
     """Base of every law, a rule by which states change, which an element, an interaction, or a system returns.
 
     A law takes the states it changes and the expressions it reads as arguments of its own `__init__`, which stores each
@@ -58,7 +61,7 @@ class BaseLaw(BasePart):
     def _get_requirements(self) -> RequirementSpec:
         """Return what the law requires of a system, such as continuous or discrete time."""
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the law itself, the one law it contributes, whatever the namespace."""
         return [self]
 
@@ -153,7 +156,7 @@ class BaseLaw(BasePart):
         )
         raise ValidationError(error_msg)
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: str | None = None) -> Self:
         """Set `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`.
 
         Args:
@@ -168,5 +171,5 @@ class BaseLaw(BasePart):
         self.reads_ = frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()
         )
-        self.owner_ = context if isinstance(context, str) else None
+        self.owner_ = context
         return self

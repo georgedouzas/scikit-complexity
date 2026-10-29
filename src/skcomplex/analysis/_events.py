@@ -10,6 +10,7 @@ import numpy as np
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
+from ..specs import RelaxationRecordSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
@@ -173,11 +174,12 @@ class EventAnalysis(BaseAnalysis):
             if self.kind != 'excursions':
                 error_msg = f'{type(self).__name__} reads records of excursions for the kind excursions only.'
                 raise AnalysisError(error_msg)
-            self.times_ = self.values_ = None
+            self.times_: Array | None = None
+            self.values_: Array | None = None
             self.labels_ = ['relaxations']
             self.sizes_ = np.asarray([record.size for record in records], dtype=np.float64)
             self.durations_ = np.asarray([record.duration for record in records], dtype=np.float64)
-            self.shapes_ = []
+            self.shapes_: list[Array] = []
             return self
         name = self.variables[0] if self.variables else None
         if self.kind == 'counts':
@@ -204,14 +206,21 @@ class EventAnalysis(BaseAnalysis):
 
     def _run(self, inputs: object = None) -> Self:
         """Compute the events, the counts, the laminar durations, the excursions, or the branching ratio."""
-        if self.kind == 'branching':
-            self.branching_ratio_ = self._branching_ratio(np.asarray(self.values_, dtype=float), self.max_step, self.dt)
-            return self
         if self.kind == 'excursions':
             if self.values_ is not None:
-                self.shapes_ = self._excursions(np.asarray(self.values_[:, 0], dtype=float), self.threshold)
-                self.sizes_ = np.asarray([shape.sum() for shape in self.shapes_], dtype=float)
-                self.durations_ = np.asarray([shape.size for shape in self.shapes_], dtype=float)
+                self.shapes_ = self._excursions(np.asarray(self.values_[:, 0], dtype=np.float64), self.threshold)
+                self.sizes_ = np.asarray([shape.sum() for shape in self.shapes_], dtype=np.float64)
+                self.durations_ = np.asarray([shape.size for shape in self.shapes_], dtype=np.float64)
+            return self
+        if self.values_ is None or self.times_ is None:
+            error_msg = f'{type(self).__name__} reads records of excursions for the kind excursions only.'
+            raise AnalysisError(error_msg)
+        if self.kind == 'branching':
+            self.branching_ratio_ = self._branching_ratio(
+                np.asarray(self.values_, dtype=np.float64),
+                self.max_step,
+                self.dt,
+            )
             return self
         if self.kind == 'counts':
             self.counts_ = self._event_counts(self.times_, float(self.window or 0), self.start, self.end)
@@ -264,11 +273,11 @@ class EventAnalysis(BaseAnalysis):
         return clock[ends[complete] - 1] - clock[starts[complete]] + step
 
     @staticmethod
-    def _records(source: object) -> list[object]:
+    def _records(source: object) -> list[RelaxationRecordSpec]:
         """Return the records of excursions of a source, each with a size and a duration, or nothing for values."""
         if isinstance(source, np.ndarray | Trajectory) or not isinstance(source, Sequence):
             return []
-        records = [item for item in source if hasattr(item, 'size') and hasattr(item, 'duration')]
+        records = [item for item in source if isinstance(item, RelaxationRecordSpec)]
         return records if records and len(records) == len(source) else []
 
     @staticmethod

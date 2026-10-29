@@ -4,9 +4,9 @@
 # License: MIT
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -272,7 +272,8 @@ class StabilityAnalysis(BaseAnalysis):
             entry_name = name.partition('[')[0]
             entry = problem.states.entry(entry_name)
             if entry.members is None:
-                placeholders = expansion.run((set(), 0))
+                expansion.run((set(), 0))
+                placeholders = expansion.substitution_
                 names.append(name)
                 symbols.append(item)
                 rates.append(rate.subs(placeholders) if placeholders else rate)
@@ -286,7 +287,8 @@ class StabilityAnalysis(BaseAnalysis):
                 if other.name.rpartition('.')[0] == owner
             }
             for member in range(entry.rows):
-                mapping = expansion.run((own, member))
+                expansion.run((own, member))
+                mapping = expansion.substitution_
                 names.append(entry.component_names[member * entry.columns + column])
                 symbols.append(mapping[item])
                 rates.append(rate.subs(mapping))
@@ -295,6 +297,17 @@ class StabilityAnalysis(BaseAnalysis):
     @staticmethod
     def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
         """Return the first-order equations of a system with the current values of its parameters.
+
+        Args:
+            system:
+                The system, or the problem compiled from one.
+
+            parameters:
+                The values of parameters by name that replace their initial values, or `None` for none.
+
+        Returns:
+            dynamics:
+                The names, symbols, and right sides of the first-order equations, with the values of the parameters.
 
         Raises:
             AnalysisError:
@@ -388,7 +401,7 @@ class StabilityAnalysis(BaseAnalysis):
         return 'centre' if oscillating and np.all(np.abs(real) <= ZERO) else 'marginal'
 
     @staticmethod
-    def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
+    def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expression:
         """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
         operator = expression.operator()
         if operator is None:
@@ -423,7 +436,9 @@ class StabilityAnalysis(BaseAnalysis):
         return field, field.space.check().prepare()
 
     @staticmethod
-    def _linearised_rates(field: FieldElement) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    def _linearised_rates(
+        field: FieldElement,
+    ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, npt.ArrayLike]]:
         """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values."""
         states = list(declarations_of(field.element, VariableKind.STATE))
         member = field.element(field.label)
@@ -436,8 +451,8 @@ class StabilityAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             parameters[name] = float(value)
         names = {name: symbol(f'_{name}_') for name in states}
-        rates: dict[str, Any] = {}
-        for law in member.check().run(SimpleNamespace(**names, **parameters, t=symbol('t'))):
+        rates: dict[str, Expression] = {}
+        for law in member.check()._get_laws(SimpleNamespace(**names, **parameters, t=symbol('t'))):
             targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
             target = next((name for name, item in names.items() if targets and targets[0] is item), None)
             if not isinstance(law, RateLaw) or target is None:
@@ -447,7 +462,10 @@ class StabilityAnalysis(BaseAnalysis):
         return {name: rates[name] for name in states if name in rates}, names, values
 
     @staticmethod
-    def _uniform_point(rates: dict[str, Any], variables: list[Any]) -> Any:  # noqa: ANN401
+    def _uniform_point(
+        rates: dict[str, Expression],
+        variables: list[Expression],
+    ) -> Callable[[list[float]], list[float]]:
         """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
         local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
 
@@ -458,7 +476,7 @@ class StabilityAnalysis(BaseAnalysis):
         return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
 
     @staticmethod
-    def _eigenvalue_terms(entry: Any, name: str) -> list[tuple[float, int]]:  # noqa: ANN401
+    def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
         """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
         try:
             return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
@@ -476,7 +494,8 @@ class StabilityAnalysis(BaseAnalysis):
         rates, names, values = StabilityAnalysis._linearised_rates(field)
         order = list(rates)
         variables = [names[name] for name in order]
-        start = [float(np.mean((at or {}).get(name, values.get(name, 0.0)))) for name in order]
+        given: dict[str, npt.ArrayLike] = {**values, **(at or {})}
+        start = [float(np.mean(np.asarray(given.get(name, 0.0), dtype=np.float64))) for name in order]
         uniform = start if at is not None else StabilityAnalysis._uniform_point(rates, variables)(start)
         substitution = dict(zip(variables, uniform, strict=True))
         axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.shape_, lattice.spacings_, strict=True)]

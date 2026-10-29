@@ -268,7 +268,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.duration_ = self.duration
         if isinstance(source, Trajectory) and self.kind in PATH_KINDS:
             path = self._read_path(source, name)
-            self.values_ = np.asarray(path.states, dtype=np.int64).reshape(1, -1)
+            self.values_: npt.NDArray[np.int64] | Array = np.asarray(path.states, dtype=np.int64).reshape(1, -1)
             if self.duration is None:
                 self.duration_ = float(path.times[-1] - path.times[0])
             return self
@@ -339,7 +339,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
 
     def _run_uncertainty_relation(self) -> None:
         """Compute the precision of the current against the entropy production."""
-        values = self.values_.ravel()
+        values = np.asarray(self.values_, dtype=np.float64).ravel()
         entropy = float(self.entropy or 0.0)
         if values.size < MIN_PATHS or entropy < 0:
             error_msg = (

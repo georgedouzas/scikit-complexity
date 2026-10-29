@@ -5,6 +5,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Self
 
 from ..errors import ValidationError
@@ -57,7 +58,7 @@ class TopologyRequestSpec(BaseSpec):
 
     kind: str
     edges: int = 1
-    toward: Callable[[object], object] | None = None
+    toward: Callable[[SimpleNamespace], object] | None = None
     keep: str = 'source'
     layer: str | None = None
     values: tuple[tuple[str, object], ...] = ()

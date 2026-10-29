@@ -15,7 +15,7 @@ from .interactions import BaseInteraction
 from .spaces import BaseSpace, BaseTime
 
 
-class System(BasePart):
+class System(BasePart[BaseSpace, SimpleNamespace]):
     """Composition of elements and the interactions between them, with nested systems, on a space, in a time.
 
     A system is defined by its parts and by nothing about how it runs. An interaction refers to an element by its path
@@ -97,7 +97,7 @@ class System(BasePart):
             part.check()
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Prepare the space and the time, then the elements and the nested systems on the space, then the interactions.
 
         Args:
@@ -129,4 +129,8 @@ class System(BasePart):
             laws:
                 The laws of the space, the elements, the interactions, and the nested systems, in that order.
         """
-        return [law for part in self._get_parts() for law in part._get_laws(getattr(namespace, part.label, None))]
+        return [
+            law
+            for part in self._get_parts()
+            for law in part._get_laws(getattr(namespace, part.label, SimpleNamespace()))
+        ]

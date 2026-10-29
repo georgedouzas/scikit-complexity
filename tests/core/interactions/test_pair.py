@@ -1,5 +1,6 @@
 """Test the `_pair` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -64,7 +65,7 @@ def test_pair_interaction_stores_its_roles_and_cutoff():
         'second': 'gas',
     }
     assert list(RepulsionInteraction._get_specs()) == ['first', 'second', 'cutoff', 'k']
-    assert repulsion.check().prepare().run(None) == []
+    assert repulsion.check().prepare().run(SimpleNamespace()) == []
 
 
 def test_pair_interaction_needs_a_positive_cutoff():

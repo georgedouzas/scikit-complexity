@@ -14,6 +14,8 @@ from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 from ._markov import MarkovAnalysis
 
+ENSEMBLE_DIMENSIONS = 2
+
 MIN_RUNS = 2
 FIT_POINTS = 50
 KINDS = ('breaking', 'metric', 'distance', 'invariant-density', 'ulam')
@@ -172,7 +174,7 @@ class ErgodicityAnalysis(BaseAnalysis):
             return self
         self.values_ = np.asarray(source, dtype=float)
         self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
-        if self.values_.ndim != 2 or self.values_.shape[0] < MIN_RUNS:  # noqa: PLR2004
+        if self.values_.ndim != ENSEMBLE_DIMENSIONS or self.values_.shape[0] < MIN_RUNS:
             error_msg = (
                 f'The diagnostics need at least two runs, one row per run, not an array of shape {self.values_.shape}.'
             )

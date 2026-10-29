@@ -62,8 +62,12 @@ class LocalOperatorSpec(BaseSpec):
         return LocalOperatorSpec(name, matrix, hermitian=False)
 
     @staticmethod
-    def _sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
+    def _sparse_matrix(matrix: object) -> sp.csr_array:
         """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
         if isinstance(matrix, qutip.Qobj):
-            matrix = matrix.full()
-        return sp.csr_array(np.asarray(matrix.toarray() if sp.issparse(matrix) else matrix, dtype=complex))
+            dense = matrix.full()
+        elif isinstance(matrix, sp.sparray | sp.spmatrix):
+            dense = matrix.toarray()
+        else:
+            dense = matrix
+        return sp.csr_array(np.asarray(dense, dtype=complex))

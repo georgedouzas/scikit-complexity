@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
 
 
 class CoarseGrainAnalysis(BaseAnalysis):
@@ -123,7 +123,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
         if box is None:
             error_msg = f'{type(self).__name__} needs the sides of the box. Set `box`.'
             raise AnalysisError(error_msg)
-        self.box_ = np.asarray(box, dtype=float)
+        self.box_: Array | None = np.asarray(box, dtype=np.float64)
         if len(self.shape) != self.box_.size:
             error_msg = f'The shape {tuple(self.shape)} needs one entry per dimension of the box, {self.box_.size}.'
             raise AnalysisError(error_msg)
@@ -139,7 +139,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
             self.positions_ = values.reshape(values.shape[0], -1)
         else:
             self.positions_ = np.asarray(source, dtype=float)
-        if not self.positions_.size or self.positions_.ndim > 2:  # noqa: PLR2004
+        if not self.positions_.size or self.positions_.ndim > SNAPSHOT_DIMENSIONS:
             error_msg = f'{type(self).__name__} needs the values of one member or more, one row per frame.'
             raise AnalysisError(error_msg)
         self.box_ = None
@@ -156,9 +156,13 @@ class CoarseGrainAnalysis(BaseAnalysis):
 
     def _get_field(self, positions: Array) -> Array:
         """Return the grid of counts, or of sums of the values, of one snapshot."""
+        if self.box_ is None:
+            error_msg = f'{type(self).__name__} counts positions in a box, but read the values of a state with `over`.'
+            raise AnalysisError(error_msg)
         shape = tuple(int(side) for side in self.shape)
-        array = np.mod(positions.reshape(-1, self.box_.size), self.box_)
-        cells = np.minimum((array / self.box_ * np.asarray(shape)).astype(int), np.asarray(shape) - 1)
+        box = self.box_
+        array = np.mod(positions.reshape(-1, box.size), box)
+        cells = np.minimum((array / box * np.asarray(shape)).astype(int), np.asarray(shape) - 1)
         flat = np.ravel_multi_index(tuple(cells.T), shape)
         total = int(np.prod(shape))
         if self.values is None:
@@ -171,11 +175,11 @@ class CoarseGrainAnalysis(BaseAnalysis):
     def _run(self, inputs: object = None) -> Self:
         """Compute the field of the snapshot, or of every frame of a trajectory."""
         if self.over is not None:
-            frames = self.positions_ if self.positions_.ndim == 2 else self.positions_[None]  # noqa: PLR2004
+            frames = self.positions_ if self.positions_.ndim == SNAPSHOT_DIMENSIONS else self.positions_[None]
             densities = np.asarray([self._get_density(row) for row in frames])
-            self.field_ = densities if self.positions_.ndim == 2 else densities[0]  # noqa: PLR2004
+            self.field_ = densities if self.positions_.ndim == SNAPSHOT_DIMENSIONS else densities[0]
             return self
-        if self.positions_.ndim > 2:  # noqa: PLR2004
+        if self.positions_.ndim > SNAPSHOT_DIMENSIONS:
             self.field_ = np.asarray([self._get_field(frame) for frame in self.positions_])
             return self
         self.field_ = self._get_field(self.positions_)

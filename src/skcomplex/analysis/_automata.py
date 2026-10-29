@@ -6,7 +6,7 @@
 import functools
 import itertools
 from collections.abc import Callable, Sequence
-from typing import Any, Self, cast
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -26,6 +26,7 @@ METHODS = ('auto', 'enumeration', 'sat')
 IDENTITY = '1'
 
 type Reach = LatticeNeighborhood | MemoryNeighborhood
+type Item = str | tuple[int, ...]
 type Sites = BaseSpace
 
 
@@ -254,18 +255,21 @@ class AutomatonAnalysis(BaseAnalysis):
     @staticmethod
     def _model_of(source: object) -> str | None:
         """Return the model a source is by its methods: a linear automaton, a subshift, an automaton, or `None`."""
-        if hasattr(source, 'laurent_polynomial'):
+        if isinstance(source, LinearAutomatonProtocol):
             return 'linear automaton'
-        if hasattr(source, 'violations'):
+        if isinstance(source, SubshiftProtocol):
             return 'subshift'
-        if hasattr(source, 'local_map'):
+        if isinstance(source, AutomatonProtocol):
             return 'automaton'
         return None
 
     def _prepare(self, source: Source) -> Self:
         """Keep the automaton, the linear automaton, or the subshift, after checking that the kind reads it."""
         models = SOURCES[self.kind]
-        if self._model_of(source) not in models:
+        if (
+            not isinstance(source, AutomatonProtocol | LinearAutomatonProtocol | SubshiftProtocol)
+            or self._model_of(source) not in models
+        ):
             error_msg = (
                 f'{type(self).__name__} of kind {self.kind!r} reads an {" or a ".join(models)}, not '
                 f'{type(source).__name__}. Build one of them.'
@@ -274,10 +278,17 @@ class AutomatonAnalysis(BaseAnalysis):
         self.automaton_ = source
         return self
 
+    def _get_automaton(self) -> AutomatonProtocol:
+        """Return the automaton of a rule, raising an error for a linear automaton or a subshift."""
+        if not isinstance(self.automaton_, AutomatonProtocol):
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads an automaton of a rule.'
+            raise AnalysisError(error_msg)
+        return self.automaton_
+
     def _decide(self) -> None:
         """Set whether the automaton is injective, surjective, or pre-injective."""
         automaton = self.automaton_
-        if self._model_of(automaton) == 'linear automaton':
+        if isinstance(automaton, LinearAutomatonProtocol):
             injective = self.kind == 'injective'
             decision = (
                 self._linear_injective(automaton, infinite=self.infinite)
@@ -285,32 +296,49 @@ class AutomatonAnalysis(BaseAnalysis):
                 else self._linear_surjective(automaton, infinite=self.infinite)
             )
         elif self.kind == 'pre-injective':
-            decision = self._is_pre_injective(automaton, self.window, method=self.method)  # type: ignore[arg-type]
+            decision = self._is_pre_injective(self._get_automaton(), self.window, method=self.method)
         else:
-            decision = self._is_injective(automaton, method=self.method)  # type: ignore[arg-type]
+            decision = self._is_injective(self._get_automaton(), method=self.method)
         setattr(self, f'{self.kind.replace("-", "_")}_', decision)
 
     def _run(self, inputs: object = None) -> Self:
         """Decide or measure the automaton."""
-        automaton = self.automaton_
         if self.kind in {'injective', 'surjective', 'pre-injective'}:
             self._decide()
         elif self.kind == 'garden-of-eden':
             self.pattern_ = self._garden_of_eden(
-                automaton,
+                self._get_automaton(),
                 self.window,
                 tries=self.tries,
                 random_state=self.random_state,
             )
         elif self.kind == 'inverse':
-            self.inverse_ = self._inverse(automaton, self.max_radius)
-        elif self.kind == 'compose':
-            self.composition_ = self._compose(automaton, self.second)  # type: ignore[arg-type]
-        elif self.kind == 'difference':
-            self.differences_ = self._difference_pattern(automaton, self.configuration, self.site, self.steps)
+            self.inverse_ = self._inverse(self._get_automaton(), self.max_radius)
+        elif self.kind in {'compose', 'difference'}:
+            self._run_pair()
         else:
-            self.entropy_ = self._configuration_entropy(automaton, self.windows, base=self.base)  # type: ignore[arg-type]
+            subject = self.automaton_
+            if isinstance(subject, LinearAutomatonProtocol) or self.windows is None:
+                error_msg = (
+                    f'{type(self).__name__} of kind entropy reads an automaton of a rule or a subshift, and windows.'
+                )
+                raise AnalysisError(error_msg)
+            self.entropy_ = self._configuration_entropy(subject, self.windows, base=self.base)
         return self
+
+    def _run_pair(self) -> None:
+        """Set the composition with the second automaton, or the difference pattern of a changed configuration."""
+        automaton = self._get_automaton()
+        if self.kind == 'compose':
+            if self.second is None:
+                error_msg = f'{type(self).__name__} of kind compose needs second. Give it.'
+                raise AnalysisError(error_msg)
+            self.composition_ = self._compose(automaton, self.second)
+            return
+        if self.configuration is None:
+            error_msg = f'{type(self).__name__} of kind difference needs configuration. Give it.'
+            raise AnalysisError(error_msg)
+        self.differences_ = self._difference_pattern(automaton, self.configuration, self.site, self.steps)
 
     @staticmethod
     def _fitted(space: Sites) -> Sites:
@@ -358,12 +386,17 @@ class AutomatonAnalysis(BaseAnalysis):
         return method == 'enumeration' or (method == 'auto' and enumerable)
 
     @staticmethod
-    def _shifted(element: Any, base: Any) -> Any:  # noqa: ANN401
+    def _shifted(element: Item, base: Item) -> Item:
         """Return the composite of an element of a memory set after an element of another, as a word or an offset."""
-        if isinstance(element, str):
+        if isinstance(element, str) and isinstance(base, str):
             parts = [part for part in (base, element) if part.strip() not in {'', IDENTITY}]
             return '*'.join(parts) or IDENTITY
-        return tuple(first + second for first, second in zip(base, element, strict=True))
+        if isinstance(element, tuple) and isinstance(base, tuple):
+            return tuple(first + second for first, second in zip(base, element, strict=True))
+        error_msg = (
+            f'Composed automata read words of a memory set or offsets of a lattice, not {element!r} after {base!r}.'
+        )
+        raise AnalysisError(error_msg)
 
     @staticmethod
     def _rule_clauses(
@@ -461,7 +494,13 @@ class AutomatonAnalysis(BaseAnalysis):
         if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, LatticeNeighborhood):
             error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
             raise AnalysisError(error_msg)
-        return cast('Reach', AutomatonAnalysis._fitted(automaton.space)._ball(radius))
+        ball = AutomatonAnalysis._fitted(automaton.space)._ball(radius)
+        if not isinstance(ball, LatticeNeighborhood | MemoryNeighborhood):
+            error_msg = (
+                f'The space of the automaton gives a ball of {type(ball).__name__}, which an automaton cannot read.'
+            )
+            raise AnalysisError(error_msg)
+        return ball
 
     @staticmethod
     def _is_injective(automaton: AutomatonProtocol, *, method: str = 'auto') -> bool:
@@ -546,7 +585,7 @@ class AutomatonAnalysis(BaseAnalysis):
         inner, outer = first.reads, second.reads
         inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.check().prepare().offsets_
         outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.check().prepare().offsets_
-        composite: list[Any] = []
+        composite: list[Item] = []
         columns = []
         for base in outer_items:
             row = []
@@ -557,9 +596,9 @@ class AutomatonAnalysis(BaseAnalysis):
                 row.append(composite.index(item))
             columns.append(tuple(row))
         reach: Reach = (
-            MemoryNeighborhood(tuple(composite))
+            MemoryNeighborhood(tuple(item for item in composite if isinstance(item, str)))
             if isinstance(inner, MemoryNeighborhood)
-            else LatticeNeighborhood(tuple(composite))
+            else LatticeNeighborhood(tuple(item for item in composite if isinstance(item, tuple)))
         )
         composed = _ComposedRuleSpec(first.local_map(), second.local_map(), tuple(columns), first.states)
         rule = functools.partial(AutomatonAnalysis._composed_rule, composed)
@@ -598,7 +637,7 @@ class AutomatonAnalysis(BaseAnalysis):
         """Return the entropy `log |X_F| / |F|` of a subshift or of the image of an automaton on every window."""
         entropies = []
         for window in windows:
-            if hasattr(subject, 'violations'):
+            if isinstance(subject, SubshiftProtocol):
                 entropies.append(np.log(subject.count(window)) / AutomatonAnalysis._size(window))
                 continue
             automaton = type(subject)(window, subject.neighborhood, subject.rule, subject.states)

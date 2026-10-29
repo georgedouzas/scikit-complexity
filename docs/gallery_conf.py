@@ -9,6 +9,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 from gallery_tools import RerunScraper, build_from_environment
 
 
@@ -24,8 +25,6 @@ def quiet_show(gallery_conf: dict[str, Any], file: Path) -> None:
         file:
             The example about to run.
     """
-    import matplotlib.pyplot as plt  # noqa: PLC0415
-
     plt.show = lambda *_, **__: None
 
 

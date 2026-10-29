@@ -135,10 +135,11 @@ class SectionAnalysis(BaseAnalysis):
         """Validate the kind, that the kind reads every changed setting, and that its needed settings are given."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind])
-        needed = {
+        requirements: dict[str, dict[str, object]] = {
             'poincare': {'state': self.state},
             'stroboscopic': {'period': self.period},
-        }[self.kind]
+        }
+        needed = requirements[self.kind]
         missing = [name for name, value in needed.items() if value is None]
         if missing:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {", ".join(missing)}. Give them.'
@@ -159,7 +160,7 @@ class SectionAnalysis(BaseAnalysis):
             error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form}.'
             raise AnalysisError(error_msg)
         if self.kind == 'poincare' and (
-            not problem.states.has(self.state) or problem.states.entry(self.state).size != 1
+            self.state is None or not problem.states.has(self.state) or problem.states.entry(self.state).size != 1
         ):
             error_msg = (
                 f'{self.state!r} is not a scalar state. Available states are: {", ".join(problem.states.names)}.'
@@ -170,6 +171,9 @@ class SectionAnalysis(BaseAnalysis):
 
     def _crossings(self, problem: ProblemSpec) -> tuple[Array, Array]:
         """Return the times and the states where the state crosses the value of the Poincaré section."""
+        if self.state is None:
+            error_msg = 'A Poincaré section needs a state. Give one.'
+            raise AnalysisError(error_msg)
         index = problem.states.entry(self.state).start
         value = self.value
 
@@ -197,7 +201,10 @@ class SectionAnalysis(BaseAnalysis):
 
     def _samples(self, problem: ProblemSpec) -> tuple[Array, Array]:
         """Return the times and the states at multiples of the forcing period."""
-        period = float(self.period)  # type: ignore[arg-type]
+        if self.period is None:
+            error_msg = 'A stroboscopic section needs a period. Give one.'
+            raise AnalysisError(error_msg)
+        period = float(self.period)
         transient = int(self.transient if self.transient is not None else 100)
         until = period * (transient + self.n_points - 1)
         simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check()

@@ -188,8 +188,8 @@ class LinearizationAnalysis(BaseAnalysis):
         self.observability_ = self._controllability(self.A_.T, self.C_.T)
         self.gain_ = (
             None
-            if self.state_weights is None
-            else self._lqr(self.A_, self.B_, self.state_weights, self.control_weights)  # type: ignore[arg-type]
+            if self.state_weights is None or self.control_weights is None
+            else self._lqr(self.A_, self.B_, self.state_weights, self.control_weights)
         )
         return self
 

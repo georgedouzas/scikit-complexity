@@ -95,6 +95,10 @@ class AlignmentAnalysis(BaseAnalysis):
         ([1.0, 0.0], [0.5])
     """
 
+    angles_: Array | None
+    vectors_: Array | None
+    positions_: Array | None
+
     def __init__(
         self,
         kind: str = 'mean-vector',
@@ -163,16 +167,18 @@ class AlignmentAnalysis(BaseAnalysis):
         angles, vectors, positions = self.angles_, self.vectors_, self.positions_
         if angles is None and vectors is not None:
             angles = np.arctan2(vectors[..., 1], vectors[..., 0])
-        needed = (positions, vectors) if self.kind == 'mean-rotation' else (angles,)
-        if any(item is None for item in needed):
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} needs the angles, vectors, or positions that the source '
-                'lacks. Use a source with them.'
-            )
-            raise AnalysisError(error_msg)
+        error_msg = (
+            f'{type(self).__name__} of kind {self.kind!r} needs the angles, vectors, or positions that the source '
+            'lacks. Use a source with them.'
+        )
         if self.kind == 'mean-rotation':
+            if positions is None or vectors is None:
+                raise AnalysisError(error_msg)
             self.order_ = self._mean_rotation(positions, vectors)
-        elif self.kind == 'mean-vector':
+            return self
+        if angles is None:
+            raise AnalysisError(error_msg)
+        if self.kind == 'mean-vector':
             self.order_ = (
                 self._mean_vector_length(vectors, vectors=True)
                 if vectors is not None

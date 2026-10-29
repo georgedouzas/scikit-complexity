@@ -10,15 +10,17 @@ from concurrent.futures.process import BrokenProcessPool
 from typing import Self
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.base import BaseEstimator, clone
 
 from ..core.specs import ScenarioSpec
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Simulation
+from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
-from ..types import Bounds
+from ..types import Bounds, Row
 from ._base import BaseDesign, BaseExperiment, Source
 from ._results import ExperimentResult
 from .specs._task_spec import Output, _TaskSpec
@@ -109,7 +111,7 @@ class Experiment(BaseExperiment):
         analyses: Sequence[BaseEstimator] | None = None,
         until: float | None = None,
         dt: float | None = None,
-        solver: object = None,
+        solver: BaseSolver | None = None,
         outputs: Sequence[Output] | None = None,
         warmup: float = 0.0,
         random_state: int | None = None,
@@ -158,17 +160,18 @@ class Experiment(BaseExperiment):
             prefixes.append(f'{name}-{seen[name]}' if counts[name] > 1 else name)
         return tuple(zip(prefixes, self.analyses or (), strict=True))
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Resolve the source and set the runs of the experiment, compiling every problem once before serial runs."""
         source = self._check_source(self.source)
         observables = list(self.observables) if self.observables is not None else None
-        settings = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
         until = float(self.until if self.until is not None else 10.0)
-        rows = self.design.check().prepare(self.bounds).run() if self.design is not None else [{}]
+        rows: list[Row] = [{}]
+        if self.design is not None:
+            rows = [dict(row) for row in self.design.check().prepare(self.bounds).rows_]
         scenarios = list(self.scenarios) if self.scenarios else [ScenarioSpec()]
         analyses = self._name_analyses()
         seeds = np.random.SeedSequence(self.random_state).spawn(len(rows) * self.replicates)
-        self.tasks_ = []
+        self.tasks_: list[_TaskSpec] = []
         for row_index, row in enumerate(rows):
             for scenario in scenarios:
                 for replicate in range(self.replicates):
@@ -181,7 +184,8 @@ class Experiment(BaseExperiment):
                         replicate,
                         seed,
                         until,
-                        settings,
+                        self.dt,
+                        self.solver,
                         self.outputs,
                         self.warmup,
                         observables,
@@ -202,7 +206,7 @@ class Experiment(BaseExperiment):
         return arguments, paths
 
     @staticmethod
-    def _schedule(problem: BaseProblemSpec, scenario: ScenarioSpec) -> dict[str, Callable[[float], object]]:
+    def _schedule(problem: BaseProblemSpec, scenario: ScenarioSpec) -> dict[str, Callable[[float], npt.ArrayLike]]:
         """Return every scheduled parameter of a scenario as a step function of time, which a simulation reads.
 
         Before its first change a parameter keeps its initial value in the problem, and every change holds from the
@@ -220,16 +224,19 @@ class Experiment(BaseExperiment):
                 entry, indices = layout.locate(path)
                 initial = entry.decode(vector[indices]).reshape(entry.shape)
             except KeyError:
-                initial = None
-            changes = [(time, value) for time, name, value in ordered if name == path]
+                initial = np.full((), np.nan)
+            changes = [(time, np.asarray(value)) for time, name, value in ordered if name == path]
             functions[path] = Experiment._step_function(initial, changes)
         return functions
 
     @staticmethod
-    def _step_function(initial: object, changes: list[tuple[float, object]]) -> Callable[[float], object]:
+    def _step_function(
+        initial: npt.ArrayLike,
+        changes: Sequence[tuple[float, npt.ArrayLike]],
+    ) -> Callable[[float], npt.ArrayLike]:
         """Return the function of time that takes the value of the last change at or before a time, else the initial."""
 
-        def value_at(time: float) -> object:
+        def value_at(time: float) -> npt.ArrayLike:
             due = [value for start, value in changes if start <= time + 1e-12]
             return due[-1] if due else initial
 
@@ -245,7 +252,8 @@ class Experiment(BaseExperiment):
             problem,
             random_state=np.random.default_rng(task.seed),
             schedule=Experiment._schedule(problem, task.scenario),
-            **task.settings,
+            dt=task.dt,
+            solver=task.solver,
         ).check()
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
@@ -287,19 +295,21 @@ class Experiment(BaseExperiment):
             scalars=scalars,
         )
 
-    def _run(self, inputs: object = None) -> Self:
+    def _get_executor(self) -> Executor:
+        """Return the executor of the runs, a new thread or process pool for its name."""
+        if isinstance(self.executor, Executor):
+            return self.executor
+        return ThreadPoolExecutor() if self.executor == 'thread' else ProcessPoolExecutor()
+
+    def _run(self, inputs: None = None) -> Self:
         """Run every task and keep the results in `result_`."""
         if self.executor == 'serial':
             results = [self._run_task(task) for task in self.tasks_]
         else:
-            executor = self.executor
-            owned = isinstance(executor, str)
-            if executor == 'thread':
-                executor = ThreadPoolExecutor()
-            elif executor == 'process':
-                executor = ProcessPoolExecutor()
+            executor = self._get_executor()
+            owned = isinstance(self.executor, str)
             try:
-                results = list(executor.map(self._run_task, self.tasks_))  # type: ignore[union-attr]
+                results = list(executor.map(self._run_task, self.tasks_))
             except BrokenProcessPool as error:
                 error_msg = (
                     'The worker processes of the experiment stopped before finishing their tasks. On macOS and '
@@ -310,6 +320,6 @@ class Experiment(BaseExperiment):
                 raise ExperimentError(error_msg) from error
             finally:
                 if owned:
-                    executor.shutdown()  # type: ignore[union-attr]
+                    executor.shutdown()
         self.result_ = ExperimentResult(results)
         return self

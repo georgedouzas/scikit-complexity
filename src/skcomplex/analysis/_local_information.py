@@ -131,6 +131,7 @@ class LocalInformationAnalysis(BaseAnalysis):
     def _run(self, inputs: object = None) -> Self:
         """Compute the local information of every series or of every pair of series."""
         columns = self.values_.T
+        local: list[Array] | list[list[Array]]
         if self.kind == 'entropy':
             local = [-self._log_probabilities(column[:, None], self.estimator) for column in columns]
         else:

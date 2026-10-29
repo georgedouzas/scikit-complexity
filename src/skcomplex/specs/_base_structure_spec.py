@@ -12,8 +12,10 @@ import numpy.typing as npt
 import shapely
 
 from ..errors import ValidationError
-from ..types import AnyArray
+from ..types import AnyArray, Array
 from ._base_spec import BaseSpec
+
+SPACE_DIMENSIONS = 3
 
 
 @dataclass(frozen=True)
@@ -78,8 +80,8 @@ class BaseStructureSpec(BaseSpec):
             length:
                 The total length.
         """
-        segments = self.segments()
-        if segments.shape[-1] == 3:  # noqa: PLR2004
+        segments = np.asarray(self.segments(), dtype=float)
+        if segments.shape[-1] == SPACE_DIMENSIONS:
             return float(np.linalg.norm(segments[:, 1] - segments[:, 0], axis=-1).sum())
         return float(shapely.length(self.geometry()).sum())
 
@@ -156,7 +158,7 @@ class BaseStructureSpec(BaseSpec):
         return grid
 
     @staticmethod
-    def _mark(grid: npt.NDArray[np.bool_], points: AnyArray, xmin: float, ymax: float, cell: float) -> None:
+    def _mark(grid: npt.NDArray[np.bool_], points: Array, xmin: float, ymax: float, cell: float) -> None:
         """Mark the cells of a grid that hold points."""
         resolution = grid.shape[0]
         columns = np.clip(((points[:, 0] - xmin) / cell).astype(int), 0, resolution - 1)

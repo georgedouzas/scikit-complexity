@@ -15,7 +15,7 @@ from scipy.spatial import cKDTree
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
 
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
 SETTINGS = {
@@ -173,7 +173,7 @@ class NeighborAnalysis(BaseAnalysis):
                 box = snapshots.box
         else:
             array = np.asarray(source, dtype=float)
-            positions = array[None] if array.ndim == 2 else array  # noqa: PLR2004
+            positions = array[None] if array.ndim == SNAPSHOT_DIMENSIONS else array
         self.positions_ = positions
         self.box_ = box
         return self

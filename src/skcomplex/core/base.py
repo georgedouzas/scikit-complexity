@@ -17,7 +17,7 @@ from ..errors import ValidationError
 from ..specs import ParameterSpec, RoleSpec, Spec, StateSpec
 
 
-class BasePart(BaseConfig):
+class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of every part of a system: its elements, its interactions, the laws they return, and the system itself.
 
     Every part has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the
@@ -27,6 +27,9 @@ class BasePart(BaseConfig):
     - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
     - `_run(inputs)` returns what the part contributes: the laws of an element, an interaction, or a system by
       default, or the value of a law.
+
+    A part is generic in the context of `prepare` and the input of `run`, which every base of parts names: a law
+    is prepared against the path of its owner, an element against the space of its system.
 
     A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
     `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `check` validates every declared spec. A part
@@ -103,7 +106,7 @@ class BasePart(BaseConfig):
         return self
 
     @abstractmethod
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: ContextT | None) -> Self:
         """Prepare the part against its context, set its attributes that end in `_`, and return the part."""
         return self
 
@@ -111,7 +114,7 @@ class BasePart(BaseConfig):
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the part contributes for a namespace of symbols: a law contributes itself."""
 
-    def _run(self, inputs: object) -> object:
+    def _run(self, inputs: InputT | None) -> object:
         """Return the laws of the part for its namespace, which a law overrides to return its value.
 
         Args:
@@ -121,7 +124,14 @@ class BasePart(BaseConfig):
         Returns:
             laws:
                 The laws of the part.
+
+        Raises:
+            ValidationError:
+                The input is not a namespace.
         """
+        if not isinstance(inputs, SimpleNamespace):
+            error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
+            raise ValidationError(error_msg)
         return self._get_laws(inputs)
 
     def check(self) -> Self:

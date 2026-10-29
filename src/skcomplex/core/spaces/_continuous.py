@@ -80,7 +80,7 @@ class ContinuousSpace(BaseSpace):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set the extent of the box, its dimension, and its boundary, with no sites."""
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)

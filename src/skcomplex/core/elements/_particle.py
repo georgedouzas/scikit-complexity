@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Annotated, Self
 
 import numpy.typing as npt
@@ -10,7 +11,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ...specs import ParameterSpec, StateSpec, VisualSpec
-from ..laws import RateLaw
+from ..laws import BaseLaw, RateLaw
+from ..spaces import BaseSpace
 from ._element import Element
 
 
@@ -58,7 +60,7 @@ class ParticleElement(Element):
         self.v = v
         self.m = m
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Set `default_visual_`, points at the positions of the particle.
 
         Args:
@@ -72,7 +74,7 @@ class ParticleElement(Element):
         self.default_visual_ = VisualSpec('points', {'position': 'x'})
         return self
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the kinematic law `dx/dt = v`.
 
         Args:
@@ -83,4 +85,4 @@ class ParticleElement(Element):
             laws:
                 The laws of the particle.
         """
-        return [RateLaw(namespace.x, namespace.v)]  # type: ignore[attr-defined]
+        return [RateLaw(namespace.x, namespace.v)]

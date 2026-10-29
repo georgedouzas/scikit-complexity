@@ -16,6 +16,7 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, function, var, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.function import Function
 
 from ....errors import ValidationError
 from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
@@ -35,14 +36,14 @@ def _is_placeholder(item: Expression, value: int) -> bool:
 
 
 def _print_reduction(
-    self: object,
+    self: Function,
     argument: Expression,
     condition: Expression,
     weights: Expression,
     over: Expression,
 ) -> str:
     """Return a reduction call with its keywords, leaving out the absent condition, weights, and group."""
-    name = self.name()  # type: ignore[attr-defined]
+    name = self.name()
     parts = [] if name == 'count' else [str(argument)]
     if not _is_placeholder(over, 0):
         parts.append(f'over={over}')

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 from ..specs._run_result_spec import _RunResultSpec
 
@@ -119,12 +120,12 @@ class ExperimentResult:
                 One row per design row and scenario, with `<output>.mean`, `<output>.std`, and `<output>.q<quantile>`
                 columns and the number of replicates as `runs`.
         """
-        groups: dict[tuple[object, ...], list[_RunResultSpec]] = defaultdict(list)
+        groups: dict[tuple[tuple[tuple[str, object], ...], str], list[_RunResultSpec]] = defaultdict(list)
         for run in self.runs:
             groups[(tuple(run.row.items()), run.scenario)].append(run)
         summary = []
         for (row, scenario), runs in groups.items():
-            entry: dict[str, object] = {**dict(row), 'scenario': scenario, 'runs': len(runs)}  # type: ignore[call-overload]
+            entry: dict[str, object] = {**dict(row), 'scenario': scenario, 'runs': len(runs)}
             for name in runs[0].scalars:
                 values = np.asarray([run.scalars[name] for run in runs])
                 if values.ndim != 1 or not np.issubdtype(values.dtype, np.number):
@@ -137,20 +138,11 @@ class ExperimentResult:
             summary.append(entry)
         return summary
 
-    def to_frame(self) -> object:
+    def to_frame(self) -> pd.DataFrame:
         """Return the rows as a pandas data frame.
 
         Returns:
             frame:
                 The data frame.
-
-        Raises:
-            ImportError:
-                pandas is not installed.
         """
-        try:
-            import pandas as pd  # noqa: PLC0415
-        except ImportError as error:
-            error_msg = 'to_frame needs pandas. Install it, or use `rows`, which needs nothing more.'
-            raise ImportError(error_msg) from error
         return pd.DataFrame(self.rows)

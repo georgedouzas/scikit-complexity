@@ -1,5 +1,6 @@
 """Test the `_conditions` module of `skcomplex.core.laws.utils`."""
 
+import importlib.util
 import warnings
 from typing import Annotated
 
@@ -46,7 +47,7 @@ def test_functions_differentiate_by_branch():
     assert str(where(x < 0, -(x**2), x**3).diff(x)) == 'where(x < 0, -2*x, 3*x^2)'
 
 
-def test_functions_lower_to_numpy_and_numba():
+def test_functions_lower_to_numpy_and_numba(tmp_path):
     """Test that NumPy code evaluates conditions and remainders like the Python operators."""
     x = var('x')
     expression = where(either(x < 0, x > 2), -x, mod(x, 2))
@@ -54,7 +55,11 @@ def test_functions_lower_to_numpy_and_numba():
     result = ExpressionPrinter(time=var('t'), compiled=True).check().prepare([x]).run([expression])(0.0, values)[0]
     assert np.allclose(result, [1.5, 0.5, -3.5])
     scalar = ExpressionPrinter('scalar').check().prepare().run([expression])[1][0]
-    assert eval(scalar, {'x': 0.5}) == 0.5  # noqa: S307  # nosec B307: evaluates printed code of a fixed expression
+    (tmp_path / 'printed.py').write_text(f'def value(x):\n    return {scalar}\n')
+    specification = importlib.util.spec_from_file_location('printed', tmp_path / 'printed.py')
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    assert module.value(0.5) == 0.5
     assert 'np.where' in ExpressionPrinter().check().prepare().run([expression])[1][0]
 
 

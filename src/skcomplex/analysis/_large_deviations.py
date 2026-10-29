@@ -278,11 +278,15 @@ class LargeDeviationAnalysis(BaseAnalysis):
 
     def _clone(self, tilt: float) -> tuple[float, float]:
         """Return the generating function at one tilt and the smallest effective population, by cloning."""
-        observable: str | Callable[[Trajectory], float] = self.observable  # type: ignore[assignment]
+        observable = self.observable
+        if observable is None:
+            error_msg = f'{type(self).__name__} of method cloning needs the observable whose increments it tilts.'
+            raise AnalysisError(error_msg)
         population, steps = self.population, round(self.until / self.interval)
         rng = np.random.default_rng(self.random_state)
         settings = {'dt': self.interval, **(self.simulation or {})}
-        problem = Simulation(self.system_, **settings).check().run(until=self.interval).problem_  # type: ignore[arg-type]
+        simulation = Simulation(self.system_).set_params(**settings).check().run(until=self.interval)
+        problem = simulation.problem_
         states = np.tile(problem.initial_state, (population, 1))
         log_growth, effective = 0.0, float(population)
         for _ in range(steps):
@@ -290,7 +294,9 @@ class LargeDeviationAnalysis(BaseAnalysis):
             for index in range(population):
                 start = replace(problem, initial_state=states[index].copy())
                 seed = int(rng.integers(2**31 - 1))
-                simulation = Simulation(start, random_state=seed, **settings).check().run(until=self.interval)  # type: ignore[arg-type]
+                simulation = (
+                    Simulation(start, random_state=seed).set_params(**settings).check().run(until=self.interval)
+                )
                 increments[index] = self._increment(observable, simulation.trajectory_)
                 states[index] = np.asarray(simulation.trajectory_.states)[-1]
             logs = tilt * increments
