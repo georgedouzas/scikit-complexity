@@ -49,7 +49,7 @@ def test_scipy_ode_matches_exponential(method):
     problem = _growth_problem()
     stepper = ScipyODESolver(method=method, rtol=1e-9, atol=1e-12)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).state_
     assert state[0] == pytest.approx(np.exp(2.0), rel=1e-6)
 
 
@@ -290,7 +290,7 @@ def _timed_scipy(problem, method, jacobian, until=10.0):
     stepper = ScipyODESolver(method=method, rtol=1e-6, jacobian=jacobian)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     start = time.perf_counter()
-    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, until))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, until)).state_
     return time.perf_counter() - start, state, calls[0], stepper
 
 
@@ -426,7 +426,7 @@ def _advance(problem, until=1.0, p=None, **options):
     stepper = ScipyODESolver(**options)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     parameters = problem.initial_parameters if p is None else p
-    return stepper.run(StepSpec(0.0, problem.initial_state, parameters, until)), stepper
+    return stepper.run(StepSpec(0.0, problem.initial_state, parameters, until)).state_, stepper
 
 
 def _relative(first, second):
@@ -670,13 +670,13 @@ def test_exact_jacobian_follows_parameter_changes():
     for option in ['exact', 'dense']:
         stepper = ScipyODESolver(method='BDF', rtol=1e-8, jacobian=option)
         stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-        x = stepper.run(StepSpec(0.0, problem.initial_state, p, 0.5))
+        x = stepper.run(StepSpec(0.0, problem.initial_state, p, 0.5)).state_
         changed = p.copy()
         changed[problem.parameters.entry('line.D').indices] = 3.0
-        states[option] = stepper.run(StepSpec(0.5, x, changed, 1.0))
+        states[option] = stepper.run(StepSpec(0.5, x, changed, 1.0)).state_
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()
-            exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.5, x, changed)).toarray()
+            exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.5, x, changed)).values_.toarray()
             np.testing.assert_allclose(jacobian, exact)
     assert _relative(states['exact'], states['dense']) < 1e-5
 
@@ -709,7 +709,7 @@ def test_adaptive_explicit_method_warns_once_on_stiff_field():
     stepper = ScipyODESolver(method='RK45')
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
-        x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))
+        x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).state_
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         stepper.run(StepSpec(2.0, x, problem.initial_parameters, 4.0))

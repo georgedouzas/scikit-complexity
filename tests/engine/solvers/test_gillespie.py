@@ -24,7 +24,7 @@ def test_gillespie_conserves_individuals():
     )
     stepper = GillespieSolver()
     stepper.set_params(random_state=np.random.default_rng(1)).check().prepare(problem)
-    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
     assert state.sum() == 50
     assert 0 < state[0] < 50
     assert np.all(state == np.round(state))

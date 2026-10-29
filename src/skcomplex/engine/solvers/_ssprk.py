@@ -50,7 +50,7 @@ class SSPRKSolver(Solver):
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(burgers(64))
         >>> stepper = SSPRKSolver(random_state=0).check().prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """

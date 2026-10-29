@@ -24,8 +24,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
     A solver stores its settings in its constructor, among them the random state of stochastic solvers and the end
     time of the run it prepares for. `prepare(problem)` prepares it for a problem and `run(step)` advances the state
-    of a `StepSpec` from its time to its end time and returns the state vector there. The last call `run(step,
-    final=True)` releases what preparing acquired, such as an external process.
+    of a `StepSpec` from its time to its end time and keeps the state vector there in `state_`. The last call
+    `run(step, final=True)` releases what preparing acquired, such as an external process.
 
     Subclasses implement the hooks `_get_form`, the form they solve, `_get_support`, what they solve, and `_advance`,
     and solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers
@@ -64,6 +64,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
         agents_:
             The views of the agents alive after the last run, as rules receive them, by path of their agent group.
+
+        state_:
+            The state vector at the end time of the last step.
     """
 
     problem_: P
@@ -73,6 +76,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     stopped_at_: float | None
     snapshot_: object | None
     agents_: Mapping[str, list[object]]
+    state_: Array
 
     def __init__(self, *, random_state: int | np.random.Generator | None = None, until: float = math.inf) -> None:
         self.random_state = random_state
@@ -200,19 +204,15 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         """Set the events, the stop time, the snapshot, and the agents after a run; the base keeps none."""
         self.events_ = []
 
-    def _run(self, inputs: StepSpec | None) -> Array:
-        """Advance the state of the step to its end time and collect what the run produced.
+    def _run(self, inputs: StepSpec | None) -> None:
+        """Advance the state of the step to its end time, keep it in `state_`, and collect what the run produced.
 
-        A step that does not go forward in time returns its state unchanged, so a final run of no length releases the
+        A step that does not go forward in time keeps its state unchanged, so a final run of no length releases the
         solver.
 
         Args:
             inputs:
                 The step.
-
-        Returns:
-            state:
-                The state vector at the end time of the step.
 
         Raises:
             ValidationError:
@@ -222,9 +222,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
             error_msg = 'A solver runs on a step. Pass the step to `run`.'
             raise ValidationError(error_msg)
         t, x, p, until = inputs.t, inputs.x, inputs.p, inputs.until
-        state = self._advance(t, x, p, until) if until > t else x
+        self.state_ = self._advance(t, x, p, until) if until > t else x
         self._collect()
-        return state
 
     @staticmethod
     def _is_hybrid(problem: ProblemSpec, t: float, until: float) -> bool:

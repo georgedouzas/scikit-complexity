@@ -220,7 +220,7 @@ class Simulation(BaseConfig[None, float]):
 
         Raises:
             TypeError:
-                The compiler does not return a problem, or names an object that is not a solver.
+                The compiler names an object that is not a solver.
         """
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
@@ -229,11 +229,7 @@ class Simulation(BaseConfig[None, float]):
             self.problem_ = PassCompiler._with_initial_state(self.system, initial)
         else:
             compiler = self._compiler().check().prepare(self.system)
-            problem = compiler.run(initial)
-            if not isinstance(problem, BaseProblemSpec):
-                error_msg = f'A compiler returns a compiled problem, not a {type(problem).__name__}.'
-                raise TypeError(error_msg)
-            self.problem_ = problem
+            self.problem_ = compiler.run(initial).problem_
             named = compiler.solver_
         if named is not None and not isinstance(named, BaseSolver):
             error_msg = f'A compiler names a solver, not a {type(named).__name__}.'
@@ -324,14 +320,8 @@ class Simulation(BaseConfig[None, float]):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                state = self.stepper_.run(
-                    StepSpec(self.time_, self.state_, self.parameters_, target),
-                    final=released,
-                )
-                if not isinstance(state, np.ndarray):
-                    error_msg = f'A solver returns the state vector, not a {type(state).__name__}.'
-                    raise TypeError(error_msg)
-                self.state_ = state
+                step = StepSpec(self.time_, self.state_, self.parameters_, target)
+                self.state_ = self.stepper_.run(step, final=released).state_
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -410,7 +400,7 @@ class Simulation(BaseConfig[None, float]):
             changed.update(dict.fromkeys(positions[indices].tolist(), name))
         for matrix in matrices:
             names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)) if names else None
+            violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)).values_ if names else None
             if violation is not None:
                 error_msg = (
                     f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '
@@ -470,7 +460,7 @@ class Simulation(BaseConfig[None, float]):
         super().run(until, final)
         return self
 
-    def _run(self, inputs: float | None) -> Self:
+    def _run(self, inputs: float | None) -> None:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
@@ -479,10 +469,6 @@ class Simulation(BaseConfig[None, float]):
         Args:
             inputs:
                 The simulated time to stop at.
-
-        Returns:
-            simulation:
-                The simulation itself.
 
         Raises:
             ValidationError:
@@ -494,7 +480,6 @@ class Simulation(BaseConfig[None, float]):
         self.prepare()
         self._start(inputs)
         self._loop(inputs)
-        return self
 
     def extend(self, until: float) -> Self:
         """Continue a finished run from its last frame to `until` in the calling thread.

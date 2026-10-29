@@ -60,7 +60,8 @@ class RK4Solver(Solver):
         ...     ),
         ... )
         >>> stepper = RK4Solver(dt=0.001, random_state=0).check().prepare(problem)
-        >>> round(float(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 10)
+        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> round(float(stepper.run(step).state_[0]), 10)
         2.7182818285
     """
 

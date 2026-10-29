@@ -227,7 +227,7 @@ def test_lammps_walls_confine_atoms_on_their_own():
     backend.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
     state = problem.initial_state
     for step in range(20):
-        state = backend.run(StepSpec(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5))
+        state = backend.run(StepSpec(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5)).state_
         positions = problem.states.read(state, 'gas.x')
         assert np.all((positions >= 0) & (positions <= 10))
 

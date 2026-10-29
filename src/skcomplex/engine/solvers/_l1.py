@@ -49,7 +49,8 @@ class L1Solver(ConvolutionSolver):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
         >>> stepper = L1Solver(dt=0.001, random_state=0).check().prepare(problem)
-        >>> round(float(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))[0]), 2)
+        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> round(float(stepper.run(step).state_[0]), 2)
         0.43
     """
 

@@ -377,7 +377,7 @@ class SplitSolver(Solver):
             reference = term.references[item]
             column = reference.entry.view(p)[:, reference.column]
             values.append(float(column[0]) if reference.entry.members is None else column)
-        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([term.coefficient])
+        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([term.coefficient]).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'
             raise TypeError(error_msg)

@@ -366,7 +366,7 @@ def test_held_observable_reduces_element_group():
 
 def test_subsystem_partitions_hold_reductions_of_agents():
     """Test that compiling one partition per subsystem holds the reductions of agents that laws read."""
-    problem = PassCompiler(partition='subsystems').check().prepare(harvesting()).run()
+    problem = PassCompiler(partition='subsystems').check().prepare(harvesting()).run().problem_
     assert [partition.name for partition in problem.partitions] == ['land', 'village']
 
 
