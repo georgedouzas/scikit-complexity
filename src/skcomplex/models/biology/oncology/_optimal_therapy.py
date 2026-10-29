@@ -72,6 +72,9 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
         label:
             The label of the patient.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         E:
             The initial immune cells.
 
@@ -83,6 +86,54 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
 
         U:
             The initial drug concentration.
+
+        s:
+            The influx of immune cells.
+
+        rho:
+            The immune response rate.
+
+        alpha:
+            The immune threshold.
+
+        c1:
+            The rate at which the tumour inactivates immune cells.
+
+        c2:
+            The rate at which immune cells kill the tumour.
+
+        c3:
+            The rate at which normal cells compete with the tumour.
+
+        c4:
+            The rate at which the tumour competes with normal cells.
+
+        d1:
+            The death rate of immune cells.
+
+        r1:
+            The growth rate of the tumour.
+
+        r2:
+            The growth rate of normal cells.
+
+        b1:
+            The reciprocal carrying capacity of the tumour.
+
+        b2:
+            The reciprocal carrying capacity of normal cells.
+
+        a1:
+            The fraction of immune cells the drug kills.
+
+        a2:
+            The fraction of tumour cells the drug kills.
+
+        a3:
+            The fraction of normal cells the drug kills.
+
+        k:
+            The decay rate of the drug, `dU` in the book.
 
         u:
             The infusion rate of the drug, the control input.
@@ -177,6 +228,9 @@ class OptimalImmunotherapyElement(Element):
     Args:
         label:
             The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial effector cells.

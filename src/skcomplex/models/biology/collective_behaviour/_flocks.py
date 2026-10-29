@@ -16,9 +16,10 @@ from ....core.interactions import Interaction, PairPotentialInteraction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._boid_view import BoidView
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
@@ -44,6 +45,9 @@ class BoidElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         vx:
             The initial horizontal velocity.
@@ -114,7 +118,12 @@ class BoidElement(Element):
         self.width = width
         self.height = height
 
-    def _steering(self, agent: AgentView, neighbours: list[AgentView], size: np.ndarray) -> np.ndarray:
+    @classmethod
+    def _get_view(cls) -> type[BoidView]:
+        """Return the view of a boid, `BoidView`."""
+        return BoidView
+
+    def _steering(self, agent: BoidView, neighbours: list[BoidView], size: np.ndarray) -> np.ndarray:
         """Return the change of velocity from cohesion, separation, and alignment."""
         here = np.asarray(agent.location, dtype=float)
         offsets = np.array([_wrapped(np.asarray(other.location) - here, size) for other in neighbours])
@@ -140,7 +149,7 @@ class BoidElement(Element):
         """
         return [RuleLaw(self.flock)]
 
-    def flock(self, agent: AgentView, model: ModelView) -> None:
+    def flock(self, agent: BoidView, model: ModelView) -> None:
         """Steer by the three rules, limit the speed, and move.
 
         Args:
@@ -152,7 +161,7 @@ class BoidElement(Element):
         """
         size = np.array([agent.width, agent.height])
         velocity = np.array([agent.vx, agent.vy])
-        neighbours = agent.neighbors(radius=agent.radius)
+        neighbours = [other for other in agent.neighbors(radius=agent.radius) if isinstance(other, BoidView)]
         if neighbours:
             velocity = velocity + self._steering(agent, neighbours, size)
         velocity = _limited(velocity, agent.min_speed, agent.max_speed)
@@ -225,6 +234,9 @@ class MorsePotentialInteraction(PairPotentialInteraction):
 
         cutoff:
             The distance beyond which pairs do not interact.
+
+        position:
+            The name of the position state of the members.
 
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.

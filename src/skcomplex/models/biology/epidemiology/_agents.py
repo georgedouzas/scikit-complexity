@@ -19,6 +19,9 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._person_view import PersonView
+from ._traveller_view import TravellerView
+from ._walker_view import WalkerView
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
@@ -50,6 +53,9 @@ class PersonElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         health:
             The health state.
@@ -120,16 +126,21 @@ class PersonElement(Element):
         self.lockdown_length = lockdown_length
         self.lockdown_d = lockdown_d
 
-    def _infect(self, agent: AgentView, model: ModelView) -> None:
+    @classmethod
+    def _get_view(cls) -> type[PersonView]:
+        """Return the view of a person, `PersonView`."""
+        return PersonView
+
+    def _infect(self, agent: PersonView, model: ModelView) -> None:
         """Infect every susceptible person of the cell with probability `beta`."""
         if model.rng.random() >= agent.beta:
             return
         for other in agent.agents_here(agent.group):
-            if other.health == SUSCEPTIBLE:
+            if isinstance(other, PersonView) and other.health == SUSCEPTIBLE:
                 other.health = EXPOSED if agent.incubation > 0 else INFECTED
                 other.clock = 0.0
 
-    def _progress(self, agent: AgentView, model: ModelView) -> None:
+    def _progress(self, agent: PersonView, model: ModelView) -> None:
         """Advance the course of the disease of an exposed, infected, or recovered person."""
         if agent.health == EXPOSED:
             agent.clock += 1
@@ -157,7 +168,7 @@ class PersonElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: PersonView, model: ModelView) -> None:
         """Walk, infect the cell when infectious, and advance the disease.
 
         Args:
@@ -186,6 +197,9 @@ class WalkerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         health:
             The health state.
@@ -226,6 +240,11 @@ class WalkerElement(Element):
         self.infection = infection
         self.travel = travel
 
+    @classmethod
+    def _get_view(cls) -> type[WalkerView]:
+        """Return the view of a walker, `WalkerView`."""
+        return WalkerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -239,7 +258,7 @@ class WalkerElement(Element):
         """
         return [RuleLaw(self.walk)]
 
-    def walk(self, agent: AgentView, model: ModelView) -> None:
+    def walk(self, agent: WalkerView, model: ModelView) -> None:
         """Walk, and when sick, infect the walkers of the cell and age towards death.
 
         Args:
@@ -255,7 +274,7 @@ class WalkerElement(Element):
         if agent.health != SICK:
             return
         for other in agent.agents_here(agent.group):
-            if other.health == HEALTHY and model.rng.random() < agent.infection:
+            if isinstance(other, WalkerView) and other.health == HEALTHY and model.rng.random() < agent.infection:
                 other.health = SICK
                 other.remaining = other.lifetime
         agent.remaining -= 1
@@ -273,6 +292,9 @@ class TravellerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         health:
             The health state.
@@ -313,6 +335,11 @@ class TravellerElement(Element):
         self.days = days
         self.m = m
 
+    @classmethod
+    def _get_view(cls) -> type[TravellerView]:
+        """Return the view of a traveller, `TravellerView`."""
+        return TravellerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -326,7 +353,7 @@ class TravellerElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: TravellerView, model: ModelView) -> None:
         """Infect and recover when infected, then travel.
 
         Args:
@@ -338,7 +365,7 @@ class TravellerElement(Element):
         """
         if agent.health == INFECTED:
             for other in agent.agents_here(agent.group):
-                if other.health == SUSCEPTIBLE and model.rng.random() < agent.tau:
+                if isinstance(other, TravellerView) and other.health == SUSCEPTIBLE and model.rng.random() < agent.tau:
                     other.health = INFECTED
                     other.clock = 0.0
             agent.clock += 1

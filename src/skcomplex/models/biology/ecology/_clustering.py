@@ -42,6 +42,9 @@ class HabitatPatchElement(Element):
         label:
             The label of the patch or the lattice of patches.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of organisms.
 
@@ -90,17 +93,14 @@ class HoppingInteraction(Interaction):
         label:
             The label of the interaction.
 
+        patches:
+            The paths of the patches, such as the members `patches[i]` of a lattice.
+
+        beta:
+            The rate at which an organism hops to one neighbouring patch.
+
         links:
             The ordered pairs of entries of `patches` between which organisms hop.
-
-        **values:
-            The values of the declared variables, by name:
-
-            patches:
-                The paths of the patches, such as the members `patches[i]` of a lattice.
-
-            beta:
-                The rate at which an organism hops to one neighbouring patch.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import HoppingInteraction

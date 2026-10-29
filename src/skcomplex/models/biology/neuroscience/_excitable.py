@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -39,20 +39,20 @@ class ExcitableElementElement(Element):
         label:
             The label of the element or the site group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        phase:
+            The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
+
+        p:
+            The probability that an excited neighbour excites the element in one step.
+
+        stimulus:
+            The rate `r` of the external stimulus per step.
+
         n_states:
             The number of states `m` of the cycle.
-
-        **values:
-            The values of the declared variables, by name:
-
-            phase:
-                The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
-
-            p:
-                The probability that an excited neighbour excites the element in one step.
-
-            stimulus:
-                The rate `r` of the external stimulus per step.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import ExcitableElementElement
@@ -89,7 +89,7 @@ class ExcitableElementElement(Element):
         """
         n_states = self.n_states
 
-        def excite(phase: Array, *around: Array, p: Any, stimulus: Any, random: Array) -> Array:  # noqa: ANN401
+        def excite(phase: Array, *around: Array, p: float | Array, stimulus: float | Array, random: Array) -> Array:
             excited = sum((item == EXCITED for item in around), np.zeros(np.shape(phase)))
             quiet = np.exp(-stimulus) * (1 - p) ** excited
             fires = np.where(random >= quiet, float(EXCITED), 0.0)

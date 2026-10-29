@@ -32,6 +32,9 @@ class PerClockElement(Element):
         label:
             The label of the clock.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         M:
             The initial per mRNA concentration.
 

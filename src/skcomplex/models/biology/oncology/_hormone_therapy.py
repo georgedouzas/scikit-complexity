@@ -77,6 +77,9 @@ class AndrogenSuppressionElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         AD:
             The initial number of androgen-dependent cells.
 
@@ -186,6 +189,9 @@ class IntermittentSuppressionElement(Element):
     Args:
         label:
             The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial number of androgen-dependent cells.
@@ -334,104 +340,104 @@ class CellQuotaProstateElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AD:
+            The initial number of androgen-dependent cells.
+
+        AI:
+            The initial number of androgen-independent cells.
+
+        Q1:
+            The initial cell quota of the dependent cells.
+
+        Q2:
+            The initial cell quota of the independent cells.
+
+        P:
+            The initial serum PSA.
+
+        U:
+            The initial serum androgen.
+
+        rm:
+            The maximum proliferation rate.
+
+        q1:
+            The minimum quota of the dependent cells.
+
+        q2:
+            The minimum quota of the independent cells.
+
+        d1:
+            The death rate of the dependent cells.
+
+        d2:
+            The death rate of the independent cells.
+
+        d3:
+            The degradation rate of the quota.
+
+        qm:
+            The maximum quota.
+
+        vm:
+            The maximum uptake rate of androgen.
+
+        v50:
+            The serum androgen at which the uptake is half way.
+
+        mx1:
+            The maximum mutation rate from dependent to independent.
+
+        mx2:
+            The maximum mutation rate from independent to dependent.
+
+        m501:
+            The quota at which the mutation to independence is half way.
+
+        m502:
+            The quota at which the mutation back to dependence is half way.
+
+        n:
+            The steepness of the mutation rates.
+
+        r0:
+            The baseline PSA production per cell.
+
+        r1:
+            The androgen-driven PSA production per dependent cell.
+
+        r2:
+            The androgen-driven PSA production per independent cell.
+
+        rho1:
+            The quota at which the PSA production of the dependent cells is half way.
+
+        rho2:
+            The quota at which the PSA production of the independent cells is half way.
+
+        theta:
+            The steepness of the PSA production.
+
+        du:
+            The clearance rate of the PSA.
+
+        U0:
+            The normal serum androgen.
+
+        Umin:
+            The serum androgen under therapy.
+
+        du1:
+            The rate at which the serum androgen relaxes.
+
         period:
             The time between the starts of therapy periods.
 
         width:
             The duration of a therapy period.
-
-        **values:
-            The values of the declared variables, by name:
-
-            AD:
-                The initial number of androgen-dependent cells.
-
-            AI:
-                The initial number of androgen-independent cells.
-
-            Q1:
-                The initial cell quota of the dependent cells.
-
-            Q2:
-                The initial cell quota of the independent cells.
-
-            P:
-                The initial serum PSA.
-
-            U:
-                The initial serum androgen.
-
-            rm:
-                The maximum proliferation rate.
-
-            q1:
-                The minimum quota of the dependent cells.
-
-            q2:
-                The minimum quota of the independent cells.
-
-            d1:
-                The death rate of the dependent cells.
-
-            d2:
-                The death rate of the independent cells.
-
-            d3:
-                The degradation rate of the quota.
-
-            qm:
-                The maximum quota.
-
-            vm:
-                The maximum uptake rate of androgen.
-
-            v50:
-                The serum androgen at which the uptake is half way.
-
-            mx1:
-                The maximum mutation rate from dependent to independent.
-
-            mx2:
-                The maximum mutation rate from independent to dependent.
-
-            m501:
-                The quota at which the mutation to independence is half way.
-
-            m502:
-                The quota at which the mutation back to dependence is half way.
-
-            n:
-                The steepness of the mutation rates.
-
-            r0:
-                The baseline PSA production per cell.
-
-            r1:
-                The androgen-driven PSA production per dependent cell.
-
-            r2:
-                The androgen-driven PSA production per independent cell.
-
-            rho1:
-                The quota at which the PSA production of the dependent cells is half way.
-
-            rho2:
-                The quota at which the PSA production of the independent cells is half way.
-
-            theta:
-                The steepness of the PSA production.
-
-            du:
-                The clearance rate of the PSA.
-
-            U0:
-                The normal serum androgen.
-
-            Umin:
-                The serum androgen under therapy.
-
-            du1:
-                The rate at which the serum androgen relaxes.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import CellQuotaProstateElement
@@ -552,6 +558,9 @@ class AndrogenReceptorProstateElement(Element):
     Args:
         label:
             The label of the prostate.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial normal epithelial cells.
@@ -806,6 +815,9 @@ class PiecewiseLinearProstateElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         AD:
             The initial androgen-dependent cells.
 
@@ -950,6 +962,9 @@ class TamoxifenTumourElement(Element):
     Args:
         label:
             The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         Ag:
             The initial volume of cells in the growth phase.

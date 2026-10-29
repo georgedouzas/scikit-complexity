@@ -36,6 +36,9 @@ class StandElement(Element):
         label:
             The label of the stand.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         volume:
             The initial stem volume.
 

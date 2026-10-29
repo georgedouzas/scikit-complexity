@@ -26,6 +26,9 @@ class TwoCompartmentElement(Element):
         label:
             The label of the patient.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         Uc:
             The initial central concentration.
 

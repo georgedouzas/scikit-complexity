@@ -15,10 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._organism_view import OrganismView
 
 
 def _richness(species: Array) -> float:
@@ -32,6 +33,9 @@ class OrganismElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         species:
             The label of the species.
@@ -51,6 +55,11 @@ class OrganismElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.species = species
+
+    @classmethod
+    def _get_view(cls) -> type[OrganismView]:
+        """Return the view of an organism, `OrganismView`."""
+        return OrganismView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the replacement moves every individual.
@@ -119,8 +128,8 @@ class NeutralReplacementInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.community, AgentView)
-        species = np.array([individual.species for individual in individuals], dtype=float)
+        individuals = model.agents(self.community, OrganismView)
+        species = np.array([individual.species for individual in individuals], dtype=np.float64)
         size = len(species)
         rng = model.rng
         dead = rng.integers(size, size=size)

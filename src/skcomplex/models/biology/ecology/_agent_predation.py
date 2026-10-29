@@ -18,6 +18,8 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, VisualSpec
 from ..._catalog import register_model
+from ._predator_view import PredatorView
+from ._prey_view import PreyView
 
 PREY = 'prey'
 
@@ -34,6 +36,9 @@ class PreyElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         birth:
             The probability of giving birth at every step.
@@ -54,6 +59,11 @@ class PreyElement(Element):
         super().__init__(label, visual=visual)
         self.birth = birth
 
+    @classmethod
+    def _get_view(cls) -> type[PreyView]:
+        """Return the view of a prey, `PreyView`."""
+        return PreyView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -67,7 +77,7 @@ class PreyElement(Element):
         """
         return [RuleLaw(self.live)]
 
-    def live(self, agent: AgentView, model: ModelView) -> None:
+    def live(self, agent: PreyView, model: ModelView) -> None:
         """Walk, then give birth when no other prey shares the new cell.
 
         Args:
@@ -88,6 +98,9 @@ class PredatorElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         conversion:
             The probability of breeding after eating a prey.
@@ -113,6 +126,11 @@ class PredatorElement(Element):
         self.conversion = conversion
         self.death = death
 
+    @classmethod
+    def _get_view(cls) -> type[PredatorView]:
+        """Return the view of a predator, `PredatorView`."""
+        return PredatorView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the hunting rule.
 
@@ -126,7 +144,7 @@ class PredatorElement(Element):
         """
         return [RuleLaw(self.hunt)]
 
-    def hunt(self, agent: AgentView, model: ModelView) -> None:
+    def hunt(self, agent: PredatorView, model: ModelView) -> None:
         """Walk, eat one prey of the new cell and breed after it, then die at random.
 
         Args:

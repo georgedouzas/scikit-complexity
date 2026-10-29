@@ -87,6 +87,6 @@ def nanoparticle_corona(
         k = _count_binding_sites(radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
         interactions += [
             BindingInteraction(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),
-            DissociationInteraction(f'{name}_release', complex=complex_, first='nanoparticle', second=name, k=delta),
+            DissociationInteraction(f'{name}_release', reactant=complex_, first='nanoparticle', second=name, k=delta),
         ]
     return System(elements=elements, interactions=interactions)

@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -29,6 +29,9 @@ class HodgepodgeCellElement(Element):
     Args:
         label:
             The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         level:
             The initial level of infection from 0 to `n`.
@@ -81,7 +84,14 @@ class HodgepodgeCellElement(Element):
                 The laws of the component.
         """
 
-        def rule(level: Array, *around: Array, n: Any, k1: Any, k2: Any, g: Any) -> Array:  # noqa: ANN401
+        def rule(
+            level: Array,
+            *around: Array,
+            n: float | Array,
+            k1: float | Array,
+            k2: float | Array,
+            g: float | Array,
+        ) -> Array:
             neighbours = np.stack(around)
             infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
             ill = (neighbours >= n).sum(axis=0)

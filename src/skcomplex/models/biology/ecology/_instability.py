@@ -34,6 +34,9 @@ class UnstablePopulationsElement(Element):
         label:
             The label of the populations.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial resident population.
 

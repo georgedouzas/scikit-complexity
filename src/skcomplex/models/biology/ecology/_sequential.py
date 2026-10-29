@@ -35,20 +35,20 @@ class AbundanceElement(Element):
         label:
             The label of the species or of the group of species.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The relative abundance.
+
+        age:
+            The number of steps since the species appeared.
+
+        threshold:
+            The abundance below which the species goes extinct.
+
         k:
             The number of interactions of a new species.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The relative abundance.
-
-            age:
-                The number of steps since the species appeared.
-
-            threshold:
-                The abundance below which the species goes extinct.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import AbundanceElement
@@ -99,6 +99,9 @@ class InfluenceElement(Element):
     Args:
         label:
             The label of the edge or of the group of edges.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         a:
             The strength of the influence.

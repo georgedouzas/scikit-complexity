@@ -43,6 +43,9 @@ class HodgkinHuxleyElement(Element):
         label:
             The label of the neuron.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         v:
             The initial membrane potential.
 
@@ -144,6 +147,9 @@ class FitzHughNagumoNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial potential.

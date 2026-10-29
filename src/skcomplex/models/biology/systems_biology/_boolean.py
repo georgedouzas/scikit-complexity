@@ -52,6 +52,9 @@ class BooleanNodeElement(Element):
         label:
             The label of the node.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial value, 0 or 1.
 
@@ -83,17 +86,14 @@ class BooleanFunctionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the updated node.
+
+        inputs:
+            The paths of the input nodes, in the order of the bits of the table.
+
         table:
             The next value of the target for each of the `2^k` input patterns.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the updated node.
-
-            inputs:
-                The paths of the input nodes, in the order of the bits of the table.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import BooleanFunctionInteraction
@@ -150,20 +150,17 @@ class ThresholdFunctionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the updated node.
+
+        inputs:
+            The paths of the input nodes.
+
+        weights:
+            The weight of every input, positive for activation and negative for inhibition.
+
         decays:
             Whether the node turns off without net input.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the updated node.
-
-            inputs:
-                The paths of the input nodes.
-
-            weights:
-                The weight of every input, positive for activation and negative for inhibition.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ThresholdFunctionInteraction
@@ -177,7 +174,7 @@ class ThresholdFunctionInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec()],
         inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        weights: Annotated[list[float], ParameterSpec(per='inputs')] = (),
+        weights: Annotated[Sequence[float], ParameterSpec(per='inputs')] = (),
         decays: bool = False,
     ) -> None:
         super().__init__(label)

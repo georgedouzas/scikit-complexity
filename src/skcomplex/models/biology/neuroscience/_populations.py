@@ -47,6 +47,9 @@ class WilsonCowanElement(Element):
         label:
             The label of the populations.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         E:
             The initial excitatory activity.
 
@@ -176,6 +179,9 @@ class ThetaNeuronElement(Element):
         label:
             The label of the neuron or the group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         theta:
             The initial phase.
 
@@ -225,17 +231,14 @@ class PulseCouplingInteraction(Interaction):
         label:
             The label of the interaction.
 
+        neurons:
+            The path of the group of theta neurons.
+
+        kappa:
+            The coupling strength.
+
         n:
             The sharpness of the pulses, a positive integer.
-
-        **values:
-            The values of the declared variables, by name:
-
-            neurons:
-                The path of the group of theta neurons.
-
-            kappa:
-                The coupling strength.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import PulseCouplingInteraction
@@ -279,6 +282,9 @@ class RateUnitElement(Element):
     Args:
         label:
             The label of the unit.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial activity.
@@ -379,6 +385,9 @@ class PolyhomeostaticNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial membrane potential.

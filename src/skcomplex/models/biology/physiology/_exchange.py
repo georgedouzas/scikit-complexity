@@ -32,6 +32,9 @@ class ContourCellElement(Element):
         label:
             The label of the group of cells.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial concentration of signalling molecules in the cell, between 0 and 1.
 
@@ -91,6 +94,9 @@ class ExchangingCellElement(Element):
     Args:
         label:
             The label of the field of cells.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration of the substance.

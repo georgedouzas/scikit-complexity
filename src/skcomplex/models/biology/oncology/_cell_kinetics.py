@@ -31,6 +31,9 @@ class CellCycleElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         A1:
             The initial cells in G0 and G1.
 
@@ -115,6 +118,9 @@ class DormantCellCycleElement(Element):
     Args:
         label:
             The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         A0:
             The initial dormant cells.
@@ -215,6 +221,9 @@ class ErythropoiesisElement(Element):
     Args:
         label:
             The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         L:
             The initial mature red cells.

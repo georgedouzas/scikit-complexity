@@ -40,17 +40,17 @@ class TaxonElement(Element):
         label:
             The label of the species or of the group of species.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        h:
+            The field, the sum of the couplings of its dependencies.
+
+        age:
+            The number of steps since the species appeared.
+
         k:
             The number of dependencies of a new species.
-
-        **values:
-            The values of the declared variables, by name:
-
-            h:
-                The field, the sum of the couplings of its dependencies.
-
-            age:
-                The number of steps since the species appeared.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import TaxonElement
@@ -99,6 +99,9 @@ class CouplingElement(Element):
     Args:
         label:
             The label of the edge or of the group of edges.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         J:
             The coupling.
@@ -234,29 +237,29 @@ class ChemicalElement(Element):
         label:
             The label of the species or of the group of species.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The relative population.
+
+        tie:
+            The random key that breaks ties between the least populated species.
+
+        fresh:
+            Whether the species appeared at the previous graph update.
+
+        h:
+            The growth of a step from the catalysts.
+
+        p:
+            The probability of every catalytic link of a new species.
+
+        period:
+            The number of steps between two graph updates.
+
         k:
             The number of catalysts of a new species.
-
-        **values:
-            The values of the declared variables, by name:
-
-            x:
-                The relative population.
-
-            tie:
-                The random key that breaks ties between the least populated species.
-
-            fresh:
-                Whether the species appeared at the previous graph update.
-
-            h:
-                The growth of a step from the catalysts.
-
-            p:
-                The probability of every catalytic link of a new species.
-
-            period:
-                The number of steps between two graph updates.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import ChemicalElement

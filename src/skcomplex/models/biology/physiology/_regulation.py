@@ -31,6 +31,54 @@ class GlucoseControlElement(Element):
         label:
             The label of the organism.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        G:
+            The initial glucose, relative to the norm.
+
+        I:
+            The initial insulin.
+
+        N:
+            The initial glucagon.
+
+        R:
+            The basal production of glucose.
+
+        k0:
+            The uptake of glucose without insulin.
+
+        k_i:
+            The uptake of glucose per unit of insulin.
+
+        k_n:
+            The release of glucose per unit of glucagon, 0 without the glucagon loop.
+
+        s_i:
+            The maximal secretion of insulin.
+
+        s_n:
+            The maximal secretion of glucagon.
+
+        d_i:
+            The clearance rate of insulin.
+
+        d_n:
+            The clearance rate of glucagon.
+
+        K:
+            The norm of the glucose, where both hormones are half secreted.
+
+        n:
+            The steepness of the secretion switch.
+
+        meal:
+            The rate of glucose intake during the meal.
+
+        exercise:
+            The rate of extra glucose uptake during the exercise.
+
         meal_time:
             The start of the meal.
 
@@ -39,54 +87,6 @@ class GlucoseControlElement(Element):
 
         duration:
             The duration of the meal and of the exercise.
-
-        **values:
-            The values of the declared variables, by name:
-
-            G:
-                The initial glucose, relative to the norm.
-
-            I:
-                The initial insulin.
-
-            N:
-                The initial glucagon.
-
-            R:
-                The basal production of glucose.
-
-            k0:
-                The uptake of glucose without insulin.
-
-            k_i:
-                The uptake of glucose per unit of insulin.
-
-            k_n:
-                The release of glucose per unit of glucagon, 0 without the glucagon loop.
-
-            s_i:
-                The maximal secretion of insulin.
-
-            s_n:
-                The maximal secretion of glucagon.
-
-            d_i:
-                The clearance rate of insulin.
-
-            d_n:
-                The clearance rate of glucagon.
-
-            K:
-                The norm of the glucose, where both hormones are half secreted.
-
-            n:
-                The steepness of the secretion switch.
-
-            meal:
-                The rate of glucose intake during the meal.
-
-            exercise:
-                The rate of extra glucose uptake during the exercise.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import GlucoseControlElement
@@ -174,59 +174,59 @@ class CoagulationElement(Element):
         label:
             The label of the blood.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        T:
+            The initial thrombin.
+
+        C:
+            The initial activated protein C.
+
+        F:
+            The initial fibrin.
+
+        P:
+            The initial plasmin.
+
+        ka:
+            The maximal rate of the positive feedback.
+
+        k_half:
+            The thrombin at which the feedback is half its maximum.
+
+        d_t:
+            The inactivation rate of thrombin by antithrombin.
+
+        k_c:
+            The inactivation of thrombin per unit of protein C.
+
+        s_c:
+            The activation of protein C per unit of thrombin.
+
+        d_c:
+            The inactivation rate of protein C.
+
+        s_f:
+            The production of fibrin per unit of thrombin.
+
+        k_p:
+            The lysis of fibrin per unit of plasmin.
+
+        s_p:
+            The activation of plasmin per unit of fibrin.
+
+        d_p:
+            The inactivation rate of plasmin.
+
+        injury:
+            The rate of thrombin activation by the injury.
+
         injury_time:
             The start of the injury.
 
         duration:
             The duration of the injury.
-
-        **values:
-            The values of the declared variables, by name:
-
-            T:
-                The initial thrombin.
-
-            C:
-                The initial activated protein C.
-
-            F:
-                The initial fibrin.
-
-            P:
-                The initial plasmin.
-
-            ka:
-                The maximal rate of the positive feedback.
-
-            k_half:
-                The thrombin at which the feedback is half its maximum.
-
-            d_t:
-                The inactivation rate of thrombin by antithrombin.
-
-            k_c:
-                The inactivation of thrombin per unit of protein C.
-
-            s_c:
-                The activation of protein C per unit of thrombin.
-
-            d_c:
-                The inactivation rate of protein C.
-
-            s_f:
-                The production of fibrin per unit of thrombin.
-
-            k_p:
-                The lysis of fibrin per unit of plasmin.
-
-            s_p:
-                The activation of plasmin per unit of fibrin.
-
-            d_p:
-                The inactivation rate of plasmin.
-
-            injury:
-                The rate of thrombin activation by the injury.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import CoagulationElement

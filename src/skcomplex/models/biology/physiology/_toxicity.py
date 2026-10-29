@@ -28,6 +28,24 @@ class DrugToxicityElement(Element):
         label:
             The label of the patient.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        c:
+            The initial plasma concentration.
+
+        T:
+            The initial toxicity.
+
+        k:
+            The elimination rate of the drug.
+
+        eta:
+            The rate at which the metabolism lowers the toxicity, 0 for a cumulative toxicity.
+
+        dose:
+            The infusion rate during a dose.
+
         period:
             The time between the starts of doses.
 
@@ -36,24 +54,6 @@ class DrugToxicityElement(Element):
 
         doses:
             The number of doses.
-
-        **values:
-            The values of the declared variables, by name:
-
-            c:
-                The initial plasma concentration.
-
-            T:
-                The initial toxicity.
-
-            k:
-                The elimination rate of the drug.
-
-            eta:
-                The rate at which the metabolism lowers the toxicity, 0 for a cumulative toxicity.
-
-            dose:
-                The infusion rate during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import DrugToxicityElement

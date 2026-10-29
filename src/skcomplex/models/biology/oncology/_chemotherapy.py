@@ -41,6 +41,9 @@ class TumourImmuneChemotherapyElement(Element):
         label:
             The label of the patient.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         E:
             The initial immune cells.
 
@@ -193,6 +196,9 @@ class MultidrugResistanceElement(Element):
     Args:
         label:
             The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial sensitive cells.
@@ -408,6 +414,9 @@ class ResistanceSwitchingElement(Element):
         label:
             The label of the tumour.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         S:
             The initial sensitive cells.
 
@@ -537,6 +546,9 @@ class RestingHuntingChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial hunting cells.
@@ -676,6 +688,9 @@ class MetastasisChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         Np:
             The initial normal cells at the primary site.

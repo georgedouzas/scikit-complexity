@@ -37,6 +37,9 @@ class ProbabilisticNodeElement(Element):
         label:
             The label of the node.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial value, 0 or 1.
 
@@ -72,20 +75,17 @@ class ProbabilisticFunctionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the updated node, a `ProbabilisticNodeElement`.
+
+        inputs:
+            The paths of the input nodes, in the order of the bits of the tables.
+
         tables:
             The candidate truth tables.
 
         probabilities:
             The probability of every table.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the updated node, a `ProbabilisticNodeElement`.
-
-            inputs:
-                The paths of the input nodes, in the order of the bits of the tables.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ProbabilisticFunctionInteraction

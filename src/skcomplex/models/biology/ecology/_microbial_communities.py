@@ -31,6 +31,9 @@ class MicrobeElement(Element):
         label:
             The label of the species or of the group of species.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         x:
             The initial abundance.
 
@@ -66,14 +69,11 @@ class GeneralizedLotkaVolterraInteraction(Interaction):
         label:
             The label of the interaction.
 
+        community:
+            The path of the group of species.
+
         a:
             The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            community:
-                The path of the group of species.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction

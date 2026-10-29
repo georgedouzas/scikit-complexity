@@ -15,21 +15,24 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._grass_view import GrassView
+from ._sheep_view import SheepView
+from ._wolf_view import WolfView
 
 GROWN_SHARE = 0.5
 
 
-def _wander(agent: AgentView, model: ModelView) -> None:
+def _wander(agent: SheepView | WolfView, model: ModelView) -> None:
     """Move an animal to a random neighbouring cell and spend one unit of energy."""
     cells = agent.neighbor_cells()
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
     agent.energy -= 1
 
 
-def _live(agent: AgentView, model: ModelView, reproduction: float) -> None:
+def _live(agent: SheepView | WolfView, model: ModelView, reproduction: float) -> None:
     """Remove an animal without energy, or split its energy with an offspring at a reproduction rate."""
     if agent.energy < 0:
         agent.remove()
@@ -44,6 +47,9 @@ class GrassElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         grown:
             Whether the grass is grown, 1 or 0.
@@ -77,6 +83,11 @@ class GrassElement(Element):
         self.countdown = countdown
         self.regrowth = regrowth
 
+    @classmethod
+    def _get_view(cls) -> type[GrassView]:
+        """Return the view of a patch of grass, `GrassView`."""
+        return GrassView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule.
 
@@ -90,7 +101,7 @@ class GrassElement(Element):
         """
         return [RuleLaw(self.regrow)]
 
-    def regrow(self, agent: AgentView, model: ModelView) -> None:
+    def regrow(self, agent: GrassView, model: ModelView) -> None:
         """Count down eaten grass and grow it back when the countdown ends.
 
         Args:
@@ -115,6 +126,9 @@ class SheepElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         energy:
             The initial energy.
@@ -145,6 +159,11 @@ class SheepElement(Element):
         self.gain = gain
         self.reproduction = reproduction
 
+    @classmethod
+    def _get_view(cls) -> type[SheepView]:
+        """Return the view of a sheep, `SheepView`."""
+        return SheepView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -158,7 +177,7 @@ class SheepElement(Element):
         """
         return [RuleLaw(self.graze)]
 
-    def graze(self, agent: AgentView, model: ModelView) -> None:
+    def graze(self, agent: SheepView, model: ModelView) -> None:
         """Wander, eat the grass of the new cell when it is grown, then reproduce or die.
 
         Args:
@@ -170,7 +189,7 @@ class SheepElement(Element):
         """
         _wander(agent, model)
         for patch in agent.agents_here('grass'):
-            if patch.grown:
+            if isinstance(patch, GrassView) and patch.grown:
                 patch.grown = 0.0
                 patch.countdown = patch.regrowth
                 agent.energy += agent.gain
@@ -183,6 +202,9 @@ class WolfElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         energy:
             The initial energy.
@@ -213,6 +235,11 @@ class WolfElement(Element):
         self.gain = gain
         self.reproduction = reproduction
 
+    @classmethod
+    def _get_view(cls) -> type[WolfView]:
+        """Return the view of a wolf, `WolfView`."""
+        return WolfView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -226,7 +253,7 @@ class WolfElement(Element):
         """
         return [RuleLaw(self.hunt)]
 
-    def hunt(self, agent: AgentView, model: ModelView) -> None:
+    def hunt(self, agent: WolfView, model: ModelView) -> None:
         """Wander, eat one sheep of the new cell when there is one, then reproduce or die.
 
         Args:

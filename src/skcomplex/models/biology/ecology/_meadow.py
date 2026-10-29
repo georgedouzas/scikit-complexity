@@ -18,6 +18,8 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._cow_view import CowView
+from ._pasture_view import PastureView
 
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
@@ -31,6 +33,9 @@ class PastureElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         grass:
             The amount of grass, between 0 and 1.
@@ -56,6 +61,11 @@ class PastureElement(Element):
         self.grass = grass
         self.growth = growth
 
+    @classmethod
+    def _get_view(cls) -> type[PastureView]:
+        """Return the view of a patch of pasture, `PastureView`."""
+        return PastureView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule.
 
@@ -69,7 +79,7 @@ class PastureElement(Element):
         """
         return [RuleLaw(self.regrow)]
 
-    def regrow(self, agent: AgentView, model: ModelView) -> None:
+    def regrow(self, agent: PastureView, model: ModelView) -> None:
         """Grow the grass by one week of logistic growth.
 
         Args:
@@ -90,6 +100,9 @@ class CowElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         bite:
             The grass a cow eats in a week.
 
@@ -108,6 +121,11 @@ class CowElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.bite = bite
+
+    @classmethod
+    def _get_view(cls) -> type[CowView]:
+        """Return the view of a cow, `CowView`."""
+        return CowView
 
 
 class GrazingInteraction(Interaction):
@@ -160,8 +178,8 @@ class GrazingInteraction(Interaction):
             model:
                 The model.
         """
-        patches = {_cell(patch): patch for patch in model.agents('pasture', AgentView)}
-        for cow in model.agents('cows', AgentView):
+        patches = {_cell(patch): patch for patch in model.agents('pasture', PastureView)}
+        for cow in model.agents('cows', CowView):
             patch = patches.get(_cell(cow))
             if patch is not None:
                 patch.grass = max(patch.grass - cow.bite, 0.0)
@@ -222,12 +240,12 @@ class HerdingInteraction(Interaction):
             model:
                 The model.
         """
-        patches = model.agents('pasture', AgentView)
+        patches = model.agents('pasture', PastureView)
         cells = [_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         positions = np.asarray(cells, dtype=float)
         grown = np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')
-        cows = model.agents('cows', AgentView)
+        cows = model.agents('cows', CowView)
         occupied = np.zeros(len(cells), dtype=bool)
         occupied[[index[_cell(cow)] for cow in cows]] = True
         for number in model.rng.permutation(len(cows)):

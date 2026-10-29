@@ -16,9 +16,10 @@ from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._ant_view import AntView
 
 PHEROMONE = 'ground/pheromone.level'
 
@@ -55,6 +56,9 @@ class AntElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         carrying:
             Whether the ant carries food.
@@ -115,6 +119,11 @@ class AntElement(Element):
         self.outward = outward
         self.deposit = deposit
 
+    @classmethod
+    def _get_view(cls) -> type[AntView]:
+        """Return the view of an ant, `AntView`."""
+        return AntView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the foraging rule.
 
@@ -128,7 +137,7 @@ class AntElement(Element):
         """
         return [RuleLaw(self.forage)]
 
-    def forage(self, agent: AgentView, model: ModelView) -> None:
+    def forage(self, agent: AntView, model: ModelView) -> None:
         """Search for food along pheromone, or carry food home and mark the way.
 
         Args:

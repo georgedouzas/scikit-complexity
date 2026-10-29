@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._shoal_member_view import ShoalMemberView
 
 
 def _unit(vector: np.ndarray) -> np.ndarray:
@@ -47,6 +48,9 @@ class ShoalMemberElement(Element):
     Args:
         label:
             The label of the fish or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         vx:
             The horizontal component of the unit heading.
@@ -112,10 +116,15 @@ class ShoalMemberElement(Element):
         self.noise = noise
         self.size = size
 
-    def _desired(self, agent: AgentView) -> np.ndarray:
+    @classmethod
+    def _get_view(cls) -> type[ShoalMemberView]:
+        """Return the view of a member of a shoal, `ShoalMemberView`."""
+        return ShoalMemberView
+
+    def _desired(self, agent: ShoalMemberView) -> np.ndarray:
         """Return the desired direction from repulsion, or from attraction and alignment."""
         heading = np.array([agent.vx, agent.vy])
-        neighbours = agent.neighbors(radius=agent.rho)
+        neighbours = [other for other in agent.neighbors(radius=agent.rho) if isinstance(other, ShoalMemberView)]
         if not neighbours:
             return heading
         size = agent.size
@@ -145,7 +154,7 @@ class ShoalMemberElement(Element):
         """
         return [RuleLaw(self.turn, phase='turn'), RuleLaw(self.swim, phase='swim')]
 
-    def turn(self, agent: AgentView, model: ModelView) -> None:
+    def turn(self, agent: ShoalMemberView, model: ModelView) -> None:
         """Turn toward the desired direction, with angular noise.
 
         Args:
@@ -162,7 +171,7 @@ class ShoalMemberElement(Element):
         angle = math.atan2(heading[1], heading[0]) + float(model.rng.normal(0.0, agent.noise))
         agent.vx, agent.vy = math.cos(angle), math.sin(angle)
 
-    def swim(self, agent: AgentView, model: ModelView) -> None:
+    def swim(self, agent: ShoalMemberView, model: ModelView) -> None:
         """Swim one step along the heading.
 
         Args:

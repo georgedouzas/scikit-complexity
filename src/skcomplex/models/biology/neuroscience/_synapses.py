@@ -29,6 +29,9 @@ class AdaptrodeElement(Element):
         label:
             The label of the synapse.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         w0:
             The initial fast weight.
 

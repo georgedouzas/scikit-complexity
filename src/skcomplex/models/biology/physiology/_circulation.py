@@ -37,6 +37,9 @@ class ChamberElement(Element):
         label:
             The label of the chamber.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         V:
             The initial volume.
 
@@ -91,20 +94,17 @@ class TransferInteraction(Interaction):
         label:
             The label of the interaction.
 
+        upstream:
+            The path of the chamber the blood leaves.
+
+        downstream:
+            The path of the chamber the blood enters.
+
+        R:
+            The resistance in mmHg s/ml.
+
         valve:
             Whether a valve prevents backward flow.
-
-        **values:
-            The values of the declared variables, by name:
-
-            upstream:
-                The path of the chamber the blood leaves.
-
-            downstream:
-                The path of the chamber the blood enters.
-
-            R:
-                The resistance in mmHg s/ml.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import TransferInteraction
