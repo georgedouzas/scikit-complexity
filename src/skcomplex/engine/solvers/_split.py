@@ -385,7 +385,8 @@ class SplitSolver(Solver):
         if not isinstance(coefficients, list):
             error_msg = f'The compiled function returned a {type(coefficients).__name__}, not a list of values.'
             raise TypeError(error_msg)
-        return coefficients[0]
+        coefficient = np.asarray(coefficients[0], dtype=float)
+        return float(coefficient) if coefficient.ndim == 0 else coefficient
 
     @staticmethod
     def _rows(reference: ReferenceSpec) -> npt.NDArray[np.intp]:

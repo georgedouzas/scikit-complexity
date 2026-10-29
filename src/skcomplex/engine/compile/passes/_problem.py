@@ -278,7 +278,7 @@ class ProblemPass(BasePass):
             if not isinstance(results, list):
                 error_msg = f'The function of the events or delays of {owner} returns no list of values.'
                 raise TypeError(error_msg)
-            return [float(value) for value in results]
+            return [float(value) for value in np.asarray(results, dtype=float)]
 
         return evaluate
 

@@ -97,6 +97,8 @@ class RuleKernel(BaseKernel):
             The sites of every class of the colored or checkerboard schedule.
     """
 
+    values_: None
+
     def __init__(
         self,
         owner: str,
@@ -208,6 +210,7 @@ class RuleKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the rule on its schedule."""
+        self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
         size = self.targets[0].size

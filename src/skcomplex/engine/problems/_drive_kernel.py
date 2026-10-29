@@ -31,6 +31,8 @@ class DriveKernel(BaseKernel):
             The parameters the function receives by keyword.
     """
 
+    values_: None
+
     def __init__(
         self,
         owner: str,
@@ -50,6 +52,7 @@ class DriveKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the drive."""
+        self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, state.rng
         shape = self.target.shape

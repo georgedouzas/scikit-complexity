@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
@@ -151,7 +152,7 @@ class RenewalProblemPass(BasePass):
             error_msg = f'The printer returns no function of the renewal laws of {owner}.'
             raise TypeError(error_msg)
 
-        def evaluate(*values: object) -> list[object]:
+        def evaluate(*values: object) -> list[npt.ArrayLike]:
             results = function(*values)
             if not isinstance(results, list):
                 error_msg = f'The function of the renewal laws of {owner} returns no list of values.'

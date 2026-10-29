@@ -78,6 +78,8 @@ class NeighborhoodKernel(BaseKernel):
             The time symbol.
     """
 
+    values_: None
+
     def __init__(
         self,
         symbol: Expression,
@@ -149,6 +151,7 @@ class NeighborhoodKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the reduction of every member into the extended parameter vector of the state, the `p` of `inputs`."""
+        self.values_ = None
         state = self._state_of(inputs)
         t, x, q = state.t, state.x, state.p
         indptr, others, edges = self.search.run(state).pairs_

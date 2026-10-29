@@ -85,7 +85,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         [array([2., 6.]), array([1., 9.])]
     """
 
-    code_: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]]
+    code_: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[npt.ArrayLike]]
 
     def __init__(
         self,
@@ -168,8 +168,8 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     @staticmethod
     def _function_of(
-        printed: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]],
-    ) -> Callable[..., list[object]]:
+        printed: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[npt.ArrayLike]],
+    ) -> Callable[..., list[npt.ArrayLike]]:
         """Return the NumPy function a compiled printer kept in `code_`.
 
         Args:
@@ -210,7 +210,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             raise TypeError(error_msg)
         return computed
 
-    def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[object]]:
+    def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[npt.ArrayLike]]:
         """Return the NumPy function `f(t, *symbols)` that runs printed assignments and returns the printed codes."""
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
         if any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes):
@@ -218,7 +218,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         loader = SourceLoader('skcomplex_functions').check().prepare()
-        function: Callable[..., list[object]] = loader.run(_IMPORTS + '\n'.join(lines) + '\n').module_._function
+        function: Callable[..., list[npt.ArrayLike]] = loader.run(_IMPORTS + '\n'.join(lines) + '\n').module_._function
         return function
 
     def _wrap(self, printed: PrintedSpec, precedence: int) -> str:
