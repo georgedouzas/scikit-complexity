@@ -550,9 +550,9 @@ def test_rewriting_compiler_reports_a_classical_system():
 
 
 def test_rewriting_compiler_runs_the_problem():
-    """Test that the prepared rewriting compiler returns the rewriting problem when run."""
+    """Test that the prepared rewriting compiler sets the rewriting problem when run."""
     words = System(elements=[WordElement('algae', axiom='A')])
-    problem = RewritingCompiler().check().prepare(words).run()
+    problem = RewritingCompiler().check().prepare(words).run().problem_
     assert problem.form == REWRITING
 
 

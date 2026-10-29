@@ -4,7 +4,6 @@
 # License: MIT
 
 import numbers
-from typing import Self
 
 from ....core.laws import BaseLaw
 from ....core.spaces import DiscreteTime
@@ -46,11 +45,17 @@ class ProductionLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
+    Attributes:
+        value_:
+            The modules of the successor, set by `run`.
+
     Examples:
         >>> from skcomplex.models.mathematics.fractals import ProductionLaw
-        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().run({})]
+        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """
+
+    value_: list[ModuleSpec]
 
     def __init__(
         self,
@@ -79,13 +84,8 @@ class ProductionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a predecessor that is not one module, or a numeric probability outside `[0, 1]`.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a predecessor that is not one module, or a numeric probability outside `[0, 1]`."""
         if len(parse_word(self.predecessor)) != 1:
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)
@@ -94,17 +94,12 @@ class ProductionLaw(BaseLaw):
         if isinstance(self.probability, numbers.Real) and not 0 <= float(self.probability) <= 1:
             error_msg = f'The probability of a production is in [0, 1], not {self.probability!r}.'
             raise RewritingError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the modules of the successor.
+    def _run(self, inputs: object) -> None:
+        """Set `value_`, the modules of the successor.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value, unused.
-
-        Returns:
-            modules:
-                The modules that replace the predecessor.
         """
-        return parse_word(self.successor)
+        self.value_ = parse_word(self.successor)

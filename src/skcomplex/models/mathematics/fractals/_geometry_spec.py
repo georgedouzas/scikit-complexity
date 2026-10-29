@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Self
 
 from ....specs import BaseSpec
 from ._rewriting_error import RewritingError
@@ -68,12 +67,8 @@ class GeometrySpec(BaseSpec):
     dimension: int = 2
     heading: float = 0.0
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a meaning that is not an action, or a dimension that is neither 2 nor 3.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             RewritingError:
@@ -87,4 +82,3 @@ class GeometrySpec(BaseSpec):
         if self.dimension not in {2, 3}:
             error_msg = f'The word geometry has dimension {self.dimension}. Use 2 or 3.'
             raise RewritingError(error_msg)
-        return self

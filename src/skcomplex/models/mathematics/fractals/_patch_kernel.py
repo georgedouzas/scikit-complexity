@@ -34,7 +34,13 @@ class PatchKernel(BaseKernel):
 
         parameters:
             The parameter symbols of the system.
+
+    Attributes:
+        values_:
+            The current tiles, set by `prepare` and rewritten by `run`.
     """
+
+    values_: PatchStructureSpec
 
     def __init__(
         self,
@@ -91,19 +97,18 @@ class PatchKernel(BaseKernel):
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
     def _prepare(self, context: object) -> None:
-        """Start the structure at generation 0 for a run of the problem, as `structure_`."""
+        """Start the structure at generation 0 for a run of the problem, as `values_`."""
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Patch {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
-        self.structure_ = self._initial(context.initial_parameters)
+        self.values_ = self._initial(context.initial_parameters)
 
-    def _run(self, inputs: RunStateSpec | None) -> PatchStructureSpec:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Rewrite the current structure once, in parallel, with the parameters of the state."""
         if inputs is None:
             error_msg = f'Patch {self.path!r} rewrites at a state, but got none.'
             raise RewritingError(error_msg)
-        self.structure_ = self._rewrite(self.structure_, inputs.p)
-        return self.structure_
+        self.values_ = self._rewrite(self.values_, inputs.p)
 
     def _initial(self, values: npt.NDArray[np.float64]) -> PatchStructureSpec:
         """Return the patch at generation 0.

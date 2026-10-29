@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 import numpy as np
 
@@ -75,7 +74,7 @@ class EarlyWarningAnalysis(RollingAnalysis):
     ) -> None:
         super().__init__('autocorrelation', variables, window=window, detrend=detrend)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the rolling indicators of every series and their trends."""
         super()._run()
         self.autocorrelation_ = self.statistic_
@@ -86,7 +85,6 @@ class EarlyWarningAnalysis(RollingAnalysis):
         self.skewness_trend_ = np.asarray([self._trend(row) for row in self.skewness_])
         self.reddening_ = self._indicator(self._reddening, 'reddening')
         self.reddening_trend_ = np.asarray([self._trend(row) for row in self.reddening_])
-        return self
 
     def _indicator(self, statistic: Callable[[Array, str], float], kind: str) -> Array:
         """Return a rolling statistic of every series, one row per series."""

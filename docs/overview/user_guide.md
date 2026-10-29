@@ -10,9 +10,9 @@
     - An **interaction** couples elements through **roles** and describes its effect with **laws**.
     - A **system** holds elements, interactions, nested systems, an optional space, and an optional time.
 - Every part speaks three verbs. `check()` validates it, `prepare(...)` prepares it against what it works on, and
-  `run(...)` returns what it contributes: an element, an interaction, or a system returns its laws, and a law returns
-  its value at given values of the symbols it reads, such as the rate of a `RateLaw`. `check` and `prepare` return
-  the part itself, and a part must be checked before it is prepared or run.
+  `run(...)` sets what it contributes: an element, an interaction, or a system sets its laws in `laws_`, and a law sets
+  in `value_` its value at given values of the symbols it reads, such as the rate of a `RateLaw`. The three verbs
+  return the part itself, and a part must be checked before it is prepared or run.
 - A run records **observables**, named values computed from the states at every frame, and checks the
   **invariants** it is given.
 - A **law** says how a state changes. Every law is a class, and the four most common laws are these.
@@ -133,7 +133,7 @@ its `__init__`, and an optional `label` by keyword.
 - `check()` validates the arguments, such as a value that is a NumPy array instead of an expression.
 - `prepare(owner)` sets `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`, the path
   of the element or interaction that returns it.
-- `run(values)` returns the value of the law at the values of the symbols it reads, given by name.
+- `run(values)` sets `value_`, the value of the law at the values of the symbols it reads, given by name.
 - Every law states what it requires of a system, such as continuous time for `RateLaw` and discrete time for
   `UpdateLaw`, and validation reports a system whose laws require different times.
 
@@ -155,7 +155,7 @@ from skcomplex.core.laws import BaseLaw, RateLaw
 x, k = var('x k')
 law = RateLaw(x, -k * x).check().prepare('decay')
 print(issubclass(RateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.owner_)
-print(law.run({'x': 2.0, 'k': 0.5}))
+print(law.run({'x': 2.0, 'k': 0.5}).value_)
 ```
 
 A law can also be a Python function of time and current values, which covers rules that have no closed form. The
@@ -1539,7 +1539,7 @@ visuals are parts of the engine, beside those of every other kind.
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
-sets `report_`, the issues it found, and `run(initial_state)` raises the errors of the report, returns the problem, and
+sets `report_`, the issues it found, and `run(initial_state)` raises the errors of the report, sets `problem_`, the problem, and
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
 `compiler` setting. The default `PassCompiler` compiles every system but quantum ones through its passes, which lower
 each law to the problem of its form, and names the compiler a system needs when it is another. A quantum system takes
@@ -1552,7 +1552,7 @@ A new law derives from `BaseLaw`. It stores its arguments under their own names,
 
 - `_get_targets` returns the states it changes, which `prepare` sets as `targets_`.
 - `_get_requirements` returns a `RequirementSpec` of the kinds of time and space it runs in.
-- `_run` returns its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
+- `_run` sets `value_`, its value at given values of the symbols it reads, which `prepare` sets as `reads_`.
 
 ```python
 from typing import Annotated
@@ -1574,7 +1574,7 @@ class DecayLaw(BaseLaw):
         self.rate = rate
 
     def _check(self):
-        return self
+        pass
 
     def _get_targets(self):
         return (self.target,)
@@ -1583,12 +1583,12 @@ class DecayLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _run(self, inputs):
-        return self._evaluate(-self.rate * self.target, inputs)
+        self.value_ = self._evaluate(-self.rate * self.target, inputs)
 
 
 n, k = var('n k')
 law = DecayLaw(n, k).check().prepare('atom')
-print(law.targets_, sorted(map(str, law.reads_)), law.owner_, law.run({'n': 2.0, 'k': 0.5}))
+print(law.targets_, sorted(map(str, law.reads_)), law.owner_, law.run({'n': 2.0, 'k': 0.5}).value_)
 
 
 class NucleusElement(Element):
@@ -1983,7 +1983,7 @@ print(bool(Simulation(ring, dt=1.0).check().run(until=50).trajectory_.values('ca
 ### Jacobians of reductions
 
 A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
-the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem is a kernel that, prepared with the problem and run at a `RunStateSpec`, returns the exact
+the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem is a kernel that, prepared with the problem and run at a `RunStateSpec`, sets in `values_` the exact
 Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
 its structure, which the implicit methods of `ScipyODESolver` receive (see [Discretizations and stiff
 solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million entries, `pattern()` returns
@@ -2016,7 +2016,8 @@ class UnitElement(Element):
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = compile_system(units)
-jacobian = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
+state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
+jacobian = problem.jacobian.prepare(problem).run(state).values_
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
@@ -3866,7 +3867,7 @@ print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
   sensitivity analysis `OneAtATimeDesign`, `MorrisDesign`, and `SaltelliDesign`. A design stores its settings, such as
   `SobolDesign(n=64)`, and prepares on the `bounds` of the experiment: a pair or a SciPy distribution per name for a
   sampled design, a sequence of values per name for a grid, and nothing for a rows design. `prepare` sets their rows in
-  `rows_` and `run` returns them.
+  `rows_`.
 - `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars.
   `analyses` are unprepared analyses: every run clones each one, prepares it on its trajectory, runs it, and keeps what
   its `run` sets as columns such as `entropyanalysis.entropy`. Results give one row per run, `series`, `ensemble` with

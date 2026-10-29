@@ -282,8 +282,7 @@ class BookInteraction(Interaction):
         buyers = [Order(trader, trader.bid, trader.demand, trader.money) for trader in traders if trader.demand > 0]
         sellers = [Order(trader, trader.ask, trader.supply) for trader in traders if trader.supply > 0]
         protocol = OrderBookProtocol().check()
-        protocol.run(ClearingSpec(buyers, sellers, model.rng, {}))
-        trades = protocol.trades_
+        trades = protocol.run(ClearingSpec(buyers, sellers, model.rng, {})).trades_
         for trade in trades:
             transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
             transfer(trade.seller, trade.buyer, trade.quantity, 'shares')

@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Self
 
 import numpy as np
 
@@ -36,12 +35,8 @@ class PrototileSpec(BaseSpec):
     name: str
     vertices: Sequence[Sequence[float]]
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for vertices that are not at least two points of the plane.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             RewritingError:
@@ -51,7 +46,6 @@ class PrototileSpec(BaseSpec):
         if points.shape[1:] != (PLANE_DIMENSION,) or len(points) < SEGMENT_VERTICES:
             error_msg = f'Prototile {self.name!r} needs at least two vertices in the plane, but got {self.vertices!r}.'
             raise RewritingError(error_msg)
-        return self
 
     @property
     def is_segment(self) -> bool:

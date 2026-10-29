@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 
@@ -86,14 +85,13 @@ class CracklingNoiseAnalysis(EventAnalysis):
         self.size_exponent = size_exponent
         self.duration_exponent = duration_exponent
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the fewest avalanches of a duration."""
         if self.min_count < 1:
             error_msg = f'{type(self).__name__} has min_count={self.min_count!r}. Use a positive value.'
             raise AnalysisError(error_msg)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Find the avalanches, fit the mean size against the duration, predict its exponent, and compare shapes."""
         super()._run()
         distinct, counts = np.unique(self.durations_, return_counts=True)
@@ -120,7 +118,6 @@ class CracklingNoiseAnalysis(EventAnalysis):
             inner = slice(SHAPE_GRID // 10, SHAPE_GRID - SHAPE_GRID // 10)
             spread = (stacked.max(axis=0) - stacked.min(axis=0))[inner] / stacked.mean(axis=0)[inner]
             self.shape_spread_ = float(np.mean(spread))
-        return self
 
     @staticmethod
     def _mean_shape(shapes: list[Array]) -> Array:
