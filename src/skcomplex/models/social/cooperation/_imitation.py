@@ -6,8 +6,7 @@
 from collections.abc import Callable, Sequence
 
 from ....engine.solvers import AgentView
-
-type Score = str | Callable[[AgentView], float]
+from .types import Score
 
 
 def _scorer(score: Score) -> Callable[[AgentView], float]:

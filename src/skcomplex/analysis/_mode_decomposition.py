@@ -16,8 +16,9 @@ from ..core.spaces import ContinuousTime
 from ..engine._utils import vector
 from ..specs import SamplesSpec
 from ..types import Array, ComplexArray, DataKind
-from ._base import BaseAnalysis, Runs
+from ._base import BaseAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
+from .types import Runs
 
 
 class ModeDecompositionAnalysis(BaseAnalysis):

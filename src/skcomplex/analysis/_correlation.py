@@ -13,7 +13,8 @@ from scipy import optimize
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 MIN_LINE_POINTS = 2
 MIN_FIT_POINTS = 3

@@ -23,8 +23,7 @@ from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.particles import GravityInteraction
-
-type Preset = tuple[float, list[float], list[list[float]], list[list[float]]]
+from .types import Preset
 
 FIGURE_EIGHT: Preset = (
     1.0,

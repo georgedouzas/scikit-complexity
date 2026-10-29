@@ -26,6 +26,7 @@ from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
 from ..problems import ProblemSpec
+from ..types import MesaSpace
 from ._external import ExternalSolver
 
 _DEFAULT_PHASE = 'default'
@@ -33,7 +34,6 @@ _DEFAULT_PHASE = 'default'
 
 MAX_SEED = 2**31 - 1
 _HISTORY_LENGTH = 10_000
-type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 
 
 class _AgentModel(mesa.Model):

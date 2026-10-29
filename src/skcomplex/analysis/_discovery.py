@@ -14,7 +14,8 @@ from ..core.system import System
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import DataKind
-from ._base import SERIES_DIMENSIONS, BaseAnalysis, Source
+from ._base import SERIES_DIMENSIONS, BaseAnalysis
+from .types import Source
 
 
 class DiscoveryAnalysis(BaseAnalysis):

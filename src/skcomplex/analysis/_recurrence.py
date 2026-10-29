@@ -13,7 +13,8 @@ from scipy.spatial import cKDTree
 
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 PAIR_SAMPLE = 200_000
 

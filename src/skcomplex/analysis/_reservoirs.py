@@ -15,9 +15,9 @@ from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import CallSpec
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Runs
+from ._base import BaseAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
-from .types import ReservoirNodeProtocol
+from .types import ReservoirNodeProtocol, Runs
 
 RESERVOIR_KINDS = ('next_generation', 'echo_state')
 ECHO_STATE_WARMUP = 100

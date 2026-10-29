@@ -30,11 +30,10 @@ from ..compile._field_lowering import FieldLowering
 from ..problems import ExpressionPrinter, LinearTermSpec, ProblemSpec, ReferenceSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 from ..problems._steps import step_count
+from ..types import SpectralBlock
 from ._solver import Solver
 
 TIME = symbol('t')
-
-type SpectralBlock = tuple[tuple[int, ...], list[npt.NDArray[np.intp]], ComplexArray]
 
 
 class SplitSolver(Solver):

@@ -5,7 +5,7 @@
 
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -33,9 +33,8 @@ from ..engine.runtime import Simulation, Trajectory
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..types import VariableKind
-from .types import Bounds, Row
+from .types import Bounds, Row, Source
 
-type Source = Callable[..., System] | System
 _PROBLEMS: dict[tuple[object, ...], BaseProblemSpec] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
 PLAIN_LAWS = (

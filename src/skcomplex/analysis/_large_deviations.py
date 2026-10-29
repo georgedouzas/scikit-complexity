@@ -17,7 +17,8 @@ from ..engine.problems import ProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1

@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
 from ._problem_spec import ProblemSpec
-from ._reference_spec import ReferenceSpec, Search
+from ._reference_spec import PairsSearch, ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
 
 
@@ -61,7 +61,7 @@ class KernelSpec(BaseSpec):
     namespace: SimpleNamespace
     references: Mapping[Expression, ReferenceSpec]
     rows: int
-    pairs: Search | None = None
+    pairs: PairsSearch | None = None
     roles: dict[str, str | tuple[str, ...]] = field(default_factory=dict)
     group: str | None = None
     groups: dict[str, int] = field(default_factory=dict)

@@ -16,7 +16,7 @@ from sage.structure.element import RingElement
 
 from ...errors import ValidationError
 from ...specs._dialect_spec import DIALECTS
-from ..types import PrintedKey
+from ..types import Number, PrintedKey
 from ._base import BasePrinter
 from ._printed_spec import PrintedSpec
 
@@ -34,7 +34,6 @@ RELATIONS = {
 _CONDITION = 'np.where('
 _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
-type _Number = RingElement | int | float | complex
 
 _IMPORTS = 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n'
 
@@ -225,7 +224,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         """Return printed code, in parentheses when it binds less tightly than a precedence."""
         return printed.code if printed.precedence >= precedence else f'({printed.code})'
 
-    def _number(self, value: _Number) -> PrintedSpec:
+    def _number(self, value: Number) -> PrintedSpec:
         """Return the code of a number."""
         if isinstance(value, Integer | int):
             return PrintedSpec(str(int(value)), ATOM if value >= 0 else NEGATION)
@@ -258,7 +257,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     def _product(self, item: Expression) -> PrintedSpec:
         """Return the code of a product, with factors of negative powers in its denominator."""
-        coefficient: _Number = 1
+        coefficient: Number = 1
         numerator: list[str] = []
         denominator: list[str] = []
         for factor in item.operands() if self._is_product(item) else [item]:
@@ -350,7 +349,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return getattr(item.operator(), '__name__', '') == 'mul_vararg'
 
     @staticmethod
-    def _is_negative(value: _Number) -> bool:
+    def _is_negative(value: Number) -> bool:
         """Check whether a number is real and negative, so complex numbers are never negated."""
         number = None if isinstance(value, complex) else ExpressionPrinter._real(value)
         return number is not None and number < 0
@@ -364,7 +363,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             return None
 
     @staticmethod
-    def _numeric(item: Expression) -> _Number:
+    def _numeric(item: Expression) -> Number:
         """Return the Python or Sage number of a numeric expression."""
         return item.pyobject()
 

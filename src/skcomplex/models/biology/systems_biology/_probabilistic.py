@@ -19,8 +19,7 @@ from ....errors import ValidationError
 from ....specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._boolean import _pattern
-
-type Candidates = Sequence[tuple[Sequence[int], float]]
+from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
 SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {

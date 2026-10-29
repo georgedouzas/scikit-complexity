@@ -11,7 +11,8 @@ from sklearn.base import clone
 
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
 

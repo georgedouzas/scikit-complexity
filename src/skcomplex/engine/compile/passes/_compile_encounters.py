@@ -17,13 +17,11 @@ from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...problems import DeclarationsSpec, ReferenceSpec
 from ...problems._encounter_kernel import EncounterKernel
-from ...types import ReadKind
+from ...types import KineticLaw, ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
-
-type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 
 
 class CompileEncountersPass(BasePass):

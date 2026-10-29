@@ -30,14 +30,13 @@ from ..backends import NumpyBackend
 from ..compile import compile_system
 from ..problems import ExpressionPrinter, ProblemSpec
 from ..problems._steps import step_count
-from ..types import PairArguments
+from ..types import FixCommand, PairArguments
 from ._external import ExternalSolver
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 _SUPPORTED_DIMENSIONS = (2, 3)
-type FixCommand = Callable[[LammpsFixSpec], str]
 
 
 class LammpsSolver(ExternalSolver):

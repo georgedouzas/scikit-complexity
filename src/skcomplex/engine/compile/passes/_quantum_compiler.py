@@ -30,6 +30,7 @@ from ...problems import BaseProblemSpec, QuantumProblemSpec
 from ...problems._quantum_kernel import QuantumKernel
 from ...problems._quantum_lowering import QuantumLowering
 from ...problems._quantum_problem_spec import REAL_TOLERANCE
+from ...types import Dissipators, Hamiltonians
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
@@ -51,10 +52,6 @@ _SAMPLE_TIME = 0.37
 
 
 DEFAULT_MAX_DIMENSION = 2**20
-
-
-type Hamiltonians = list[tuple[str, Expression]]
-type Dissipators = list[tuple[str, Expression, object]]
 
 
 class QuantumCompiler(BaseCompiler):

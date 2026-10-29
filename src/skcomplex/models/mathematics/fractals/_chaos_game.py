@@ -18,10 +18,10 @@ from ....core.system import System
 from ....errors import ValidationError
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from .types import AffineMap
 
 AFFINE_COEFFICIENTS = 6
 
-type AffineMap = Sequence[float]
 
 PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
     'sierpinski': (

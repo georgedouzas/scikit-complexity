@@ -22,10 +22,10 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
 from ..types import Array, DataKind, FormKind, VariableKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._groups import _Expansion
 from ._symbolic import SymbolicAnalysis
-from .types import Point
+from .types import Point, Source
 
 KINDS = ('fixed-points', 'dispersion')
 SETTINGS = {

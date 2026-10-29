@@ -16,8 +16,9 @@ from scipy import stats
 
 from ..errors import AnalysisError
 from ..types import AnyArray, Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._entropy import EntropyAnalysis
+from .types import Source
 
 MIN_DIMENSION = 2
 

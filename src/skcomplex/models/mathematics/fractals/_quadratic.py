@@ -19,8 +19,7 @@ from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-type Window = tuple[float, float, float, float]
+from .types import Window
 
 ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)

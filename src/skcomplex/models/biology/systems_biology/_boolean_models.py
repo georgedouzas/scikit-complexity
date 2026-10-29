@@ -4,14 +4,13 @@
 # License: MIT
 
 import itertools
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from ....core.system import System
 from ....errors import ValidationError
 from ..._catalog import register_model
 from ._boolean import BooleanFunctionInteraction, BooleanNodeElement
-
-type Rule = Callable[..., bool]
+from .types import Rule
 
 RAMAN = 'Raman 2021'
 THREE_GENE_RULES: dict[str, tuple[tuple[str, ...], Rule]] = {

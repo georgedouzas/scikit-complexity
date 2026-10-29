@@ -11,8 +11,9 @@ import ordpy
 
 from ..errors import AnalysisError
 from ..types import DataKind
-from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis
 from ._entropy import TIES, EntropyAnalysis
+from .types import Source
 
 
 class ComplexityAnalysis(BaseAnalysis):

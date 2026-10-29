@@ -191,7 +191,7 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
 
 def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
-    space = CayleySpace(libgap.PermGroupOnLevel(_grigorchuk(), 2)).check().prepare()
+    space = CayleySpace(_grigorchuk().PermGroupOnLevel(2)).check().prepare()
     cells = np.arange(space.size_) % 2.0
     system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
     alive = _run(system, 3).values('cells.alive')

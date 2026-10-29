@@ -15,7 +15,8 @@ from scipy import stats
 
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis
+from .types import Source
 
 KINDS = (
     'shannon',

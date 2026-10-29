@@ -20,9 +20,10 @@ from ..errors import AnalysisError
 from ..specs import LoopTermSpec
 from ..specs._loop_spec import _LoopSpec
 from ..types import DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._stability import StabilityAnalysis
 from ._symbolic import SymbolicAnalysis
+from .types import Source
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
 SETTINGS = {

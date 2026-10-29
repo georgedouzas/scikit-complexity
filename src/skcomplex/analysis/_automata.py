@@ -12,22 +12,19 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ..core.types import AutomatonProtocol, LinearAutomatonProtocol, SubshiftProtocol
+from ..core.types import AutomatonProtocol, LinearAutomatonProtocol, Reach, SubshiftProtocol
 from ..errors import AnalysisError
 from ..specs import TableSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
 from ..types import DataKind, IntArray
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Item, Source
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
 SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 IDENTITY = '1'
-
-type Reach = LatticeNeighborhood | MemoryNeighborhood
-type Item = str | tuple[int, ...]
-type Sites = BaseSpace
 
 
 class _Clauses:
@@ -218,7 +215,7 @@ class AutomatonAnalysis(BaseAnalysis):
         configuration: npt.ArrayLike | None = None,
         site: int = 0,
         steps: int = 1,
-        windows: Sequence[Sites] | None = None,
+        windows: Sequence[BaseSpace] | None = None,
         base: float = 2.0,
     ) -> None:
         self.kind = kind
@@ -341,14 +338,14 @@ class AutomatonAnalysis(BaseAnalysis):
         self.differences_ = self._difference_pattern(automaton, self.configuration, self.site, self.steps)
 
     @staticmethod
-    def _fitted(space: Sites) -> Sites:
+    def _fitted(space: BaseSpace) -> BaseSpace:
         """Return a space of sites, preparing it on its first use."""
         if not hasattr(space, 'size_'):
             space.check().prepare()
         return space
 
     @staticmethod
-    def _size(space: Sites) -> int:
+    def _size(space: BaseSpace) -> int:
         """Return the number of sites of a space."""
         return int(AutomatonAnalysis._fitted(space).size_ or 0)
 
@@ -630,7 +627,7 @@ class AutomatonAnalysis(BaseAnalysis):
     @staticmethod
     def _configuration_entropy(
         subject: SubshiftProtocol | AutomatonProtocol,
-        windows: Sequence[Sites],
+        windows: Sequence[BaseSpace],
         *,
         base: float = 2.0,
     ) -> npt.NDArray[np.float64]:

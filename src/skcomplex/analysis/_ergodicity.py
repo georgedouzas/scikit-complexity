@@ -11,8 +11,9 @@ import numpy.typing as npt
 
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._markov import MarkovAnalysis
+from .types import Source
 
 ENSEMBLE_DIMENSIONS = 2
 

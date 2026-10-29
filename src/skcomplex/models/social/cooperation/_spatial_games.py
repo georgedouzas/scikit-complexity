@@ -18,15 +18,13 @@ from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....types import Array, Pair
 from ..._catalog import register_model
 
-type Offset = tuple[int, int]
-
 IMITATIONS = ('best', 'fermi')
-ORIGIN: Offset = (0, 0)
-MOORE: tuple[Offset, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
-VON_NEUMANN: tuple[Offset, ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
+ORIGIN: Pair = (0, 0)
+MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+VON_NEUMANN: tuple[Pair, ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
 SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
 DIAMOND_RADIUS = 3
 DIAMOND = LatticeNeighborhood(
@@ -39,7 +37,7 @@ DIAMOND = LatticeNeighborhood(
 )
 
 
-def _shift(first: Offset, second: Offset) -> Offset:
+def _shift(first: Pair, second: Pair) -> Pair:
     """Return the sum of two offsets."""
     return first[0] + second[0], first[1] + second[1]
 
@@ -152,7 +150,7 @@ class PrisonerElement(Element):
         def rule(*values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
             cells = dict(zip(SQUARE.offsets, values, strict=True))
 
-            def payoff(center: Offset) -> Array:
+            def payoff(center: Pair) -> Array:
                 own = cells[center]
                 around = sum(cells[_shift(center, offset)] for offset in (*MOORE, ORIGIN))
                 return own * around + (1 - own) * around * temptation
@@ -225,7 +223,7 @@ class ContributorElement(Element):
             cells = dict(zip(DIAMOND.offsets, values, strict=True))
             group = (*VON_NEUMANN, ORIGIN)
 
-            def payoff(center: Offset) -> Array:
+            def payoff(center: Pair) -> Array:
                 share = sum(
                     sum(cells[_shift(_shift(center, host), member)] for member in group) * synergy / len(group)
                     for host in group

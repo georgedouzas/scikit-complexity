@@ -33,13 +33,11 @@ from ..problems import (
 from ..problems._quantum_kernel import QuantumKernel
 from ..problems._quantum_lowering import QuantumLowering
 from ..problems._reduction_kernel import ReductionKernel
-from ..types import AgentsFunction, ObservableFunction, ReadKind
+from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
 from ._base import BaseCompiler
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
 from ._member_reductions import _MemberReductions
-
-type Declared = dict[str, tuple[str, ObservableSpec]]
 
 
 def _role_paths(system: System, scope: str = '') -> set[str]:

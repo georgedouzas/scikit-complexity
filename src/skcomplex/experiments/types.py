@@ -3,7 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+
+from ..core.system import System
+from ..engine.runtime import Trajectory
 
 type Row = dict[str, object]
 type Bounds = Mapping[str, object]
+type Source = Callable[..., System] | System
+type Output = str | Callable[[Trajectory], object]

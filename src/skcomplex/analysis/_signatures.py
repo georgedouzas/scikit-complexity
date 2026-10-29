@@ -12,12 +12,13 @@ from ..errors import AnalysisError
 from ..specs import SignatureSpec
 from ..types import Array, DataKind, FormKind
 from ._alignment import AlignmentAnalysis
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._correlation import CorrelationAnalysis
 from ._distribution import DistributionAnalysis
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
 from ._spectrum import SpectrumAnalysis
+from .types import Source
 
 SERIES_COLUMNS = 3
 PLANE = 2

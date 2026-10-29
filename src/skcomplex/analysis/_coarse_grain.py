@@ -12,7 +12,8 @@ import numpy.typing as npt
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis
+from .types import Source
 
 
 class CoarseGrainAnalysis(BaseAnalysis):

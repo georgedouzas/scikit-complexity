@@ -12,7 +12,8 @@ from scipy import stats
 
 from ..errors import AnalysisError
 from ..types import DataKind, IntArray, IntTuple
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 
 class EpsilonMachineAnalysis(BaseAnalysis):

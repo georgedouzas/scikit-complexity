@@ -8,15 +8,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
-from sage.all__sagemath_symbolics import Expression
-
 from ...specs._base_spec import BaseSpec
 from ...specs._compiled_delay_spec import _CompiledDelaySpec
 from ._born_spec import _BornSpec
+from ._flow_term_spec import _FlowTermSpec
 from ._kernel_spec import KernelSpec
 from ._record_spec import _RecordSpec
-
-type Term = tuple[KernelSpec, str, str, Expression, str | None, str | None]
 
 
 @dataclass(frozen=True)
@@ -48,7 +45,7 @@ class TransferStateSpec(BaseSpec):
     flows: tuple[_BornSpec, ...]
     records: tuple[_RecordSpec, ...]
     delays: tuple[_CompiledDelaySpec, ...]
-    terms: tuple[Term, ...]
+    terms: tuple[_FlowTermSpec, ...]
 
     def replaced(self, specs: Mapping[int, KernelSpec]) -> TransferStateSpec:
         """Return the state with replaced kernel specs, such as specs whose rows are settled.
@@ -67,5 +64,5 @@ class TransferStateSpec(BaseSpec):
             born={key: born[id(item)] for key, item in self.born.items()},
             flows=tuple(born[id(item)] for item in self.flows),
             records=tuple(replace(record, spec=specs.get(id(record.spec), record.spec)) for record in self.records),
-            terms=tuple((specs.get(id(spec), spec), *rest) for spec, *rest in self.terms),
+            terms=tuple(replace(term, spec=specs.get(id(term.spec), term.spec)) for term in self.terms),
         )

@@ -21,6 +21,7 @@ from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
+type Reach = LatticeNeighborhood | MemoryNeighborhood
 
 
 @runtime_checkable

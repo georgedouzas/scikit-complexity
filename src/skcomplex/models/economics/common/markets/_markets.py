@@ -20,8 +20,7 @@ from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
 from .....engine.solvers import AgentView, ModelView
 from .....specs import BaseSpec, RoleSpec
-
-type Preference = Callable[[AgentView, AgentView], float]
+from .types import Preference
 
 PRICINGS = ('midpoint', 'bid', 'ask')
 ORDERS = ('random', 'bid', 'sequential')

@@ -10,14 +10,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
+from ....core.types import Reach
 from ....errors import ValidationError
 from ....specs import OuterTotalisticSpec, TableSpec, TotalisticSpec
 from ....types import Indices, IntArray
 
 MAX_PATTERNS = 2**20
 IDENTITY = '1'
-
-type Reach = LatticeNeighborhood | MemoryNeighborhood
 
 
 def _fitted(space: BaseSpace) -> BaseSpace:

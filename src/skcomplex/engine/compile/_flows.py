@@ -34,6 +34,7 @@ from ...types import Array, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import BlockSpec, DeclarationsSpec, KernelSpec, ReferenceSpec, TransferStateSpec
 from ..problems._born_spec import _BornSpec
+from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._record_spec import _RecordSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
@@ -75,7 +76,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     flows_: list[_BornSpec]
     records_: list[_RecordSpec]
     delays_: list[_CompiledDelaySpec]
-    terms_: list[tuple[KernelSpec, str, str, Expression, str | None, str | None]]
+    terms_: list[_FlowTermSpec]
 
     def _prepare(self, context: Compilation | None) -> Self:
         """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
@@ -207,7 +208,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.flows_.append(born)
         self.born_.update({id(law): born for law in laws})
         self.records_.append(_RecordSpec(path, amount, spec))
-        self.terms_.append((spec, 'flow', path, amount, source, sink))
+        self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
         return laws
 
     def _expand(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
@@ -245,7 +246,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 and isinstance(law._get_targets()[0], Expression)
             ):
                 target, _ = self._quantity_of(law._get_targets()[0], spec)
-                self.terms_.append((spec, 'rate', target, law.value, None, None))
+                self.terms_.append(_FlowTermSpec(spec, 'rate', target, law.value))
             expanded.append(law)
         return expanded
 
@@ -448,8 +449,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             ),
             boundary=boundary,
             terms=tuple(
-                LoopTermSpec(kind, path, expression, dict(spec.references), source, sink)
-                for spec, kind, path, expression, source, sink in self.terms_
+                LoopTermSpec(term.kind, term.path, term.expression, dict(term.spec.references), term.source, term.sink)
+                for term in self.terms_
             ),
             discrete=discrete,
             delays=tuple(self.delays_),

@@ -13,10 +13,11 @@ import numpy.typing as npt
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._correlation import CorrelationAnalysis
 from ._neighbors import NeighborAnalysis
 from ._spectrum import SpectrumAnalysis
+from .types import Source
 
 MIN_LINE_POINTS = 2
 

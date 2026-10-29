@@ -14,8 +14,7 @@ from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-type GateRates = dict[str, tuple[Expression, Expression]]
+from .types import GateRates
 
 
 def _gate_rates(v: Expression) -> GateRates:

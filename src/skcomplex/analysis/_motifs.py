@@ -12,7 +12,8 @@ import numpy as np
 
 from ..errors import AnalysisError
 from ..types import DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 TRIAD_SIZE = 3
 

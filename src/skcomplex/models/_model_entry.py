@@ -12,8 +12,7 @@ from ..core.system import System
 from ..engine.compile import BaseCompiler, compile_system
 from ..errors import ValidationError
 from ..specs import ObservableSpec
-
-type Factory = Callable[..., System]
+from .types import Factory
 
 RUN_SETTINGS = (
     'until',

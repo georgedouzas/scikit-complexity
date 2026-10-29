@@ -15,7 +15,7 @@ from ._local_operator_spec import LocalOperatorSpec
 type Factor = tuple[str, 'LocalOperatorSpec']
 
 
-type Term = tuple[Factor, ...]
+type Product = tuple[Factor, ...]
 
 
 @dataclass(frozen=True, eq=False)
@@ -43,14 +43,14 @@ class OperatorSpec(BaseSpec):
 
     __array_ufunc__ = None
 
-    terms: Mapping[Term, object]
+    terms: Mapping[Product, object]
 
-    def _items(self) -> dict[Term, Expression]:
+    def _items(self) -> dict[Product, Expression]:
         """Return the terms with Sage coefficients."""
         return {key: SR(value) for key, value in self.terms.items()}
 
     @staticmethod
-    def _combined(terms: dict[Term, Expression]) -> 'OperatorSpec':
+    def _combined(terms: dict[Product, Expression]) -> 'OperatorSpec':
         """Return an operator from terms, without the terms whose coefficient is zero."""
         return OperatorSpec({key: value for key, value in terms.items() if not value.is_trivial_zero()})
 
@@ -93,7 +93,7 @@ class OperatorSpec(BaseSpec):
         operand = self._as_operator(other)
         if operand is None:
             return NotImplemented
-        terms: dict[Term, Expression] = {}
+        terms: dict[Product, Expression] = {}
         for left, first in self._items().items():
             for right, second in operand._items().items():
                 self._added(terms, left + right, first * second)
@@ -165,6 +165,6 @@ class OperatorSpec(BaseSpec):
             return None
 
     @staticmethod
-    def _added(terms: dict[Term, Expression], key: Term, coefficient: Expression) -> None:
+    def _added(terms: dict[Product, Expression], key: Product, coefficient: Expression) -> None:
         """Add a coefficient to the term of a key, in place."""
         terms[key] = terms[key] + coefficient if key in terms else coefficient

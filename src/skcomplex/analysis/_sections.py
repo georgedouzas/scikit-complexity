@@ -16,7 +16,8 @@ from ..engine.solvers import Solver
 from ..errors import AnalysisError
 from ..specs import EventRecordSpec
 from ..types import Array, DataKind, FormKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 KINDS = ('poincare', 'stroboscopic')
 SETTINGS = {

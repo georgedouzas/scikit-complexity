@@ -12,8 +12,9 @@ from scipy import stats
 
 from ..errors import AnalysisError
 from ..types import AnyArray, Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._information import InformationAnalysis
+from .types import Source
 
 KINDS = ('entropy', 'mutual', 'transfer')
 ESTIMATORS = ('plugin', 'gaussian')

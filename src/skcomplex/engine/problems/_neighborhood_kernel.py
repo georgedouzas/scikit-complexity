@@ -41,7 +41,7 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
 """Spaces every kind of neighbourhood is read on."""
 
 
-type Search = StaticSearch | EdgeRowSearch | MetricSearch
+type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
 
 _PLANE = 2
 
@@ -87,7 +87,7 @@ class NeighborhoodKernel(BaseKernel):
         entry: EntrySpec,
         *,
         group: str,
-        search: Search,
+        search: NeighborSearch,
         reads: dict[Expression, PairReadSpec],
         time: Expression,
     ) -> None:
@@ -458,7 +458,7 @@ class NeighborhoodKernel(BaseKernel):
         states: Mapping[str, VariableSpec],
         *,
         changing: Mapping[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]] | None = None,
-    ) -> Search:
+    ) -> NeighborSearch:
         """Return the search of the neighbours of the members of a group in its space.
 
         Args:

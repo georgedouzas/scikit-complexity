@@ -5,21 +5,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 from sklearn.base import BaseEstimator
 
 from ...core.specs import ScenarioSpec
-from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
 from ...specs._base_spec import BaseSpec
 from ...specs._observable_spec import ObservableSpec
-from .._base import Source
-from ..types import Row
-
-type Output = str | Callable[[Trajectory], object]
+from ..types import Output, Row, Source
 
 
 @dataclass(frozen=True)

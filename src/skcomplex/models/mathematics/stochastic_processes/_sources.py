@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,8 +13,7 @@ from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
-
-type Matrix = Sequence[Sequence[float]]
+from .types import Matrix
 
 CHAIN = ((0.9, 0.1), (0.4, 0.6))
 EMISSION = ((0.7, 0.3), (0.2, 0.8))

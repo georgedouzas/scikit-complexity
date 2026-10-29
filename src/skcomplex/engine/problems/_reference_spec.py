@@ -111,4 +111,4 @@ class ReferenceSpec(BaseSpec):
         return self.entry.start + np.arange(self.entry.rows) * self.entry.columns + self.column
 
 
-type Search = PairSearch | EdgeSearch
+type PairsSearch = PairSearch | EdgeSearch

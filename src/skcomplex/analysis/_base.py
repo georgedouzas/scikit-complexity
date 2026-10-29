@@ -24,10 +24,8 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ValidationError
 from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, SnapshotsSpec
 from ..types import Array, DataKind, DomainKind, FormKind
+from .types import Run, Runs, Source
 
-type Source = Trajectory | System | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
-type Run = Trajectory | npt.ArrayLike
-type Runs = Source | list[Run]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'

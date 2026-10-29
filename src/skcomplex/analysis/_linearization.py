@@ -14,8 +14,9 @@ from scipy.linalg import solve_continuous_are
 from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
 from ..types import Array, DataKind, FormKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._stability import StabilityAnalysis
+from .types import Source
 
 
 class LinearizationAnalysis(BaseAnalysis):

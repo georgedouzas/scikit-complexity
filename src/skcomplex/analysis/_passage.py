@@ -13,8 +13,9 @@ from deeptime.markov.tools import analysis as msm_analysis
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._markov import MarkovAnalysis
+from .types import Source
 
 KINDS = ('first-passage', 'hitting', 'return-times', 'committor', 'mean-first-passage')
 DIRECTIONS = ('up', 'down')

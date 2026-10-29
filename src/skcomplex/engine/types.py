@@ -1,4 +1,4 @@
-"""Define the types of the engine: arrays, functions, and records that only the engine reads.
+"""Define the types of the engine: arrays, functions, records, and library classes that only the engine reads.
 
 The neighbour search on a grid of cells passes tuples, since its Numba kernels take no other records.
 """
@@ -12,9 +12,14 @@ from types import SimpleNamespace
 
 import numpy.typing as npt
 import scipy.sparse
+from mesa.discrete_space import Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
+from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from sage.all__sagemath_symbolics import Expression
+from sage.structure.element import RingElement
 
-from ..types import Array, Indices, IntArray
+from ..core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from ..specs import LammpsFixSpec, ObservableSpec
+from ..types import Array, ComplexArray, Indices, IntArray, IntTuple
 
 # arrays and indices
 type Sparse = scipy.sparse.csr_array
@@ -56,6 +61,18 @@ type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
 type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
+
+# laws, operators, and observables the compiler reads
+type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
+type Hamiltonians = list[tuple[str, Expression]]
+type Dissipators = list[tuple[str, Expression, object]]
+type Declared = dict[str, tuple[str, ObservableSpec]]
+type Number = RingElement | int | float | complex
+
+# solvers backed by libraries
+type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
+type FixCommand = Callable[[LammpsFixSpec], str]
+type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
 class ReadKind(StrEnum):

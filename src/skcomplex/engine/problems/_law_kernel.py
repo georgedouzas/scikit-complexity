@@ -20,7 +20,7 @@ from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
 from ._output_spec import OutputSpec
 from ._pair_search import PairSearch
-from ._reference_spec import ReferenceSpec, Search
+from ._reference_spec import PairsSearch, ReferenceSpec
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 
@@ -67,7 +67,7 @@ class LawKernel(BaseKernel):
         layout_states: LayoutSpec,
         *,
         layout_parameters: LayoutSpec,
-        pairs: Search | None = None,
+        pairs: PairsSearch | None = None,
         outputs: Sequence[OutputSpec] = (),
     ) -> None:
         self.owner = owner
@@ -521,7 +521,7 @@ class LawKernel(BaseKernel):
         return tuple(channels)
 
     @staticmethod
-    def _member_indices(reference: ReferenceSpec, rows: int, pairs: Search | None = None) -> Indices:
+    def _member_indices(reference: ReferenceSpec, rows: int, pairs: PairsSearch | None = None) -> Indices:
         """Return the flat index of a target component for every evaluation index of a member or edge kernel.
 
         Args:
