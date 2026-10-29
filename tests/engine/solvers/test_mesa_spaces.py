@@ -10,6 +10,7 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentView
 from skcomplex.errors import SimulationError, ValidationError
 from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec, StateSpec, VisualSpec
 
@@ -78,7 +79,7 @@ class WorkerElement(Element):
 
     def accept(self, agent, model):
         """Test helper accept."""
-        best = max(employer.offer for employer in model.agents('employers'))
+        best = max(employer.offer for employer in model.agents('employers', AgentView))
         agent.stale += float(best != model.time + 1.0)
         agent.accepted = best
 

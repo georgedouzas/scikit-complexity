@@ -31,7 +31,7 @@ def _position(agent: AgentView) -> tuple[float, float]:
 def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | None:
     """Return the car whose rank follows the agent's rank on a road of `n_cars` cars, or `None` for the last car."""
     rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
-    return next((car for car in model.agents(agent.group) if int(car.rank) == rank and car != agent), None)
+    return next((car for car in model.agents(agent.group, AgentView) if int(car.rank) == rank and car != agent), None)
 
 
 class MotoristElement(Element):
@@ -115,7 +115,7 @@ class MotoristElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(agent.group)
+        cars = model.agents(agent.group, AgentView)
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -184,7 +184,7 @@ class CarelessBrakingInteraction(Interaction):
             model:
                 The model.
         """
-        cars = sorted(model.agents('cars'), key=lambda car: car.rank)
+        cars = sorted(model.agents('cars', AgentView), key=lambda car: car.rank)
         if not cars:
             return
         if model.rng.random() < model.parameter('probability'):
@@ -280,7 +280,7 @@ class DriverElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(agent.group)
+        cars = model.agents(agent.group, AgentView)
         length = cast('tuple[float, float]', model.dimensions)[0]
         ahead = _car_ahead(agent, model, len(cars))
         x, y = _position(agent)

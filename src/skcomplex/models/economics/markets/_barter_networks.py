@@ -225,7 +225,7 @@ class BilateralBarterInteraction(Interaction):
         units = int(model.parameter('units'))
         traded = sum(_barter(first, second, units) for first, second in matches(model, 'partners'))
         model.report('trades', float(traded))
-        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders))))
+        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders, AgentView))))
 
 
 @register_model(

@@ -253,7 +253,7 @@ class CabElement(Element):
 
     def _pick_up(self, agent: AgentView, model: ModelView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in model.agents('riders') if item.id == int(agent.rider))
+        rider = next(item for item in model.agents('riders', AgentView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
         blocks = _blocks(_cell(agent.location), destination)
         fare = model.parameter('base_fare') + model.parameter('block_fare') * blocks

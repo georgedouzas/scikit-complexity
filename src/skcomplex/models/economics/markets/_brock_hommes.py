@@ -181,7 +181,7 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = model.agents('traders')
+        traders = model.agents('traders', AgentView)
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = (forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
         previous = model.storage.get('forecasts')

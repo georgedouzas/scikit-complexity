@@ -151,7 +151,7 @@ class MoranStepInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.population)
+        individuals = model.agents(self.population, AgentView)
         selection = model.parameter('selection')
         mutation = model.parameter('mutation')
         traits = np.asarray([individual.trait for individual in individuals], dtype=float)
@@ -268,7 +268,7 @@ class TangledNatureStepInteraction(Interaction):
             model:
                 The model.
         """
-        alive = model.agents(self.organisms)
+        alive = model.agents(self.organisms, AgentView)
         counts = np.bincount([int(organism.trait) for organism in alive], minlength=2**self.length).astype(float)
         p_kill = model.parameter('p_kill')
         for _ in range(int(len(alive) / p_kill)):
@@ -348,7 +348,7 @@ class AdaptiveClimbingInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.population)
+        individuals = model.agents(self.population, AgentView)
         genome = int(individuals[0].trait)
         current = _random_fitness(genome, self.seed)
         rng = model.rng

@@ -211,7 +211,7 @@ class EaterElement(Element):
         """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
         restaurants = [other for other in agent.neighbors(radius=agent.reach) if other.group != agent.group]
         if not restaurants:
-            nearest = min(model.agents('restaurants'), key=agent.distance_to, default=None)
+            nearest = min(model.agents('restaurants', AgentView), key=agent.distance_to, default=None)
             restaurants = [] if nearest is None else [nearest]
         if not restaurants:
             return

@@ -6,7 +6,7 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Any, cast
+from typing import Any, cast, overload
 
 import mesa
 import networkx as nx
@@ -20,7 +20,7 @@ from ...core.elements import GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.specs import CompiledAgentsSpec
-from ...errors import ConservationError, SimulationError, SpaceError
+from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
@@ -158,23 +158,39 @@ class ModelView:
         """Whether the agent space wraps around at its edges."""
         return bool(getattr(self._stepper.space_, 'torus', False))
 
-    def agents(self, name: str) -> list['AgentView']:
-        """Return the agents of a group bound to a role of the owner, or of a group by relative or absolute path.
+    @overload
+    def agents(self, name: str) -> list['AgentView']: ...
+
+    @overload
+    def agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
+
+    def agents(self, name: str, view: type['AgentView'] | None = None) -> list['AgentView']:
+        """Return the views of the agents of a group bound to a role of the owner, or of a group by path.
 
         Args:
             name:
                 A role of the owner, the path of a group relative to the owner's system, or the path of a group.
 
+            view:
+                The view class of the group, which its element names with `_get_view`, or `None` for `AgentView`.
+
         Returns:
             agents:
-                The agents alive in the group, or in every group of a role that binds several.
+                The views of the agents alive in the group, or in every group of a role that binds several.
 
         Raises:
             SimulationError:
-                No role or group has that name.
+                No role or group has that name, or the views of a group are not of the view class.
         """
         stepper = self._stepper
-        return [MesaSolver._view_of(agent) for path in self._paths(name) for agent in stepper._group_agents(path)]
+        views = [MesaSolver._view_of(agent) for path in self._paths(name) for agent in stepper._group_agents(path)]
+        wanted = AgentView if view is None else view
+        wrong = [item for item in views if not isinstance(item, wanted)]
+        if wrong:
+            viewed = type(wrong[0]).__mro__[1].__name__
+            error_msg = f'The agents of {name} are viewed as {viewed}, not {wanted.__name__}.'
+            raise SimulationError(error_msg)
+        return views
 
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner, or of a group by path.
@@ -1175,7 +1191,11 @@ class MesaSolver(ExternalSolver):
         }
         names.update({name: MesaSolver._state_property(name) for name in spec.states})
         names['__slots__'] = ()
-        return type(f'{spec.path.replace("/", "_")}_view', (AgentView,), names)
+        base = MesaSolver._agent_type(spec)._get_view() or AgentView
+        if not issubclass(base, AgentView):
+            error_msg = f'The view of {spec.path} is {base.__name__}, which does not derive from AgentView.'
+            raise ValidationError(error_msg)
+        return type(f'{spec.path.replace("/", "_")}_view', (base,), names)
 
     @staticmethod
     def _member_value(value: object, index: int, size: int) -> object:

@@ -14,7 +14,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
@@ -113,7 +113,7 @@ class ExecutionInteraction(Interaction):
             model:
                 The model.
         """
-        tasks = model.agents(self.target)
+        tasks = model.agents(self.target, AgentView)
         if not tasks:
             return
         priorities = [task.priority for task in tasks]

@@ -57,6 +57,15 @@ class Element(BaseElement):
         PopulationElement(label='rabbits', n=40)
     """
 
+    @classmethod
+    def _get_view(cls) -> type | None:
+        """Return the class of the views of the element's agents, or `None` for the engine's plain view.
+
+        An agent element names a subclass of the engine's `AgentView` that annotates its states and parameters, such as
+        `class WordView(AgentView): count: float`, so its rules read them with checked types.
+        """
+        return None
+
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the element for a namespace of symbols, none by default.
 

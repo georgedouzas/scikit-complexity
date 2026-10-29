@@ -182,7 +182,7 @@ class FirmElement(Element):
         interest = agent.loan * agent.rate
         worth = agent.net_worth + agent.gross_return - interest
         if agent.loan > 0:
-            bank = next(bank for bank in model.agents(self.lenders) if bank.id == int(agent.partner))
+            bank = next(bank for bank in model.agents(self.lenders, AgentView) if bank.id == int(agent.partner))
             bank.equity += interest + min(worth, 0.0)
             bank.losses += max(-worth, 0.0)
         if worth >= 0:
@@ -339,8 +339,8 @@ class CreditMarketInteraction(MarketInteraction):
                 The model view of the market.
         """
         super().clear(model)
-        cheapest = min((bank.ask for bank in model.agents('sellers') if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in model.agents('buyers') if firm.loan > 0]
+        cheapest = min((bank.ask for bank in model.agents('sellers', AgentView) if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in model.agents('buyers', AgentView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         model.report('spread', spread)
 

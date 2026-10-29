@@ -15,7 +15,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array, IntArray
 from ..._catalog import register_model
@@ -222,7 +222,7 @@ class EvolutionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('population')
+        agents = model.agents('population', AgentView)
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         scores = np.array([agent.score for agent in agents], dtype=float)
         children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))

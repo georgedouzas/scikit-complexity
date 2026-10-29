@@ -181,7 +181,7 @@ class RedesignInteraction(Interaction):
             model:
                 The model.
         """
-        components = sorted(model.agents('components'), key=lambda component: component.id)
+        components = sorted(model.agents('components', AgentView), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = _components(cost, np.asarray(self.dependencies, dtype=float), model.rng)
         if proposal.sum() >= cost.sum():
@@ -317,7 +317,7 @@ class InventionInteraction(Interaction):
             model:
                 The model.
         """
-        pool = model.agents('technologies')
+        pool = model.agents('technologies', AgentView)
         arity, table, cost = self._wire(pool, model)
         if (arity, table) not in GOALS:
             return

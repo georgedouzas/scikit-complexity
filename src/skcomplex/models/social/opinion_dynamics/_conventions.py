@@ -114,7 +114,7 @@ class NamingGamesInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         if len(agents) < 2:  # noqa: PLR2004
             return
         for _ in range(len(agents)):

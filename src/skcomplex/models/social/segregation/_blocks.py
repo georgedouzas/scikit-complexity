@@ -156,7 +156,7 @@ class BlockMovesInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         columns = self.width // self.side
         counts = np.zeros(columns * (self.height // self.side))
         for agent in agents:

@@ -125,7 +125,7 @@ class CullerInteraction(Interaction):
 
     def cull(self, model):
         """Remove the oldest agent while more than two remain."""
-        agents = sorted(model.agents(self.target), key=lambda agent: agent.id)
+        agents = sorted(model.agents(self.target, AgentView), key=lambda agent: agent.id)
         if len(agents) > 2:
             agents[0].remove()
 
@@ -152,7 +152,7 @@ class MoneyAgentElement(Element):
     def give(self, agent, model):
         """Give the transfer to a random agent of the group."""
         if agent.wealth > 0:
-            agents = model.agents(agent.group)
+            agents = model.agents(agent.group, AgentView)
             other = agents[int(model.rng.integers(len(agents)))]
             other.wealth += agent.transfer
             agent.wealth -= agent.transfer
@@ -214,7 +214,7 @@ class ShopperElement(Element):
 
     def buy(self, agent, model):
         """Buy one unit from the first stall with stock."""
-        stall = model.agents('stalls')[0]
+        stall = model.agents('stalls', AgentView)[0]
         if stall.stock > 0:
             stall.stock -= 1
 
@@ -421,7 +421,7 @@ class CensusInteraction(Interaction):
 
     def record(self, model):
         """Record the parameter, the counts and labels of the groups, and the space of the model."""
-        counted = model.agents(self.looked_up)
+        counted = model.agents(self.looked_up, AgentView)
         SEEN.append(
             {
                 'threshold': model.parameter('threshold'),

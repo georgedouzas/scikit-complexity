@@ -61,7 +61,7 @@ def _people_by_id(model: ModelView) -> dict[int, AgentView]:
     """Return the living people by id, built once per step in the storage of the caller."""
     cached = model.storage.get('people')
     if cached is None or cached[0] != model.time:
-        cached = (model.time, {person.id: person for person in model.agents('people') if person.alive})
+        cached = (model.time, {person.id: person for person in model.agents('people', AgentView) if person.alive})
         model.storage['people'] = cached
     return cached[1]
 
@@ -563,7 +563,7 @@ class BusinessElement(Element):
         """
         people = _people_by_id(model)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = model.agents('bank')[0]
+        bank = model.agents('bank', AgentView)[0]
         patch = _patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
@@ -646,7 +646,7 @@ class CentralBankElement(Element):
                 The model.
         """
         income = agent.money + agent.loans
-        holders = list(_people_by_id(model).values()) or model.agents('businesses')
+        holders = list(_people_by_id(model).values()) or model.agents('businesses', AgentView)
         if income > 0 and holders:
             transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
 
@@ -700,7 +700,7 @@ class CommonsInteraction(Interaction):
                 The model view of the interaction.
         """
         cells: dict[tuple[int, ...], list[AgentView]] = {}
-        for person in model.agents('people'):
+        for person in model.agents('people', AgentView):
             cells.setdefault(tuple(int(item) for item in person.location), []).append(person)
         for group in cells.values():
             patch = _patch_here(group[0])
@@ -857,7 +857,7 @@ class CensusInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        people = model.agents('people')
+        people = model.agents('people', AgentView)
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         model.report('births', float(sum(person.age == 0 for person in living)))

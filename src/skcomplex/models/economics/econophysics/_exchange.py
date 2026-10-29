@@ -68,7 +68,7 @@ class TraderElement(Element):
         """
         if agent.wealth <= 0:
             return
-        others = model.agents(agent.group)
+        others = model.agents(agent.group, AgentView)
         receiver = others[int(model.rng.integers(len(others)))]
         receiver.wealth += 1
         agent.wealth -= 1

@@ -151,7 +151,7 @@ class BinaryCollisionsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         size = np.asarray(model.dimensions, dtype=float)
         positions = np.array([agent.location for agent in agents], dtype=float)
         headings = np.array([agent.theta for agent in agents], dtype=float)

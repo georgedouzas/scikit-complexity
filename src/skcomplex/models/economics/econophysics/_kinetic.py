@@ -14,7 +14,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
@@ -102,7 +102,7 @@ class SavingExchangeInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('traders')
+        agents = model.agents('traders', AgentView)
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         saving = model.parameter('saving')
         pairs = model.rng.integers(len(agents), size=(len(agents), 2))
@@ -176,7 +176,7 @@ class DebtExchangeInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('traders')
+        agents = model.agents('traders', AgentView)
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         floor, amount = -model.parameter('debt'), model.parameter('amount')
         for payer, payee in model.rng.integers(len(agents), size=(len(agents), 2)):

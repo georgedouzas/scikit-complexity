@@ -108,10 +108,10 @@ class DepositorElement(Element):
             model:
                 The model.
         """
-        customers = model.agents(agent.group)
+        customers = model.agents(agent.group, AgentView)
         payee = customers[int(model.rng.integers(len(customers)))]
         amount = model.parameter('spending') * agent.deposit
-        banks = model.agents(self.lenders)
+        banks = model.agents(self.lenders, AgentView)
         source, target = _bank_of(banks, agent.bank), _bank_of(banks, payee.bank)
         agent.deposit -= amount
         payee.deposit += amount
@@ -133,7 +133,7 @@ class DepositorElement(Element):
         amount = min(model.parameter('repayment') * agent.loan, agent.deposit)
         if amount <= 0:
             return
-        bank = _bank_of(model.agents(self.lenders), agent.bank)
+        bank = _bank_of(model.agents(self.lenders, AgentView), agent.bank)
         agent.deposit -= amount
         agent.loan -= amount
         bank.deposits -= amount
@@ -221,13 +221,13 @@ class ReserveBankElement(Element):
                 The model.
         """
         excess = agent.reserves - model.parameter('reserve_ratio') * agent.deposits
-        customers = model.agents(self.customers)
+        customers = model.agents(self.customers, AgentView)
         own = [customer for customer in customers if int(customer.bank) == int(agent.index)]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(model.rng.integers(len(own)))]
         payee = customers[int(model.rng.integers(len(customers)))]
-        bank = _bank_of(model.agents(agent.group), payee.bank)
+        bank = _bank_of(model.agents(agent.group, AgentView), payee.bank)
         borrower.loan += excess
         agent.loans += excess
         agent.reserves -= excess

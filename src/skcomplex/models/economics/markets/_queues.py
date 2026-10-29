@@ -122,7 +122,7 @@ class WasherElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(self.cars)
+        cars = model.agents(self.cars, AgentView)
         fronts = [car for car in (_front(cars, WASH), _front(cars, VALET)) if car is not None]
         if not fronts:
             return
@@ -294,14 +294,14 @@ class CarWashOperationInteraction(Interaction):
                 The model.
         """
         values = {name: float(model.parameter(name)) for name in _PARAMETERS}
-        till = model.agents('till')[0]
-        for car in model.agents('cars'):
+        till = model.agents('till', AgentView)[0]
+        for car in model.agents('cars', AgentView):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, model, values)
         if model.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in model.agents('cars')) >= values['balk']:
+        if sum(car.stage == WASH for car in model.agents('cars', AgentView)) >= values['balk']:
             till.turned_away += 1
             return
         model.create('cars', stage=WASH, work=values['wash_work'])

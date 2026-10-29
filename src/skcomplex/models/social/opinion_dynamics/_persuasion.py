@@ -171,7 +171,7 @@ class DiscussionsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         if not agents:
             return
         size = max(int(agents[0].group_size), 1)
@@ -281,7 +281,7 @@ class SocialImpactInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         if len(agents) < 2:  # noqa: PLR2004
             return
         locations = np.array([agent.location for agent in agents], dtype=float)

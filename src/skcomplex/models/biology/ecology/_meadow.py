@@ -160,8 +160,8 @@ class GrazingInteraction(Interaction):
             model:
                 The model.
         """
-        patches = {_cell(patch): patch for patch in model.agents('pasture')}
-        for cow in model.agents('cows'):
+        patches = {_cell(patch): patch for patch in model.agents('pasture', AgentView)}
+        for cow in model.agents('cows', AgentView):
             patch = patches.get(_cell(cow))
             if patch is not None:
                 patch.grass = max(patch.grass - cow.bite, 0.0)
@@ -222,12 +222,12 @@ class HerdingInteraction(Interaction):
             model:
                 The model.
         """
-        patches = model.agents('pasture')
+        patches = model.agents('pasture', AgentView)
         cells = [_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         positions = np.asarray(cells, dtype=float)
         grown = np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')
-        cows = model.agents('cows')
+        cows = model.agents('cows', AgentView)
         occupied = np.zeros(len(cells), dtype=bool)
         occupied[[index[_cell(cow)] for cow in cows]] = True
         for number in model.rng.permutation(len(cows)):

@@ -156,7 +156,7 @@ class DebtRankCascadeInteraction(Interaction):
             model:
                 The model.
         """
-        banks = sorted(model.agents('banks'), key=lambda bank: bank.id)
+        banks = sorted(model.agents('banks', AgentView), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED

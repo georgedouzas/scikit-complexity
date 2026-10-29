@@ -189,7 +189,7 @@ class MinorityGameInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('players')
+        agents = model.agents('players', AgentView)
         storage = model.storage
         n_histories = 2**self.memory
         history = storage.setdefault('history', int(model.rng.integers(n_histories)))

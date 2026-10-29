@@ -245,7 +245,7 @@ class PerishableTradeInteraction(Interaction):
                 The model.
         """
         temperature, alpha, tau_a = (model.parameter(name) for name in ('T', 'alpha', 'tau_a'))
-        customers, products = model.agents(self.customers), model.agents(self.products)
+        customers, products = model.agents(self.customers, AgentView), model.agents(self.products, AgentView)
         satisfaction = np.array([[customer.s1, customer.s2] for customer in customers], dtype=float)
         stock = np.array([product.shop for product in products], dtype=int)
         shelved = np.array([product.shelved for product in products], dtype=float)
@@ -265,7 +265,7 @@ class PerishableTradeInteraction(Interaction):
             product.shelved = float(time)
         first = float(_first_shop_probabilities(customers, temperature).mean())
         freshness = np.exp(-(start + 1 - shelved) / tau_a)
-        for record, share, shelf in zip(model.agents(self.shops), (first, 1 - first), shelves, strict=True):
+        for record, share, shelf in zip(model.agents(self.shops, AgentView), (first, 1 - first), shelves, strict=True):
             record.share = share
             record.freshness = float(freshness[shelf].mean())
 

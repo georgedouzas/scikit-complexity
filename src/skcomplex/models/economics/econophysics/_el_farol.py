@@ -222,7 +222,7 @@ class BarInteraction(InstitutionInteraction):
             model:
                 The model view of the bar.
         """
-        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons)))
+        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, AgentView)))
 
 
 @register_model(

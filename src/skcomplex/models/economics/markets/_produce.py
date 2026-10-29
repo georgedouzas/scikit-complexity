@@ -162,7 +162,7 @@ class ShopperElement(Element):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in model.agents(self.stalls) if not visited >> int(stall.stall) & 1]
+        unvisited = [stall for stall in model.agents(self.stalls, AgentView) if not visited >> int(stall.stall) & 1]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return

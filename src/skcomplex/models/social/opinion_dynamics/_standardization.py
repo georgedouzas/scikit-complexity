@@ -16,7 +16,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -157,7 +157,7 @@ class StandardizationInteraction(Interaction):
                 The model.
         """
         K, J, T = (model.parameter(name) for name in ('K', 'J', 'T'))
-        agents = model.agents(self.agents)
+        agents = model.agents(self.agents, AgentView)
         size = len(agents)
         configurations = np.array([agent.configuration for agent in agents], dtype=float)
         spins = _spins_of(configurations)

@@ -10,6 +10,7 @@ from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import transfer
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import InvariantObserver, Simulation
+from skcomplex.engine.solvers import AgentView
 from skcomplex.errors import ConservationError, ValidationError
 from skcomplex.specs import ObservableSpec, StateSpec, VisualSpec
 
@@ -35,7 +36,7 @@ class TraderElement(Element):
 
     def give(self, agent, model):
         """Hand one unit of wealth to the next agent of the group."""
-        others = model.agents('traders')
+        others = model.agents('traders', AgentView)
         receiver = others[(others.index(agent) + 1) % len(others)]
         if agent.wealth >= 1:
             transfer(agent, receiver, 1.0, 'wealth')

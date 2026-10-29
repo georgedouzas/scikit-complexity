@@ -207,7 +207,7 @@ class DailyMovementsInteraction(Interaction):
             model:
                 The model.
         """
-        women, premises = model.agents('women'), model.agents('premises')
+        women, premises = model.agents('women', AgentView), model.agents('premises', AgentView)
         if not premises:
             return
         day = premises[0].day + 1

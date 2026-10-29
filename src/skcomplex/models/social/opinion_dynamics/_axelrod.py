@@ -226,7 +226,7 @@ class CultureCensusInteraction(Interaction):
             model:
                 The model view of the census.
         """
-        agents = model.agents('villages')
+        agents = model.agents('villages', AgentView)
         cultures = [agent.culture for agent in agents]
         locations = np.array([agent.location for agent in agents], dtype=np.int64)
         model.report('largest_region', largest_region(locations, cultures, self.width, self.height))

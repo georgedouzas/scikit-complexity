@@ -15,7 +15,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
@@ -136,7 +136,7 @@ class CournotAdjustmentInteraction(Interaction):
                 The model.
         """
         a, b, error = (model.parameter(name) for name in ('a', 'b', 'error'))
-        first, second = model.agents('firms')
+        first, second = model.agents('firms', AgentView)
         beliefs = np.array([second.output, first.output]) * (1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS))
         for firm, belief in zip((first, second), beliefs, strict=True):
             firm.output = max((a - firm.cost) / (2 * b) - float(belief) / 2, 0.0)

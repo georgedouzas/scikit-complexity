@@ -18,7 +18,7 @@ from ....core.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import neighbors, where
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
@@ -109,7 +109,7 @@ class EncountersInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         if len(agents) < 2:  # noqa: PLR2004
             return
         confidence, convergence = agents[0].confidence, agents[0].convergence

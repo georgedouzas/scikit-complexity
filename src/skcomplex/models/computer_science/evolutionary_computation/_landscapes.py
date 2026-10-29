@@ -16,7 +16,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -139,7 +139,7 @@ class ReproductionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('population')
+        agents = model.agents('population', AgentView)
         genomes = np.array([agent.genome for agent in agents], dtype=float)
         fitness = np.array([agent.fitness for agent in agents], dtype=float)
         rng = model.rng

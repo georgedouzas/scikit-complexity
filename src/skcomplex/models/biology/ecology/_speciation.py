@@ -15,7 +15,7 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....engine.solvers import AgentView, ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -119,7 +119,7 @@ class NeutralReplacementInteraction(Interaction):
             model:
                 The model.
         """
-        individuals = model.agents(self.community)
+        individuals = model.agents(self.community, AgentView)
         species = np.array([individual.species for individual in individuals], dtype=float)
         size = len(species)
         rng = model.rng

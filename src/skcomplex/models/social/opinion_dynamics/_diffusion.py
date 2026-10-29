@@ -235,7 +235,7 @@ class AdoptionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target)
+        agents = model.agents(self.target, AgentView)
         if not agents:
             return
         self._shift(agents, model)

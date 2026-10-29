@@ -11,6 +11,7 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.laws.utils import random_pairing, transfer
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentView
 from skcomplex.errors import ConservationError, ValidationError
 from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -96,7 +97,7 @@ class BorrowerElement(Element):
         if agent.money > 0:
             return
         if agent.settles:
-            lender = model.agents('lenders')[0]
+            lender = model.agents('lenders', AgentView)[0]
             transfer(agent, lender, agent.loans, 'loans')
         agent.remove()
 
@@ -137,7 +138,7 @@ class PaymentsInteraction(Interaction):
 
     def move(self, model):
         """Move one unit from the first holder to the second, and create money when the payments create it."""
-        first, second = model.agents('holders')[:2]
+        first, second = model.agents('holders', AgentView)[:2]
         transfer(first, second, 1.0, 'money')
         first.money += model.parameter('creates')
 

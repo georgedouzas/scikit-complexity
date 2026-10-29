@@ -183,7 +183,7 @@ class ForagerElement(Element):
         if 'patches' not in model.storage:
             model.storage['patches'] = {
                 tuple(int(item) for item in patch.location): patch  # type: ignore[attr-defined]
-                for patch in model.agents(self.patches)
+                for patch in model.agents(self.patches, AgentView)
             }
         return model.storage['patches']
 
@@ -283,7 +283,7 @@ class CensusInteraction(InstitutionInteraction):
             model:
                 The model view of the census.
         """
-        wealth = [forager.sugar for forager in model.agents('foragers')]
+        wealth = [forager.sugar for forager in model.agents('foragers', AgentView)]
         model.report('population', len(wealth))
         model.report('gini', gini(wealth))
 

@@ -274,7 +274,7 @@ class HerderElement(Element):
         if earning > model.parameter('upkeep') and agent.herd < agent.quota:
             model.create('cows', owner=agent.number, energy=model.parameter('newborn'))
         elif agent.herd > agent.quota:
-            next(cow for cow in model.agents('cows') if cow.owner == agent.number).remove()
+            next(cow for cow in model.agents('cows', AgentView) if cow.owner == agent.number).remove()
         agent.income = 0.0
         agent.herd = 0.0
 
@@ -356,14 +356,14 @@ class GrazingInteraction(Interaction):
             model:
                 The model view of the grazing.
         """
-        herders = {int(herder.number): herder for herder in model.agents('herders')}
+        herders = {int(herder.number): herder for herder in model.agents('herders', AgentView)}
         for cow, pasture in matches(model, 'grazing'):
             cow.move_to(pasture.location)
             eaten = min(pasture.grass, model.parameter('appetite'))
             transfer(pasture, cow, eaten, 'grass', 'energy')
             herder = herders[int(cow.owner)]
             herder.income += model.parameter('milk') * eaten
-        for cow in model.agents('cows'):
+        for cow in model.agents('cows', AgentView):
             cow.energy -= model.parameter('metabolism')
             herder = herders[int(cow.owner)]
             herder.herd += 1
@@ -427,9 +427,9 @@ class RegulatorInteraction(InstitutionInteraction):
         """
         if not model.parameter('regulated'):
             return
-        pastures = model.agents('meadow')
+        pastures = model.agents('meadow', AgentView)
         share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
-        for herder in model.agents('herders'):
+        for herder in model.agents('herders', AgentView):
             if share < model.parameter('low'):
                 herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
             elif share > model.parameter('high'):

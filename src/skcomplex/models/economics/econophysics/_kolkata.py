@@ -189,7 +189,7 @@ class RestaurantsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('diners')
+        agents = model.agents('diners', AgentView)
         choices = np.array([agent.restaurant for agent in agents], dtype=np.int64)
         crowds = np.bincount(choices, minlength=self.n_restaurants)
         order = model.rng.permutation(len(agents))

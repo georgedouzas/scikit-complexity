@@ -17,6 +17,7 @@ from matching.games import HospitalResident
 
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
+from .....engine.solvers import AgentView
 from .....specs import RoleSpec
 
 type Preference = Callable[[Any, Any], float]
@@ -756,11 +757,11 @@ class MarketInteraction(Interaction):
                 _read(agent, self.demand, 1.0),
                 _read(agent, self.money, math.inf),
             )
-            for agent in model.agents('buyers')
+            for agent in model.agents('buyers', AgentView)
         ]
         sellers = [
             Order(agent, _read(agent, self.ask, 0.0), _read(agent, self.supply, 1.0))
-            for agent in model.agents('sellers')
+            for agent in model.agents('sellers', AgentView)
         ]
         return [order for order in buyers if order.quantity > 0], [order for order in sellers if order.quantity > 0]
 

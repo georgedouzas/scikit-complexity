@@ -246,7 +246,7 @@ class AuctionLedgerInteraction(InstitutionInteraction):
             model:
                 The model view scoped to the ledger.
         """
-        buyers, sellers = model.agents('buyers'), model.agents('sellers')
+        buyers, sellers = model.agents('buyers', AgentView), model.agents('sellers', AgentView)
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])

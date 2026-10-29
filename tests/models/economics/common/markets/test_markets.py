@@ -13,6 +13,7 @@ from skcomplex.core.laws.utils import matches
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentView
 from skcomplex.models.economics.common.markets import (
     BilateralSearch,
     CallAuction,
@@ -130,7 +131,7 @@ class BookInteraction(Interaction):
     def record(self, model):
         """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
         PAIRS.extend((trade.buyer.id, trade.seller.id) for trade in matches(model, 'trades'))
-        EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
+        EARLIEST.append(min(agent.id for agent in model.agents('sellers', AgentView)))
 
 
 PAIRS: list[tuple[int, int]] = []

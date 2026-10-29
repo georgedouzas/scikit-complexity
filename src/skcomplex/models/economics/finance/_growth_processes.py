@@ -219,7 +219,7 @@ class ReflectingFloorInteraction(Interaction):
             model:
                 The model.
         """
-        firms = model.agents('firms')
+        firms = model.agents('firms', AgentView)
         floor = model.parameter('c') * float(np.mean([firm.previous for firm in firms]))
         for firm in firms:
             firm.x = max(firm.x, floor)

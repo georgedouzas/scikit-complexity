@@ -267,7 +267,7 @@ class SearchCountInteraction(InstitutionInteraction):
             model:
                 The model view of the office.
         """
-        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers')))
+        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers', AgentView)))
 
 
 def _unemployed(agent: AgentView) -> float:
