@@ -51,11 +51,9 @@ class MeanAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.series_ = self._read_series(source, self.variables)
-        return self
 
     def _run(self, inputs=None):
         self.mean_ = self.series_.values.mean(axis=0)
-        return self
 
 
 class DegreeAnalysis(BaseAnalysis):
@@ -66,11 +64,9 @@ class DegreeAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.graphs_ = self._read_networks(source)
-        return self
 
     def _run(self, inputs=None):
         self.degree_ = np.asarray([2 * graph.number_of_edges() / graph.number_of_nodes() for graph in self.graphs_])
-        return self
 
 
 class PathAnalysis(BaseAnalysis):
@@ -81,11 +77,9 @@ class PathAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.path_ = self._read_path(source)
-        return self
 
     def _run(self, inputs=None):
         self.jumps_ = self.path_.times.size - 1
-        return self
 
 
 class FieldAnalysis(BaseAnalysis):
@@ -99,11 +93,9 @@ class FieldAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.frames_ = self._read_fields(source, self.name)
-        return self
 
     def _run(self, inputs=None):
         self.mean_ = self.frames_.reshape(self.frames_.shape[0], -1).mean(axis=1)
-        return self
 
 
 class AgentAnalysis(BaseAnalysis):
@@ -114,11 +106,9 @@ class AgentAnalysis(BaseAnalysis):
 
     def _prepare(self, source):
         self.snapshots_ = self._read_snapshots(source)
-        return self
 
     def _run(self, inputs=None):
         self.count_ = self.snapshots_.ids.size
-        return self
 
 
 def test_analysis_reads_a_trajectory():

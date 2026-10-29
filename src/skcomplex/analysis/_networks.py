@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -150,24 +149,22 @@ class NetworkAnalysis(BaseAnalysis):
         self.reference = reference
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the centrality, the method, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('measure', self.measure, CENTRALITIES)
         self._check_choice('method', self.method, METHODS)
         self._check_settings('kind', SETTINGS[self.kind])
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the network kind."""
         return DataKind.NETWORK
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the graph of every frame of a trajectory, or a graph."""
         self.graphs_ = self._read_networks(source)
-        return self
 
-    def _run_summary(self) -> Self:
+    def _run_summary(self) -> None:
         """Compute the summary measures of every frame."""
         rows = [self._summary(graph) for graph in self.graphs_]
         self.nodes_ = np.asarray([row['nodes'] for row in rows], dtype=int)
@@ -177,13 +174,13 @@ class NetworkAnalysis(BaseAnalysis):
         self.path_length_ = np.asarray([row['path_length'] for row in rows], dtype=float)
         self.diameter_ = np.asarray([row['diameter'] for row in rows], dtype=int)
         self.components_ = [row['components'] for row in rows]
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the measure of every frame."""
         graphs = self.graphs_
         if self.kind == 'summary':
-            return self._run_summary()
+            self._run_summary()
+            return
         if self.kind == 'degrees':
             self.degrees_ = [self._degrees(graph) for graph in graphs]
             self.moments_ = np.asarray(
@@ -205,7 +202,6 @@ class NetworkAnalysis(BaseAnalysis):
             self.labels_ = [labels for labels, _, _ in found]
             self.modularity_ = np.asarray([modularity for _, modularity, _ in found])
             self.agreement_ = None if self.reference is None else np.asarray([agreement for _, _, agreement in found])
-        return self
 
     @staticmethod
     def _degrees(graph: nx.Graph) -> npt.NDArray[np.int64]:

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 import numpy as np
 from SALib.analyze import morris as morris_analysis
@@ -75,7 +74,7 @@ class SensitivityAnalysis(BaseAnalysis):
         self.output = output
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown method or a missing output."""
         if self.method not in METHODS:
             error_msg = f'Unknown sensitivity method {self.method!r}. Use one of {", ".join(METHODS)}.'
@@ -83,13 +82,12 @@ class SensitivityAnalysis(BaseAnalysis):
         if not isinstance(self.output, str):
             error_msg = f'output = {self.output!r} must be the name of a scalar output of the experiment.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the ensemble kind, since the analysis reads the runs of an experiment."""
         return DataKind.ENSEMBLE
 
-    def _prepare(self, source: object = None) -> Self:
+    def _prepare(self, source: object = None) -> None:
         """Read the design values and the output of every run of an experiment."""
         if not isinstance(source, ExperimentResult) or not source.runs or not isinstance(self.output, str):
             error_msg = f'A sensitivity analysis reads the result of an experiment with runs, not {source!r}.'
@@ -100,9 +98,8 @@ class SensitivityAnalysis(BaseAnalysis):
         self.names_ = list(source.runs[0].row)
         self.inputs_ = np.asarray([[run.row[name] for name in self.names_] for run in source.runs], dtype=float)
         self.outputs_ = np.asarray(source.column(self.output), dtype=float)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the indices of the method and rank the inputs."""
         problem = {'num_vars': len(self.names_), 'names': self.names_}
         if self.method == 'oat':
@@ -123,4 +120,3 @@ class SensitivityAnalysis(BaseAnalysis):
             self.total_order_conf_ = dict(zip(self.names_, map(float, indices['ST_conf']), strict=True))
             ranked = self.total_order_
         self.ranking_ = sorted(self.names_, key=lambda name: -abs(ranked[name]))
-        return self

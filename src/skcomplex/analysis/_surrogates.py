@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 from sklearn.base import clone
@@ -82,7 +81,7 @@ class SurrogateTestAnalysis(BaseAnalysis):
         self.alternative = alternative
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown alternative, a number of surrogates below 1, or an analysis that is not one."""
         if self.alternative not in ALTERNATIVES:
             error_msg = f'Unknown alternative {self.alternative!r}. Use one of {", ".join(ALTERNATIVES)}.'
@@ -94,22 +93,20 @@ class SurrogateTestAnalysis(BaseAnalysis):
             error_msg = f'The measure of a surrogate test is an analysis, not {self.analysis!r}.'
             raise AnalysisError(error_msg)
         self.analysis.check()
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series of the variables as columns."""
         self.values_ = np.asarray(self._read_series(source, self.variables).values, dtype=float)
-        return self
 
     def _measure(self, values: Array) -> float:
         """Return the attribute of a clone of the analysis run on the values."""
         return float(getattr(clone(self.analysis).check().prepare(values).run(), self.attribute))
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Measure the data and every surrogate, and set the p-value."""
         rng = np.random.default_rng(self.random_state)
         self.value_ = self._measure(self.values_)
@@ -128,4 +125,3 @@ class SurrogateTestAnalysis(BaseAnalysis):
             center = float(np.mean(self.surrogates_))
             extreme = int(np.sum(np.abs(self.surrogates_ - center) >= abs(self.value_ - center)))
         self.p_value_ = (1 + extreme) / (1 + self.surrogates_.size)
-        return self

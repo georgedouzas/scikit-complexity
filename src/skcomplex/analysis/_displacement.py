@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -79,7 +78,7 @@ class DisplacementAnalysis(BaseAnalysis):
         self.lags = lags
         self.fit_range = fit_range
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the time step and the lags."""
         if self.dt <= 0:
             error_msg = f'{type(self).__name__} has dt={self.dt!r}. Use a positive time step.'
@@ -87,13 +86,12 @@ class DisplacementAnalysis(BaseAnalysis):
         if self.lags is not None and min(self.lags, default=1) < 1:
             error_msg = f'{type(self).__name__} has lags={self.lags!r}. Use lags of 1 frame or more.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the agents kind."""
         return DataKind.AGENTS
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the unwrapped positions of an agent group, or an array with time as the first axis."""
         if isinstance(source, Trajectory):
             positions = self._read_snapshots(source, self.group).positions
@@ -101,11 +99,10 @@ class DisplacementAnalysis(BaseAnalysis):
                 error_msg = f'The agents of {self.group or "the first group"} have no positions. Use agents in a space.'
                 raise AnalysisError(error_msg)
             self.positions_ = self._particle_axes(positions)
-            return self
+            return
         self.positions_ = self._particle_axes(source)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the mean squared displacement and fit its exponent and the diffusion coefficient."""
         array = self.positions_
         msd = np.mean([tidynamics.msd(array[:, particle]) for particle in range(array.shape[1])], axis=0)[1:]
@@ -116,10 +113,9 @@ class DisplacementAnalysis(BaseAnalysis):
         self.diffusion_ = slope / (2 * array.shape[2])
         if self.lags is None:
             self.lags_, self.msd_ = all_lags, msd
-            return self
+            return
         steps = np.asarray(self.lags, dtype=int)
         self.lags_, self.msd_ = steps * self.dt, msd[steps - 1]
-        return self
 
     @staticmethod
     def _particle_axes(positions: npt.ArrayLike) -> Array:

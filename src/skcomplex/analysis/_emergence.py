@@ -8,7 +8,6 @@ import math
 import warnings
 from collections.abc import Iterator, Sequence
 from functools import partial
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -199,7 +198,7 @@ class EmergenceAnalysis(BaseAnalysis):
         self.k = k
         self.base = base
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the choices, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('weighting', self.weighting, WEIGHTINGS)
@@ -218,19 +217,18 @@ class EmergenceAnalysis(BaseAnalysis):
                 f'base={self.base!r}. Use a lag, a history, and neighbours of 1 or more and a positive base.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind for a transition matrix, and the series kind for micro series."""
         return DataKind.PATH if self.kind in MATRIX_KINDS else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the transition matrix, or the micro series as columns."""
         if self.kind not in MATRIX_KINDS:
             series = self._read_series(source, self.variables)
             self.values_ = series.values
             self.labels_ = series.labels
-            return self
+            return
         if isinstance(source, Trajectory):
             error_msg = (
                 f'{type(self).__name__} of kind {self.kind!r} reads a transition matrix. Pass the matrix or the '
@@ -238,7 +236,6 @@ class EmergenceAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         self.matrix_ = self._square(source)
-        return self
 
     def _run_causal(self) -> None:
         """Find or take the partition, and compare the micro and macro effective information."""
@@ -290,7 +287,7 @@ class EmergenceAnalysis(BaseAnalysis):
         self.micro_uncertainty_ = self._conditional_entropy(future, self._lagged(x, self.history)) / scale
         self.gap_ = self.macro_uncertainty_ - self.micro_uncertainty_
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the emergence of the kind."""
         if self.kind == 'effective-information':
             information, determinism, degeneracy, states = self._effective_information(self.matrix_)
@@ -304,7 +301,6 @@ class EmergenceAnalysis(BaseAnalysis):
             self._run_criteria()
         else:
             self._run_closure()
-        return self
 
     @staticmethod
     def _read_columns(data: npt.ArrayLike) -> AnyArray:

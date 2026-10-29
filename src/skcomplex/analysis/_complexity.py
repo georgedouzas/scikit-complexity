@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import ordpy
@@ -82,7 +81,7 @@ class ComplexityAnalysis(BaseAnalysis):
         self.ties = ties
         self.random_state = random_state
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the ties, the pattern length or window, and the delay."""
         if self.ties not in TIES:
             error_msg = f'{type(self).__name__} has ties={self.ties!r}. Use one of {", ".join(TIES)}.'
@@ -93,26 +92,24 @@ class ComplexityAnalysis(BaseAnalysis):
                 f'{type(self).__name__} has dimension={self.dimension!r} and delay={self.delay!r}. Use 1 or more.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind for windows of a field, and the series kind otherwise."""
         return DataKind.FIELD if isinstance(self.dimension, tuple) else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series of the source as columns, or the frames of a field for windows."""
         if self._get_data_kind() == DataKind.FIELD:
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
             self.values_ = frames[None] if frames.ndim == SNAPSHOT_DIMENSIONS else frames
             self.labels_ = [name or 'field']
-            return self
+            return
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the place of every series or frame on the plane, and the bounds of the plane."""
         dx, dy = (self.dimension, 1) if isinstance(self.dimension, int) else self.dimension
         items = self.values_ if self._get_data_kind() == DataKind.FIELD else self.values_.T
@@ -130,4 +127,3 @@ class ComplexityAnalysis(BaseAnalysis):
         self.complexity_ = np.asarray([complexity for _, complexity in places], dtype=float)
         self.minimum_ = np.asarray(ordpy.minimum_complexity_entropy(dx=dx, dy=dy), dtype=float)
         self.maximum_ = np.asarray(ordpy.maximum_complexity_entropy(dx=dx, dy=dy), dtype=float)
-        return self

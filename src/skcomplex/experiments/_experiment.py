@@ -7,7 +7,6 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -301,7 +300,7 @@ class Experiment(BaseExperiment):
             return self.executor
         return ThreadPoolExecutor() if self.executor == 'thread' else ProcessPoolExecutor()
 
-    def _run(self, inputs: None = None) -> Self:
+    def _run(self, inputs: None = None) -> None:
         """Run every task and keep the results in `result_`."""
         if self.executor == 'serial':
             results = [self._run_task(task) for task in self.tasks_]
@@ -322,4 +321,3 @@ class Experiment(BaseExperiment):
                 if owned:
                     executor.shutdown()
         self.result_ = ExperimentResult(results)
-        return self

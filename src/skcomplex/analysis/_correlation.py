@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -152,7 +151,7 @@ class CorrelationAnalysis(BaseAnalysis):
         self.spacing = spacing
         self.frames = frames
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the method, the settings the kind needs, and that the kind reads every changed one."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('method', self.method, METHODS)
@@ -163,7 +162,6 @@ class CorrelationAnalysis(BaseAnalysis):
         if self.dt <= 0 or self.spacing <= 0:
             error_msg = f'{type(self).__name__} has dt={self.dt!r} and spacing={self.spacing!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind for autocorrelations, the ensemble kind for two times, and the field kind else."""
@@ -173,7 +171,7 @@ class CorrelationAnalysis(BaseAnalysis):
             return DataKind.ENSEMBLE
         return DataKind.FIELD
 
-    def _prepare_replicas(self, source: Source, name: str | None) -> Self:
+    def _prepare_replicas(self, source: Source, name: str | None) -> None:
         """Read the fields of two trajectories, or two configurations stacked on the first axis of an array."""
         replicas: list[Source] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
         if len(replicas) != REPLICAS:
@@ -184,30 +182,29 @@ class CorrelationAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         self.values_ = np.stack([self._read_fields(replica, name) for replica in replicas])
         self.labels_ = ['first', 'second']
-        return self
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series as columns, the ensemble as an array, or the frames of a field."""
         if self.kind == 'auto':
             series = self._read_series(source, self.variables)
             self.values_ = series.values
             self.labels_ = series.labels
-            return self
+            return
         name = self.variables[0] if self.variables else None
         if self.kind == 'two-time':
             self.values_ = np.asarray(source, dtype=float)
             self.labels_ = [name or 'ensemble']
-            return self
+            return
         if self.kind == 'overlap':
-            return self._prepare_replicas(source, name)
+            self._prepare_replicas(source, name)
+            return
         field = self._read_fields(source, name)
         if isinstance(source, Trajectory) and not self.frames:
             field = field[-1]
         self.values_ = field
         self.labels_ = [name or 'field']
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the correlation of the kind."""
         if self.kind == 'auto':
             self.correlation_ = np.asarray([self._autocorrelation(column, self.max_lag) for column in self.values_.T])
@@ -233,7 +230,6 @@ class CorrelationAnalysis(BaseAnalysis):
             self.overlap_ = (
                 float(product.mean()) if product.ndim == 1 else product.reshape(product.shape[0], -1).mean(axis=1)
             )
-        return self
 
     @staticmethod
     def _autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:

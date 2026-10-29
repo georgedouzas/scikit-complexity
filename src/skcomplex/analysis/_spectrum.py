@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -96,35 +95,33 @@ class SpectrumAnalysis(BaseAnalysis):
         self.spacing = spacing
         self.frames = frames
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
         if self.dt <= 0 or self.spacing <= 0:
             error_msg = f'{type(self).__name__} has dt={self.dt!r} and spacing={self.spacing!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind for power spectra and the field kind for fields."""
         return DataKind.SERIES if self.kind == 'power' else DataKind.FIELD
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series as columns, or the frames of a field."""
         if self.kind == 'power':
             series = self._read_series(source, self.variables)
             self.values_ = series.values
             self.labels_ = series.labels
-            return self
+            return
         name = self.variables[0] if self.variables else None
         field = self._read_fields(source, name)
         if isinstance(source, Trajectory) and not self.frames:
             field = field[-1]
         self.values_ = field
         self.labels_ = [name or 'field']
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the spectrum of the kind."""
         if self.kind == 'power':
             spectra = [self._power_spectrum(column, self.dt) for column in self.values_.T]
@@ -133,7 +130,6 @@ class SpectrumAnalysis(BaseAnalysis):
         else:
             grids = self.values_ if self.frames else self.values_[None]
             self.wavenumbers_, self.power_ = self._structure_factor(grids, self.spacing)
-        return self
 
     @staticmethod
     def _power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array]:

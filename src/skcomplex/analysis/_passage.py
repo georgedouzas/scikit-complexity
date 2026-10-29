@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -135,7 +134,7 @@ class PassageAnalysis(BaseAnalysis):
         self.lag = lag
         self.dt = dt
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the direction, the sets each kind needs, and the step."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('direction', self.direction, DIRECTIONS)
@@ -152,13 +151,12 @@ class PassageAnalysis(BaseAnalysis):
         if self.lag < 1 or self.dt <= 0:
             error_msg = f'{type(self).__name__} has lag={self.lag!r} and dt={self.dt!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind for returns, and the path kind otherwise."""
         return DataKind.SERIES if self.kind == 'return-times' else DataKind.PATH
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the transition matrix of the matrix kinds, and the paths or the series otherwise."""
         name = self.variables[0] if self.variables else None
         if self.kind in MATRIX_KINDS:
@@ -167,20 +165,19 @@ class PassageAnalysis(BaseAnalysis):
                 self.matrix_ = MarkovAnalysis._transition_matrix(states, lag=self.lag)
             else:
                 self.matrix_ = np.asarray(source, dtype=float)
-            return self
+            return
         if self.kind == 'return-times':
             series = self._read_series(source, self.variables)
             self.values_ = series.values[:, 0]
             self.times_ = series.times if isinstance(source, Trajectory) else series.times * self.dt
-            return self
+            return
         if isinstance(source, Trajectory):
             path = self._read_path(source, name)
             self.values_ = self._rows(path.states)
             self.times_ = np.asarray(path.times, dtype=float)
-            return self
+            return
         self.values_ = self._rows(source)
         self.times_ = np.arange(self.values_.shape[1], dtype=float) * self.dt
-        return self
 
     def _get_states(self, states: Sequence[float] | None) -> list[float]:
         """Return a set of states as a list, empty without states."""
@@ -217,7 +214,7 @@ class PassageAnalysis(BaseAnalysis):
         returns = np.flatnonzero((signs == 0) | crossing)
         self.return_times_ = np.diff(self.times_[returns])
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the passage of the kind."""
         if self.kind == 'first-passage':
             self._run_first_passage()
@@ -232,7 +229,6 @@ class PassageAnalysis(BaseAnalysis):
             origin, target = self._get_states(self.origin), self._get_states(self.target)
             time = msm_analysis.mfpt(self.matrix_, target, origin=origin, tau=self.lag)
             self.mean_first_passage_time_ = float(time * self.dt)
-        return self
 
     @staticmethod
     def _rows(paths: npt.ArrayLike) -> Array:

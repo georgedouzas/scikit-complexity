@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from concurrent.futures import Executor
-from typing import Self
 
 import numpy as np
 
@@ -113,14 +112,13 @@ class OrbitDiagramExperiment(BaseExperiment):
         """Set the simulated time of every run."""
         self.until_ = self.transient + (self.keep - 1) * (self.dt if self.dt is not None else 1.0)
 
-    def _run(self, inputs: None = None) -> Self:
+    def _run(self, inputs: None = None) -> None:
         """Run every value of the parameter and keep the values of the observable after the transient."""
         self.points_ = self._replicated_points() if self.vectorized else self._separate_points()
         self.periods_ = np.asarray(
             [np.unique(np.round(points, self.decimals)).size for points in self.points_],
             dtype=np.int64,
         )
-        return self
 
     def _separate_points(self) -> list[Array]:
         """Return the kept values of a separate run of every value of the parameter."""

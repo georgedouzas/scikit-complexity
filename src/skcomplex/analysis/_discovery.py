@@ -5,7 +5,6 @@
 
 import inspect
 import sys
-from typing import Self
 
 import networkx as nx
 import numpy as np
@@ -52,15 +51,14 @@ class DiscoveryAnalysis(BaseAnalysis):
         """Return the system kind, since discovery reads the source as a whole rather than one kind of its data."""
         return DataKind.SYSTEM
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the data kinds of the source and how the analyses of every kind read it."""
         kinds = self._get_data_kinds(source)
         self.kinds_ = [str(kind) for kind in kinds]
         if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshotSpec):
             self.readings_ = {str(kind): kind.reading for kind in kinds}
-            return self
+            return
         self.readings_ = {str(kind): self._get_array_reading(kind, np.ndim(source)) for kind in kinds}
-        return self
 
     @staticmethod
     def _get_array_reading(kind: DataKind, dimensions: int) -> str:
@@ -93,7 +91,7 @@ class DiscoveryAnalysis(BaseAnalysis):
             return [analysis_class(kind=kind) for kind in kinds]
         return [analysis_class()]
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Build every analysis of the library and keep those that read a kind of data of the source."""
         self.analyses_: dict[str, list[BaseAnalysis]] = {kind: [] for kind in self.kinds_}
         for analysis_class in self._get_classes(BaseAnalysis.__subclasses__()):
@@ -101,4 +99,3 @@ class DiscoveryAnalysis(BaseAnalysis):
                 kind = analysis._get_data_kind()
                 if kind in self.analyses_:
                     self.analyses_[kind].append(analysis)
-        return self

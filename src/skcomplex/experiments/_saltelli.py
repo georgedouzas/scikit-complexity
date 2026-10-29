@@ -28,7 +28,8 @@ class SaltelliDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import SaltelliDesign
-        >>> len(SaltelliDesign(n=8, random_state=0).check().check().prepare({'r': (0.0, 1.0), 'K': (50, 150)}).run())
+        >>> design = SaltelliDesign(n=8, random_state=0).check().check().prepare({'r': (0.0, 1.0), 'K': (50, 150)})
+        >>> len(design.run().rows_)
         32
     """
 

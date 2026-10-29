@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -143,7 +142,7 @@ class ErgodicityAnalysis(BaseAnalysis):
         self.edges = edges
         self.samples = samples
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the edges of the Ulam chain, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
@@ -153,13 +152,12 @@ class ErgodicityAnalysis(BaseAnalysis):
         if self.samples < 1 or self.dt <= 0:
             error_msg = f'{type(self).__name__} has samples={self.samples!r} and dt={self.dt!r}. Use positive values.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the ensemble kind for runs, and the series kind for densities."""
         return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.SERIES
 
-    def _prepare(self, source: Source | Callable[[Array], Array]) -> Self:
+    def _prepare(self, source: Source | Callable[[Array], Array]) -> None:
         """Read the runs of an ensemble, one row per run, the values of a run, or the map."""
         if self.kind == 'ulam':
             if not callable(source):
@@ -169,10 +167,10 @@ class ErgodicityAnalysis(BaseAnalysis):
                 )
                 raise AnalysisError(error_msg)
             self.mapping_ = source
-            return self
+            return
         if self.kind == 'invariant-density':
             self.values_ = self._read_series(source, self.variables).values[:, 0].astype(float)
-            return self
+            return
         self.values_ = np.asarray(source, dtype=float)
         self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
         if self.values_.ndim != ENSEMBLE_DIMENSIONS or self.values_.shape[0] < MIN_RUNS:
@@ -180,7 +178,6 @@ class ErgodicityAnalysis(BaseAnalysis):
                 f'The diagnostics need at least two runs, one row per run, not an array of shape {self.values_.shape}.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _run_metric(self) -> None:
         """Compute the fluctuation metric and its exponent."""
@@ -214,7 +211,7 @@ class ErgodicityAnalysis(BaseAnalysis):
         self.transition_matrix_ = counts / self.samples
         self.density_ = MarkovAnalysis._stationary_distribution(self.transition_matrix_) / np.diff(grid)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the diagnostic of the kind."""
         if self.kind == 'breaking':
             spread = float(self.values_.var())
@@ -228,4 +225,3 @@ class ErgodicityAnalysis(BaseAnalysis):
             self.density_, self.edges_ = np.histogram(self.values_, bins=bins, range=self.value_range, density=True)
         else:
             self._run_ulam()
-        return self

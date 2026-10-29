@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -193,7 +192,7 @@ class DistributionAnalysis(BaseAnalysis):
         self.orders = orders
         self.tail = tail
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, that the kind reads every changed setting, the bins, the tail, and the orders."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables', 'group'})
@@ -203,13 +202,12 @@ class DistributionAnalysis(BaseAnalysis):
         if len(self.orders) != ORDER_COUNT or any(order <= 0 or order % 2 for order in self.orders):
             error_msg = f'{type(self).__name__} has orders={self.orders!r}. Use two positive even orders.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the ensemble kind for records, and the series kind otherwise."""
         return DataKind.ENSEMBLE if self.kind == 'records' else DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the samples of the source, pooled into one sample for the pooled kinds."""
         series = self._read_samples_of(source, self.variables, self.group)
         values = self._read_real(series.values, 'values')
@@ -221,9 +219,8 @@ class DistributionAnalysis(BaseAnalysis):
                 f'not an array of shape {self.values_.shape}.'
             )
             raise AnalysisError(error_msg)
-        return self
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the description of the samples."""
         if self.kind == 'histogram':
             self.edges_, self.density_ = self._histogram(self.values_, self.bins, log=self.log)
@@ -247,7 +244,6 @@ class DistributionAnalysis(BaseAnalysis):
             self.records_ = self._record_counts(self.values_.T)
         else:
             self.distance_ = self._total_variation(self.values_[:, 0], self.values_[:, 1])
-        return self
 
     @staticmethod
     def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:

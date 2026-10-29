@@ -5,7 +5,6 @@
 
 import itertools
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 import numpy as np
 from scipy import optimize
@@ -150,7 +149,7 @@ class CollapseAnalysis(BaseAnalysis):
         self.lags = lags
         self.ratios = ratios
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the fitted names, the settings the kind needs, and that it reads every changed one."""
         self._check_choice('kind', self.kind, KINDS)
         for name in self.fit:
@@ -165,25 +164,23 @@ class CollapseAnalysis(BaseAnalysis):
         if self.kind == 'aging' and (self.waiting is None or self.lags is None):
             error_msg = f'{type(self).__name__} of kind aging needs waiting times and lags. Give both.'
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the ensemble kind, since every curve or sample comes from a run or a set of runs."""
         return DataKind.ENSEMBLE
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the curves or the samples of every size or age, or the rows of an array of curves."""
         if isinstance(source, Mapping):
             self.values_: dict[float, Array] | Array = {
                 key: np.asarray(value, dtype=np.float64) for key, value in source.items()
             }
             self.labels_: list[float] = [float(key) for key in source]
-            return self
+            return
         self.values_ = np.asarray(source, dtype=np.float64)
         self.labels_ = (
             [float(item) for item in self.waiting] if self.waiting is not None else list(range(len(self.values_)))
         )
-        return self
 
     def _curves_by_key(self) -> dict[float, Array]:
         """Return the curves or the samples by size or age, which the kinds scaling and densities read."""
@@ -192,7 +189,7 @@ class CollapseAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         return self.values_
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the collapse of the kind."""
         if self.kind in {'scaling', 'crossings'} and len(self.values_) < MIN_SIZES:
             error_msg = (
@@ -225,7 +222,6 @@ class CollapseAnalysis(BaseAnalysis):
             edges = np.geomspace(0.01, 10, 21) if self.ratios is None else np.asarray(self.ratios, dtype=float)
             self.densities_, self.spread_ = self._scaled_densities(self._curves_by_key(), edges)
             self.ratios_ = np.sqrt(edges[1:] * edges[:-1])
-        return self
 
     @staticmethod
     def _scaled(

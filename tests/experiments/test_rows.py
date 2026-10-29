@@ -8,7 +8,7 @@ from skcomplex.experiments import RowsDesign
 
 def test_rows_design_returns_its_rows():
     """Test that a rows design prepared without bounds returns its rows."""
-    assert RowsDesign([{'K': 10}, {'K': 20}]).check().check().prepare().run() == [{'K': 10}, {'K': 20}]
+    assert RowsDesign([{'K': 10}, {'K': 20}]).check().check().prepare().run().rows_ == [{'K': 10}, {'K': 20}]
 
 
 def test_rows_design_rejects_bounds_and_rows_that_are_not_mappings():

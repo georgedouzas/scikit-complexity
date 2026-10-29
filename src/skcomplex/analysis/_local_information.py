@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 from scipy import stats
@@ -94,7 +93,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         self.estimator = estimator
         self.base = base
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Validate the kind, the estimator, the numeric settings, and that the kind reads every changed setting."""
         self._check_choice('kind', self.kind, KINDS)
         self._check_choice('estimator', self.estimator, ESTIMATORS)
@@ -105,18 +104,16 @@ class LocalInformationAnalysis(BaseAnalysis):
                 'a history and a lag of 1 or more and a positive base.'
             )
             raise AnalysisError(error_msg)
-        return self
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: Source) -> Self:
+    def _prepare(self, source: Source) -> None:
         """Read the series of the source as columns."""
         series = self._read_series(source, self.variables)
         self.values_ = series.values
         self.labels_ = series.labels
-        return self
 
     def _compute_pair(self, first: AnyArray, second: AnyArray, *, same: bool) -> Array:
         """Return the local mutual information or the local transfer entropy from one series to another in nats."""
@@ -129,7 +126,7 @@ class LocalInformationAnalysis(BaseAnalysis):
         joint = self._log_probabilities(np.column_stack([x, y]), self.estimator)
         return joint - self._log_probabilities(x, self.estimator) - self._log_probabilities(y, self.estimator)
 
-    def _run(self, inputs: object = None) -> Self:
+    def _run(self, inputs: object = None) -> None:
         """Compute the local information of every series or of every pair of series."""
         columns = self.values_.T
         local: list[Array] | list[list[Array]]
@@ -141,7 +138,6 @@ class LocalInformationAnalysis(BaseAnalysis):
                 for row, first in enumerate(columns)
             ]
         self.information_ = np.asarray(local, dtype=float) / math.log(self.base)
-        return self
 
     @staticmethod
     def _log_probabilities(columns: AnyArray, estimator: str) -> Array:
