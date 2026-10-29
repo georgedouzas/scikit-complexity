@@ -4,19 +4,20 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Any
 
-type Score = str | Callable[[Any], float]
+from ....engine.solvers import AgentView
+
+type Score = str | Callable[[AgentView], float]
 
 
-def _scorer(score: Score) -> Callable[[Any], float]:
+def _scorer(score: Score) -> Callable[[AgentView], float]:
     """Return a function of an agent from a state name or a function."""
     if isinstance(score, str):
         return lambda agent: float(getattr(agent, score))
     return score
 
 
-def imitate(agent: Any, neighbors: Sequence[Any], score: Score, states: str | Sequence[str]) -> Any:  # noqa: ANN401
+def imitate(agent: AgentView, neighbors: Sequence[AgentView], score: Score, states: str | Sequence[str]) -> AgentView:
     """Copy states of the neighbour with the best score when it scores better than the agent.
 
     In a simultaneous phase the agent reads its neighbours' states from the start of the phase.
@@ -35,7 +36,7 @@ def imitate(agent: Any, neighbors: Sequence[Any], score: Score, states: str | Se
             The name or names of the states copied, such as the strategy.
 
     Returns:
-        model:
+        best:
             The imitated neighbour, or the agent itself when no neighbour scores better.
     """
     scorer = _scorer(score)

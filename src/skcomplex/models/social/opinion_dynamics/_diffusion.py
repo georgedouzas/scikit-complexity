@@ -18,11 +18,13 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._adopter_view import AdopterView
+from ._believer_view import BelieverView
 
 N_LEVELS = 4
 PASSIONATE = 3
@@ -88,6 +90,11 @@ class BelieverElement(Element):
         self.influence = influence
         self.learning = learning
 
+    @classmethod
+    def _get_view(cls) -> type[BelieverView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return BelieverView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the learning rule.
 
@@ -101,7 +108,7 @@ class BelieverElement(Element):
         """
         return [RuleLaw(self.learn)]
 
-    def learn(self, agent: AgentView, model: ModelView) -> None:
+    def learn(self, agent: BelieverView, model: ModelView) -> None:
         """Add the influence of every neighbour to the weight of the level the neighbour cares at.
 
         Args:
@@ -111,9 +118,10 @@ class BelieverElement(Element):
             model:
                 The model.
         """
-        belief = np.array(agent.belief, dtype=float)
-        for neighbor in agent.neighbors():
-            weights = np.asarray(neighbor.belief, dtype=float)
+        belief = np.array(agent.belief, dtype=np.float64)
+        neighbors = [item for item in agent.neighbors() if isinstance(item, BelieverView)]
+        for neighbor in neighbors:
+            weights = np.asarray(neighbor.belief, dtype=np.float64)
             levels = np.flatnonzero(weights == weights.max())
             belief[levels[int(model.rng.integers(len(levels)))]] += agent.learning * neighbor.influence
         agent.belief, agent.caring = belief, float(np.argmax(belief))
@@ -163,6 +171,11 @@ class AdopterElement(Element):
         self.threshold = threshold
         self.reach = reach
         self.shifting = shifting
+
+    @classmethod
+    def _get_view(cls) -> type[AdopterView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return AdopterView
 
 
 class AdoptionInteraction(Interaction):
@@ -223,7 +236,7 @@ class AdoptionInteraction(Interaction):
             raise ValidationError(error_msg)
         return [RuleLaw(self.adopt)]
 
-    def _shift(self, agents: list[AgentView], model: ModelView) -> None:
+    def _shift(self, agents: list[AdopterView], model: ModelView) -> None:
         """Move a share of the agents one unit in a random direction."""
         for agent in agents:
             if model.rng.random() < agent.shifting:
@@ -238,7 +251,7 @@ class AdoptionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
+        agents = model.agents(self.target, AdopterView)
         if not agents:
             return
         self._shift(agents, model)

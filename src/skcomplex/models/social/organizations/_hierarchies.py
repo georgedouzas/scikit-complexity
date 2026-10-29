@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._contender_view import ContenderView
 
 
 class ContenderElement(Element):
@@ -65,6 +66,11 @@ class ContenderElement(Element):
         self.eta = eta
         self.relaxation = relaxation
 
+    @classmethod
+    def _get_view(cls) -> type[ContenderView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ContenderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the wander and fight rule.
 
@@ -78,7 +84,7 @@ class ContenderElement(Element):
         """
         return [RuleLaw(self.wander)]
 
-    def _fight(self, agent: AgentView, occupant: AgentView, model: ModelView) -> None:
+    def _fight(self, agent: ContenderView, occupant: ContenderView, model: ModelView) -> None:
         """Fight the occupant of a cell and take its place on a win."""
         wins = model.rng.random() < 1 / (1 + np.exp(np.clip(agent.eta * (occupant.strength - agent.strength), -50, 50)))
         if wins:
@@ -86,7 +92,7 @@ class ContenderElement(Element):
         else:
             agent.strength, occupant.strength = agent.strength - 1, occupant.strength + 1
 
-    def wander(self, agent: AgentView, model: ModelView) -> None:
+    def wander(self, agent: ContenderView, model: ModelView) -> None:
         """Relax the strength, then step into a random neighbouring cell or fight its occupant.
 
         Args:
@@ -102,7 +108,8 @@ class ContenderElement(Element):
         occupants = [
             other
             for other in agent.neighbors()
-            if tuple(np.ravel(np.asarray(other.location))) == tuple(np.ravel(np.asarray(cell)))
+            if isinstance(other, ContenderView)
+            and tuple(np.ravel(np.asarray(other.location))) == tuple(np.ravel(np.asarray(cell)))
         ]
         if occupants:
             self._fight(agent, occupants[0], model)

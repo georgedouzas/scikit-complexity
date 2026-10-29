@@ -18,9 +18,12 @@ from ....core.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import neighbors, where
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._discussant_view import DiscussantView
+
+PAIR = 2
 
 
 class DiscussantElement(Element):
@@ -62,6 +65,11 @@ class DiscussantElement(Element):
         self.opinion = opinion
         self.confidence = confidence
         self.convergence = convergence
+
+    @classmethod
+    def _get_view(cls) -> type[DiscussantView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return DiscussantView
 
 
 class EncountersInteraction(Interaction):
@@ -112,8 +120,8 @@ class EncountersInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
-        if len(agents) < 2:  # noqa: PLR2004
+        agents = model.agents(self.target, DiscussantView)
+        if len(agents) < PAIR:
             return
         confidence, convergence = agents[0].confidence, agents[0].convergence
         opinions = np.array([agent.opinion for agent in agents], dtype=float)

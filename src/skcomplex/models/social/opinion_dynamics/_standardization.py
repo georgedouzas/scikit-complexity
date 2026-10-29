@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._complex_agent_view import ComplexAgentView
 
 MARKED = 2
 
@@ -72,6 +73,11 @@ class ComplexAgentElement(Element):
         super().__init__(label, visual=visual)
         self.configuration = configuration
         self.spin = spin
+
+    @classmethod
+    def _get_view(cls) -> type[ComplexAgentView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ComplexAgentView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the standardization moves every agent.
@@ -157,7 +163,7 @@ class StandardizationInteraction(Interaction):
                 The model.
         """
         K, J, T = (model.parameter(name) for name in ('K', 'J', 'T'))
-        agents = model.agents(self.agents, AgentView)
+        agents = model.agents(self.agents, ComplexAgentView)
         size = len(agents)
         configurations = np.array([agent.configuration for agent in agents], dtype=float)
         spins = _spins_of(configurations)

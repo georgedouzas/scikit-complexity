@@ -187,7 +187,7 @@ class ModelCatalog:
             return None
         try:
             return self._evaluate(node, constants)
-        except ValueError as error:
+        except (TypeError, ValueError) as error:
             error_msg = (
                 f'A model of {module} registers the argument {keyword!r} with a value computed at run time. Write it '
                 'as a literal or a module-level literal constant, so the catalog lists the model without importing '
@@ -209,7 +209,7 @@ class ModelCatalog:
             elif isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
                 try:
                     constants[node.targets[0].id] = self._evaluate(node.value, constants)
-                except ValueError:
+                except (TypeError, ValueError):
                     continue
         return constants
 
@@ -227,7 +227,7 @@ class ModelCatalog:
                     unpacked = self._evaluate(element.value, constants)
                     if not isinstance(unpacked, tuple | list):
                         error_msg = f'The unpacked value {unpacked!r} is not a tuple or a list.'
-                        raise ValueError(error_msg)
+                        raise TypeError(error_msg)
                     items.extend(unpacked)
                 else:
                     items.append(self._evaluate(element, constants))

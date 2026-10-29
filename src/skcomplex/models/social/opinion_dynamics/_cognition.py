@@ -18,10 +18,11 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._thinker_view import ThinkerView
 
 TOPICS = (0, 2)
 POSITIVE = (1.0, 1.0, -1.0)
@@ -108,6 +109,11 @@ class ThinkerElement(Element):
         self.attitude = attitude
         self.decay = decay
 
+    @classmethod
+    def _get_view(cls) -> type[ThinkerView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ThinkerView
+
 
 class ConversationsInteraction(Interaction):
     """Conversations of the cognitive consistency model, as many per step as there are agents.
@@ -157,16 +163,16 @@ class ConversationsInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.target, AgentView)
+        agents = model.agents(self.target, ThinkerView)
         for _ in range(len(agents)):
             speaker = agents[int(model.rng.integers(len(agents)))]
-            neighbors = speaker.neighbors()
+            neighbors = [item for item in speaker.neighbors() if isinstance(item, ThinkerView)]
             if not neighbors:
                 continue
             hearer = neighbors[int(model.rng.integers(len(neighbors)))]
             topic = TOPICS[int(model.rng.integers(len(TOPICS)))]
-            valences = np.array(hearer.valences, dtype=float)
-            valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=float)[topic]) / 2
+            valences = np.array(hearer.valences, dtype=np.float64)
+            valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=np.float64)[topic]) / 2
             settled = settle(valences, hearer.decay)
             hearer.valences, hearer.attitude = settled, float(settled[1])
 

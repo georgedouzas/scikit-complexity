@@ -80,7 +80,7 @@ class MotivationInteraction(Interaction):
 class WallsInteraction(Interaction):
     """Repulsion of walkers by two walls of a corridor at `y = 0` and `y = width`.
 
-    The force per unit mass from a wall at distance `d` is `strength * exp((radius - d) / range)`, pointing away from
+    The force per unit mass from a wall at distance `d` is `strength * exp((radius - d) / falloff)`, pointing away from
     the wall.
 
     Args:
@@ -96,8 +96,8 @@ class WallsInteraction(Interaction):
         strength:
             The strength of the repulsion.
 
-        range:
-            The range of the repulsion.
+        falloff:
+            The distance over which the repulsion falls off.
 
         radius:
             The radius of a walker.
@@ -115,14 +115,14 @@ class WallsInteraction(Interaction):
         target: Annotated[str, RoleSpec()],
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,  # noqa: A002
+        falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
         radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.width = width
         self.strength = strength
-        self.range = range
+        self.falloff = falloff
         self.radius = radius
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -137,14 +137,14 @@ class WallsInteraction(Interaction):
                 The laws of the component.
         """
         y = s.target.x[1]
-        push = s.strength * (exp((s.radius - y) / s.range) - exp((s.radius - s.width + y) / s.range))
+        push = s.strength * (exp((s.radius - y) / s.falloff) - exp((s.radius - s.width + y) / s.falloff))
         return [RateLaw(s.target.v, vector(SR, [0, push]))]
 
 
 class SocialRepulsionInteraction(PairPotentialInteraction):
-    """Repulsion between two walkers, the force `strength * exp((2 * radius - r) / range)` of the social force model.
+    """Repulsion between two walkers, the force `strength * exp((2 * radius - r) / falloff)` of the social force model.
 
-    It derives from the pair energy `strength * range * exp((2 * radius - r) / range)`.
+    It derives from the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`.
 
     Args:
         label:
@@ -168,8 +168,8 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
         strength:
             The strength of the repulsion.
 
-        range:
-            The range of the repulsion.
+        falloff:
+            The distance over which the repulsion falls off.
 
         radius:
             The radius of a walker.
@@ -190,16 +190,16 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
         *,
         period: float | None = None,
         strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,  # noqa: A002
+        falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
         super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
         self.strength = strength
-        self.range = range
+        self.falloff = falloff
         self.radius = radius
 
     def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
-        """Return the pair energy `strength * range * exp((2 * radius - r) / range)`.
+        """Return the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`.
 
         Args:
             s:
@@ -212,7 +212,7 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
             energy:
                 The pair energy as a symbolic expression.
         """
-        return s.strength * s.range * exp((2 * s.radius - r) / s.range)
+        return s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff)
 
 
 @register_model(

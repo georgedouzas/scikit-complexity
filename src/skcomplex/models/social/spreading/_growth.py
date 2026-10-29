@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._growing_word_view import GrowingWordView
 
 
 class GrowingWordElement(Element):
@@ -54,6 +55,11 @@ class GrowingWordElement(Element):
         super().__init__(label, visual=visual)
         self.count = count
         self.innovation = innovation
+
+    @classmethod
+    def _get_view(cls) -> type[GrowingWordView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return GrowingWordView
 
 
 class WritingInteraction(Interaction):
@@ -109,7 +115,7 @@ class WritingInteraction(Interaction):
             model:
                 The model.
         """
-        words = model.agents(self.target, AgentView)
+        words = model.agents(self.target, GrowingWordView)
         if not words:
             return
         innovation = words[0].innovation

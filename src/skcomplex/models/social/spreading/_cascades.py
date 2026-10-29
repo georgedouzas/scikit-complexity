@@ -17,9 +17,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._threshold_node_view import ThresholdNodeView
 
 
 class ThresholdNodeElement(Element):
@@ -57,6 +58,11 @@ class ThresholdNodeElement(Element):
         self.active = active
         self.threshold = threshold
 
+    @classmethod
+    def _get_view(cls) -> type[ThresholdNodeView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return ThresholdNodeView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the activation rule.
 
@@ -70,7 +76,7 @@ class ThresholdNodeElement(Element):
         """
         return [RuleLaw(self.activate)]
 
-    def activate(self, agent: AgentView, model: ModelView) -> None:
+    def activate(self, agent: ThresholdNodeView, model: ModelView) -> None:
         """Become active once the share of active neighbours reaches the threshold.
 
         Args:
@@ -80,7 +86,7 @@ class ThresholdNodeElement(Element):
             model:
                 The model.
         """
-        neighbors = agent.neighbors()
+        neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
         if agent.active or not neighbors:
             return
         if sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold:

@@ -17,10 +17,11 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import IntArray
 from ..._catalog import register_model
+from ._village_view import VillageView
 
 
 def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
@@ -128,6 +129,11 @@ class VillageElement(Element):
         self.features = features
         self.traits = traits
 
+    @classmethod
+    def _get_view(cls) -> type[VillageView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return VillageView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the cultural interaction rule.
 
@@ -141,7 +147,7 @@ class VillageElement(Element):
         """
         return [RuleLaw(self.interact)]
 
-    def interact(self, agent: AgentView, model: ModelView) -> None:
+    def interact(self, agent: VillageView, model: ModelView) -> None:
         """Copy one differing trait of a random neighbour with probability equal to the cultural overlap.
 
         Args:
@@ -151,7 +157,7 @@ class VillageElement(Element):
             model:
                 The model.
         """
-        neighbors = agent.neighbors()
+        neighbors = [item for item in agent.neighbors() if isinstance(item, VillageView)]
         if not neighbors:
             return
         neighbor = neighbors[int(model.rng.integers(len(neighbors)))]
@@ -226,7 +232,7 @@ class CultureCensusInteraction(Interaction):
             model:
                 The model view of the census.
         """
-        agents = model.agents('villages', AgentView)
+        agents = model.agents('villages', VillageView)
         cultures = [agent.culture for agent in agents]
         locations = np.array([agent.location for agent in agents], dtype=np.int64)
         model.report('largest_region', largest_region(locations, cultures, self.width, self.height))
