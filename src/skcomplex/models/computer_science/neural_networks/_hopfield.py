@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -15,10 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._neuron_view import NeuronView
 
 
 def _hebbian_weights(patterns: Array) -> Array:
@@ -65,6 +66,11 @@ class NeuronElement(Element):
         self.spin = spin
         self.weights = weights
 
+    @classmethod
+    def _get_view(cls) -> type[NeuronView]:
+        """Return the view of the neurons, which types their states."""
+        return NeuronView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update rule.
 
@@ -78,7 +84,7 @@ class NeuronElement(Element):
         """
         return [RuleLaw(self.update)]
 
-    def update(self, agent: AgentView, model: ModelView) -> None:
+    def update(self, agent: NeuronView, model: ModelView) -> None:
         """Take the sign of the weighted input from the other neurons, and keep the state when the input is zero.
 
         Args:
@@ -89,7 +95,8 @@ class NeuronElement(Element):
                 The model.
         """
         weights = np.asarray(agent.weights)
-        field = sum(weights[cast('int', other.location)] * other.spin for other in agent.neighbors())
+        neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
+        field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
         if field != 0:
             agent.spin = float(np.sign(field))
 

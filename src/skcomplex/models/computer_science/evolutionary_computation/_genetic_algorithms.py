@@ -15,10 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array, IntArray
 from ..._catalog import register_model
+from ._strategy_view import StrategyView
 
 N_SITUATIONS = 243
 N_ACTIONS = 7
@@ -123,6 +124,11 @@ class StrategyElement(Element):
         self.actions = actions
         self.score = score
 
+    @classmethod
+    def _get_view(cls) -> type[StrategyView]:
+        """Return the view of the strategies, which types their states."""
+        return StrategyView
+
 
 class EvolutionInteraction(Interaction):
     """Generation of a genetic algorithm: score every strategy in random rooms and breed the next generation.
@@ -222,7 +228,7 @@ class EvolutionInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('population', AgentView)
+        agents = model.agents('population', StrategyView)
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         scores = np.array([agent.score for agent in agents], dtype=float)
         children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))

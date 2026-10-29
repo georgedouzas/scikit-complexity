@@ -20,6 +20,7 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._swarm_robot_view import SwarmRobotView
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9
@@ -238,7 +239,12 @@ class SwarmRobotElement(Element):
         self.beacon_y = beacon_y
         self.arena = arena
 
-    def _is_shadowed(self, agent: AgentView, neighbors: list[AgentView]) -> bool:
+    @classmethod
+    def _get_view(cls) -> type[SwarmRobotView]:
+        """Return the view of the robots, which types their states and parameters."""
+        return SwarmRobotView
+
+    def _is_shadowed(self, agent: SwarmRobotView, neighbors: list[AgentView]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
         x, y = _position(agent)
         bearing = _bearing(agent.beacon_x - x, agent.beacon_y - y)
@@ -247,7 +253,7 @@ class SwarmRobotElement(Element):
             for other in neighbors
         )
 
-    def _turn(self, agent: AgentView, model: ModelView, count: int) -> float:
+    def _turn(self, agent: SwarmRobotView, model: ModelView, count: int) -> float:
         """Return the new heading: back to the swarm after a lost connection, or at random after a new one."""
         if count < agent.connections and count < agent.alpha:
             return agent.heading + math.pi
@@ -255,7 +261,7 @@ class SwarmRobotElement(Element):
             return float(model.rng.uniform(0.0, 2 * math.pi))
         return agent.heading
 
-    def _avoid(self, agent: AgentView, neighbors: list[AgentView], heading: float) -> float:
+    def _avoid(self, agent: SwarmRobotView, neighbors: list[AgentView], heading: float) -> float:
         """Return the heading away from the nearest neighbour inside the avoidance radius, or the heading unchanged."""
         x, y = _position(agent)
         radius = agent.avoid_illuminated if agent.illuminated else agent.avoid_shadowed
@@ -279,7 +285,7 @@ class SwarmRobotElement(Element):
         """
         return [RuleLaw(self.move)]
 
-    def move(self, agent: AgentView, model: ModelView) -> None:
+    def move(self, agent: SwarmRobotView, model: ModelView) -> None:
         """Update the connections, the shadow, and the heading, and move forward.
 
         Args:

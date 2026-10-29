@@ -16,6 +16,7 @@ from ....core.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.system import System
 from ....engine.solvers import RK4Solver
+from ....errors import ValidationError
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._integrator import IntegratorElement
@@ -322,6 +323,9 @@ def lqr_oscillator(
     model = LinearizationAnalysis(['oscillator.force'], state_weights=q * np.eye(2), control_weights=[[r]])
     model.check().prepare(System(elements=[oscillator])).run()
     gain = model.gain_
+    if gain is None:
+        error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'
+        raise ValidationError(error_msg)
     states = tuple(name.removeprefix('oscillator.') for name in model.states_)
     regulator = StateFeedbackInteraction(
         'regulator',

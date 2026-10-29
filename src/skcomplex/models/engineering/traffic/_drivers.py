@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -16,6 +16,7 @@ from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
+from ....errors import SimulationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._driver_view import DriverView
@@ -299,7 +300,10 @@ class DriverElement(Element):
                 The model.
         """
         cars = model.agents(agent.group, DriverView)
-        length = cast('tuple[float, float]', model.dimensions)[0]
+        if model.dimensions is None:
+            error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
+            raise SimulationError(error_msg)
+        length = model.dimensions[0]
         ahead = _car_ahead(agent, model, len(cars))
         x, y = _position(agent)
         distance = (_position(ahead)[0] - x) % length if ahead is not None else length

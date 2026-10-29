@@ -15,9 +15,10 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import bernoulli, normal
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._ageing_walker_view import AgeingWalkerView
 
 
 class PersistentWalkerElement(Element):
@@ -162,6 +163,11 @@ class AgeingWalkerElement(Element):
         self.p = p
         self.nu = nu
 
+    @classmethod
+    def _get_view(cls) -> type[AgeingWalkerView]:
+        """Return the view of the agents, which types their states and parameters."""
+        return AgeingWalkerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule.
 
@@ -175,7 +181,7 @@ class AgeingWalkerElement(Element):
         """
         return [RuleLaw(self.walk)]
 
-    def walk(self, agent: AgentView, model: ModelView) -> None:
+    def walk(self, agent: AgeingWalkerView, model: ModelView) -> None:
         """Take one step up or down.
 
         Args:
