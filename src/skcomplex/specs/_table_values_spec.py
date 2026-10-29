@@ -5,12 +5,10 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..types import Indices
+from ..types import AnyArray, Indices
 from ._base_spec import BaseSpec
 
 
@@ -32,7 +30,7 @@ class TableValuesSpec(BaseSpec):
             The time symbol.
     """
 
-    table: npt.NDArray[Any]
+    table: AnyArray
     positions: tuple[Indices, ...]
     parameters: Mapping[Expression, int]
     time: Expression

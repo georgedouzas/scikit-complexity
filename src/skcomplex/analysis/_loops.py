@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..core.laws.utils import delay_parts
 from ..engine._utils import symbols_of
-from ..engine.problems import ExpressionPrinter, ProblemSpec
+from ..engine.problems import ExpressionPrinter, ProblemSpec, ReferenceSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..specs import LoopTermSpec
@@ -58,7 +58,8 @@ class _Graph:
 
     def _reads_group(self, term: LoopTermSpec) -> bool:
         """Check whether a term reads or changes a variable of a group, which its expression does not resolve."""
-        entries = [term.references[item].entry for item in symbols_of([term.expression]) if item in term.references]
+        references = [term.references.get(item) for item in symbols_of([term.expression])]
+        entries = [reference.entry for reference in references if isinstance(reference, ReferenceSpec)]
         entries += [self.problem.states.entry(name) for name in self._holders(term)]
         return any(entry.members is not None for entry in entries)
 
@@ -85,7 +86,7 @@ class _Graph:
     def _node_of(self, item: Expression, term: LoopTermSpec) -> str | None:
         """Return the state a symbol stands for, or `None` for parameters and time."""
         reference = term.references.get(item)
-        if reference is None:
+        if not isinstance(reference, ReferenceSpec):
             return None
         self.readers[item] = (reference.is_state, reference.entry.start + reference.column)
         return reference.entry.name if reference.is_state else None

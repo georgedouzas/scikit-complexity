@@ -7,7 +7,6 @@ import tempfile
 import warnings
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import rerun as rr
 import rerun.blueprint as rrb
@@ -24,7 +23,7 @@ from ._examples import check_budget, model_sources
 from ._settings import Budget, CaptureSettings
 
 
-def finished_observers(variables: Mapping[str, Any]) -> list[RerunObserver]:
+def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
     """Return the Rerun observers of an example's variables that saved a recording with a blueprint.
 
     Observers are found as variables and as observers of simulations.

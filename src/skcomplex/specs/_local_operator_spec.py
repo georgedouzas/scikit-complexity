@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 import qutip
@@ -40,7 +39,7 @@ class LocalOperatorSpec(BaseSpec):
     """
 
     name: str
-    matrix: Any = field(default=None, compare=False, repr=False)
+    matrix: object = field(default=None, compare=False, repr=False)
     hermitian: bool = field(default=False, compare=False)
 
     def adjoint(self) -> 'LocalOperatorSpec':

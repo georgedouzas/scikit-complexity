@@ -7,7 +7,6 @@ import functools
 import math
 from collections.abc import Container
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +14,7 @@ from sage.all__sagemath_symbolics import CC, NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ..types import DomainKind
+from ..types import Array, ComplexArray, DomainKind
 from ._base_spec import BaseSpec
 
 PARTS = 2
@@ -163,7 +162,7 @@ class EntrySpec(BaseSpec):
             return np.ascontiguousarray(values, dtype=complex).ravel().view(float).copy()
         return values.ravel().copy()
 
-    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+    def decode(self, values: Array) -> Array | ComplexArray:
         """Return the stored components of the variable, the last axis of an array, with complex parts joined.
 
         Args:

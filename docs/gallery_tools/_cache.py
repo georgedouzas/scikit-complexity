@@ -7,9 +7,8 @@ import dataclasses
 import hashlib
 import json
 import shutil
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
 
 import rerun as rr
 
@@ -86,7 +85,7 @@ class ScreenshotCache:
         thumbnail = self.folder / key / THUMBNAIL
         return thumbnail if thumbnail.is_file() else None
 
-    def put(self, key: str, thumbnail: Path, metadata: dict[str, Any]) -> Path:
+    def put(self, key: str, thumbnail: Path, metadata: Mapping[str, object]) -> Path:
         """Store a thumbnail under a key, with metadata on the run that produced it.
 
         Args:

@@ -8,7 +8,7 @@ import math
 import warnings
 from collections.abc import Iterator, Sequence
 from functools import partial
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -307,7 +307,7 @@ class EmergenceAnalysis(BaseAnalysis):
         return self
 
     @staticmethod
-    def _read_columns(data: npt.ArrayLike) -> npt.NDArray[Any]:
+    def _read_columns(data: npt.ArrayLike) -> AnyArray:
         """Return data as one row per sample and one column per variable, a series as a single column.
 
         Args:

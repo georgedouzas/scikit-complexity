@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -39,6 +38,6 @@ class LoopTermSpec(BaseSpec):
     kind: str
     path: str
     expression: Expression
-    references: Mapping[Expression, Any]
+    references: Mapping[Expression, object]
     source: str | None = None
     sink: str | None = None

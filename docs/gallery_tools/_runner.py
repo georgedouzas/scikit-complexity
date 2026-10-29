@@ -9,10 +9,10 @@ import os
 import runpy
 import tempfile
 import time
+from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -65,7 +65,7 @@ class RunReport:
     thumbnail: str | None = None
 
 
-def _last_observer(example: Example, variables: dict[str, Any]) -> RerunObserver:
+def _last_observer(example: Example, variables: Mapping[str, object]) -> RerunObserver:
     """Return the last observer of an example that saved a recording."""
     observers = finished_observers(variables)
     if not observers:

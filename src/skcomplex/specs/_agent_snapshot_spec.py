@@ -5,11 +5,8 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
-import numpy as np
-import numpy.typing as npt
-
+from ..types import AnyArray, IntArray
 from ._base_spec import BaseSpec
 
 
@@ -28,6 +25,6 @@ class AgentSnapshotSpec(BaseSpec):
             One row per agent: grid coordinates, a network node, or a continuous position, or `None` without a space.
     """
 
-    ids: npt.NDArray[np.int64]
-    values: Mapping[str, npt.NDArray[Any]]
-    locations: npt.NDArray[Any] | None = None
+    ids: IntArray
+    values: Mapping[str, AnyArray]
+    locations: AnyArray | None = None
