@@ -42,8 +42,8 @@ class SaltelliDesign(BaseDesign):
 
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set the rows of Saltelli's sample within the bounds."""
-        bounds = self._check_bounds(bounds, distributions=False)
-        names = list(bounds)
-        problem = {'num_vars': len(names), 'names': names, 'bounds': [list(bounds[name]) for name in names]}  # type: ignore[call-overload]
+        pairs = self._check_pairs(bounds)
+        names = list(pairs)
+        problem = {'num_vars': len(names), 'names': names, 'bounds': [list(pairs[name]) for name in names]}
         samples = sobol_sample.sample(problem, self.n, calc_second_order=False, seed=self.random_state)
         self.rows_ = [dict(zip(names, map(float, sample), strict=True)) for sample in samples]

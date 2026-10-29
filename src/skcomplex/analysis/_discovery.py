@@ -71,11 +71,11 @@ class DiscoveryAnalysis(BaseAnalysis):
         return 'the array as one series'
 
     @staticmethod
-    def _get_classes(base: type[BaseAnalysis]) -> list[type[BaseAnalysis]]:
-        """Return every concrete general analysis below a base, by name, leaving out the realizations of the models."""
+    def _get_classes(children: list[type[BaseAnalysis]]) -> list[type[BaseAnalysis]]:
+        """Return every concrete general analysis among classes and below them, by name, leaving out the models."""
         found = []
-        for child in base.__subclasses__():
-            found.extend(DiscoveryAnalysis._get_classes(child))
+        for child in children:
+            found.extend(DiscoveryAnalysis._get_classes(child.__subclasses__()))
             if child.__module__.startswith('skcomplex.analysis.') and not inspect.isabstract(child):
                 found.append(child)
         return sorted(set(found), key=lambda item: item.__name__)
@@ -94,8 +94,8 @@ class DiscoveryAnalysis(BaseAnalysis):
 
     def _run(self, inputs: object = None) -> Self:
         """Build every analysis of the library and keep those that read a kind of data of the source."""
-        self.analyses_ = {kind: [] for kind in self.kinds_}
-        for analysis_class in self._get_classes(BaseAnalysis):
+        self.analyses_: dict[str, list[BaseAnalysis]] = {kind: [] for kind in self.kinds_}
+        for analysis_class in self._get_classes(BaseAnalysis.__subclasses__()):
             for analysis in self._build(analysis_class):
                 kind = analysis._get_data_kind()
                 if kind in self.analyses_:

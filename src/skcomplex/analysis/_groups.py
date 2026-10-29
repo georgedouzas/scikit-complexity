@@ -14,14 +14,15 @@ from ..core.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
 from ..engine.problems import ProblemSpec
 from ..engine.problems._reduction_kernel import ReductionKernel
+from ..errors import ValidationError
 from ..specs import EntrySpec
 
 
-class _Expansion(BaseConfig):
+class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
     """Symbols of every group member and the explicit value of every reduction of one problem.
 
-    It prepares on a compiled problem and runs on the names of the groups of one owner and one member, returning the
-    substitution that writes the equations of that member out.
+    It prepares on a compiled problem and runs on the names of the groups of one owner and one member, setting
+    `substitution_`, the substitution that writes the equations of that member out.
 
     Args:
         parameter_values:
@@ -31,9 +32,29 @@ class _Expansion(BaseConfig):
     def __init__(self, parameter_values: npt.NDArray[np.float64] | None = None) -> None:
         self.parameter_values = parameter_values
 
-    def _prepare(self, context: ProblemSpec) -> Self:
-        """Keep the problem, start the symbols and values of its members, and find the symbols of single components."""
+    def _prepare(self, context: ProblemSpec | None) -> Self:
+        """Keep the problem, start the symbols and values of its members, and find the symbols of single components.
+
+        Args:
+            context:
+                The compiled problem whose groups are expanded.
+
+        Returns:
+            expansion:
+                The expansion itself.
+
+        Raises:
+            ValidationError:
+                No problem is given.
+        """
+        if context is None:
+            error_msg = 'The expansion of groups prepares on a compiled problem. Pass one.'
+            raise ValidationError(error_msg)
         self.problem_ = context
+        self.parameters_ = np.asarray(
+            self.parameter_values if self.parameter_values is not None else np.zeros(0),
+            dtype=np.float64,
+        )
         self.symbols_: dict[tuple[str, int, int], Expression] = {}
         self.values_: dict[Expression, float] = {}
         self.shared_: dict[tuple[Expression, int | None], Expression] = {}
@@ -45,12 +66,27 @@ class _Expansion(BaseConfig):
                         self.by_index_[(is_state, entry.start + column)] = item
         return self
 
-    def _run(self, inputs: tuple[set[str], int]) -> dict[Expression, Expression]:
-        """Return the substitution of one member: its symbols for those of the named groups, and every reduction.
+    def _run(self, inputs: tuple[set[str], int] | None) -> dict[Expression, Expression]:
+        """Set and return `substitution_`, the substitution of one member: its symbols for those of the named groups.
 
         Every reduction is written as an explicit sum read by the member, and the values of new member parameters are
         kept in `values_`.
+
+        Args:
+            inputs:
+                The names of the groups of the owner, and the member.
+
+        Returns:
+            substitution:
+                The symbols of the member and the value of every reduction, by the symbol they replace.
+
+        Raises:
+            ValidationError:
+                No names and member are given.
         """
+        if inputs is None:
+            error_msg = 'The expansion of groups runs on the names of the groups of an owner and a member. Pass them.'
+            raise ValidationError(error_msg)
         entry_names, member = inputs
         mapping = self._member_map(entry_names, member)
         mapping.update(
@@ -59,6 +95,7 @@ class _Expansion(BaseConfig):
                 for reduction in self.problem_.reductions
             },
         )
+        self.substitution_ = mapping
         return mapping
 
     def _member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
@@ -69,7 +106,7 @@ class _Expansion(BaseConfig):
             self.symbols_[key] = symbol(f'{generic}__{member}', domain_of(generic))
             if self.problem_.parameters.has(entry.name):
                 self.values_[self.symbols_[key]] = float(
-                    self.parameter_values[entry.start + member * entry.columns + column],
+                    self.parameters_[entry.start + member * entry.columns + column],
                 )
         return self.symbols_[key]
 

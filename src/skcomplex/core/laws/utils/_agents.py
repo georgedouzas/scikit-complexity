@@ -8,6 +8,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....errors import ValidationError
+from ...types import ModelViewProtocol
 
 
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:
@@ -108,7 +109,7 @@ def random_pairing(
     return pairs
 
 
-def matches(model: object, label: str = 'match') -> list[tuple[object, object]]:
+def matches(model: ModelViewProtocol, label: str = 'match') -> list[tuple[object, object]]:
     """Return the pairs a matching law stored for the current step.
 
     Args:
@@ -122,4 +123,5 @@ def matches(model: object, label: str = 'match') -> list[tuple[object, object]]:
         pairs:
             The pairs of agents, or none before the law runs.
     """
-    return list(model.storage.get(f'match:{label}', ()))  # type: ignore[attr-defined]
+    pairs = model.storage.get(f'match:{label}', ())
+    return list(pairs) if isinstance(pairs, list | tuple) else []

@@ -20,6 +20,7 @@ from ._von_neumann import VonNeumannNeighborhood
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
+TRIANGULAR_DIMENSIONS = 2
 
 
 class LatticeSpace(BaseSpace):
@@ -104,20 +105,20 @@ class LatticeSpace(BaseSpace):
         if self.geometry not in GEOMETRIES:
             error_msg = f'Unknown lattice geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
             raise ValidationError(error_msg)
-        if self.geometry == 'triangular' and len(shape) != 2:  # noqa: PLR2004
+        if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set the shape, the size, the spacings, and the position of every site."""
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
         self.size_ = int(np.prod(self.shape_))
-        if np.ndim(self.spacing) == 0:
-            self.spacings_ = (float(self.spacing),) * self.n_dim_  # type: ignore[arg-type]
-        else:
-            self.spacings_ = tuple(float(item) for item in self.spacing)  # type: ignore[union-attr]
+        spacings = np.ravel(np.asarray(self.spacing, dtype=float))
+        if spacings.size == 1:
+            spacings = np.repeat(spacings, self.n_dim_)
+        self.spacings_ = tuple(float(item) for item in spacings)
         coordinates = np.indices(self.shape_).reshape(self.n_dim_, -1).T.astype(float)
         if self.geometry == 'triangular':
             rows, columns = coordinates.T

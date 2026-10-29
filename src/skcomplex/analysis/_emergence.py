@@ -21,6 +21,8 @@ from ._base import BaseAnalysis, Source
 from ._information import InformationAnalysis
 from ._markov import MarkovAnalysis
 
+MATRIX_DIMENSIONS = 2
+
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
 MATRIX_KINDS = ('effective-information', 'causal')
 WEIGHTINGS = ('uniform', 'stationary')
@@ -253,9 +255,16 @@ class EmergenceAnalysis(BaseAnalysis):
             self.macro_information_ = self._effective_information(self.macro_matrix_)[0]
         self.gain_ = self.macro_information_ - self.micro_information_
 
+    def _get_partition(self) -> Partition:
+        """Return the partition of the micro series, raising an error when none is given."""
+        if self.partition is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs the partition of the macro feature.'
+            raise AnalysisError(error_msg)
+        return self.partition
+
     def _run_criteria(self) -> None:
         """Compute the criteria Ψ, Δ, and Γ of the macro feature."""
-        x, v = self.values_, self._macro_series(self.values_, self.partition)
+        x, v = self.values_, self._macro_series(self.values_, self._get_partition())
         lag = self.lag
         present_x, future_x, present_v, future_v = x[:-lag], x[lag:], v[:-lag], v[lag:]
         information = partial(self._estimated_information, estimator=self.estimator, k=self.k)
@@ -273,7 +282,7 @@ class EmergenceAnalysis(BaseAnalysis):
     def _run_closure(self) -> None:
         """Compute the entropies of the macro future given the macro past and the micro past."""
         x = self.values_
-        v = self._macro_series(x, self.partition)
+        v = self._macro_series(x, self._get_partition())
         future = v[self.history :]
         scale = math.log(self.base)
         self.macro_uncertainty_ = self._conditional_entropy(future, self._lagged(v, self.history)) / scale
@@ -346,7 +355,7 @@ class EmergenceAnalysis(BaseAnalysis):
     def _square(matrix: npt.ArrayLike) -> Array:
         """Return a square matrix of nonnegative floats."""
         array = np.asarray(matrix, dtype=float)
-        if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
+        if array.ndim != MATRIX_DIMENSIONS or array.shape[0] != array.shape[1]:
             error_msg = f'A transition matrix is square, not of shape {array.shape}.'
             raise AnalysisError(error_msg)
         return array

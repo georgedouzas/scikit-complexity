@@ -10,6 +10,7 @@ from skcomplex import experiments
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ExperimentError, ValidationError
 from skcomplex.experiments import BaseDesign, BaseExperiment, RandomDesign
+from skcomplex.models import create
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map
 
@@ -88,8 +89,6 @@ def test_model_name_as_a_source_raises_a_named_error(experiment):
 
 def test_model_of_the_library_runs_from_its_factory_or_a_created_system():
     """Test that a library model runs as an experiment from its factory or from a system the models library creates."""
-    from skcomplex.models import create  # noqa: PLC0415
-
     for source in (logistic_map, create('logistic_map')):
         diagram = experiments.OrbitDiagramExperiment(source, 'map.r', [2.9], 'map.x', transient=1000, keep=4, dt=1)
         assert diagram.check().prepare().run().periods_.tolist() == [1]

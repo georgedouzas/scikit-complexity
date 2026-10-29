@@ -1,5 +1,6 @@
 """Test the `_neighbor` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -287,7 +288,7 @@ def _hebbian(space, activities):
 def test_neighbor_interaction_stores_its_layer():
     """Test that a neighbour interaction keeps the layer it runs on, and none by default."""
     assert ContagionInteraction('contagion', people='people', layer='work').layer == 'work'
-    assert NeighborInteraction('empty').check().prepare().run(None) == []
+    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()) == []
 
 
 @BACKENDS

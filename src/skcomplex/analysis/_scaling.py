@@ -16,6 +16,8 @@ from ..errors import AnalysisError
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
+MIN_LINE_POINTS = 2
+
 KINDS = ('detrended-fluctuation', 'rescaled-range', 'box-counting', 'correlation-dimension', 'variance-mean', 'power')
 AGAINST = ('mean', 'size')
 SETTINGS = {
@@ -93,10 +95,13 @@ class ScalingAnalysis(BaseAnalysis):
 
     Attributes:
         values_:
-            The series, one per column, the field or its frames, the points, or the samples by size.
+            The series, one per column, the field or its frames, or the points, and an empty array for samples by size.
+
+        samples_:
+            The samples by size, or `None` for a source of series, points, or a field.
 
         labels_:
-            The label of every series, or of the field.
+            The label of every series, of the field, or of every size.
 
         scales_:
             The window sizes, the box sides, the radii, or the sizes.
@@ -141,6 +146,8 @@ class ScalingAnalysis(BaseAnalysis):
         >>> power.check().prepare([0.1**0.5, 0.01**0.5]).run().exponent_.round(6).tolist()
         [0.5]
     """
+
+    exponent_: float | Array
 
     def __init__(
         self,
@@ -191,10 +198,12 @@ class ScalingAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source | Mapping[float, npt.ArrayLike]) -> Self:
         """Read the series or the points as columns, the last frame or every frame of a field, or samples by size."""
+        self.samples_: dict[float, Array] | None = None
         if self.kind == 'variance-mean':
             if isinstance(source, Mapping):
-                self.values_ = {float(size): np.asarray(samples, dtype=float) for size, samples in source.items()}
-                self.labels_ = list(self.values_)
+                self.samples_ = {float(size): np.asarray(samples, dtype=np.float64) for size, samples in source.items()}
+                self.values_: Array = np.zeros(0)
+                self.labels_ = [f'{size:g}' for size in self.samples_]
                 return self
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
@@ -217,8 +226,8 @@ class ScalingAnalysis(BaseAnalysis):
         if self.kind == 'box-counting':
             self.scales_, self.counts_, self.exponent_ = self._box_counting(self.values_, self.scales)
         elif self.kind == 'variance-mean':
-            if isinstance(self.values_, dict):
-                self.scales_, self.means_, self.deviations_ = self._size_moments(self.values_)
+            if self.samples_ is not None:
+                self.scales_, self.means_, self.deviations_ = self._size_moments(self.samples_)
             else:
                 self.scales_, self.means_, self.deviations_ = self._box_moments(self.values_, self.scales)
             self.exponent_ = self._variance_mean_exponent(self.scales_, self.means_, self.deviations_, self.against)
@@ -356,7 +365,7 @@ class ScalingAnalysis(BaseAnalysis):
         tree = cKDTree(array)
         sums = (tree.count_neighbors(tree, grid) - size) / (size * (size - 1))
         inside = np.flatnonzero((sums >= fit_sums[0]) & (sums <= fit_sums[1]))
-        if inside.size < 2:  # noqa: PLR2004
+        if inside.size < MIN_LINE_POINTS:
             error_msg = f'Fewer than 2 radii have correlation sums within {fit_sums}. Give more radii or points.'
             raise AnalysisError(error_msg)
         slope = float(np.polyfit(np.log(grid[inside]), np.log(sums[inside]), 1)[0])

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
-from skcomplex.models import ModelEntry, catalog, describe
+from skcomplex.models import ModelEntry, ModelListing, catalog, describe
 
 from ._errors import GalleryError
 from ._settings import Budget
@@ -122,7 +122,7 @@ def _model_of(path: Path) -> str | None:
     return None
 
 
-def library_models() -> list[ModelEntry]:
+def library_models() -> list[ModelListing]:
     """Return the registered models of the library, without models registered by other code such as tests.
 
     Returns:
@@ -163,7 +163,7 @@ def find_examples(folder: Path) -> list[Example]:
     return examples
 
 
-def check_coverage(folder: Path, entries: list[ModelEntry] | None = None) -> Coverage:
+def check_coverage(folder: Path, entries: list[ModelListing] | None = None) -> Coverage:
     """Compare the examples under a folder with the registered models.
 
     Args:
@@ -243,11 +243,14 @@ def gallery_interval(until: float, dt: float, max_frames: int) -> int:
 
 def _settings_of(entry: ModelEntry) -> tuple[float, float]:
     """Return the simulated time and the time between frames of a model's default run."""
-    until = float(entry.defaults.get('until', DEFAULT_UNTIL))
+    until = entry.defaults.get('until', DEFAULT_UNTIL)
     dt = entry.defaults.get('dt')
     if dt is None:
         dt = STEPWISE_DT if entry.formalism in STEPWISE_FORMS else CONTINUOUS_DT
-    return until, float(dt)
+    if not isinstance(until, int | float) or not isinstance(dt, int | float):
+        error_msg = f'The default run of {entry.name} takes numbers as `until` and `dt`, not {until!r} and {dt!r}.'
+        raise GalleryError(error_msg)
+    return float(until), float(dt)
 
 
 def scaffold_example(entry: ModelEntry, title: str, budget: Budget | None = None) -> str:
@@ -333,7 +336,7 @@ def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False)
         _write_readmes(folder, entry.field)
         path = folder / entry.field / f'{EXAMPLE_PREFIX}{entry.name}.py'
         title = titles.get(entry.name, _title(entry.name))
-        path.write_text(scaffold_example(entry, title))
+        path.write_text(scaffold_example(describe(entry.name), title))
         written.append(path)
     return written
 

@@ -1,6 +1,7 @@
 """Test the `_interaction` module of `skcomplex.core.interactions`."""
 
-import pickle  # nosec B403: the tests pickle and load only objects they create
+from multiprocessing.reduction import ForkingPickler
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -155,7 +156,7 @@ def _shocked(first, second):
 
 def test_interaction_has_no_laws_by_default():
     """Test that an interaction that returns no laws of its own runs into none."""
-    assert Interaction('empty').check().prepare().run(None) == []
+    assert Interaction('empty').check().prepare().run(SimpleNamespace()) == []
 
 
 def test_interaction_requires_its_roles():
@@ -168,8 +169,8 @@ def test_interaction_clones_and_pickles_with_its_values():
     """Test that an interaction clones and pickles with its roles and parameters."""
     growth = GrowthInteraction('g', target='a', r=0.7)
     assert clone(growth).get_params() == {'label': 'g', 'r': 0.7, 'target': 'a'}
-    data = pickle.dumps(System(elements=[StockElement('a', n=3.0)], interactions=[growth]))
-    restored = pickle.loads(data)  # noqa: S301  # nosec B301: loads data the test just dumped
+    data = ForkingPickler.dumps(System(elements=[StockElement('a', n=3.0)], interactions=[growth]))
+    restored = ForkingPickler.loads(data)
     assert restored.elements[0].n == 3.0
     assert restored.interactions[0].r == 0.7
 

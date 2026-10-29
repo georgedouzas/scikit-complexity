@@ -8,6 +8,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+import mkdocs_gen_files
 from gallery_tools import Example, build_from_environment, find_examples
 from inventory_checks import InventoryError, inventory_problems
 
@@ -311,8 +312,6 @@ def main() -> None:
         InventoryError:
             The inventory disagrees with the catalog or breaks its own rules.
     """
-    import mkdocs_gen_files  # noqa: PLC0415
-
     problems = inventory_problems()
     if problems:
         error_msg = 'The model inventory has problems. Fix each in docs/overview/inventory.toml:\n- ' + '\n- '.join(

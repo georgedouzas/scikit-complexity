@@ -11,7 +11,7 @@ import ordpy
 
 from ..errors import AnalysisError
 from ..types import DataKind
-from ._base import BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
 from ._entropy import TIES, EntropyAnalysis
 
 
@@ -103,7 +103,7 @@ class ComplexityAnalysis(BaseAnalysis):
         if self._get_data_kind() == DataKind.FIELD:
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
-            self.values_ = frames[None] if frames.ndim == 2 else frames  # noqa: PLR2004
+            self.values_ = frames[None] if frames.ndim == SNAPSHOT_DIMENSIONS else frames
             self.labels_ = [name or 'field']
             return self
         series = self._read_series(source, self.variables)

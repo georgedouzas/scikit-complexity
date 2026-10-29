@@ -1,6 +1,8 @@
 """Generate the compatibility page from the declarations of the laws, solvers, and backends."""
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
+
+import mkdocs_gen_files
 
 from skcomplex.core.base import LawKind, law_classes
 from skcomplex.core.spaces import BaseSpace
@@ -17,14 +19,14 @@ def _names(items: Iterable[object]) -> str:
     return ', '.join(f'`{name}`' for name in names) or 'none'
 
 
-def _terms(terms: frozenset[object], every: int | None = None) -> str:
+def _terms(terms: Collection[object], every: int | None = None) -> str:
     """Return a set of terms as a sorted list, `any` for an empty requirement or a set of every term."""
     if not terms or (every is not None and len(terms) == every):
         return 'any'
     return ', '.join(f'`{term}`' for term in sorted(map(str, terms)))
 
 
-def _noise_terms(terms: frozenset[object]) -> str:
+def _noise_terms(terms: Collection[object]) -> str:
     """Return the noise structures of a declaration, `none` for an empty one."""
     return _terms(terms) if terms else 'none'
 
@@ -54,6 +56,15 @@ def law_lines() -> list[str]:
     return lines
 
 
+def _declares_form(solver: type[BaseSolver]) -> bool:
+    """Check whether a solver class declares the form it solves, which its abstract bases do not."""
+    try:
+        solver._get_form()
+    except NotImplementedError:
+        return False
+    return True
+
+
 def solver_lines() -> list[str]:
     """Return the support of every solver.
 
@@ -76,11 +87,9 @@ def solver_lines() -> list[str]:
     ]
     classes = [getattr(solvers, name) for name in solvers.__all__]
     found = [
-        item
-        for item in classes
-        if isinstance(item, type) and issubclass(item, BaseSolver) and hasattr(item, 'supports')
+        item for item in classes if isinstance(item, type) and issubclass(item, BaseSolver) and _declares_form(item)
     ]
-    for solver in sorted(found, key=lambda item: (item.form.name, item.__name__)):
+    for solver in sorted(found, key=lambda item: (item._get_form().name, item.__name__)):
         supports = solver._get_support()
         cells = [
             f'`{solver.__name__}`',
@@ -175,8 +184,6 @@ def compatibility_page() -> str:
 
 def main() -> None:
     """Write the compatibility page into the documentation."""
-    import mkdocs_gen_files  # noqa: PLC0415
-
     with mkdocs_gen_files.open('overview/compatibility.md', 'w') as file:
         file.write(compatibility_page())
 

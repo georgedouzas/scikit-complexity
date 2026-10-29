@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -59,7 +60,7 @@ def test_interaction_prepares_into_itself():
     """Test that a checked interaction has nothing to prepare and runs into its laws."""
     growth = GrowthInteraction('growth', target='rabbits').check()
     assert growth.prepare() is growth
-    assert growth.run(None) == []
+    assert growth.run(SimpleNamespace()) == []
 
 
 def test_state_on_an_interaction_is_rejected():

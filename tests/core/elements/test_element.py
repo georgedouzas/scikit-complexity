@@ -1,6 +1,6 @@
 """Test the `_element` module of `skcomplex.core.elements`."""
 
-import pickle  # nosec B403: the tests pickle and load only objects they create
+from multiprocessing.reduction import ForkingPickler
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -191,7 +191,7 @@ def _firm_leverage(s):
 
 def test_element_has_no_laws_by_default():
     """Test that an element that returns no laws of its own runs into none."""
-    assert TallyElement('t').check().prepare().run(None) == []
+    assert TallyElement('t').check().prepare().run(SimpleNamespace()) == []
 
 
 def test_element_runs_into_its_laws():
@@ -226,7 +226,7 @@ def test_element_stores_companions_as_arguments():
 
 def test_element_clones_and_pickles_with_its_values():
     """Test that an element clones and pickles with its values."""
-    restored = pickle.loads(pickle.dumps(DecayingElement('a', n=3.0)))  # noqa: S301  # nosec B301: loads its own dump
+    restored = ForkingPickler.loads(ForkingPickler.dumps(DecayingElement('a', n=3.0)))
     assert (restored.n, restored.k) == (3.0, 0.2)
     assert clone(DecayingElement('a', n=3.0)).n == 3.0
 

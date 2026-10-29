@@ -1,5 +1,6 @@
 """Test the `_hyperedge` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 from skcomplex.core.interactions import HyperedgeInteraction
@@ -19,4 +20,4 @@ def test_hyperedge_interaction_has_no_laws_by_default():
     consensus = ConsensusInteraction('consensus', voters='voters').check().prepare()
     assert consensus.voters == 'voters'
     assert list(ConsensusInteraction._get_specs()) == ['voters']
-    assert consensus.run(None) == []
+    assert consensus.run(SimpleNamespace()) == []

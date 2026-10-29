@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,6 +13,7 @@ from sklearn.base import BaseEstimator
 
 from ...core.specs import ScenarioSpec
 from ...engine.runtime import Trajectory
+from ...engine.solvers import BaseSolver
 from ...specs._base_spec import BaseSpec
 from ...specs._observable_spec import ObservableSpec
 from ...types import Row
@@ -47,8 +48,11 @@ class _TaskSpec(BaseSpec):
         until:
             The simulated time to run to.
 
-        settings:
-            The `Simulation` arguments.
+        dt:
+            The time step of the simulation, or `None` for its default.
+
+        solver:
+            The solver of the simulation, or `None` for its default.
 
         outputs:
             The outputs to keep.
@@ -70,7 +74,8 @@ class _TaskSpec(BaseSpec):
     replicate: int
     seed: np.random.SeedSequence
     until: float
-    settings: Mapping[str, object]
+    dt: float | None
+    solver: BaseSolver | None
     outputs: Sequence[Output] | None
     warmup: float
     observables: Sequence[ObservableSpec] | None

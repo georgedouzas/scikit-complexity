@@ -5,6 +5,7 @@ import inspect
 import pkgutil
 from importlib.resources import files
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -189,7 +190,7 @@ def test_constructor_only_stores_its_arguments():
 
 def test_part_runs_into_its_laws_by_default():
     """Test that running a part without its own `_run` returns its laws for the namespace."""
-    assert SpecifiedPart('a').check().run(None) == []
+    assert SpecifiedPart('a').check().run(SimpleNamespace()) == []
 
 
 def test_parts_derive_from_the_part_base():

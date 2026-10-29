@@ -8,7 +8,7 @@ from typing import Self
 
 from ...errors import ValidationError
 from ...specs import VisualSpec
-from ..spaces import LatticeSpace, MeshSpace, NetworkSpace
+from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
 from ._base import BaseElement
 from ._lattice import LatticeElement
 
@@ -159,7 +159,7 @@ class FieldElement(LatticeElement):
                 raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Set `size_`, `values_`, and `default_visual_`, an image on a lattice and a colored mesh on a mesh.
 
         Args:

@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.elements`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 from skcomplex.core.elements import BaseElement, Element, GroupElement
@@ -43,7 +44,7 @@ def test_element_prepares_the_plain_visual():
     """Test that preparing an element sets the plain visual as its default visual, whatever its own visual."""
     element = PopulationElement('rabbits').check().prepare()
     assert element.default_visual_ == VisualSpec()
-    assert element.run(None) == []
+    assert element.run(SimpleNamespace()) == []
 
 
 def test_elements_and_groups_derive_from_the_element_base_only():

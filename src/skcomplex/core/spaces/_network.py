@@ -16,6 +16,8 @@ from ...types import Indices
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
 
+MIN_HYPEREDGE_NODES = 2
+
 
 class NetworkSpace(BaseSpace):
     """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
@@ -143,7 +145,7 @@ class NetworkSpace(BaseSpace):
         """Raise an error for a hyperedge or a layer that does not fit the nodes of the graph."""
         nodes = set(self.graph.nodes)
         for hyperedge in self.hyperedges:
-            if len(hyperedge) < 2 or not set(hyperedge) <= nodes:  # noqa: PLR2004
+            if len(hyperedge) < MIN_HYPEREDGE_NODES or not set(hyperedge) <= nodes:
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
         for layer in self.layers:
@@ -161,7 +163,7 @@ class NetworkSpace(BaseSpace):
                 raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Set the graph, the edges, and the adjacency of every layer, and the position of every node."""
         self.size_ = int(self.graph.number_of_nodes())
         self.n_dim_ = 1

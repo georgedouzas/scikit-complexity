@@ -18,6 +18,8 @@ from ._correlation import CorrelationAnalysis
 from ._neighbors import NeighborAnalysis
 from ._spectrum import SpectrumAnalysis
 
+MIN_LINE_POINTS = 2
+
 KINDS = ('size', 'growth', 'wavelength', 'interface-density')
 METHODS = ('moment', 'zero')
 SETTINGS = {
@@ -147,7 +149,7 @@ class DomainAnalysis(BaseAnalysis):
             if self.kind != 'interface-density':
                 error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a field, not a graph.'
                 raise AnalysisError(error_msg)
-            self.frames_ = self._read_networks(source)
+            self.frames_: list[nx.Graph] | Array = self._read_networks(source)
             self.times_ = np.zeros(1)
             return self
         name = self.variables[0] if self.variables else None
@@ -190,7 +192,7 @@ class DomainAnalysis(BaseAnalysis):
         """Return the slope of `log size` against `log time` over the frames of the fit range."""
         low, high = (0.0, np.inf) if fit_range is None else fit_range
         inside = (times >= low) & (times <= high) & (times > 0) & (sizes > 0)
-        if inside.sum() < 2:  # noqa: PLR2004
+        if inside.sum() < MIN_LINE_POINTS:
             error_msg = (
                 f'The fit range {fit_range} holds fewer than 2 frames with a positive time and size. Widen it, or '
                 'prepare on more frames.'

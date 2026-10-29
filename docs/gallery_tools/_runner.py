@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import logging
 import multiprocessing
 import os
 import runpy
@@ -13,6 +14,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 from skcomplex.engine.viz import RerunObserver
 
 from ._build import GalleryBuild
@@ -22,6 +26,7 @@ from ._screenshots import finished_observers, thumbnail_of
 from ._settings import Budget
 
 SLOWEST = 10
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -75,9 +80,6 @@ def _quiet_matplotlib() -> None:
     A worker runs several examples, and once any module has imported `pyplot` the environment variable no longer
     chooses the backend, so on macOS an example's `plt.show()` would open a window and wait for it to close.
     """
-    import matplotlib as mpl  # noqa: PLC0415
-    import matplotlib.pyplot as plt  # noqa: PLC0415
-
     mpl.use('agg', force=True)
     plt.show = lambda *_, **__: None
 
@@ -121,7 +123,8 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
                 budget=budget,
                 seconds=seconds,
             )
-        except Exception as error:  # noqa: BLE001  # the report names any error of the example, which is user code
+        except Exception as error:
+            LOGGER.exception('The example %s failed.', example.path.name)
             return RunReport(example.path.name, time.perf_counter() - start, error=f'{type(error).__name__}: {error}')
     return RunReport(example.path.name, seconds, frames, size, cached, thumbnail=str(thumbnail))
 

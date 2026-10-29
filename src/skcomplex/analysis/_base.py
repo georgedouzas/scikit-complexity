@@ -26,17 +26,20 @@ from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, 
 from ..types import Array, DataKind, DomainKind, FormKind
 
 type Source = Trajectory | System | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
-type SurrogateSource = Trajectory | npt.ArrayLike | list[Trajectory | npt.ArrayLike]
+type Run = Trajectory | npt.ArrayLike
+type Runs = Source | list[Run]
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
 VELOCITY_STATE = 'v'
 SERIES_DIMENSIONS = 1
+SNAPSHOT_DIMENSIONS = 2
+RUNS_DIMENSIONS = 3
 STEP_TOLERANCE = 1e-6
 KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
 
 
-class BaseAnalysis(BaseConfig, ABC):
+class BaseAnalysis(BaseConfig[Source, object], ABC):
     """Base of every analysis: it stores its settings, checks them, prepares on a source, and runs.
 
     A child stores its settings in `__init__` and implements four hooks that the verbs call:
@@ -328,7 +331,7 @@ class BaseAnalysis(BaseConfig, ABC):
         system = trajectory.problem.system
         space = system.space if system is not None else None
         periodic = isinstance(space, ContinuousSpace) and space.periodic_
-        box = np.asarray(space.extent_, dtype=float) if periodic else None
+        box = np.asarray(space.extent_, dtype=np.float64) if isinstance(space, ContinuousSpace) and periodic else None
         raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
         positions = BaseAnalysis._unwrap(raw, box, periodic=periodic)
         velocity = element.states.get(VELOCITY_STATE)
@@ -502,13 +505,10 @@ class BaseAnalysis(BaseConfig, ABC):
             AnalysisError:
                 The agents of the group have no velocities.
         """
-        reads_agents = isinstance(source, Trajectory) and (
-            group is not None
-            or (
-                names is None
-                and not self._get_scalar_series(source)
-                and DataKind.AGENTS in self._get_data_kinds(source)
-            )
+        if not isinstance(source, Trajectory):
+            return self._read_series(source, names)
+        reads_agents = group is not None or (
+            names is None and not self._get_scalar_series(source) and DataKind.AGENTS in self._get_data_kinds(source)
         )
         if not reads_agents:
             return self._read_series(source, names)
@@ -537,7 +537,7 @@ class BaseAnalysis(BaseConfig, ABC):
         """
         if not isinstance(source, Trajectory):
             array = np.asarray(source, dtype=float)
-            return array[None] if array.ndim == 2 else array  # noqa: PLR2004
+            return array[None] if array.ndim == SNAPSHOT_DIMENSIONS else array
         velocities = self._read_snapshots(source, group).velocities
         if velocities is None:
             error_msg = f'The agents of {group or "the first group"} have no velocities. Use moving agents.'
@@ -616,7 +616,8 @@ class BaseAnalysis(BaseConfig, ABC):
         if not getattr(self, '_prepared', False):
             error_msg = f'{type(self).__name__} must be prepared with a source before it runs. Call `prepare(source)`.'
             raise AnalysisError(error_msg)
-        return super().run(inputs, final)
+        super().run(inputs, final)
+        return self
 
     @staticmethod
     @cache
@@ -693,13 +694,36 @@ class BaseAnalysis(BaseConfig, ABC):
         return np.asarray(array, dtype=float)
 
     @staticmethod
-    def _runs_of(source: SurrogateSource) -> list[Trajectory | npt.ArrayLike]:
-        """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or itself."""
-        if isinstance(source, list) and all(isinstance(item, Trajectory | np.ndarray) for item in source):
-            return source
-        if not isinstance(source, Trajectory) and np.ndim(source) == 3:  # noqa: PLR2004
-            return list(np.asarray(source, dtype=float))
-        return [source]
+    def _runs_of(source: Runs) -> list[Run]:
+        """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or itself.
+
+        Args:
+            source:
+                A trajectory, an array with one row per sample, or several runs as a list or a 3-D array.
+
+        Returns:
+            runs:
+                The runs.
+
+        Raises:
+            AnalysisError:
+                The source is a system, a graph, or a network snapshot, which have no samples.
+        """
+        if isinstance(source, Trajectory):
+            return [source]
+        if isinstance(source, System | NetworkSnapshotSpec | nx.Graph):
+            error_msg = f'Runs are read from trajectories or arrays, not from {type(source).__name__}.'
+            raise AnalysisError(error_msg)
+        if isinstance(source, list):
+            if all(isinstance(item, Trajectory | np.ndarray) for item in source):
+                return list(source)
+            if any(isinstance(item, Trajectory) for item in source):
+                error_msg = 'A list of runs holds trajectories or arrays, not nested lists beside trajectories.'
+                raise AnalysisError(error_msg)
+            array = np.asarray([np.asarray(item) for item in source if not isinstance(item, Trajectory)])
+        else:
+            array = np.asarray(source)
+        return list(np.asarray(array, dtype=np.float64)) if array.ndim == RUNS_DIMENSIONS else [array]
 
     @staticmethod
     def _step_of(series: SeriesSpec) -> float:
@@ -715,7 +739,7 @@ class BaseAnalysis(BaseConfig, ABC):
 
     def _read_samples(
         self,
-        source: SurrogateSource,
+        source: Runs,
         variables: Sequence[str] | None,
         dt: float,
     ) -> SamplesSpec:

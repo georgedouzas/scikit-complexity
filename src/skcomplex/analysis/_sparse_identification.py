@@ -23,7 +23,7 @@ from ..engine.runtime import Simulation
 from ..errors import AnalysisError
 from ..specs import StateSpec
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, SurrogateSource
+from ._base import BaseAnalysis, Runs
 
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})
@@ -138,7 +138,7 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: SurrogateSource) -> Self:
+    def _prepare(self, source: Runs) -> Self:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
@@ -166,8 +166,9 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         self.states_ = states
         self.last_state_ = np.asarray(samples.series[-1][-1], dtype=float)
         self.dt_ = samples.dt
-        self.training_error_ = self._relative_error(*self._derivatives(model, training, samples.dt))
-        self.validation_error_ = self._relative_error(*self._derivatives(model, held, samples.dt))
+        predict, differentiate = model.predict, model.differentiation_method
+        self.training_error_ = self._relative_error(*self._derivatives(predict, differentiate, training, samples.dt))
+        self.validation_error_ = self._relative_error(*self._derivatives(predict, differentiate, held, samples.dt))
         self.features_ = [str(name) for name in model.get_feature_names()]
         self.coefficients_ = coefficients
         self.forecast_ = self._forecast()
@@ -211,11 +212,16 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         return laws
 
     @staticmethod
-    def _derivatives(model: object, parts: list[Array], dt: float) -> tuple[list[Array], list[Array]]:
+    def _derivatives(
+        predict: Callable[[Array], npt.ArrayLike],
+        differentiate: Callable[[Array, float], npt.ArrayLike],
+        parts: list[Array],
+        dt: float,
+    ) -> tuple[list[Array], list[Array]]:
         """Return the derivatives a model predicts and those its differentiation method estimates from the series."""
         usable = [values for values in parts if len(values) >= DIFFERENCE_POINTS]
-        predicted = [np.asarray(model.predict(values), dtype=float) for values in usable]
-        measured = [np.asarray(model.differentiation_method(values, dt), dtype=float) for values in usable]
+        predicted = [np.asarray(predict(values), dtype=np.float64) for values in usable]
+        measured = [np.asarray(differentiate(values, dt), dtype=np.float64) for values in usable]
         return predicted, measured
 
     @staticmethod
@@ -368,7 +374,7 @@ class SparseIdentificationAnalysis(BaseAnalysis):
                 setattr(self, name, value)
 
         first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-        initialize.__signature__ = inspect.Signature([*first, *states])  # type: ignore[attr-defined]
+        vars(initialize)['__signature__'] = inspect.Signature([*first, *states])
         element_type = type(kind, (Element,), {'__init__': initialize, '_get_laws': lambda self, s: laws(s)})
         return System(elements=[element_type(label)], time=time)
 

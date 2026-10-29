@@ -18,6 +18,8 @@ from ..errors import AnalysisError
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
+MATRIX_DIMENSIONS = 2
+
 TOLERANCE = 1e-10
 KINDS = ('transition-matrix', 'stationary', 'spectral-gap', 'state-model', 'timescales')
 MATRICES = ('transition', 'rate')
@@ -239,7 +241,7 @@ class MarkovAnalysis(BaseAnalysis):
     def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
         """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
         array = np.asarray(matrix, dtype=float)
-        if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
+        if array.ndim != MATRIX_DIMENSIONS or array.shape[0] != array.shape[1]:
             error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
             raise AnalysisError(error_msg)
         if not rates:

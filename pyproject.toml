@@ -41,6 +41,7 @@ dependencies = [
     "networkx>=3.3",
     "scikit-learn>=1.5.1",
     "SALib>=1.5",
+    "pandas>=2.2.2",
     "scikit-fem>=10.0",
     "shapely>=2.1",
     "antropy>=0.2.3",
@@ -234,8 +235,6 @@ DEP002 = [
     "reservoirpy",
     "python-sat",
 ]
-# pandas is optional: `ExperimentResult.to_frame` imports it on demand and names it when it is missing.
-DEP004 = ["pandas"]
 
 [tool.importlinter]
 root_package = "skcomplex"

@@ -3,14 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Self
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, StateSpec
 from ..base import BasePart
+from ..spaces import BaseSpace
 
 
-class BaseInteraction(BasePart):
+class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     """Base of every interaction, a part of a system whose laws couple elements to each other or to the environment.
 
     A subclass takes its roles and parameters as arguments of its own `__init__`, annotated with `Annotated` and the
@@ -73,7 +75,7 @@ class BaseInteraction(BasePart):
         self._check_states()
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Return the interaction, which has nothing to prepare.
 
         Args:

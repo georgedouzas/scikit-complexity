@@ -1,11 +1,12 @@
-"""Define the protocols of the core: the automata that analyses read, named by the spaces they live on."""
+"""Define the protocols of the core: the automata that analyses read, and the model that agent rules read."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import MutableMapping, Sequence
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
@@ -16,6 +17,7 @@ from ..types import Indices, IntArray
 from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 
 
+@runtime_checkable
 class AutomatonProtocol(Protocol):
     """Cellular automaton the analysis reads by its methods, such as `Automaton` of the automata models."""
 
@@ -23,6 +25,15 @@ class AutomatonProtocol(Protocol):
     neighborhood: LatticeNeighborhood | MemoryNeighborhood
     rule: object
     states: int
+
+    def __init__(
+        self,
+        space: BaseSpace,
+        neighborhood: LatticeNeighborhood | MemoryNeighborhood,
+        rule: object,
+        states: int,
+    ) -> None:
+        """Store the space, the neighbourhood, the rule, and the number of states."""
 
     @property
     def reads(self) -> LatticeNeighborhood | MemoryNeighborhood:
@@ -45,6 +56,7 @@ class AutomatonProtocol(Protocol):
         """Return the configurations of a number of steps."""
 
 
+@runtime_checkable
 class LinearAutomatonProtocol(Protocol):
     """Linear cellular automaton the analysis reads by its matrix and its Laurent polynomial."""
 
@@ -55,6 +67,7 @@ class LinearAutomatonProtocol(Protocol):
         """Return the Sage Laurent polynomial of the automaton on `Z^d`."""
 
 
+@runtime_checkable
 class SubshiftProtocol(Protocol):
     """Subshift of finite type the analysis reads by its count of admissible configurations and its violations."""
 
@@ -63,3 +76,19 @@ class SubshiftProtocol(Protocol):
 
     def violations(self, configuration: npt.ArrayLike, space: BaseSpace) -> npt.NDArray[np.bool_]:
         """Return the sites at which a forbidden pattern appears."""
+
+
+@runtime_checkable
+class ModelViewProtocol(Protocol):
+    """Model as agent rules read it, such as `ModelView` of the agent stepper: its agents, storage, and randomness."""
+
+    @property
+    def rng(self) -> np.random.Generator:
+        """Random number generator of the model."""
+
+    @property
+    def storage(self) -> MutableMapping[str, object]:
+        """Mutable mapping private to the owner of the rule that persists across the steps of one run."""
+
+    def agents(self, name: str) -> Sequence[object]:
+        """Return the agents of a group bound to a role of the owner, or of a group by path."""

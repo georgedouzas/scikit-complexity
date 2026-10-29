@@ -3,12 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import pickle  # nosec B403: pickles the model's own functions to check that they pickle, and never loads
 from collections.abc import Callable
 from dataclasses import dataclass
+from multiprocessing.reduction import ForkingPickler
 from typing import Self
 
 from ..errors import ValidationError
+from ..types import Array
 from ._base_spec import BaseSpec
 
 
@@ -51,7 +52,7 @@ class ObservableSpec(BaseSpec):
     expression: object = None
     element: str | None = None
     group: str | None = None
-    reduce: str | Callable[[object], object] = 'mean'
+    reduce: str | Callable[[Array], object] = 'mean'
     variable: str | None = None
 
     def _check(self) -> Self:
@@ -67,8 +68,8 @@ class ObservableSpec(BaseSpec):
         """
         for name, value in (('expression', self.expression), ('reduction', self.reduce)):
             try:
-                pickle.dumps(value)
-            except (pickle.PicklingError, AttributeError, TypeError) as error:
+                ForkingPickler.dumps(value)
+            except Exception as error:
                 error_msg = (
                     f'The {name} of the observable {self.label!r} cannot be pickled: {error}. Use a module-level '
                     'function or a symbolic expression instead of a lambda or a local function.'

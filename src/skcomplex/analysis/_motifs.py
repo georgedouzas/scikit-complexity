@@ -14,6 +14,8 @@ from ..errors import AnalysisError
 from ..types import DataKind
 from ._base import BaseAnalysis, Source
 
+TRIAD_SIZE = 3
+
 KINDS = ('counts', 'z-scores')
 NULLS = ('switch', 'configuration')
 SIZES = (3, 4)
@@ -205,7 +207,7 @@ class MotifAnalysis(BaseAnalysis):
     @staticmethod
     def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
         """Return the number of connected induced subgraphs of every kind of three or four nodes."""
-        if size == 3:  # noqa: PLR2004
+        if size == TRIAD_SIZE:
             return MotifAnalysis._three_node_counts(graph)
         return dict(
             Counter(

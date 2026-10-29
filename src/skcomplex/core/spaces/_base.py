@@ -3,6 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Self
 
 import numpy as np
@@ -12,7 +16,7 @@ from ...errors import SpaceError
 from ..base import BasePart
 
 
-class BaseNeighborhood(BasePart):
+class BaseNeighborhood(BasePart[None, SimpleNamespace]):
     """Base of the neighbourhoods, the parts of a system that give the members a law reads around a member of a space.
 
     A neighbourhood is a part: it stores its arguments in its own `__init__`, `check` validates them, and `prepare`
@@ -24,7 +28,7 @@ class BaseNeighborhood(BasePart):
             The label of the neighbourhood.
     """
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
 
@@ -32,12 +36,12 @@ class BaseNeighborhood(BasePart):
         """Return the neighbourhood, which has nothing to check besides its label by default."""
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Return the neighbourhood, which has nothing to prepare by default."""
         return self
 
 
-class BaseSpace(BasePart):
+class BaseSpace(BasePart[None, SimpleNamespace]):
     """Base of the spaces, the parts of a system where members live and which give vector states their dimension.
 
     A space is a part of its system: it stores its arguments in its own `__init__`, `check` validates them, `prepare`
@@ -71,7 +75,7 @@ class BaseSpace(BasePart):
             The name of the visual of groups on the space when neither the group nor its element sets one, or `None`.
     """
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws the space contributes for a namespace of symbols, none by default."""
         return []
 
@@ -172,7 +176,7 @@ class BaseSpace(BasePart):
         return row[row < self.size_]
 
 
-class BaseTime(BasePart):
+class BaseTime(BasePart[None, SimpleNamespace]):
     """Base of the time of a system, the part that decides the laws the system may hold.
 
     A time is a part of its system: it stores its arguments in its own `__init__`, `check` validates them, `prepare`
@@ -188,7 +192,7 @@ class BaseTime(BasePart):
             The schedule of a discrete time, or `None`.
     """
 
-    def _get_laws(self, namespace: object) -> list[object]:
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return no laws, since the time decides which laws a system may hold but contributes none."""
         return []
 

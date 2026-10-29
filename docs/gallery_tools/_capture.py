@@ -19,7 +19,7 @@ from collections.abc import Callable
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self
+from typing import Self
 
 import rerun as rr
 import rerun.blueprint as rrb
@@ -150,7 +150,7 @@ class _QuietHandler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002, ANN401
+    def log_message(self, message_format: str, *args: object) -> None:
         """Log nothing."""
 
 

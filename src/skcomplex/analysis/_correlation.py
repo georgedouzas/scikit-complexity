@@ -15,6 +15,9 @@ from ..errors import AnalysisError
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
+MIN_LINE_POINTS = 2
+MIN_FIT_POINTS = 3
+
 KINDS = ('auto', 'two-time', 'function', 'length', 'overlap')
 METHODS = ('moment', 'fit')
 SETTINGS = {
@@ -171,14 +174,14 @@ class CorrelationAnalysis(BaseAnalysis):
 
     def _prepare_replicas(self, source: Source, name: str | None) -> Self:
         """Read the fields of two trajectories, or two configurations stacked on the first axis of an array."""
-        if isinstance(source, Trajectory) or len(source) != REPLICAS:  # type: ignore[arg-type]
-            count = 1 if isinstance(source, Trajectory) else len(source)  # type: ignore[arg-type]
+        replicas: list[Source] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
+        if len(replicas) != REPLICAS:
             error_msg = (
                 f'An overlap reads {REPLICAS} replicas, a pair of trajectories or two arrays stacked on the first '
-                f'axis, but the source has {count}. Give two replicas.'
+                f'axis, but the source has {len(replicas)}. Give two replicas.'
             )
             raise AnalysisError(error_msg)
-        self.values_ = np.stack([self._read_fields(replica, name) for replica in source])  # type: ignore[union-attr]
+        self.values_ = np.stack([self._read_fields(replica, name) for replica in replicas])
         self.labels_ = ['first', 'second']
         return self
 
@@ -210,6 +213,9 @@ class CorrelationAnalysis(BaseAnalysis):
             self.lags_ = np.arange(self.correlation_.shape[1]) * self.dt
             self.time_ = np.asarray([self._autocorrelation_time(column, self.dt) for column in self.values_.T])
         elif self.kind == 'two-time':
+            if self.waiting is None or self.lags is None:
+                error_msg = f'{type(self).__name__} of kind two-time needs waiting times and lags. Give both.'
+                raise AnalysisError(error_msg)
             self.correlation_ = self._two_time_correlation(
                 self.values_,
                 self.waiting,
@@ -294,7 +300,7 @@ class CorrelationAnalysis(BaseAnalysis):
     def _ornstein_zernike_length(hat: Array, power: Array, limit: float) -> float:
         """Return `sqrt(slope / intercept)` of a fit of `1 / S` against `q̂²` over the modes with `q̂²` up to a limit."""
         inside = (hat <= limit) & (power > 0)
-        if inside.sum() < 2:  # noqa: PLR2004
+        if inside.sum() < MIN_LINE_POINTS:
             return float('nan')
         slope, intercept = np.polyfit(hat[inside], 1 / power[inside], 1)
         if slope <= 0:
@@ -331,10 +337,10 @@ class CorrelationAnalysis(BaseAnalysis):
         distances = curves[0][0][1:] * spacing
         values = np.mean([curve[1][1:] for curve in curves], axis=0)
         positive = values > 0
-        if positive.sum() < 3:  # noqa: PLR2004
+        if positive.sum() < MIN_FIT_POINTS:
             error_msg = (
-                'The correlation function is positive at fewer than 3 distances, so no length can be fitted. '
-                "Use the method 'moment'."
+                f'The correlation function is positive at fewer than {MIN_FIT_POINTS} distances, so no length can be '
+                "fitted. Use the method 'moment'."
             )
             raise AnalysisError(error_msg)
 

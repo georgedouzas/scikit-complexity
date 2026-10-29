@@ -15,6 +15,8 @@ from ..errors import AnalysisError
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
+ORDER_COUNT = 2
+
 KINDS = (
     'histogram',
     'ccdf',
@@ -197,7 +199,7 @@ class DistributionAnalysis(BaseAnalysis):
         if self.bins < 1 or self.tail < 1:
             error_msg = f'{type(self).__name__} has bins={self.bins!r} and tail={self.tail!r}. Use 1 or more.'
             raise AnalysisError(error_msg)
-        if len(self.orders) != 2 or any(order <= 0 or order % 2 for order in self.orders):  # noqa: PLR2004
+        if len(self.orders) != ORDER_COUNT or any(order <= 0 or order % 2 for order in self.orders):
             error_msg = f'{type(self).__name__} has orders={self.orders!r}. Use two positive even orders.'
             raise AnalysisError(error_msg)
         return self

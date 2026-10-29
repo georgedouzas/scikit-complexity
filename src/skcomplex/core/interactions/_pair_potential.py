@@ -73,7 +73,7 @@ class PairPotentialInteraction(PairInteraction):
         self.period = period
 
     @abstractmethod
-    def _get_pair_energy(self, namespace: object, r: Expression) -> Expression:
+    def _get_pair_energy(self, namespace: SimpleNamespace, r: Expression) -> Expression:
         """Return the potential energy of one pair at the distance `r` as a symbolic expression."""
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
@@ -87,7 +87,7 @@ class PairPotentialInteraction(PairInteraction):
             laws:
                 The rate laws of the velocities of the two particles.
         """
-        first, second = namespace.first, namespace.second  # type: ignore[attr-defined]
+        first, second = namespace.first, namespace.second
         distance = SR.var('r', domain='positive')
         separation = getattr(first, self.position) - getattr(second, self.position)
         r = sqrt(separation.dot_product(separation))

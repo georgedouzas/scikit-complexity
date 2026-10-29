@@ -23,7 +23,6 @@ class OneAtATimeDesign(BaseDesign):
 
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set the rows at the lower and the upper bound of every name, with the others at their midpoints."""
-        bounds = self._check_bounds(bounds, distributions=False)
-        pairs = {name: tuple(map(float, bound)) for name, bound in bounds.items()}  # type: ignore[call-overload]
+        pairs = self._check_pairs(bounds)
         middle = {name: (low + high) / 2 for name, (low, high) in pairs.items()}
         self.rows_ = [{**middle, name: bound} for name, bound_pair in pairs.items() for bound in bound_pair]

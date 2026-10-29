@@ -272,6 +272,9 @@ class FitAnalysis(BaseAnalysis):
 
     def _run_extreme_value(self) -> None:
         """Fit the generalized extreme-value law to the maxima of blocks of samples."""
+        if self.block is None:
+            error_msg = f'{type(self).__name__} of law extreme-value needs the size of a block. Set `block`.'
+            raise AnalysisError(error_msg)
         count = self.values_.size // self.block
         if count < MIN_BLOCKS:
             error_msg = (

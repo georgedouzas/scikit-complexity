@@ -173,12 +173,23 @@ class CollapseAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the curves or the samples of every size or age, or the rows of an array of curves."""
         if isinstance(source, Mapping):
-            self.values_ = {key: np.asarray(value, dtype=float) for key, value in source.items()}
-            self.labels_ = list(source)
+            self.values_: dict[float, Array] | Array = {
+                key: np.asarray(value, dtype=np.float64) for key, value in source.items()
+            }
+            self.labels_: list[float] = [float(key) for key in source]
             return self
-        self.values_ = np.asarray(source, dtype=float)
-        self.labels_ = list(self.waiting) if self.waiting is not None else list(range(len(self.values_)))
+        self.values_ = np.asarray(source, dtype=np.float64)
+        self.labels_ = (
+            [float(item) for item in self.waiting] if self.waiting is not None else list(range(len(self.values_)))
+        )
         return self
+
+    def _curves_by_key(self) -> dict[float, Array]:
+        """Return the curves or the samples by size or age, which the kinds scaling and densities read."""
+        if not isinstance(self.values_, dict):
+            error_msg = f'{type(self).__name__} of kind {self.kind} reads a mapping from size or age to its values.'
+            raise AnalysisError(error_msg)
+        return self.values_
 
     def _run(self, inputs: object = None) -> Self:
         """Compute the collapse of the kind."""
@@ -188,24 +199,30 @@ class CollapseAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         if self.kind == 'scaling':
+            if self.critical is None or self.nu is None:
+                error_msg = f'{type(self).__name__} of kind scaling needs critical and nu. Give both.'
+                raise AnalysisError(error_msg)
             start = {'critical': self.critical, 'nu': self.nu, 'exponent': self.exponent}
-            grid = np.asarray(self.parameters, dtype=float)
-            values, self.quality_ = self._scaling_collapse(grid, self.values_, start, self.fit)
+            grid = np.asarray(self.parameters, dtype=np.float64)
+            values, self.quality_ = self._scaling_collapse(grid, self._curves_by_key(), start, self.fit)
             self.critical_, self.nu_, self.exponent_ = values['critical'], values['nu'], values['exponent']
         elif self.kind == 'aging':
-            grid = np.asarray(self.lags, dtype=float)
+            if self.waiting is None:
+                error_msg = f'{type(self).__name__} of kind aging needs waiting times. Give them.'
+                raise AnalysisError(error_msg)
+            grid = np.asarray(self.lags, dtype=np.float64)
             curves = np.asarray(self.values_, dtype=float)
             self.time_spread_ = self._spread([(grid, row) for row in curves])
             self.ratio_spread_ = self._spread(
                 [(grid / start, row) for start, row in zip(self.waiting, curves, strict=True)],
             )
         elif self.kind == 'crossings':
-            values = self.values_
-            curves = [values[size] for size in sorted(values)] if isinstance(values, dict) else values
-            self.crossings_ = self._crossings(np.asarray(self.parameters, dtype=float), np.asarray(curves, dtype=float))
+            given = self.values_
+            rows = np.asarray([given[size] for size in sorted(given)]) if isinstance(given, dict) else given
+            self.crossings_ = self._crossings(np.asarray(self.parameters, dtype=np.float64), rows)
         else:
             edges = np.geomspace(0.01, 10, 21) if self.ratios is None else np.asarray(self.ratios, dtype=float)
-            self.densities_, self.spread_ = self._scaled_densities(self.values_, edges)
+            self.densities_, self.spread_ = self._scaled_densities(self._curves_by_key(), edges)
             self.ratios_ = np.sqrt(edges[1:] * edges[:-1])
         return self
 

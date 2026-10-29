@@ -108,6 +108,14 @@ class CayleySpace(BaseSpace):
     def _get_rewriting(self, group: GapElement) -> GapElement:
         """Return a confluent rewriting system of a finitely presented group, by the shortlex or recursive ordering.
 
+        Args:
+            group:
+                The finitely presented GAP group.
+
+        Returns:
+            system:
+                The confluent KBMAG rewriting system.
+
         Raises:
             SpaceError:
                 Knuth-Bendix completion finds no confluent rewriting system.
@@ -159,6 +167,14 @@ class CayleySpace(BaseSpace):
     def _parse_word(self, text: str) -> list[int]:
         """Return a word written as `a*b^-1*a^2` as signed generator numbers, `i + 1` for generator `i`.
 
+        Args:
+            text:
+                The word as text.
+
+        Returns:
+            word:
+                The signed generator numbers, empty for the identity.
+
         Raises:
             ValidationError:
                 A factor is not a generator name with an optional integer exponent.
@@ -192,6 +208,20 @@ class CayleySpace(BaseSpace):
         element: GapElement | npt.NDArray[np.intp],
     ) -> int:
         """Return the new site of an element, after adding it to the known ones.
+
+        Args:
+            sites:
+                The site of every known element, by key, which the new element joins.
+
+            elements:
+                The known elements in the order of their sites, which the new element joins.
+
+            element:
+                The element to add.
+
+        Returns:
+            site:
+                The site of the element.
 
         Raises:
             SpaceTooLargeError:
@@ -261,7 +291,7 @@ class CayleySpace(BaseSpace):
             raise ValidationError(error_msg)
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None = None) -> Self:
         """Enumerate the sites, and set their words, their neighbours by generator, their edges, and their positions."""
         group = self._get_gap_group()
         names = [str(generator) for generator in libgap.GeneratorsOfGroup(group)]

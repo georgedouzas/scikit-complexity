@@ -3,13 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Self
 
 from ...specs import VisualSpec
 from ..base import BasePart
+from ..spaces import BaseSpace
 
 
-class BaseElement(BasePart):
+class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
     """Base of every element, a part of a system that holds states.
 
     A subclass takes its states and parameters as arguments of its own `__init__`, annotated with `Annotated` and the
@@ -64,7 +66,7 @@ class BaseElement(BasePart):
         """
         return self
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> Self:
         """Set `default_visual_`, the plain visual of an element.
 
         Args:

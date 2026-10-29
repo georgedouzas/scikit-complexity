@@ -5,6 +5,7 @@
 
 import functools
 import math
+from collections.abc import Container
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,6 +25,7 @@ _PART_NAMES = ('real', 'imag')
 
 
 _BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
+BOOLEAN_THRESHOLD = 0.5
 
 
 @dataclass(frozen=True)
@@ -354,7 +356,7 @@ class EntrySpec(BaseSpec):
             indices = np.rint(np.asarray(values)).astype(int)
             return np.asarray(labels, dtype=object)[np.clip(indices, 0, len(labels) - 1)]
         if EntrySpec._domain_kind(domain) == DomainKind.BOOLEAN:
-            return np.asarray(values) > 0.5  # noqa: PLR2004
+            return np.asarray(values) > BOOLEAN_THRESHOLD
         return np.asarray(values)
 
     @staticmethod
@@ -376,6 +378,8 @@ class EntrySpec(BaseSpec):
         items = np.asarray(value, dtype=object).ravel()
         if labels is not None:
             return all(item in labels or (isinstance(item, int) and 0 <= item < len(labels)) for item in items)
+        if not isinstance(domain, Container):
+            return False
         try:
             return all(complex(item) in domain if domain is CC else item in domain for item in items)
         except (TypeError, ValueError):

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Self
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
 from ..core.laws import BaseLaw, RateLaw
@@ -15,7 +16,7 @@ from ..core.spaces import ContinuousTime
 from ..engine._utils import vector
 from ..specs import SamplesSpec
 from ..types import Array, ComplexArray, DataKind
-from ._base import BaseAnalysis, SurrogateSource
+from ._base import BaseAnalysis, Runs
 from ._sparse_identification import SparseIdentificationAnalysis
 
 
@@ -133,7 +134,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         """Return the series kind."""
         return DataKind.SERIES
 
-    def _prepare(self, source: SurrogateSource) -> Self:
+    def _prepare(self, source: Runs) -> Self:
         """Read the uniformly sampled series of every run."""
         self.samples_ = self._read_samples(source, self.variables, self.dt)
         return self
@@ -164,8 +165,9 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         self.states_ = states
         self.last_state_ = np.asarray(lifted[-1][-1], dtype=float)
         self.dt_ = samples.dt
-        self.training_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(decomposition, training))
-        self.validation_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(decomposition, held))
+        predict = decomposition.predict
+        self.training_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(predict, training))
+        self.validation_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(predict, held))
         self.eigenvalues_ = eigenvalues
         self.modes_ = modes
         self.amplitudes_ = np.linalg.lstsq(modes, self.last_state_.astype(complex), rcond=None)[0]
@@ -190,9 +192,9 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _increments(decomposition: object, parts: list[Array]) -> tuple[list[Array], list[Array]]:
+    def _increments(predict: Callable[[Array], npt.ArrayLike], parts: list[Array]) -> tuple[list[Array], list[Array]]:
         """Return the increments over one sample that a decomposition predicts and those of the series."""
-        predicted = [np.real(decomposition.predict(values[:-1].T)).T - values[:-1] for values in parts]
+        predicted = [np.real(np.asarray(predict(values[:-1].T))).T - values[:-1] for values in parts]
         return predicted, [np.diff(values, axis=0) for values in parts]
 
     @staticmethod

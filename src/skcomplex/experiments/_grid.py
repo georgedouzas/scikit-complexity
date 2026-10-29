@@ -26,13 +26,11 @@ class GridDesign(BaseDesign):
 
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set one row per combination of the values, raising an error for values that are not a sequence."""
-        values = dict(bounds or {})
-        for name, items in values.items():
+        values: dict[str, list[object]] = {}
+        for name, items in (bounds or {}).items():
             if isinstance(items, str) or not isinstance(items, Iterable):
                 error_msg = f'A grid design takes a sequence of values per name, but {name} has {items!r}.'
                 raise ValidationError(error_msg)
+            values[name] = list(items)
         names = list(values)
-        self.rows_ = [
-            dict(zip(names, combination, strict=True))
-            for combination in itertools.product(*values.values())  # type: ignore[call-overload]
-        ]
+        self.rows_ = [dict(zip(names, combination, strict=True)) for combination in itertools.product(*values.values())]

@@ -15,6 +15,8 @@ from ..errors import AnalysisError
 from ..types import Array, DataKind
 from ._base import BaseAnalysis, Source
 
+MIN_LINE_POINTS = 2
+
 FIT_POINTS = 20
 
 
@@ -129,7 +131,7 @@ class DisplacementAnalysis(BaseAnalysis):
         """Return the indices of about 20 lags spaced logarithmically within the fit range."""
         low, high = (lags[0], lags[-1] / 4) if fit_range is None else fit_range
         inside = np.flatnonzero((lags >= low) & (lags <= high))
-        if inside.size < 2:  # noqa: PLR2004
+        if inside.size < MIN_LINE_POINTS:
             error_msg = f'The fit range {fit_range} holds fewer than 2 lags. Widen it within {lags[0]} to {lags[-1]}.'
             raise AnalysisError(error_msg)
         chosen = np.unique(np.geomspace(1, inside.size, FIT_POINTS).astype(int) - 1)

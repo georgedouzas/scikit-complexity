@@ -15,7 +15,7 @@ from scipy import stats
 
 from ..errors import AnalysisError
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import SNAPSHOT_DIMENSIONS, BaseAnalysis, Source
 
 KINDS = (
     'shannon',
@@ -218,7 +218,7 @@ class EntropyAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> Self:
         """Read the series of the source as columns, the frames of a field for windows, or the runs of an ensemble."""
         if self.kind == 'ensemble':
-            self.values_ = np.asarray(source, dtype=np.int64)
+            self.values_: npt.NDArray[np.int64] | Array = np.asarray(source, dtype=np.int64)
             self.labels_ = ['ensemble']
             law = np.asarray(self.reference, dtype=float)
             if self.values_.min() < 0 or self.values_.max() >= law.size:
@@ -228,7 +228,7 @@ class EntropyAnalysis(BaseAnalysis):
         if self._get_data_kind() == DataKind.FIELD:
             name = self.variables[0] if self.variables else None
             frames = self._read_fields(source, name)
-            self.values_ = frames[None] if frames.ndim == 2 else frames  # noqa: PLR2004
+            self.values_ = frames[None] if frames.ndim == SNAPSHOT_DIMENSIONS else frames
             self.labels_ = [name or 'field']
             return self
         series = self._read_series(source, self.variables)
@@ -258,9 +258,16 @@ class EntropyAnalysis(BaseAnalysis):
             return self._compute_permutation(values)
         return self._compute_regularity(np.ascontiguousarray(values, dtype=float))
 
+    def _get_length(self) -> int:
+        """Return the length of patterns or the largest block length, raising an error for the window of a field."""
+        if not isinstance(self.dimension, int):
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} takes one length as dimension, not a window.'
+            raise AnalysisError(error_msg)
+        return self.dimension
+
     def _compute_blocks(self, symbols: npt.NDArray[np.generic]) -> float | Array:
         """Return the block entropies, the entropy rate, or the excess entropy of symbols."""
-        max_m = int(self.dimension)  # type: ignore[arg-type]
+        max_m = self._get_length()
         if self.kind == 'block':
             return self._block_entropies(symbols, max_m, base=self.base)
         if self.kind == 'rate':
@@ -280,7 +287,7 @@ class EntropyAnalysis(BaseAnalysis):
     def _compute_regularity(self, array: Array) -> float | Array:
         """Return the sample, approximate, multiscale, or spectral entropy of a real series."""
         antropy = self._import('antropy')
-        dimension = int(self.dimension)  # type: ignore[arg-type]
+        dimension = self._get_length()
         if self.kind == 'sample':
             return self._sample(array, dimension, self.tolerance)
         if self.kind == 'approximate':

@@ -121,7 +121,8 @@ class ClusterAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> Self:
         """Read a graph, or the grids of the source, the last frame of a trajectory but for spanning."""
-        self.grids_, self.graph_ = None, None
+        self.grids_: npt.NDArray[np.bool_] | None = None
+        self.graph_: nx.Graph | None = None
         if isinstance(source, nx.Graph):
             if self.kind in {'labels', 'spanning'}:
                 error_msg = (
@@ -139,15 +140,22 @@ class ClusterAnalysis(BaseAnalysis):
             self.grids_ = grids[-1:] if isinstance(source, Trajectory) else grids[None]
         return self
 
+    def _get_grids(self) -> npt.NDArray[np.bool_]:
+        """Return the grids the analysis read, raising an error for a graph, which has none."""
+        if self.grids_ is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads grids, but the source is a graph.'
+            raise AnalysisError(error_msg)
+        return self.grids_
+
     def _run_percolation(self) -> None:
         """Compute the cluster sizes, the strength of the largest cluster, the mean cluster size, and spanning."""
         if self.graph_ is not None:
             self._run_sizes()
             total, self.spanning_ = self.graph_.number_of_nodes(), False
         else:
-            labels, sizes = self._label(self.grids_[0], periodic=False, diagonal=self.diagonal)
+            labels, sizes = self._label(self._get_grids()[0], periodic=False, diagonal=self.diagonal)
             self.sizes_ = np.sort(sizes)[::-1]
-            total, self.spanning_ = self.grids_[0].size, self._spans(labels, self.axis)
+            total, self.spanning_ = self._get_grids()[0].size, self._spans(labels, self.axis)
         rest = self.sizes_[1:].astype(float)
         self.strength_ = float(self.sizes_[0] / total) if self.sizes_.size else 0.0
         self.mean_size_ = float(np.sum(rest**2) / rest.sum()) if rest.size else 0.0
@@ -158,13 +166,14 @@ class ClusterAnalysis(BaseAnalysis):
             components = nx.connected_components(self.graph_.to_undirected(as_view=True))
             sizes = np.asarray([len(component) for component in components], dtype=np.int64)
         else:
-            _, sizes = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
+            _, sizes = self._label(self._get_grids()[0], periodic=self.periodic, diagonal=self.diagonal)
         self.sizes_ = np.sort(sizes)[::-1]
 
     def _run(self, inputs: object = None) -> Self:
         """Compute the clusters, their sizes, the percolation observables, or the spanning probability."""
         if self.kind == 'labels':
-            self.labels_, self.sizes_ = self._label(self.grids_[0], periodic=self.periodic, diagonal=self.diagonal)
+            grid = self._get_grids()[0]
+            self.labels_, self.sizes_ = self._label(grid, periodic=self.periodic, diagonal=self.diagonal)
             self.spanning_ = self._spans(self.labels_, self.axis)
         elif self.kind == 'sizes':
             self._run_sizes()
@@ -173,7 +182,7 @@ class ClusterAnalysis(BaseAnalysis):
         else:
             spans = [
                 self._spans(self._label(grid, periodic=False, diagonal=self.diagonal)[0], self.axis)
-                for grid in self.grids_
+                for grid in self._get_grids()
             ]
             self.probability_ = float(np.mean(spans))
         return self

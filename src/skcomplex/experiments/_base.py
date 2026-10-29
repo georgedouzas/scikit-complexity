@@ -6,7 +6,6 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -51,9 +50,11 @@ PLAIN_LAWS = (
     EquationLaw,
 )
 """Laws of elements that a group of members of the same type runs as one vectorised simulation."""
+BOUND_LENGTH = 2
+"""Length of a pair `(low, high)` of bounds."""
 
 
-class BaseDesign(BaseConfig, ABC):
+class BaseDesign(BaseConfig[Bounds, None], ABC):
     """Base of designs, which give rows of values by factory argument or dotted path.
 
     A design stores its settings, such as the number of rows, in `__init__`. Preparing it on a mapping from name to
@@ -78,6 +79,8 @@ class BaseDesign(BaseConfig, ABC):
         [{'r': 0.5}]
     """
 
+    rows_: list[Row]
+
     def _check_size(self, n: object) -> None:
         """Raise an error for a number of rows that is not a nonnegative integer."""
         if isinstance(n, bool) or not isinstance(n, int | np.integer) or n < 0:
@@ -88,7 +91,7 @@ class BaseDesign(BaseConfig, ABC):
         """Return the bounds by name, raising an error for one that is neither a pair nor an allowed distribution."""
         bounds = dict(bounds or {})
         for name, bound in bounds.items():
-            pair = isinstance(bound, Sequence) and not isinstance(bound, str) and len(bound) == 2  # noqa: PLR2004
+            pair = isinstance(bound, Sequence) and not isinstance(bound, str) and len(bound) == BOUND_LENGTH
             if pair or (distributions and hasattr(bound, 'ppf')):
                 continue
             kinds = 'a pair (low, high) or a SciPy distribution' if distributions else 'a pair (low, high)'
@@ -96,14 +99,23 @@ class BaseDesign(BaseConfig, ABC):
             raise ValidationError(error_msg)
         return bounds
 
+    def _check_pairs(self, bounds: Bounds | None) -> dict[str, tuple[float, float]]:
+        """Return the pairs `(low, high)` of bounds by name, raising an error for a bound that is not a pair."""
+        pairs = {}
+        for name, bound in self._check_bounds(bounds, distributions=False).items():
+            if isinstance(bound, Sequence):
+                low, high = (float(item) for item in bound)
+                pairs[name] = (low, high)
+        return pairs
+
     def _scale(self, bounds: Bounds, uniform: npt.NDArray[np.float64]) -> list[Row]:
         """Return rows of uniform samples in the unit cube mapped to pairs of bounds or through quantile functions."""
         columns = {}
         for index, (name, bound) in enumerate(bounds.items()):
             if hasattr(bound, 'ppf'):
                 columns[name] = np.asarray(bound.ppf(uniform[:, index]), dtype=float)
-            else:
-                low, high = (float(item) for item in bound)  # type: ignore[attr-defined]
+            elif isinstance(bound, Sequence):
+                low, high = (float(item) for item in bound)
                 columns[name] = low + uniform[:, index] * (high - low)
         return [{name: float(column[row]) for name, column in columns.items()} for row in range(uniform.shape[0])]
 
@@ -111,12 +123,12 @@ class BaseDesign(BaseConfig, ABC):
     def _prepare(self, bounds: Bounds | None = None) -> None:
         """Set the rows of the design in `rows_` from the mapping of what it samples."""
 
-    def _run(self, inputs: object = None) -> list[Row]:
+    def _run(self, inputs: None = None) -> list[Row]:
         """Return a copy of the prepared rows."""
         return [dict(row) for row in self.rows_]
 
 
-class BaseExperiment(BaseConfig, ABC):
+class BaseExperiment(BaseConfig[None, None], ABC):
     """Base of experiments, which run a model, given by a factory of systems or a system, many times.
 
     An experiment stores its source and settings in `__init__`, validates them in `check`, resolves the source and
@@ -142,16 +154,24 @@ class BaseExperiment(BaseConfig, ABC):
     """
 
     @abstractmethod
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Resolve the source and what the experiment runs, and set the attributes that end in `_`."""
 
     @abstractmethod
-    def _run(self, inputs: object = None) -> 'BaseExperiment':
+    def _run(self, inputs: None = None) -> 'BaseExperiment':
         """Run the experiment, set its results as attributes that end in `_`, and return it."""
 
     @staticmethod
     def _check_source(source: object) -> Source:
         """Return a model source, a factory of systems or a system, after checking it.
+
+        Args:
+            source:
+                The source to check.
+
+        Returns:
+            source:
+                The source, a factory of systems or a system.
 
         Raises:
             ExperimentError:
@@ -171,7 +191,7 @@ class BaseExperiment(BaseConfig, ABC):
     @staticmethod
     def _run_replicated(
         source: Source,
-        values: Mapping[str, Sequence[object]],
+        values: Mapping[str, npt.ArrayLike],
         until: float | None,
         dt: float | None,
         random_state: int | None,
@@ -179,7 +199,7 @@ class BaseExperiment(BaseConfig, ABC):
         """Return one run of a source's system replicated once per value of every path, and the original system."""
         factory = BaseExperiment._check_source(source)
         system = factory if isinstance(factory, System) else factory()
-        size = len(next(iter(values.values())))
+        size = len(np.asarray(next(iter(values.values()))))
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
         replicated = BaseExperiment._replicate(system, size, values)
@@ -264,9 +284,9 @@ class BaseExperiment(BaseConfig, ABC):
         values: Mapping[str, npt.ArrayLike],
         system: System,
         size: int,
-    ) -> dict[str, dict[str, Any]]:
+    ) -> dict[str, dict[str, object]]:
         """Return the per-member values of every element by its label, checked against the elements and the size."""
-        by_label: dict[str, dict[str, Any]] = {element.label: {} for element in system.elements}
+        by_label: dict[str, dict[str, object]] = {element.label: {} for element in system.elements}
         names = {element.label: set(BaseExperiment._value_names(element)) for element in system.elements}
         for path, value in values.items():
             label, _, name = path.partition('.')
