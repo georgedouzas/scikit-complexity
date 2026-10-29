@@ -39,7 +39,13 @@ class FieldOperatorKernel(BaseKernel):
         matrix:
             The sparse matrix of an operator that acts on the sites as one, such as the finite element Laplacian, or
             `None` for spectral operators.
+
+    Attributes:
+        values_:
+            The operator applied to the operand values at every site of the last run.
     """
+
+    values_: npt.NDArray[np.float64]
 
     def __init__(
         self,
@@ -62,7 +68,7 @@ class FieldOperatorKernel(BaseKernel):
     def _function(self) -> Callable[..., object]:
         """NumPy function of the operand, compiled once."""
         printer = ExpressionPrinter(time=symbol('t'), compiled=True).check().prepare(self.symbols)
-        return ExpressionPrinter._function_of(printer.run([self.operand]))
+        return ExpressionPrinter._function_of(printer.run([self.operand]).code_)
 
     def operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:
         """Return the operand at every site, evaluated from the values of its symbols.
@@ -86,7 +92,7 @@ class FieldOperatorKernel(BaseKernel):
             (size,),
         )
 
-    def _run(self, inputs: RunStateSpec | None) -> npt.NDArray[np.float64]:
-        """Return the operator applied to the operand values at every site, the `x` of `inputs`."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the operator applied to the operand values at every site, the `x` of `inputs`."""
         state = self._state_of(inputs)
-        return self.apply(state.x)
+        self.values_ = self.apply(state.x)

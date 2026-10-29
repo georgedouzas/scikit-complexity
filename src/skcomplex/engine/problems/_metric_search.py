@@ -34,7 +34,13 @@ class MetricSearch(BaseSearch):
 
         heading:
             The heading state of a cone, or `None`.
+
+    Attributes:
+        pairs_:
+            The row starts and the neighbours of every member of the last run, with no edges.
     """
+
+    pairs_: EdgesFound
 
     def __init__(
         self,
@@ -90,8 +96,8 @@ class MetricSearch(BaseSearch):
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
-        """Return the neighbours of every member at the current positions."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the neighbours of every member at the current positions."""
         state = self._state_of(inputs)
         x, q = state.x, state.p
         del q
@@ -110,7 +116,7 @@ class MetricSearch(BaseSearch):
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
             readers, others = self._with_center(readers, others, size)
-        return (*self._rows(readers, others, size), None)
+        self.pairs_ = (*self._rows(readers, others, size), None)
 
     @staticmethod
     def _nearest(tree: cKDTree, positions: Array, k: int) -> tuple[Indices, Indices]:

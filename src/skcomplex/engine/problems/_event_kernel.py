@@ -32,7 +32,13 @@ class EventKernel(BaseKernel):
         hidden:
             Whether the event only marks a switch of a law at a condition on states, so integrators restart at the
             crossing, without a reset and without a record in the trajectory.
+
+    Attributes:
+        values_:
+            The state vector after the event at the state of the last run.
     """
+
+    values_: Array
 
     def __init__(
         self,
@@ -51,9 +57,7 @@ class EventKernel(BaseKernel):
         self.terminal = terminal
         self.hidden = hidden
 
-    def _run(self, inputs: RunStateSpec | None) -> Array:
-        """Return the state vector after the event at the state, a copy of it without a reset."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the state vector after the event at the state, a copy of it without a reset."""
         state = self._state_of(inputs)
-        if self.reset is None:
-            return state.x.copy()
-        return self.reset(state.t, state.x, state.p)
+        self.values_ = state.x.copy() if self.reset is None else self.reset(state.t, state.x, state.p)

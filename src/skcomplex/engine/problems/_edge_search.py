@@ -29,7 +29,13 @@ class EdgeSearch(BaseSearch):
 
         target:
             The parameter entry of the targets of a changing layer, or `None` for fixed edges.
+
+    Attributes:
+        pairs_:
+            The source and target node of every edge of the last run.
     """
+
+    pairs_: tuple[Indices, Indices]
 
     def __init__(
         self,
@@ -48,10 +54,11 @@ class EdgeSearch(BaseSearch):
         """Number of edges, the capacity of a changing layer."""
         return int(self.sources.size if self.source is None else self.source.rows)
 
-    def _run(self, inputs: RunStateSpec | None) -> tuple[Indices, Indices]:
-        """Return the source and target node of every edge."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the source and target node of every edge."""
         state = self._state_of(inputs)
         p = state.p
         if self.source is None or self.target is None:
-            return self.sources, self.targets
-        return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+            self.pairs_ = self.sources, self.targets
+        else:
+            self.pairs_ = self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)

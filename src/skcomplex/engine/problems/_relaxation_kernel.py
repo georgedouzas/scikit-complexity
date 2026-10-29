@@ -41,7 +41,13 @@ class RelaxationKernel(BaseKernel):
 
         activity:
             The function that marks the active sites of an iteration, or `None` to count the sites that change.
+
+    Attributes:
+        values_:
+            The record of the relaxation of the last run, or `None` when the lattice did not change.
     """
+
+    values_: RelaxationRecordSpec | None
 
     def __init__(
         self,
@@ -70,13 +76,22 @@ class RelaxationKernel(BaseKernel):
         """Check the stability condition on the current state."""
         return bool(self.stable(*self._arrays(x)))
 
-    def _run(self, inputs: RunStateSpec | None) -> RelaxationRecordSpec | None:
-        """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Apply the drive, then relax until stable, and set the record of a relaxation that changed the lattice.
 
         The state vector of the state is updated in place, and the record holds the time of the state.
 
         Args:
             inputs:
+                The state.
+        """
+        self.values_ = self._relax(self._state_of(inputs))
+
+    def _relax(self, state: RunStateSpec) -> RelaxationRecordSpec | None:
+        """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
+
+        Args:
+            state:
                 The state.
 
         Returns:
@@ -87,7 +102,6 @@ class RelaxationKernel(BaseKernel):
             SolverError:
                 The lattice is not stable after the largest number of iterations.
         """
-        state = self._state_of(inputs)
         x, time = state.x, state.t
         for law in self.drive:
             law.run(state)

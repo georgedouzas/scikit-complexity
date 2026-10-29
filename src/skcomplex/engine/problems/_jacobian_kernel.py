@@ -40,8 +40,8 @@ class JacobianKernel(BaseKernel):
     the sparse matrices of finite element operators, the reconstruction stencils of finite volumes, the rank-one blocks
     of reductions, and dense blocks where couplings are known only at run time, such as pairs, spectral operators, and
     callables. `prepare(problem)` checks that every law has a symbolic form and compiles its derivatives, and
-    `run(state)` evaluates the Jacobian exactly by differentiating the laws, with the chain rule through neighbour
-    reads, finite element operators, and reductions.
+    `run(state)` evaluates the Jacobian exactly into `values_` by differentiating the laws, with the chain rule through
+    neighbour reads, finite element operators, and reductions.
 
     Every reading member depends on every member a reduction reads, so the Jacobian has the rank-one block
     `dF_i/dR dR/dx_j` of every reduction `R`, with `dR/dx_j` the derivative of the reduced member's argument, divided by
@@ -69,7 +69,13 @@ class JacobianKernel(BaseKernel):
 
         constrained:
             The fixed rows, whose rates are zero.
+
+    Attributes:
+        values_:
+            The Jacobian of the drift at the state of the last run, the sparse matrix of `dF_i/dx_j`.
     """
+
+    values_: Sparse
 
     def __init__(
         self,
@@ -161,7 +167,7 @@ class JacobianKernel(BaseKernel):
         if not derivatives:
             return PartialsSpec(pairs, None)
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
-        return PartialsSpec(pairs, ExpressionPrinter._function_of(printer.run(derivatives)))
+        return PartialsSpec(pairs, ExpressionPrinter._function_of(printer.run(derivatives).code_))
 
     @staticmethod
     def _derivatives(
@@ -280,8 +286,8 @@ class JacobianKernel(BaseKernel):
             height=kernel.rows,
         )
 
-    def _run(self, inputs: RunStateSpec | None) -> Sparse:
-        """Return the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
         state = self._state_of(inputs)
         t, x, p = state.t, state.x, state.p
         partials = self.kernel_partials_
@@ -301,7 +307,7 @@ class JacobianKernel(BaseKernel):
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
         for projection in self._mirror_projections(self.symmetries, self.size):
             jacobian = projection @ jacobian
-        return scipy.sparse.csr_array(self._free_rows() @ jacobian)
+        self.values_ = scipy.sparse.csr_array(self._free_rows() @ jacobian)
 
     def _free_rows(self) -> Sparse:
         """Return the diagonal matrix that empties the fixed rows."""

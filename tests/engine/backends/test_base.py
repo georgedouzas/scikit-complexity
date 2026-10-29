@@ -206,7 +206,7 @@ def _epidemic():
 def test_backend_runs_the_kernels_of_a_form(backend):
     """Test that a checked and prepared backend returns the functions of the form of the kernels it runs."""
     kernels = LoweredKernelsSpec(defaultdict(list), {}, {}, form=FormKind.ODE, size=2)
-    lowering = backend().check().prepare().run(kernels)
+    lowering = backend().check().prepare().run(kernels).functions_
     assert isinstance(lowering, LoweredFunctionsSpec)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
@@ -365,7 +365,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
     )
     stepper = RK4Solver(dt=0.001)
     stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
     assert np.allclose(state, np.e, rtol=1e-10)
 
 

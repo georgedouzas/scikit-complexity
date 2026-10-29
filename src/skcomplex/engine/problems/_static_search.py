@@ -22,15 +22,21 @@ class StaticSearch(BaseSearch):
 
         edges:
             The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
+
+    Attributes:
+        pairs_:
+            The row starts, the neighbours, and the edges of the last run.
     """
+
+    pairs_: EdgesFound
 
     def __init__(self, indptr: Indices, indices: Indices, edges: Indices | None = None) -> None:
         self.indptr = indptr
         self.indices = indices
         self.edges = edges
 
-    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
-        """Return the neighbours of every member."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the neighbours of every member."""
         state = self._state_of(inputs)
         del state
-        return self.indptr, self.indices, self.edges
+        self.pairs_ = self.indptr, self.indices, self.edges

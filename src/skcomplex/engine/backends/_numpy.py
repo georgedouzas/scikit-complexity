@@ -103,16 +103,12 @@ class NumpyBackend(BaseBackend):
         """Return the name of the backend that problems record."""
         return 'numpy'
 
-    def _run(self, inputs: LoweredKernelsSpec | None) -> LoweredFunctionsSpec:
-        """Return the numeric functions of the form of the kernels, evaluated with NumPy.
+    def _run(self, inputs: LoweredKernelsSpec | None) -> None:
+        """Set the numeric functions of the form of the kernels, evaluated with NumPy.
 
         Args:
             inputs:
                 The kernels of a problem.
-
-        Returns:
-            functions:
-                The numeric functions of the form.
 
         Raises:
             ValidationError:
@@ -150,7 +146,7 @@ class NumpyBackend(BaseBackend):
                 n_processes=processes,
                 noise_blocks=blocks,
             )
-        return self._with_reductions(lowering, inputs.reductions, kernels)
+        self.functions_ = self._with_reductions(lowering, inputs.reductions, kernels)
 
     @staticmethod
     def _with_reductions(

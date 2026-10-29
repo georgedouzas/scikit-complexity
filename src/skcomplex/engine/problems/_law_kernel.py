@@ -56,7 +56,14 @@ class LawKernel(BaseKernel):
 
         outputs:
             The outputs of the laws.
+
+    Attributes:
+        values_:
+            The number of evaluation indices, the pairs in pair mode, and one array of values per output, of the last
+            run.
     """
+
+    values_: tuple[int, OptionalPairs, list[Array]]
 
     def __init__(
         self,
@@ -120,7 +127,7 @@ class LawKernel(BaseKernel):
         if not expressions:
             return None
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._arguments)
-        return ExpressionPrinter._function_of(printer.run(expressions))
+        return ExpressionPrinter._function_of(printer.run(expressions).code_)
 
     @functools.cached_property
     def _readers(self) -> dict[Expression, ReadFunction]:
@@ -220,7 +227,7 @@ class LawKernel(BaseKernel):
             return reference.shifted.read(reference.column_of(x, p))
         read = reference.derived
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
-        return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p))
+        return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p)).values_
 
     def _reader(self, symbol: Expression) -> ReadFunction:
         """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
@@ -289,11 +296,11 @@ class LawKernel(BaseKernel):
             return any(self._reads_reduction(symbol) for symbol in reference.derived.symbols)
         return False
 
-    def _run(self, inputs: RunStateSpec | None) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
-        """Return the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
+    def _run(self, inputs: RunStateSpec | None) -> None:
+        """Set the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
         state = self._state_of(inputs)
         t, x, p = state.t, state.x, state.p
-        pairs = self._pairs_of(self.pairs.run(state)) if self.pairs is not None else None
+        pairs = self.pairs.run(state).pairs_ if self.pairs is not None else None
         size = len(pairs[0]) if pairs is not None else self.rows
         computed: list[npt.ArrayLike] = []
         if self._function is not None:
@@ -314,7 +321,7 @@ class LawKernel(BaseKernel):
                 ]
                 function_results[key] = self._call(output, t, x, p, size=size, arguments=arguments)
             values.append(function_results[key][:, output.component])
-        return size, pairs, values
+        self.values_ = size, pairs, values
 
     def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as one row per evaluation index and one column per component."""
@@ -338,50 +345,6 @@ class LawKernel(BaseKernel):
         if is_state:
             return lambda x, p, pairs, t: x[index]
         return lambda x, p, pairs, t: p[index]
-
-    @staticmethod
-    def _result_of(result: object) -> tuple[int, OptionalPairs, list[Array]]:
-        """Return what `run` of a law kernel returned: the number of evaluation indices, the pairs, and the values.
-
-        Args:
-            result:
-                What `run` returned.
-
-        Returns:
-            result:
-                The number of evaluation indices, the pairs in pair mode, and one array of values per output.
-
-        Raises:
-            TypeError:
-                The result is not the result of a law kernel.
-        """
-        if not isinstance(result, tuple):
-            error_msg = f'A law kernel returns its size, pairs, and values, not a {type(result).__name__}.'
-            raise TypeError(error_msg)
-        size, pairs, values = result
-        return size, pairs, values
-
-    @staticmethod
-    def _pairs_of(found: object) -> tuple[Indices, Indices]:
-        """Return the pairs a pair search or the edges an edge search found, as the first and second members.
-
-        Args:
-            found:
-                What `run` of the search returned.
-
-        Returns:
-            pairs:
-                The first and the second member of every pair.
-
-        Raises:
-            TypeError:
-                The search did not return a pair of index arrays.
-        """
-        if not isinstance(found, tuple):
-            error_msg = f'A pair search returns the first and second members, not a {type(found).__name__}.'
-            raise TypeError(error_msg)
-        first, second = found
-        return first, second
 
     @staticmethod
     def _broadcast(value: npt.ArrayLike, size: int) -> Array:
