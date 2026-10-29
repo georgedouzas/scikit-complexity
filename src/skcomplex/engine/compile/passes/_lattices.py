@@ -698,8 +698,10 @@ class LatticeProblemPass(BasePass):
         )
         time = symbol('_time')
         reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
-        energy_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change])
-        temperature = ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)])
+        energy_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]).code_
+        temperature = (
+            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)]).code_
+        )
         if not callable(energy_change) or not callable(temperature):
             error_msg = 'The compiled printer returned no function of the energy change or of the temperature.'
             raise TypeError(error_msg)

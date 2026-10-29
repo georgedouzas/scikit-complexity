@@ -267,7 +267,7 @@ class ProblemPass(BasePass):
                 'Events and delays read states and parameters of single elements and interactions.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the events or delays of {owner}.'
             raise TypeError(error_msg)
@@ -324,7 +324,7 @@ class ProblemPass(BasePass):
         reads = [
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the resets of an event of {spec.owner}.'
             raise TypeError(error_msg)

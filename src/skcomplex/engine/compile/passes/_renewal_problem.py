@@ -146,7 +146,7 @@ class RenewalProblemPass(BasePass):
                 raise ValidationError(error_msg)
             readers.append(reference)
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
-        function = printer.run(list(expressions))
+        function = printer.run(list(expressions)).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the renewal laws of {owner}.'
             raise TypeError(error_msg)

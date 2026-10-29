@@ -31,11 +31,8 @@ class ReductionsPass(BasePass):
         specs = Compilation._required(compilation.drawn, 'drawn')
         apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
         crossings = Compilation._required(compilation.events, 'events')
-        lowered = reductions.run([*specs, *apart])
-        events = reductions.run([(spec, [event]) for spec, event in crossings])
-        if not isinstance(lowered, list) or not isinstance(events, list):
-            error_msg = 'The reduction lowering returns no list of laws.'
-            raise TypeError(error_msg)
+        lowered = reductions.run([*specs, *apart]).lowered_
+        events = reductions.run([(spec, [event]) for spec, event in crossings]).lowered_
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
         compilation.events = [(spec, laws[0]) for spec, laws in events]

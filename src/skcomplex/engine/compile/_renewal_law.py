@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -30,6 +29,10 @@ class RenewalLaw(BaseLaw):
         label:
             The name of the renewal in the trajectory, or the empty string for the path of the element.
 
+    Attributes:
+        value_:
+            The new values of the states at the values the last run read, by state.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws.utils import draw
@@ -37,6 +40,8 @@ class RenewalLaw(BaseLaw):
         >>> n = var('n')
         >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).check().prepare().targets_
         (n,)
+        >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).check().run({'n': 2}).value_
+        {n: 3.0}
     """
 
     def __init__(self, waiting: object, reset: Mapping[Expression, object] | None = None, *, label: str = '') -> None:
@@ -48,28 +53,18 @@ class RenewalLaw(BaseLaw):
         """Return the states the renewal resets."""
         return tuple(self.reset or {})
 
-    def _check(self) -> Self:
-        """Return the law, whose waiting time and reset the jump it is run for checked.
-
-        Returns:
-            law:
-                The law itself.
-        """
-        return self
+    def _check(self) -> None:
+        """Accept the waiting time and the reset, which the jump the law is run for checked."""
 
     def _get_requirements(self) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _run(self, inputs: object) -> object:
-        """Return the new values of the states at given values of the symbols the reset reads.
+    def _run(self, inputs: object) -> None:
+        """Set the new values of the states at given values of the symbols the reset reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            reset:
-                The new values by state.
         """
-        return self._evaluate(dict(self.reset or {}), inputs)
+        self.value_ = self._evaluate(dict(self.reset or {}), inputs)

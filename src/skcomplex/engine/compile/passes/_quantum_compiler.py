@@ -7,7 +7,6 @@ import math
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -88,12 +87,8 @@ class QuantumCompiler(BaseCompiler):
         super().__init__(backend, solver, observables)
         self.max_dimension = max_dimension
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a largest dimension that is not a positive integer.
-
-        Returns:
-            self:
-                The compiler.
 
         Raises:
             ValidationError:
@@ -103,7 +98,6 @@ class QuantumCompiler(BaseCompiler):
         if not isinstance(self.max_dimension, int) or isinstance(self.max_dimension, bool) or self.max_dimension < 1:
             error_msg = f'The largest dimension is {self.max_dimension!r}. Give a positive integer.'
             raise ValidationError(error_msg)
-        return self
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issue of a system the compiler does not compile, or whose tree cannot be flattened.
@@ -452,7 +446,7 @@ class QuantumCompiler(BaseCompiler):
                     hamiltonians,
                     dissipators,
                     f'{node.path} on the pair ({source}, {target})',
-                    interaction.run(namespace),
+                    interaction.run(namespace).laws_,
                 )
             return
         roles = {
@@ -463,7 +457,7 @@ class QuantumCompiler(BaseCompiler):
             hamiltonians,
             dissipators,
             node.path,
-            interaction.run(SimpleNamespace(**roles, **parameters)),
+            interaction.run(SimpleNamespace(**roles, **parameters)).laws_,
         )
 
     @staticmethod
@@ -483,16 +477,8 @@ class QuantumCompiler(BaseCompiler):
         Returns:
             terms:
                 The terms.
-
-        Raises:
-            TypeError:
-                The lowering returns no tuple of terms.
         """
-        terms = lowering.run((operator, owner))
-        if not isinstance(terms, tuple):
-            error_msg = f'The lowering of {owner} returns a {type(terms).__name__}, not a tuple of terms.'
-            raise TypeError(error_msg)
-        return terms
+        return lowering.run((operator, owner)).kernels_
 
     @staticmethod
     def _check_hermitian(hamiltonians: Hamiltonians, lowering: QuantumLowering, p: Array) -> None:
@@ -640,7 +626,7 @@ class QuantumCompiler(BaseCompiler):
                     hamiltonians,
                     dissipators,
                     key,
-                    element.element.check().run(SimpleNamespace(**vars(namespace), t=time)),
+                    element.element.check().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
                 )
             members[node.path] = tuple(namespaces)
         return members

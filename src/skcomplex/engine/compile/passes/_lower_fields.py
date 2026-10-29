@@ -93,10 +93,7 @@ class LowerFieldsPass(BasePass):
         if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
             return laws
         lowering = FieldLowering(spec).check().prepare(compilation)
-        result = lowering.run(laws)
-        if not isinstance(result, list):
-            error_msg = f'The field lowering returns a {type(result).__name__}, not a list of laws.'
-            raise TypeError(error_msg)
+        result = lowering.run(laws).lowered_
         lowering._apply_references()
         for key, items in lowering.written_.items():
             written[key] += items

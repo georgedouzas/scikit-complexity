@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections import defaultdict
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -27,8 +26,8 @@ _SHIFT = 'shift_member'
 class MemberLowering(BaseLowering[list[BaseLaw]]):
     """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
 
-    `prepare(compilation)` reads the time of the compilation, and `run(laws)` returns the laws with every member offset
-    read replaced by a symbol that reads the offset member, whose reference it notes for the spec.
+    `prepare(compilation)` reads the time of the compilation, and `run(laws)` sets `lowered_`, the laws with every
+    member offset read replaced by a symbol that reads the offset member, whose reference it notes for the spec.
 
     Args:
         spec:
@@ -48,16 +47,12 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Read the time of the compilation and start with no offset reads.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
 
         Raises:
             ValidationError:
@@ -70,20 +65,15 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
             raise ValidationError(error_msg)
         self.time_ = layout.time
         self.shifted_ = {}
-        return self
 
-    def _run(self, inputs: list[BaseLaw] | None) -> list[BaseLaw]:
-        """Return laws whose member offset reads are lowered to neighbour reads of the group's index table.
+    def _run(self, inputs: list[BaseLaw] | None) -> None:
+        """Set laws whose member offset reads are lowered to neighbour reads of the group's index table.
 
         A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
 
         Args:
             inputs:
                 The laws of the component.
-
-        Returns:
-            laws:
-                The lowered laws.
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
@@ -96,7 +86,7 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
                 result.append(BasePass._replaced(law, value=self._lower(law.value)))
             else:
                 result.append(law)
-        return result
+        self.lowered_ = result
 
     def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
         """Return the member symbol a symbol reads, with the offset, boundary, and fill it is already read at."""

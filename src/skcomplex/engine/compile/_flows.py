@@ -7,7 +7,6 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -55,9 +54,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of flows and delays, which checks that conserved quantities change only through flows.
 
     `prepare(compilation)` reads the quantity of every tagged state, and `run(laws)` takes the laws of every kernel spec
-    and returns them with their flows expanded into laws of other kinds. A later pass finishes the lowering on the laws
-    of every spec after their complex states and Markov laws are lowered: it checks the conserved quantities and lowers
-    the flows and the delays into the transfer network of the system.
+    and sets them in `lowered_` with their flows expanded into laws of other kinds. A later pass finishes the lowering
+    on the laws of every spec after their complex states and Markov laws are lowered: it checks the conserved quantities
+    and lowers the flows and the delays into the transfer network of the system.
 
     Attributes:
         quantities_:
@@ -86,38 +85,29 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     delays_: list[_CompiledDelaySpec]
     terms_: list[_FlowTermSpec]
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
         """
         super()._prepare(context)
         state = self.compilation_.transfer
         if state is None:
             self.quantities_ = self._quantities_of(self._declarations().blocks)
             self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
-            return self
+            return
         self.quantities_, self.born_ = dict(state.quantities), dict(state.born)
         self.flows_, self.records_, self.delays_ = list(state.flows), list(state.records), list(state.delays)
         self.terms_ = list(state.terms)
-        return self
 
-    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return the laws of every kernel spec with flows expanded into laws of the other kinds.
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
+        """Set the laws of every kernel spec with flows expanded into laws of the other kinds.
 
         Args:
             inputs:
                 The laws of every kernel spec.
-
-        Returns:
-            laws:
-                The expanded laws of every kernel spec.
 
         Raises:
             LabelError:
@@ -126,7 +116,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             ConservationError:
                 A flow connects holders of different quantities.
         """
-        return [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
+        self.lowered_ = [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
 
     def _declarations(self) -> DeclarationsSpec:
         """Return the layout of the compilation, raising an error before the layout pass has run.

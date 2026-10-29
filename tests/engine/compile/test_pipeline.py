@@ -101,7 +101,7 @@ def test_pass_is_prepared_on_its_compilation_and_runs_on_it():
     compilation = Compilation(create('lotka_volterra'))
     flatten = FlattenPass().check().prepare(compilation)
     assert flatten.compilation_ is compilation
-    assert flatten.run() is None
+    assert flatten.run() is flatten
     assert compilation.nodes
 
 

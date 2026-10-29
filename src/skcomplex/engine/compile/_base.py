@@ -8,7 +8,6 @@ import dataclasses
 import functools
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -35,9 +34,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
     """Compiler of a system into a problem of one mathematical form.
 
     `check()` validates the settings, `prepare(system)` validates the system and sets `report_`, the issues it finds,
-    and `run(initial_state)` raises the errors of the report, returns the problem, and sets `solver_`, the solver the
-    problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form the engine does
-    not know names the solver of its problems in `_get_solver`.
+    and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
+    the solver the problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form
+    the engine does not know names the solver of its problems in `_get_solver`.
 
     Args:
         backend:
@@ -58,6 +57,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         report_:
             The issues of the prepared system.
 
+        problem_:
+            The compiled problem.
+
         solver_:
             The solver the compiled problem runs on: the solver setting, the solver the compiler names, or `None` for
             the default solver of the problem's form.
@@ -65,6 +67,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     system_: System
     report_: ValidationReportSpec
+    problem_: BaseProblemSpec
     solver_: object
 
     def __init__(
@@ -77,12 +80,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         self.solver = solver
         self.observables = observables
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a backend that is not a backend or an observable that is not an observable spec.
-
-        Returns:
-            self:
-                The compiler.
 
         Raises:
             ValidationError:
@@ -95,18 +94,13 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: System | None) -> Self:
+    def _prepare(self, context: System | None) -> None:
         """Attach the observables to a system and set the issues it finds.
 
         Args:
             context:
                 The system.
-
-        Returns:
-            self:
-                The prepared compiler.
 
         Raises:
             ValidationError:
@@ -123,9 +117,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
-            return self
+            return
         self.report_ = ValidationReportSpec(tuple(self._issues(self.system_)))
-        return self
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
@@ -173,17 +166,13 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         del problem
         return None
 
-    def _run(self, inputs: Mapping[str, object] | None) -> BaseProblemSpec:
-        """Raise the errors of the report and compile the prepared system into a problem.
+    def _run(self, inputs: Mapping[str, object] | None) -> None:
+        """Raise the errors of the report, compile the prepared system into `problem_`, and set `solver_`.
 
         Args:
             inputs:
                 The initial values that replace those of the components, by the dotted name of the state, such as
                 `{'rabbits.n': 20}`, or `None`.
-
-        Returns:
-            problem:
-                The compiled problem.
 
         Raises:
             ValidationError:
@@ -195,9 +184,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             raise ValidationError(error_msg)
         problem = self._compile(dict(inputs or {}))
         observables = tuple(self._observables_of(problem.system)) if problem.system is not None else ()
-        problem = dataclasses.replace(problem, observables=observables)
-        self.solver_ = self.solver if self.solver is not None else self._get_solver(problem)
-        return problem
+        self.problem_ = dataclasses.replace(problem, observables=observables)
+        self.solver_ = self.solver if self.solver is not None else self._get_solver(self.problem_)
 
     @staticmethod
     def _support_of(runner: type) -> SupportSpec:
@@ -413,16 +401,12 @@ class BasePass(BaseConfig[Compilation, None]):
         """Return the fields of the compilation the pass writes; none by default."""
         return ()
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Take the compilation the pass reads and writes.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared pass.
 
         Raises:
             ValidationError:
@@ -432,7 +416,6 @@ class BasePass(BaseConfig[Compilation, None]):
             error_msg = f'A pass prepares on a compilation, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         self.compilation_ = context
-        return self
 
     def _run(self, inputs: None = None) -> None:
         """Read the fields of the compilation the pass reads and write the fields it writes.
@@ -498,11 +481,11 @@ class BasePass(BaseConfig[Compilation, None]):
         return found
 
 
-class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
+class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
     """Lowering of one family of laws, which one pass creates, later passes finish, and the compilation keeps.
 
     The constructor stores what the lowering reads, `prepare(compilation)` sets the prepared attributes the lowering
-    gathers, and `run(laws)` returns the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
+    gathers, and `run(laws)` sets `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
 
     A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
     `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
@@ -514,21 +497,21 @@ class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
 
         added_:
             The spec and the references the lowering added to it, by the identity of the spec.
+
+        lowered_:
+            The laws the last run lowered, in the shape of its input.
     """
 
     compilation_: Compilation
     added_: dict[int, tuple[KernelSpec, dict[Expression, ReferenceSpec]]]
+    lowered_: LoweredT
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Take the compilation the lowering serves, with no reference added yet.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
 
         Raises:
             ValidationError:
@@ -539,7 +522,6 @@ class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
             raise ValidationError(error_msg)
         self.compilation_ = context
         self.added_ = {}
-        return self
 
     def _add_reference(self, spec: KernelSpec, item: Expression, reference: ReferenceSpec) -> None:
         """Note the reference of a symbol the lowering adds to a spec, which `_apply_references` gives the spec."""
@@ -569,16 +551,12 @@ class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
         """
         del specs
 
-    def _run(self, inputs: InputT | None) -> object:
-        """Return laws lowered.
+    def _run(self, inputs: LoweredT | None) -> None:
+        """Lower laws into `lowered_`, in the shape of the input.
 
         Args:
             inputs:
                 The laws, alone or by the kernel spec that holds them.
-
-        Returns:
-            laws:
-                The lowered laws, in the shape of the input.
 
         Raises:
             NotImplementedError:
