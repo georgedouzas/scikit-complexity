@@ -47,32 +47,32 @@ class OilEconomyElement(Element):
         label:
             The label of the economy.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        resource:
+            The initial resource stock.
+
+        capital:
+            The initial capital.
+
+        price:
+            The price of the resource, used without a price table.
+
+        cost:
+            The operating cost per unit of capital.
+
+        growth_goal:
+            The largest investment per unit of capital.
+
+        lifetime:
+            The average lifetime of the capital.
+
         yield_table:
             The yield per unit of capital at the resource levels 0, 100, ..., 1000.
 
         price_table:
             The price at the yields 0, 0.1, 0.2, 0.4, 0.6, 0.8, and 1, or `None` for a constant price.
-
-        **values:
-            The values of the declared variables, by name:
-
-            resource:
-                The initial resource stock.
-
-            capital:
-                The initial capital.
-
-            price:
-                The price of the resource, used without a price table.
-
-            cost:
-                The operating cost per unit of capital.
-
-            growth_goal:
-                The largest investment per unit of capital.
-
-            lifetime:
-                The average lifetime of the capital.
 
     Examples:
         >>> from skcomplex.models.economics.resources import OilEconomyElement
@@ -142,6 +142,24 @@ class FisheryElement(Element):
         label:
             The label of the fishery.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        resource:
+            The initial resource stock.
+
+        capital:
+            The initial capital.
+
+        cost:
+            The operating cost per unit of capital.
+
+        growth_goal:
+            The largest investment per unit of capital.
+
+        lifetime:
+            The average lifetime of the capital.
+
         yield_table:
             The yield per unit of capital at the resource levels 0, 100, ..., 1000.
 
@@ -150,24 +168,6 @@ class FisheryElement(Element):
 
         price_table:
             The price at the yields 0, 0.1, 0.2, 0.4, 0.6, 0.8, and 1.
-
-        **values:
-            The values of the declared variables, by name:
-
-            resource:
-                The initial resource stock.
-
-            capital:
-                The initial capital.
-
-            cost:
-                The operating cost per unit of capital.
-
-            growth_goal:
-                The largest investment per unit of capital.
-
-            lifetime:
-                The average lifetime of the capital.
 
     Examples:
         >>> from skcomplex.models.economics.resources import FisheryElement

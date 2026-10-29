@@ -16,6 +16,8 @@ from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._car_view import CarView
+from ._till_view import TillView
 
 _PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
 
@@ -25,7 +27,7 @@ VALET = 1
 CREW_SIZE = 2
 
 
-def _front(cars: list[AgentView], stage: int) -> AgentView | None:
+def _front(cars: list[CarView], stage: int) -> CarView | None:
     """Return the car that came first among the cars at a stage, or `None` if there is none."""
     waiting = [car for car in cars if car.stage == stage]
     return min(waiting, key=lambda car: car.id) if waiting else None
@@ -37,6 +39,9 @@ class CarElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         stage:
             0 for the wash and 1 for the valet.
@@ -66,6 +71,11 @@ class CarElement(Element):
         self.stage = stage
         self.work = work
         self.crew = crew
+
+    @classmethod
+    def _get_view(cls) -> type[CarView]:
+        """Return the view of a car, with its stage, work, and crew."""
+        return CarView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the workers and the till act on the cars.
@@ -122,7 +132,7 @@ class WasherElement(Element):
             model:
                 The model.
         """
-        cars = model.agents(self.cars, AgentView)
+        cars = model.agents(self.cars, CarView)
         fronts = [car for car in (_front(cars, WASH), _front(cars, VALET)) if car is not None]
         if not fronts:
             return
@@ -138,6 +148,9 @@ class TillElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         revenue:
             The money taken.
@@ -172,6 +185,11 @@ class TillElement(Element):
         self.washes = washes
         self.valets = valets
         self.turned_away = turned_away
+
+    @classmethod
+    def _get_view(cls) -> type[TillView]:
+        """Return the view of the till, with its revenue and counts."""
+        return TillView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the car wash books the payments.
@@ -260,7 +278,7 @@ class CarWashOperationInteraction(Interaction):
         self.valet_price = valet_price
         self.balk = balk
 
-    def _finish(self, car: AgentView, till: AgentView, model: ModelView, values: dict[str, float]) -> None:
+    def _finish(self, car: CarView, till: TillView, model: ModelView, values: dict[str, float]) -> None:
         """Move a car whose work is done to the valet, or take its payment and let it leave."""
         if car.stage == WASH and model.rng.random() < values['p_valet']:
             car.stage, car.work = VALET, values['valet_work']
@@ -294,14 +312,14 @@ class CarWashOperationInteraction(Interaction):
                 The model.
         """
         values = {name: float(model.parameter(name)) for name in _PARAMETERS}
-        till = model.agents('till', AgentView)[0]
-        for car in model.agents('cars', AgentView):
+        till = model.agents('till', TillView)[0]
+        for car in model.agents('cars', CarView):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, model, values)
         if model.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in model.agents('cars', AgentView)) >= values['balk']:
+        if sum(car.stage == WASH for car in model.agents('cars', CarView)) >= values['balk']:
             till.turned_away += 1
             return
         model.create('cars', stage=WASH, work=values['wash_work'])

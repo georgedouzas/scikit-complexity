@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -15,11 +15,13 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.markets import DeferredAcceptance, MarketInteraction, Trade
+from ._employer_view import EmployerView
+from ._jobseeker_view import JobseekerView
 
 
 class EmployerElement(Element):
@@ -28,6 +30,9 @@ class EmployerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         bid:
             The wage offered for the vacancy.
@@ -73,6 +78,11 @@ class EmployerElement(Element):
         self.low_wage = low_wage
         self.high_wage = high_wage
 
+    @classmethod
+    def _get_view(cls) -> type[EmployerView]:
+        """Return the view of an employer, with its vacancy and the parameters of its offers."""
+        return EmployerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the posting rule in the phase of offers.
 
@@ -86,7 +96,7 @@ class EmployerElement(Element):
         """
         return [RuleLaw(self.post, phase='offers')]
 
-    def post(self, agent: AgentView, model: ModelView) -> None:
+    def post(self, agent: EmployerView, model: ModelView) -> None:
         """Withdraw the last vacancy and post a new one with a uniform wage offer at the vacancy rate.
 
         Args:
@@ -99,7 +109,7 @@ class EmployerElement(Element):
         agent.demand = 0.0
         if model.rng.random() < agent.vacancy_rate:
             agent.demand = 1.0
-            agent.bid = model.rng.uniform(agent.low_wage, agent.high_wage)
+            agent.bid = float(model.rng.uniform(agent.low_wage, agent.high_wage))
             agent.posted = model.time
 
 
@@ -112,6 +122,9 @@ class JobseekerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         ask:
             The reservation wage.
@@ -177,6 +190,11 @@ class JobseekerElement(Element):
         self.reservation = reservation
         self.decline = decline
 
+    @classmethod
+    def _get_view(cls) -> type[JobseekerView]:
+        """Return the view of a worker, with its search and job states and their parameters."""
+        return JobseekerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of separations and search in the phase of offers.
 
@@ -190,7 +208,7 @@ class JobseekerElement(Element):
         """
         return [RuleLaw(self.search, phase='offers')]
 
-    def search(self, agent: AgentView, model: ModelView) -> None:
+    def search(self, agent: JobseekerView, model: ModelView) -> None:
         """Lose the job at the separation rate, or search with a reservation wage that falls with the duration.
 
         Args:
@@ -210,7 +228,7 @@ class JobseekerElement(Element):
         agent.duration += 1
 
 
-def hire(trade: Trade, model: Any) -> None:  # noqa: ANN401
+def hire(trade: Trade, model: ModelView) -> None:
     """Record the employer, the wage, and the steps of the hire and of its offer on the hired worker.
 
     Args:
@@ -221,6 +239,8 @@ def hire(trade: Trade, model: Any) -> None:  # noqa: ANN401
             The model view of the market.
     """
     worker, firm = trade.seller, trade.buyer
+    if not isinstance(worker, JobseekerView) or not isinstance(firm, EmployerView):
+        return
     worker.employer, worker.wage, worker.duration = float(firm.id), trade.price, 0.0
     worker.hired, worker.offer = model.time, firm.posted
 
@@ -232,14 +252,14 @@ class SearchCountInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
-        workers:
-            The path of the group of workers.
-
         rule:
             Unused, since the office overrides `act`.
 
         phase:
             The phase the office counts in, which must precede the clearing of the market.
+
+        workers:
+            The path of the group of workers.
 
     Examples:
         >>> from skcomplex.models.economics.markets import SearchCountInteraction
@@ -253,26 +273,26 @@ class SearchCountInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         workers: Annotated[str, RoleSpec()],
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.workers = workers
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Report the number of searching workers.
 
         Args:
             model:
                 The model view of the office.
         """
-        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers', AgentView)))
+        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers', JobseekerView)))
 
 
-def _unemployed(agent: AgentView) -> float:
-    """Return one for an unemployed worker and zero for an employed one."""
-    return float(agent.employer < 0)
+def _unemployment(employers: object) -> float:
+    """Return the share of unemployed workers, whose employer is negative."""
+    return float(np.mean(np.asarray(employers, dtype=float) < 0))
 
 
 @register_model(
@@ -280,7 +300,9 @@ def _unemployed(agent: AgentView) -> float:
     tags=('labour', 'market', 'matching', 'agents'),
     references=('Hamill and Gilbert 2016 ch. 7',),
     defaults={'until': 200},
-    observables=lambda system: [ObservableSpec('unemployment', _unemployed, group='workers')],
+    observables=lambda system: [
+        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
+    ],
 )
 def labour_market(
     n_workers: int = 200,

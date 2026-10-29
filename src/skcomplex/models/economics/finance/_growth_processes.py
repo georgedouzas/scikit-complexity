@@ -15,9 +15,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._gibrat_firm_view import GibratFirmView
+from ._kesten_firm_view import KestenFirmView
 
 
 def _size_observables() -> list[ObservableSpec]:
@@ -34,6 +36,9 @@ class GibratFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial size.
@@ -69,6 +74,11 @@ class GibratFirmElement(Element):
         self.mu = mu
         self.sigma = sigma
 
+    @classmethod
+    def _get_view(cls) -> type[GibratFirmView]:
+        """Return the view of the agents of the element."""
+        return GibratFirmView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth rule.
 
@@ -82,7 +92,7 @@ class GibratFirmElement(Element):
         """
         return [RuleLaw(self.grow)]
 
-    def grow(self, agent: AgentView, model: ModelView) -> None:
+    def grow(self, agent: GibratFirmView, model: ModelView) -> None:
         """Keep the size and multiply it by a growth factor drawn from a normal distribution.
 
         Args:
@@ -102,6 +112,9 @@ class KestenFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial size.
@@ -142,6 +155,11 @@ class KestenFirmElement(Element):
         self.b_low = b_low
         self.b_high = b_high
 
+    @classmethod
+    def _get_view(cls) -> type[KestenFirmView]:
+        """Return the view of the agents of the element."""
+        return KestenFirmView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth rule.
 
@@ -155,7 +173,7 @@ class KestenFirmElement(Element):
         """
         return [RuleLaw(self.grow)]
 
-    def grow(self, agent: AgentView, model: ModelView) -> None:
+    def grow(self, agent: KestenFirmView, model: ModelView) -> None:
         """Multiply the size by a random factor and add a random term.
 
         Args:
@@ -219,7 +237,7 @@ class ReflectingFloorInteraction(Interaction):
             model:
                 The model.
         """
-        firms = model.agents('firms', AgentView)
+        firms = model.agents('firms', GibratFirmView)
         floor = model.parameter('c') * float(np.mean([firm.previous for firm in firms]))
         for firm in firms:
             firm.x = max(firm.x, floor)

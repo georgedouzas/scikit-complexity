@@ -44,14 +44,6 @@ def _orders(limits, budgets=None):
     ]
 
 
-class _Model:
-    """Minimal model view for protocols."""
-
-    def __init__(self):
-        self.rng = np.random.default_rng(0)
-        self.storage = {}
-
-
 def _zero_intelligence(n_traders, rng):
     """Return the values, costs, and a market of zero-intelligence traders with budget constraints."""
     values = rng.uniform(50, 200, n_traders)
@@ -145,7 +137,7 @@ def test_order_book_priority():
     sellers = _orders([10.0, 10.0])
     buyers = _orders([10.0])
     buyers[0].agent.id = 5
-    trades = OrderBook(arrival='sequential').match(buyers, sellers, _Model())
+    trades = OrderBook(arrival='sequential').match(buyers, sellers, np.random.default_rng(0), {})
     assert len(trades) == 1
     assert trades[0].seller is sellers[0].agent
     assert trades[0].price == 10.0
@@ -157,14 +149,14 @@ def test_order_book_trades_at_resting_price():
     buyers = _orders([11.5])
     buyers[0].quantity = 3.0
     buyers[0].agent.id = 9
-    trades = OrderBook(arrival='sequential').match(buyers, sellers, _Model())
+    trades = OrderBook(arrival='sequential').match(buyers, sellers, np.random.default_rng(0), {})
     assert [trade.price for trade in trades] == [9.0, 11.0]
 
 
 def test_call_auction_uniform_price():
     """A call auction pairs the highest bids with the lowest asks at one price."""
     buyers, sellers = _orders([10.0, 8.0, 3.0]), _orders([2.0, 5.0, 9.0])
-    trades = CallAuction().match(buyers, sellers, _Model())
+    trades = CallAuction().match(buyers, sellers, np.random.default_rng(0), {})
     assert len(trades) == 2
     assert {trade.price for trade in trades} == {6.5}
 
@@ -172,10 +164,10 @@ def test_call_auction_uniform_price():
 def test_rationed_queue_and_walrasian():
     """A queue serves buyers at the cheapest asks, and the auctioneer clears at a price between the limits."""
     buyers, sellers = _orders([10.0, 9.0, 1.0]), _orders([4.0, 6.0])
-    trades = RationedQueue(order='bid').match(buyers, sellers, _Model())
+    trades = RationedQueue(order='bid').match(buyers, sellers, np.random.default_rng(0), {})
     assert [(trade.price, trade.buyer.id) for trade in trades] == [(4.0, 0), (6.0, 1)]
     buyers, sellers = _orders([10.0, 9.0, 1.0]), _orders([4.0, 6.0])
-    trades = Walrasian().match(buyers, sellers, _Model())
+    trades = Walrasian().match(buyers, sellers, np.random.default_rng(0), {})
     assert len(trades) == 2
     assert all(6.0 <= trade.price <= 9.0 for trade in trades)
 
@@ -183,7 +175,7 @@ def test_rationed_queue_and_walrasian():
 def test_bilateral_search_and_budget():
     """Bilateral search trades at the midpoint, within the buyer's budget."""
     buyers, sellers = _orders([10.0], [3.0]), _orders([2.0])
-    trades = BilateralSearch(tries=2).match(buyers, sellers, _Model())
+    trades = BilateralSearch(tries=2).match(buyers, sellers, np.random.default_rng(0), {})
     assert trades[0].price == 6.0
     assert trades[0].quantity == pytest.approx(0.5)
 
@@ -202,7 +194,7 @@ def test_deferred_acceptance_is_stable():
         order.agent = Agent(order.agent.id, bid=order.limit)
     for order in sellers:
         order.agent = Agent(order.agent.id, ask=order.limit)
-    trades = DeferredAcceptance().match(buyers, sellers, _Model())
+    trades = DeferredAcceptance().match(buyers, sellers, np.random.default_rng(0), {})
     pairs = {(trade.buyer.id, trade.seller.id) for trade in trades}
     assert pairs == {(1, 10), (0, 11)}
 
@@ -216,7 +208,7 @@ def test_sample_and_switch_keeps_partner():
 
     buyers = [Order(Agent(0, partner=11.0), 10.0, 1.0)]
     sellers = [Order(Agent(10), 5.0, 1.0), Order(Agent(11), 4.0, 1.0)]
-    trades = SampleAndSwitch(sample=2).match(buyers, sellers, _Model())
+    trades = SampleAndSwitch(sample=2).match(buyers, sellers, np.random.default_rng(0), {})
     assert trades[0].seller.id == 11
 
 

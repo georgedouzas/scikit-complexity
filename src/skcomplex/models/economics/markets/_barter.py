@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -25,7 +25,7 @@ WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 EDGEWORTH_BARTERERS = 2
 
 
-def _utility(agent: Any) -> float:  # noqa: ANN401
+def _utility(agent: object) -> float:
     """Return the logarithm of the Cobb-Douglas utility of a barterer."""
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
@@ -88,6 +88,9 @@ class BartererElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         chocolate:
             The holding of chocolate.
@@ -202,7 +205,10 @@ def barter(
         raise ValueError(error_msg)
     rng = np.random.default_rng(random_state)
     if n_barterers == EDGEWORTH_BARTERERS:
-        holdings: dict[str, Any] = {'chocolate': list(chocolate), 'cigarettes': list(cigarettes)}
+        holdings: dict[str, list[float] | npt.NDArray[np.float64]] = {
+            'chocolate': list(chocolate),
+            'cigarettes': list(cigarettes),
+        }
         shares = np.asarray(weights, dtype=float)
     else:
         holdings = {

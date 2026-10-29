@@ -5,10 +5,10 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Any
 
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, RuleLaw
+from .....engine.solvers import ModelView
 
 
 class InstitutionInteraction(Interaction):
@@ -30,9 +30,6 @@ class InstitutionInteraction(Interaction):
         phase:
             The phase the institution acts in, or `None` for the default phase.
 
-        **values:
-            The values of the declared variables, by name.
-
     Examples:
         >>> from skcomplex.models.economics.common.institutions import InstitutionInteraction
         >>> InstitutionInteraction('regulator', rule=lambda model: None).phase is None
@@ -43,7 +40,7 @@ class InstitutionInteraction(Interaction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
@@ -63,7 +60,7 @@ class InstitutionInteraction(Interaction):
         """
         return [RuleLaw(self.act, phase=self.phase)]
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Read the model and set parameters.
 
         Args:

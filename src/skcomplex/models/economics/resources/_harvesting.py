@@ -15,9 +15,10 @@ from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import count
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._farmer_view import FarmerView
 
 
 class StockElement(Element):
@@ -49,17 +50,17 @@ class FarmerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        wealth:
+            The initial wealth.
+
         resource:
             The dotted name of the resource stock.
 
         effort:
             The dotted name of the harvest effort per farmer.
-
-        **values:
-            The values of the declared variables, by name:
-
-            wealth:
-                The initial wealth.
 
     Examples:
         >>> from skcomplex.models.economics.resources import FarmerElement
@@ -81,6 +82,11 @@ class FarmerElement(Element):
         self.resource = resource
         self.effort = effort
 
+    @classmethod
+    def _get_view(cls) -> type[FarmerView]:
+        """Return the view of the agents of the element."""
+        return FarmerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the catch rule.
 
@@ -94,7 +100,7 @@ class FarmerElement(Element):
         """
         return [RuleLaw(self.catch)]
 
-    def catch(self, agent: AgentView, model: ModelView) -> None:
+    def catch(self, agent: FarmerView, model: ModelView) -> None:
         """Add the effort times the resource stock at the last synchronisation point to the wealth.
 
         Args:

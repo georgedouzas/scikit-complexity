@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
@@ -26,7 +26,7 @@ def _saltzman_laws(s: SimpleNamespace) -> list[BaseLaw]:
     ]
 
 
-def _saturation(c: Any, crossover: Any, exponent: Any) -> Expression:  # noqa: ANN401
+def _saturation(c: Expression, crossover: Expression, exponent: Expression) -> Expression:
     """Return the sigmoid `c^n / (c^n + crossover^n)`."""
     return c**exponent / (c**exponent + crossover**exponent)
 

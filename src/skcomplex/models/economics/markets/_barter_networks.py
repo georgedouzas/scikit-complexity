@@ -6,11 +6,10 @@
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
@@ -20,41 +19,49 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._barter_trader_view import BarterTraderView
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
+GOODS = ('good1', 'good2')
 
 
-def _log_spread(rates: npt.ArrayLike) -> float:
+def _log_spread(rates: object) -> float:
     """Return the standard deviation of the logarithms of the marginal rates of substitution."""
     return float(np.std(np.log(np.asarray(rates, dtype=float))))
 
 
-def _utility(agent: Any) -> float:  # noqa: ANN401
+def _utility(agent: object) -> float:
     """Return the Cobb-Douglas utility of the bundle of a trader."""
-    return float(agent.good1 * agent.good2)
+    return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
 def _best_neighbors(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[tuple[Any, Any]]:
+) -> list[tuple[object, object]]:
     """Return every trader, in random order, paired with the neighbour whose rate of substitution differs the most."""
-    pairs = []
+    pairs: list[tuple[object, object]] = []
     for index in rng.permutation(len(left)):
         trader = left[int(index)]
+        if not isinstance(trader, BarterTraderView):
+            continue
         rate = math.log(trader.good2 / trader.good1)
-        gaps = [(abs(math.log(other.good2 / other.good1) - rate), other) for other in trader.neighbors()]
+        gaps = [
+            (abs(math.log(other.good2 / other.good1) - rate), other)
+            for other in trader.neighbors()
+            if isinstance(other, BarterTraderView)
+        ]
         if gaps:
             pairs.append((trader, max(gaps, key=lambda item: item[0])[1]))
     return pairs
 
 
-def _barter(first: AgentView, second: AgentView, units: int) -> int:
+def _barter(first: BarterTraderView, second: BarterTraderView, units: int) -> int:
     """Trade single units of the first good at the bundle price while both traders gain, and return the units."""
     buyer, seller = (first, second) if first.good2 * second.good1 > second.good2 * first.good1 else (second, first)
     price = (buyer.good2 + seller.good2) / (buyer.good1 + seller.good1)
@@ -105,6 +112,9 @@ class BarterTraderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         good1:
             The holding of the first good.
 
@@ -139,6 +149,11 @@ class BarterTraderElement(Element):
         self.mrs = mrs
         self.links = links
 
+    @classmethod
+    def _get_view(cls) -> type[BarterTraderView]:
+        """Return the view of a trader, with its holdings, rate, and links."""
+        return BarterTraderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that records the rate of substitution.
 
@@ -152,7 +167,7 @@ class BarterTraderElement(Element):
         """
         return [RuleLaw(self.appraise)]
 
-    def appraise(self, agent: AgentView, model: ModelView) -> None:
+    def appraise(self, agent: BarterTraderView, model: ModelView) -> None:
         """Record the marginal rate of substitution of the bundle.
 
         Args:
@@ -212,10 +227,9 @@ class BilateralBarterInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [MatchLaw(self.traders, pairing=_best_neighbors, label='partners'), RuleLaw(self.trade)]
-        return laws
+        return [MatchLaw(self.traders, pairing=_best_neighbors, label='partners'), RuleLaw(self.trade)]
 
-    def trade(self, model: Any) -> None:  # noqa: ANN401
+    def trade(self, model: ModelView) -> None:
         """Trade along every pair of the step and report the units traded and the neighbours searched.
 
         Args:
@@ -223,9 +237,13 @@ class BilateralBarterInteraction(Interaction):
                 The model view of the interaction.
         """
         units = int(model.parameter('units'))
-        traded = sum(_barter(first, second, units) for first, second in matches(model, 'partners'))
+        traded = sum(
+            _barter(first, second, units)
+            for first, second in matches(model, 'partners')
+            if isinstance(first, BarterTraderView) and isinstance(second, BarterTraderView)
+        )
         model.report('trades', float(traded))
-        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders, AgentView))))
+        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders, BarterTraderView))))
 
 
 @register_model(

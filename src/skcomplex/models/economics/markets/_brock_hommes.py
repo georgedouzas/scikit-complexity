@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -15,11 +15,12 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics, logit_choice
+from ._speculator_view import SpeculatorView
 
 PREDICTORS = ('fundamentalist', 'trend')
 
@@ -28,20 +29,20 @@ class SpeculatorElement(Element):
     """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
 
     The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
-    pricing institution, zero before its first report.
+    pricing institution, zero before its first report. The class attribute `pricing` names that institution.
 
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         predictor:
             The index of the heuristic in use.
 
         intensity:
             The intensity of choice `beta`.
-
-        pricing:
-            The label of the pricing institution whose fitness reporters the trader reads.
 
     Examples:
         >>> from skcomplex.models.economics.markets import SpeculatorElement
@@ -63,6 +64,11 @@ class SpeculatorElement(Element):
         self.predictor = predictor
         self.intensity = intensity
 
+    @classmethod
+    def _get_view(cls) -> type[SpeculatorView]:
+        """Return the view of a speculator, with its heuristic and intensity of choice."""
+        return SpeculatorView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the choice of heuristic in the phase of choice.
 
@@ -76,7 +82,7 @@ class SpeculatorElement(Element):
         """
         return [RuleLaw(self.choose, phase='choice')]
 
-    def choose(self, agent: AgentView, model: ModelView) -> None:
+    def choose(self, agent: SpeculatorView, model: ModelView) -> None:
         """Choose a heuristic with logit probabilities of the last realised fitnesses.
 
         Args:
@@ -111,14 +117,14 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
-        traders:
-            The path of the group of traders.
-
         rule:
             Unused, since the institution overrides `act`.
 
         phase:
             The phase the institution clears in.
+
+        traders:
+            The path of the group of traders.
 
         rate:
             The gross return `R` of the riskless asset.
@@ -150,7 +156,7 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         traders: Annotated[str, RoleSpec()],
         rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
@@ -169,7 +175,7 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         self.noise = noise
         self.initial = initial
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Clear the price from the forecasts of the traders' heuristics and report the fitnesses.
 
         Args:
@@ -181,9 +187,9 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = model.agents('traders', AgentView)
+        traders = model.agents('traders', SpeculatorView)
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
-        price = (forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
+        price = float(forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
         previous = model.storage.get('forecasts')
         excess = price - rate * history[-1]
         if previous is None:

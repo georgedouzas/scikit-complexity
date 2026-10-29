@@ -14,11 +14,13 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.markets import CallAuction, MarketInteraction, OrderBook, Trade
+from ._zero_intelligence_buyer_view import ZeroIntelligenceBuyerView
+from ._zero_intelligence_seller_view import ZeroIntelligenceSellerView
 
 PROTOCOLS = ('order_book', 'call_auction')
 
@@ -52,6 +54,8 @@ def _book_profit(trade: Trade, model: ModelView) -> None:
     """Add the surplus of a trade to the profits of the buyer and the seller."""
     del model
     buyer, seller = trade.buyer, trade.seller
+    if not isinstance(buyer, ZeroIntelligenceBuyerView) or not isinstance(seller, ZeroIntelligenceSellerView):
+        return
     buyer.profit += trade.quantity * (buyer.value - trade.price)
     seller.profit += trade.quantity * (trade.price - seller.value)
 
@@ -65,6 +69,9 @@ class ZeroIntelligenceBuyerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The value of the unit to the buyer, its redemption value.
@@ -110,6 +117,11 @@ class ZeroIntelligenceBuyerElement(Element):
         self.ceiling = ceiling
         self.constrained = constrained
 
+    @classmethod
+    def _get_view(cls) -> type[ZeroIntelligenceBuyerView]:
+        """Return the view of a buyer, with its value, bid, demand, and profit."""
+        return ZeroIntelligenceBuyerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the bidding rule of the trading rounds.
 
@@ -123,7 +135,7 @@ class ZeroIntelligenceBuyerElement(Element):
         """
         return [RuleLaw(self.quote, phase='trade')]
 
-    def quote(self, agent: AgentView, model: ModelView) -> None:
+    def quote(self, agent: ZeroIntelligenceBuyerView, model: ModelView) -> None:
         """Bid a random price.
 
         Args:
@@ -146,6 +158,9 @@ class ZeroIntelligenceSellerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         value:
             The cost of the unit to the seller.
@@ -191,6 +206,11 @@ class ZeroIntelligenceSellerElement(Element):
         self.ceiling = ceiling
         self.constrained = constrained
 
+    @classmethod
+    def _get_view(cls) -> type[ZeroIntelligenceSellerView]:
+        """Return the view of a seller, with its cost, ask, supply, and profit."""
+        return ZeroIntelligenceSellerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the asking rule of the trading rounds.
 
@@ -204,7 +224,7 @@ class ZeroIntelligenceSellerElement(Element):
         """
         return [RuleLaw(self.quote, phase='trade')]
 
-    def quote(self, agent: AgentView, model: ModelView) -> None:
+    def quote(self, agent: ZeroIntelligenceSellerView, model: ModelView) -> None:
         """Ask a random price.
 
         Args:
@@ -246,7 +266,8 @@ class AuctionLedgerInteraction(InstitutionInteraction):
             model:
                 The model view scoped to the ledger.
         """
-        buyers, sellers = model.agents('buyers', AgentView), model.agents('sellers', AgentView)
+        buyers = model.agents('buyers', ZeroIntelligenceBuyerView)
+        sellers = model.agents('sellers', ZeroIntelligenceSellerView)
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])

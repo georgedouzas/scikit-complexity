@@ -15,20 +15,24 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._customer_view import CustomerView
+from ._product_view import ProductView
+from ._shop_view import ShopView
 
 N_SHOPS = 2
 
 
-def _asymmetry(shares: Array) -> float:
+def _asymmetry(shares: object) -> float:
     """Return the asymmetry `m = p_1 - p_2` of the shares of customers of the first and the second shop."""
-    return float(shares[0] - shares[1])
+    first, second = np.asarray(shares, dtype=float)
+    return float(first - second)
 
 
-def _first_shop_probabilities(customers: list[AgentView], temperature: float) -> Array:
+def _first_shop_probabilities(customers: list[CustomerView], temperature: float) -> Array:
     """Return the probability `1 / (1 + exp(-(S_1 - S_2) / T))` that each customer visits the first shop."""
     difference = np.array([customer.s1 - customer.s2 for customer in customers], dtype=float)
     return expit(difference / temperature)
@@ -40,6 +44,9 @@ class CustomerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         s1:
             The satisfaction with the first shop.
@@ -65,6 +72,11 @@ class CustomerElement(Element):
         self.s1 = s1
         self.s2 = s2
 
+    @classmethod
+    def _get_view(cls) -> type[CustomerView]:
+        """Return the view of a customer, with its satisfactions."""
+        return CustomerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade moves every customer.
 
@@ -85,6 +97,9 @@ class ProductElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         shop:
             The index of the shop, 0 or 1.
@@ -110,6 +125,11 @@ class ProductElement(Element):
         self.shop = shop
         self.shelved = shelved
 
+    @classmethod
+    def _get_view(cls) -> type[ProductView]:
+        """Return the view of a product, with its shop and shelving time."""
+        return ProductView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade sells and replaces products.
 
@@ -130,6 +150,9 @@ class ShopElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         share:
             The probability that a customer visits the shop, averaged over the customers.
@@ -154,6 +177,11 @@ class ShopElement(Element):
         super().__init__(label, visual=visual)
         self.share = share
         self.freshness = freshness
+
+    @classmethod
+    def _get_view(cls) -> type[ShopView]:
+        """Return the view of a shop, with its share and freshness."""
+        return ShopView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade records the shares and the freshness.
@@ -245,7 +273,7 @@ class PerishableTradeInteraction(Interaction):
                 The model.
         """
         temperature, alpha, tau_a = (model.parameter(name) for name in ('T', 'alpha', 'tau_a'))
-        customers, products = model.agents(self.customers, AgentView), model.agents(self.products, AgentView)
+        customers, products = model.agents(self.customers, CustomerView), model.agents(self.products, ProductView)
         satisfaction = np.array([[customer.s1, customer.s2] for customer in customers], dtype=float)
         stock = np.array([product.shop for product in products], dtype=int)
         shelved = np.array([product.shelved for product in products], dtype=float)
@@ -265,7 +293,7 @@ class PerishableTradeInteraction(Interaction):
             product.shelved = float(time)
         first = float(_first_shop_probabilities(customers, temperature).mean())
         freshness = np.exp(-(start + 1 - shelved) / tau_a)
-        for record, share, shelf in zip(model.agents(self.shops, AgentView), (first, 1 - first), shelves, strict=True):
+        for record, share, shelf in zip(model.agents(self.shops, ShopView), (first, 1 - first), shelves, strict=True):
             record.share = share
             record.freshness = float(freshness[shelf].mean())
 

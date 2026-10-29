@@ -5,7 +5,7 @@
 
 import math
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar, cast
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -13,14 +13,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.markets import OrderBook, Trade
+from ..common.markets import OrderBook
+from ._stock_trader_view import StockTraderView
 
 LOWEST_PRICE = 0.01
 HOLDINGS = ('money', 'shares')
@@ -48,6 +49,9 @@ class StockTraderElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         strategy:
             0 for a fundamentalist, 1 for a chartist.
@@ -133,6 +137,11 @@ class StockTraderElement(Element):
         self.noise = noise
         self.imitation = imitation
 
+    @classmethod
+    def _get_view(cls) -> type[StockTraderView]:
+        """Return the view of the agents of the element."""
+        return StockTraderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the quoting, accounting, and imitation rules in their phases.
 
@@ -156,7 +165,7 @@ class StockTraderElement(Element):
         prices = [value for value in history if math.isfinite(value)] or [model.parameter('fundamental')]
         return prices[-1], prices[0]
 
-    def quote(self, agent: AgentView, model: ModelView) -> None:
+    def quote(self, agent: StockTraderView, model: ModelView) -> None:
         """Forecast the price and quote a limit order for one share.
 
         Args:
@@ -179,7 +188,7 @@ class StockTraderElement(Element):
         agent.demand = float(buying and agent.money >= expected)
         agent.supply = float(not buying and agent.shares >= 1)
 
-    def account(self, agent: AgentView, model: ModelView) -> None:
+    def account(self, agent: StockTraderView, model: ModelView) -> None:
         """Value the wealth at the last price and record its change.
 
         Args:
@@ -194,7 +203,7 @@ class StockTraderElement(Element):
         agent.gain = wealth - agent.wealth if agent.wealth else 0.0
         agent.wealth = wealth
 
-    def imitate(self, agent: AgentView, model: ModelView) -> None:
+    def imitate(self, agent: StockTraderView, model: ModelView) -> None:
         """Copy the strategy of a random neighbour whose wealth grew more, with the probability of imitation.
 
         Args:
@@ -204,7 +213,7 @@ class StockTraderElement(Element):
             model:
                 The model.
         """
-        neighbours = agent.neighbors()
+        neighbours = [other for other in agent.neighbors() if isinstance(other, StockTraderView)]
         if not neighbours or model.rng.random() >= model.parameter('imitation'):
             return
         other = neighbours[int(model.rng.integers(len(neighbours)))]
@@ -215,7 +224,7 @@ class StockTraderElement(Element):
 class BookInteraction(Interaction):
     """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
 
-    The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.common.markets`,
+    The book matches buy and sell orders with the order book protocol of `skcomplex.models.economics.common.markets`,
     and every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the total money and
     the total shares stay the same, which the default run checks as invariants. The book reports the last traded
     `price`, the previous price when nothing trades, and the traded `volume`.
@@ -224,14 +233,11 @@ class BookInteraction(Interaction):
         label:
             The label of the book.
 
+        traders:
+            The path of the group of traders.
+
         opening:
             The price before the first trade.
-
-        **values:
-            The values of the declared variables, by name:
-
-            traders:
-                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.finance import BookInteraction
@@ -252,8 +258,8 @@ class BookInteraction(Interaction):
         self.traders = traders
         self.opening = opening
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
-        """Return the matching of orders and the settlement rule.
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the matching and settlement rule.
 
         Args:
             s:
@@ -263,19 +269,17 @@ class BookInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [
-            MatchLaw('traders', pairing=OrderBook().evaluate, label='trades', phase='trade'),
-            RuleLaw(self.settle, phase='trade'),
-        ]
+        return [RuleLaw(self.settle, phase='trade')]
 
-    def settle(self, model: Any) -> None:  # noqa: ANN401
-        """Transfer the money and the shares of every trade and report the last price and the volume.
+    def settle(self, model: ModelView) -> None:
+        """Match the orders, transfer the money and the shares of every trade, and report the price and the volume.
 
         Args:
             model:
                 The model view of the book.
         """
-        trades = cast('list[Trade]', matches(model, 'trades'))
+        traders = model.agents('traders', StockTraderView)
+        trades = OrderBook().evaluate(traders, traders, model.rng, 1)
         for trade in trades:
             transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
             transfer(trade.seller, trade.buyer, trade.quantity, 'shares')

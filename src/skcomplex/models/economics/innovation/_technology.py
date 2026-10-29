@@ -16,10 +16,12 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._part_view import PartView
+from ._technology_view import TechnologyView
 
 NAND = (2, 0b0111)
 FALSE = (0, 0)
@@ -89,8 +91,8 @@ class PartElement(Element):
         label:
             The label of the agent or group.
 
-        location:
-            The initial location, unused without a space.
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         cost:
             The initial unit cost.
@@ -110,6 +112,11 @@ class PartElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.cost = cost
+
+    @classmethod
+    def _get_view(cls) -> type[PartView]:
+        """Return the view of the agents of the element."""
+        return PartView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since redesigns change several components at once.
@@ -135,14 +142,11 @@ class RedesignInteraction(Interaction):
         label:
             The label of the interaction.
 
+        components:
+            The path of the group of components.
+
         dependencies:
             The design structure matrix.
-
-        **values:
-            The values of the declared variables, by name:
-
-            components:
-                The path of the group of components.
 
     Examples:
         >>> from skcomplex.models.economics.innovation import RedesignInteraction
@@ -181,7 +185,7 @@ class RedesignInteraction(Interaction):
             model:
                 The model.
         """
-        components = sorted(model.agents('components', AgentView), key=lambda component: component.id)
+        components = sorted(model.agents('components', PartView), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = _components(cost, np.asarray(self.dependencies, dtype=float), model.rng)
         if proposal.sum() >= cost.sum():
@@ -198,6 +202,9 @@ class TechnologyElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         arity:
             The number of inputs.
@@ -229,6 +236,11 @@ class TechnologyElement(Element):
         self.arity = arity
         self.table = table
         self.cost = cost
+
+    @classmethod
+    def _get_view(cls) -> type[TechnologyView]:
+        """Return the view of the agents of the element."""
+        return TechnologyView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since inventions combine several technologies at once.
@@ -284,7 +296,7 @@ class InventionInteraction(Interaction):
         self.max_components = max_components
         self.max_inputs = max_inputs
 
-    def _wire(self, pool: list[AgentView], model: ModelView) -> tuple[int, int, int]:
+    def _wire(self, pool: list[TechnologyView], model: ModelView) -> tuple[int, int, int]:
         """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
         rng = model.rng
         n_inputs = int(rng.integers(1, int(model.parameter('max_inputs')) + 1))
@@ -317,7 +329,7 @@ class InventionInteraction(Interaction):
             model:
                 The model.
         """
-        pool = model.agents('technologies', AgentView)
+        pool = model.agents('technologies', TechnologyView)
         arity, table, cost = self._wire(pool, model)
         if (arity, table) not in GOALS:
             return

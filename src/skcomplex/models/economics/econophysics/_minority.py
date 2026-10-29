@@ -14,10 +14,11 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import IntArray
 from ..._catalog import register_model
+from ._speculator_view import SpeculatorView
 
 MAX_SEED = 2**31
 
@@ -53,6 +54,9 @@ class SpeculatorElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         first:
             The code of the first strategy.
@@ -98,6 +102,11 @@ class SpeculatorElement(Element):
         self.action = action
         self.wealth = wealth
 
+    @classmethod
+    def _get_view(cls) -> type[SpeculatorView]:
+        """Return the view of the agents of the element."""
+        return SpeculatorView
+
 
 class MinorityGameInteraction(Interaction):
     """Rounds of the minority game of Challet and Zhang, where the agents on the minority side win.
@@ -113,20 +122,17 @@ class MinorityGameInteraction(Interaction):
         label:
             The label of the interaction.
 
+        players:
+            The path of the group of agents.
+
+        fraction:
+            The fraction of poorest agents that take new strategies at an evolution.
+
         memory:
             The memory `m`, the number of past winning sides the strategies read.
 
         period:
             The number of rounds between two evolutions, or 0 for no evolution.
-
-        **values:
-            The values of the declared variables, by name:
-
-            players:
-                The path of the group of agents.
-
-            fraction:
-                The fraction of poorest agents that take new strategies at an evolution.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import MinorityGameInteraction
@@ -171,7 +177,7 @@ class MinorityGameInteraction(Interaction):
             tables[code] = strategy_table(code, self.memory)
         return tables[code]
 
-    def _choose(self, agent: AgentView, history: int, model: ModelView) -> tuple[int, int]:
+    def _choose(self, agent: SpeculatorView, history: int, model: ModelView) -> tuple[int, int]:
         """Set the action of an agent and return the actions of its two strategies."""
         actions = (
             2 * int(self._table(agent.first, model)[history]) - 1,
@@ -189,7 +195,7 @@ class MinorityGameInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('players', AgentView)
+        agents = model.agents('players', SpeculatorView)
         storage = model.storage
         n_histories = 2**self.memory
         history = storage.setdefault('history', int(model.rng.integers(n_histories)))
@@ -206,7 +212,7 @@ class MinorityGameInteraction(Interaction):
         if self.period and storage['round'] % self.period == 0:
             self._evolve(agents, model)
 
-    def _evolve(self, agents: list[AgentView], model: ModelView) -> None:
+    def _evolve(self, agents: list[SpeculatorView], model: ModelView) -> None:
         """Give the poorest agents new random strategies and no wealth."""
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         count = round(model.parameter('fraction') * len(agents))

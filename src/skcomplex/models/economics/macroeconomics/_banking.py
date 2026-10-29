@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -15,15 +15,17 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
+from ._depositor_view import DepositorView
+from ._reserve_bank_view import ReserveBankView
 
 TOLERANCE = 1e-9
 
 
-def _bank_of(banks: list[AgentView], index: float) -> AgentView:
+def _bank_of(banks: list[ReserveBankView], index: float) -> ReserveBankView:
     """Return the bank with an index."""
     return next(bank for bank in banks if int(bank.index) == int(index))
 
@@ -38,26 +40,26 @@ class DepositorElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        bank:
+            The index of the customer's bank.
+
+        deposit:
+            The deposit at the bank.
+
+        loan:
+            The loan owed to the bank.
+
+        spending:
+            The share of the deposit paid to a random customer every step.
+
+        repayment:
+            The share of the loan repaid every step.
+
         lenders:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            bank:
-                The index of the customer's bank.
-
-            deposit:
-                The deposit at the bank.
-
-            loan:
-                The loan owed to the bank.
-
-            spending:
-                The share of the deposit paid to a random customer every step.
-
-            repayment:
-                The share of the loan repaid every step.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import DepositorElement
@@ -85,6 +87,11 @@ class DepositorElement(Element):
         self.repayment = repayment
         self.lenders = lenders
 
+    @classmethod
+    def _get_view(cls) -> type[DepositorView]:
+        """Return the view of a customer, with its bank, deposit, and loan."""
+        return DepositorView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the payment and repayment rules.
 
@@ -98,7 +105,7 @@ class DepositorElement(Element):
         """
         return [RuleLaw(self.pay, phase='pay'), RuleLaw(self.repay, phase='pay')]
 
-    def pay(self, agent: AgentView, model: ModelView) -> None:
+    def pay(self, agent: DepositorView, model: ModelView) -> None:
         """Pay a share of the deposit to a random customer, moving deposits and reserves between their banks.
 
         Args:
@@ -108,10 +115,10 @@ class DepositorElement(Element):
             model:
                 The model.
         """
-        customers = model.agents(agent.group, AgentView)
+        customers = model.agents(agent.group, DepositorView)
         payee = customers[int(model.rng.integers(len(customers)))]
         amount = model.parameter('spending') * agent.deposit
-        banks = model.agents(self.lenders, AgentView)
+        banks = model.agents(self.lenders, ReserveBankView)
         source, target = _bank_of(banks, agent.bank), _bank_of(banks, payee.bank)
         agent.deposit -= amount
         payee.deposit += amount
@@ -120,7 +127,7 @@ class DepositorElement(Element):
         target.deposits += amount
         target.reserves += amount
 
-    def repay(self, agent: AgentView, model: ModelView) -> None:
+    def repay(self, agent: DepositorView, model: ModelView) -> None:
         """Repay a share of the loan from the deposit, which destroys as much broad money.
 
         Args:
@@ -133,7 +140,7 @@ class DepositorElement(Element):
         amount = min(model.parameter('repayment') * agent.loan, agent.deposit)
         if amount <= 0:
             return
-        bank = _bank_of(model.agents(self.lenders, AgentView), agent.bank)
+        bank = _bank_of(model.agents(self.lenders, ReserveBankView), agent.bank)
         agent.deposit -= amount
         agent.loan -= amount
         bank.deposits -= amount
@@ -150,26 +157,26 @@ class ReserveBankElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        index:
+            The index of the bank.
+
+        reserves:
+            The reserves of the bank.
+
+        deposits:
+            The deposits of its customers.
+
+        loans:
+            The loans to its customers.
+
+        reserve_ratio:
+            The required ratio of reserves to deposits.
+
         customers:
             The path of the group of customers.
-
-        **values:
-            The values of the declared variables, by name:
-
-            index:
-                The index of the bank.
-
-            reserves:
-                The reserves of the bank.
-
-            deposits:
-                The deposits of its customers.
-
-            loans:
-                The loans to its customers.
-
-            reserve_ratio:
-                The required ratio of reserves to deposits.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import ReserveBankElement
@@ -197,6 +204,11 @@ class ReserveBankElement(Element):
         self.reserve_ratio = reserve_ratio
         self.customers = customers
 
+    @classmethod
+    def _get_view(cls) -> type[ReserveBankView]:
+        """Return the view of a bank, with its index, reserves, deposits, and loans."""
+        return ReserveBankView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the lending rule.
 
@@ -210,7 +222,7 @@ class ReserveBankElement(Element):
         """
         return [RuleLaw(self.lend, phase='lend')]
 
-    def lend(self, agent: AgentView, model: ModelView) -> None:
+    def lend(self, agent: ReserveBankView, model: ModelView) -> None:
         """Lend the excess reserves to a random customer, whose payment is redeposited at a random customer's bank.
 
         Args:
@@ -221,13 +233,13 @@ class ReserveBankElement(Element):
                 The model.
         """
         excess = agent.reserves - model.parameter('reserve_ratio') * agent.deposits
-        customers = model.agents(self.customers, AgentView)
+        customers = model.agents(self.customers, DepositorView)
         own = [customer for customer in customers if int(customer.bank) == int(agent.index)]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(model.rng.integers(len(own)))]
         payee = customers[int(model.rng.integers(len(customers)))]
-        bank = _bank_of(model.agents(agent.group, AgentView), payee.bank)
+        bank = _bank_of(model.agents(agent.group, ReserveBankView), payee.bank)
         borrower.loan += excess
         agent.loans += excess
         agent.reserves -= excess
@@ -243,26 +255,23 @@ class RegulatorInteraction(InstitutionInteraction):
         label:
             The label of the institution.
 
+        rule:
+            Unused, the regulator overrides `act`.
+
+        phase:
+            The phase the regulator acts in, or `None` for the default phase.
+
+        ratio:
+            The reserve ratio before the change.
+
+        new_ratio:
+            The reserve ratio after the change.
+
+        change_at:
+            The time of the change.
+
         banks:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            rule:
-                Unused, the regulator overrides `act`.
-
-            phase:
-                The phase the regulator acts in, or `None` for the default phase.
-
-            ratio:
-                The reserve ratio before the change.
-
-            new_ratio:
-                The reserve ratio after the change.
-
-            change_at:
-                The time of the change.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import RegulatorInteraction
@@ -274,7 +283,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         new_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
@@ -287,7 +296,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self.change_at = change_at
         self.banks = banks
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Set the reserve ratio of the banks from the schedule.
 
         Args:

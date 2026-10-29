@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._household_view import HouseholdView
 
 UPPER = 0
 MIDDLE = 1
@@ -57,6 +58,9 @@ class HouseholdElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         income:
             The initial income, relative to the mean income at the start.
@@ -97,6 +101,11 @@ class HouseholdElement(Element):
         self.growth = growth
         self.threshold = threshold
 
+    @classmethod
+    def _get_view(cls) -> type[HouseholdView]:
+        """Return the view of the agents of the element."""
+        return HouseholdView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the yearly rule.
 
@@ -110,7 +119,7 @@ class HouseholdElement(Element):
         """
         return [RuleLaw(self.adopt)]
 
-    def adopt(self, agent: AgentView, model: ModelView) -> None:
+    def adopt(self, agent: HouseholdView, model: ModelView) -> None:
         """Grow the income and get a phone if it is affordable and a neighbour has one.
 
         Args:
@@ -123,7 +132,7 @@ class HouseholdElement(Element):
         agent.income = agent.income * (1 + agent.growth)
         if agent.phone or agent.income < agent.threshold:
             return
-        if any(neighbor.phone for neighbor in agent.neighbors()):
+        if any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.neighbors()):
             agent.phone = 1
 
 

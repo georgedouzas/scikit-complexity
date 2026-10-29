@@ -16,10 +16,11 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.learning import logit_choice
+from ._consumer_view import ConsumerView
 
 
 class ConsumerElement(Element):
@@ -32,6 +33,9 @@ class ConsumerElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         fair:
             One when the consumer bought fair food in the last step, zero otherwise.
@@ -87,6 +91,11 @@ class ConsumerElement(Element):
         self.social_weight = social_weight
         self.intensity = intensity
 
+    @classmethod
+    def _get_view(cls) -> type[ConsumerView]:
+        """Return the view of a consumer, with its states and the parameters of its utility."""
+        return ConsumerView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the shopping rule in the phase of shopping.
 
@@ -100,7 +109,7 @@ class ConsumerElement(Element):
         """
         return [RuleLaw(self.shop, phase='shopping')]
 
-    def shop(self, agent: AgentView, model: ModelView) -> None:
+    def shop(self, agent: ConsumerView, model: ModelView) -> None:
         """Buy fair or regular food with logit probabilities of their utilities.
 
         Args:
@@ -113,7 +122,7 @@ class ConsumerElement(Element):
         if agent.budget < 1 + agent.premium:
             agent.fair = 0.0
             return
-        neighbors = agent.neighbors()
+        neighbors = [neighbor for neighbor in agent.neighbors() if isinstance(neighbor, ConsumerView)]
         share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
         utility = (
             agent.ethics_weight * agent.ethics

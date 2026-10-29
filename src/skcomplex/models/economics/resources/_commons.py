@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -17,10 +17,13 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
+from ._cow_view import CowView
+from ._herder_view import HerderView
+from ._pasture_view import PastureView
 
 UNLIMITED = 1e9
 
@@ -35,12 +38,17 @@ def _commons_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
+def _cell(location: object) -> tuple[int, ...]:
+    """Return the integer coordinates of a cell."""
+    return tuple(int(item) for item in np.asarray(location).ravel())
+
+
 def richest_pasture(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[tuple[Any, Any]]:
+) -> list[tuple[object, object]]:
     """Pairing of every cow, in random order, with the free pasture of most grass in its cell or the cells around it.
 
     Args:
@@ -66,13 +74,14 @@ def richest_pasture(
         >>> richest_pasture([], [], np.random.default_rng(0), 1)
         []
     """
-    pastures = {tuple(int(item) for item in np.atleast_1d(pasture.location)): pasture for pasture in right}
+    cows = [cow for cow in left if isinstance(cow, CowView)]
+    pastures = {_cell(pasture.location): pasture for pasture in right if isinstance(pasture, PastureView)}
     taken: dict[int, int] = {}
-    pairs: list[tuple[Any, Any]] = []
-    for index in rng.permutation(len(left)):
-        cow = left[int(index)]
+    pairs: list[tuple[object, object]] = []
+    for index in rng.permutation(len(cows)):
+        cow = cows[int(index)]
         cells = [cow.location, *cow.neighbor_cells()]
-        options = [pastures.get(tuple(int(item) for item in np.atleast_1d(cell))) for cell in cells]
+        options = [pastures.get(_cell(cell)) for cell in cells]
         free = [pasture for pasture in options if pasture is not None and taken.get(pasture.id, 0) < capacity]
         if not free:
             continue
@@ -88,6 +97,9 @@ class PastureElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         grass:
             The grass on the cell.
@@ -123,6 +135,11 @@ class PastureElement(Element):
         self.regrowth = regrowth
         self.seed = seed
 
+    @classmethod
+    def _get_view(cls) -> type[PastureView]:
+        """Return the view of the agents of the element."""
+        return PastureView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule of the phase of growth.
 
@@ -136,7 +153,7 @@ class PastureElement(Element):
         """
         return [RuleLaw(self.grow, phase='growth')]
 
-    def grow(self, agent: AgentView, model: ModelView) -> None:
+    def grow(self, agent: PastureView, model: ModelView) -> None:
         """Grow the grass logistically up to the capacity.
 
         Args:
@@ -157,6 +174,9 @@ class CowElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         owner:
             The number of the herder that owns the cow.
@@ -182,6 +202,11 @@ class CowElement(Element):
         self.owner = owner
         self.energy = energy
 
+    @classmethod
+    def _get_view(cls) -> type[CowView]:
+        """Return the view of the agents of the element."""
+        return CowView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the grazing moves the cows and their energy.
 
@@ -202,6 +227,9 @@ class HerderElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         number:
             The number of the herder, which its cows record as their owner.
@@ -247,6 +275,11 @@ class HerderElement(Element):
         self.newborn = newborn
         self.quota = quota
 
+    @classmethod
+    def _get_view(cls) -> type[HerderView]:
+        """Return the view of the agents of the element."""
+        return HerderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that grows the herd in the phase of herding.
 
@@ -260,7 +293,7 @@ class HerderElement(Element):
         """
         return [RuleLaw(self.invest, phase='herding')]
 
-    def invest(self, agent: AgentView, model: ModelView) -> None:
+    def invest(self, agent: HerderView, model: ModelView) -> None:
         """Add a cow while a cow earns more than its upkeep below the quota, and sell a cow above the quota.
 
         Args:
@@ -274,7 +307,7 @@ class HerderElement(Element):
         if earning > model.parameter('upkeep') and agent.herd < agent.quota:
             model.create('cows', owner=agent.number, energy=model.parameter('newborn'))
         elif agent.herd > agent.quota:
-            next(cow for cow in model.agents('cows', AgentView) if cow.owner == agent.number).remove()
+            next(cow for cow in model.agents('cows', CowView) if cow.owner == agent.number).remove()
         agent.income = 0.0
         agent.herd = 0.0
 
@@ -333,7 +366,7 @@ class GrazingInteraction(Interaction):
         self.metabolism = metabolism
         self.milk = milk
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of cows with pastures and the grazing rule.
 
         Args:
@@ -349,21 +382,23 @@ class GrazingInteraction(Interaction):
             RuleLaw(self.graze, phase='grazing'),
         ]
 
-    def graze(self, model: Any) -> None:  # noqa: ANN401
+    def graze(self, model: ModelView) -> None:
         """Move every cow to its pasture, feed it, pay its herder, and let the starving cows die.
 
         Args:
             model:
                 The model view of the grazing.
         """
-        herders = {int(herder.number): herder for herder in model.agents('herders', AgentView)}
+        herders = {int(herder.number): herder for herder in model.agents('herders', HerderView)}
         for cow, pasture in matches(model, 'grazing'):
+            if not isinstance(cow, CowView) or not isinstance(pasture, PastureView):
+                continue
             cow.move_to(pasture.location)
             eaten = min(pasture.grass, model.parameter('appetite'))
             transfer(pasture, cow, eaten, 'grass', 'energy')
             herder = herders[int(cow.owner)]
             herder.income += model.parameter('milk') * eaten
-        for cow in model.agents('cows', AgentView):
+        for cow in model.agents('cows', CowView):
             cow.energy -= model.parameter('metabolism')
             herder = herders[int(cow.owner)]
             herder.herd += 1
@@ -407,7 +442,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = None,
         regulated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -418,7 +453,7 @@ class RegulatorInteraction(InstitutionInteraction):
         self.low = low
         self.high = high
 
-    def act(self, model: Any) -> None:  # noqa: ANN401
+    def act(self, model: ModelView) -> None:
         """Change the quota with the share of grass left on the meadow.
 
         Args:
@@ -427,9 +462,9 @@ class RegulatorInteraction(InstitutionInteraction):
         """
         if not model.parameter('regulated'):
             return
-        pastures = model.agents('meadow', AgentView)
+        pastures = model.agents('meadow', PastureView)
         share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
-        for herder in model.agents('herders', AgentView):
+        for herder in model.agents('herders', HerderView):
             if share < model.parameter('low'):
                 herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
             elif share > model.parameter('high'):

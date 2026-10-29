@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
@@ -15,29 +15,36 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ....types import Array
 from ..._catalog import register_model
 from ..common.markets import MarketInteraction, SampleAndSwitch, Trade
+from ._bank_view import BankView
+from ._firm_view import FirmView
 
 
-def _lend(trade: Trade, model: Any) -> None:  # noqa: ANN401
+def _lend(trade: Trade, model: ModelView) -> None:
     """Record a loan on the books of the firm and of the bank."""
     del model
-    trade.buyer.loan += trade.quantity
-    trade.buyer.rate = trade.price
-    trade.seller.lent += trade.quantity
+    firm, bank = trade.buyer, trade.seller
+    if not isinstance(firm, FirmView) or not isinstance(bank, BankView):
+        error_msg = 'A loan is a trade of a firm with a bank.'
+        raise TypeError(error_msg)
+    firm.loan += trade.quantity
+    firm.rate = trade.price
+    bank.lent += trade.quantity
 
 
-def _herfindahl(lent: Array) -> float:
+def _herfindahl(values: object) -> float:
     """Return the Herfindahl index of the banks' shares of the loans."""
+    lent = np.asarray(values, dtype=float)
     total = lent.sum()
     return float(np.sum((lent / total) ** 2)) if total > 0 else float('nan')
 
 
-def _largest_share(lent: Array) -> float:
+def _largest_share(values: object) -> float:
     """Return the share of the loans of the largest lender."""
+    lent = np.asarray(values, dtype=float)
     total = lent.sum()
     return float(lent.max() / total) if total > 0 else float('nan')
 
@@ -53,50 +60,50 @@ class FirmElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        net_worth:
+            The initial net worth.
+
+        demand:
+            The loan still wanted in the current step.
+
+        bid:
+            The highest interest rate the firm pays.
+
+        loan:
+            The loan of the current step.
+
+        rate:
+            The interest rate of the loan, zero without a loan.
+
+        partner:
+            The id of the bank of the firm, `-1` before its first loan.
+
+        gross_return:
+            The return on the capital of the last step.
+
+        injected:
+            The net worth of an entrant that replaced the firm in the last step, zero otherwise.
+
+        defaulted:
+            Whether the firm defaulted in the last step.
+
+        leverage:
+            The ratio of the loan wanted to the net worth.
+
+        mean_return:
+            The mean return on capital.
+
+        volatility:
+            The standard deviation of the return on capital.
+
+        entry:
+            The net worth of an entrant.
+
         lenders:
             The path of the group of banks.
-
-        **values:
-            The values of the declared variables, by name:
-
-            net_worth:
-                The initial net worth.
-
-            demand:
-                The loan still wanted in the current step.
-
-            bid:
-                The highest interest rate the firm pays.
-
-            loan:
-                The loan of the current step.
-
-            rate:
-                The interest rate of the loan, zero without a loan.
-
-            partner:
-                The id of the bank of the firm, `-1` before its first loan.
-
-            gross_return:
-                The return on the capital of the last step.
-
-            injected:
-                The net worth of an entrant that replaced the firm in the last step, zero otherwise.
-
-            defaulted:
-                Whether the firm defaulted in the last step.
-
-            leverage:
-                The ratio of the loan wanted to the net worth.
-
-            mean_return:
-                The mean return on capital.
-
-            volatility:
-                The standard deviation of the return on capital.
-
-            entry:
-                The net worth of an entrant.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import FirmElement
@@ -140,6 +147,11 @@ class FirmElement(Element):
         self.entry = entry
         self.lenders = lenders
 
+    @classmethod
+    def _get_view(cls) -> type[FirmView]:
+        """Return the view of a firm, with its balance sheet and its loan."""
+        return FirmView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the borrowing plan and the investment rule.
 
@@ -153,7 +165,7 @@ class FirmElement(Element):
         """
         return [RuleLaw(self.plan, phase='plan'), RuleLaw(self.invest, phase='settle')]
 
-    def plan(self, agent: AgentView, model: ModelView) -> None:
+    def plan(self, agent: FirmView, model: ModelView) -> None:
         """Ask for a loan of `leverage` times the net worth.
 
         Args:
@@ -166,7 +178,7 @@ class FirmElement(Element):
         agent.demand = model.parameter('leverage') * agent.net_worth
         agent.loan, agent.rate, agent.defaulted, agent.injected = 0.0, 0.0, 0, 0.0
 
-    def invest(self, agent: AgentView, model: ModelView) -> None:
+    def invest(self, agent: FirmView, model: ModelView) -> None:
         """Invest the capital, pay the interest to the bank, and default when the net worth turns negative.
 
         Args:
@@ -182,7 +194,7 @@ class FirmElement(Element):
         interest = agent.loan * agent.rate
         worth = agent.net_worth + agent.gross_return - interest
         if agent.loan > 0:
-            bank = next(bank for bank in model.agents(self.lenders, AgentView) if bank.id == int(agent.partner))
+            bank = next(bank for bank in model.agents(self.lenders, BankView) if bank.id == int(agent.partner))
             bank.equity += interest + min(worth, 0.0)
             bank.losses += max(-worth, 0.0)
         if worth >= 0:
@@ -201,6 +213,9 @@ class BankElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
         equity:
             The initial equity.
@@ -251,6 +266,11 @@ class BankElement(Element):
         self.alpha = alpha
         self.capital_ratio = capital_ratio
 
+    @classmethod
+    def _get_view(cls) -> type[BankView]:
+        """Return the view of a bank, with its equity, quote, and loans."""
+        return BankView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the quoting rule.
 
@@ -264,7 +284,7 @@ class BankElement(Element):
         """
         return [RuleLaw(self.quote, phase='plan')]
 
-    def quote(self, agent: AgentView, model: ModelView) -> None:
+    def quote(self, agent: BankView, model: ModelView) -> None:
         """Set the interest rate and the lending capacity from the equity.
 
         Args:
@@ -331,7 +351,7 @@ class CreditMarketInteraction(MarketInteraction):
 
     reports: ClassVar[tuple[str, ...]] = (*MarketInteraction.reports, 'spread')
 
-    def clear(self, model: Any) -> None:  # noqa: ANN401
+    def clear(self, model: ModelView) -> None:
         """Clear the market and report the spread of the rates paid over the cheapest rate.
 
         Args:
@@ -339,8 +359,8 @@ class CreditMarketInteraction(MarketInteraction):
                 The model view of the market.
         """
         super().clear(model)
-        cheapest = min((bank.ask for bank in model.agents('sellers', AgentView) if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in model.agents('buyers', AgentView) if firm.loan > 0]
+        cheapest = min((bank.ask for bank in model.agents('sellers', BankView) if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in model.agents('buyers', FirmView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         model.report('spread', spread)
 

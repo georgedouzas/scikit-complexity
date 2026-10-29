@@ -64,6 +64,9 @@ class MarketElement(Element):
         label:
             The label of the market.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         price:
             The initial price.
 

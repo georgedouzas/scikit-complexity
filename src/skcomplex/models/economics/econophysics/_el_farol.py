@@ -17,12 +17,13 @@ from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics
+from ._patron_view import PatronView
 
 N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
@@ -91,6 +92,9 @@ class PatronElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
         predictors:
             The bit mask of the predictors of the pool that the patron holds.
 
@@ -127,6 +131,11 @@ class PatronElement(Element):
         self.attends = attends
         self.discount = discount
 
+    @classmethod
+    def _get_view(cls) -> type[PatronView]:
+        """Return the view of the agents of the element."""
+        return PatronView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decision rule.
 
@@ -157,7 +166,7 @@ class PatronElement(Element):
         storage['forecasts'], storage['time'] = forecasts(history), model.time
         return storage
 
-    def decide(self, agent: AgentView, model: ModelView) -> None:
+    def decide(self, agent: PatronView, model: ModelView) -> None:
         """Forecast the attendance with the most accurate predictor held and go when it is below the capacity.
 
         Args:
@@ -182,17 +191,17 @@ class BarInteraction(InstitutionInteraction):
         label:
             The label of the bar.
 
-        patrons:
-            The path of the group of patrons.
+        rule:
+            The function of the model view that acts, unused since the bar overrides `act`.
 
         phase:
             The phase in which the bar counts its patrons.
 
-        **values:
-            The values of the declared variables, by name:
+        capacity:
+            The attendance above which the bar is too crowded to enjoy.
 
-            capacity:
-                The attendance above which the bar is too crowded to enjoy.
+        patrons:
+            The path of the group of patrons.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import BarInteraction
@@ -206,7 +215,7 @@ class BarInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: Callable[[object], None] | None = None,
+        rule: Callable[[ModelView], None] | None = None,
         phase: str | None = 'count',
         capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
         patrons: str = 'patrons',
@@ -222,7 +231,7 @@ class BarInteraction(InstitutionInteraction):
             model:
                 The model view of the bar.
         """
-        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, AgentView)))
+        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, PatronView)))
 
 
 @register_model(

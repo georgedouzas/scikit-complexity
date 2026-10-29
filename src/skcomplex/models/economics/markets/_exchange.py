@@ -6,14 +6,14 @@
 import itertools
 import math
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 
 from ....core.laws.utils import transfer
+from ....engine.solvers import AgentView
 
 
-def cobb_douglas(agent: Any, goods: Sequence[str], weights: Sequence[str]) -> float:  # noqa: ANN401
+def cobb_douglas(agent: object, goods: Sequence[str], weights: Sequence[str]) -> float:
     """Return the logarithm of the Cobb-Douglas utility of an agent, `sum_i a_i log x_i`.
 
     Args:
@@ -48,7 +48,7 @@ def cobb_douglas(agent: Any, goods: Sequence[str], weights: Sequence[str]) -> fl
     return total
 
 
-def marginal_rate(agent: Any, good: str, numeraire: str, weights: tuple[str, str]) -> float:  # noqa: ANN401
+def marginal_rate(agent: object, good: str, numeraire: str, weights: tuple[str, str]) -> float:
     """Return the marginal rate of substitution of a good for a numeraire, the units of numeraire one unit is worth.
 
     Args:
@@ -80,8 +80,8 @@ def marginal_rate(agent: Any, good: str, numeraire: str, weights: tuple[str, str
 
 
 def _trade_once(
-    first: Any,  # noqa: ANN401
-    second: Any,  # noqa: ANN401
+    first: object,
+    second: object,
     pair: tuple[int, int],
     *,
     goods: Sequence[str],
@@ -112,8 +112,8 @@ def _trade_once(
 
 
 def trade_goods(
-    first: Any,  # noqa: ANN401
-    second: Any,  # noqa: ANN401
+    first: object,
+    second: object,
     goods: Sequence[str],
     weights: Sequence[str],
     *,
@@ -175,11 +175,11 @@ def trade_goods(
 
 
 def neighbor_pairing(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[tuple[Any, Any]]:
+) -> list[tuple[object, object]]:
     """Pairing of every agent with a random unpaired neighbour, a pairing of the core's matching law.
 
     The agents of the first group, in random order, each pick one agent of the second group at random among those in
@@ -208,12 +208,12 @@ def neighbor_pairing(
         >>> neighbor_pairing([], [], np.random.default_rng(0), 1)
         []
     """
-    candidates = {agent.id for agent in right}
+    candidates = {agent.id for agent in right if isinstance(agent, AgentView)}
     used: dict[int, int] = {}
-    pairs: list[tuple[Any, Any]] = []
+    pairs: list[tuple[object, object]] = []
     for index in rng.permutation(len(left)):
         agent = left[int(index)]
-        if used.get(agent.id, 0) >= capacity:
+        if not isinstance(agent, AgentView) or used.get(agent.id, 0) >= capacity:
             continue
         free = [
             other
