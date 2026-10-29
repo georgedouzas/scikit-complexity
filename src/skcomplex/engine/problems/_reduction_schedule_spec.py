@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 
@@ -75,7 +74,10 @@ class ReductionScheduleSpec(BaseSpec):
             reduction.run(RunStateSpec(t, x, q))
         return q
 
-    def wrap(self, function: Callable[[float, Array, Array], Any] | None) -> Callable[..., Any] | None:
+    def wrap[R](
+        self,
+        function: Callable[[float, Array, Array], R] | None,
+    ) -> Callable[[float, Array, Array], R] | None:
         """Return a function of the state and the parameters that reads the reductions at the state it receives.
 
         Args:
@@ -89,7 +91,7 @@ class ReductionScheduleSpec(BaseSpec):
         if function is None or not self.steps:
             return function
 
-        def reduced(t: float, x: Array, p: Array) -> Any:  # noqa: ANN401
+        def reduced(t: float, x: Array, p: Array) -> R:
             return function(t, x, self.extend(t, x, p))
 
         return reduced

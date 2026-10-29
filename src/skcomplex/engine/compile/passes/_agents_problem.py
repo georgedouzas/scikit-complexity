@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import cast
 
 from sage.all__sagemath_symbolics import CC
 
@@ -15,8 +14,9 @@ from ....errors import BackendError, LabelError, ValidationError
 from ....specs import VisualSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
-from ...problems import BlockSpec, DeclarationsSpec, KernelSpec, ProblemSpec
+from ...problems import BlockSpec, KernelSpec
 from .._base import BasePass
+from .._compilation import Compilation
 from ._layout import LayoutPass
 from ._problem import ProblemPass
 
@@ -60,11 +60,11 @@ class AgentsProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the agents and the rules to the problem."""
         compilation = self.compilation_
-        blocks = list(cast('DeclarationsSpec', compilation.layout).blocks.values())
-        rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.rules)
+        blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
+        rules = Compilation._required(compilation.rules, 'rules')
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
-            cast('ProblemSpec', compilation.problem),
+            Compilation._required(compilation.problem, 'problem'),
             agents=self._compiled_agents(blocks, rules),
             model_rules=tuple((spec.owner, law) for spec, items in rules for law in items if spec.owner not in agents),
             agent_space=self._agent_space(blocks),

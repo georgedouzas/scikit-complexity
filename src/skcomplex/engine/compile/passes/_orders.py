@@ -8,9 +8,9 @@ from __future__ import annotations
 import itertools
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 
@@ -18,12 +18,12 @@ from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLa
 from ....errors import ValidationError
 from ....specs import CallSpec
 from ....specs._orders_spec import _OrdersSpec
-from ....types import VariableKind
+from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, symbol, vector
-from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
+from ...problems import BlockSpec, KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 from .._laws import _KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
@@ -45,12 +45,12 @@ class OrdersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the orders and lags of the laws and solve their equations."""
         compilation = self.compilation_
-        blocks = list(cast('DeclarationsSpec', compilation.layout).blocks.values())
+        blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
         orders = self._orders_of(blocks)
         compilation.ordered = self._solve_equations(
             [
                 (spec, self._with_orders(spec, laws, block, orders))
-                for spec, laws, block in cast('BlockLaws', compilation.lowered)
+                for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
             ],
         )
 
@@ -188,7 +188,7 @@ class OrdersPass(BasePass):
         return _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description)
 
     @staticmethod
-    def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _OrdersSpec) -> object:
+    def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _OrdersSpec) -> BaseLaw:
         """Return a jump, event, renewal, or assignment law with derivatives and lags replaced and rates retargeted."""
         owner = f'A {type(law).__name__} of {spec.owner}'
         if isinstance(law, JumpLaw):
@@ -223,11 +223,16 @@ class OrdersPass(BasePass):
         return BasePass._replaced(law, value=value)
 
     @staticmethod
-    def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: BlockSpec, orders: _OrdersSpec) -> list[Any]:
+    def _with_orders(
+        spec: KernelSpec,
+        laws: list[BaseLaw],
+        block: BlockSpec,
+        orders: _OrdersSpec,
+    ) -> list[BaseLaw | _RelationSpec]:
         """Return laws with derivatives and lags replaced, rates retargeted, equations as relations, chains added."""
         if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
-            return laws
-        result: list[Any] = []
+            return list(laws)
+        result: list[BaseLaw | _RelationSpec] = []
         for law in laws:
             if isinstance(law, _KERNEL_FREE_LAWS):
                 result.append(law)
@@ -248,10 +253,10 @@ class OrdersPass(BasePass):
         return result
 
     @staticmethod
-    def _numeric_solution(rows: int, size: int, index: int) -> Callable[..., Any]:
+    def _numeric_solution(rows: int, size: int, index: int) -> Callable[..., Array]:
         """Return a function of the matrix and right side entries that solves the linear system for one unknown."""
 
-        def solve(t: float, *entries: Any) -> Any:  # noqa: ANN401
+        def solve(t: float, *entries: npt.ArrayLike) -> Array:
             del t
             values = [np.broadcast_to(np.asarray(entry, dtype=float), (rows,)) for entry in entries]
             matrix_ = np.stack(values[: size * size], axis=-1).reshape(rows, size, size)
@@ -261,7 +266,9 @@ class OrdersPass(BasePass):
         return solve
 
     @staticmethod
-    def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+    def _solve_equations(
+        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+    ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by rate laws on the highest derivatives they solve for jointly."""
         relations = [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)]
         kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]

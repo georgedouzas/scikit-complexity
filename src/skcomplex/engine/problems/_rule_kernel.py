@@ -4,8 +4,7 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable
-from typing import Any, cast
+from collections.abc import Callable, Iterable
 
 import numba
 import numpy as np
@@ -14,7 +13,7 @@ import scipy.sparse
 
 from ...core.spaces import BaseSpace
 from ...core.specs import LatticeStateSpec
-from ...errors import SolverError
+from ...errors import SolverError, ValidationError
 from ...specs import ArgumentsSpec, LookupSpec, RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
@@ -23,12 +22,13 @@ _LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 
 
 @numba.njit(cache=True)
-def _fused_lookup(  # noqa: PLR0917
+def _fused_lookup(
     values: Array,
     centers: Array,
     fill: float,
     table: Indices,
     kind: int,
+    *,
     base: int,
     lookup: Array,
     columns: int,
@@ -97,13 +97,14 @@ class RuleKernel(BaseKernel):
             The sites of every class of the colored or checkerboard schedule.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: str,
         targets: tuple[LatticeStateSpec, ...],
         reads: tuple[LatticeStateSpec, ...],
         table: Indices,
-        rule: Callable[..., Any] | None,
+        rule: Callable[..., object] | None,
+        *,
         lookup: LookupSpec | None,
         schedule: str,
         stochastic: bool,
@@ -155,9 +156,9 @@ class RuleKernel(BaseKernel):
                     float(space.fill),
                     table,
                     _LOOKUP_KINDS[lookup.kind],
-                    lookup.base,
-                    lookup.values,
-                    lookup.columns,
+                    base=lookup.base,
+                    lookup=lookup.values,
+                    columns=lookup.columns,
                 )
                 return [following]
             gathered = np.append(values, space.fill)[table].astype(np.intp)
@@ -176,8 +177,12 @@ class RuleKernel(BaseKernel):
             keywords['degree'] = self.degrees if sites is None else self.degrees[sites]
         if self.stochastic:
             keywords['random'] = rng.random(table.shape[0])
-        result = self.rule(*columns, **keywords)  # type: ignore[misc]
-        results = list(result) if len(self.targets) > 1 else [result]
+        if self.rule is None:
+            error_msg = f'The local rule of {self.owner} has neither a function nor a lookup.'
+            raise ValidationError(error_msg)
+        result = self.rule(*columns, **keywords)
+        several = len(self.targets) > 1
+        results = list(result) if several and isinstance(result, Iterable) else [result]
         if len(results) != len(self.targets):
             error_msg = (
                 f'The local rule of {self.owner} returned {len(results)} arrays for {len(self.targets)} targets.'
@@ -195,15 +200,16 @@ class RuleKernel(BaseKernel):
 
     def _run_near(self, inputs: RunStateSpec, active: npt.NDArray[np.bool_]) -> None:
         """Update the state in place, synchronously, at the active sites and the sites that read one of them."""
-        x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
+        x, p, rng = inputs.x, inputs.p, self._generator_of(inputs)
         readers = active | (self.reading @ active.astype(np.float64) > 0)
         sites = np.flatnonzero(readers)
         if sites.size:
             self._assign(x, self._next(x, p, sites, rng), sites)
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the rule on its schedule."""
-        x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
+        state = self._state_of(inputs)
+        x, p, rng = state.x, state.p, self._generator_of(state)
         size = self.targets[0].size
         if self.schedule == 'synchronous':
             self._assign(x, self._next(x, p, None, rng), None)

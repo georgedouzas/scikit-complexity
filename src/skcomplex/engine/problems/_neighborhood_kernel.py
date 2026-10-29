@@ -5,7 +5,6 @@
 
 import functools
 from collections.abc import Callable, Mapping
-from typing import Any, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -26,7 +25,7 @@ from ...core.spaces import (
 )
 from ...errors import ValidationError
 from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
-from ...types import Array, Indices, Pairs
+from ...types import Array, EdgesFound, Indices, Pairs
 from ._base import BaseKernel
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
@@ -42,6 +41,8 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
 
 
 type Search = StaticSearch | EdgeRowSearch | MetricSearch
+
+_PLANE = 2
 
 
 class NeighborhoodKernel(BaseKernel):
@@ -76,13 +77,14 @@ class NeighborhoodKernel(BaseKernel):
             The time symbol.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         symbol: Expression,
         kind: str,
         argument: Expression,
         weight: Expression,
         entry: EntrySpec,
+        *,
         group: str,
         search: Search,
         reads: dict[Expression, PairReadSpec],
@@ -104,10 +106,10 @@ class NeighborhoodKernel(BaseKernel):
         return sorted(self.reads, key=str)
 
     @functools.cached_property
-    def _function(self) -> Callable[..., list[Any]]:
+    def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the weight, compiled once."""
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
-        return printer.run([self.argument, self.weight])
+        return ExpressionPrinter._function_of(printer.run([self.argument, self.weight]))
 
     @property
     def symbols(self) -> list[Expression]:
@@ -119,7 +121,7 @@ class NeighborhoodKernel(BaseKernel):
         """Number of members."""
         return self.entry.rows
 
-    def _gather(self, x: Array, q: Array, readers: Indices, others: Indices, edges: Indices | None) -> list[Any]:
+    def _gather(self, x: Array, q: Array, readers: Indices, others: Indices, edges: Indices | None) -> list[Array]:
         """Return the values of every symbol for every pair."""
         values = []
         differences = None
@@ -134,25 +136,52 @@ class NeighborhoodKernel(BaseKernel):
             elif pair.side == 'edge':
                 values.append(column[edges])
             elif pair.image:
+                if not isinstance(self.search, MetricSearch):
+                    error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
+                    raise ValidationError(error_msg)
                 if differences is None:
-                    differences = self.search.differences(x, readers, others)  # type: ignore[union-attr]
+                    differences = self.search.differences(x, readers, others)
                 values.append(column[readers] - differences[:, read.column])
             else:
                 values.append(column[others])
         return values
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the reduction of every member into the extended parameter vector of the state, the `p` of `inputs`."""
-        t, x, q = inputs.t, inputs.x, inputs.p
-        indptr, others, edges = self.search.run(inputs)
+        state = self._state_of(inputs)
+        t, x, q = state.t, state.x, state.p
+        indptr, others, edges = self._edges_of(self.search.run(state))
         size = self.size
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
-        argument, weight = self._function(t, *self._gather(x, q, readers, others, edges))
+        argument, weight = ExpressionPrinter._values_of(self._function(t, *self._gather(x, q, readers, others, edges)))
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
+
+    @staticmethod
+    def _edges_of(found: object) -> EdgesFound:
+        """Return the row starts, the neighbours, and the edges a neighbour search found.
+
+        Args:
+            found:
+                What `run` of the search returned.
+
+        Returns:
+            edges:
+                The row starts, the neighbours, and the edges, or `None` for the edges of a search without
+                them.
+
+        Raises:
+            TypeError:
+                The search did not return the row starts, the neighbours, and the edges.
+        """
+        if not isinstance(found, tuple):
+            error_msg = f'A neighbour search returns the row starts, the neighbours, and the edges, not a {found!r}.'
+            raise TypeError(error_msg)
+        indptr, others, edges = found
+        return indptr, others, edges
 
     @staticmethod
     def _reduce_pairs(kind: str, readers: Indices, weight: Array, argument: Array, counts: Indices) -> Array:
@@ -366,7 +395,7 @@ class NeighborhoodKernel(BaseKernel):
         """
         if cone.heading is not None:
             declaration = states.get(cone.heading)
-            if declaration is not None and (declaration.vector or n_dim == 2):  # noqa: PLR2004
+            if declaration is not None and (declaration.vector or n_dim == _PLANE):
                 return cone.heading
             error_msg = (
                 f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
@@ -388,6 +417,29 @@ class NeighborhoodKernel(BaseKernel):
             )
             raise ValidationError(error_msg)
         return velocity
+
+    @staticmethod
+    def _check_rows(space: BaseSpace, rows: int) -> None:
+        """Raise an error unless a group holds one member per node or site of its space.
+
+        Args:
+            space:
+                The space of the group.
+
+            rows:
+                The number of members.
+
+        Raises:
+            ValidationError:
+                The group does not hold one member per node or site.
+        """
+        size = getattr(space, 'size_', None)
+        if rows != size:
+            error_msg = (
+                f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
+                f'group has {rows} members.'
+            )
+            raise ValidationError(error_msg)
 
     @staticmethod
     def _neighbor_search(
@@ -443,29 +495,24 @@ class NeighborhoodKernel(BaseKernel):
             names = ' or '.join(item.__name__ for item in offered)
             error_msg = f'The neighbourhood {over!r} needs a {names}, but the group lives on {space!r}.'
             raise ValidationError(error_msg)
-        if isinstance(over, AdjacencyNeighborhood) and changing is not None and over.layer in changing:
-            source, target, active = changing[over.layer]
-            directed = cast('NetworkSpace', space).graphs_[over.layer].is_directed()
-            return EdgeRowSearch(source, target, active, rows, directed, over.center).check()
-        if isinstance(over, AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood):
-            size = getattr(space, 'size_', None)
-            if rows != size:
-                error_msg = (
-                    f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
-                    f'group has {rows} members.'
-                )
-                raise ValidationError(error_msg)
-            if isinstance(over, AdjacencyNeighborhood):
-                return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).check()  # type: ignore[arg-type]
-            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).check()  # type: ignore[arg-type]
+        if isinstance(over, AdjacencyNeighborhood) and isinstance(space, NetworkSpace):
+            if changing is not None and over.layer in changing:
+                source, target, active = changing[over.layer]
+                directed = space.graphs_[over.layer].is_directed()
+                return EdgeRowSearch(source, target, active, rows, directed, center=over.center).check()
+            NeighborhoodKernel._check_rows(space, rows)
+            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).check()
+        if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
+            NeighborhoodKernel._check_rows(space, rows)
+            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).check()
         position = NeighborhoodKernel._position_state(states)
-        if position is None:
+        if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
                 f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
                 "position state. Declare one with `state(vector=True, position=True)`."
             )
             raise ValidationError(error_msg)
-        continuous: ContinuousSpace = space  # type: ignore[assignment]
+        continuous = space
         periods = continuous.extent_ if continuous.periodic_ else None
         heading = None
         if isinstance(over, ConeNeighborhood):

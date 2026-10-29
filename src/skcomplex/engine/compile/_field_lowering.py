@@ -7,12 +7,14 @@ import functools
 import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from typing import Any, Self, cast
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
-from scipy.sparse import diags
+from scipy.sparse import csr_matrix, diags
+from skfem import Basis, ElementTetP1, ElementTriP1, asm
+from skfem.models.poisson import laplace, mass
 
 from ...core.elements import FieldElement
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
@@ -26,12 +28,14 @@ from ..problems import DeclarationsSpec, DiffusiveLimitSpec, ExpressionPrinter, 
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ._base import BaseLowering, BasePass
+from ._compilation import Compilation
 
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
+PLANE = 2
 
 
-class FieldLowering(BaseLowering):
+class FieldLowering(BaseLowering[list[BaseLaw]]):
     """Lowering of the differential operators in the laws of one component to stencils, with the symbols they read.
 
     `prepare(compilation)` reads the fields and the initial values of the compilation, and `run(laws)` returns the laws
@@ -80,7 +84,7 @@ class FieldLowering(BaseLowering):
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Read the fields and the initial values of the compilation, with no stencil yet.
 
         Args:
@@ -90,9 +94,16 @@ class FieldLowering(BaseLowering):
         Returns:
             self:
                 The prepared lowering.
+
+        Raises:
+            ValidationError:
+                The compilation has no layout yet.
         """
         super()._prepare(context)
-        declarations = cast('DeclarationsSpec', self.compilation_.layout)
+        declarations = self.compilation_.layout
+        if declarations is None:
+            error_msg = 'The compilation has no layout yet. Lower differential operators after the layout pass.'
+            raise ValidationError(error_msg)
         self.fields_ = self._field_entries(declarations)
         self.initial_ = self._initial_values(self.spec, declarations)
         self.shifted_, self.derived_, self.tables_ = {}, {}, {}
@@ -100,7 +111,7 @@ class FieldLowering(BaseLowering):
         self.written_ = defaultdict(list)
         return self
 
-    def _run(self, inputs: object) -> list[BaseLaw]:
+    def _run(self, inputs: list[BaseLaw] | None) -> list[BaseLaw]:
         """Return laws whose differential operators are lowered, noting the stable steps of rate laws.
 
         Args:
@@ -112,7 +123,7 @@ class FieldLowering(BaseLowering):
                 The lowered laws.
         """
         result: list[BaseLaw] = []
-        for law in cast('list[BaseLaw]', inputs):
+        for law in inputs or []:
             if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not self._has_operators(law.value):
                 result.append(law)
                 continue
@@ -146,9 +157,30 @@ class FieldLowering(BaseLowering):
             if reference.entry.start + reference.column < (states if reference.is_state else parameters).size
         }
 
+    def _known_reference(self, item: Expression) -> ReferenceSpec:
+        """Return the reference of a symbol of the spec, raising an error for a symbol the spec does not read.
+
+        Args:
+            item:
+                The symbol.
+
+        Returns:
+            reference:
+                The reference of the symbol.
+
+        Raises:
+            ValidationError:
+                The spec does not read the symbol.
+        """
+        reference = self._reference_of(item, self.spec)
+        if reference is None:
+            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter of its namespace.'
+            raise ValidationError(error_msg)
+        return reference
+
     def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
-        reference = cast('ReferenceSpec', self._reference_of(item, self.spec))
+        reference = self._known_reference(item)
         if reference.source is not ReadKind.MEMBER:
             return None
         found = self.fields_.get(reference.entry.name)
@@ -167,7 +199,7 @@ class FieldLowering(BaseLowering):
         offset: Offset | int,
     ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
-        reference = cast('ReferenceSpec', self._reference_of(item, self.spec))
+        reference = self._known_reference(item)
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
             kind, value = place._get_boundary(variable)
@@ -184,9 +216,15 @@ class FieldLowering(BaseLowering):
                 sites = np.arange(table.shape[0])[:, None]
                 self.tables_[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
-                dimensions = cast('LatticeSpace', space).shape_
+                if not isinstance(space, LatticeSpace) or isinstance(offset, int) or not isinstance(value, float):
+                    error_msg = (
+                        f'A law of {self.spec.owner} reads {item} at a lattice offset, which needs a field on a '
+                        'lattice with a number outside fixed edges.'
+                    )
+                    raise ValidationError(error_msg)
+                dimensions = space.shape_
                 lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).check().prepare()
-                table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
+                table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
                 self.tables_[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self.tables_[key]
         return table, ghost, MODES[kind]
@@ -227,14 +265,14 @@ class FieldLowering(BaseLowering):
             name = f'{base}__{self._tag(total)}'
             target = symbol(name, domain_of(base))
             if self._reference_of(target, self.spec) is None:
-                reference = cast('ReferenceSpec', self._reference_of(base, self.spec))
+                reference = self._known_reference(base)
                 table, ghost, mode = self._table(base, place, total)
-                lattice = isinstance(place.space, LatticeSpace)
+                space = place.space
                 read = NeighborReadSpec(
                     table,
                     ghost,
-                    place.space.shape_ if lattice else None,  # type: ignore[union-attr]
-                    total if lattice else None,  # type: ignore[arg-type]
+                    space.shape_ if isinstance(space, LatticeSpace) else None,
+                    total if isinstance(space, LatticeSpace) and not isinstance(total, int) else None,
                     mode,
                 )
                 self._add_reference(
@@ -249,12 +287,13 @@ class FieldLowering(BaseLowering):
     def _places(self, expression: Expression) -> dict[int, FieldElement]:
         """Return the fields an expression reads, through member symbols, neighbour reads, and derived values."""
         places: dict[int, FieldElement] = {}
+        place: FieldElement | None
         for item in SR(expression).variables():
             if item in self.derived_:
                 place = self.derived_[item][0]
             else:
                 base = self.shifted_.get(item, (item, None))[0]
-                place = self._field_of(base) if self._reference_of(base, self.spec) is not None else None  # type: ignore[assignment]
+                place = self._field_of(base) if self._reference_of(base, self.spec) is not None else None
             if place is not None:
                 places[id(place)] = place
         return places
@@ -281,7 +320,14 @@ class FieldLowering(BaseLowering):
                 'operator acts on the states of fields of one space.'
             )
             raise ValidationError(error_msg)
-        return cast('LatticeSpace | NetworkSpace', next(iter(spaces.values())))
+        space = next(iter(spaces.values()))
+        if not isinstance(space, LatticeSpace | NetworkSpace):
+            error_msg = (
+                f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
+                'finite-element discretization.'
+            )
+            raise ValidationError(error_msg)
+        return space
 
     def _laplacian(self, expression: Expression) -> Expression:
         """Return the stencil of the Laplacian of an expression."""
@@ -320,9 +366,9 @@ class FieldLowering(BaseLowering):
             lowered:
                 The value with stencils.
         """
-        if not self._has_operators(expression):
+        if not isinstance(expression, Expression) or not self._has_operators(expression):
             return expression
-        call = cast('Expression', expression)
+        call = expression
         operator = call.operator()
         operands = [self._lower(item) for item in call.operands()]
         name = getattr(operator, 'name', lambda: '')()
@@ -335,7 +381,7 @@ class FieldLowering(BaseLowering):
             return self._finite_element(name, SR(operands[0]), place)
         return self._stencil(name, operands)
 
-    def _stencil(self, name: str, operands: list[Any]) -> Expression:
+    def _stencil(self, name: str, operands: list[object]) -> Expression:
         """Return the finite-difference stencil of an operator on a lattice or a network."""
         if name == 'laplacian':
             return self._laplacian(SR(operands[0]))
@@ -355,7 +401,7 @@ class FieldLowering(BaseLowering):
     def _derived(self, place: FieldElement, read: FieldOperatorKernel) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
         target = symbol(f'_derived_{place.label}_{len(self.derived_)}')
-        references = [cast('ReferenceSpec', self._reference_of(item, self.spec)) for item in read.symbols]
+        references = [self._known_reference(item) for item in read.symbols]
         entry = next(
             reference.entry
             for reference in references
@@ -365,7 +411,7 @@ class FieldLowering(BaseLowering):
         self.derived_[target] = (place, read)
         return target
 
-    def _spectral(self, name: str, operands: list[Any], place: FieldElement) -> Expression:
+    def _spectral(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return the symbol of a spectral operator applied to an expression, composing chains of operators."""
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
@@ -389,11 +435,11 @@ class FieldLowering(BaseLowering):
             key=str,
         )
         read = FieldOperatorKernel(
-            operand,
-            symbols,
-            self._spectral_apply(multiplier, dimensions),
-            multiplier,
-            dimensions,
+            operand=operand,
+            symbols=symbols,
+            apply=self._spectral_apply(multiplier, dimensions),
+            multiplier=multiplier,
+            dimensions=dimensions,
         ).check()
         return self._derived(place, read)
 
@@ -404,12 +450,20 @@ class FieldLowering(BaseLowering):
                 f'A law of {self.spec.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
-        matrix = self._mesh_laplacian(place.space)  # type: ignore[arg-type]
+        if not isinstance(place.space, MeshSpace):
+            error_msg = f'A law of {self.spec.owner} uses a finite element field, which needs a mesh.'
+            raise ValidationError(error_msg)
+        matrix = self._mesh_laplacian(place.space)
         symbols = sorted(
             (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
             key=str,
         )
-        read = FieldOperatorKernel(operand, symbols, lambda values: matrix @ values, matrix=matrix).check()
+        read = FieldOperatorKernel(
+            operand=operand,
+            symbols=symbols,
+            apply=lambda values: matrix @ values,
+            matrix=matrix,
+        ).check()
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
@@ -420,6 +474,9 @@ class FieldLowering(BaseLowering):
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
         function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])
+        if not callable(function):
+            error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
+            raise TypeError(error_msg)
         self.volume_limits_.append(DiffusiveLimitSpec(function, tuple(references), stiffness))
 
     def _note_limit(self, value: object) -> None:
@@ -443,8 +500,10 @@ class FieldLowering(BaseLowering):
             space = place.space
             if isinstance(space, NetworkSpace):
                 stiffness = max((item for _, item in space.graph.degree), default=1)
+            elif isinstance(space, LatticeSpace):
+                stiffness = sum(2 / step**2 for step in space.spacings_)
             else:
-                stiffness = sum(2 / step**2 for step in cast('LatticeSpace', space).spacings_)
+                continue
             if stiffness == 0:
                 continue
             if place.discretization == 'finite-volume':
@@ -479,7 +538,10 @@ class FieldLowering(BaseLowering):
         return found
 
     @staticmethod
-    def _spectral_apply(multiplier: npt.NDArray[np.complex128], dimensions: tuple[int, ...]) -> Callable[[Any], Any]:
+    def _spectral_apply(
+        multiplier: npt.NDArray[np.complex128],
+        dimensions: tuple[int, ...],
+    ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
 
         Args:
@@ -523,29 +585,18 @@ class FieldLowering(BaseLowering):
         cells: bytes,
         shape: tuple[int, int],
         cell_shape: tuple[int, int],
-    ) -> Any:  # noqa: ANN401
+    ) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
-        from skfem import (
-            Basis,
-            ElementTetP1,
-            ElementTriP1,
-            asm,
-        )  # noqa: PLC0415  # only finite elements need scikit-fem
-        from skfem.models.poisson import laplace, mass  # noqa: PLC0415
-
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
         space = MeshSpace(nodes, elements)
-        basis = Basis(
-            space.check().prepare().mesh_,
-            ElementTriP1() if shape[0] == 2 else ElementTetP1(),
-        )  # noqa: PLR2004
+        basis = Basis(space.check().prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped
 
     @staticmethod
-    def _mesh_matrices(space: MeshSpace) -> tuple[Any, npt.NDArray[np.float64]]:
+    def _mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
 
         Args:
@@ -561,7 +612,7 @@ class FieldLowering(BaseLowering):
         return FieldLowering._cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
     @staticmethod
-    def _mesh_laplacian(space: MeshSpace) -> Any:  # noqa: ANN401
+    def _mesh_laplacian(space: MeshSpace) -> csr_matrix:
         """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
 
         Args:

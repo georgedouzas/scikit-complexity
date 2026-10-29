@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -15,9 +14,10 @@ from sage.all__sagemath_symbolics import SR
 from ....core.laws import FractionalNoiseLaw, NoiseLaw
 from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
 from ....types import Array, FormKind
-from ...problems import LoweredKernelsSpec, ProblemSpec
+from ...problems import KernelSpec, LoweredKernelsSpec
 from ...problems._law_kernel import LawKernel
 from .._base import BasePass
+from .._compilation import Compilation
 from ._check_fractional_noise import CheckFractionalNoisePass
 from ._fractional_form import FractionalFormPass
 
@@ -36,8 +36,8 @@ class FractionalProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the fractional noise rows and the state orders to the problem."""
         compilation = self.compilation_
-        problem = cast('ProblemSpec', compilation.problem)
-        lowered = cast('LoweredKernelsSpec', compilation.kernels)
+        problem = Compilation._required(compilation.problem, 'problem')
+        lowered = Compilation._required(compilation.kernels, 'kernels')
         compilation.problem = replace(
             problem,
             fractional=self._fractional_rows(lowered) if problem.form == FormKind.SDE else (),
@@ -67,6 +67,9 @@ class FractionalProblemPass(BasePass):
             for item in kernel.outputs:
                 spec, law = lowered.laws[id(item)]
                 if isinstance(law, FractionalNoiseLaw):
+                    if not isinstance(spec, KernelSpec):
+                        error_msg = f'The fractional noise law of output {id(item)} has no kernel spec.'
+                        raise TypeError(error_msg)
                     positions = position + np.arange(kernel.rows, dtype=np.intp)
                     description = CheckFractionalNoisePass._fractional_description(spec, law)
                     rows.append(

@@ -9,7 +9,6 @@ import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -20,6 +19,7 @@ from ...specs._run_state_spec import RunStateSpec
 from ...types import Array
 from ._base_problem_spec import BaseProblemSpec
 from ._quantum_kernel import QuantumKernel
+from ._quantum_lowering import QuantumLowering
 
 REAL_TOLERANCE = 1e-10
 
@@ -67,23 +67,15 @@ class QuantumProblemSpec(BaseProblemSpec):
     pure: bool = True
     namespaces: Mapping[str, SimpleNamespace] = field(default_factory=dict, repr=False)
     members: Mapping[str, tuple[SimpleNamespace, ...]] = field(default_factory=dict, repr=False)
-    lowering: Any = field(default=None, repr=False)
+    lowering: QuantumLowering | None = field(default=None, repr=False)
     hamiltonian_operator: Expression = field(default=SR(0), repr=False)
-    cache: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
-
-    @staticmethod
-    def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
-        """Return the sum of sparse matrices, the zero matrix without any."""
-        total = sp.csr_array((size, size), dtype=complex)
-        for matrix in matrices:
-            total = total + matrix
-        return sp.csr_array(total)
+    cache: dict[str, list[sp.csr_array]] = field(default_factory=dict, repr=False, compare=False)
 
     @staticmethod
     def _matrix_at(terms: Iterable[QuantumKernel], t: float, p: Array, size: int) -> sp.csr_array:
         """Return the sum of the terms at a time and a parameter vector."""
-        return QuantumProblemSpec._sum_matrices(
-            (term.run(RunStateSpec(t, np.zeros(0), p)) * term.matrix for term in terms),
+        return QuantumKernel._sum_matrices(
+            (QuantumKernel._coefficient_of(term.run(RunStateSpec(t, np.zeros(0), p))) * term.matrix for term in terms),
             size,
         )
 
@@ -124,7 +116,7 @@ class QuantumProblemSpec(BaseProblemSpec):
         total = 0j
         for term in terms:
             value = np.vdot(state, term.matrix @ state) if self.pure else term.matrix.multiply(state.T).sum()
-            total += term.run(RunStateSpec(t, np.zeros(0), p)) * complex(value)
+            total += QuantumKernel._coefficient_of(term.run(RunStateSpec(t, np.zeros(0), p))) * complex(value)
         if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
             return float(total.real)
         return total

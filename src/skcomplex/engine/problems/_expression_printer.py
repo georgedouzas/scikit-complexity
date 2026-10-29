@@ -7,13 +7,14 @@ import operator
 import re
 from collections import Counter
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import scipy.special
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
+from sage.structure.element import RingElement
 
 from ...errors import ValidationError
 from ...specs._dialect_spec import DIALECTS
@@ -34,10 +35,12 @@ RELATIONS = {
 _CONDITION = 'np.where('
 _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
+type _Number = RingElement | int | float | complex
+
 _NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
 
 
-class ExpressionPrinter(BasePrinter):
+class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
     """Printer of Sage expressions as code of NumPy, scalar Python for Numba, or LAMMPS Lepton.
 
     `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` returns the assignments of the
@@ -120,9 +123,26 @@ class ExpressionPrinter(BasePrinter):
 
     def _run(
         self,
-        inputs: Sequence[Expression],
+        inputs: Sequence[Expression] | None,
     ) -> tuple[list[tuple[str, str]], list[str]] | Callable[..., list[object]]:
-        """Return the assignments and the code of the expressions, or the NumPy function of a compiled printer."""
+        """Return the assignments and the code of the expressions, or the NumPy function of a compiled printer.
+
+        Args:
+            inputs:
+                The expressions.
+
+        Returns:
+            printed:
+                The assignments of the repeated subexpressions and the code of every expression, or the NumPy function
+                `f(t, *symbols)` of the expressions for a compiled printer.
+
+        Raises:
+            ValidationError:
+                No expressions are passed.
+        """
+        if inputs is None:
+            error_msg = 'A printer runs on expressions. Pass them to `run`.'
+            raise ValidationError(error_msg)
         expressions = [SR(expression) for expression in inputs]
         self.bound_: dict[PrintedKey, str] = {}
         counts = self._subexpressions(expressions)
@@ -149,7 +169,49 @@ class ExpressionPrinter(BasePrinter):
             return assignments, codes
         return self._function(assignments, codes)
 
-    def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[Any]]:
+    @staticmethod
+    def _function_of(printed: object) -> Callable[..., object]:
+        """Return the NumPy function a compiled printer returned from `run`.
+
+        Args:
+            printed:
+                What `run` of a compiled printer returned.
+
+        Returns:
+            function:
+                The function `f(t, *symbols)`.
+
+        Raises:
+            TypeError:
+                The printer was not compiled, so it returned code instead of a function.
+        """
+        if not callable(printed):
+            error_msg = f'A compiled printer returns a function, not a {type(printed).__name__}.'
+            raise TypeError(error_msg)
+        return printed
+
+    @staticmethod
+    def _values_of(computed: object) -> list[npt.ArrayLike]:
+        """Return the values of the expressions that the function of a compiled printer computed.
+
+        Args:
+            computed:
+                What the function returned.
+
+        Returns:
+            values:
+                One array or number per expression.
+
+        Raises:
+            TypeError:
+                The function did not return a list.
+        """
+        if not isinstance(computed, list):
+            error_msg = f'The function of a compiled printer returns a list, not a {type(computed).__name__}.'
+            raise TypeError(error_msg)
+        return computed
+
+    def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[object]]:
         """Return the NumPy function `f(t, *symbols)` that runs printed assignments and returns the printed codes."""
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
         if any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes):
@@ -157,10 +219,8 @@ class ExpressionPrinter(BasePrinter):
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         namespace = dict(_NAMESPACE)
-        exec(
-            '\n'.join(lines),
-            namespace,
-        )  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
+        source = '\n'.join(lines)
+        exec(source, namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
         return namespace['_function']
 
     def _wrap(self, printed: Printed, precedence: int) -> str:
@@ -168,19 +228,18 @@ class ExpressionPrinter(BasePrinter):
         code, level = printed
         return code if level >= precedence else f'({code})'
 
-    def _number(self, value: Any) -> Printed:  # noqa: ANN401
+    def _number(self, value: _Number) -> Printed:
         """Return the code of a number."""
         if isinstance(value, Integer | int):
             return str(int(value)), (ATOM if value >= 0 else NEGATION)
         if isinstance(value, Rational) and self.dialect_.exact_rationals:
             code = f'{abs(int(value.numerator()))}/{int(value.denominator())}'
             return (f'-{code}', NEGATION) if value < 0 else (code, PRODUCT)
-        try:
-            number = float(value)
-        except TypeError as error:
+        number = None if isinstance(value, complex) else self._real(value)
+        if number is None:
             if not self.dialect_.complex_numbers:
                 name = f'complex number {value}'
-                raise self.dialect_.unknown(name) from error
+                raise self.dialect_.unknown(name)
             return repr(complex(value)), ATOM
         return repr(number), (ATOM if number >= 0 else NEGATION)
 
@@ -202,7 +261,7 @@ class ExpressionPrinter(BasePrinter):
 
     def _product(self, item: Expression) -> Printed:
         """Return the code of a product, with factors of negative powers in its denominator."""
-        coefficient: Any = 1
+        coefficient: _Number = 1
         numerator: list[str] = []
         denominator: list[str] = []
         for factor in item.operands() if self._is_product(item) else [item]:
@@ -210,7 +269,7 @@ class ExpressionPrinter(BasePrinter):
                 coefficient *= self._numeric(factor)
                 continue
             exponent = factor.operands()[1] if factor.operator() is operator.pow else None
-            if exponent is not None and exponent.is_numeric() and self._numeric(exponent) < 0:
+            if exponent is not None and exponent.is_numeric() and self._is_negative(self._numeric(exponent)):
                 base = factor.operands()[0]
                 denominator.append(self._wrap(self._power(base, -exponent), PRODUCT + 1))
                 continue
@@ -294,15 +353,21 @@ class ExpressionPrinter(BasePrinter):
         return getattr(item.operator(), '__name__', '') == 'mul_vararg'
 
     @staticmethod
-    def _is_negative(value: Any) -> bool:  # noqa: ANN401
+    def _is_negative(value: _Number) -> bool:
         """Check whether a number is real and negative, so complex numbers are never negated."""
-        try:
-            return bool(float(value) < 0)
-        except TypeError:
-            return False
+        number = None if isinstance(value, complex) else ExpressionPrinter._real(value)
+        return number is not None and number < 0
 
     @staticmethod
-    def _numeric(item: Expression) -> Any:  # noqa: ANN401
+    def _real(value: RingElement | float) -> float | None:
+        """Return the float of a real number, or `None` for a complex Sage number."""
+        try:
+            return float(value)
+        except TypeError:
+            return None
+
+    @staticmethod
+    def _numeric(item: Expression) -> _Number:
         """Return the Python or Sage number of a numeric expression."""
         return item.pyobject()
 

@@ -6,7 +6,6 @@
 import re
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, Expression
@@ -19,12 +18,20 @@ from ....errors import LabelError, RoleError, ValidationError
 from ....specs import WienerProcessSpec
 from ....types import ReadKind, VariableKind
 from ..._utils import declarations_of, domain_of, symbol, vector
-from ...problems import BlockSpec, DeclarationsSpec, KernelSpec, ProblemSpec, ReferenceSpec, SetSymbolSpec
+from ...problems import (
+    BlockSpec,
+    KernelSpec,
+    ObservedSpec,
+    ProblemSpec,
+    ReferenceSpec,
+    SetSymbolSpec,
+)
 from ...problems._declarations_spec import _ACTIVE, ENDS
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE
 from .._base import BasePass
+from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 
@@ -43,11 +50,11 @@ class SpecsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Build the kernel specs of the declared components."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         blocks = list(declarations.blocks.values())
         elements = {block.node.path: block for block in blocks if not block.node.interaction}
         elements.update(declarations.processes)
-        nodes = cast('list[NodeSpec]', compilation.nodes)
+        nodes = Compilation._required(compilation.nodes, 'nodes')
         live = ObservableEvaluator._lowerable_observables(compilation.system, nodes)
         observer = Observer(declarations, live).check().prepare()
         compilation.specs = [
@@ -523,7 +530,9 @@ class SpecsPass(BasePass):
         observed = {
             role: found
             for role, label in labels.items()
-            if role not in sets and role not in variadic and (found := observer.run((node, label))) is not None
+            if role not in sets
+            and role not in variadic
+            and isinstance(found := observer.run((node, label)), ObservedSpec)
         }
         single_members = {
             role: member

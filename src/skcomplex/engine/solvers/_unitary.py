@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
 import qutip
+from qutip.solver import solver_base
 
 from ...types import Array
 from ..problems import QuantumProblemSpec
@@ -62,6 +62,6 @@ class UnitarySolver(QuantumSolver):
             return ['dissipators, which need the lindblad or quantum_trajectories solver']
         return [] if problem.pure else ['a density matrix, which needs the lindblad solver']
 
-    def _create(self, p: Array) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Schrödinger solver at fixed parameters."""
         return qutip.SESolver(self._operator(self.quantum_.hamiltonian, p), options=self._options)

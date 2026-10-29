@@ -7,7 +7,6 @@ import itertools
 import re
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -26,6 +25,7 @@ from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
 from ...problems._declarations_spec import _ACTIVE, ENDS
 from .._base import BasePass
+from .._compilation import Compilation
 
 _MEMBERS = '~members'
 _MAX_SHOWN_COMPONENTS = 10
@@ -46,7 +46,7 @@ class LayoutPass(BasePass):
         """Declare the components of the nodes."""
         compilation = self.compilation_
         declarations = DeclarationsSpec(time=symbol('t'))
-        for node in cast('list[NodeSpec]', compilation.nodes):
+        for node in Compilation._required(compilation.nodes, 'nodes'):
             declarations, _ = self._declare_component(declarations, node)
         self._check_symbol_names(declarations.blocks)
         compilation.layout = declarations
@@ -242,7 +242,10 @@ class LayoutPass(BasePass):
         A group on edges also gets the ends of every edge.
         """
         node = block.node
-        group = cast('GroupElement', node.component)
+        group = node.component
+        if not isinstance(group, GroupElement):
+            error_msg = f'{node.path} has a capacity layout, but it is not a group.'
+            raise ValidationError(error_msg)
         rows, active = node.members or 0, node.active or 0
         declarations, block = LayoutPass._declare_hidden(
             declarations,
@@ -252,7 +255,10 @@ class LayoutPass(BasePass):
         )
         if group.on != 'edges':
             return declarations, block
-        space = cast('NetworkSpace', node.space)
+        space = node.space
+        if not isinstance(space, NetworkSpace):
+            error_msg = f'The group {node.path} lies on the edges of a space that is not a network.'
+            raise ValidationError(error_msg)
         padding = np.zeros(rows - active, dtype=np.intp)
         for variable, ends in zip(ENDS, space.edges_[group.layer], strict=True):
             declarations, block = LayoutPass._declare_hidden(
@@ -286,12 +292,13 @@ class LayoutPass(BasePass):
         if variable not in values:
             return default
         value = values[variable]
+        shape = np.shape(np.asarray(value))
         space = getattr(component, 'space', None)
-        if isinstance(space, LatticeSpace) and np.shape(value) == space.shape_:
-            return np.ravel(value)
-        if node.active is not None and np.ndim(value) and len(value) == node.active:
+        if isinstance(space, LatticeSpace) and shape == space.shape_:
+            return np.ravel(np.asarray(value))
+        if node.active is not None and shape and shape[0] == node.active:
             rows = (node.members or 0) - node.active
-            padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *np.shape(value)[1:]))
+            padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *shape[1:]))
             return np.concatenate([np.asarray(value, dtype=float), padding])
         return value
 
@@ -363,10 +370,10 @@ class LayoutPass(BasePass):
     def _flat_value(
         name: str,
         value: object,
-        array: npt.NDArray[Any],
+        array: npt.NDArray[np.generic],
         shape: tuple[int, ...],
         members: int | None,
-    ) -> npt.NDArray[Any]:
+    ) -> npt.NDArray[np.generic]:
         """Return an encoded value as flat components of the given shape, member after member for a group."""
         if members is not None:
             return LayoutPass._coerce_group_value(name, value, array, shape, members)
@@ -385,10 +392,10 @@ class LayoutPass(BasePass):
     def _coerce_group_value(
         name: str,
         value: object,
-        array: npt.NDArray[Any],
+        array: npt.NDArray[np.generic],
         shape: tuple[int, ...],
         members: int,
-    ) -> npt.NDArray[Any]:
+    ) -> npt.NDArray[np.generic]:
         """Return a group value as flat member-major components, broadcasting shared values."""
         if array.shape in ((), shape):
             return np.broadcast_to(array, (members, *shape)).ravel().copy()
@@ -452,7 +459,7 @@ class LayoutPass(BasePass):
                 )
             raise ValidationError(error_msg)
         flat = LayoutPass._flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)
-        return np.ascontiguousarray(flat).view(float) if domain is CC else flat
+        return np.ascontiguousarray(flat).view(float) if domain is CC else np.asarray(flat, dtype=float)
 
     @staticmethod
     def _noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:

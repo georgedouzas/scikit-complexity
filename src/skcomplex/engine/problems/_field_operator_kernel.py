@@ -4,8 +4,7 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -42,13 +41,14 @@ class FieldOperatorKernel(BaseKernel):
             `None` for spectral operators.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         operand: Expression,
         symbols: list[Expression],
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
         multiplier: npt.NDArray[np.complex128] | None = None,
         dimensions: tuple[int, ...] | None = None,
+        *,
         matrix: scipy.sparse.sparray | None = None,
     ) -> None:
         self.operand = operand
@@ -59,11 +59,12 @@ class FieldOperatorKernel(BaseKernel):
         self.matrix = matrix
 
     @functools.cached_property
-    def _function(self) -> Callable[..., Any]:
+    def _function(self) -> Callable[..., object]:
         """NumPy function of the operand, compiled once."""
-        return ExpressionPrinter(time=symbol('t'), compiled=True).check().prepare(self.symbols).run([self.operand])
+        printer = ExpressionPrinter(time=symbol('t'), compiled=True).check().prepare(self.symbols)
+        return ExpressionPrinter._function_of(printer.run([self.operand]))
 
-    def operand_values(self, t: float, values: list[Any], size: int) -> npt.NDArray[np.float64]:
+    def operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:
         """Return the operand at every site, evaluated from the values of its symbols.
 
         Args:
@@ -80,8 +81,12 @@ class FieldOperatorKernel(BaseKernel):
             operand:
                 The operand's value at every site.
         """
-        return np.broadcast_to(np.asarray(self._function(t, *values)[0], dtype=float), (size,))
+        return np.broadcast_to(
+            np.asarray(ExpressionPrinter._values_of(self._function(t, *values))[0], dtype=float),
+            (size,),
+        )
 
-    def _run(self, inputs: RunStateSpec) -> npt.NDArray[np.float64]:
+    def _run(self, inputs: RunStateSpec | None) -> npt.NDArray[np.float64]:
         """Return the operator applied to the operand values at every site, the `x` of `inputs`."""
-        return self.apply(inputs.x)
+        state = self._state_of(inputs)
+        return self.apply(state.x)

@@ -5,7 +5,6 @@
 
 import copy
 import re
-from typing import cast
 
 import numpy as np
 
@@ -255,9 +254,9 @@ class FlattenPass(BasePass):
         space: BaseSpace | None,
     ) -> tuple[Element | GroupElement, int | None]:
         """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
-        if not FlattenPass._is_topology_group(element, space):
+        if not isinstance(element, GroupElement) or not FlattenPass._is_topology_group(element, space):
             return element, None
-        group = cast('GroupElement', element)
+        group = element
         initial = group.size_
         capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
         if capacity < initial:

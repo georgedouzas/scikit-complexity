@@ -4,5 +4,5 @@
 # License: MIT
 
 
-class _TooDense(Exception):  # noqa: N818
+class _TooDenseError(Exception):
     """Raised internally when the dense blocks of a pattern exceed the size limit."""

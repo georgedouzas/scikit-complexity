@@ -175,8 +175,9 @@ def test_visual_base_log_is_abstract():
     simulation = Simulation(create('lotka_volterra')).check().run(until=0.0)
     problem = simulation.problem_
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
+    recording = rr.RecordingStream('test_visual_base_log_is_abstract')
     with pytest.raises(NotImplementedError):
-        BaseVisual(path=problem.elements[0].path, recording=None).check().prepare(problem).run(frame)
+        BaseVisual(path=problem.elements[0].path, recording=recording).check().prepare(problem).run(frame)
 
 
 def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):

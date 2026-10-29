@@ -6,7 +6,7 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Any, cast, overload
+from typing import overload
 
 import mesa
 import networkx as nx
@@ -16,7 +16,7 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ...core.elements import GroupElement
+from ...core.elements import BaseElement, GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.specs import CompiledAgentsSpec
@@ -129,7 +129,7 @@ class ModelView:
         }
 
     @property
-    def inputs(self) -> dict[str, Any]:
+    def inputs(self) -> Mapping[str, object]:
         """Values of the states of other partitions at the last synchronisation point, by dotted name."""
         return self._stepper.inputs_
 
@@ -164,7 +164,7 @@ class ModelView:
     @overload
     def agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
 
-    def agents(self, name: str, view: type['AgentView'] | None = None) -> list['AgentView']:
+    def agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
         """Return the views of the agents of a group bound to a role of the owner, or of a group by path.
 
         Args:
@@ -190,7 +190,9 @@ class ModelView:
             viewed = type(wrong[0]).__mro__[1].__name__
             error_msg = f'The agents of {name} are viewed as {viewed}, not {wanted.__name__}.'
             raise SimulationError(error_msg)
-        return views
+        if view is None:
+            return views
+        return [item for item in views if isinstance(item, view)]
 
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner, or of a group by path.
@@ -218,7 +220,7 @@ class ModelView:
             raise KeyError(error_msg)
         shape = problem.lattice_shape(name)
         if shape is not None:
-            return int(np.ravel_multi_index(tuple(int(item) for item in np.atleast_1d(cast('Any', cell))), shape))
+            return int(np.ravel_multi_index(tuple(int(item) for item in np.atleast_1d(np.asarray(cell))), shape))
         owner = name.rpartition('.')[0]
         element = next(item for item in problem.elements if item.path == owner)
         space = getattr(element.element, 'space', None)
@@ -251,7 +253,7 @@ class ModelView:
         if values is None:
             error_msg = f'The agents read the field {name}, which no other partition provides. Run it in co-simulation.'
             raise KeyError(error_msg)
-        return float(np.ravel(values)[site])
+        return float(np.ravel(np.asarray(values))[site])
 
     def deposit(self, name: str, cell: object, amount: float) -> None:
         """Add an amount to a field at a cell at the next synchronisation point.
@@ -270,9 +272,9 @@ class ModelView:
             KeyError:
                 The name is not a state of a field.
         """
-        entry = self._stepper.problem_.states.entry(name) if self._stepper.problem_.states.has(name) else None
         site = self._site(name, cell)
-        self._stepper.deposits_[entry.start + site * entry.columns] += amount  # type: ignore[union-attr]
+        entry = self._stepper.problem_.states.entry(name)
+        self._stepper.deposits_[entry.start + site * entry.columns] += amount
 
     def random_empty_cell(self) -> object:
         """Return the coordinates of a random empty cell of the grid or network.
@@ -281,7 +283,7 @@ class ModelView:
             location:
                 The cell coordinates or the network node.
         """
-        return self._stepper.space_.select_random_empty_cell().coordinate
+        return self._stepper._cells().select_random_empty_cell().coordinate
 
     def create(self, group: str, location: object = None, **values: object) -> 'AgentView':
         """Create an agent of a group, at a location or at a random place.
@@ -312,7 +314,7 @@ class ModelView:
         return self._stepper.round_
 
     @property
-    def storage(self) -> dict[str, Any]:
+    def storage(self) -> dict[str, object]:
         """Mutable mapping private to the owner that persists across the steps of one run, such as an order book."""
         return self._stepper.storage_.setdefault(self._owner, {})
 
@@ -366,7 +368,7 @@ class ModelView:
         array = np.asarray(values, dtype=float)
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
-    def observable(self, name: str) -> Any:  # noqa: ANN401
+    def observable(self, name: str) -> object:
         """Return the current value of an observable of the system, such as an aggregate of a group.
 
         Args:
@@ -557,7 +559,7 @@ class AgentView:
         if isinstance(self._stepper.problem_.agent_space, ContinuousSpace):
             self._agent.position = np.asarray(location, dtype=float)
             return
-        self._agent.cell = self._stepper.space_[MesaSolver._cell_key(location)]
+        self._agent.cell = self._stepper._cells()[MesaSolver._cell_key(location)]
 
     def remove(self) -> None:
         """Remove the agent from the model, after checking that it holds none of a conserved quantity.
@@ -695,7 +697,7 @@ class MesaSolver(ExternalSolver):
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
             laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -734,12 +736,12 @@ class MesaSolver(ExternalSolver):
                 The problem is not agent-based.
         """
         self.parameters_ = problem.initial_parameters.copy()
-        self.inputs_: dict[str, Any] = {}
+        self.inputs_: Mapping[str, object] = {}
         self.deposits_ = np.zeros(problem.states.size)
         self.reports_: dict[str, float] = {}
         self.reported_: dict[str, deque[float]] = {}
-        self.storage_: dict[str, dict[str, Any]] = {}
-        self.buffer_: dict[tuple[mesa.Agent, str], Any] | None = None
+        self.storage_: dict[str, dict[str, object]] = {}
+        self.buffer_: dict[tuple[mesa.Agent, str], object] | None = None
         self.round_ = 0
         self._live: Array | None = None
         self._state: Array = problem.initial_state
@@ -757,7 +759,7 @@ class MesaSolver(ExternalSolver):
         self._classes: dict[type, CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
-        self.space_: Any = self._build_space(
+        self.space_ = self._build_space(
             problem.agent_space,
             self.model_,
             sum(spec.size for spec in problem.agents),
@@ -817,12 +819,30 @@ class MesaSolver(ExternalSolver):
             point = location if location is not None else self.model_.rng.uniform([0, 0], space.extent_[:2])
             agent.position = np.asarray(point, dtype=float)
         elif space is not None:
+            cells = self._cells()
             if location is not None:
-                agent.cell = self.space_[self._cell_key(location)]
+                agent.cell = cells[self._cell_key(location)]
             elif space.capacity is not None:
-                agent.cell = self.space_.select_random_empty_cell()
+                agent.cell = cells.select_random_empty_cell()
             else:
-                agent.cell = self.space_.all_cells.select_random_cell()
+                agent.cell = cells.all_cells.select_random_cell()
+
+    def _cells(self) -> OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network:
+        """Return the Mesa grid or network the agents live on.
+
+        Returns:
+            cells:
+                The Mesa grid or network.
+
+        Raises:
+            SimulationError:
+                The agents live in a continuous space or in no space, which has no cells.
+        """
+        space = self.space_
+        if not isinstance(space, OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network):
+            error_msg = 'The agents live in no grid or network, which has no cells.'
+            raise SimulationError(error_msg)
+        return space
 
     def _resolve_group(self, group: str, scope: str = '') -> str:
         """Return the path of a group named relative to the system of a component, or by its path.
@@ -912,7 +932,7 @@ class MesaSolver(ExternalSolver):
         """
         return self._classes[type(agent)]
 
-    def _agents_of(self, group: str) -> list[Any] | None:
+    def _agents_of(self, group: str) -> list[mesa.Agent] | None:
         """Return the alive Mesa agents of a group, or `None` when the model has no such group."""
         if group not in self._specs:
             return None
@@ -1012,7 +1032,7 @@ class MesaSolver(ExternalSolver):
         if self._live is not None:
             self._live[indices] = value
 
-    def _observable(self, name: str) -> Any:  # noqa: ANN401
+    def _observable(self, name: str) -> object:
         """Return the current value of an observable of the problem.
 
         Args:
@@ -1159,10 +1179,10 @@ class MesaSolver(ExternalSolver):
     def _state_property(name: str) -> property:
         """Return the property of a state of agents, which sets the agent at the end of a simultaneous phase."""
 
-        def read(view: AgentView) -> Any:  # noqa: ANN401
+        def read(view: AgentView) -> object:
             return getattr(view._agent, name)
 
-        def write(view: AgentView, value: Any) -> None:  # noqa: ANN401
+        def write(view: AgentView, value: object) -> None:
             buffer = view._stepper.buffer_
             if buffer is not None:
                 buffer[view._agent, name] = value
@@ -1184,7 +1204,7 @@ class MesaSolver(ExternalSolver):
     @staticmethod
     def _view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
         """Return the class of the views of a group's agents, with a property per state and parameter."""
-        names: dict[str, Any] = {
+        names: dict[str, object] = {
             name: MesaSolver._parameter_property(name, entry)
             for name, entry in spec.parameters.items()
             if name not in spec.states
@@ -1207,7 +1227,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _agent_type(spec: CompiledAgentsSpec) -> Any:  # noqa: ANN401
+    def _agent_type(spec: CompiledAgentsSpec) -> type[BaseElement]:
         """Return the element type of a compiled agent element or group."""
         return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
@@ -1245,4 +1265,8 @@ class MesaSolver(ExternalSolver):
     @staticmethod
     def _view_of(agent: mesa.Agent) -> AgentView:
         """Return the view of an agent, which the stepper creates with the agent."""
-        return cast('AgentView', agent.__dict__['view_'])
+        view = agent.__dict__['view_']
+        if not isinstance(view, AgentView):
+            error_msg = f'The agent holds a {type(view).__name__}, not the view the stepper creates with it.'
+            raise TypeError(error_msg)
+        return view

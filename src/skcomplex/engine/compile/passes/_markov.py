@@ -4,8 +4,7 @@
 # License: MIT
 
 import re
-from collections.abc import Callable, Sequence
-from typing import Any, cast
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +19,7 @@ from ..._utils import symbols_of
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import BlockLaws, Compilation
 
 
 class MarkovPass(BasePass):
@@ -39,13 +38,13 @@ class MarkovPass(BasePass):
         compilation = self.compilation_
         lowered: BlockLaws = []
         markov: list[tuple[KernelSpec, MatrixLawSpec]] = []
-        for spec, laws, block in cast('BlockLaws', compilation.lowered):
+        for spec, laws, block in Compilation._required(compilation.lowered, 'lowered'):
             kept, matrices = self._markov_laws(spec.owner, laws, spec.references)
             lowered.append((spec, kept, block))
             markov.extend((spec, matrix) for matrix in matrices)
         compilation.lowered = lowered
         compilation.markov = markov
-        compilation.matrices = self._checked_matrices(markov, cast('DeclarationsSpec', compilation.layout))
+        compilation.matrices = self._checked_matrices(markov, Compilation._required(compilation.layout, 'layout'))
 
     @staticmethod
     def _checked_matrices(
@@ -113,7 +112,7 @@ class MarkovPass(BasePass):
         return f'_{kind}_{re.sub(r"[^0-9A-Za-z]", "_", str(target))}'
 
     @staticmethod
-    def _matrix_reader(reference: ReferenceSpec) -> Callable[[Array], Any]:
+    def _matrix_reader(reference: ReferenceSpec) -> Callable[[Array], Array]:
         """Return the function that reads a parameter of a matrix for every evaluation row."""
         if reference.source is ReadKind.MEMBER:
             members = reference.members
@@ -135,7 +134,7 @@ class MarkovPass(BasePass):
     @staticmethod
     def _compile_matrix(
         law: MatrixLawSpec,
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         rows: int,
         time: Expression,
     ) -> MarkovKernel:
@@ -173,6 +172,9 @@ class MarkovPass(BasePass):
                 )
                 raise ValidationError(error_msg)
         function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries)
+        if not callable(function):
+            error_msg = f'The printer returned a {type(function).__name__}, not the function of the matrix entries.'
+            raise TypeError(error_msg)
         readers = [MarkovPass._matrix_reader(references[item]) for item in arguments]
         shape = (len(law.matrix), len(law.matrix[0]))
         reads = frozenset(
@@ -187,6 +189,9 @@ class MarkovPass(BasePass):
 
         def evaluate(p: Array) -> npt.NDArray[np.float64]:
             values = function(0.0, *(reader(p) for reader in readers))
+            if not isinstance(values, list):
+                error_msg = f'The function of the matrix entries returned a {type(values).__name__}, not a list.'
+                raise TypeError(error_msg)
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)
 
@@ -196,7 +201,7 @@ class MarkovPass(BasePass):
     def _emission(
         owner: str,
         law: EmissionLaw,
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         updates: dict[str, object],
     ) -> tuple[UpdateLaw, MatrixLawSpec]:
         """Return the update law an emission law becomes, reading the hidden state's next value, and its matrix."""
@@ -221,7 +226,7 @@ class MarkovPass(BasePass):
     def _transition(
         owner: str,
         law: TransitionLaw,
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
     ) -> tuple[UpdateLaw, MatrixLawSpec]:
         """Return the update law a transition law becomes and its matrix."""
         description = f'transition law of {owner}.{law._get_targets()[0]}'
@@ -238,7 +243,7 @@ class MarkovPass(BasePass):
     def _markov_laws(
         owner: str,
         laws: list[BaseLaw],
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
     ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
         """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
 

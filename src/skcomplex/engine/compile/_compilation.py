@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -14,6 +13,7 @@ from sage.all__sagemath_symbolics import Expression
 from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.specs import CensusSpec, NodeSpec
 from ...core.system import System
+from ...errors import PipelineError
 from ...specs import MatrixLawSpec, TopologyRequestSpec, TransferNetworkSpec
 from ...specs._plan_spec import _PlanSpec
 from ...types import FormKind
@@ -30,11 +30,13 @@ from ..problems import (
     ReductionScheduleSpec,
     TransferStateSpec,
 )
+from ..problems._delayed_state_spec import _DelayedStateSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._markov_kernel import MarkovKernel
+from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._topology_kernel import TopologyKernel
 from ._bound_renewal_spec import BoundRenewalSpec
 
@@ -66,6 +68,7 @@ class Compilation:
         held:
             The paths of the observables that roles bind to and laws read only at synchronisation points.
 
+    Attributes:
         nodes:
             The elements, groups, and interactions of the system tree, flattened once.
 
@@ -226,10 +229,10 @@ class Compilation:
     reduced_apart: Laws | None = None
     reductions: ReductionScheduleSpec | None = None
     kernels: LoweredKernelsSpec | None = None
-    functions: dict[str, Any] | None = None
+    functions: _ProblemFunctionsSpec | None = None
     jacobian: JacobianKernel | None = None
     problem: ProblemSpec | None = None
-    delays: list[dict[str, Any]] | None = None
+    delays: list[_DelayedStateSpec] | None = None
     placeholders: dict[tuple[str, int, str, int, str], Expression] | None = None
     events: list[tuple[KernelSpec, CrossingLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
@@ -274,12 +277,14 @@ class Compilation:
         """
         if not replaced:
             return
-        fields = (
-            self.specs,
-            self.collected,
+        self._replace_in(self.specs or [], replaced)
+        self._replace_in(self.markov or [], replaced)
+        self._replace_in(self.events or [], replaced)
+        self._replace_in(self.rules or [], replaced)
+        for block_laws in (self.collected, self.lowered):
+            self._replace_in(block_laws or [], replaced)
+        laws = (
             self.apart,
-            self.lowered,
-            self.markov,
             self.ordered,
             self.delayed,
             self.corrected,
@@ -288,17 +293,56 @@ class Compilation:
             self.drawn_apart,
             self.reduced,
             self.reduced_apart,
-            self.events,
-            self.rules,
         )
-        for items in fields:
-            for index, (spec, *rest) in enumerate(items or []):
-                items[index] = (replaced.get(id(spec), spec), *rest)
-        for delay in self.delays or []:
-            delay['spec'] = replaced.get(id(delay['spec']), delay['spec'])
-        for index, renewal in enumerate(self.renewals or []):
-            self.renewals[index] = replace(renewal, spec=replaced.get(id(renewal.spec), renewal.spec))
-        for key, (spec, request) in (self.request_jumps or {}).items():
-            self.request_jumps[key] = (replaced.get(id(spec), spec), request)
+        for items in laws:
+            self._replace_in(items or [], replaced)
+        if self.delays is not None:
+            self.delays[:] = [replace(delay, spec=replaced.get(id(delay.spec), delay.spec)) for delay in self.delays]
+        if self.renewals is not None:
+            self.renewals[:] = [
+                replace(renewal, spec=replaced.get(id(renewal.spec), renewal.spec)) for renewal in self.renewals
+            ]
+        if self.request_jumps is not None:
+            for key, (spec, request) in self.request_jumps.items():
+                self.request_jumps[key] = (replaced.get(id(spec), spec), request)
         if self.transfer is not None:
             self.transfer = self.transfer.replaced(replaced)
+
+    @staticmethod
+    def _replace_in[*Rest](items: list[tuple[KernelSpec, *Rest]], replaced: Mapping[int, KernelSpec]) -> None:
+        """Replace the kernel spec that leads every item of a field by its copy, in place.
+
+        Args:
+            items:
+                The items of the field, each led by a kernel spec.
+
+            replaced:
+                The copy of every replaced spec, by the identity of the replaced spec.
+        """
+        for index, item in enumerate(items):
+            spec = item[0]
+            items[index] = (replaced.get(id(spec), spec), *item[1:])
+
+    @staticmethod
+    def _required[T](value: T | None, name: str) -> T:
+        """Return the value of a field that a pass has set, raising an error for a field no pass has set yet.
+
+        Args:
+            value:
+                The value of the field.
+
+            name:
+                The name of the field.
+
+        Returns:
+            value:
+                The value, which is not `None`.
+
+        Raises:
+            PipelineError:
+                No pass has set the field yet.
+        """
+        if value is None:
+            error_msg = f'No pass has set the field {name!r} of the compilation yet. Run the pass that writes it first.'
+            raise PipelineError(error_msg)
+        return value

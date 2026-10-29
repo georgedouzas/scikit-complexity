@@ -22,4 +22,4 @@ def test_classes_derive_from_a_base():
 def test_verbs_take_one_input():
     """A visual prepares on a problem and runs on a frame."""
     assert list(inspect.signature(package.BaseVisual.prepare).parameters) == ['self', 'problem']
-    assert list(inspect.signature(package.BaseVisual.run).parameters) == ['self', 'frame']
+    assert list(inspect.signature(package.BaseVisual.run).parameters) == ['self', 'frame', 'final']

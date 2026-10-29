@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -22,7 +21,7 @@ from ..._utils import components_of
 from ...problems import DeclarationsSpec, KernelSpec
 from ...problems._noise_term_spec import _NoiseTermSpec
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 
 
 class NoisePass(BasePass):
@@ -40,8 +39,8 @@ class NoisePass(BasePass):
         """Add the drift corrections of the noise laws."""
         compilation = self.compilation_
         compilation.corrected = self._with_noise_corrections(
-            cast('Laws', compilation.delayed),
-            cast('DeclarationsSpec', compilation.layout),
+            Compilation._required(compilation.delayed, 'delayed'),
+            Compilation._required(compilation.layout, 'layout'),
         )
 
     @staticmethod

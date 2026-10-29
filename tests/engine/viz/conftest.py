@@ -2,9 +2,9 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import replace
-from typing import Any
 
 import pytest
+import rerun as rr
 
 from skcomplex.core.spaces import BaseSpace
 from skcomplex.engine.compile import compile_system
@@ -22,7 +22,7 @@ def log_agents() -> Callable[..., BaseVisual]:
 
     def log(
         visual: BaseVisual,
-        recording: Any,  # noqa: ANN401
+        recording: rr.RecordingStream | None,
         path: str,
         snapshots: Sequence[AgentSnapshotSpec],
         space: BaseSpace | None = None,

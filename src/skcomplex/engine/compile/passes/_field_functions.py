@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, cast
+from dataclasses import replace
 
 import numpy as np
 import numpy.typing as npt
@@ -14,14 +14,15 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, FluxLaw
 from ....core.spaces import LatticeSpace, MeshSpace
-from ....errors import ValidationError
+from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec
-from ....types import Array, ReadKind, VariableKind
+from ....types import Array, ReadKind, VariableKind, VectorFunction
 from ..._utils import declarations_of
 from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 
 
 class FieldFunctionsPass(BasePass):
@@ -38,24 +39,28 @@ class FieldFunctionsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the discretizations of the fields to the numeric functions."""
         compilation = self.compilation_
-        functions = cast('dict[str, Any]', compilation.functions)
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        functions, written = compilation.functions, compilation.written
+        if functions is None or written is None:
+            error_msg = 'FieldFunctionsPass reads the numeric functions and the written operators, which no pass wrote.'
+            raise PipelineError(error_msg)
+        declarations = Compilation._required(compilation.layout, 'layout')
         states = LayoutSpec(tuple(declarations.states))
-        functions['equations'] = self._written_equations(functions['equations'], states, compilation.written)
+        functions = replace(functions, equations=self._written_equations(functions.equations, states, written))
         blocks = list(declarations.blocks.values())
-        volumes, constrained = self._with_discretizations(
+        functions, volumes, constrained = self._with_discretizations(
             functions,
-            cast('Laws', compilation.reduced),
+            Compilation._required(compilation.reduced, 'reduced'),
             declarations,
             blocks,
         )
+        compilation.functions = functions
         compilation.volumes = volumes
         compilation.symmetries = tuple(self._symmetries(blocks))
         compilation.constrained = constrained
 
     @staticmethod
     def _written_equations(
-        equations: dict[str, Expression],
+        equations: Mapping[str, Expression],
         states: LayoutSpec,
         written: dict[tuple[str, int], list[tuple[Expression, Expression]]],
     ) -> dict[str, Expression]:
@@ -150,7 +155,10 @@ class FieldFunctionsPass(BasePass):
         return found
 
     @staticmethod
-    def _with_symmetries(drift: Any, symmetries: list[Any]) -> Any:  # noqa: ANN401
+    def _with_symmetries(
+        drift: VectorFunction | None,
+        symmetries: list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]],
+    ) -> VectorFunction | None:
         """Return the drift with the rates of symmetric states projected onto their odd or even parts."""
         if not symmetries or drift is None:
             return drift
@@ -168,7 +176,10 @@ class FieldFunctionsPass(BasePass):
         return symmetric
 
     @staticmethod
-    def _with_constraints(drift: Any, indices: npt.NDArray[np.intp]) -> Any:  # noqa: ANN401
+    def _with_constraints(
+        drift: VectorFunction | None,
+        indices: npt.NDArray[np.intp],
+    ) -> VectorFunction | None:
         """Return the drift with the rates of fixed boundary nodes held at zero."""
         if not indices.size or drift is None:
             return drift
@@ -181,37 +192,43 @@ class FieldFunctionsPass(BasePass):
         return constrained
 
     @staticmethod
-    def _with_volumes(drift: Any, volumes: tuple[FiniteVolumeKernel, ...]) -> Any:  # noqa: ANN401
+    def _with_volumes(
+        drift: VectorFunction | None,
+        volumes: tuple[FiniteVolumeKernel, ...],
+    ) -> VectorFunction | None:
         """Return the drift with the flux differences of finite-volume fields added."""
         if not volumes or drift is None:
             return drift
 
         def conserved(t: float, x: Array, p: Array) -> Array:
-            rates = drift(t, x, p)
+            rates = np.asarray(drift(t, x, p), dtype=float)
             for volume in volumes:
-                rates = rates + volume.run(RunStateSpec(t, x, p))
+                rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)), dtype=float)
             return rates
 
         return conserved
 
     @staticmethod
     def _with_discretizations(
-        functions: dict[str, Any],
+        functions: _ProblemFunctionsSpec,
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
         blocks: list[BlockSpec],
-    ) -> tuple[tuple[FiniteVolumeKernel, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
+    ) -> tuple[
+        _ProblemFunctionsSpec,
+        tuple[FiniteVolumeKernel, ...],
+        tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]],
+    ]:
         """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning laws and fixed nodes."""
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)
         symmetries = FieldFunctionsPass._symmetries(blocks)
         constrained, fixed = FieldFunctionsPass._mesh_constraints(blocks)
-        drift = FieldFunctionsPass._with_volumes(functions.get('drift'), volumes)
+        drift = FieldFunctionsPass._with_volumes(functions.drift, volumes)
         drift = FieldFunctionsPass._with_symmetries(drift, symmetries)
         drift = FieldFunctionsPass._with_constraints(drift, constrained)
         if volumes or symmetries or constrained.size:
-            functions['drift'] = drift
-            functions['accelerated'] = None
-        return volumes, (constrained, fixed)
+            functions = replace(functions, drift=drift, accelerated=None)
+        return functions, volumes, (constrained, fixed)
 
     @staticmethod
     def _symbol(target: Expression, references: Mapping[Expression, ReferenceSpec]) -> Expression:
@@ -221,6 +238,30 @@ class FieldFunctionsPass(BasePass):
             error_msg = f'A flux targets {target}, which is not a state of a field.'
             raise ValidationError(error_msg)
         return target
+
+    @staticmethod
+    def _function_of(printed: object, owner: str) -> Callable[..., object]:
+        """Return the function a compiled printer returns for the fluxes of a field.
+
+        Args:
+            printed:
+                What the printer returns.
+
+            owner:
+                The path of the field.
+
+        Returns:
+            function:
+                The function.
+
+        Raises:
+            TypeError:
+                The printer returns no function.
+        """
+        if not callable(printed):
+            error_msg = f'The printer returns a {type(printed).__name__} for the fluxes of {owner}, not a function.'
+            raise TypeError(error_msg)
+        return printed
 
     @staticmethod
     def _compile_volumes(
@@ -287,12 +328,16 @@ class FieldFunctionsPass(BasePass):
             raise ValidationError(error_msg)
         columns = list(zip(*expressions, strict=True))
         printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *parameters])
-        fluxes = tuple(printer.run(list(column)) for column in columns)
+        fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)), owner) for column in columns)
         jacobians = tuple(
-            printer.run([value.diff(state) for value in column for state in states]) for column in columns
+            FieldFunctionsPass._function_of(
+                printer.run([value.diff(state) for value in column for state in states]),
+                owner,
+            )
+            for column in columns
         )
         first = laws[0][0]
-        critical: tuple[Callable[..., Any], ...] = ()
+        critical: tuple[Callable[..., object], ...] = ()
         if first.riemann == 'godunov':
             if len(states) != 1:
                 error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
@@ -301,10 +346,10 @@ class FieldFunctionsPass(BasePass):
             critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(parameters)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-                roots.append(critical_printer.run(found))
+                roots.append(FieldFunctionsPass._function_of(critical_printer.run(found), owner))
             critical = tuple(roots)
         boundaries = tuple(
-            (kind, float(value) if not callable(value) else 0.0)
+            (kind, float(SR(value)) if not callable(value) else 0.0)
             for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
         )
         return FiniteVolumeKernel(
@@ -313,10 +358,10 @@ class FieldFunctionsPass(BasePass):
             space.shape_,
             space.spacings_,
             boundaries,
-            fluxes,
-            jacobians,
-            tuple(references[item] for item in parameters),
-            first.limiter,
-            first.riemann,
-            critical,
+            fluxes=fluxes,
+            jacobians=jacobians,
+            parameters=tuple(references[item] for item in parameters),
+            limiter=first.limiter,
+            riemann=first.riemann,
+            critical=critical,
         ).check()

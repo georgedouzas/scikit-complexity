@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -44,15 +43,16 @@ class RelaxationKernel(BaseKernel):
             The function that marks the active sites of an iteration, or `None` to count the sites that change.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         label: str,
         drive: tuple[RuleKernel | DriveKernel, ...],
         relax: tuple[RuleKernel | DriveKernel, ...],
         targets: tuple[LatticeStateSpec, ...],
         stable: Callable[..., bool],
+        *,
         max_iterations: int,
-        activity: Callable[..., Any] | None = None,
+        activity: Callable[..., object] | None = None,
     ) -> None:
         self.label = label
         self.drive = drive
@@ -70,18 +70,27 @@ class RelaxationKernel(BaseKernel):
         """Check the stability condition on the current state."""
         return bool(self.stable(*self._arrays(x)))
 
-    def _run(self, inputs: RunStateSpec) -> RelaxationRecordSpec | None:
+    def _run(self, inputs: RunStateSpec | None) -> RelaxationRecordSpec | None:
         """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
 
         The state vector of the state is updated in place, and the record holds the time of the state.
+
+        Args:
+            inputs:
+                The state.
+
+        Returns:
+            record:
+                The record of the relaxation, or `None` when the lattice did not change.
 
         Raises:
             SolverError:
                 The lattice is not stable after the largest number of iterations.
         """
-        x, time = inputs.x, inputs.t
+        state = self._state_of(inputs)
+        x, time = state.x, state.t
         for law in self.drive:
-            law.run(inputs)
+            law.run(state)
         size = duration = 0
         changed: npt.NDArray[np.bool_] | None = None
         sites = np.concatenate([np.arange(state.start, state.start + state.size) for state in self.targets])
@@ -98,9 +107,9 @@ class RelaxationKernel(BaseKernel):
             )
             for law in self.relax:
                 if active is not None and isinstance(law, RuleKernel) and law.schedule == 'synchronous':
-                    law._run_near(inputs, active)
+                    law._run_near(state, active)
                 else:
-                    law.run(inputs)
+                    law.run(state)
             updated = (x[sites] != before).reshape(len(self.targets), -1).any(axis=0) if active is None else active
             size += int(updated.sum())
             changed = updated if changed is None else changed | updated

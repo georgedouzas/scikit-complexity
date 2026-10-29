@@ -8,7 +8,6 @@ import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -57,6 +56,12 @@ class LammpsSolver(ExternalSolver):
 
         fixes:
             The function that returns the native LAMMPS fix command of interaction classes from the values of the fix.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Attributes:
         lammps_:
@@ -114,8 +119,8 @@ class LammpsSolver(ExternalSolver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-            noise={NoiseKind.DIAGONAL},
-            orders={OrderKind.INTEGER},
+            noise=frozenset({NoiseKind.DIAGONAL}),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -191,8 +196,7 @@ class LammpsSolver(ExternalSolver):
 
     def _check_external(self, problem: ProblemSpec, external: set[str]) -> list[str]:
         """Return the external interactions whose laws do more than change particle velocities."""
-        filtered = self._filter_system(problem.system, external)
-        sub_problem = cast('ProblemSpec', compile_system(filtered, backend=NumpyBackend()))  # type: ignore[arg-type]
+        sub_problem = self._compile_external(problem.system, external, NumpyBackend())
         reasons = []
         if sub_problem.form != FormKind.ODE:
             reasons.append(f'the {sub_problem.form.value} form')
@@ -379,11 +383,7 @@ class LammpsSolver(ExternalSolver):
         """
         self._set_atoms(problem)
         external = self._external_paths(problem)
-        self.external_ = (
-            cast('ProblemSpec', compile_system(self._filter_system(problem.system, external)))  # type: ignore[arg-type]
-            if external
-            else None
-        )
+        self.external_ = self._compile_external(problem.system, external) if external else None
         self.parameters_ = problem.initial_parameters.copy()
         self.time_, self.timestep_, self.start_step_ = 0.0, self.dt, 0
         self.lammps_ = lammps(cmdargs=_LAMMPS_ARGUMENTS)
@@ -539,6 +539,37 @@ class LammpsSolver(ExternalSolver):
         return float(LammpsSolver._parameter(problem, p, element.path, 'm')[0])
 
     @staticmethod
+    def _compile_external(system: System | None, keep: set[str], backend: NumpyBackend | None = None) -> ProblemSpec:
+        """Return the problem of the interactions of a system that LAMMPS calls back, which only evaluates forces.
+
+        Args:
+            system:
+                The system of the problem.
+
+            keep:
+                The paths of the interactions to keep.
+
+            backend:
+                The backend of the problem, or `None` for the backend that suits the system.
+
+        Returns:
+            problem:
+                The compiled problem of the kept interactions.
+
+        Raises:
+            SolverError:
+                The problem has no system, or the system does not compile to a problem of the compiler.
+        """
+        if system is None:
+            error_msg = 'LammpsSolver evaluates external interactions of a system, but the problem has none.'
+            raise SolverError(error_msg)
+        problem = compile_system(LammpsSolver._filter_system(system, keep), backend=backend)
+        if not isinstance(problem, ProblemSpec):
+            error_msg = f'The external interactions compile to a {type(problem).__name__}, not a ProblemSpec.'
+            raise SolverError(error_msg)
+        return problem
+
+    @staticmethod
     def _filter_system(system: System, keep: set[str], scope: str = '') -> System:
         """Return a copy of a system tree that keeps only the interactions whose paths are in `keep`.
 
@@ -613,4 +644,8 @@ class LammpsSolver(ExternalSolver):
             error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
             raise BackendError(error_msg)
         lepton = expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand()
-        return ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton])[1][0]
+        printed = ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton])
+        if not isinstance(printed, tuple):
+            error_msg = f'The Lepton printer returned a {type(printed).__name__}, not printed code.'
+            raise TypeError(error_msg)
+        return printed[1][0]

@@ -4,13 +4,11 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import cast
 
-from ....core.laws import CrossingLaw
 from ....types import ReadKind
 from ...problems import DeclarationsSpec, KernelSpec, ReductionScheduleSpec
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 from ._reduction_lowering import ReductionLowering
 
 
@@ -28,15 +26,19 @@ class ReductionsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the reductions of the drawn laws, the laws set apart, and the events."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         reductions = ReductionLowering().check().prepare(compilation)
-        specs, apart = cast('Laws', compilation.drawn), cast('Laws', compilation.drawn_apart)
+        specs = Compilation._required(compilation.drawn, 'drawn')
+        apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
+        crossings = Compilation._required(compilation.events, 'events')
         lowered = reductions.run([*specs, *apart])
-        crossings = cast('list[tuple[KernelSpec, CrossingLaw]]', compilation.events)
         events = reductions.run([(spec, [event]) for spec, event in crossings])
+        if not isinstance(lowered, list) or not isinstance(events, list):
+            error_msg = 'The reduction lowering returns no list of laws.'
+            raise TypeError(error_msg)
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.events = [(spec, cast('CrossingLaw', laws[0])) for spec, laws in events]
+        compilation.events = [(spec, laws[0]) for spec, laws in events]
         reductions._apply_references()
         compilation._replace_specs(
             {

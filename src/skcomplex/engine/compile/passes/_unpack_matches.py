@@ -3,11 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from ....core.laws import MatchLaw
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 
 
 class UnpackMatchesPass(BasePass):
@@ -26,5 +25,5 @@ class UnpackMatchesPass(BasePass):
         compilation = self.compilation_
         compilation.collected = [
             (spec, [law._get_rule() if isinstance(law, MatchLaw) else law for law in laws], block)
-            for spec, laws, block in cast('BlockLaws', compilation.collected)
+            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
         ]

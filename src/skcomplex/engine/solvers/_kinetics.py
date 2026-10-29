@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -37,6 +36,12 @@ class KineticSolver(Solver):
         dt:
             The largest time step.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Examples:
         >>> from skcomplex.engine.solvers import KineticSolver
         >>> from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
@@ -51,7 +56,7 @@ class KineticSolver(Solver):
             time={ContinuousTime},
             space={LatticeSpace},
             laws={EncounterLaw, ProliferationLaw, DestructionLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -72,8 +77,8 @@ class KineticSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _check_problem(self, problem: ProblemSpec) -> None:
-        """Raise an error when a problem has laws other than encounters, or no encounter."""
+    def _check_problem(self, problem: ProblemSpec) -> KineticProblemSpec:
+        """Return a problem of encounter laws, raising an error for laws other than encounters, or no encounter."""
         if not isinstance(problem, KineticProblemSpec) or not problem.encounters:
             error_msg = 'KineticSolver samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
@@ -90,12 +95,13 @@ class KineticSolver(Solver):
                 f'dt = {self.dt!r}.'
             )
             raise SolverError(error_msg)
+        return problem
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem and draw the particles of the initial state.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
@@ -103,9 +109,9 @@ class KineticSolver(Solver):
                 The problem has another form, laws other than encounters, or no encounter, `n` or `dt` is not
                 positive, or a density of the initial state is negative.
         """
-        super()._prepare(problem)
-        self._check_problem(problem)
-        self._encounters = cast('KineticProblemSpec', problem).encounters
+        super()._prepare(context)
+        problem = self.problem_
+        self._encounters = self._check_problem(problem).encounters
         self.densities_ = self._densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], IntArray] = {}

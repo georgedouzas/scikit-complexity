@@ -5,13 +5,12 @@
 
 import dataclasses
 from dataclasses import replace
-from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.spaces import NetworkSpace
-from ....errors import ValidationError
+from ....errors import PipelineError, ValidationError
 from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, TopologyRequestSpec
 from ....specs._weight_spec import _WeightSpec
 from ....types import Array, VariableKind
@@ -30,7 +29,7 @@ from ...problems._edge_search import EdgeSearch
 from ...problems._law_kernel import LawKernel
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 from ._layout import LayoutPass
 from ._specs import SpecsPass
 
@@ -49,15 +48,19 @@ class TopologyFunctionsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Compile the topology changes of the networks."""
         compilation = self.compilation_
+        functions, jumps = compilation.functions, compilation.request_jumps
+        if functions is None or jumps is None:
+            error_msg = 'TopologyFunctionsPass reads the numeric functions and the request jumps, which no pass wrote.'
+            raise PipelineError(error_msg)
         topology = self._topology(
-            cast('LoweredKernelsSpec', compilation.kernels),
-            cast('Laws', compilation.reduced_apart),
-            cast('DeclarationsSpec', compilation.layout),
-            cast('ReductionScheduleSpec', compilation.reductions),
-            compilation.request_jumps,
+            Compilation._required(compilation.kernels, 'kernels'),
+            Compilation._required(compilation.reduced_apart, 'reduced_apart'),
+            Compilation._required(compilation.layout, 'layout'),
+            Compilation._required(compilation.reductions, 'reductions'),
+            jumps,
         )
         if topology is not None and (topology.requests or topology.channels):
-            cast('dict[str, Any]', compilation.functions)['accelerated'] = None
+            compilation.functions = replace(functions, accelerated=None)
         compilation.topology = topology
 
     @staticmethod
@@ -71,9 +74,9 @@ class TopologyFunctionsPass(BasePass):
             spec.references,
             spec.rows,
             states,
-            parameters,
-            spec.pairs,
-            [OutputSpec(None, expression)],
+            layout_parameters=parameters,
+            pairs=spec.pairs,
+            outputs=[OutputSpec(None, expression)],
         ).check()
 
     @staticmethod
@@ -124,25 +127,21 @@ class TopologyFunctionsPass(BasePass):
             (spec, laws) for spec, laws in apart if not all(TopologyFunctionsPass._is_weight(law) for law in laws)
         ]
         weights = {
-            id(law._get_targets()[0].request): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
+            id(target.request): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
             for spec, laws in towards
             for law in laws
-            if isinstance(law, UpdateLaw)
+            if isinstance(law, UpdateLaw) and isinstance(target := law._get_targets()[0], _WeightSpec)
         }
         requests = []
         for spec, laws in updates:
             for law in laws:
-                request = cast('TopologyRequestSpec', TopologyKernel._request_of(law))
+                request = TopologyKernel._request_of(law)
+                if request is None or not isinstance(law, UpdateLaw):
+                    error_msg = f'A law of {spec.owner} set apart for the networks requests no topology change.'
+                    raise PipelineError(error_msg)
                 item = TopologyFunctionsPass._compiled_request(spec, request, networks, weights, declarations)
                 requests.append(
-                    replace(
-                        item,
-                        condition=TopologyFunctionsPass._request_kernel(
-                            spec,
-                            cast('UpdateLaw', law).value,
-                            declarations,
-                        ),
-                    ),
+                    replace(item, condition=TopologyFunctionsPass._request_kernel(spec, law.value, declarations)),
                 )
         channels = {}
         index = 0
@@ -209,7 +208,10 @@ class TopologyFunctionsPass(BasePass):
                 layer: TopologyFunctionsPass._capacity_rows(block, declarations)
                 for layer, block in declarations.changing_edges(space).items()
             }
-            directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
+            if not isinstance(space, NetworkSpace):
+                error_msg = f'The variable groups {", ".join(group.path for group in nodes)} are not on a network.'
+                raise ValidationError(error_msg)
+            directed = {layer: space.graphs_[layer].is_directed() for layer in edges}
             networks[key] = NetworkRowsSpec(nodes, edges, directed)
         return networks
 
@@ -217,7 +219,11 @@ class TopologyFunctionsPass(BasePass):
     def _request_network(spec: KernelSpec, declarations: DeclarationsSpec) -> tuple[object, str]:
         """Return the network a request of a spec changes and the rows the spec runs on."""
         if isinstance(spec.pairs, EdgeSearch):
-            nodes = declarations.blocks[cast('str', spec.roles['source'])]
+            source = spec.roles['source']
+            if not isinstance(source, str):
+                error_msg = f'The source role of {spec.owner} binds several groups, not the nodes of one network.'
+                raise ValidationError(error_msg)
+            nodes = declarations.blocks[source]
             return SpecsPass._group_space(nodes), 'edge'
         if spec.group in declarations.capacity:
             return SpecsPass._group_space(declarations.capacity[spec.group]), 'node'

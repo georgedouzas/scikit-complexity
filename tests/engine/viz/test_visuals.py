@@ -39,10 +39,10 @@ def _frames(system, steps, dt=0.1):
     class KeepObserver(BaseObserver):
         """Observer that keeps every frame."""
 
-        def _run(self, frame=None):
+        def _run(self, inputs):
             """Keep a frame."""
-            if frame is not None:
-                frames.append(frame)
+            if inputs is not None:
+                frames.append(inputs)
 
     simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0).check()
     simulation.run(until=steps * dt)

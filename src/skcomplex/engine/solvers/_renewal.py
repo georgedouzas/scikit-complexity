@@ -49,8 +49,8 @@ class RenewalSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-            noise={NoiseKind.DIAGONAL},
-            orders={OrderKind.INTEGER},
+            noise=frozenset({NoiseKind.DIAGONAL}),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod

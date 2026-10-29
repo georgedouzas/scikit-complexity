@@ -5,8 +5,8 @@
 
 import difflib
 import re
-from collections.abc import Callable
-from typing import Any, Self, cast
+from collections.abc import Callable, Mapping
+from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -19,10 +19,11 @@ from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, SampledDrawSpec
 from ...types import Array, ReadKind
 from .._utils import components_of, symbol, symbols_of, vector
-from ..problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
+from ..problems import ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._request_spec import _RequestSpec
 from ._base import BaseLowering
+from ._compilation import Compilation
 
 _NORMAL_KINDS = frozenset({'normal'})
 
@@ -36,7 +37,7 @@ DISTRIBUTIONS = tuple(
 )
 
 
-class DrawLowering(BaseLowering):
+class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of the draws of every component to values in an extended parameter vector.
 
     `prepare(compilation)` reads where the parameters end and the time symbol, and `run(laws)` takes the laws of every
@@ -63,7 +64,7 @@ class DrawLowering(BaseLowering):
     requests_: list[_RequestSpec]
     draws_: DrawKernel | None
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Read where the parameters end and the time symbol of the compilation, with no draws yet.
 
         Args:
@@ -73,14 +74,21 @@ class DrawLowering(BaseLowering):
         Returns:
             self:
                 The prepared lowering.
+
+        Raises:
+            ValidationError:
+                The compilation has no layout yet.
         """
         super()._prepare(context)
-        declarations = cast('DeclarationsSpec', self.compilation_.layout)
+        declarations = self.compilation_.layout
+        if declarations is None:
+            error_msg = 'The compilation has no layout yet. Lower draws after the layout pass.'
+            raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_ = [], None
         return self
 
-    def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return the laws of every kernel spec with the draws of their update laws replaced by drawn values.
 
         Args:
@@ -95,13 +103,11 @@ class DrawLowering(BaseLowering):
             ValidationError:
                 One draw name has two declarations in a component.
         """
-        lowered = [
-            (spec, self._lower(spec, laws)) for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
-        ]
+        lowered = [(spec, self._lower(spec, laws)) for spec, laws in inputs or []]
         self._allocate()
         return lowered
 
-    def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Any]:
+    def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
         owner = spec.owner
         declared: dict[str, DrawSpec] = {}
@@ -212,7 +218,7 @@ class DrawLowering(BaseLowering):
         return index
 
     @staticmethod
-    def _lowered(expression: Expression, slots: dict[str, Expression]) -> Expression:
+    def _lowered(expression: Expression, slots: Mapping[str, Expression]) -> Expression:
         """Return an expression with every draw replaced by its expression of its value, innermost draws first."""
         found = draws_in(expression)
         while found:
@@ -226,7 +232,10 @@ class DrawLowering(BaseLowering):
     def _sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
         time = self.time_
-        draw = cast('DrawSpec', request.draw)
+        draw = request.draw
+        if draw is None:
+            error_msg = f'The draw {request.name!r} of {request.owner} takes no distribution to sample from.'
+            raise ValidationError(error_msg)
         if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} takes another draw from a scipy.stats distribution as an '
@@ -236,20 +245,24 @@ class DrawLowering(BaseLowering):
             raise ValidationError(error_msg)
         arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
-        readers = [self._reference_of(item, request.spec) for item in symbols]
-        if any(reader is None or reader.source not in {ReadKind.SINGLE, ReadKind.MEMBER} for reader in readers):
+        found = [self._reference_of(item, request.spec) for item in symbols]
+        readers = [
+            reader for reader in found if reader is not None and reader.source in {ReadKind.SINGLE, ReadKind.MEMBER}
+        ]
+        if len(readers) < len(found):
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
         function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments)
+        if not callable(function):
+            error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
+            raise TypeError(error_msg)
         rows = request.rows
 
         def sample(t: float, x: Array, q: Array, rng: np.random.Generator) -> Array:
-            values = (
-                function(t, *(cast('ReferenceSpec', reader).column_of(x, q) for reader in readers)) if arguments else []
-            )
+            values = function(t, *(reader.column_of(x, q) for reader in readers)) if arguments else []
             return DrawKernel._sample_draw(draw, values, rows, rng)
 
         return sample
@@ -260,7 +273,7 @@ class DrawLowering(BaseLowering):
         return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, CallSpec) or callable(value))
 
     @staticmethod
-    def _distribution_of(owner: str, description: str, draw: DrawSpec) -> Any:  # noqa: ANN401
+    def _distribution_of(owner: str, description: str, draw: DrawSpec) -> stats.rv_continuous | stats.rv_discrete:
         """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
 
         Args:

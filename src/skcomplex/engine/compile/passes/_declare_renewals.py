@@ -4,7 +4,6 @@
 # License: MIT
 
 import re
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
@@ -15,7 +14,7 @@ from ..._utils import symbol
 from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
-from .._compilation import Laws
+from .._compilation import Compilation
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass
 from ._layout import LayoutPass
@@ -35,9 +34,9 @@ class DeclareRenewalsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Declare the counts of the renewal laws."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         renewals: list[BoundRenewalSpec] = []
-        for spec, laws in cast('Laws', compilation.delayed):
+        for spec, laws in Compilation._required(compilation.delayed, 'delayed'):
             declarations, declared = self._declared_renewals(spec, laws, declarations)
             renewals += declared
         compilation.layout, compilation.renewals = declarations, renewals

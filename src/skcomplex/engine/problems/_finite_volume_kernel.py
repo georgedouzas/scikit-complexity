@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
 import scipy.sparse
@@ -13,6 +12,7 @@ from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
 from ._base import BaseKernel
+from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 
 TIME = symbol('t')
@@ -58,19 +58,20 @@ class FiniteVolumeKernel(BaseKernel):
             has a minimum or maximum.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: str,
         starts: tuple[int, ...],
         dimensions: tuple[int, ...],
         spacings: tuple[float, ...],
         boundaries: tuple[tuple[str, float], ...],
-        fluxes: tuple[Callable[..., Any], ...],
-        jacobians: tuple[Callable[..., Any], ...],
+        *,
+        fluxes: tuple[Callable[..., object], ...],
+        jacobians: tuple[Callable[..., object], ...],
         parameters: tuple[ReferenceSpec, ...],
         limiter: str | None,
         riemann: str,
-        critical: tuple[Callable[..., Any], ...] = (),
+        critical: tuple[Callable[..., object], ...] = (),
     ) -> None:
         self.owner = owner
         self.starts = starts
@@ -99,7 +100,7 @@ class FiniteVolumeKernel(BaseKernel):
 
     def _speed(self, axis: int, states: Sequence[Array], parameters: list[float]) -> Array:
         """Return the largest wave speed of every cell or interface, the spectral radius of the flux Jacobian."""
-        entries = self.jacobians[axis](0.0, *states, *parameters)
+        entries = ExpressionPrinter._values_of(self.jacobians[axis](0.0, *states, *parameters))
         count = len(states)
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
         matrix = np.stack([np.broadcast_to(np.asarray(item, dtype=float), shape) for item in entries], axis=-1)
@@ -111,14 +112,14 @@ class FiniteVolumeKernel(BaseKernel):
     def _flux(self, axis: int, states: Sequence[Array], parameters: list[float]) -> list[Array]:
         """Return the physical flux of every state along an axis."""
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
-        values = self.fluxes[axis](0.0, *states, *parameters)
+        values = ExpressionPrinter._values_of(self.fluxes[axis](0.0, *states, *parameters))
         return [np.broadcast_to(np.asarray(item, dtype=float), shape) for item in values]
 
     def _godunov(self, axis: int, left: Array, right: Array, parameters: list[float]) -> Array:
         """Return the exact Godunov flux of one state: the minimum flux between rising states, else the maximum."""
         low, high = np.minimum(left, right), np.maximum(left, right)
         candidates = [self._flux(axis, [left], parameters)[0], self._flux(axis, [right], parameters)[0]]
-        for root in self.critical[axis](0.0, *parameters):
+        for root in ExpressionPrinter._values_of(self.critical[axis](0.0, *parameters)):
             value = float(np.real(root))
             inside = (low <= value) & (value <= high)
             flux = self._flux(axis, [np.full(left.shape, value)], parameters)[0]
@@ -140,9 +141,10 @@ class FiniteVolumeKernel(BaseKernel):
                 padded.append(np.pad(values, width, mode='constant', constant_values=value))
         return padded
 
-    def _run(self, inputs: RunStateSpec) -> Array:
+    def _run(self, inputs: RunStateSpec | None) -> Array:
         """Return the rates of the conserved states, minus the divergence of the numerical fluxes, as a full vector."""
-        x, p = inputs.x, inputs.p
+        state = self._state_of(inputs)
+        x, p = state.x, state.p
         states = self._states(x)
         parameters = self._parameters(p)
         totals = [np.zeros(self.dimensions) for _ in states]

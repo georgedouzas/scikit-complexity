@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections import defaultdict
-from typing import Self, cast
+from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -16,14 +16,15 @@ from ...errors import ValidationError
 from ...specs import NeighborReadSpec
 from ...types import ReadKind
 from .._utils import domain_of, symbol, vector
-from ..problems import DeclarationsSpec, KernelSpec, ReferenceSpec
+from ..problems import KernelSpec, ReferenceSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ._base import BaseLowering, BasePass
+from ._compilation import Compilation
 
 _SHIFT = 'shift_member'
 
 
-class MemberLowering(BaseLowering):
+class MemberLowering(BaseLowering[list[BaseLaw]]):
     """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
 
     `prepare(compilation)` reads the time of the compilation, and `run(laws)` returns the laws with every member offset
@@ -47,7 +48,7 @@ class MemberLowering(BaseLowering):
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Read the time of the compilation and start with no offset reads.
 
         Args:
@@ -57,13 +58,21 @@ class MemberLowering(BaseLowering):
         Returns:
             self:
                 The prepared lowering.
+
+        Raises:
+            ValidationError:
+                The compilation has no layout yet.
         """
         super()._prepare(context)
-        self.time_ = cast('DeclarationsSpec', self.compilation_.layout).time
+        layout = self.compilation_.layout
+        if layout is None:
+            error_msg = 'The compilation has no layout yet. Lower member offsets after the layout pass.'
+            raise ValidationError(error_msg)
+        self.time_ = layout.time
         self.shifted_ = {}
         return self
 
-    def _run(self, inputs: object) -> list[BaseLaw]:
+    def _run(self, inputs: list[BaseLaw] | None) -> list[BaseLaw]:
         """Return laws whose member offset reads are lowered to neighbour reads of the group's index table.
 
         A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
@@ -77,10 +86,10 @@ class MemberLowering(BaseLowering):
                 The lowered laws.
         """
         result: list[BaseLaw] = []
-        for law in cast('list[BaseLaw]', inputs):
+        for law in inputs or []:
             if isinstance(law, JumpLaw):
                 changes: dict[Expression, float] = defaultdict(float)
-                for target, increment in law.changes.items():
+                for target, increment in (law.changes or {}).items():
                     changes[SR(self._lower(target)) if isinstance(target, Expression) else target] += increment
                 result.append(JumpLaw(self._lower(law.rate), dict(changes)))
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):

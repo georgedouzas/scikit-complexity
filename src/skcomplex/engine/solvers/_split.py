@@ -4,14 +4,14 @@
 # License: MIT
 
 import math
-from typing import Any
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
-from scipy.sparse.linalg import splu
+from scipy.sparse.linalg import SuperLU, splu
 
+from ...core.elements import FieldElement
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
 from ...core.spaces import (
     CayleySpace,
@@ -27,7 +27,7 @@ from ...specs import SupportSpec
 from ...types import Array, ComplexArray, FormKind, OrderKind
 from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import ExpressionPrinter, ProblemSpec
+from ..problems import ExpressionPrinter, LinearTermSpec, ProblemSpec, ReferenceSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 from ..problems._steps import step_count
 from ._solver import Solver
@@ -44,6 +44,16 @@ class SplitSolver(Solver):
     matrix over the whole state vector for the other fields. Every block is the shape of the field, the state indices
     of its states, and its matrices.
 
+    Args:
+        dt:
+            The largest internal time step.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Attributes:
         sparse_:
             The sparse matrix of the linear terms outside spectral fields, or `None` without them.
@@ -59,7 +69,7 @@ class SplitSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -83,18 +93,19 @@ class SplitSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper and check that the problem has linear terms to treat apart.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The problem is not an ODE, has no linear terms of fields, or has delays or events.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         if not problem.linear:
             error_msg = (
                 f'{type(self).__name__} splits the rates of fields into linear and nonlinear parts, but the problem '
@@ -121,8 +132,8 @@ class SplitSolver(Solver):
     def _build_operator(self, p: Array) -> None:
         """Build the linear part for parameter values when they change."""
         if self._parameters is None or not np.array_equal(p, self._parameters):
-            groups: dict[int, list[Any]] = {}
-            triplets: list[tuple[Any, Any, csr_matrix]] = []
+            groups: dict[int, list[tuple[LinearTermSpec, complex]]] = {}
+            triplets: list[tuple[ReferenceSpec, ReferenceSpec, csr_matrix]] = []
             for term in self.problem_.linear:
                 coefficient = self._coefficient(term, p)
                 if term.place.discretization != 'spectral':
@@ -131,7 +142,7 @@ class SplitSolver(Solver):
                     groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
             self.sparse_ = self._sparse(triplets, self.problem_)
             self.blocks_ = [self._spectral_block(terms) for terms in groups.values()]
-            self._inverses: dict[float, tuple[Any, list[ComplexArray]]] = {}
+            self._inverses: dict[float, tuple[SuperLU | None, list[ComplexArray]]] = {}
             self._parameters = p.copy()
             self._built(p)
 
@@ -140,7 +151,7 @@ class SplitSolver(Solver):
 
     def _remainder(self, t: float, x: Array, p: Array) -> Array:
         """Return the nonlinear remainder of the rates, the rates minus their linear part."""
-        return self.problem_.drift(t, x, p) - self._linear(x)  # type: ignore[misc]
+        return self._drift()(t, x, p) - self._linear(x)
 
     def _linear(self, x: Array) -> Array:
         """Return the linear part of the rates at a state vector.
@@ -252,24 +263,28 @@ class SplitSolver(Solver):
         return state
 
     @staticmethod
-    def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_matrix:  # noqa: ANN401
+    def _lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
         """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
         space = place.space
         size = place.size_
         kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])
-
-        def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
-            lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
-            table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
-            inside = table < size
-            return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
-
         if isinstance(space, NetworkSpace):
             adjacency = csr_matrix(nx.to_scipy_sparse_array(space.graph, nodelist=list(space.graph.nodes), weight=None))
             if name != 'laplacian':
                 error_msg = f'Only Laplacians act on fields on networks, but a term takes the {name}.'
                 raise SolverError(error_msg)
             return adjacency - diags(np.asarray(adjacency.sum(axis=1)).ravel())
+        if not isinstance(space, LatticeSpace):
+            error_msg = f'Finite-difference fields live on lattices or networks, not on a {type(space).__name__}.'
+            raise SolverError(error_msg)
+        shape = space.shape_
+
+        def shift(offset: tuple[int, ...]) -> csr_matrix:
+            lattice = LatticeSpace(shape, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
+            table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
+            inside = table < size
+            return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
+
         units = [tuple(int(other == index) for other in range(space.n_dim_)) for index in range(space.n_dim_)]
         spacings = space.spacings_
         if name == 'laplacian':
@@ -284,7 +299,7 @@ class SplitSolver(Solver):
         raise SolverError(error_msg)
 
     @staticmethod
-    def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
+    def _term_matrix(term: LinearTermSpec, coefficient: float | Array) -> csr_matrix:
         """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
         place = term.place
         matrix = identity(place.size_, format='csr')
@@ -298,7 +313,10 @@ class SplitSolver(Solver):
         return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
 
     @staticmethod
-    def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: ProblemSpec) -> csr_matrix | None:
+    def _sparse(
+        triplets: list[tuple[ReferenceSpec, ReferenceSpec, csr_matrix]],
+        problem: ProblemSpec,
+    ) -> csr_matrix | None:
         """Return the sparse matrix of linear terms over the whole state vector, without rows of fixed nodes."""
         if not triplets:
             return None
@@ -320,18 +338,22 @@ class SplitSolver(Solver):
         return sparse
 
     @staticmethod
-    def _spectral_block(terms: list[tuple[Any, complex]]) -> SpectralBlock:
+    def _spectral_block(terms: list[tuple[LinearTermSpec, complex]]) -> SpectralBlock:
         """Return the Fourier block of the linear terms of the states of one spectral field."""
         place = terms[0][0].place
-        states: dict[tuple[str, int], Any] = {}
+        states: dict[tuple[str, int], ReferenceSpec] = {}
         for term, _ in terms:
             for reference in (term.target, term.source):
                 states.setdefault((reference.entry.name, reference.column), reference)
         order = {key: index for index, key in enumerate(states)}
-        dimensions, spacings = place.space.shape_, place.space.spacings_
+        space = place.space
+        if not isinstance(space, LatticeSpace):
+            error_msg = f'Spectral fields live on lattices, not on a {type(space).__name__}.'
+            raise SolverError(error_msg)
+        dimensions, spacings = space.shape_, space.spacings_
         matrix = np.zeros((*np.fft.rfftn(np.zeros(dimensions)).shape, len(states), len(states)), dtype=complex)
         for term, coefficient in terms:
-            multiplier: Any = 1.0
+            multiplier: complex | ComplexArray = 1.0
             for name, axis in term.chain:
                 multiplier = multiplier * FieldLowering._spectral_multiplier(name, axis, dimensions, spacings)
             target = order[(term.target.entry.name, term.target.column)]
@@ -348,7 +370,7 @@ class SplitSolver(Solver):
         return FieldLowering._mesh_laplacian(space)
 
     @staticmethod
-    def _coefficient(term: Any, p: Array) -> Any:  # noqa: ANN401
+    def _coefficient(term: LinearTermSpec, p: Array) -> float | Array:
         """Return the value of a linear term's coefficient, a number or one value per member."""
         symbols = sorted(term.references, key=str)
         values = []
@@ -356,10 +378,17 @@ class SplitSolver(Solver):
             reference = term.references[item]
             column = reference.entry.view(p)[:, reference.column]
             values.append(float(column[0]) if reference.entry.members is None else column)
-        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols)
-        return printer.run([term.coefficient])(0.0, *values)[0]
+        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([term.coefficient])
+        if not callable(function):
+            error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'
+            raise TypeError(error_msg)
+        coefficients = function(0.0, *values)
+        if not isinstance(coefficients, list):
+            error_msg = f'The compiled function returned a {type(coefficients).__name__}, not a list of values.'
+            raise TypeError(error_msg)
+        return coefficients[0]
 
     @staticmethod
-    def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
+    def _rows(reference: ReferenceSpec) -> npt.NDArray[np.intp]:
         """Return the flat state index of a component for every member."""
         return reference.flat_indices

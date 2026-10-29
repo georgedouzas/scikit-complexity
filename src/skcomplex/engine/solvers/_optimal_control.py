@@ -7,7 +7,6 @@ import math
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -127,11 +126,11 @@ class OptimalControlSolver(Solver):
         cost = self._cost(times, states, controls, p)
         return ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
@@ -139,7 +138,8 @@ class OptimalControlSolver(Solver):
                 The problem is not an ODE, or has no bounded adaptive parameter or laws the solver cannot
                 differentiate symbolically, or the run has no end.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         control_problem = self._control_problem(problem)
         if not math.isfinite(self.until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
@@ -205,11 +205,18 @@ class OptimalControlSolver(Solver):
         arguments = [*control_problem.states, *control_problem.control_symbols, *control_problem.parameters, *extra]
         printer = ExpressionPrinter(time=control_problem.time, compiled=True).check().prepare(arguments)
         compiled = printer.run([SR(item) for item in expressions])
+        if not callable(compiled):
+            error_msg = f'The printer returned a {type(compiled).__name__}, not a compiled function.'
+            raise TypeError(error_msg)
         count = len(expressions)
 
         def evaluate(t: float | Array, x: Array, u: Array, p: Array, *values: Array) -> npt.NDArray[np.float64]:
             if np.ndim(x) == 1 and np.ndim(t) == 0:
-                return np.array(compiled(t, *x, *u, *p, *(item for value in values for item in value)), dtype=float)
+                point = compiled(t, *x, *u, *p, *(item for value in values for item in value))
+                if not isinstance(point, list):
+                    error_msg = f'The compiled function returned a {type(point).__name__}, not a list of values.'
+                    raise TypeError(error_msg)
+                return np.array(point, dtype=np.float64)
             times = np.asarray(t, dtype=float)
             columns = [*np.moveaxis(x, -1, 0), *np.moveaxis(u, -1, 0), *p]
             columns += [item for value in values for item in np.moveaxis(value, -1, 0)]
@@ -217,6 +224,9 @@ class OptimalControlSolver(Solver):
             if not count:
                 return np.zeros((*shape, 0))
             results = compiled(times, *columns)
+            if not isinstance(results, list):
+                error_msg = f'The compiled function returned a {type(results).__name__}, not a list of values.'
+                raise TypeError(error_msg)
             return np.stack([np.broadcast_to(np.asarray(item, dtype=float), shape) for item in results], axis=-1)
 
         return evaluate
@@ -242,6 +252,10 @@ class OptimalControlSolver(Solver):
     def _control_problem(self, problem: ProblemSpec) -> _ControlProblemSpec:
         """Return the optimal control problem of a compiled problem, with its bounded controls and the objective."""
         self._check_supported(problem)
+        objective = self.objective
+        if objective is None:
+            error_msg = f'{type(self).__name__} needs an objective. Pass `objective`, a function or a number.'
+            raise SolverError(error_msg)
         symbols = self._single_symbols(problem)
         controls = self._controls(problem, symbols)
         rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
@@ -258,7 +272,7 @@ class OptimalControlSolver(Solver):
             controls=controls,
             parameters=tuple(problem.parameter_symbols),
             rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
-            running=sign * self._cost_value(cast('Cost', self.objective), namespace),
+            running=sign * self._cost_value(objective, namespace),
             terminal=sign * self._cost_value(self.terminal, namespace),
             sign=sign,
             lower=self._lower_bounds(problem, indices),

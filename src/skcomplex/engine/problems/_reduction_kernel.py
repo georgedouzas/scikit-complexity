@@ -4,8 +4,7 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -14,11 +13,11 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec, RunStateSpec
-from ...types import Array
+from ...types import AnyArray, Array
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 
-REDUCTIONS: dict[str, Callable[[Any], Any]] = {
+REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
     'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
     'sum': lambda array: array.sum(axis=0),
     'mean': lambda array: array.mean(axis=0),
@@ -66,13 +65,14 @@ class ReductionKernel(BaseKernel):
             The entry of the reduced group that gives its size to compiled loops, or `None` for an element set.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         symbol: Expression,
         kind: str,
         argument: Expression,
         condition: Expression | None,
         weights: scipy.sparse.csr_array | None,
+        *,
         entry: EntrySpec,
         size: int,
         group: str | None,
@@ -98,17 +98,18 @@ class ReductionKernel(BaseKernel):
         return sorted(self.reads, key=str)
 
     @functools.cached_property
-    def _function(self) -> Callable[..., list[Any]]:
+    def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
-        return ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols).run(expressions)
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
+        return ExpressionPrinter._function_of(printer.run(expressions))
 
     @property
     def symbols(self) -> list[Expression]:
         """Symbols the argument and the condition read, in the order the compiled function takes them after time."""
         return list(self._symbols)
 
-    def gather(self, x: Array, q: Array) -> list[Any]:
+    def gather(self, x: Array, q: Array) -> list[npt.ArrayLike]:
         """Return the values of the symbols the reduction reads.
 
         Args:
@@ -141,16 +142,17 @@ class ReductionKernel(BaseKernel):
             values:
                 The argument and the condition, one value per reduced member.
         """
-        argument, condition = self._function(t, *self.gather(x, q))
+        argument, condition = ExpressionPrinter._values_of(self._function(t, *self.gather(x, q)))
         return (
             np.broadcast_to(np.asarray(argument, dtype=float), (self.size,)),
             np.broadcast_to(np.asarray(condition, dtype=bool), (self.size,)),
         )
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the value of the reduction into the extended parameter vector of the state, the `p` of `inputs`."""
-        q = inputs.p
-        argument, condition = self.values(inputs.t, inputs.x, q)
+        state = self._state_of(inputs)
+        q = state.p
+        argument, condition = self.values(state.t, state.x, q)
         if self.weights is None:
             q[self.entry.start] = self._reduce_values(argument[condition], self.kind)
             return
@@ -161,7 +163,10 @@ class ReductionKernel(BaseKernel):
         q[self.entry.indices] = weighted
 
     @staticmethod
-    def _reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # noqa: ANN401
+    def _reduce_values(
+        values: npt.ArrayLike | Sequence[object],
+        reduce: str | Callable[[AnyArray], object],
+    ) -> npt.ArrayLike:
         """Return the reduction of the values of a group's members.
 
         Args:
@@ -178,16 +183,21 @@ class ReductionKernel(BaseKernel):
 
         Raises:
             ValidationError:
-                The reduction is unknown.
+                The reduction is unknown, or the reduction function returns neither a number nor an array.
 
         Examples:
             >>> from skcomplex.engine.problems._reduction_kernel import ReductionKernel
             >>> ReductionKernel._reduce_values([1.0, 2.0, 6.0], 'mean')
             3.0
         """
-        array = np.asarray(values) if reduce != 'count' else np.zeros(len(values))
+        array = np.asarray(values)
+        array = np.zeros(len(array)) if reduce == 'count' else array
         if callable(reduce):
-            return reduce(array)
+            reduced = reduce(array)
+            if not isinstance(reduced, int | float | complex | np.number | np.ndarray):
+                error_msg = f'The reduction function returned a {type(reduced).__name__}, not a number or an array.'
+                raise ValidationError(error_msg)
+            return reduced
         if reduce not in REDUCTIONS:
             error_msg = f'Unknown reduction {reduce!r}. Use {", ".join(REDUCTIONS)}, or a function of the values.'
             raise ValidationError(error_msg)

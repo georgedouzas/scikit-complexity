@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -12,9 +11,9 @@ import rerun.blueprint as rrb
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ...core.elements import Element
 from ...core.spaces import LatticeSpace
 from ...core.specs import CompiledAgentsSpec, CompiledElementSpec, QuantumViewSpec
+from ...errors import ValidationError
 from ...types import Array
 from ..compile import QuantumCompiler
 from ..problems import BaseProblemSpec, FrameSpec, QuantumProblemSpec
@@ -113,8 +112,25 @@ class ExpectationVisual(ImageVisual):
 
     @staticmethod
     def _view_of(element: CompiledElementSpec) -> QuantumViewSpec:
-        """Return the quantum view of a compiled element, of its first member for a group."""
-        return QuantumCompiler._view_of(cast('Element', QuantumCompiler._member_of(element.element)))
+        """Return the quantum view of a compiled element, of its first member for a group.
+
+        Args:
+            element:
+                The compiled quantum element or group.
+
+        Returns:
+            view:
+                The quantum view of the element or of its first member.
+
+        Raises:
+            ValidationError:
+                The element is neither an element nor a group of elements.
+        """
+        member = QuantumCompiler._member_of(element.element)
+        if member is None:
+            error_msg = f'{element.path} is neither a quantum element nor a group of them.'
+            raise ValidationError(error_msg)
+        return QuantumCompiler._view_of(member)
 
     @staticmethod
     def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
@@ -135,15 +151,19 @@ class ExpectationVisual(ImageVisual):
         """Return the matrices on the whole space of one local operator of every member of an element or group."""
         cached = problem.cache.get(f'{path}:{name}')
         if cached is None:
+            lowering = problem.lowering
+            if lowering is None:
+                error_msg = f'The quantum problem holds no lowering of the operators of {path}.'
+                raise ValidationError(error_msg)
             subsystems = [
-                item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
+                item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
             ]
-            cached = [problem.lowering._matrix(((item.key, item.operators[name]),), path) for item in subsystems]
+            cached = [lowering._matrix(((item.key, item.operators[name]),), path) for item in subsystems]
             problem.cache[f'{path}:{name}'] = cached
         return cached
 
     @staticmethod
-    def _local_values(problem: QuantumProblemSpec, path: str, x: Array) -> dict[str, Any]:
+    def _local_values(problem: QuantumProblemSpec, path: str, x: Array) -> dict[str, npt.NDArray[np.float64] | float]:
         """Return the local expectations of a quantum element or group at a state, which the visual draws.
 
         A group gives the expectation of the displayed local operator of every member. A single element without a

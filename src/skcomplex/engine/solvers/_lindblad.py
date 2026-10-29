@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
 import qutip
+from qutip.solver import solver_base
 
 from ...types import Array
 from ._quantum import QuantumSolver
@@ -59,7 +59,7 @@ class LindbladSolver(QuantumSolver):
         True
     """
 
-    def _create(self, p: Array) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
         problem = self.quantum_
         hamiltonian = self._operator(problem.hamiltonian, p)

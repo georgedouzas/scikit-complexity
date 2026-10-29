@@ -4,13 +4,12 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Any, cast
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.elements import BaseElement, GroupElement
-from ....core.interactions import BaseInteraction
+from ....core.base import BasePart
+from ....core.elements import GroupElement
 from ....core.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -32,13 +31,14 @@ from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
 from ....specs import EntrySpec
-from ....types import ElementKind, VariableKind
+from ....types import ElementKind, ProcessKey, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of
 from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
+from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
@@ -61,7 +61,7 @@ class CensusPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Take the census of the laws of the nodes."""
         compilation = self.compilation_
-        compilation.census = self._census_of(compilation.system, cast('list[NodeSpec]', compilation.nodes))
+        compilation.census = self._census_of(compilation.system, Compilation._required(compilation.nodes, 'nodes'))
 
     @staticmethod
     def _state_reads(spec: KernelSpec, value: object) -> frozenset[tuple[str, int]]:
@@ -75,10 +75,14 @@ class CensusPass(BasePass):
         )
 
     @staticmethod
-    def _noise_census(spec: KernelSpec, law: object, declarations: DeclarationsSpec) -> dict[str, Any]:
+    def _noise_census(
+        spec: KernelSpec,
+        law: object,
+        declarations: DeclarationsSpec,
+    ) -> tuple[tuple[ProcessKey | None, ...], tuple[tuple[str, int], ...], tuple[frozenset[tuple[str, int]], ...]]:
         """Return the processes, driven states, and read states of every target component of a noise law."""
         if not isinstance(law, NoiseLaw):
-            return {}
+            return (), (), ()
         targets = components_of(law._get_targets()[0])
         values = (
             components_of(law.value)
@@ -86,11 +90,11 @@ class CensusPass(BasePass):
             else [law.value] * len(targets)
         )
         references = [spec.references.get(item) for item in targets]
-        return {
-            'processes': tuple(NoisePass._process_keys(spec, law, declarations)),
-            'driven': tuple((item.entry.name, item.column) for item in references if item is not None),
-            'reads': tuple(CensusPass._state_reads(spec, value) for value in values),
-        }
+        return (
+            tuple(NoisePass._process_keys(spec, law, declarations)),
+            tuple((item.entry.name, item.column) for item in references if item is not None),
+            tuple(CensusPass._state_reads(spec, value) for value in values),
+        )
 
     @staticmethod
     def _is_vector(entry: EntrySpec, elements: dict[str, BlockSpec]) -> bool:
@@ -134,7 +138,7 @@ class CensusPass(BasePass):
         """Return the census records of the laws of one component."""
         records = []
         for spec in SpecsPass._specs_of(block, elements, declarations.time, observer):
-            component = cast('BaseElement | BaseInteraction', CensusPass._component_of(block.node))
+            component = CensusPass._component_of(block.node)
             for law in CensusPass._declared_laws(spec, component):
                 items = [item for target in law._get_targets() for item in components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
@@ -142,6 +146,7 @@ class CensusPass(BasePass):
                 owner = CensusPass._law_owner(spec, law, agents)
                 vectors = frozenset(entry.name for entry in targets if CensusPass._is_vector(entry, elements))
                 kind = CensusPass._component_kind(elements.get(owner, block).node)
+                processes, driven, reads = CensusPass._noise_census(spec, law, declarations)
                 records.append(
                     CensusRecordSpec(
                         block.node.path,
@@ -153,7 +158,9 @@ class CensusPass(BasePass):
                         SpecsPass._group_space(elements.get(owner, block)),
                         members=spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
-                        **CensusPass._noise_census(spec, law, declarations),
+                        processes=processes,
+                        driven=driven,
+                        reads=reads,
                     ),
                 )
         return records
@@ -224,7 +231,7 @@ class CensusPass(BasePass):
     def _changed_target(spec: KernelSpec, law: BaseLaw) -> object:
         """Return the target of a law, or the first state a jump changes."""
         if isinstance(law, JumpLaw):
-            return next(iter(law.changes))
+            return next(iter(law.changes or {}))
         if not law._get_targets():
             error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
             raise ValidationError(error_msg)
@@ -269,7 +276,7 @@ class CensusPass(BasePass):
         return spec._target_references(target)[0].entry.name.rpartition('.')[0]
 
     @staticmethod
-    def _declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
+    def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
         Args:
@@ -287,7 +294,7 @@ class CensusPass(BasePass):
             ValidationError:
                 `laws` returns something other than declarable laws, or laws its binding does not take.
         """
-        declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
+        declared = component.run(spec.namespace)
         if not isinstance(declared, list | tuple) or not all(isinstance(law, BaseLaw) for law in declared):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
@@ -314,8 +321,12 @@ class CensusPass(BasePass):
         return checked
 
     @staticmethod
-    def _component_of(node: NodeSpec) -> object:
-        """Return the object whose `laws` method describes a node, a representative member for a group."""
+    def _component_of(node: NodeSpec) -> BasePart:
+        """Return the part whose laws describe a node, a representative member for a group."""
         if isinstance(node.component, GroupElement):
-            return node.component.element(node.component.label, **(node.component.values or {})).check()
+            group = node.component
+            return group.element(group.label).set_params(**(group.values or {})).check()
+        if not isinstance(node.component, BasePart):
+            error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
+            raise TypeError(error_msg)
         return node.component

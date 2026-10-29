@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -22,6 +21,7 @@ from ...specs import (
 from ...types import Array, Pair
 from ._base import BaseKernel
 from ._compiled_request_spec import CompiledRequestSpec
+from ._law_kernel import LawKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 
 _NO_REDUCTIONS = ReductionScheduleSpec()
@@ -87,23 +87,26 @@ class TopologyKernel(BaseKernel):
         if not self.requests:
             return []
         conditions = [item.condition for item in self.requests if item.condition is not None]
+        if len(conditions) != len(self.requests):
+            error_msg = 'Every update request of a topology kernel carries its condition.'
+            raise ValidationError(error_msg)
         q = self.reductions.extend(t, x, p) if any(item.reads_reductions for item in conditions) else p
         fired = []
-        for index, item in enumerate(self.requests):
-            assert item.condition is not None  # nosec B101: update requests carry their condition
-            _, _, values = item.condition.run(RunStateSpec(t, x, q))
+        for index, condition in enumerate(conditions):
+            _, _, values = LawKernel._result_of(condition.run(RunStateSpec(t, x, q)))
             chances = np.clip(np.asarray(values[0], dtype=float), 0.0, 1.0)
             rows = np.flatnonzero(rng.random(chances.size) < chances)
             fired += [(index, int(row)) for row in rows]
         return fired
 
-    def _run(self, inputs: RunStateSpec) -> Array:
+    def _run(self, inputs: RunStateSpec | None) -> Array:
         """Fire the requests of update laws at the state, apply them, and return the state after them.
 
         The requests decide at the state which rows fire, and the fired requests change a copy of the state vector and
         the parameter vector of the state in place.
         """
-        t, x, p, rng = inputs.t, inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
+        state = self._state_of(inputs)
+        t, x, p, rng = state.t, state.x, state.p, self._generator_of(state)
         return self._apply(self._decide(t, x, p, rng), t, x, p, rng)
 
     def _apply(self, fired: list[tuple[int, int]], t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
@@ -191,7 +194,7 @@ class TopologyKernel(BaseKernel):
         size = item.network.nodes[0].active.rows
         if item.toward is None:
             return np.ones(size)
-        _, _, values = item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p)))
+        _, _, values = LawKernel._result_of(item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p))))
         weights = np.broadcast_to(np.asarray(values[0], dtype=float), (size,))
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
@@ -232,7 +235,7 @@ class TopologyKernel(BaseKernel):
         allowed = self._allowed(item, end, p)
         values = dict(request.values) if request.kind == 'add-edge' else {}
         for other in self._draw(self._weights(item, t, x, p), allowed, request.edges, rng):
-            self._add_edge(network, request.layer, (end, other), x, p, values)
+            self._add_edge(network, request.layer, (end, other), x, p, values=values)
 
     def _rewire(
         self,
@@ -255,8 +258,7 @@ class TopologyKernel(BaseKernel):
             return
         ends = (kept, chosen[0]) if request.keep == 'source' else (chosen[0], kept)
         first, second = network.order_ends(request.layer, *ends)
-        p[edges.source.start + row] = first  # type: ignore[union-attr]
-        p[edges.target.start + row] = second  # type: ignore[union-attr]
+        self._set_ends(edges, row, (first, second), p)
 
     def _execute(
         self,
@@ -355,13 +357,14 @@ class TopologyKernel(BaseKernel):
             self._write(group, row, x, p, values)
         return row
 
-    def _add_edge(  # noqa: PLR0917
+    def _add_edge(
         self,
         network: NetworkRowsSpec,
         layer: str | None,
         ends: Pair,
         x: Array,
         p: Array,
+        *,
         values: Mapping[str, object],
     ) -> None:
         """Add an edge between two node rows to a layer.
@@ -389,8 +392,33 @@ class TopologyKernel(BaseKernel):
         row = edges.take_row(p)
         first, second = network.order_ends(layer, *ends)
         self._write(edges, row, x, p, values)
-        p[edges.source.start + row] = first  # type: ignore[union-attr]
-        p[edges.target.start + row] = second  # type: ignore[union-attr]
+        self._set_ends(edges, row, (first, second), p)
+
+    @staticmethod
+    def _set_ends(edges: CapacityRowsSpec, row: int, ends: Pair, p: Array) -> None:
+        """Write the source and target node of an edge row into the parameter vector.
+
+        Args:
+            edges:
+                The rows of an edge group.
+
+            row:
+                The edge row.
+
+            ends:
+                The source and target node rows.
+
+            p:
+                The parameter vector, changed in place.
+
+        Raises:
+            ValidationError:
+                The group is a group on the nodes, whose rows have no ends.
+        """
+        if edges.source is None or edges.target is None:
+            error_msg = 'Only the rows of an edge group have a source and a target node.'
+            raise ValidationError(error_msg)
+        p[edges.source.start + row], p[edges.target.start + row] = ends
 
     def _remove_node(self, network: NetworkRowsSpec, row: int, p: Array) -> None:
         """Remove a node and every edge that joins it.

@@ -5,7 +5,6 @@
 
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....core.spaces import LatticeSpace
 from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
-from ....errors import ValidationError
+from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
@@ -23,17 +22,16 @@ from ....types import Array, FormKind, ReadKind, Scalars, VariableKind, VectorFu
 from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     BlockSpec,
-    DeclarationsSpec,
     ExpressionPrinter,
     KernelSpec,
     ProblemSpec,
     ReductionScheduleSpec,
     ReferenceSpec,
 )
+from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
-from ...problems._markov_kernel import MarkovKernel
 from .._base import BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation
 from ._events import _SWITCHES, RELATIONS
 
 
@@ -137,13 +135,16 @@ class ProblemPass(BasePass):
     @staticmethod
     def _problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         blocks = list(declarations.blocks.values())
-        form = cast('FormKind', compilation.form)
-        reduced = cast('Laws', compilation.reduced)
-        reductions = cast('ReductionScheduleSpec', compilation.reductions)
+        form = Compilation._required(compilation.form, 'form')
+        reduced = Compilation._required(compilation.reduced, 'reduced')
+        reductions = Compilation._required(compilation.reductions, 'reductions')
         time = declarations.time
-        functions = cast('dict[str, Any]', compilation.functions)
+        functions, delays, events = compilation.functions, compilation.delays, compilation.events
+        if functions is None or delays is None or events is None:
+            error_msg = 'ProblemPass reads the numeric functions, the delays, and the events, which no pass wrote.'
+            raise PipelineError(error_msg)
         return ProblemSpec(
             form=form,
             states=LayoutSpec(tuple(declarations.states)),
@@ -157,21 +158,38 @@ class ProblemPass(BasePass):
             elements=ProblemPass._compiled_elements(blocks),
             interactions=ProblemPass._compiled_interactions(
                 blocks,
-                cast('list[tuple[KernelSpec, BlockSpec]]', compilation.specs),
+                Compilation._required(compilation.specs, 'specs'),
             ),
             system=compilation.system,
             companions=ProblemPass._companions(blocks),
-            delays=ProblemPass._compile_delays(compilation.delays, time),
+            delays=ProblemPass._compile_delays(delays, time),
             events=(
-                *ProblemPass._compile_events(compilation.events, time, reductions),
+                *ProblemPass._compile_events(events, time, reductions),
                 *(ProblemPass._hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
-            breakpoints=ProblemPass._breakpoints_in(reduced, compilation.events, time),
+            breakpoints=ProblemPass._breakpoints_in(reduced, events, time),
             history=ProblemPass._history(blocks),
-            matrices=cast('tuple[MarkovKernel, ...]', compilation.matrices),
-            **functions,
+            matrices=Compilation._required(compilation.matrices, 'matrices'),
+            equations=functions.equations,
+            equation_symbols=functions.equation_symbols,
+            has_callables=functions.has_callables,
+            has_group_sums=functions.has_group_sums,
+            drift=functions.drift,
+            diffusion=functions.diffusion,
+            noise_rows=functions.noise_rows,
+            noise_columns=functions.noise_columns,
+            n_processes=functions.n_processes,
+            noise_blocks=functions.noise_blocks,
+            propensities=functions.propensities,
+            jumps=functions.jumps,
+            update=functions.update,
+            boundary=functions.boundary,
+            draws=functions.draws,
+            backend=functions.backend,
+            backends=functions.backends,
+            accelerated=functions.accelerated,
         )
 
     @staticmethod
@@ -201,6 +219,17 @@ class ProblemPass(BasePass):
         return first
 
     @staticmethod
+    def _reduced_guard(function: Scalars, reductions: ReductionScheduleSpec) -> Callable[[float, Array, Array], float]:
+        """Return a function that gives the single value of a scalar function, reading the reductions at its state."""
+        if not reductions.steps:
+            return ProblemPass._first_value(function)
+
+        def reduced(t: float, x: Array, p: Array) -> float:
+            return function(t, x, reductions.extend(t, x, p))[0]
+
+        return reduced
+
+    @staticmethod
     def _flat_sources(references: Mapping[Expression, ReferenceSpec], owner: str) -> dict[Expression, tuple[bool, int]]:
         """Return the vector and flat index of every symbol of single components in a namespace."""
         del owner
@@ -219,7 +248,7 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _scalar_function(
-        expressions: Sequence[Any],
+        expressions: Sequence[object],
         sources: Mapping[Expression, tuple[bool, int]],
         time: Expression,
         owner: str,
@@ -235,12 +264,17 @@ class ProblemPass(BasePass):
             )
             raise ValidationError(error_msg)
         function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        if not callable(function):
+            error_msg = f'The printer returns no function of the events or delays of {owner}.'
+            raise TypeError(error_msg)
         places = [sources[item] for item in arguments]
 
         def evaluate(t: float, x: Array, p: Array) -> list[float]:
-            return [
-                float(value) for value in function(t, *((x if is_state else p)[index] for is_state, index in places))
-            ]
+            results = function(t, *((x if is_state else p)[index] for is_state, index in places))
+            if not isinstance(results, list):
+                error_msg = f'The function of the events or delays of {owner} returns no list of values.'
+                raise TypeError(error_msg)
+            return [float(value) for value in results]
 
         return evaluate
 
@@ -264,12 +298,18 @@ class ProblemPass(BasePass):
             )
         ]
         references = [spec.references.get(item) for item in targets]
-        if any(
-            item is None or not item.is_state or item.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
-            for item in references
-        ):
-            error_msg = f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
-            raise ValidationError(error_msg)
+        places = []
+        for reference in references:
+            if (
+                reference is None
+                or not reference.is_state
+                or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
+            ):
+                error_msg = (
+                    f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
+                )
+                raise ValidationError(error_msg)
+            places.append(ProblemPass._reset_indices(reference))
         arguments = sorted(symbols_of(values) - {time}, key=str)
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
@@ -280,12 +320,17 @@ class ProblemPass(BasePass):
         reads = [
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
-        places = [ProblemPass._reset_indices(reference) for reference in references]  # type: ignore[arg-type]
         function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values)
+        if not callable(function):
+            error_msg = f'The printer returns no function of the resets of an event of {spec.owner}.'
+            raise TypeError(error_msg)
 
         def apply(t: float, x: Array, p: Array) -> Array:
             q = reductions.extend(t, x, p)
             results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
+            if not isinstance(results, list):
+                error_msg = f'The function of the resets of an event of {spec.owner} returns no list of values.'
+                raise TypeError(error_msg)
             state = x.copy()
             for place, value in zip(places, results, strict=True):
                 state[place] = np.broadcast_to(np.asarray(value, dtype=float), place.shape)
@@ -294,7 +339,7 @@ class ProblemPass(BasePass):
         return apply
 
     @staticmethod
-    def _state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Expression]:
+    def _state_conditions_of(expressions: Iterable[object], time: Expression) -> list[Expression]:
         """Return the expressions whose sign switches a law, from conditions and steps that read more than time."""
         found: list[Expression] = []
         stack = [SR(expression) for expression in expressions]
@@ -318,7 +363,7 @@ class ProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _BreakpointsSpec:
+    def _breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
         """Return the times where conditions on time in expressions change, as from step, pulse, and series inputs."""
         fixed: set[float] = set()
         periodic: set[tuple[float, float]] = set()
@@ -375,7 +420,7 @@ class ProblemPass(BasePass):
             breakpoints:
                 The breakpoints.
         """
-        expressions: list[Any] = []
+        expressions: list[object] = []
         for _, laws in specs:
             for law in laws:
                 value = law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None)
@@ -386,7 +431,7 @@ class ProblemPass(BasePass):
         return ProblemPass._breakpoints_of(expressions, time)
 
     @staticmethod
-    def _compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_DelaySpec, ...]:
+    def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_DelaySpec, ...]:
         """Return the delays of a system with their delay functions compiled.
 
         Args:
@@ -402,23 +447,22 @@ class ProblemPass(BasePass):
         """
         compiled = []
         for item in delays:
-            spec = item['spec']
+            spec, hidden = item.spec, item.entry
             tau = ProblemPass._scalar_function(
-                [item['tau']],
+                [item.tau],
                 ProblemPass._flat_sources(spec.references, spec.owner),
                 time,
                 spec.owner,
             )
-            hidden = item['entry']
             compiled.append(
                 _DelaySpec(
                     parameters=hidden.start + np.arange(hidden.size),
-                    states=np.asarray(item['states'], dtype=np.intp),
+                    states=item.states,
                     tau=ProblemPass._first_value(tau),
-                    minimum=float(item['minimum']),
-                    symbol=item['symbol'],
-                    state=item['state'],
-                    delay=SR(item['tau']),
+                    minimum=item.minimum,
+                    symbol=item.symbol,
+                    state=item.state,
+                    delay=SR(item.tau),
                 ),
             )
         return tuple(compiled)
@@ -456,7 +500,7 @@ class ProblemPass(BasePass):
             compiled.append(
                 EventKernel(
                     event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
-                    reductions.wrap(ProblemPass._first_value(guard)),  # type: ignore[arg-type]
+                    ProblemPass._reduced_guard(guard, reductions),
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
@@ -504,17 +548,17 @@ class ProblemPass(BasePass):
                 compiled.append(
                     EventKernel(
                         label,
-                        reductions.wrap(ProblemPass._first_value(guard)),
+                        ProblemPass._reduced_guard(guard, reductions),
                         None,
                         0,
                         False,
                         hidden=True,
                     ).check(),
-                )  # type: ignore[arg-type]
+                )
         return tuple(compiled)
 
     @staticmethod
-    def _history(blocks: list[BlockSpec]) -> dict[str, Any]:
+    def _history(blocks: list[BlockSpec]) -> dict[str, object]:
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:

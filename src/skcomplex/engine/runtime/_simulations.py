@@ -7,7 +7,7 @@ import math
 import queue
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from typing import Self, cast
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -38,7 +38,7 @@ TIME_TOLERANCE = 1e-9
 _STEPWISE_FORMS = frozenset({FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO})
 
 
-class Simulation(BaseConfig):
+class Simulation(BaseConfig[None, float]):
     """Simulation of a system with the solver of its form.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
@@ -211,17 +211,33 @@ class Simulation(BaseConfig):
         if not isinstance(self.system, BaseProblemSpec):
             self._compiler().check().prepare(self.system).report_.check()
 
-    def _prepare(self, context: None = None) -> None:
-        """Compile the system, choose the solver, and gather the clock and the observers of a run."""
+    def _prepare(self, context: None) -> None:
+        """Compile the system, choose the solver, and gather the clock and the observers of a run.
+
+        Args:
+            context:
+                Nothing: a simulation prepares on its own system.
+
+        Raises:
+            TypeError:
+                The compiler does not return a problem, or names an object that is not a solver.
+        """
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
-        named = None
+        named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._with_initial_state(self.system, initial)
         else:
             compiler = self._compiler().check().prepare(self.system)
-            self.problem_ = cast('BaseProblemSpec', compiler.run(initial))
+            problem = compiler.run(initial)
+            if not isinstance(problem, BaseProblemSpec):
+                error_msg = f'A compiler returns a compiled problem, not a {type(problem).__name__}.'
+                raise TypeError(error_msg)
+            self.problem_ = problem
             named = compiler.solver_
+        if named is not None and not isinstance(named, BaseSolver):
+            error_msg = f'A compiler names a solver, not a {type(named).__name__}.'
+            raise TypeError(error_msg)
         self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
         if self.solver is not None:
@@ -308,10 +324,14 @@ class Simulation(BaseConfig):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                self.state_ = self.stepper_.run(
+                state = self.stepper_.run(
                     StepSpec(self.time_, self.state_, self.parameters_, target),
                     final=released,
                 )
+                if not isinstance(state, np.ndarray):
+                    error_msg = f'A solver returns the state vector, not a {type(state).__name__}.'
+                    raise TypeError(error_msg)
+                self.state_ = state
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -413,45 +433,64 @@ class Simulation(BaseConfig):
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
         return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
 
-    def prepare(self) -> Self:
+    def prepare(self, context: None = None) -> Self:
         """Compile the system of the checked simulation and choose the solver.
+
+        Args:
+            context:
+                Nothing: a simulation prepares on its own system.
 
         Returns:
             self:
                 The prepared simulation, with the compiled problem `problem_` and the solver `stepper_`.
         """
-        return super().prepare()
+        return super().prepare(context)
 
-    def run(self, until: float) -> Self:
+    def run(self, until: float | None = None, final: bool = False) -> Self:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         Args:
             until:
                 The simulated time to stop at.
 
+            final:
+                Whether this is the last call, after which the simulation releases what preparing acquired.
+
         Returns:
             simulation:
                 The simulation itself.
-        """
-        return super().run(until)
 
-    def _run(self, until: float) -> Self:
+        Raises:
+            ValidationError:
+                No end time is passed.
+        """
+        super().run(until, final)
+        return self
+
+    def _run(self, inputs: float | None) -> Self:
         """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
         such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
 
         Args:
-            until:
+            inputs:
                 The simulated time to stop at.
 
         Returns:
             simulation:
                 The simulation itself.
+
+        Raises:
+            ValidationError:
+                No end time is passed.
         """
+        if inputs is None:
+            error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
+            raise ValidationError(error_msg)
         self.prepare()
-        self._start(until)
-        self._loop(until)
+        self._start(inputs)
+        self._loop(inputs)
         return self
 
     def extend(self, until: float) -> Self:

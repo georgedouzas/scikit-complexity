@@ -3,14 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from ....core.laws import BaseLaw, JumpLaw
 from ....specs import TopologyRequestSpec
 from ...problems import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 
 
 class RequestJumpsPass(BasePass):
@@ -28,7 +27,7 @@ class RequestJumpsPass(BasePass):
         """Note the requests of the jumps."""
         compilation = self.compilation_
         compilation.reduced, compilation.request_jumps = self._set_request_jumps_apart(
-            cast('Laws', compilation.reduced),
+            Compilation._required(compilation.reduced, 'reduced'),
         )
 
     @staticmethod

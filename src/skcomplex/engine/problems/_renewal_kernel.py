@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Any, cast
 
 import numpy as np
 
@@ -13,9 +12,10 @@ from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Drawn, Indices, ReadKind
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
+from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 
-type MemberFunction = tuple[Callable[..., list[Any]], tuple[ReferenceSpec | str, ...]]
+type MemberFunction = tuple[Callable[..., object], tuple[ReferenceSpec | str, ...]]
 """Function of the states and parameters of renewing members and of the values drawn for them, with its readers."""
 
 
@@ -64,13 +64,14 @@ class RenewalKernel(BaseKernel):
             The draws of the waiting time alone, taken after the reset.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         label: str,
         members: int,
         counts: Indices,
         states: Indices,
         names: tuple[str, ...],
+        *,
         targets: Indices,
         reset: MemberFunction | None,
         waiting: MemberFunction,
@@ -89,12 +90,13 @@ class RenewalKernel(BaseKernel):
         self.after = after
 
     @staticmethod
-    def _evaluate(  # noqa: PLR0917
+    def _evaluate(
         function: MemberFunction,
         times: Array,
         x: Array,
         p: Array,
         fired: Indices,
+        *,
         drawn: Drawn,
     ) -> list[Array]:
         """Return the value of every expression of a member function for every renewing member."""
@@ -106,7 +108,7 @@ class RenewalKernel(BaseKernel):
                 continue
             column = reader.column_of(x, p)
             arguments.append(column[fired] if reader.source is ReadKind.MEMBER else column)
-        values = compiled(times, *arguments)
+        values = ExpressionPrinter._values_of(compiled(times, *arguments))
         return [np.broadcast_to(np.asarray(value, dtype=float), fired.shape).copy() for value in values]
 
     def _sample(
@@ -122,7 +124,7 @@ class RenewalKernel(BaseKernel):
     ) -> None:
         """DrawSpec a value of every sampler for every renewing member into the drawn values, in order."""
         for draw, arguments in samplers:
-            values = self._evaluate(arguments, times, x, p, fired, drawn) if draw.arguments else []
+            values = self._evaluate(arguments, times, x, p, fired, drawn=drawn) if draw.arguments else []
             drawn[draw.name] = DrawKernel._sample_draw(draw, values, fired.size, rng)
 
     def _wait(
@@ -137,7 +139,7 @@ class RenewalKernel(BaseKernel):
     ) -> Array:
         """Return the next renewal times of members from their states, after drawing the waiting time's draws."""
         self._sample(self.after, times, x, p, fired, drawn=drawn, rng=rng)
-        waiting = self._evaluate(self.waiting, times, x, p, fired, drawn)[0]
+        waiting = self._evaluate(self.waiting, times, x, p, fired, drawn=drawn)[0]
         if not np.all(waiting >= 0):
             error_msg = (
                 f'The renewal law {self.label} drew the waiting time {waiting[~(waiting >= 0)][0]}, but waiting '
@@ -146,11 +148,12 @@ class RenewalKernel(BaseKernel):
             raise SolverError(error_msg)
         return times + waiting
 
-    def _run(self, inputs: RunStateSpec) -> Array:
+    def _run(self, inputs: RunStateSpec | None) -> Array:
         """Return the next renewal time of every member, drawn from the state as if every member renewed at its time."""
-        x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
+        state = self._state_of(inputs)
+        x, p, rng = state.x, state.p, self._generator_of(state)
         fired = np.arange(self.members, dtype=np.intp)
-        times = np.full(self.members, inputs.t)
+        times = np.full(self.members, state.t)
         drawn: Drawn = {}
         self._sample(self.before, times, x, p, fired, drawn=drawn, rng=rng)
         return self._wait(times, x, p, fired, drawn=drawn, rng=rng)
@@ -195,7 +198,11 @@ class RenewalKernel(BaseKernel):
         self._sample(self.before, times, x, p, fired, drawn=drawn, rng=rng)
         state = x.copy()
         if self.reset is not None:
-            for place, value in zip(self.targets, self._evaluate(self.reset, times, x, p, fired, drawn), strict=True):
+            for place, value in zip(
+                self.targets,
+                self._evaluate(self.reset, times, x, p, fired, drawn=drawn),
+                strict=True,
+            ):
                 state[place[fired]] = value
         state[self.counts[fired]] += 1
         following = self._wait(times, state, p, fired, drawn=drawn, rng=rng)

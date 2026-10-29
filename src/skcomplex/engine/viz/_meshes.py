@@ -4,16 +4,19 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.spaces import MeshSpace
 from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
 from ._base import _MODULUS, _PHASE, BaseVisual
+
+_SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
@@ -62,13 +65,13 @@ class MeshVisual(BaseVisual):
     def _log_mesh(
         recording: rr.RecordingStream,
         path: str,
-        mesh: Any,  # noqa: ANN401
+        mesh: MeshSpace,
         values: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8],
     ) -> None:
         """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
         nodes, cells = mesh.positions_, np.asarray(mesh.cells)
-        if mesh.n_dim_ != 2:  # noqa: PLR2004
+        if mesh.n_dim_ != _SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
         positions = np.column_stack([nodes, values])
@@ -86,8 +89,15 @@ class MeshVisual(BaseVisual):
 
             frame:
                 The frame.
+
+        Raises:
+            ValidationError:
+                The element does not lie on a mesh space.
         """
-        mesh: Any = getattr(element.element, 'space', None)
+        mesh = getattr(element.element, 'space', None)
+        if not isinstance(mesh, MeshSpace):
+            error_msg = f'The element {element.path} does not lie on a mesh space. Draw it with another visual.'
+            raise ValidationError(error_msg)
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue

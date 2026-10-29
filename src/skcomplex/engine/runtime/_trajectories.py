@@ -4,12 +4,12 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ...specs import AgentSnapshotSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ...types import AnyArray
 from ..problems import BaseProblemSpec
 
 
@@ -70,9 +70,9 @@ class Trajectory:
         *,
         agents: Sequence[Mapping[str, AgentSnapshotSpec]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
-        observables: Sequence[Mapping[str, Any]] = (),
+        observables: Sequence[Mapping[str, object]] = (),
         events: Sequence[BaseRecordSpec] = (),
-        structures: Sequence[Mapping[str, Any]] = (),
+        structures: Sequence[Mapping[str, object]] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -84,7 +84,7 @@ class Trajectory:
         self.events = list(events)
         self.structures = structures
 
-    def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
+    def _present(self, name: str, values: AnyArray) -> AnyArray:
         """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
         topology = self.problem.topology
         if topology is None or topology.presence(name, self.parameters[0]) is None:
@@ -93,7 +93,7 @@ class Trajectory:
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def values(self, name: str) -> npt.NDArray[Any]:
+    def values(self, name: str) -> AnyArray:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -175,7 +175,7 @@ class Trajectory:
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
 
-    def agent_locations(self, group: str) -> list[npt.NDArray[Any]]:
+    def agent_locations(self, group: str) -> list[AnyArray]:
         """Return the locations of the agents of a group, one array per frame with one row per agent alive.
 
         Args:
@@ -199,7 +199,7 @@ class Trajectory:
             for snapshot in frames
         ]
 
-    def lattice(self, name: str) -> npt.NDArray[Any]:
+    def lattice(self, name: str) -> AnyArray:
         """Return the values of a lattice state over time in lattice shape.
 
         Args:
@@ -271,7 +271,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return topology.read_network(self.parameters[frame], nodes, layer)
 
-    def structure(self, path: str, frame: int) -> Any:  # noqa: ANN401
+    def structure(self, path: str, frame: int) -> object:
         """Return the word or patch of a rewritten element at a frame.
 
         Args:

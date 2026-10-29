@@ -448,9 +448,9 @@ def test_events_are_attached_to_frames():
     frames = []
 
     class Collector(BaseObserver):
-        def _run(self, frame=None):
-            if frame is not None:
-                frames.append(frame)
+        def _run(self, inputs):
+            if inputs is not None:
+                frames.append(inputs)
 
     Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).check().run(until=1.5)
     assert [len(frame.events) for frame in frames] == [0, 1, 0, 1]

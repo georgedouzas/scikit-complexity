@@ -5,7 +5,6 @@
 
 import itertools
 from collections.abc import Sequence
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -57,12 +56,13 @@ class DrawKernel(BaseKernel):
         extended[: self.offset] = p[: self.offset]
         return extended
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Draw fresh values into the extended parameter vector of the state, uniform and normal runs as they come.
 
         The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state.
         """
-        q, rng, t, x = inputs.p, cast('np.random.Generator', inputs.rng), inputs.t, inputs.x
+        state = self._state_of(inputs)
+        q, rng, t, x = state.p, self._generator_of(state), state.t, state.x
         cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.normal.size]
         for start, end in itertools.pairwise(cuts):
             if start == end:
@@ -74,7 +74,7 @@ class DrawKernel(BaseKernel):
             q[item.start : item.start + item.rows] = item.sample(t, x, q, rng)
 
     @staticmethod
-    def _sample_draw(draw: DrawSpec, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Array:
+    def _sample_draw(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int, rng: np.random.Generator) -> Array:
         """Return values of a draw for a number of members, with arguments that hold one value or one per member.
 
         Args:

@@ -30,7 +30,7 @@ _REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-class Observer(BaseConfig):
+class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
     """Values of the observables that laws read at the current state, built from the blocks of a system.
 
     `prepare()` starts with no observable evaluated, and `run((node, label))` returns the namespace of the observable a
@@ -54,7 +54,7 @@ class Observer(BaseConfig):
         self.declarations = declarations
         self.live = live
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None) -> Self:
         """Start with no observable evaluated.
 
         Args:
@@ -68,7 +68,7 @@ class Observer(BaseConfig):
         self.values_ = {}
         return self
 
-    def _run(self, inputs: tuple[NodeSpec, object]) -> ObservedSpec | None:
+    def _run(self, inputs: tuple[NodeSpec, object] | None) -> ObservedSpec | None:
         """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable.
 
         Args:
@@ -78,7 +78,14 @@ class Observer(BaseConfig):
         Returns:
             observed:
                 The namespace of the observable with the references of its symbols, or `None`.
+
+        Raises:
+            ValidationError:
+                No component and label are passed.
         """
+        if inputs is None:
+            error_msg = 'An observer runs on a component and the label its role binds to. Pass them to `run`.'
+            raise ValidationError(error_msg)
         node, label = inputs
         path = f'{node.scope}{label}' if isinstance(label, str) else None
         if path not in self.live:

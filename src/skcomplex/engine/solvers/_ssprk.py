@@ -15,6 +15,8 @@ from ...types import Array, FormKind, OrderKind
 from ..problems import ProblemSpec
 from ._solver import Solver
 
+_SECOND_ORDER = 2
+
 
 class SSPRKSolver(Solver):
     """Strong-stability-preserving Runge-Kutta of order 2 or 3, with steps from the CFL condition of conservation laws.
@@ -33,6 +35,12 @@ class SSPRKSolver(Solver):
 
         dt:
             The largest step, and the step without conservation laws.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
         >>> import numpy as np
@@ -54,7 +62,7 @@ class SSPRKSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -77,18 +85,19 @@ class SSPRKSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper and check its order.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The order is not 2 or 3, or the problem is not an ODE.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         if self.order not in {2, 3}:
             error_msg = f'SSPRKSolver has order 2 or 3, not {self.order}.'
             raise SolverError(error_msg)
@@ -128,7 +137,7 @@ class SSPRKSolver(Solver):
         while drift is not None and time < until - 1e-12 * max(1.0, abs(until)):
             h = min(self._step_size(state, p), until - time)
             first = state + h * drift(time, state, p)
-            if self.order == 2:  # noqa: PLR2004
+            if self.order == _SECOND_ORDER:
                 state = (state + first + h * drift(time + h, first, p)) / 2
             else:
                 second = 0.75 * state + 0.25 * (first + h * drift(time + h, first, p))

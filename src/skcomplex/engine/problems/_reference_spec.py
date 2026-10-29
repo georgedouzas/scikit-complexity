@@ -7,14 +7,16 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 
+from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
+from ...specs._neighbor_read_spec import NeighborReadSpec
 from ...types import Array, Indices, ReadKind
 from ._edge_search import EdgeSearch
+from ._field_operator_kernel import FieldOperatorKernel
 from ._pair_search import PairSearch
 
 
@@ -37,14 +39,15 @@ class ReferenceSpec(BaseSpec):
             How the component is read for each evaluation index.
 
         neighbor:
-            How a neighbour read finds the neighbour of every member, for the neighbour source.
+            How a neighbour read finds the neighbour of every member, for the neighbour source, or the global operator
+            of a derived read, for the derived source.
     """
 
     entry: EntrySpec
     is_state: bool
     column: int
     source: ReadKind = ReadKind.SINGLE
-    neighbor: Any = field(default=None, compare=False, repr=False)
+    neighbor: NeighborReadSpec | FieldOperatorKernel | None = field(default=None, compare=False, repr=False)
 
     @functools.cached_property
     def index(self) -> int:
@@ -74,6 +77,32 @@ class ReferenceSpec(BaseSpec):
         if self.source is ReadKind.SINGLE:
             return vector[self.index : self.index + 1]
         return vector[self.members]
+
+    @property
+    def shifted(self) -> NeighborReadSpec:
+        """How the neighbour read finds the neighbour of every member.
+
+        Raises:
+            ValidationError:
+                The reference is not a neighbour read.
+        """
+        if not isinstance(self.neighbor, NeighborReadSpec):
+            error_msg = f'The reference to {self.entry.name} is not a neighbour read.'
+            raise ValidationError(error_msg)
+        return self.neighbor
+
+    @property
+    def derived(self) -> FieldOperatorKernel:
+        """Global operator of the derived read.
+
+        Raises:
+            ValidationError:
+                The reference is not a derived read.
+        """
+        if not isinstance(self.neighbor, FieldOperatorKernel):
+            error_msg = f'The reference to {self.entry.name} is not a derived read.'
+            raise ValidationError(error_msg)
+        return self.neighbor
 
     @property
     def flat_indices(self) -> Indices:

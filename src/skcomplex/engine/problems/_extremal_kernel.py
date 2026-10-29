@@ -3,8 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
-from typing import Any, cast
+from collections.abc import Callable, Iterable
 
 import numpy as np
 
@@ -53,15 +52,16 @@ class ExtremalKernel(BaseKernel):
             The compiled loop of the applications on the Numba backend, or `None` for the NumPy loop.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         label: str,
         owner: str,
         targets: tuple[LatticeStateSpec, ...],
         key: LatticeStateSpec,
         members: Indices,
+        *,
         counts: Indices,
-        rule: Callable[..., Any],
+        rule: Callable[..., object],
         arguments: ArgumentsSpec,
         maximum: bool,
         repeat: int,
@@ -89,22 +89,24 @@ class ExtremalKernel(BaseKernel):
         random = rng.random(sites.size)
         values = [x[state.start + sites] for state in self.targets]
         result = self.rule(*values, random=random, **self.arguments.values(x, p, sites))
-        results = list(result) if len(self.targets) > 1 else [result]
+        several = len(self.targets) > 1
+        results = list(result) if several and isinstance(result, Iterable) else [result]
         if len(results) != len(self.targets):
             error_msg = (
                 f'The extremal law of {self.owner} returned {len(results)} arrays for {len(self.targets)} targets.'
             )
             raise SolverError(error_msg)
         for state, value in zip(self.targets, results, strict=True):
-            x[state.start + sites] = value
+            x[state.start + sites] = np.asarray(value, dtype=float)
         return site, float(best)
 
-    def _run(self, inputs: RunStateSpec) -> list[ExtremalRecordSpec]:
+    def _run(self, inputs: RunStateSpec | None) -> list[ExtremalRecordSpec]:
         """Apply the law `repeat` times to the state vector of the state in place, and return the records.
 
         Every record holds the time of the state, the site, and the extremal value of one application.
         """
-        x, p, rng, time = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng), inputs.t
+        state = self._state_of(inputs)
+        x, p, rng, time = state.x, state.p, self._generator_of(state), state.t
         if self.loop is None:
             found = [self._apply_once(x, p, rng) for _ in range(self.repeat)]
             return [ExtremalRecordSpec(self.label, time, site, value) for site, value in found]

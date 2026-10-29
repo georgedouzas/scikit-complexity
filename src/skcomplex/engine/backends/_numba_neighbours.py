@@ -12,6 +12,7 @@ from ...types import Aim, Array, Box, Context, Grid, IntArray, NeighborsFound, S
 
 CELLS_PER_MEMBER = 8
 FEWEST_CELLS = 64
+ACTIVE_THRESHOLD = 0.5
 
 
 @njit(cache=True)
@@ -177,7 +178,7 @@ def _edge_counts(
     directed, center = flags
     counts = np.zeros(n_nodes + 1, dtype=np.int64)
     for edge in range(n_edges):
-        if p[actives + edge] > 0.5:  # noqa: PLR2004
+        if p[actives + edge] > ACTIVE_THRESHOLD:
             counts[int(p[sources + edge]) + 1] += 1
             counts[int(p[targets + edge]) + 1] += 0 if directed else 1
     for node in range(n_nodes if center else 0):
@@ -314,11 +315,10 @@ def _radius_neighbours(
 
 
 @njit(cache=True)
-def _cone_neighbours(  # noqa: PLR0917
+def _cone_neighbours(
     positions: Array,
     headings: Array,
-    radius: float,
-    cosine: float,
+    cone: tuple[float, float],
     box: Box,
     center: bool,
 ) -> tuple[IntArray, IntArray]:
@@ -331,11 +331,8 @@ def _cone_neighbours(  # noqa: PLR0917
         headings:
             One row of heading components per member.
 
-        radius:
-            The largest distance of a neighbour.
-
-        cosine:
-            The cosine of the half-angle of the cone.
+        cone:
+            The largest distance of a neighbour and the cosine of the half-angle of the cone.
 
         box:
             The sides of the periodic box and whether distances are minimum images in it.
@@ -347,6 +344,7 @@ def _cone_neighbours(  # noqa: PLR0917
         rows:
             The start of the neighbours of every member, and the neighbours.
     """
+    radius, cosine = cone
     return _within(positions, radius, (headings, cosine, True), box, center)
 
 
@@ -403,20 +401,20 @@ def _nearest_neighbours(
 
 
 @njit(cache=True)
-def _edge_neighbours(  # noqa: PLR0917
+def _edge_neighbours(
     p: Array,
     ends: tuple[int, int, int],
     n_edges: int,
     n_nodes: int,
-    directed: bool,
-    center: bool,
+    flags: tuple[bool, bool],
 ) -> tuple[IntArray, IntArray, IntArray]:
     """Return the neighbours of every node along the active edge rows of a layer, with the edge row of every one.
 
     The edge rows hold their source, target, and activity in the parameter vector from the starts `ends`.
     """
     sources, targets, actives = ends
-    indptr = _edge_counts(p, ends, n_edges, n_nodes, (directed, center))
+    directed, center = flags
+    indptr = _edge_counts(p, ends, n_edges, n_nodes, flags)
     filled = indptr[:-1].copy()
     indices = np.empty(indptr[-1], dtype=np.int64)
     edges = np.empty(indptr[-1], dtype=np.int64)
@@ -424,7 +422,7 @@ def _edge_neighbours(  # noqa: PLR0917
         indices[filled[node]], edges[filled[node]] = node, -1
         filled[node] += 1
     for edge in range(n_edges):
-        if p[actives + edge] <= 0.5:  # noqa: PLR2004
+        if p[actives + edge] <= ACTIVE_THRESHOLD:
             continue
         first, second = int(p[sources + edge]), int(p[targets + edge])
         indices[filled[first]], edges[filled[first]] = second, edge

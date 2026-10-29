@@ -4,10 +4,9 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import cast
 
-from ...problems import ProblemSpec
 from .._base import BasePass
+from .._compilation import Compilation
 
 
 class TopologyProblemPass(BasePass):
@@ -24,4 +23,5 @@ class TopologyProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the topology changes to the problem."""
         compilation = self.compilation_
-        compilation.problem = replace(cast('ProblemSpec', compilation.problem), topology=compilation.topology)
+        problem = Compilation._required(compilation.problem, 'problem')
+        compilation.problem = replace(problem, topology=compilation.topology)

@@ -5,7 +5,7 @@
 
 from abc import abstractmethod
 
-from ...errors import BackendError
+from ...errors import BackendError, ValidationError
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -22,6 +22,10 @@ class ExternalSolver(Solver):
     @classmethod
     def _get_name(cls) -> str:
         """Return the name of the library the solver wraps.
+
+        Returns:
+            name:
+                The name of the library.
 
         Raises:
             NotImplementedError:
@@ -61,17 +65,24 @@ class ExternalSolver(Solver):
         """
         raise NotImplementedError
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Check that the library supports a problem and build its model.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
+            ValidationError:
+                No problem is passed.
+
             BackendError:
                 The problem has a form, a complex state, an element, an interaction, or a law the library cannot run.
         """
+        if context is None:
+            error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        problem = context
         forms = {self._get_form(), *self._get_forms()}
         unsupported = [] if problem.form in forms else [f'the {problem.form.value} form']
         unsupported += [f'the complex state {entry.name}' for entry in problem.states.entries if entry.is_complex]

@@ -327,7 +327,10 @@ def test_count_and_mean_with_condition(backend):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_no_selected_members(backend):
     """Test that the reductions of no selected members are 0, the count included."""
-    selected = lambda s: s.x > 10  # noqa: E731
+
+    def selected(s):
+        return s.x > 10
+
     system, _ = _group_of(
         lambda s: [
             RateLaw(

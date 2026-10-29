@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
 
 
@@ -25,6 +24,10 @@ class DrawsPass(BasePass):
         """Lower the draws of the laws."""
         compilation = self.compilation_
         drawing = DrawLowering().check().prepare(compilation)
-        compilation.drawn = drawing.run(cast('Laws', compilation.drawn))
+        drawn = drawing.run(Compilation._required(compilation.drawn, 'drawn'))
+        if not isinstance(drawn, list):
+            error_msg = f'The draw lowering returns a {type(drawn).__name__}, not a list of laws.'
+            raise TypeError(error_msg)
+        compilation.drawn = drawn
         drawing._apply_references()
         compilation.draws = drawing.draws_

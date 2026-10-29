@@ -65,10 +65,10 @@ class CayleyVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _log_edges(self, recording: rr.RecordingStream, path: str, space: CayleySpace) -> None:
         """Log the edges of every generator once, as static data."""

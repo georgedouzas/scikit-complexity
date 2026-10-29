@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -26,9 +25,12 @@ from ...specs._wiener_block_spec import WienerBlockSpec
 from ...types import Array, VectorFunction
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
+from ._finite_volume_kernel import FiniteVolumeKernel
 from ._jacobian_kernel import JacobianKernel
+from ._linear_term_spec import LinearTermSpec
 from ._partition_spec import PartitionSpec
 from ._reduction_kernel import ReductionKernel
 
@@ -217,12 +219,12 @@ class ProblemSpec(BaseProblemSpec):
     delays: tuple[_DelaySpec, ...] = ()
     events: tuple[EventKernel, ...] = ()
     breakpoints: _BreakpointsSpec = field(default_factory=_BreakpointsSpec)
-    history: Mapping[str, Any] = field(default_factory=dict)
+    history: Mapping[str, object] = field(default_factory=dict)
     lattice: tuple[BaseKernel, ...] = field(default=(), repr=False)
     stable_step: float | None = None
-    diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
-    linear: tuple[Any, ...] = field(default=(), repr=False)
-    volumes: tuple[Any, ...] = field(default=(), repr=False)
+    diffusive_limits: tuple[DiffusiveLimitSpec, ...] = field(default=(), repr=False)
+    linear: tuple[LinearTermSpec, ...] = field(default=(), repr=False)
+    volumes: tuple[FiniteVolumeKernel, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
     jacobian: JacobianKernel | None = field(default=None, repr=False)
@@ -312,7 +314,7 @@ class ProblemSpec(BaseProblemSpec):
         return matrix
 
     @staticmethod
-    def _real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
+    def _real_components_of(value: object) -> list[object]:
         """Return the components of a value with every complex component split into its real and imaginary parts.
 
         Args:
@@ -331,7 +333,7 @@ class ProblemSpec(BaseProblemSpec):
             >>> ProblemSpec._real_components_of(vector([x + I * y, 2 * x]))
             [x, y, 2*x]
         """
-        components = []
+        components: list[object] = []
         for item in (list(value) if isinstance(value, FreeModuleElement) else [value]):
             if isinstance(item, Expression) and item.has(I):
                 components += [item.real_part(), item.imag_part()]

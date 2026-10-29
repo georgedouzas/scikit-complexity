@@ -12,13 +12,13 @@ from skcomplex.models.biology.ecology import PopulationElement
 class _TimesObserver(BaseObserver):
     """Observer that keeps the times of its frames and whether the run ended."""
 
-    def _prepare(self, problem):
+    def _prepare(self, context):
         self.times_ = []
         self.ended_ = False
 
-    def _run(self, frame=None):
-        if frame is not None:
-            self.times_.append(frame.time)
+    def _run(self, inputs):
+        if inputs is not None:
+            self.times_.append(inputs.time)
 
     def _release(self):
         self.ended_ = True
@@ -34,8 +34,8 @@ def test_verbs_take_one_input():
     """Test that an observer prepares on a problem and runs on a frame, and a clock prepares on nothing."""
     assert list(inspect.signature(BaseObserver.prepare).parameters) == ['self', 'problem']
     assert list(inspect.signature(BaseObserver.run).parameters) == ['self', 'frame', 'final']
-    assert list(inspect.signature(BaseClock.prepare).parameters) == ['self']
-    assert list(inspect.signature(BaseClock.run).parameters) == ['self', 'elapsed']
+    assert list(inspect.signature(BaseClock.prepare).parameters) == ['self', 'context']
+    assert list(inspect.signature(BaseClock.run).parameters) == ['self', 'elapsed', 'final']
 
 
 def test_observer_receives_every_frame_and_the_end_of_the_run():

@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import cast
 
 import numpy as np
 
@@ -12,7 +11,7 @@ from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind, VectorFunction
+from ...types import Array, NoiseKind, OrderKind
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -59,8 +58,8 @@ class EulerMaruyamaSolver(SDESolver):
                 TransferLaw,
                 NoiseLaw,
             },
-            noise=set(NoiseKind),
-            orders={OrderKind.INTEGER},
+            noise=frozenset(NoiseKind),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -104,8 +103,8 @@ class EulerMaruyamaSolver(SDESolver):
                 The state at the end of the step.
         """
         problem = self.problem_
-        following = state + cast('VectorFunction', problem.drift)(time, state, p) * step
-        np.add.at(following, problem.noise_rows, cast('VectorFunction', problem.diffusion)(time, state, p) * noise)
+        following = state + self._drift()(time, state, p) * step
+        np.add.at(following, problem.noise_rows, self._diffusion()(time, state, p) * noise)
         return following
 
     def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:

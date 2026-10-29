@@ -3,11 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from ....core.laws import JumpLaw
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 from .._renewal_law import RenewalLaw
 
 
@@ -38,5 +37,5 @@ class UnpackRenewalsPass(BasePass):
                 ],
                 block,
             )
-            for spec, laws, block in cast('BlockLaws', compilation.collected)
+            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
         ]

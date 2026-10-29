@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
-from ...problems import BlockSpec, KernelSpec
 from .._base import BasePass
+from .._compilation import Compilation
 from ._census import CensusPass
 
 
@@ -24,7 +23,7 @@ class CollectPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Collect the laws of every kernel spec."""
         compilation = self.compilation_
-        specs = cast('list[tuple[KernelSpec, BlockSpec]]', compilation.specs)
+        specs = Compilation._required(compilation.specs, 'specs')
         compilation.collected = [
             (spec, CensusPass._declared_laws(spec, CensusPass._component_of(block.node)), block)
             for spec, block in specs

@@ -90,10 +90,10 @@ class HistogramVisual(AgentsVisual):
         self.shown = shown
         self.histogram_first = histogram_first
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
         self.spans_: dict[str, tuple[float, float]] = {}
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""

@@ -9,15 +9,16 @@ from collections.abc import Mapping
 import numpy as np
 
 from ...base import BaseConfig
-from ...errors import SolverError
+from ...errors import SolverError, ValidationError
 from ...specs import StepSpec, SupportSpec
+from ...specs._base_record_spec import BaseRecordSpec
 from ...types import Array, Bounded, FormKind, Take
 from ..problems import BaseProblemSpec, ProblemSpec
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
 
 
-class BaseSolver[P: BaseProblemSpec](BaseConfig):
+class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     """Base of the solvers, which advance a problem of one form through time.
 
     A solver stores its settings in its constructor, among them the random state of stochastic solvers and the end
@@ -67,7 +68,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
     problem_: P
     rng_: np.random.Generator
     initial_state_: Array
-    events_: list[object]
+    events_: list[BaseRecordSpec]
     stopped_at_: float | None
     snapshot_: object | None
     agents_: Mapping[str, list[object]]
@@ -79,6 +80,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
     @classmethod
     def _get_form(cls) -> FormKind:
         """Return the form the solver solves.
+
+        Returns:
+            form:
+                The form.
 
         Raises:
             NotImplementedError:
@@ -94,6 +99,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves.
+
+        Returns:
+            support:
+                What the solver solves.
 
         Raises:
             NotImplementedError:
@@ -130,13 +139,24 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
         """Return whether the solver reads the inputs of other partitions."""
         return False
 
-    def _prepare(self, problem: P) -> None:
+    def _prepare(self, context: P | None) -> None:
         """Prepare the solver for a problem, with the random number generator of its random state.
 
+        Args:
+            context:
+                The problem.
+
         Raises:
+            ValidationError:
+                No problem is passed.
+
             SolverError:
                 The problem has a form the solver does not solve.
         """
+        if context is None:
+            error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        problem = context
         form = self._get_form()
         if problem.form != form and problem.form not in self._get_forms():
             error_msg = f'{type(self).__name__} solves the {form} form, but the problem has the {problem.form} form.'
@@ -179,12 +199,27 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig):
         """Set the events, the stop time, the snapshot, and the agents after a run; the base keeps none."""
         self.events_ = []
 
-    def _run(self, inputs: StepSpec) -> Array:
+    def _run(self, inputs: StepSpec | None) -> Array:
         """Advance the state of the step to its end time and collect what the run produced.
 
         A step that does not go forward in time returns its state unchanged, so a final run of no length releases the
         solver.
+
+        Args:
+            inputs:
+                The step.
+
+        Returns:
+            state:
+                The state vector at the end time of the step.
+
+        Raises:
+            ValidationError:
+                No step is passed.
         """
+        if inputs is None:
+            error_msg = 'A solver runs on a step. Pass the step to `run`.'
+            raise ValidationError(error_msg)
         t, x, p, until = inputs.t, inputs.x, inputs.p, inputs.until
         state = self._advance(t, x, p, until) if until > t else x
         self._collect()

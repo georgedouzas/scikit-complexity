@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -19,6 +18,7 @@ from ._base import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
 _PATH_COLOR = (86, 180, 233)
 _PATH_WIDTH = 1.0
 _VIEW_MARGIN = 0.05
+_POSITION_RANK = 2
 
 
 class AgentsVisual(BaseVisual):
@@ -85,11 +85,11 @@ class AgentsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
         self.styled_: set[str] = set()
         self.span_: tuple[float, float] | None = None
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _agent_colors(self, snapshot: AgentSnapshotSpec) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""
@@ -199,8 +199,7 @@ class AgentsVisual(BaseVisual):
             'GraphView'
         """
         if self.position is not None and isinstance(element, CompiledAgentsSpec):
-            initial: Any = element.values[self.position]
-            if np.ndim(initial) < 2:  # noqa: PLR2004
+            if np.ndim(np.asarray(element.values[self.position])) < _POSITION_RANK:
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
             return [rrb.Spatial2DView(origin=element.path, name=element.path)]

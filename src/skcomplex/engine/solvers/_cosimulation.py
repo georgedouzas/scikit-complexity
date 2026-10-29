@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, ZZ, Expression
@@ -38,7 +37,7 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...errors import SolverError, ValidationError
-from ...specs import AgentStateSpec, EntrySpec, StepSpec, SupportSpec
+from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
 from ..backends import NumbaBackend, NumpyBackend
@@ -76,6 +75,12 @@ class CoSimulationSolver(Solver):
 
         split:
             Whether to split a problem of one form into one partition per subsystem.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Attributes:
         steppers_:
@@ -128,8 +133,8 @@ class CoSimulationSolver(Solver):
                 TransferLaw,
                 BoundaryLaw,
             },
-            noise=set(NoiseKind),
-            orders=set(OrderKind),
+            noise=frozenset(NoiseKind),
+            orders=frozenset(OrderKind),
         )
 
     @classmethod
@@ -165,17 +170,27 @@ class CoSimulationSolver(Solver):
             error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
             raise SolverError(error_msg)
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Partition the problem when asked, and build and seed the stepper of every partition.
 
         Args:
-            problem:
+            context:
                 The co-simulation problem, or a problem of one form with `split=True`.
 
         Raises:
+            ValidationError:
+                No problem is passed.
+
             SolverError:
                 The problem is not a co-simulation and `split` is false.
+
+            TypeError:
+                The compiler of the partitions does not return a problem of the compiler.
         """
+        if context is None:
+            error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        problem = context
         initial_state = problem.initial_state.copy()
         if problem.form != FormKind.COUPLED:
             if not self.split or problem.system is None:
@@ -186,7 +201,11 @@ class CoSimulationSolver(Solver):
                 raise SolverError(error_msg)
             backend = NumbaBackend() if problem.backend == NumbaBackend._get_name() else NumpyBackend()
             compiler = PassCompiler(backend=backend, partition='subsystems')
-            problem = cast('ProblemSpec', compiler.check().prepare(problem.system).run())
+            partitioned = compiler.check().prepare(problem.system).run()
+            if not isinstance(partitioned, ProblemSpec):
+                error_msg = f'The compiler returned a {type(partitioned).__name__}, not a ProblemSpec.'
+                raise TypeError(error_msg)
+            problem = partitioned
         self.problem_, self.rng_ = problem, np.random.default_rng(self.random_state)
         generators = self.rng_.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
@@ -209,7 +228,7 @@ class CoSimulationSolver(Solver):
     def _reducer(
         reduction: _HeldReductionSpec,
         time: Expression,
-    ) -> Callable[[float, Sequence[Array], Sequence[object]], float]:
+    ) -> Callable[[float, Sequence[Array], Sequence[object] | Array], float]:
         """Return the function of time, the values of the variables, and the members that computes a held reduction.
 
         Args:
@@ -226,20 +245,27 @@ class CoSimulationSolver(Solver):
         reduce = reduction.reduce
         if reduction.argument is None:
 
-            def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[object]) -> float:
+            def reduce_values_of(t: float, columns: Sequence[Array], members: Sequence[object] | Array) -> float:
                 del t
-                return float(np.real(ReductionKernel._reduce_values(columns[0] if columns else members, reduce)))
+                return float(
+                    np.real(ReductionKernel._reduce_values(np.asarray(columns[0] if columns else members), reduce)),
+                )
 
             return reduce_values_of
         condition = SR(1) if reduction.condition is None else reduction.condition
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(reduction.symbols))
         function = printer.run([reduction.argument, condition])
+        if not callable(function):
+            error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'
+            raise TypeError(error_msg)
 
-        def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[object]) -> float:
+        def reduce_expression(t: float, columns: Sequence[Array], members: Sequence[object] | Array) -> float:
             size = len(members)
-            argument, selected = (
-                np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
-            )
+            values = function(t, *columns)
+            if not isinstance(values, list):
+                error_msg = f'The compiled function returned a {type(values).__name__}, not a list of values.'
+                raise TypeError(error_msg)
+            argument, selected = (np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in values)
             return float(np.real(ReductionKernel._reduce_values(argument[selected.astype(bool)], reduce)))
 
         return reduce_expression
@@ -270,7 +296,7 @@ class CoSimulationSolver(Solver):
         states = self.problem_.states
         for path, reduction, reducer in self._held:
             agents = self._agents_of(reduction.group)
-            members: Any
+            members: Sequence[object] | Array
             if agents is not None:
                 members = agents
                 columns = [
@@ -281,7 +307,7 @@ class CoSimulationSolver(Solver):
                 members = columns[0] if columns else np.zeros(self._size_of(reduction.group))
             x[states.entry(f'{path}.value').indices] = reducer(t, columns, members)
 
-    def _agents_of(self, group: str) -> list[Any] | None:
+    def _agents_of(self, group: str) -> list[object] | None:
         """Return the agents of an agent group from the partition that holds it, or `None`."""
         for stepper in self.steppers_.values():
             agents = stepper.agents_.get(group)
@@ -295,6 +321,9 @@ class CoSimulationSolver(Solver):
         if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end))
+        if not isinstance(state, np.ndarray):
+            error_msg = f'The solver of {partition.name} returned a {type(state).__name__}, not a state vector.'
+            raise TypeError(error_msg)
         if partition.problem.boundary is not None:
             state = partition.problem.boundary(end, state, p)
         return state
@@ -349,9 +378,9 @@ class CoSimulationSolver(Solver):
 
     def _collect(self) -> None:
         """Set the agents and reporters of every agent partition, merged, or no snapshot without agents."""
-        groups: dict[str, Any] = {}
+        groups: dict[str, AgentSnapshotSpec] = {}
         reporters: dict[str, float] = {}
-        agents: dict[str, list[Any]] = {}
+        agents: dict[str, list[object]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
             if isinstance(external, AgentStateSpec):

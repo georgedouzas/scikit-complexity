@@ -42,8 +42,8 @@ class HeunSolver(SDESolver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-            noise=set(NoiseKind),
-            orders={OrderKind.INTEGER},
+            noise=frozenset(NoiseKind),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     def _increment(
@@ -81,9 +81,9 @@ class HeunSolver(SDESolver):
             state:
                 The state at the end of the step.
         """
-        problem = self.problem_
-        drift = problem.drift(time, state, p)  # type: ignore[misc]
+        problem, field = self.problem_, self._drift()
+        drift = field(time, state, p)
         diffusion = np.zeros_like(state)
-        np.add.at(diffusion, problem.noise_rows, problem.diffusion(time, state, p) * noise)  # type: ignore[misc]
+        np.add.at(diffusion, problem.noise_rows, self._diffusion()(time, state, p) * noise)
         predictor = state + drift * step + diffusion
-        return state + (drift + problem.drift(end, predictor, p)) * step / 2 + diffusion  # type: ignore[misc]
+        return state + (drift + field(end, predictor, p)) * step / 2 + diffusion

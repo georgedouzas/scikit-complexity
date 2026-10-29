@@ -22,10 +22,9 @@ from ...specs import LocalOperatorSpec, OperatorSpec
 from ...types import Array
 from ._expression_printer import ExpressionPrinter
 from ._quantum_kernel import QuantumKernel
-from ._quantum_problem_spec import QuantumProblemSpec
 
 
-class QuantumLowering(BaseConfig):
+class QuantumLowering(BaseConfig[None, tuple[object, str]]):
     """Lowering of operators of quantum subsystems to sparse matrices on the whole space and coefficients to functions.
 
     `run((expression, owner))` returns the terms of an operator, with constant terms folded and terms of equal
@@ -57,7 +56,7 @@ class QuantumLowering(BaseConfig):
         self.dimensions = dimensions
         self.arguments = arguments
 
-    def _run(self, inputs: tuple[object, str]) -> tuple[QuantumKernel, ...]:
+    def _run(self, inputs: tuple[object, str] | None) -> tuple[QuantumKernel, ...]:
         """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
 
         Args:
@@ -68,7 +67,14 @@ class QuantumLowering(BaseConfig):
         Returns:
             terms:
                 The constant term first, if any, then one term per distinct coefficient.
+
+        Raises:
+            ValidationError:
+                No operator is passed.
         """
+        if inputs is None:
+            error_msg = 'A quantum lowering runs on an operator and its owner. Pass them to `run`.'
+            raise ValidationError(error_msg)
         expression, owner = inputs
         size = math.prod(self.dimensions)
         constant: list[sp.csr_array] = []
@@ -80,11 +86,11 @@ class QuantumLowering(BaseConfig):
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = [QuantumKernel(QuantumProblemSpec._sum_matrices(constant, size), SR(1)).check()] if constant else []
+        terms = [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check()] if constant else []
         for coefficient, matrices in grouped.items():
             terms.append(
                 QuantumKernel(
-                    QuantumProblemSpec._sum_matrices(matrices, size),
+                    QuantumKernel._sum_matrices(matrices, size),
                     coefficient,
                     self._function(coefficient, owner),
                 ).check(),
@@ -183,13 +189,35 @@ class QuantumLowering(BaseConfig):
                 'parameter of the quantum system. Coefficients may read parameters and time only.'
             )
             raise ValidationError(error_msg)
-        lowered = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables).run([coefficient])
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables)
+        lowered = ExpressionPrinter._function_of(printer.run([coefficient]))
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Array) -> complex:
-            return complex(lowered(t, *p[indices])[0])
+            return QuantumKernel._coefficient_of(ExpressionPrinter._values_of(lowered(t, *p[indices]))[0])
 
         return evaluate
+
+    @staticmethod
+    def _terms_of(result: object) -> tuple[QuantumKernel, ...]:
+        """Return the terms that `run` of a quantum lowering returned.
+
+        Args:
+            result:
+                What `run` returned.
+
+        Returns:
+            terms:
+                The terms of the operator.
+
+        Raises:
+            TypeError:
+                The result is not a tuple of term kernels.
+        """
+        if not isinstance(result, tuple) or not all(isinstance(item, QuantumKernel) for item in result):
+            error_msg = f'A quantum lowering returns a tuple of term kernels, not a {type(result).__name__}.'
+            raise TypeError(error_msg)
+        return result
 
     @staticmethod
     def _acted_on(operator: OperatorSpec) -> set[str]:

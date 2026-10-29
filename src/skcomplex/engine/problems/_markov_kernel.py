@@ -42,9 +42,10 @@ class MarkovKernel(BaseKernel):
         self.function = function
         self.reads = reads
 
-    def _run(self, inputs: RunStateSpec) -> str | None:
+    def _run(self, inputs: RunStateSpec | None) -> str | None:
         """Return the description of what is wrong with the matrix at the parameters, or `None`."""
-        values = self.function(inputs.p)
+        state = self._state_of(inputs)
+        values = self.function(state.p)
         for member, matrix in enumerate(values):
             where = f' of member {member}' if values.shape[0] > 1 else ''
             negative = np.argwhere(~(matrix >= 0))

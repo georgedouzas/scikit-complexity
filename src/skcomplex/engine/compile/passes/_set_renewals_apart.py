@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 from .._renewal_law import RenewalLaw
 
 
@@ -26,5 +25,5 @@ class SetRenewalsApartPass(BasePass):
         compilation = self.compilation_
         compilation.reduced = [
             (spec, [law for law in laws if not isinstance(law, RenewalLaw)])
-            for spec, laws in cast('Laws', compilation.reduced)
+            for spec, laws in Compilation._required(compilation.reduced, 'reduced')
         ]

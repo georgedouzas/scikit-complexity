@@ -5,7 +5,6 @@
 
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -114,18 +113,18 @@ class BodiesVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
         self.drawn_: set[str] = set()
-        super()._prepare(problem)
+        super()._prepare(context)
 
-    def _bodies(self, values: dict[str, Any]) -> npt.NDArray[np.float64]:
+    def _bodies(self, values: dict[str, object]) -> npt.NDArray[np.float64]:
         """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""
         if callable(self.positions):
             points = np.asarray(self.positions(**values), dtype=float)
         else:
-            points = np.array([[float(np.ravel(values[name])[0]) for name in self.positions]])
+            points = np.array([[float(np.ravel(np.asarray(values[name]))[0]) for name in self.positions]])
         points = np.atleast_2d(points)
         if points.ndim != PAIR or points.shape[1] not in {PAIR, _SPACE}:
             error_msg = (
@@ -137,7 +136,7 @@ class BodiesVisual(BaseVisual):
 
     def _static(
         self,
-        values: dict[str, Any],
+        values: dict[str, object],
         dimension: int,
     ) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the outline polylines and the marks, evaluated from the values when they are functions."""
@@ -151,7 +150,7 @@ class BodiesVisual(BaseVisual):
         """Return the points the rods join, from the pivot when there is one."""
         return bodies if self.pivot is None else np.vstack([np.asarray(self.pivot, dtype=float), bodies])
 
-    def _scale(self, bodies: npt.NDArray[np.float64], values: dict[str, Any]) -> float:
+    def _scale(self, bodies: npt.NDArray[np.float64], values: dict[str, object]) -> float:
         """Return the extent of the drawing: the outline, the marks, the pivot, and the rods at full length."""
         chain = self._chain(bodies)
         strips, marks = self._static(values, bodies.shape[1])
@@ -165,7 +164,7 @@ class BodiesVisual(BaseVisual):
         self,
         recording: rr.RecordingStream,
         path: str,
-        values: dict[str, Any],
+        values: dict[str, object],
         sizes: tuple[int, float],
     ) -> None:
         """Log the outline and the marks once, for bodies of a dimension and a radius."""
@@ -248,7 +247,7 @@ class BodiesVisual(BaseVisual):
         if not isinstance(element, CompiledElementSpec):
             return []
 
-        def read(name: str) -> Any:  # noqa: ANN401
+        def read(name: str) -> object:
             layout, vector = (
                 (problem.states, problem.initial_state)
                 if problem.states.has(name)
@@ -285,7 +284,7 @@ class BodiesVisual(BaseVisual):
         return rr.LineStrips2D([BodiesVisual._shown(strip) for strip in strips], radii=radius, colors=colors)
 
     @staticmethod
-    def _values_of(element: CompiledElementSpec, read: Callable[[str], Any]) -> dict[str, Any]:
+    def _values_of(element: CompiledElementSpec, read: Callable[[str], object]) -> dict[str, object]:
         """Return the parameters and states of an element by their short names, read by dotted name."""
         names = {**element.parameters, **element.states}
         return {name: read(dotted) for name, dotted in names.items()}

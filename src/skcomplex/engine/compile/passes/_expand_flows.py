@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 from .._flows import TransferLowering
 
 
@@ -25,8 +24,11 @@ class ExpandFlowsPass(BasePass):
         """Expand the flows of the collected laws."""
         compilation = self.compilation_
         flows = TransferLowering().check().prepare(compilation)
-        collected = cast('BlockLaws', compilation.collected)
+        collected = Compilation._required(compilation.collected, 'collected')
         expanded = flows.run([(spec, laws) for spec, laws, _ in collected])
+        if not isinstance(expanded, list):
+            error_msg = f'The transfer lowering returns a {type(expanded).__name__}, not a list of laws.'
+            raise TypeError(error_msg)
         compilation.collected = [
             (spec, laws, block) for (spec, laws), (_, _, block) in zip(expanded, collected, strict=True)
         ]

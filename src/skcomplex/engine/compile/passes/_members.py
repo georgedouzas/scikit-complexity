@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 from .._members import MemberLowering
 
 
@@ -25,7 +24,11 @@ class MemberShiftPass(BasePass):
         """Lower the member offset reads of the corrected laws."""
         compilation = self.compilation_
         compilation.shifted = []
-        for spec, laws in cast('Laws', compilation.corrected):
+        for spec, laws in Compilation._required(compilation.corrected, 'corrected'):
             lowering = MemberLowering(spec).check().prepare(compilation)
-            compilation.shifted.append((spec, lowering.run(laws)))
+            lowered = lowering.run(laws)
+            if not isinstance(lowered, list):
+                error_msg = f'The member lowering returns a {type(lowered).__name__}, not a list of laws.'
+                raise TypeError(error_msg)
+            compilation.shifted.append((spec, lowered))
             lowering._apply_references()

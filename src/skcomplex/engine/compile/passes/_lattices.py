@@ -7,7 +7,6 @@ import functools
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import replace
-from typing import Any, cast
 
 import networkx as nx
 import numba
@@ -25,7 +24,7 @@ from ....core.spaces import (
     MemoryNeighborhood,
     NetworkSpace,
 )
-from ....core.specs import CensusSpec, LatticeContextSpec, LatticeStateSpec
+from ....core.specs import LatticeContextSpec, LatticeStateSpec
 from ....errors import ValidationError
 from ....specs import (
     ArgumentsSpec,
@@ -40,14 +39,14 @@ from ....specs import (
 )
 from ....types import Array, Indices, ReadKind
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ProblemSpec
+from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation
 from .._laws import LATTICE_LAWS
 
 _COLORING_STRATEGY = 'largest_first'
@@ -69,12 +68,12 @@ class LatticeProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the lattice steps to the problem."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         members = declarations.members
         fused = BaseCompiler._resolve_backend(compilation.backend, members)._get_name() == 'numba'
         compilation.problem = replace(
-            cast('ProblemSpec', compilation.problem),
-            lattice=self._compile_lattice(cast('Laws', compilation.reduced), declarations, fused),
+            Compilation._required(compilation.problem, 'problem'),
+            lattice=self._compile_lattice(Compilation._required(compilation.reduced, 'reduced'), declarations, fused),
         )
 
     @staticmethod
@@ -121,14 +120,14 @@ class LatticeProblemPass(BasePass):
             owner, _, variable = entry.name.rpartition('.')
             block = declarations.blocks.get(owner)
             space = block.node.space if block is not None else None
-            is_lattice = (
-                isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
-                and block is not None
-                and block.node.members is not None
-                and not block.node.is_agent
-            )
-            if reference.is_state and is_lattice and not entry.member_shape:
-                states[item] = LatticeStateSpec(entry.name, entry.start, space)  # type: ignore[arg-type]
+            is_lattice = block is not None and block.node.members is not None and not block.node.is_agent
+            if (
+                reference.is_state
+                and is_lattice
+                and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
+                and not entry.member_shape
+            ):
+                states[item] = LatticeStateSpec(entry.name, entry.start, space)
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
@@ -270,7 +269,7 @@ class LatticeProblemPass(BasePass):
         return ()
 
     @staticmethod
-    def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
+    def _compiles_in_numba(rule: Callable[..., object]) -> bool:
         """Check whether a rule takes its arguments by position or keyword only, the form Numba compiles."""
         try:
             parameters = inspect.signature(rule).parameters.values()
@@ -322,7 +321,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _extremal_loop(
-        rule: Callable[..., Any],
+        rule: Callable[..., object],
         targets: tuple[LatticeStateSpec, ...],
         key: LatticeStateSpec,
         maximum: bool,
@@ -331,10 +330,14 @@ class LatticeProblemPass(BasePass):
         """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile it."""
         if not LatticeProblemPass._compiles_in_numba(rule):
             return None
-        namespace: dict[str, Any] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
+        namespace: dict[str, object] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
         source = LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
         exec(source, namespace)  # noqa: S102  # nosec B102: runs the loop source generated above
-        loop = numba.njit(namespace['loop'])
+        function = namespace['loop']
+        if not callable(function):
+            error_msg = 'The generated source of the extremal loop defines no function `loop`.'
+            raise TypeError(error_msg)
+        loop = numba.njit(function)
         end = max(state.start + state.size for state in (*targets, key))
         width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
         try:
@@ -350,7 +353,7 @@ class LatticeProblemPass(BasePass):
             )
         except numba.core.errors.NumbaError:
             return None
-        return loop  # type: ignore[no-any-return, unused-ignore]
+        return loop
 
     @staticmethod
     def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
@@ -414,9 +417,10 @@ class LatticeProblemPass(BasePass):
         return None
 
     @staticmethod
-    def _lower_neighbor_sums(  # noqa: PLR0917
+    def _lower_neighbor_sums(
         expression: Expression,
         target: Expression,
+        *,
         energy: EnergySpec,
         context: LatticeContextSpec,
         neighbors: Sequence[Expression],
@@ -506,26 +510,29 @@ class LatticeProblemPass(BasePass):
         if lookup is not None and (len(targets) > 1 or len(reads) > 1):
             error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
             raise ValidationError(error_msg)
-        if lookup is None and not callable(rule):
-            error_msg = (
-                f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a rule '
-                'code with a table() method.'
-            )
-            raise ValidationError(error_msg)
-        reads_degree = lookup is None and 'degree' in LatticeProblemPass._accepted(law.rule, ['degree'])  # type: ignore[arg-type]
+        function = None
+        if lookup is None:
+            if not callable(rule):
+                error_msg = (
+                    f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a '
+                    'rule code with a table() method.'
+                )
+                raise ValidationError(error_msg)
+            function = rule
+        reads_degree = function is not None and 'degree' in LatticeProblemPass._accepted(function, ['degree'])
         return RuleKernel(
             context.owner,
             targets,
             reads,
             table,
-            None if lookup is not None else law.rule,  # type: ignore[arg-type]
-            lookup,
-            law.schedule,
-            law.stochastic,
-            LatticeProblemPass._keywords(context, law.rule) if lookup is None else ArgumentsSpec(),  # type: ignore[arg-type]
-            context.fused and lookup is not None and law.schedule == 'synchronous',
-            LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
-            LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
+            function,
+            lookup=lookup,
+            schedule=law.schedule,
+            stochastic=law.stochastic,
+            arguments=LatticeProblemPass._keywords(context, function) if function is not None else ArgumentsSpec(),
+            fused=context.fused and lookup is not None and law.schedule == 'synchronous',
+            degrees=LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
+            classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
         ).check()
 
     @staticmethod
@@ -562,8 +569,8 @@ class LatticeProblemPass(BasePass):
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
             tuple(LatticeProblemPass._lattice_state(context, item, 'A relaxation') for item in law._get_targets()),
             law.stable,
-            int(law.max_iterations),
-            law.activity,
+            max_iterations=int(law.max_iterations),
+            activity=law.activity,
         ).check()
 
     @staticmethod
@@ -605,12 +612,12 @@ class LatticeProblemPass(BasePass):
             targets,
             key,
             members,
-            counts,
-            law.rule,
-            arguments,
-            maximum,
-            int(law.repeat),
-            loop,
+            counts=counts,
+            rule=law.rule,
+            arguments=arguments,
+            maximum=maximum,
+            repeat=int(law.repeat),
+            loop=loop,
         ).check()
 
     @staticmethod
@@ -647,17 +654,23 @@ class LatticeProblemPass(BasePass):
             )
             raise ValidationError(error_msg)
         space = target.space
-        table = LatticeProblemPass._index_table(space, energy.over, owner)
-        classes = LatticeProblemPass._schedule_classes(sampler.schedule, space, energy.over, table, owner)
+        over = energy.over
+        if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
+            error_msg = (
+                f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
+            )
+            raise ValidationError(error_msg)
+        table = LatticeProblemPass._index_table(space, over, owner)
+        classes = LatticeProblemPass._schedule_classes(sampler.schedule, space, over, table, owner)
         neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
         expression = LatticeProblemPass._lower_neighbor_sums(
             SR(energy.expression),
             move.target,
-            energy,
-            context,
-            neighbours,
-            masks,
+            energy=energy,
+            context=context,
+            neighbors=neighbours,
+            masks=masks,
         )
         masked = any(item in masks for item in expression.variables())
         replacements = {}
@@ -688,17 +701,22 @@ class LatticeProblemPass(BasePass):
         )
         time = symbol('_time')
         reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
+        energy_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change])
+        temperature = ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)])
+        if not callable(energy_change) or not callable(temperature):
+            error_msg = 'The compiled printer returned no function of the energy change or of the temperature.'
+            raise TypeError(error_msg)
         return MonteCarloKernel(
             context.owner,
             target,
             table,
-            ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]),
+            energy_change,
             arguments,
-            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)]),
-            move,
-            sampler,
-            classes,
-            masked,
+            temperature=temperature,
+            move=move,
+            sampler=sampler,
+            classes=classes,
+            masked=masked,
         ).check()
 
     @staticmethod
@@ -713,7 +731,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _schedule_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the lattice laws whose checkerboard schedule needs a square lattice that their space is not."""
-        records = cast('CensusSpec', compilation.census).records
+        records = Compilation._required(compilation.census, 'census').records
         issues = []
         for record in records:
             square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'

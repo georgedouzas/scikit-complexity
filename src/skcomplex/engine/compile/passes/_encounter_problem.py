@@ -4,10 +4,10 @@
 # License: MIT
 
 from dataclasses import fields
-from typing import cast
 
-from ...problems import KineticProblemSpec, ProblemSpec
+from ...problems import KineticProblemSpec
 from .._base import BasePass
+from .._compilation import Compilation
 
 
 class EncounterProblemPass(BasePass):
@@ -27,6 +27,6 @@ class EncounterProblemPass(BasePass):
         encounters = compilation.encounters
         if not encounters:
             return
-        problem = cast('ProblemSpec', compilation.problem)
+        problem = Compilation._required(compilation.problem, 'problem')
         values = {item.name: getattr(problem, item.name) for item in fields(problem)}
         compilation.problem = KineticProblemSpec(**values, encounters=encounters)

@@ -7,19 +7,19 @@ import warnings
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import replace
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....errors import BackendWarning
-from ....specs import AcceleratedSpec, EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
+from ....specs import EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
 from ....types import Array, FormKind, ReadKind, VectorFunction
 from ...backends import BaseBackend, NumpyBackend
-from ...problems import DeclarationsSpec, LoweredKernelsSpec, OutputSpec, ProblemSpec, ReductionScheduleSpec
+from ...problems import DeclarationsSpec, OutputSpec, ProblemSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
+from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS
@@ -59,7 +59,9 @@ class FunctionsPass(BasePass):
         excluded: set[tuple[str, int]] = set()
         for kernel in kernels:
             for item in kernel.outputs:
-                key = (item.target.entry.name, item.target.column)  # type: ignore[union-attr]
+                if item.target is None:
+                    continue
+                key = (item.target.entry.name, item.target.column)
                 if item.expression is None or FunctionsPass._sums_over_members(kernel, item):
                     excluded.add(key)
                     continue
@@ -70,15 +72,15 @@ class FunctionsPass(BasePass):
                 if entry not in declarations.states:
                     continue
                 components = block.symbols[variable]
-                for column, item in enumerate(ProblemSpec._real_components_of(components)):
+                for column, component in enumerate(ProblemSpec._real_components_of(components)):
                     key = (entry.name, column)
                     if key in excluded:
                         continue
-                    default = item if form == FormKind.DISCRETE else SR(0)
+                    default = component if form == FormKind.DISCRETE else SR(0)
                     terms = contributions.get(key)
                     name = entry.generic_names[column]
                     equations[name] = sum(terms[1:], terms[0]) if terms else default
-                    symbols[name] = item
+                    symbols[name] = component
         return equations, symbols
 
     @staticmethod
@@ -127,17 +129,17 @@ class FunctionsPass(BasePass):
     ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
         backends = {form.name: name}
-        backends.update({cast('type', kind).__name__: name for kind, items in kernels.items() if items})
+        backends.update({kind.__name__: name for kind, items in kernels.items() if items})
         backends.update(lowering.backends)
         return backends
 
     @staticmethod
-    def _lower(compilation: Compilation) -> dict[str, object]:
+    def _lower(compilation: Compilation) -> _ProblemFunctionsSpec:
         """Return the numeric functions and equations of a form, the update of a stochastic map taking a generator."""
-        form = cast('FormKind', compilation.form)
-        lowered = cast('LoweredKernelsSpec', compilation.kernels)
-        declarations = cast('DeclarationsSpec', compilation.layout)
-        reductions = cast('ReductionScheduleSpec', compilation.reductions)
+        form = Compilation._required(compilation.form, 'form')
+        lowered = Compilation._required(compilation.kernels, 'kernels')
+        declarations = Compilation._required(compilation.layout, 'layout')
+        reductions = Compilation._required(compilation.reductions, 'reductions')
         draws = compilation.draws
         backend = FunctionsPass._chosen_backend(
             compilation,
@@ -146,19 +148,16 @@ class FunctionsPass(BasePass):
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
-        lowering = cast('LoweredFunctionsSpec', backend.prepare().run(complete))
-        functions: dict[str, object] = vars(lowering).copy()
-        if draws is not None and functions.get('update') is not None:
-            functions['update'] = FunctionsPass._stochastic_update(
-                cast('Callable[..., Array]', functions['update']),
-                draws,
-            )
-        accelerated = cast('AcceleratedSpec | None', functions.get('accelerated'))
+        lowering = backend.prepare().run(complete)
+        if not isinstance(lowering, LoweredFunctionsSpec):
+            error_msg = f'The backend returns a {type(lowering).__name__}, not the numeric functions of the form.'
+            raise TypeError(error_msg)
+        update: Callable[..., Array] | None = lowering.update
+        if draws is not None and lowering.update is not None:
+            update = FunctionsPass._stochastic_update(lowering.update, draws)
+        accelerated = lowering.accelerated
         if draws is not None and draws.sampled and accelerated is not None:
-            functions['accelerated'] = replace(accelerated, iterate=None)
-        functions['backend'] = backend._get_name()
-        functions['backends'] = FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering)
-        functions['draws'] = draws
+            accelerated = replace(accelerated, iterate=None)
         main = {
             FormKind.ODE: kernels[RateLaw],
             FormKind.FRACTIONAL: kernels[RateLaw],
@@ -167,20 +166,29 @@ class FunctionsPass(BasePass):
         }.get(form, kernels[UpdateLaw])
         equation_kernels = {FormKind.DISCRETE: kernels[UpdateLaw], FormKind.JUMP: []}.get(form, kernels[RateLaw])
         equations, symbols = FunctionsPass._equations_of(equation_kernels, declarations, form)
-        functions.update(
+        states = LayoutSpec(tuple(declarations.states))
+        return _ProblemFunctionsSpec(
             equations=equations,
             equation_symbols=symbols,
             has_callables=any(item.expression is None for kernel in main for item in kernel.outputs),
             has_group_sums=any(
                 FunctionsPass._sums_over_members(kernel, item) for kernel in main for item in kernel.outputs
             ),
+            drift=lowering.drift,
+            diffusion=lowering.diffusion,
+            noise_rows=lowering.noise_rows,
+            noise_columns=lowering.noise_columns,
+            n_processes=lowering.n_processes,
+            noise_blocks=lowering.noise_blocks,
+            propensities=lowering.propensities,
+            jumps=lowering.jumps,
+            update=update,
+            boundary=FunctionsPass._wrapping_angles(lowering.boundary, states),
+            draws=draws,
+            backend=backend._get_name(),
+            backends=FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering),
+            accelerated=accelerated,
         )
-        states = LayoutSpec(tuple(declarations.states))
-        functions['boundary'] = FunctionsPass._wrapping_angles(
-            cast('VectorFunction | None', functions.get('boundary')),
-            states,
-        )
-        return functions
 
     @staticmethod
     def _is_stepwise(form: FormKind) -> bool:

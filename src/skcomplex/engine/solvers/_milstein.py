@@ -42,8 +42,8 @@ class MilsteinSolver(SDESolver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-            noise={NoiseKind.DIAGONAL},
-            orders={OrderKind.INTEGER},
+            noise=frozenset({NoiseKind.DIAGONAL}),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     def _increment(
@@ -81,13 +81,13 @@ class MilsteinSolver(SDESolver):
             state:
                 The state at the end of the step.
         """
-        problem = self.problem_
-        drift = problem.drift(time, state, p)  # type: ignore[misc]
-        amplitudes = problem.diffusion(time, state, p)  # type: ignore[misc]
+        problem, diffusion = self.problem_, self._diffusion()
+        drift = self._drift()(time, state, p)
+        amplitudes = diffusion(time, state, p)
         root = np.sqrt(step)
         support = state + drift * step
         np.add.at(support, problem.noise_rows, amplitudes * root)
-        correction = (problem.diffusion(time, support, p) - amplitudes) * (noise**2 - step) / (2 * root)  # type: ignore[misc]
+        correction = (diffusion(time, support, p) - amplitudes) * (noise**2 - step) / (2 * root)
         following = state + drift * step
         np.add.at(following, problem.noise_rows, amplitudes * noise + correction)
         return following

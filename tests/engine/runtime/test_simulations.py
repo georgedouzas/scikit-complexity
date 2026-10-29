@@ -44,15 +44,15 @@ def _pushed_gas(n=500):
 class FrameCounterObserver(BaseObserver):
     """Observer that keeps the times of the frames it receives."""
 
-    def _prepare(self, problem):
+    def _prepare(self, context):
         """Start with no frames."""
         self.times_ = []
         self.stopped_ = False
 
-    def _run(self, frame=None):
+    def _run(self, inputs):
         """Keep the time of the frame."""
-        if frame is not None:
-            self.times_.append(frame.time)
+        if inputs is not None:
+            self.times_.append(inputs.time)
 
     def _release(self):
         """Mark the end of the run."""
@@ -320,9 +320,9 @@ def test_simulation_background_error_raised_on_wait():
     class FailingObserver(BaseObserver):
         """Observer that fails on the second frame."""
 
-        def _run(self, frame=None):
+        def _run(self, inputs):
             """Fail after the first frame."""
-            if frame is not None and frame.step == 1:
+            if inputs is not None and inputs.step == 1:
                 error_msg = 'failure'
                 raise RuntimeError(error_msg)
 
@@ -483,9 +483,9 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
 class _ReleaseCountingSolver(RK4Solver):
     """RK4 solver that counts the final runs that release it."""
 
-    def _prepare(self, problem):
+    def _prepare(self, context):
         """Fit the solver and start with no release."""
-        super()._prepare(problem)
+        super()._prepare(context)
         self.releases_ = 0
 
     def _release(self):
@@ -526,8 +526,10 @@ def test_simulation_prepare_compiles_and_chooses_the_solver_without_running():
 
 def test_simulation_run_takes_the_end_time():
     """Test that running a simulation takes one input, the time to stop at, and returns the simulation."""
-    assert list(inspect.signature(Simulation.prepare).parameters) == ['self']
-    assert list(inspect.signature(Simulation.run).parameters) == ['self', 'until']
+    assert list(inspect.signature(Simulation.prepare).parameters) == ['self', 'context']
+    assert list(inspect.signature(Simulation.run).parameters) == ['self', 'until', 'final']
     simulation = Simulation(_growth(), dt=1.0).check()
+    with pytest.raises(ValidationError, match='until'):
+        simulation.run()
     assert simulation.run(2) is simulation
     assert simulation.time_ == 2.0

@@ -72,11 +72,12 @@ class KernelSpec(BaseSpec):
     def _target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""
         components = ProblemSpec._real_components_of(target)
-        references = [self.references.get(component) for component in components]
-        if not all(reference is not None and reference.is_state for reference in references):
+        found = [self.references.get(component) for component in components]
+        references = [reference for reference in found if reference is not None and reference.is_state]
+        if len(references) != len(components):
             error_msg = f'A law of {self.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
             raise ValidationError(error_msg)
-        return references  # type: ignore[return-value]
+        return references
 
     def _state_name(self, target: Expression) -> str:
         """Return the dotted name of the state a target symbol of the namespace stands for, or the symbol itself."""

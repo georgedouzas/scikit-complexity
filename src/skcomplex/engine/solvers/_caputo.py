@@ -37,7 +37,7 @@ class CaputoSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
-            orders=set(OrderKind),
+            orders=frozenset(OrderKind),
         )
 
     @classmethod
@@ -50,18 +50,19 @@ class CaputoSolver(Solver):
         """Return the other forms the solver also solves."""
         return frozenset({FormKind.ODE})
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem of the fractional form, or of the ODE form whose states all have order 1.
 
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         if problem.delays or problem.events:
             error_msg = f'{type(self).__name__} does not integrate delays or events.'
             raise SolverError(error_msg)

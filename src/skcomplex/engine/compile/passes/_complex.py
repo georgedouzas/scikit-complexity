@@ -5,7 +5,6 @@
 
 import numbers
 from collections.abc import Callable
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, I
@@ -16,7 +15,7 @@ from ....errors import ValidationError
 from ....specs import CallSpec
 from ..._utils import components_of
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 from .._complex import _is_zero, _real, _split_complex
 from .._laws import _AGENT_LAWS
 from ._kernels import KernelsPass
@@ -42,7 +41,7 @@ class LowerComplexPass(BasePass):
                 [item for law in laws for item in self._split_law(law, spec.owner, spec._state_name)],
                 block,
             )
-            for spec, laws, block in cast('BlockLaws', compilation.collected)
+            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
         ]
 
     @staticmethod
@@ -124,7 +123,7 @@ class LowerComplexPass(BasePass):
     def _split_jump(jump: JumpLaw, owner: str) -> JumpLaw:
         """Return a jump with a real rate, after checking that it changes real states."""
         description = f'JumpLaw of {owner}'
-        if any(LowerComplexPass._has_complex(target) for target in jump.changes):
+        if any(LowerComplexPass._has_complex(target) for target in jump.changes or {}):
             error_msg = f'The {description} changes a complex state. Jumps change real states by real increments.'
             raise ValidationError(error_msg)
         return JumpLaw(_real(_split_complex(jump.rate, description), SR(jump.rate), description), jump.changes)

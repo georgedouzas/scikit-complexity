@@ -7,7 +7,7 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Self, cast
+from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
@@ -37,11 +37,12 @@ from ..problems import BlockSpec, DeclarationsSpec, KernelSpec, ReferenceSpec, T
 from ..problems._born_spec import _BornSpec
 from ..problems._record_spec import _RecordSpec
 from ._base import BaseLowering, BasePass
+from ._compilation import Compilation
 
 _BOUNDARY_PREFIX = '__boundary'
 
 
-class TransferLowering(BaseLowering):
+class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of flows and delays, which checks that conserved quantities change only through flows.
 
     `prepare(compilation)` reads the quantity of every tagged state, and `run(laws)` takes the laws of every kernel spec
@@ -76,7 +77,7 @@ class TransferLowering(BaseLowering):
     delays_: list[_CompiledDelaySpec]
     terms_: list[tuple[KernelSpec, str, str, Expression, str | None, str | None]]
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
 
         Args:
@@ -90,7 +91,7 @@ class TransferLowering(BaseLowering):
         super()._prepare(context)
         state = self.compilation_.transfer
         if state is None:
-            self.quantities_ = self._quantities_of(cast('DeclarationsSpec', self.compilation_.layout).blocks)
+            self.quantities_ = self._quantities_of(self._declarations().blocks)
             self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
             return self
         self.quantities_, self.born_ = dict(state.quantities), dict(state.born)
@@ -98,7 +99,7 @@ class TransferLowering(BaseLowering):
         self.terms_ = list(state.terms)
         return self
 
-    def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return the laws of every kernel spec with flows expanded into laws of the other kinds.
 
         Args:
@@ -116,10 +117,24 @@ class TransferLowering(BaseLowering):
             ConservationError:
                 A flow connects holders of different quantities.
         """
-        return [
-            (spec, self._expand(spec, list(laws)))
-            for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
-        ]
+        return [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
+
+    def _declarations(self) -> DeclarationsSpec:
+        """Return the layout of the compilation, raising an error before the layout pass has run.
+
+        Returns:
+            declarations:
+                The layout of the compilation.
+
+        Raises:
+            ValidationError:
+                The compilation has no layout yet.
+        """
+        layout = self.compilation_.layout
+        if layout is None:
+            error_msg = 'The compilation has no layout yet. Lower flows after the layout pass.'
+            raise ValidationError(error_msg)
+        return layout
 
     def _state(self) -> TransferStateSpec:
         """Return the state of the lowering, which the compilation keeps for the pass that lowers the flows."""
@@ -242,7 +257,7 @@ class TransferLowering(BaseLowering):
         if isinstance(law, RateLaw | NoiseLaw) and isinstance(law._get_targets()[0], Expression):
             targets = [(law._get_targets()[0], law.value)]
         elif isinstance(law, JumpLaw):
-            targets = list(law.changes.items())
+            targets = list((law.changes or {}).items())
         elif isinstance(law, UpdateLaw) and isinstance(law._get_targets()[0], Expression):
             value = law.value
             if isinstance(value, Expression) and bool((value - law._get_targets()[0]).is_trivial_zero()):
@@ -260,13 +275,13 @@ class TransferLowering(BaseLowering):
 
     def _to_updates(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> None:
         """Rewrite the rate laws of flows of a discrete system as increments of the update laws of their states."""
-        increments: dict[tuple[Any, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
+        increments: dict[tuple[object, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
             for law in [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]:
                 laws.remove(law)
-                target: Any = law._get_targets()[0]
+                target = SR(law._get_targets()[0])
                 reference = spec.references[target]
-                key: tuple[Any, ...] = (reference.entry.name, reference.column)
+                key: tuple[object, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
                     key = (*key, spec.owner, spec.set_index)
                 increments[key].append((spec, target, SR(law.value)))
@@ -280,8 +295,11 @@ class TransferLowering(BaseLowering):
                 host.append(UpdateLaw(target, target))
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
-                found: Any = host[index]
-                target, value = found.targets[0], SR(found.value)
+                found = host[index]
+                if not isinstance(found, UpdateLaw):
+                    error_msg = f'The law that updates {key[0]} is a {type(found).__name__}, not an UpdateLaw.'
+                    raise TypeError(error_msg)
+                target, value = SR(found._get_targets()[0]), SR(found.value)
             for spec, _, increment in items:
                 self._merge_references(host_spec, spec, increment)
                 value += increment
@@ -326,7 +344,7 @@ class TransferLowering(BaseLowering):
         """Add the inflow of a boundary flow to the accumulator of its quantity, as a rate or a jump increment."""
         for index, law in enumerate(laws):
             if isinstance(law, JumpLaw) and self.born_.get(id(law)) is born:
-                laws[index] = JumpLaw(law.rate, {**law.changes, accumulator: born.sign * born.amount})
+                laws[index] = JumpLaw(law.rate, {**(law.changes or {}), accumulator: born.sign * born.amount})
                 return
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
@@ -405,7 +423,7 @@ class TransferLowering(BaseLowering):
             ValidationError:
                 A delay reads a group or belongs to a discrete system.
         """
-        declarations = cast('DeclarationsSpec', self.compilation_.layout)
+        declarations = self._declarations()
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
@@ -510,7 +528,7 @@ class TransferLowering(BaseLowering):
 
     @staticmethod
     def _update_of(
-        key: tuple[Any, ...],
+        key: tuple[object, ...],
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
     ) -> tuple[list[BaseLaw] | None, int]:
         """Return the laws holding the update law of a state component and its index, or `None`."""
@@ -521,7 +539,7 @@ class TransferLowering(BaseLowering):
                 reference = spec.references.get(law._get_targets()[0])
                 if reference is None:
                     continue
-                found: tuple[Any, ...] = (reference.entry.name, reference.column)
+                found: tuple[object, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
                     found = (*found, spec.owner, spec.set_index)
                 if found == key:

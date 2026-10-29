@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ..core.base import BasePart
 from ..specs import EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
 from ..types import VariableKind
 
@@ -167,6 +168,10 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
         variables:
             A mapping from name to the declaration and the default.
 
+    Raises:
+        TypeError:
+            The part is not a part class or instance.
+
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
@@ -180,9 +185,12 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
         ['theta', 'theta_d1']
     """
     cls = part if isinstance(part, type) else type(part)
+    if not issubclass(cls, BasePart):
+        error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
+        raise TypeError(error_msg)
     parameters = inspect.signature(cls).parameters
     variables: dict[str, tuple[VariableSpec, object]] = {}
-    for name, spec in cls._get_specs().items():  # type: ignore[attr-defined]
+    for name, spec in cls._get_specs().items():
         variable = _variable_of(spec)
         default = parameters[name].default
         default = 0.0 if default is inspect.Parameter.empty else default

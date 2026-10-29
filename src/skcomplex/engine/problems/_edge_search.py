@@ -48,9 +48,10 @@ class EdgeSearch(BaseSearch):
         """Number of edges, the capacity of a changing layer."""
         return int(self.sources.size if self.source is None else self.source.rows)
 
-    def _run(self, inputs: RunStateSpec) -> tuple[Indices, Indices]:
+    def _run(self, inputs: RunStateSpec | None) -> tuple[Indices, Indices]:
         """Return the source and target node of every edge."""
-        p = inputs.p
+        state = self._state_of(inputs)
+        p = state.p
         if self.source is None or self.target is None:
             return self.sources, self.targets
         return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)

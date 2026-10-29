@@ -5,9 +5,8 @@
 
 import numbers
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,14 +14,14 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....errors import ValidationError
+from ....errors import PipelineError, ValidationError
 from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey, ReadKind
 from ..._utils import components_of, symbols_of
 from ...problems import DeclarationsSpec, KernelSpec, LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ...problems._law_kernel import LawKernel
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 from .._laws import _KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
@@ -43,14 +42,17 @@ class KernelsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the reduced laws into kernels."""
         compilation = self.compilation_
+        if compilation.outputs is None:
+            error_msg = 'KernelsPass reads the outputs that the passes of formalisms lowered, which no pass wrote.'
+            raise PipelineError(error_msg)
         compilation.kernels = self._lower_laws(
-            cast('Laws', compilation.reduced),
-            cast('DeclarationsSpec', compilation.layout),
+            Compilation._required(compilation.reduced, 'reduced'),
+            Compilation._required(compilation.layout, 'layout'),
             compilation.outputs,
         )
 
     @staticmethod
-    def _outputs_of(value: object, targets: list[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
+    def _outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
         """Return the outputs of one law value for its target components, with the law and component as owner."""
         if isinstance(value, CallSpec):
             arguments = tuple(
@@ -61,10 +63,14 @@ class KernelsPass(BasePass):
             if len(arguments) != len(value.arguments):
                 error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
                 raise ValidationError(error_msg)
+            function = value.function
+            if not callable(function):
+                error_msg = f'A Call in a {owner} calls {function!r}, which is not a function.'
+                raise ValidationError(error_msg)
             return [
-                OutputSpec(  # type: ignore[arg-type]
+                OutputSpec(
                     target,
-                    function=value.function,
+                    function=function,
                     arguments=arguments,
                     component=index,
                     components=len(targets),
@@ -73,8 +79,11 @@ class KernelsPass(BasePass):
             ]
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
+            if not callable(value):
+                error_msg = f'A {owner} has the value {value!r}, which is not a symbolic expression or a function.'
+                raise ValidationError(error_msg)
             return [
-                OutputSpec(target, function=value, component=index, components=len(targets))  # type: ignore[arg-type]
+                OutputSpec(target, function=value, component=index, components=len(targets))
                 for index, target in enumerate(targets)
             ]
         return [OutputSpec(target, expression) for target, expression in zip(targets, expressions, strict=True)]
@@ -150,7 +159,7 @@ class KernelsPass(BasePass):
                 'formalism, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
-        outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
+        outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')
         if isinstance(law, NoiseLaw) and law.process is not None:
             keys = NoisePass._process_keys(spec, law, declarations)
             outputs = [
@@ -180,7 +189,7 @@ class KernelsPass(BasePass):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                     jump_changes[id(output)] = [
                         (spec._target_references(target)[0], float(increment))
-                        for target, increment in law.changes.items()
+                        for target, increment in (law.changes or {}).items()
                     ]
                     laws_of[id(output)] = (spec, law)
                     outputs[(JumpLaw, False)].append(output)
@@ -203,15 +212,15 @@ class KernelsPass(BasePass):
                         KernelsPass._single_references(spec) if once else spec.references,
                         1 if once else spec.rows,
                         states,
-                        parameters,
-                        spec.pairs,
-                        kind_outputs,
+                        layout_parameters=parameters,
+                        pairs=spec.pairs,
+                        outputs=kind_outputs,
                     ).check(),
                 )
         return LoweredKernelsSpec(kernels, jump_changes, laws_of)
 
     @staticmethod
-    def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    def _covariance_factor(covariance: object) -> npt.NDArray[np.float64]:
         """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
         matrix = np.asarray(covariance, dtype=float)
         try:

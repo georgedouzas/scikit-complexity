@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -16,7 +14,9 @@ from ....errors import ValidationError
 from ..._utils import components_of, symbols_of
 from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
+
+BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
@@ -33,10 +33,10 @@ class CheckFractionalNoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Check the fractional noise laws."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         compilation.lowered = [
             (spec, self._checked_fractional(spec, laws, declarations), block)
-            for spec, laws, block in cast('BlockLaws', compilation.lowered)
+            for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
         ]
 
     @staticmethod
@@ -76,7 +76,7 @@ class CheckFractionalNoisePass(BasePass):
                 continue
             description = CheckFractionalNoisePass._fractional_description(spec, law)
             CheckFractionalNoisePass._checked_hurst(spec, law, declarations, description)
-            if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == 0.5:  # noqa: PLR2004
+            if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == BROWNIAN_HURST:
                 result.append(NoiseLaw(law._get_targets()[0], law.value, law.order))
                 continue
             values = [item for item in components_of(law.value) if isinstance(item, Expression)]

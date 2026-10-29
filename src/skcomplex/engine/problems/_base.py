@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import numpy as np
 
 from ...base import BaseConfig
+from ...errors import ValidationError
+from ...specs import RunStateSpec
 
 
-class BaseKernel(BaseConfig):
+class BaseKernel(BaseConfig[object, RunStateSpec]):
     """Base of the kernels: laws lowered to numbers, the parts of a problem that a solver runs at a state.
 
     A kernel stores in its constructor what the compiler lowered, such as compiled functions and the indices they read.
     `check()` validates them, `prepare(problem)` sets what a run needs, such as the first renewal times, and
-    `run(state)` acts at a `State`, the time, the state vector, the parameters, and the random number generator, and
-    returns what the kernel computes, such as the next state or a matrix.
+    `run(state)` acts at a `RunStateSpec`, the time, the state vector, the parameters, and the random number generator,
+    and returns what the kernel computes, such as the next state or a matrix.
 
     A developer adds a law kind by subclassing it, together with the pass that builds the kernel and a solver that runs
-    it.
+    it. A kernel takes any context to prepare on, since the problem that holds it is built from its kernels.
 
     Examples:
         >>> import numpy as np
@@ -32,18 +35,82 @@ class BaseKernel(BaseConfig):
         [-1.0]
     """
 
+    @staticmethod
+    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+        """Return the state a kernel runs at, raising an error when none is passed.
 
-class BaseSearch(BaseConfig):
+        Args:
+            inputs:
+                The state, or `None`.
+
+        Returns:
+            state:
+                The state.
+
+        Raises:
+            ValidationError:
+                No state is passed.
+        """
+        if inputs is None:
+            error_msg = 'A kernel runs at a state. Pass a `RunStateSpec` to `run`.'
+            raise ValidationError(error_msg)
+        return inputs
+
+    @staticmethod
+    def _generator_of(state: RunStateSpec) -> np.random.Generator:
+        """Return the random number generator of a state, raising an error when it has none.
+
+        Args:
+            state:
+                The state.
+
+        Returns:
+            rng:
+                The random number generator.
+
+        Raises:
+            ValidationError:
+                The state has no random number generator.
+        """
+        if state.rng is None:
+            error_msg = 'The kernel draws random numbers. Pass a state with a random number generator.'
+            raise ValidationError(error_msg)
+        return state.rng
+
+
+class BaseSearch(BaseConfig[None, RunStateSpec]):
     """Base of the neighbour searches: the neighbours a kernel reads at a state.
 
     A search stores the entries and the neighbourhood it reads in its constructor, and `run(state)` returns the
-    neighbours at a `State`: the row starts and the neighbours of every member, or the members of every pair.
+    neighbours at a `RunStateSpec`: the row starts and the neighbours of every member, or the members of every pair.
     """
 
+    @staticmethod
+    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+        """Return the state a search runs at, raising an error when none is passed.
 
-class BasePrinter(BaseConfig):
+        Args:
+            inputs:
+                The state, or `None`.
+
+        Returns:
+            state:
+                The state.
+
+        Raises:
+            ValidationError:
+                No state is passed.
+        """
+        if inputs is None:
+            error_msg = 'A search runs at a state. Pass a `RunStateSpec` to `run`.'
+            raise ValidationError(error_msg)
+        return inputs
+
+
+class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of the printers: they print Sage expressions as code of one target.
 
     A printer stores its target in its constructor, `prepare(symbols)` takes the symbols the code reads, in order, and
-    `run(expressions)` returns the code of the expressions, or a function that evaluates them.
+    `run(expressions)` returns the code of the expressions, or a function that evaluates them. A printer names the
+    types of the symbols it prepares on and of the expressions it prints, which differ between targets.
     """

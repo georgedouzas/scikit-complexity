@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ....errors import PipelineError
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 
@@ -23,6 +24,9 @@ class FieldJacobianPass(BasePass):
         compilation = self.compilation_
         if compilation.jacobian is None:
             return
+        if compilation.constrained is None:
+            error_msg = 'FieldJacobianPass reads the fixed nodes of the fields, which no pass wrote.'
+            raise PipelineError(error_msg)
         settings = compilation.jacobian.get_params(deep=False)
         compilation.jacobian = JacobianKernel(
             **settings
