@@ -9,7 +9,6 @@ import inspect
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
 from types import SimpleNamespace
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -26,7 +25,7 @@ class BaseLaw(BasePart[str, object]):
     A law takes the states it changes and the expressions it reads as arguments of its own `__init__`, which stores each
     under its own name, as in scikit-learn. It returns the states it changes from `_get_targets`, what it requires of a
     system, such as continuous or discrete time, from `_get_requirements`, and its value at given values of the symbols
-    it reads from `_run`.
+    it reads from `_run`, which sets it as `value_`.
 
     Args:
         label:
@@ -42,6 +41,9 @@ class BaseLaw(BasePart[str, object]):
         owner_:
             The path of the element or interaction that returns the law, or `None`.
 
+        value_:
+            The value of the law at the values of the symbols of its last run.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import RateLaw
@@ -49,9 +51,11 @@ class BaseLaw(BasePart[str, object]):
         >>> law = RateLaw(x, -k * x).check().prepare('decay')
         >>> law.targets_, sorted(map(str, law.reads_)), law.owner_
         ((x,), ['k', 'x'], 'decay')
-        >>> law.run({'x': 2.0, 'k': 0.5})
+        >>> law.run({'x': 2.0, 'k': 0.5}).value_
         -1.0
     """
+
+    value_: object
 
     @abstractmethod
     def _get_targets(self) -> tuple[object, ...]:
@@ -156,20 +160,15 @@ class BaseLaw(BasePart[str, object]):
         )
         raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> Self:
+    def _prepare(self, context: str | None = None) -> None:
         """Set `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`.
 
         Args:
             context:
                 The path of the element or interaction that returns the law, or `None`.
-
-        Returns:
-            law:
-                The law itself.
         """
         self.targets_ = self._get_targets()
         self.reads_ = frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()
         )
         self.owner_ = context
-        return self

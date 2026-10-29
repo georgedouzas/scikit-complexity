@@ -141,7 +141,7 @@ def test_rate_runs_into_its_value():
     n, r = var('n r')
     law = RateLaw(n, r * n, order=1).check().prepare()
     assert (law.targets_, law.order) == ((n,), 1)
-    assert law.run({'n': 3.0, 'r': 2.0}) == 6.0
+    assert law.run({'n': 3.0, 'r': 2.0}).value_ == 6.0
 
 
 def test_initial_angular_velocity():

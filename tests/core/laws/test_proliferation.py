@@ -12,8 +12,8 @@ F, G, H = var('f g h')
 
 def test_proliferation_keeps_its_rate_and_outcomes():
     """Test that a proliferation runs into its rate and no outcomes for the candidate's own activity."""
-    assert ProliferationLaw(F, G, 0.5).check().run({}) == (0.5, None)
-    rate, outcomes = ProliferationLaw(F, G, 0.5, np.ones((1, 1, 1)), test=G).check().run({})
+    assert ProliferationLaw(F, G, 0.5).check().run({}).value_ == (0.5, None)
+    rate, outcomes = ProliferationLaw(F, G, 0.5, np.ones((1, 1, 1)), test=G).check().run({}).value_
     assert (rate, outcomes) == (0.5, [[[1.0]]])
 
 

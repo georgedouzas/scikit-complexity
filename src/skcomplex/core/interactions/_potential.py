@@ -42,7 +42,7 @@ class PotentialInteraction(Interaction):
         >>> a = SimpleNamespace(x=vector([var('xa')]), v=vector([var('va')]), m=1)
         >>> b = SimpleNamespace(x=vector([var('xb')]), v=vector([var('vb')]), m=1)
         >>> spring = SpringInteraction('spring', 'left', 'right').check().prepare()
-        >>> [law.value for law in spring.run(SimpleNamespace(a=a, b=b))]
+        >>> [law.value for law in spring.run(SimpleNamespace(a=a, b=b)).laws_]
         [(-xa + xb), (xa - xb)]
     """
 

@@ -167,9 +167,9 @@ def test_system_runs_into_the_laws_of_its_parts():
         rabbits=rabbits,
         growth=SimpleNamespace(target=rabbits, r=r),
     )
-    laws = system.prepare().run(namespace)
+    laws = system.prepare().run(namespace).laws_
     assert [type(law).__name__ for law in laws] == ['UpdateLaw', 'RateLaw']
-    assert laws[1].check().prepare().run({'n': 2.0, 'r': 0.5}) == 1.0
+    assert laws[1].check().prepare().run({'n': 2.0, 'r': 0.5}).value_ == 1.0
 
 
 def test_system_prints_its_parameters():

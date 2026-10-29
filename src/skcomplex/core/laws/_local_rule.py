@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -86,14 +85,8 @@ class LocalRuleLaw(BaseLaw):
         """Return what the rule requires of a system: discrete time on a lattice, a network, or a Cayley graph."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
 
-    def _check(self) -> Self:
-        """Raise an error for an unknown schedule.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for an unknown schedule."""
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
-        return self

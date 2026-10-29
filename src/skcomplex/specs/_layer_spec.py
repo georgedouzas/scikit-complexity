@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 import networkx as nx
 
@@ -36,12 +35,8 @@ class LayerSpec(BaseSpec):
     label: str
     graph: nx.Graph
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a label that is not a string.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -50,4 +45,3 @@ class LayerSpec(BaseSpec):
         if not isinstance(self.label, str):
             error_msg = f'The label of a layer must be a string, but it is {self.label!r}.'
             raise ValidationError(error_msg)
-        return self

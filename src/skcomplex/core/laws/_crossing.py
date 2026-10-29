@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -40,7 +39,7 @@ class CrossingLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import CrossingLaw
         >>> height, velocity = var('height'), var('velocity')
-        >>> CrossingLaw(height, {velocity: -0.8 * velocity}, direction=-1).check().run({'velocity': -2.0})
+        >>> CrossingLaw(height, {velocity: -0.8 * velocity}, direction=-1).check().run({'velocity': -2.0}).value_
         {velocity: 1.6}
     """
 
@@ -67,27 +66,17 @@ class CrossingLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a direction that is not -1, 0, or 1.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a direction that is not -1, 0, or 1."""
         if self.direction not in {-1, 0, 1}:
             error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the new values of the states at given values of the symbols the reset reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the new values of the states at given values of the symbols the reset reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            reset:
-                The new values by state.
         """
-        return self._evaluate(dict(self.reset or {}), inputs)
+        self.value_ = self._evaluate(dict(self.reset or {}), inputs)

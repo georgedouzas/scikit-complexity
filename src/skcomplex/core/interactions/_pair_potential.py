@@ -55,7 +55,7 @@ class PairPotentialInteraction(PairInteraction):
         >>> first = SimpleNamespace(x=vector([var('x1')]), v=vector([var('v1')]), m=1)
         >>> second = SimpleNamespace(x=vector([var('x2')]), v=vector([var('v2')]), m=1)
         >>> harmonic = HarmonicInteraction('bond', 'atoms', 'atoms').check().prepare()
-        >>> [law.value for law in harmonic.run(SimpleNamespace(first=first, second=second))]
+        >>> [law.value for law in harmonic.run(SimpleNamespace(first=first, second=second)).laws_]
         [(-x1 + x2), (x1 - x2)]
     """
 

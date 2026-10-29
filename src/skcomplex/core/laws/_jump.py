@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -107,28 +106,19 @@ class JumpLaw(BaseLaw):
                 )
                 raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
-        """Raise an error for a jump with an invalid clock, a rate that is a NumPy array, or a symbolic increment.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a jump with an invalid clock, a rate that is a NumPy array, or a symbolic increment."""
         self._check_clock()
         self._check_array('rate')
         self._check_array('waiting')
         self._check_changes()
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the increments of the jump, or its reset at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the increments of the jump, or its reset at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            changes:
-                The increments by state, or the new values by state for a jump on waiting times.
         """
-        return self._evaluate(dict(self.changes or {}) if self.waiting is None else dict(self.reset or {}), inputs)
+        changes = dict(self.changes or {}) if self.waiting is None else dict(self.reset or {})
+        self.value_ = self._evaluate(changes, inputs)

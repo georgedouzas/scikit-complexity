@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
@@ -40,12 +39,8 @@ class SamplerSpec(BaseSpec):
     temperature: object = 1.0
     schedule: str = 'checkerboard'
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown kind of sampler or schedule.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -59,4 +54,3 @@ class SamplerSpec(BaseSpec):
                 f'Unknown Monte Carlo schedule {self.schedule!r}. Use one of {", ".join(MONTE_CARLO_SCHEDULES)}.'
             )
             raise ValidationError(error_msg)
-        return self

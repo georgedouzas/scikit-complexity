@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -58,7 +57,7 @@ class NoiseLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import NoiseLaw
         >>> price = var('price')
-        >>> NoiseLaw(price, 0.2 * price, process='market').check().run({'price': 10.0})
+        >>> NoiseLaw(price, 0.2 * price, process='market').check().run({'price': 10.0}).value_
         2.0
     """
 
@@ -108,29 +107,19 @@ class NoiseLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> Self:
-        """Raise an error for a value that is a NumPy array, an unknown convention, or an invalid process.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a value that is a NumPy array, an unknown convention, or an invalid process."""
         self._check_array('value')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
             raise ValidationError(error_msg)
         self._check_process()
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the amplitude at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the amplitude at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            amplitude:
-                The amplitude, a number when nothing symbolic is left.
         """
-        return self._evaluate(self.value, inputs)
+        self.value_ = self._evaluate(self.value, inputs)

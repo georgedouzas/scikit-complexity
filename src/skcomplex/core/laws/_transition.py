@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -34,7 +33,7 @@ class TransitionLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import TransitionLaw
         >>> x, q = var('x'), var('q')
-        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).check().run({'q': 0.1})[0]
+        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).check().run({'q': 0.1}).value_[0]
         [0.1, 0.9]
     """
 
@@ -51,25 +50,15 @@ class TransitionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> Self:
-        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length."""
         self._check_matrix('matrix')
-        return self
 
-    def _run(self, inputs: object) -> object:
-        """Return the transition matrix at given values of the symbols it reads.
+    def _run(self, inputs: object) -> None:
+        """Set `value_` to the transition matrix at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-
-        Returns:
-            matrix:
-                The rows of the matrix, numbers when nothing symbolic is left.
         """
-        return self._evaluate([list(row) for row in self.matrix], inputs)
+        self.value_ = self._evaluate([list(row) for row in self.matrix], inputs)

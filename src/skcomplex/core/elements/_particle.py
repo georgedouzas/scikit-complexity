@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Self
+from typing import Annotated
 
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
@@ -60,19 +60,14 @@ class ParticleElement(Element):
         self.v = v
         self.m = m
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, points at the positions of the particle.
 
         Args:
             context:
                 The space the element inherits from its system, which the element does not read.
-
-        Returns:
-            element:
-                The element itself.
         """
         self.default_visual_ = VisualSpec('points', {'position': 'x'})
-        return self
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the kinematic law `dx/dt = v`.

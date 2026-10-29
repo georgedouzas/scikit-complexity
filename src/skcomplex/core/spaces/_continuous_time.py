@@ -2,7 +2,6 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Self
 
 from ._base import BaseTime
 
@@ -23,7 +22,6 @@ class ContinuousTime(BaseTime):
     def __init__(self, *, label: str = 'time') -> None:
         super().__init__(label)
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set no schedule."""
         self.schedule_ = None
-        return self

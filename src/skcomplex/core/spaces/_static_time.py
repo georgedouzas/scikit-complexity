@@ -2,7 +2,6 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -26,10 +25,9 @@ class StaticTime(BaseTime):
     def __init__(self, *, label: str = 'time') -> None:
         super().__init__(label)
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set no schedule."""
         self.schedule_ = None
-        return self
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
         """Return the one frame of the solution."""

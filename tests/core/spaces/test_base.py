@@ -29,7 +29,6 @@ class RingSpace(BaseSpace):
         self.size_, self.n_dim_, self.shape_ = self.n, 1, (self.n,)
         self.positions_ = np.arange(self.n, dtype=float)[:, None]
         self.periodic_, self.default_visual_ = True, 'sites'
-        return self
 
     def _default_neighborhood(self):
         """Return the two sides."""
@@ -49,7 +48,6 @@ class EmptySpace(BaseSpace):
     def _prepare(self, context=None):
         """Set no sites."""
         self.size_ = None
-        return self
 
 
 class TickTime(BaseTime):
@@ -61,7 +59,6 @@ class TickTime(BaseTime):
     def _prepare(self, context=None):
         """Set no schedule."""
         self.schedule_ = None
-        return self
 
 
 def test_space_reads_the_neighbours_of_a_site_through_its_hooks():
@@ -83,7 +80,7 @@ def test_space_counts_its_sites_only():
 def test_space_contributes_no_laws_and_lacks_nothing():
     """Test that a space returns no laws when run and lacks no option of lattices by default."""
     space = RingSpace().check().prepare()
-    assert space.run(SimpleNamespace()) == []
+    assert space.run(SimpleNamespace()).laws_ == []
     assert space._get_lacks() == frozenset()
 
 
@@ -111,12 +108,12 @@ def test_space_must_be_checked_before_it_is_prepared():
 
 def test_neighbourhood_contributes_no_laws():
     """Test that a neighbourhood checks, prepares, and runs into no laws."""
-    assert SidesNeighborhood().check().prepare().run(SimpleNamespace()) == []
+    assert SidesNeighborhood().check().prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_base_time_runs_into_no_laws_and_frames_its_ends():
     """Test that the base time contributes no laws and frames the start and the end of a run."""
     time = TickTime().check().prepare()
     assert time.schedule_ is None
-    assert time.run(SimpleNamespace()) == []
+    assert time.run(SimpleNamespace()).laws_ == []
     assert time._get_frames(2.0).tolist() == [0.0, 2.0]

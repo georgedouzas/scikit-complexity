@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import VisualSpec
@@ -134,16 +133,12 @@ class FieldElement(LatticeElement):
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])
         return str(condition), 0.0
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown discretization or boundary condition.
 
         Raises:
             ValidationError:
                 The discretization or a boundary condition is unknown.
-
-        Returns:
-            field:
-                The field itself.
         """
         super()._check()
         if self.discretization not in DISCRETIZATIONS:
@@ -157,22 +152,16 @@ class FieldElement(LatticeElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: BaseSpace | None = None) -> Self:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `size_`, `values_`, and `default_visual_`, an image on a lattice and a colored mesh on a mesh.
 
         Args:
             context:
                 The space the field inherits from its system, unused since a field has a space of its own.
-
-        Returns:
-            field:
-                The field itself.
         """
         super()._prepare(context)
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
         elif isinstance(self.space, MeshSpace):
             self.default_visual_ = VisualSpec('mesh')
-        return self

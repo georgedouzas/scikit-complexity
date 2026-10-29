@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -91,7 +90,7 @@ class LatticeSpace(BaseSpace):
         self.neighborhood = neighborhood
         self.capacity = capacity
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error when the shape, the geometry, or the boundary is not valid."""
         shape = tuple(np.ravel(self.shape).tolist())
         if not shape or any(int(size) != size or size < 1 for size in shape):
@@ -108,9 +107,8 @@ class LatticeSpace(BaseSpace):
         if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set the shape, the size, the spacings, and the position of every site."""
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
@@ -126,7 +124,6 @@ class LatticeSpace(BaseSpace):
         self.positions_ = coordinates * np.asarray(self.spacings_)
         self.periodic_ = self.boundary == 'periodic'
         self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
-        return self
 
     def _default_neighborhood(self) -> LatticeNeighborhood:
         """Return the neighbourhood agents query, the triangular, von Neumann, or Moore neighbourhood of radius 1."""

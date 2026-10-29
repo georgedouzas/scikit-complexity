@@ -5,7 +5,6 @@
 
 import warnings
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError, ValidationWarning
 from ._base_spec import BaseSpec
@@ -47,12 +46,8 @@ class ValidationReportSpec(BaseSpec):
         """Check whether the report holds no error."""
         return not self.errors
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Emit the warnings of the report and raise one error that lists every error of the report.
-
-        Returns:
-            self:
-                The report, when it holds no error.
 
         Raises:
             ValidationError:
@@ -65,4 +60,3 @@ class ValidationReportSpec(BaseSpec):
             error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
             classes = {issue.error for issue in self.errors}
             raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)
-        return self

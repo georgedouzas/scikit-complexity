@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import Self
 
 from ...errors import ValidationError
 from ._base import BaseNeighborhood
@@ -56,7 +55,7 @@ class ConeNeighborhood(BaseNeighborhood):
         self.heading = heading
         self.center = center
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a radius that is not positive or a half-angle outside `(0, pi]`."""
         if not float(self.radius) > 0:
             error_msg = f'A cone neighbourhood needs a positive radius, but got {self.radius!r}.'
@@ -64,4 +63,3 @@ class ConeNeighborhood(BaseNeighborhood):
         if not 0 < float(self.angle) <= math.pi:
             error_msg = f'A cone neighbourhood needs a half-angle in (0, pi], but got {self.angle!r}.'
             raise ValidationError(error_msg)
-        return self

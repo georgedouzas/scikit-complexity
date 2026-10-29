@@ -52,15 +52,16 @@ def test_functions_lower_to_numpy_and_numba(tmp_path):
     x = var('x')
     expression = where(either(x < 0, x > 2), -x, mod(x, 2))
     values = np.array([-1.5, 0.5, 3.5])
-    result = ExpressionPrinter(time=var('t'), compiled=True).check().prepare([x]).run([expression])(0.0, values)[0]
+    function = ExpressionPrinter(time=var('t'), compiled=True).check().prepare([x]).run([expression]).code_
+    result = function(0.0, values)[0]
     assert np.allclose(result, [1.5, 0.5, -3.5])
-    scalar = ExpressionPrinter('scalar').check().prepare().run([expression])[1][0]
+    scalar = ExpressionPrinter('scalar').check().prepare().run([expression]).code_[1][0]
     (tmp_path / 'printed.py').write_text(f'def value(x):\n    return {scalar}\n')
     specification = importlib.util.spec_from_file_location('printed', tmp_path / 'printed.py')
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     assert module.value(0.5) == 0.5
-    assert 'np.where' in ExpressionPrinter().check().prepare().run([expression])[1][0]
+    assert 'np.where' in ExpressionPrinter().check().prepare().run([expression]).code_[1][0]
 
 
 def test_where_with_equal_branches_simplifies():
@@ -73,7 +74,7 @@ def test_where_with_equal_branches_simplifies():
 def test_where_branch_not_chosen_raises_no_warning():
     """Test that NumPy evaluates a condition with a division in the discarded branch without warnings."""
     t, x = var('t'), var('x')
-    function = ExpressionPrinter(time=t, compiled=True).check().prepare([x]).run([where(x > 0, 1 / x, 0)])
+    function = ExpressionPrinter(time=t, compiled=True).check().prepare([x]).run([where(x > 0, 1 / x, 0)]).code_
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         assert function(0.0, np.array([0.0, 2.0]))[0].tolist() == [0.0, 0.5]

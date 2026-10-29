@@ -60,7 +60,7 @@ def test_interaction_prepares_into_itself():
     """Test that a checked interaction has nothing to prepare and runs into its laws."""
     growth = GrowthInteraction('growth', target='rabbits').check()
     assert growth.prepare() is growth
-    assert growth.run(SimpleNamespace()) == []
+    assert growth.run(SimpleNamespace()).laws_ == []
 
 
 def test_state_on_an_interaction_is_rejected():

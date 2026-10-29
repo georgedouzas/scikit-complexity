@@ -26,7 +26,7 @@ def test_law_runs_alone_once_prepared():
     """Test that a prepared rate law knows its targets, reads, and owner, and runs into its rate at given values."""
     n, r = var('n r')
     law = RateLaw(n, r * n).check().prepare('meadow/rabbits')
-    assert law.run({'n': 10, 'r': 0.5}) == 5.0
+    assert law.run({'n': 10, 'r': 0.5}).value_ == 5.0
     assert law.targets_ == (n,)
     assert law.reads_ == {n, r}
     assert law.owner_ == 'meadow/rabbits'

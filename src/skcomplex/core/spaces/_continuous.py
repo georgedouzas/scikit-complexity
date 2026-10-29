@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -62,7 +61,7 @@ class ContinuousSpace(BaseSpace):
         self.n_dim = n_dim
         self.boundary = boundary
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for an unknown boundary, no dimension, a side that is not positive, or walls in `R^d`."""
         extent = tuple(self.extent)
         n_dim = self.n_dim if self.n_dim is not None else len(extent)
@@ -78,9 +77,8 @@ class ContinuousSpace(BaseSpace):
         if not extent and self.boundary != 'open':
             error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
             raise ValidationError(error_msg)
-        return self
 
-    def _prepare(self, context: None = None) -> Self:
+    def _prepare(self, context: None = None) -> None:
         """Set the extent of the box, its dimension, and its boundary, with no sites."""
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
@@ -89,7 +87,6 @@ class ContinuousSpace(BaseSpace):
         self.positions_ = np.zeros((0, self.n_dim_))
         self.periodic_ = self.boundary == 'periodic'
         self.default_visual_ = None
-        return self
 
     def _get_neighbors(self, site: int, neighborhood: BaseNeighborhood | None = None) -> npt.NDArray[np.intp]:
         """Return no neighbours, since the space has no sites."""

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Self
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -75,28 +74,18 @@ class MatchLaw(BaseLaw):
         """Return the rule the agent stepper runs, which stores the pairs of the step in the model."""
         return RuleLaw(self.run, phase=self.phase)
 
-    def _check(self) -> Self:
-        """Raise an error for a capacity that is not a positive integer.
-
-        Returns:
-            law:
-                The law itself.
-        """
+    def _check(self) -> None:
+        """Raise an error for a capacity that is not a positive integer."""
         if isinstance(self.capacity, bool) or not isinstance(self.capacity, int) or self.capacity < 1:
             error_msg = f'The match {self.label!r} has capacity {self.capacity!r}. Give a positive integer.'
             raise ValidationError(error_msg)
-        return self
 
-    def _run(self, inputs: object) -> object:
+    def _run(self, inputs: object) -> None:
         """Store the pairs of the step in the storage of the model under `match:<label>`.
 
         Args:
             inputs:
                 The model view the rules receive, with `agents(path)`, `storage`, and `rng`.
-
-        Returns:
-            pairs:
-                The pairs of agents.
 
         Raises:
             ValidationError:
@@ -109,4 +98,4 @@ class MatchLaw(BaseLaw):
         right = left if self.right is None else inputs.agents(self.right)
         pairs = (self.pairing or random_pairing)(left, right, inputs.rng, self.capacity)
         inputs.storage[f'match:{self.label}'] = pairs
-        return pairs
+        self.value_ = pairs

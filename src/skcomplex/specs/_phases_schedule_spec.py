@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Self
 
 from ..errors import ValidationError
 from ._phase_spec import PhaseSpec
@@ -30,12 +29,8 @@ class PhasesScheduleSpec(ScheduleSpec):
 
     phases: Sequence[PhaseSpec]
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for a phase with an unknown activation or no round, or for a repeated name.
-
-        Returns:
-            spec:
-                The spec itself.
 
         Raises:
             ValidationError:
@@ -54,4 +49,3 @@ class PhasesScheduleSpec(ScheduleSpec):
             if phase.repeat < 1:
                 error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'
                 raise ValidationError(error_msg)
-        return self
