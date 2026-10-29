@@ -54,10 +54,10 @@ class MarkovPass(BasePass):
     ) -> tuple[MarkovKernel, ...]:
         """Return the matrices of the Markov laws after checking them at the initial parameter values."""
         initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-        matrices = []
+        matrices: list[MarkovKernel] = []
         for spec, law in markov:
             matrix = MarkovPass._compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
-            violation = matrix.run(RunStateSpec(0.0, np.zeros(0), initial))
+            violation = matrix.run(RunStateSpec(0.0, np.zeros(0), initial)).values_
             if violation is not None:
                 error_msg = (
                     f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows '
@@ -172,7 +172,7 @@ class MarkovPass(BasePass):
                     'of the parameters of its component.'
                 )
                 raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not the function of the matrix entries.'
             raise TypeError(error_msg)

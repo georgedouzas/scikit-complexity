@@ -24,10 +24,6 @@ class DrawsPass(BasePass):
         """Lower the draws of the laws."""
         compilation = self.compilation_
         drawing = DrawLowering().check().prepare(compilation)
-        drawn = drawing.run(Compilation._required(compilation.drawn, 'drawn'))
-        if not isinstance(drawn, list):
-            error_msg = f'The draw lowering returns a {type(drawn).__name__}, not a list of laws.'
-            raise TypeError(error_msg)
-        compilation.drawn = drawn
+        compilation.drawn = drawing.run(Compilation._required(compilation.drawn, 'drawn')).lowered_
         drawing._apply_references()
         compilation.draws = drawing.draws_

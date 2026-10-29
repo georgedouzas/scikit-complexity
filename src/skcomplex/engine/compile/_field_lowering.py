@@ -7,7 +7,6 @@ import functools
 import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -85,16 +84,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
 
-    def _prepare(self, context: Compilation | None) -> Self:
+    def _prepare(self, context: Compilation | None) -> None:
         """Read the fields and the initial values of the compilation, with no stencil yet.
 
         Args:
             context:
                 The compilation.
-
-        Returns:
-            self:
-                The prepared lowering.
 
         Raises:
             ValidationError:
@@ -110,18 +105,13 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         self.shifted_, self.derived_, self.tables_ = {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
-        return self
 
-    def _run(self, inputs: list[BaseLaw] | None) -> list[BaseLaw]:
-        """Return laws whose differential operators are lowered, noting the stable steps of rate laws.
+    def _run(self, inputs: list[BaseLaw] | None) -> None:
+        """Set laws whose differential operators are lowered, noting the stable steps of rate laws.
 
         Args:
             inputs:
                 The laws of the component.
-
-        Returns:
-            laws:
-                The lowered laws.
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
@@ -135,7 +125,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 for reference in self.spec._target_references(law._get_targets()[0]):
                     self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
             result.append(BasePass._replaced(law, value=lowered))
-        return result
+        self.lowered_ = result
 
     @staticmethod
     def _field_entries(declarations: DeclarationsSpec) -> dict[str, FieldElement]:
@@ -474,7 +464,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         references = [reference for reference in found if reference is not None]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
-        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient])
+        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient]).code_
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)

@@ -25,10 +25,7 @@ class ExpandFlowsPass(BasePass):
         compilation = self.compilation_
         flows = TransferLowering().check().prepare(compilation)
         collected = Compilation._required(compilation.collected, 'collected')
-        expanded = flows.run([(spec, laws) for spec, laws, _ in collected])
-        if not isinstance(expanded, list):
-            error_msg = f'The transfer lowering returns a {type(expanded).__name__}, not a list of laws.'
-            raise TypeError(error_msg)
+        expanded = flows.run([(spec, laws) for spec, laws, _ in collected]).lowered_
         compilation.collected = [
             (spec, laws, block) for (spec, laws), (_, _, block) in zip(expanded, collected, strict=True)
         ]

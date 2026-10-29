@@ -26,9 +26,5 @@ class MemberShiftPass(BasePass):
         compilation.shifted = []
         for spec, laws in Compilation._required(compilation.corrected, 'corrected'):
             lowering = MemberLowering(spec).check().prepare(compilation)
-            lowered = lowering.run(laws)
-            if not isinstance(lowered, list):
-                error_msg = f'The member lowering returns a {type(lowered).__name__}, not a list of laws.'
-                raise TypeError(error_msg)
-            compilation.shifted.append((spec, lowered))
+            compilation.shifted.append((spec, lowering.run(laws).lowered_))
             lowering._apply_references()

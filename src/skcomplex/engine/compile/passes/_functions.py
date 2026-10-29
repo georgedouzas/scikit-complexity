@@ -149,10 +149,7 @@ class FunctionsPass(BasePass):
         )
         kernels, size = lowered.kernels, declarations.ends[True]
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
-        lowering = backend.prepare().run(complete)
-        if not isinstance(lowering, LoweredFunctionsSpec):
-            error_msg = f'The backend returns a {type(lowering).__name__}, not the numeric functions of the form.'
-            raise TypeError(error_msg)
+        lowering = backend.prepare().run(complete).functions_
         update: Callable[..., Array] | None = lowering.update
         if draws is not None and lowering.update is not None:
             update = FunctionsPass._stochastic_update(lowering.update, draws)

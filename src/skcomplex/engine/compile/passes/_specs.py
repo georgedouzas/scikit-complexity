@@ -533,7 +533,7 @@ class SpecsPass(BasePass):
             for role, label in labels.items()
             if role not in sets
             and role not in variadic
-            and isinstance(found := observer.run((node, label)), ObservedSpec)
+            and isinstance(found := observer.run((node, label)).observed_, ObservedSpec)
         }
         single_members = {
             role: member

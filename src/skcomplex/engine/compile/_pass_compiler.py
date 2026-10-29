@@ -7,7 +7,6 @@ import dataclasses
 import heapq
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import Self
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -148,7 +147,7 @@ class PassCompiler(BaseCompiler):
         >>> compiler = PassCompiler().check().prepare(system)
         >>> compiler.report_.ok
         True
-        >>> compiler.run().equations
+        >>> compiler.run().problem_.equations
         {'rabbits.n': n_rabbits*r_growth}
     """
 
@@ -167,12 +166,8 @@ class PassCompiler(BaseCompiler):
         self.passes = passes
         self.partition = partition
 
-    def _check(self) -> Self:
+    def _check(self) -> None:
         """Raise an error for passes that are not passes or a partition that is not one of the choices.
-
-        Returns:
-            self:
-                The compiler.
 
         Raises:
             ValidationError:
@@ -185,7 +180,6 @@ class PassCompiler(BaseCompiler):
         if self.partition not in _PARTITIONS:
             error_msg = f'The partition is {self.partition!r}. Choose one of {", ".join(map(repr, _PARTITIONS))}.'
             raise ValidationError(error_msg)
-        return self
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend, planning the compilation as it goes.
